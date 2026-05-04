@@ -47,6 +47,7 @@ export function SortPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const sortValueComboboxClassName = `flex items-center justify-between whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`
 
   return (
     <section className={`z-50 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} shadow-md outline-none flex max-h-96 w-80 sm:w-96 md:w-[544px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-lg p-4 relative ${panelTypography.panelTextClass}`}>
@@ -93,7 +94,7 @@ export function SortPanel({
                 onChange={value =>
                   updateSortRule(rule.id, { dir: value as GraphDataTableSortDir })
                 }
-                className={`flex items-center justify-between whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
+                className={sortValueComboboxClassName}
               />
               <button
                 type="button"

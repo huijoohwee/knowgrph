@@ -114,7 +114,7 @@
 
 **Reference implementations**
 - Global Lucide icon alignment: [index.css](../../canvas/src/index.css)
-- Icon+text combobox controls: `curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx`
+- Icon+text combobox controls: `singabldr/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx`
 - Canvas node label anchoring/baseline: [labels.ts](../../canvas/src/components/GraphCanvas/layers/labels.ts)
 
 ---

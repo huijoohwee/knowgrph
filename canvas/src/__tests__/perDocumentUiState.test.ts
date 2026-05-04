@@ -19,7 +19,13 @@ export function testPerDocumentUiStateReadWriteAndLruTrim() {
     storage,
     documentKey: keyA,
     documentRef: 'A.md',
-    state: { canvasRenderMode: '2d', canvas2dRenderer: 'design', documentSemanticMode: 'document', selectedNodeId: 'n1' },
+    state: {
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'design',
+      documentSemanticMode: 'document',
+      multiDimTableModeEnabled: true,
+      selectedNodeId: 'n1',
+    },
   })
 
   writePerDocumentUiState({
@@ -31,7 +37,7 @@ export function testPerDocumentUiStateReadWriteAndLruTrim() {
 
   const a = readPerDocumentUiState({ storage, documentKey: keyA })
   const b = readPerDocumentUiState({ storage, documentKey: keyB })
-  if (!a || a.canvas2dRenderer !== 'design' || a.selectedNodeId !== 'n1') {
+  if (!a || a.canvas2dRenderer !== 'design' || a.selectedNodeId !== 'n1' || a.multiDimTableModeEnabled !== true) {
     throw new Error('Expected doc A state to roundtrip')
   }
   if (!b || b.canvasRenderMode !== '3d' || b.documentSemanticMode !== 'keyword') {

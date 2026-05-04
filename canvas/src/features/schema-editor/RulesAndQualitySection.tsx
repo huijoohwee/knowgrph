@@ -1,6 +1,7 @@
 import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type RulesAndQualitySectionProps = {
   schema: GraphSchema
@@ -17,14 +18,17 @@ export default function RulesAndQualitySection({
   setLodHideLabelsBelow,
   setHighContrast,
 }: RulesAndQualitySectionProps) {
+  const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
+  const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   return (
     <div className="space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-700`}>
+      <div className={sectionHeadingClassName}>
         Rules and Quality
       </div>
       <Subsection title="Performance">
         <div className="flex items-center gap-2 text-xs">
-          <span>Hide labels below scale</span>
+          <span className={inlineLabelClassName}>Hide labels below scale</span>
           <input
             type="number"
             min={0}
@@ -38,9 +42,10 @@ export default function RulesAndQualitySection({
       </Subsection>
       <Subsection title="Accessibility">
         <div className="flex items-center gap-2 text-xs">
-          <label className="flex items-center gap-1">
+          <label className={`flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={!!schema.accessibility?.highContrast}
               onChange={e => setHighContrast(e.target.checked)}
             />
@@ -51,4 +56,3 @@ export default function RulesAndQualitySection({
     </div>
   )
 }
-

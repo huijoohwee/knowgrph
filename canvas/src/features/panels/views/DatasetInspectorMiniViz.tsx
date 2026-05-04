@@ -2,6 +2,9 @@ import React from 'react'
 import * as d3 from 'd3'
 import type { GraphData } from '@/lib/graph/types'
 import { buildClosedPathD, computeConvexRing } from '@/lib/geometry/convexRing'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const datasetMiniVizClassName = UI_THEME_TOKENS.text.tertiary
 
 export interface DatasetMiniVizProps {
   graph: GraphData | null
@@ -29,7 +32,7 @@ export function MiniBarChart({
   data,
   width = '100%',
   height = 40,
-  className = 'text-gray-400',
+  className = datasetMiniVizClassName,
   defaultBarColor,
   logicalWidth = 140,
 }: {
@@ -91,7 +94,7 @@ export function MiniBarChart({
 export function AutoHeightMiniBarChart({
   data,
   width = '100%',
-  className = 'text-gray-400',
+  className = datasetMiniVizClassName,
   defaultBarColor,
   logicalWidth = 140,
   minHeight = 40,
@@ -206,7 +209,7 @@ export function DatasetDistributionViz({ graph }: DatasetMiniVizProps) {
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       aria-hidden="true"
-      className="text-gray-400"
+      className={datasetMiniVizClassName}
     >
       {data.map(([, value], index) => {
         const normalized = clampNumber(value / maxValue, 0, 1)
@@ -312,7 +315,7 @@ export function DatasetHierarchyViz({ graph }: DatasetMiniVizProps) {
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden="true"
-      className="text-gray-400"
+      className={datasetMiniVizClassName}
     >
       {layout.links.map((link, index) => (
         <line
@@ -387,7 +390,7 @@ export function DatasetPolygonViz({ graph }: DatasetMiniVizProps) {
       height={40}
       viewBox="0 0 140 40"
       aria-hidden="true"
-      className="text-gray-400"
+      className={datasetMiniVizClassName}
     >
       <path d={pathData} fill="none" stroke="currentColor" strokeWidth={1} />
     </svg>
@@ -442,7 +445,7 @@ export function DatasetPathViz({ graph }: DatasetMiniVizProps) {
       height={40}
       viewBox="0 0 140 40"
       aria-hidden="true"
-      className="text-gray-400"
+      className={datasetMiniVizClassName}
     >
       <path d={pathData} fill="none" stroke="currentColor" strokeWidth={1} />
     </svg>

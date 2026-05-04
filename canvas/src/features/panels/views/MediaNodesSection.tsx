@@ -297,7 +297,7 @@ export default function MediaNodesSection({
                         <span className={`uppercase tracking-wide text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
                           {row.media.kind}
                         </span>
-                        <span className="inline-flex h-2 w-2 rounded-full bg-gray-400" />
+                        <span className={`inline-flex h-2 w-2 rounded-full ${UI_THEME_TOKENS.status.neutralDot}`} />
                       </span>
                     </td>
                   </tr>

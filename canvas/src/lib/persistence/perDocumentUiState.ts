@@ -15,6 +15,7 @@ export type PerDocumentUiState = {
   canvas2dRenderer?: Canvas2dRendererId
   documentSemanticMode?: DocumentSemanticMode
   frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
   viewPinned?: boolean
   fitToScreenMode?: boolean
   zoomToSelectionMode?: boolean
@@ -92,6 +93,7 @@ function coerceState(raw: unknown): PerDocumentUiState | null {
     ? (record.documentSemanticMode as DocumentSemanticMode)
     : undefined
   const frontmatterModeEnabled = typeof record.frontmatterModeEnabled === 'boolean' ? record.frontmatterModeEnabled : undefined
+  const multiDimTableModeEnabled = typeof record.multiDimTableModeEnabled === 'boolean' ? record.multiDimTableModeEnabled : undefined
   const viewPinned = typeof record.viewPinned === 'boolean' ? record.viewPinned : undefined
   const fitToScreenMode = typeof record.fitToScreenMode === 'boolean' ? record.fitToScreenMode : undefined
   const zoomToSelectionMode = typeof record.zoomToSelectionMode === 'boolean' ? record.zoomToSelectionMode : undefined
@@ -111,6 +113,7 @@ function coerceState(raw: unknown): PerDocumentUiState | null {
     canvas2dRenderer,
     documentSemanticMode,
     frontmatterModeEnabled,
+    multiDimTableModeEnabled,
     viewPinned,
     fitToScreenMode,
     zoomToSelectionMode,

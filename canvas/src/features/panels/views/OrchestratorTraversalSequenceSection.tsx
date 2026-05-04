@@ -22,6 +22,8 @@ import {
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
+const traversalSectionPanelClassName = `mt-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} px-2 py-1`
+
 interface TraversalSequenceSectionProps {
   graphNodesById: OrchestratorTraversalSectionViewModel['graphNodesById']
   previewEdgeIds: string[]
@@ -59,7 +61,7 @@ export function TraversalSequenceSection({
     lastTraversal && lastTraversal.mode === 'generic' ? lastTraversal : null
 
   return (
-    <div className="mt-2 border border-gray-200 rounded px-2 py-1">
+    <div className={traversalSectionPanelClassName}>
       <div className="flex items-center justify-between mb-1">
         <div className="flex flex-col">
           <Tooltip
@@ -69,7 +71,7 @@ export function TraversalSequenceSection({
           >
             <div
               className={[
-                'flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-500',
+                `flex items-center gap-1 font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`,
                 uiPanelKeyValueTextSizeClass,
                 uiPanelTextFontClass,
               ].join(' ')}
@@ -80,7 +82,7 @@ export function TraversalSequenceSection({
           {lastTraversal && (
             <div
               className={[
-                'text-gray-500',
+                UI_THEME_TOKENS.text.tertiary,
                 uiPanelKeyValueTextSizeClass,
                 uiPanelTextFontClass,
               ].join(' ')}
@@ -102,7 +104,7 @@ export function TraversalSequenceSection({
           showTooltip
         >
           <ChevronDown
-            className={`${iconSizeClass} text-gray-700 transition-transform ${
+            className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform ${
               traversalExpanded ? 'rotate-180' : ''
             }`}
             aria-hidden="true"
@@ -113,7 +115,7 @@ export function TraversalSequenceSection({
       {lastTraversal && traversalExpanded && (
         <div
           className={[
-            'text-gray-700 space-y-1',
+            `${UI_THEME_TOKENS.text.secondary} space-y-1`,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
           ].join(' ')}
@@ -165,7 +167,7 @@ export function TraversalSequenceSection({
       {previewEdgeIds.length > 0 && (
         <div
           className={[
-            'mt-1 text-gray-500',
+            `mt-1 ${UI_THEME_TOKENS.text.tertiary}`,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
         ].join(' ')}
@@ -193,7 +195,7 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
     <div className="space-y-1">
       <SimpleKeyValueRow
         density="compact"
-        label={<span className="text-gray-500">{UI_COPY.orchestratorTraversalGenericStartNodeLabel}</span>}
+        label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericStartNodeLabel}</span>}
       >
         <span className={`${uiPanelMonospaceTextClass} break-words`}>
           {lastTraversal.startNodeId}
@@ -201,7 +203,7 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
       </SimpleKeyValueRow>
       <SimpleKeyValueRow
         density="compact"
-        label={<span className="text-gray-500">{UI_COPY.orchestratorTraversalGenericMaxDepthLabel}</span>}
+        label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericMaxDepthLabel}</span>}
       >
         <span className={`${uiPanelMonospaceTextClass} break-words`}>
           {lastTraversal.maxDepth}
@@ -210,7 +212,7 @@ function GenericTraversalDetails({ lastTraversal }: GenericTraversalDetailsProps
       {lastTraversal.labelFilter.trim().length > 0 && (
         <SimpleKeyValueRow
           density="compact"
-          label={<span className="text-gray-500">{UI_COPY.orchestratorTraversalGenericEdgeLabelsLabel}</span>}
+          label={<span className={UI_THEME_TOKENS.text.tertiary}>{UI_COPY.orchestratorTraversalGenericEdgeLabelsLabel}</span>}
         >
           <span className={`${uiPanelMonospaceTextClass} break-words`}>
             {lastTraversal.labelFilter}

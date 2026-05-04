@@ -27,6 +27,11 @@ export interface AgenticContextGraphContextUrlRowProps {
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
+const graphRagWorkflowSummaryClassName = `space-y-0.5 text-xs ${UI_THEME_TOKENS.text.secondary}`
+const graphRagWorkflowRowClassName = `border-b ${UI_THEME_TOKENS.panel.divider}`
+const graphRagWorkflowSummaryContentClassName = `flex min-w-0 flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary} w-full`
+const graphRagWorkflowDelimiterClassName = UI_THEME_TOKENS.text.tertiary
+
 export function AgenticContextGraphContextUrlRow({
   agenticContext,
   onChangeAgenticContextUrl,
@@ -140,7 +145,7 @@ export function GraphRagWorkflowSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
 
   const handleChangeIgnoreCodebasePaths = React.useCallback(
@@ -157,11 +162,11 @@ export function GraphRagWorkflowSection({
   return (
     <div
       data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
-      className="space-y-0.5 text-xs text-gray-700"
+      className={graphRagWorkflowSummaryClassName}
     >
       <KeyTypeValueRow
         layout="keyValue"
-        className="border-b border-gray-100"
+        className={graphRagWorkflowRowClassName}
         keyNode={<span className="break-words">{UI_COPY.graphRagWorkflowRowLabel}</span>}
         valueNode={(
           <Tooltip
@@ -170,7 +175,7 @@ export function GraphRagWorkflowSection({
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
             className="w-full"
           >
-            <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-gray-700 w-full">
+            <div className={graphRagWorkflowSummaryContentClassName}>
               <span className="whitespace-nowrap">
                 {UI_COPY.graphRagWorkflowGraphIdLabel}
               </span>
@@ -180,7 +185,7 @@ export function GraphRagWorkflowSection({
               >
                 {workflowDoc.graphId}
               </span>
-              <span className="text-gray-400">
+              <span className={graphRagWorkflowDelimiterClassName}>
                 ·
               </span>
               <span className="whitespace-nowrap">
@@ -192,10 +197,10 @@ export function GraphRagWorkflowSection({
               >
                 {workflowDoc.retrievalMethod}
               </span>
-              <span className="text-gray-400">
+              <span className={graphRagWorkflowDelimiterClassName}>
                 ·
               </span>
-              <span className="text-gray-500">
+              <span className={UI_THEME_TOKENS.text.tertiary}>
                 {workflowSource === 'loaded' && UI_COPY.graphRagWorkflowSourceLoadedLabel}
                 {workflowSource === 'generated' && UI_COPY.graphRagWorkflowSourceGeneratedLabel}
                 {workflowSource === 'invalid' && UI_COPY.graphRagWorkflowSourceInvalidLabel}
@@ -253,7 +258,7 @@ export function GraphRagWorkflowSection({
         onToggle={onToggleTracingCollapsed}
         stickyOffsetClassName="top-6"
       >
-        <div className="space-y-2 text-xs text-gray-700">
+        <div className={`space-y-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
           <div>
             {UI_COPY.graphRagWorkflowLastTraversalLabel}{' '}
             {lastTraversal

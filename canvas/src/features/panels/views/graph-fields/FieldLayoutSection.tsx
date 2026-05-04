@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type FieldLayoutSectionProps = {
   schema: GraphSchema
@@ -19,7 +20,7 @@ export default function FieldLayoutSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
@@ -28,24 +29,29 @@ export default function FieldLayoutSection({
   const collisionRadius = schema.layout?.forces?.collisionByType?.[ownerKey] ?? (schema.nodeSizes?.[ownerKey]?.radius ?? 10) * 1.5
   const curvatureRaw = schema.edgeRouting?.curvatureByLabel?.[ownerKey]
   const curvature = typeof curvatureRaw === 'number' ? curvatureRaw : 0
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
+  const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const helperTextClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const ownerValueClassName = `w-40 truncate text-xs ${UI_THEME_TOKENS.text.secondary}`
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+    <div className={panelClassName}>
+      <div className={headingClassName}>
         Layout
       </div>
 
       {!hasOwner ? (
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <div className={helperTextClassName}>
           Select a {scope === 'node' ? 'node type' : 'edge label'} to edit layout settings
         </div>
       ) : scope === 'node' ? (
         <div className="space-y-2">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={labelClassName}>
             Collision radius
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
+            <div className={ownerValueClassName}>{ownerKey}</div>
             <input
               type="number"
               min={0}
@@ -59,11 +65,11 @@ export default function FieldLayoutSection({
         </div>
       ) : (
         <div className="space-y-2">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={labelClassName}>
             Link distance
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
+            <div className={ownerValueClassName}>{ownerKey}</div>
             <input
               type="number"
               min={10}
@@ -75,11 +81,11 @@ export default function FieldLayoutSection({
             />
           </div>
 
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={labelClassName}>
             Curvature
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
+            <div className={ownerValueClassName}>{ownerKey}</div>
             <input
               type="number"
               min={0}
@@ -106,4 +112,3 @@ export default function FieldLayoutSection({
     </div>
   )
 }
-

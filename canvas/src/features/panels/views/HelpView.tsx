@@ -102,16 +102,16 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
                 >
                   {UI_COPY.openSettingsUiDensityIconsButtonCompact}
                 </button>
-                <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
+                <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
                   Current: {uiIconScale}
                 </span>
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 mb-1">
+              <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary} mb-1`}>
                 Semantic layer derivation (cosine / PMI, top‑K, clusters)
               </div>
-              <div className="text-[11px] text-gray-600 leading-snug space-y-1">
+              <div className={`text-[11px] ${UI_THEME_TOKENS.text.secondary} leading-snug space-y-1`}>
                 <p>
                   Semantic layer mode builds a weighted similarity graph from tokenized node text using either cosine similarity or pointwise mutual information (PMI). Tokens are lower‑cased, filtered by length and stopwords, and counted per node; these counts form vectors with Euclidean norms.
                 </p>

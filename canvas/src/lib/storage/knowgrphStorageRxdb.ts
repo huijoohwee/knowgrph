@@ -171,6 +171,8 @@ const syncOutboxSchema: RxJsonSchema<KnowgrphStorageOutboxRecord> = {
     payload: { type: 'object', additionalProperties: true },
     payloadHash: { type: 'string', maxLength: 256 },
     attemptCount: { type: 'integer', minimum: 0, maximum: maxSafeInt, multipleOf: 1 },
+    lastAckStatus: { type: 'string', maxLength: 32 },
+    lastAckMessage: { type: ['string', 'null'] },
     createdAtMs: { type: 'integer', minimum: 0, maximum: maxSafeInt, multipleOf: 1 },
     updatedAtMs: { type: 'integer', minimum: 0, maximum: maxSafeInt, multipleOf: 1 },
   },
@@ -185,10 +187,12 @@ const syncOutboxSchema: RxJsonSchema<KnowgrphStorageOutboxRecord> = {
     'payload',
     'payloadHash',
     'attemptCount',
+    'lastAckStatus',
+    'lastAckMessage',
     'createdAtMs',
     'updatedAtMs',
   ],
-  indexes: ['workspaceId', ['workspaceId', 'createdAtMs'], ['workspaceId', 'entity']],
+  indexes: ['workspaceId', ['workspaceId', 'createdAtMs'], ['workspaceId', 'entity'], ['workspaceId', 'lastAckStatus']],
 }
 
 const syncCursorSchema: RxJsonSchema<KnowgrphStorageCursorRecord> = {

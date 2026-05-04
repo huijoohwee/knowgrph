@@ -124,4 +124,13 @@ export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQue
   if (!text.includes("scheduleKnowgrphStorageQueueSync(next as never)")) {
     throw new Error('expected source-files persistence subscription to enqueue storage sync from live source-file edits')
   }
+  if (!text.includes("onPulledChangesApplied")) {
+    throw new Error('expected source-files bootstrap to register an inbound pulled-changes apply hook for visible sourceFiles updates')
+  }
+  if (!text.includes("applyPulledKnowgrphStorageChangesToSourceFiles")) {
+    throw new Error('expected source-files bootstrap to materialize pulled remote storage records into the visible sourceFiles workspace')
+  }
+  if (!text.includes("notifyKnowgrphStorageConflictUx")) {
+    throw new Error('expected source-files bootstrap to route storage conflicts through the shared conflict UX notifier')
+  }
 }

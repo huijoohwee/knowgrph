@@ -84,6 +84,8 @@ export type KnowgrphStorageOutboxRecord = {
   payload: Record<string, unknown>
   payloadHash: string
   attemptCount: number
+  lastAckStatus: 'applied' | 'conflict' | 'rejected' | 'deferred' | ''
+  lastAckMessage: string | null
   createdAtMs: number
   updatedAtMs: number
 }

@@ -246,7 +246,7 @@ export default function SettingsView({
           ? {
               uiPanelKeyValueTextSizeClass: 'text-sm',
               uiPanelTextFontClass: 'font-sans',
-              uiPanelKeyValueInputClass: 'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+              uiPanelKeyValueInputClass: `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
               uiPanelRowDensityDefaultClass: 'py-1',
               uiPanelMonospaceTextClass: 'font-mono text-xs',
               uiPanelMicroLabelTextSizeClass: 'text-xs',
@@ -254,7 +254,7 @@ export default function SettingsView({
           : {
               uiPanelKeyValueTextSizeClass: 'text-xs',
               uiPanelTextFontClass: 'font-sans',
-              uiPanelKeyValueInputClass: 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
+              uiPanelKeyValueInputClass: `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
               uiPanelRowDensityDefaultClass: 'py-0.5',
               uiPanelMonospaceTextClass: 'font-mono text-xs',
               uiPanelMicroLabelTextSizeClass: 'text-[9px]',

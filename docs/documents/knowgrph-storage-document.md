@@ -1,911 +1,297 @@
 # Knowgrph Storage Document
 
-**Context**: Canonical markdown documents, local-first canvas state, and optional shared persistence across Dev, Prod, and Cloudflare  
-**Intent**: Define a measurable PRD and a concrete TAD for RxDB vs SQLite vs PostgreSQL so Knowgrph can persist documents, graph snapshots, and sync metadata with low TCO and low token waste  
-**Directive**: Keep canonical documents in `knowgrph/docs/**`, keep browser editing local-first through RxDB, recommend SQLite on Cloudflare as the first shared store, and defer PostgreSQL until multi-user collaboration or server-side retrieval materially requires it
+**Context**: Canonical markdown documents, local-first canvas state, optional shared persistence, and Cloudflare deployment.
+**Intent**: Keep one canonical storage decision, one shared sync contract, and one conflict-resolution UX path.
+**Directive**: Keep Git markdown canonical, keep browser editing local-first through RxDB, use Cloudflare Worker + D1 as the first shared store, and defer PostgreSQL until collaboration or server retrieval materially requires it.
 
 ---
 
-**Version**: 1.0.0  
-**Date**: 2026-05-04  
-**Status**: Proposed  
-**Owner**: Knowgrph canonical docs  
-**Scope**: `knowgrph/docs/documents/knowgrph-storage-document.md`
+**Version**: 1.1.0
+**Date**: 2026-05-04
+**Status**: Implemented and documented
+**Owner**: Knowgrph canonical docs
+**Canonical File**: `knowgrph/docs/documents/knowgrph-storage-document.md`
 
----
+## Canonical Split
 
-## PART I: PRODUCT REQUIREMENTS DOCUMENT (PRD)
+This file is the canonical sub-600-line index.
 
-### Feature: Storage Topology and Persistence Strategy
+Detailed continuations live in:
 
-#### Problem Statement
+- `knowgrph-storage-document-schemas-and-topology.md`
+- `knowgrph-storage-document-runtime-and-conflict-ux.md`
+- `knowgrph-cross-repo-publish-topology.md`
 
-Knowgrph already behaves like a local-first canvas, but its storage story is split across canonical markdown files, browser persistence, publish mirrors, and future cloud sync requirements. Without a single storage specification:
+Use this file for the decision summary, current implementation shape, and cross-repo traceability.
+Use the companions for the longer schema, topology, runtime, and validation detail.
 
-- documents risk drifting between upstream source and publish mirrors
-- token spend increases because full markdown blobs are resent instead of chunked and reused
-- shared persistence decisions can become backend-first and overbuilt
-- Cloudflare deployment can add infrastructure that does not match current product value
+## Product Decision
 
-Users need a storage model that preserves local editing speed, keeps the canonical source in Git-managed markdown, supports optional cross-device sync, and adds server cost only when shared workflows justify it.
+Knowgrph storage now follows one storage ladder:
 
-#### User Pain Points
+1. **Canonical authoring source**: Git markdown in `knowgrph/docs/**`
+2. **Per-device working store**: RxDB in the browser
+3. **First shared cloud store**: Cloudflare D1 through a Cloudflare Worker sync API
+4. **Optional large-asset spillover**: Cloudflare R2 when assets stop fitting cleanly in document rows
+5. **Future scale-up path**: PostgreSQL only when multi-user collaboration or server-side retrieval clearly outgrows D1
 
-- Single-user authors need edits to survive refreshes and offline sessions without waiting on a server.
-- Operators need one authoritative source path for docs and one deterministic sync path to publish surfaces.
-- AI-assisted workflows need section-level retrieval so prompts reuse only the required chunks rather than the full document.
-- Cloudflare deployments need a topology that works with static Pages and only adds an API/runtime when it delivers real value.
+## Why This Remains The Default
 
-#### Product Goal
+- Git markdown stays the authoring source of truth, so docs do not drift into a database-first workflow.
+- RxDB matches the current canvas runtime and preserves refresh-safe, offline-first editing.
+- D1 keeps the first shared-store step operationally lean on Cloudflare.
+- Token savings come from chunk reuse, graph snapshot reuse, and bounded pull/push contracts, not from prematurely adopting PostgreSQL.
+- Conflict handling now stays inside the existing toast/log/runtime path, so storage sync does not create a second UX system.
 
-Define a storage strategy that:
+## PRD Summary
 
-- preserves Git markdown as the canonical document authority
-- uses RxDB as the browser-local working store
-- uses SQLite as the first shared server store for Cloudflare deployment
-- keeps PostgreSQL as an explicit future path, not a premature dependency
+### Problem
 
----
+Knowgrph needed one storage design that could cover:
 
-### User Stories
+- canonical markdown authority
+- local-first editing persistence
+- optional shared sync across devices
+- Cloudflare-compatible deployment
+- token-efficient reuse of markdown chunks and graph snapshots
+- bounded conflict handling without duplicate UI flows
 
-#### Epic: Canonical Document Persistence
+### User Needs
 
-**PRD-STO-E001-S001: Canonical Markdown Authority**
+- Authors need offline-safe browser persistence.
+- Maintainers need one canonical source path.
+- Cross-device users need optional push/pull sync.
+- Prompt-driven flows need chunk-level reuse instead of whole-document resends.
+- Operators need Cloudflare-native shared persistence before taking on PostgreSQL overhead.
+- Users need conflict actions without a storage-only modal or side panel.
 
-**As a** documentation owner  
-**I want** Knowgrph documents to remain canonical in upstream markdown files  
-**So that** Dev, Prod, and publish mirrors do not compete as sources of truth
+### Acceptance Summary
 
-**Acceptance Criteria**:
+The storage design is considered correct when:
 
-- **Given** a document under `knowgrph/docs/documents`
-- **When** the document is updated
-- **Then** the canonical edit occurs in `knowgrph/docs/**` before any downstream sync
-- **And** no storage recommendation treats `huijoohwee/knowgrph/**` as the authoring source
+- canonical edits still happen in `knowgrph/docs/**`
+- browser working state restores from RxDB without a network dependency
+- push/pull sync moves only changed records since the last cursor
+- pulled remote changes can re-enter visible `sourceFiles`
+- conflict records remain retained locally until resolved
+- conflict actions reuse the shared toast/log/runtime path
+- PostgreSQL remains documented as deferred rather than required
 
----
+## Implemented Outcome
 
-**PRD-STO-E001-S002: Local-First Draft Persistence**
+### Shared Contract
 
-**As a** canvas user  
-**I want** my imported markdown document and graph edits to persist locally in the browser  
-**So that** I can continue editing without network dependency
+The shared storage contract now defines:
 
-**Acceptance Criteria**:
+- API versioning and stable route paths
+- document, chunk, graph-snapshot, cursor, and outbox record shapes
+- outbox acknowledgement states including `applied`, `conflict`, `rejected`, and `deferred`
+- conflict-entry reporting for runtime UX
 
-- **Given** a user imports or edits a markdown-backed graph document
-- **When** the browser reloads offline
-- **Then** the latest local working copy restores from browser persistence within 1 second for a single document under 100 KB
-- **And** graph snapshot, chunk metadata, and UI state restore without requiring a network round trip
+Primary file:
 
----
+- `canvas/src/lib/storage/knowgrphStorageSyncContract.ts`
 
-**PRD-STO-E001-S003: Token-Efficient Retrieval**
+### Browser Storage Layer
 
-**As a** prompt-driven user  
-**I want** Knowgrph to persist document chunks and graph derivatives separately  
-**So that** prompts can reuse only the relevant sections and reduce token spend
+The browser storage layer now uses RxDB collections for:
 
-**Acceptance Criteria**:
+- documents
+- document chunks
+- graph snapshots
+- sync outbox
+- sync cursor
 
-- **Given** a markdown document with frontmatter and section bodies
-- **When** Knowgrph stores the document
-- **Then** it persists the raw markdown, extracted metadata, chunk records, and graph snapshot as separate addressable records
-- **And** retrieval can request one section, one shot, or one graph snapshot without loading the full markdown body
+Primary file:
 
----
+- `canvas/src/lib/storage/knowgrphStorageRxdb.ts`
 
-#### Epic: Shared Persistence and Publish
+### Cloudflare Shared Store
 
-**PRD-STO-E002-S001: Cross-Device Sync**
+The first shared-store implementation now exists as:
 
-**As a** returning user  
-**I want** an optional shared store for documents and graph snapshots  
-**So that** I can continue work across devices when I choose to sync
+- D1 migration SQL
+- Worker contract re-export
+- Worker request handler
+- shared DB helpers
 
-**Acceptance Criteria**:
+Primary files:
 
-- **Given** a workspace with sync enabled
-- **When** a second device pulls changes
-- **Then** it receives changed documents, chunks, and graph snapshots since the last sync cursor
-- **And** the client merges them into its local RxDB store
+- `cloudflare/d1/migrations/0001_knowgrph_storage.sql`
+- `cloudflare/workers/knowgrph-storage/contract.ts`
+- `cloudflare/workers/knowgrph-storage/index.ts`
+- `cloudflare/workers/knowgrph-storage/db.ts`
 
----
+### Client Sync Loop
 
-**PRD-STO-E002-S002: Cloudflare-Compatible Runtime**
+The client sync runtime now supports:
 
-**As a** operator  
-**I want** a storage topology that fits Cloudflare Pages constraints  
-**So that** shared persistence does not require an unrelated hosting stack
+- device id allocation
+- outbox enqueueing
+- push/pull sync runs
+- scheduled sync
+- workspace-scoped polling loop
+- export requests
+- conflict summaries returned to runtime UX hooks
 
-**Acceptance Criteria**:
+Primary file:
 
-- **Given** Knowgrph is deployed on Cloudflare Pages
-- **When** shared persistence is enabled
-- **Then** the architecture uses a Cloudflare-compatible API runtime and shared store
-- **And** the default recommendation does not require PostgreSQL
+- `canvas/src/lib/storage/knowgrphStorageClientSync.ts`
 
----
+### Canvas Runtime Integration
 
-**PRD-STO-E002-S003: Cost-Bounded Server Adoption**
+The runtime now wires storage into active workspace behavior:
 
-**As a** maintainer  
-**I want** PostgreSQL adoption to be gated behind explicit scale needs  
-**So that** the team does not pay operational cost before product value demands it
+- source-file edits enqueue storage mutations
+- sync loop starts per active workspace
+- pulled remote records are applied back into visible `sourceFiles`
+- graph recomposition follows pulled updates
+- conflict notifications reuse shared toasts and logs
 
-**Acceptance Criteria**:
+Primary files:
 
-- **Given** the product remains primarily single-user or low-write collaborative
-- **When** storage is selected for production
-- **Then** SQLite remains the recommended shared store
-- **And** PostgreSQL is documented as a future option for multi-user analytics, vector retrieval, or heavy server-side querying
+- `canvas/src/features/source-files/sourceFilesStorageSync.ts`
+- `canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx`
+- `canvas/src/features/source-files/sourceFilesInboundStorageApply.ts`
+- `canvas/src/lib/storage/knowgrphStorageConflictUx.ts`
 
----
+### Conflict Resolution UX
 
-### Success Metrics
+Conflict UX now stays on the same shared action path already used by toast and log surfaces.
 
-- Metric: Local restore time | Baseline: undefined | Target: `<1s` for one document under `100 KB` | Timeline: first storage milestone
-- Metric: Prompt payload size | Baseline: full-document sends | Target: section-level retrieval for `>80%` of prompt paths | Timeline: first storage milestone
-- Metric: Cloud persistence TCO | Baseline: undefined | Target: SQLite-first shared store before PostgreSQL adoption | Timeline: initial cloud release
-- Metric: Canonical source drift | Baseline: manual risk | Target: `0` mirror-first document edits in storage workflow | Timeline: ongoing
+Shared behavior:
 
----
+- conflict summaries raise one shared toast per workspace
+- individual conflict records raise shared log entries
+- actions are attached to the same toast/log models
+- action dispatch goes through one runtime path
+- no dedicated storage-only modal or duplicate panel exists
 
-### MoSCoW Prioritization
+Primary files:
 
-#### Must
+- `canvas/src/lib/storage/knowgrphStorageConflictActions.ts`
+- `canvas/src/lib/ui/uiActionRuntime.ts`
+- `canvas/src/components/ui/ToastHost.tsx`
+- `canvas/src/features/panels/views/HistoryView.tsx`
+- `canvas/src/components/ui/UiActionButtons.tsx`
 
-- Git markdown remains canonical.
-- RxDB remains the browser-local working store.
-- Shared schema separates raw markdown, metadata, chunks, and graph snapshots.
-- Cloudflare topology supports Pages plus an API runtime only when shared sync is enabled.
+## Architecture Summary
 
-#### Should
+### Storage Layers
 
-- Shared store uses SQLite-compatible schema first.
-- Sync API is batch-oriented and cursor-based.
-- Storage records track hashes and revision metadata for dedupe.
+**Canonical layer**
 
-#### Could
+- Git-managed markdown in `knowgrph/docs/**`
+- upstream authoring only
+- no downstream mirror may become the authoring source
 
-- Optional embeddings table for later retrieval ranking.
-- Optional blob store for large exported assets and generated media.
-- Optional audit/event stream for sync diagnostics.
+**Local runtime layer**
 
-#### Won't For MVP
+- RxDB stores working copies, chunk cache, graph snapshots, outbox records, and sync cursors
+- browser editing remains network-optional
 
-- Full real-time CRDT collaboration
-- PostgreSQL as a required baseline dependency
-- vector indexing as a mandatory first release feature
+**Shared runtime layer**
 
----
+- Cloudflare Worker exposes push, pull, and export endpoints
+- D1 stores shared rows for workspaces, documents, chunks, snapshots, devices, and sync events
 
-### Out of Scope
+**Scale-up layer**
 
-- detailed auth provider selection
-- large-binary asset processing pipelines
-- implementation-specific ORM choice
-- replacing Git-backed canonical docs with database-only authoring
+- PostgreSQL remains a future migration target behind the same sync contract boundary
 
----
+### Token-Economics Rules
 
-### Dependencies
+- store raw markdown once
+- persist chunk rows separately from graph snapshots
+- track `contentHash` and chunk hashes for reuse
+- address chunks by semantic keys instead of offsets
+- avoid resending unchanged chunks when hashes match
+- prefer pulled delta application over full workspace reloads
 
-- Canonical docs in `knowgrph/docs/**`
-- Browser-local persistence already implemented via RxDB-backed adapters in `canvas/src/lib/storage/**`
-- Publish mirror flow to `huijoohwee/knowgrph/**`
-- Cloudflare Pages for static delivery
+### Conflict Rules
 
----
+- keep local conflicting outbox rows retained until user action or later retry
+- summarize unresolved conflicts at workspace scope
+- expose `Keep Local`, `Accept Remote`, and `Review Log` through shared action descriptors
+- dispatch actions through one runtime path
+- reuse shared toast and History log rendering surfaces
 
-### Open Questions
+## Dev -> Prod -> Cloudflare Topology
 
-- Should shared sync be workspace-scoped only, or document-scoped from day one?
-- Should exported HTML/PDF artifacts live in DB rows or move immediately to blob storage?
-- When sync is enabled, should conflict handling begin as last-write-wins plus audit or require manual reconciliation for selected record types?
+### Dev
 
----
+- canonical docs live in `knowgrph/docs/**`
+- browser runtime uses RxDB
+- optional local-only verification may target SQLite fixtures
 
-## PART II: TECHNICAL ARCHITECTURE DOCUMENT (TAD)
+### Prod Mirror
 
-## Architecture: Knowgrph Storage Topology
+- `huijoohwee/knowgrph/**` remains a publish mirror only
+- mirror content is downstream output, not authoring source
 
-### Architecture Overview
+### Cloudflare
 
-**From canonical markdown to cloud-backed canvas state**: Git markdown authority → parser and chunker → RxDB local working set → optional sync API → SQLite shared store on Cloudflare → publish and reload flows for downstream use.
+- Pages serves the static UI
+- browser RxDB preserves device-local working state
+- Worker exposes the sync API
+- D1 stores shared sync records
+- R2 remains optional for larger generated assets
 
-The architecture keeps one upstream owner and two storage layers:
+## Implementation Traceability
 
-1. **Canonical authoring layer**
-   - Git-managed markdown in `knowgrph/docs/**`
-   - versioned through repository workflow
+| Capability | Canonical implementation path |
+|---|---|
+| Shared contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` |
+| RxDB local store | `canvas/src/lib/storage/knowgrphStorageRxdb.ts` |
+| D1 migration | `cloudflare/d1/migrations/0001_knowgrph_storage.sql` |
+| Worker routes | `cloudflare/workers/knowgrph-storage/index.ts` |
+| Worker DB helpers | `cloudflare/workers/knowgrph-storage/db.ts` |
+| Client sync loop | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` |
+| Source-files enqueue path | `canvas/src/features/source-files/sourceFilesStorageSync.ts` |
+| Runtime bootstrap | `canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx` |
+| Pulled-record apply | `canvas/src/features/source-files/sourceFilesInboundStorageApply.ts` |
+| Conflict toast/log UX | `canvas/src/lib/storage/knowgrphStorageConflictUx.ts` |
+| Conflict actions runtime | `canvas/src/lib/storage/knowgrphStorageConflictActions.ts` |
+| Shared action dispatcher | `canvas/src/lib/ui/uiActionRuntime.ts` |
+| Shared toast actions surface | `canvas/src/components/ui/ToastHost.tsx` |
+| Shared History log actions surface | `canvas/src/features/panels/views/HistoryView.tsx` |
 
-2. **Runtime persistence layer**
-   - RxDB in the browser for drafts, graph snapshots, chunk cache, and sync cursors
-   - SQLite in the cloud as the first shared authoritative operational store when cross-device sync is enabled
+## Validation Summary
 
-3. **Scale-up layer**
-   - PostgreSQL only when collaboration density, analytics, or retrieval requirements exceed SQLite limits
+Focused validation for the implemented storage path now covers:
 
----
+- shared contract tests
+- Worker push/pull/export tests
+- client sync loop tests
+- source-file enqueue/apply tests
+- conflict UX dedupe tests
+- shared toast/history action-surface tests
 
-### Recommended Decision
+Recent focused checks also verified:
 
-#### Recommendation Summary
+- targeted `eslint` for the new action-surface files
+- conflict action runtime behavior through toast and History log surfaces
+- canonical docs-map refresh after companion-file sharding
 
-- **Client local store**: RxDB
-- **Shared cloud store**: SQLite
-- **Cloudflare deployment shape**: Cloudflare Pages + Cloudflare Worker API + Cloudflare D1
-- **Deferred option**: PostgreSQL behind a later migration boundary
+## Cross-Repo Documentation Contract
 
-#### Why This Is The Default
+These cross-repo docs must stay aligned:
 
-- RxDB already exists in the codebase and matches current canvas behavior.
-- SQLite offers the lowest operational TCO for a shared store and fits Cloudflare D1.
-- PostgreSQL adds operational complexity before current product needs clearly require it.
-- Token savings come from chunking and derivation reuse, not from switching directly to PostgreSQL.
+- `knowgrph/todo-log.md`
+- `knowgrph/docs/documents/knowgrph-storage-document.md`
+- `knowgrph/docs/documents/knowgrph-storage-document-schemas-and-topology.md`
+- `knowgrph/docs/documents/knowgrph-storage-document-runtime-and-conflict-ux.md`
+- `knowgrph/docs/documents/knowgrph-cross-repo-publish-topology.md`
+- `huijoohwee.github.io/schema/AgenticRAG/README.md`
+- `huijoohwee.github.io/schema/AgenticRAG/documentation.jsonld`
+- `huijoohwee.github.io/schema/AgenticRAG/markdown.jsonld`
+- `huijoohwee.github.io/schema/AgenticRAG/panels.jsonld`
+- `huijoohwee.github.io/schema/AgenticRAG/knowgrph-documents-map.graph.jsonld`
 
----
+## Continuation
 
-### Storage Comparison
+See continuation in `knowgrph-storage-document-schemas-and-topology.md` for the detailed RxDB, D1, PostgreSQL, route, and topology appendix.
 
-| Option | Primary Role | TCO | Token Economics | Performance Fit | Recommendation |
-|---|---|---:|---|---|---|
-| RxDB | Browser-local draft and cache store | Lowest | Strong when chunk cache lives client-side | Best for local editing and reactive UI | Required |
-| SQLite | Shared sync and publish store | Low | Strong when chunks and revisions are persisted server-side | Best first server store | Recommended |
-| PostgreSQL | High-scale collaborative and analytical store | Highest | Strong only when server retrieval, analytics, or vector workflows are active | Best for advanced multi-user backend | Deferred |
+See continuation in `knowgrph-storage-document-runtime-and-conflict-ux.md` for the runtime wiring, inbound pull application, conflict-action reuse path, ADR snapshot, and validation notes.
 
----
-
-### Component Specifications
-
-**Component**: Canonical Document Source  
-**Responsibility**: Stores authoritative markdown documents in Git-managed paths and feeds all downstream derivations.  
-**Interfaces**: file read, file write, repo sync workflow  
-**Dependencies**: `knowgrph/docs/**`  
-**Configuration**: canonical path roots, document naming rules
-
-**Component**: Document Parser and Chunker  
-**Responsibility**: Converts markdown into frontmatter metadata, section chunks, and graph-ready derivatives.  
-**Interfaces**: `parse(document)` → `{ metadata, chunks, graphSnapshot }`  
-**Dependencies**: parser modules, markdown import pipeline  
-**Configuration**: chunking policy, section key rules, parser version
-
-**Component**: RxDB Client Store  
-**Responsibility**: Persists local working copies, graph snapshots, chunk cache, UI state, and sync cursors in the browser.  
-**Interfaces**: reactive collection queries, upsert, batch write, outbox enqueue  
-**Dependencies**: IndexedDB via Dexie when available, local fallback when unavailable  
-**Configuration**: collection schema versions, compaction policy, sync enable flag
-
-**Component**: Sync API  
-**Responsibility**: Accepts batched pushes, returns cursor-based pulls, and enforces workspace/document contracts.  
-**Interfaces**: `POST /api/storage/push`, `GET /api/storage/pull`, `GET /api/storage/export`  
-**Dependencies**: Worker runtime, shared database  
-**Configuration**: batch size, cursor policy, auth mode, conflict mode
-
-**Component**: Shared SQLite Store  
-**Responsibility**: Persists shared documents, revisions, chunks, graph snapshots, and sync metadata with low-cost relational access.  
-**Interfaces**: SQL tables and indexes  
-**Dependencies**: Cloudflare D1 or equivalent SQLite runtime  
-**Configuration**: retention policy, index strategy, optional blob indirection
-
-**Component**: Shared PostgreSQL Store  
-**Responsibility**: Replaces or augments SQLite only when collaborative scale, advanced analytics, or vector retrieval requires it.  
-**Interfaces**: SQL tables, JSONB, optional vector indexing  
-**Dependencies**: managed PostgreSQL provider  
-**Configuration**: pooling, partitions, JSONB indexes, optional pgvector
-
----
-
-### Data Model Principles
-
-- Store raw markdown once.
-- Derive metadata, chunks, and graph snapshots as separate rows or documents.
-- Use stable document IDs plus monotonic revision numbers.
-- Track `content_hash` to avoid duplicate prompt preparation and redundant sync writes.
-- Use explicit `chunk_key` values such as `frontmatter`, `director_brief`, `shots.S01`, `shots.S02`.
-- Keep blob-sized media references outside the main markdown row when asset sizes grow beyond practical database payloads.
-
----
-
-### Concrete Schema Proposal: RxDB
-
-#### RxDB Collections
-
-1. `documents`
-2. `documentChunks`
-3. `graphSnapshots`
-4. `syncOutbox`
-5. `syncCursor`
-
-#### RxDB Document Shapes
-
-```ts
-type KgDocumentRecord = {
-  id: string
-  workspaceId: string
-  canonicalPath: string
-  title: string | null
-  docType: string | null
-  lang: string | null
-  sourceKind: 'markdown'
-  contentMd: string
-  contentHash: string
-  parserVersion: string
-  graphId: string | null
-  revision: number
-  updatedAtMs: number
-  deleted: boolean
-}
-
-type KgDocumentChunkRecord = {
-  id: string
-  documentId: string
-  workspaceId: string
-  chunkKey: string
-  chunkOrder: number
-  heading: string | null
-  markdown: string
-  tokenEstimate: number
-  contentHash: string
-  updatedAtMs: number
-}
-
-type KgGraphSnapshotRecord = {
-  id: string
-  documentId: string
-  workspaceId: string
-  graphRevision: number
-  graphHash: string
-  graphJson: Record<string, unknown>
-  layoutJson: Record<string, unknown> | null
-  derivedFromDocumentRevision: number
-  updatedAtMs: number
-}
-```
-
-#### RxDB Index Proposal
-
-- `documents`: `workspaceId`, `canonicalPath`, `updatedAtMs`
-- `documentChunks`: `documentId`, `[documentId, chunkKey]`, `updatedAtMs`
-- `graphSnapshots`: `documentId`, `graphRevision`, `updatedAtMs`
-- `syncOutbox`: `workspaceId`, `updatedAtMs`
-- `syncCursor`: `workspaceId`
-
-#### RxDB Role
-
-- working copy
-- offline cache
-- prompt reuse cache
-- sync staging store
-
----
-
-### Concrete Schema Proposal: SQLite
-
-#### SQLite Tables
-
-```sql
-CREATE TABLE workspaces (
-  id TEXT PRIMARY KEY,
-  slug TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  visibility TEXT NOT NULL DEFAULT 'private',
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE documents (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
-  canonical_path TEXT NOT NULL,
-  title TEXT,
-  doc_type TEXT,
-  lang TEXT,
-  graph_id TEXT,
-  source_kind TEXT NOT NULL DEFAULT 'markdown',
-  content_md TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  parser_version TEXT NOT NULL,
-  revision INTEGER NOT NULL,
-  deleted INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  UNIQUE(workspace_id, canonical_path)
-);
-
-CREATE TABLE document_chunks (
-  id TEXT PRIMARY KEY,
-  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
-  chunk_key TEXT NOT NULL,
-  chunk_order INTEGER NOT NULL,
-  heading TEXT,
-  markdown TEXT NOT NULL,
-  token_estimate INTEGER NOT NULL,
-  content_hash TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  UNIQUE(document_id, chunk_key)
-);
-
-CREATE TABLE graph_snapshots (
-  id TEXT PRIMARY KEY,
-  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
-  graph_revision INTEGER NOT NULL,
-  graph_hash TEXT NOT NULL,
-  graph_json TEXT NOT NULL,
-  layout_json TEXT,
-  derived_from_document_revision INTEGER NOT NULL,
-  updated_at TEXT NOT NULL,
-  UNIQUE(document_id, graph_revision)
-);
-
-CREATE TABLE sync_devices (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
-  device_label TEXT,
-  last_pull_cursor TEXT,
-  last_push_cursor TEXT,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE sync_events (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
-  device_id TEXT NOT NULL REFERENCES sync_devices(id),
-  event_type TEXT NOT NULL,
-  payload_json TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-```
-
-#### SQLite Index Proposal
-
-```sql
-CREATE INDEX idx_documents_workspace_updated
-  ON documents(workspace_id, updated_at DESC);
-
-CREATE INDEX idx_document_chunks_doc_order
-  ON document_chunks(document_id, chunk_order ASC);
-
-CREATE INDEX idx_document_chunks_doc_key
-  ON document_chunks(document_id, chunk_key);
-
-CREATE INDEX idx_graph_snapshots_doc_rev
-  ON graph_snapshots(document_id, graph_revision DESC);
-
-CREATE INDEX idx_sync_events_workspace_created
-  ON sync_events(workspace_id, created_at DESC);
-```
-
-#### SQLite Role
-
-- first shared operational store
-- sync source of record
-- low-cost cloud persistence for Cloudflare
-
----
-
-### Concrete Schema Proposal: PostgreSQL
-
-#### PostgreSQL Tables
-
-```sql
-CREATE TABLE workspaces (
-  id UUID PRIMARY KEY,
-  slug TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  visibility TEXT NOT NULL DEFAULT 'private',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE documents (
-  id UUID PRIMARY KEY,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  canonical_path TEXT NOT NULL,
-  title TEXT,
-  doc_type TEXT,
-  lang TEXT,
-  graph_id TEXT,
-  source_kind TEXT NOT NULL DEFAULT 'markdown',
-  content_md TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  parser_version TEXT NOT NULL,
-  revision BIGINT NOT NULL,
-  deleted BOOLEAN NOT NULL DEFAULT false,
-  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (workspace_id, canonical_path)
-);
-
-CREATE TABLE document_chunks (
-  id UUID PRIMARY KEY,
-  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  chunk_key TEXT NOT NULL,
-  chunk_order INTEGER NOT NULL,
-  heading TEXT,
-  markdown TEXT NOT NULL,
-  token_estimate INTEGER NOT NULL,
-  content_hash TEXT NOT NULL,
-  embedding VECTOR(1536),
-  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (document_id, chunk_key)
-);
-
-CREATE TABLE graph_snapshots (
-  id UUID PRIMARY KEY,
-  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  graph_revision BIGINT NOT NULL,
-  graph_hash TEXT NOT NULL,
-  graph_json JSONB NOT NULL,
-  layout_json JSONB,
-  derived_from_document_revision BIGINT NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (document_id, graph_revision)
-);
-
-CREATE TABLE sync_events (
-  id UUID PRIMARY KEY,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  actor_id UUID,
-  device_id TEXT,
-  event_type TEXT NOT NULL,
-  payload_json JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### PostgreSQL Index Proposal
-
-```sql
-CREATE INDEX idx_documents_workspace_updated
-  ON documents(workspace_id, updated_at DESC);
-
-CREATE INDEX idx_documents_metadata_json
-  ON documents USING GIN (metadata_json);
-
-CREATE INDEX idx_document_chunks_doc_key
-  ON document_chunks(document_id, chunk_key);
-
-CREATE INDEX idx_document_chunks_metadata_json
-  ON document_chunks USING GIN (metadata_json);
-
-CREATE INDEX idx_graph_snapshots_doc_rev
-  ON graph_snapshots(document_id, graph_revision DESC);
-```
-
-#### PostgreSQL Role
-
-- advanced shared persistence
-- server-side search and analytics
-- optional vector retrieval for agentic workflows
-
-#### PostgreSQL Adoption Gate
-
-Adopt PostgreSQL only when at least one of these becomes true:
-
-- multiple users edit the same workspace concurrently
-- server-side retrieval queries exceed SQLite performance or indexing ergonomics
-- vector search becomes a first-class runtime requirement
-- audit, tenancy, and analytics needs justify managed database overhead
-
----
-
-### Recommended Topology: Dev -> Prod -> Cloudflare
-
-#### Precise Topology
-
-```text
-Dev
-  canonical docs: /Users/huijoohwee/Documents/GitHub/knowgrph/docs/**
-  local runtime: browser RxDB (IndexedDB/Dexie)
-  optional local verification: SQLite file for sync-contract tests only
-
-Prod Repo Mirror
-  publish mirror: /Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph/**
-  rule: generated/synced surface only, not authoring source
-
-Cloudflare
-  UI: Cloudflare Pages serves static Knowgrph bundle
-  client cache: browser RxDB per device
-  API: Cloudflare Worker exposes storage sync endpoints
-  shared DB: Cloudflare D1 (SQLite)
-  optional blobs: Cloudflare R2 for large exported media or generated assets
-
-Future Scale
-  replace or augment D1 with PostgreSQL only when collaboration/search scale requires it
-```
-
-#### Topology Recommendation
-
-- **Dev**: Git markdown + browser RxDB
-- **Prod**: synced publish mirror + browser RxDB
-- **Cloudflare shared persistence**: Pages + Worker + D1
-- **Future expansion**: Worker + PostgreSQL behind the same sync contract
-
----
-
-### Deployment Strategy
-
-#### Default Deployment
-
-- **Static UI delivery**: Cloudflare Pages
-- **Optional shared persistence**: Cloudflare Worker
-- **Shared DB**: Cloudflare D1
-- **Large asset spillover**: Cloudflare R2
-
-#### Rationale
-
-- Pages matches the existing static deployment surface.
-- Worker keeps the sync API close to the edge without introducing a separate app server.
-- D1 keeps cost and operational surface smaller than PostgreSQL for the current product stage.
-- The API contract remains database-agnostic enough to allow later PostgreSQL migration.
-
----
-
-### Integration Contracts
-
-**Interface**: Storage Push  
-**Protocol**: HTTPS JSON  
-**Data Format**: JSON  
-**Error Handling**: Return per-record conflict or validation errors; forbid silent drops
-
-```json
-{
-  "workspaceId": "wk_123",
-  "deviceId": "dev_macbook_air",
-  "mutations": [
-    {
-      "entity": "document",
-      "op": "upsert",
-      "record": {
-        "id": "doc_abc",
-        "revision": 7,
-        "contentHash": "sha256:..."
-      }
-    }
-  ]
-}
-```
-
-**Interface**: Storage Pull  
-**Protocol**: HTTPS GET  
-**Data Format**: JSON  
-**Error Handling**: Return cursor plus changed records; return empty set for no-op pulls
-
-```json
-{
-  "nextCursor": "2026-05-04T12:00:00Z",
-  "changes": {
-    "documents": [],
-    "documentChunks": [],
-    "graphSnapshots": []
-  }
-}
-```
-
-**Interface**: Storage Export  
-**Protocol**: HTTPS GET  
-**Data Format**: JSON archive  
-**Error Handling**: Fail whole export on missing workspace; forbid partial silent exports
-
----
-
-### Token-Economics Design
-
-#### Storage-Level Token Controls
-
-- persist `content_hash` on document and chunk rows
-- persist `token_estimate` on chunk rows
-- persist `derived_from_document_revision` on graph snapshots
-- address chunks by semantic keys rather than byte offsets
-
-#### Retrieval Rules
-
-- use raw markdown only for full export and exact round-trip
-- use chunk rows for prompt assembly
-- use graph snapshots for render and graph reasoning
-- avoid resending unchanged chunks when `content_hash` matches
-
-#### Example For `knowgrph-video-demo.md`
-
-- `frontmatter`
-- `director_brief`
-- `shots.S01`
-- `shots.S02`
-- `shots.S03`
-- `shots.S04`
-- `shots.S05`
-- `pipeline`
-- `flow`
-- `mermaid`
-
-This chunk map is materially better for prompt cost than storing only one monolithic markdown blob.
-
----
-
-### Architectural Decisions
-
-## ADR-001: Keep RxDB As The Client Working Store
-
-**Status**: Accepted  
-**Date**: 2026-05-04  
-**Deciders**: Knowgrph maintainers
-
-### Context
-
-The browser already persists multiple workspaces through RxDB-backed adapters, and the canvas requires local-first responsiveness.
-
-### Decision
-
-Keep RxDB as the mandatory local persistence layer for documents, chunks, graph snapshots, and sync cursors.
-
-### Alternatives Considered
-
-1. LocalStorage only: too small, weak querying, poor structure.
-2. SQLite in WASM only: possible, but adds complexity without replacing the reactive client value already present in RxDB.
-
-### Rationale
-
-RxDB is already aligned to current runtime behavior and has the lowest migration cost.
-
-### Consequences
-
-- **Positive**: preserves offline-first UX and reuses existing code paths
-- **Negative**: introduces dual-store thinking when shared persistence exists
-- **Neutral**: does not prevent later adoption of SQLite or PostgreSQL on the server
-
----
-
-## ADR-002: Choose SQLite As The First Shared Cloud Store
-
-**Status**: Accepted  
-**Date**: 2026-05-04  
-**Deciders**: Knowgrph maintainers
-
-### Context
-
-Knowgrph deploys to Cloudflare Pages, and the team needs a shared store with lower TCO than PostgreSQL.
-
-### Decision
-
-Use SQLite-compatible schema on Cloudflare D1 for the first shared persistence layer.
-
-### Alternatives Considered
-
-1. PostgreSQL first: stronger advanced querying, but higher operational cost.
-2. RxDB-only with no server store: lowest cost, but no cross-device shared state.
-
-### Rationale
-
-SQLite is enough for current document, chunk, graph snapshot, and sync metadata needs while fitting Cloudflare infrastructure directly.
-
-### Consequences
-
-- **Positive**: lower TCO, simpler deployment, Cloudflare-native fit
-- **Negative**: less ergonomic than PostgreSQL for advanced analytics and vector search
-- **Neutral**: schema can later migrate to PostgreSQL behind stable API contracts
-
----
-
-## ADR-003: Defer PostgreSQL Until Retrieval Or Collaboration Scale Requires It
-
-**Status**: Accepted  
-**Date**: 2026-05-04  
-**Deciders**: Knowgrph maintainers
-
-### Context
-
-PostgreSQL is attractive for JSONB, tenancy, and vector workflows, but the current product scope does not yet require it.
-
-### Decision
-
-Document PostgreSQL as a phase-two backend, not the MVP default.
-
-### Alternatives Considered
-
-1. Adopt PostgreSQL immediately.
-2. Avoid documenting PostgreSQL at all.
-
-### Rationale
-
-Immediate adoption overbuilds the current system, while omitting it entirely would leave the scale path undefined.
-
-### Consequences
-
-- **Positive**: keeps near-term infra lean while preserving a scale path
-- **Negative**: requires a later migration step when demand arrives
-- **Neutral**: sync contracts remain stable if designed well now
-
----
-
-### Quality Attributes
-
-- **Performance**
-  - Scenario: Under a single active document under `100 KB`, browser restore completes in `<1s`
-  - Pattern: RxDB local cache + derived chunk rows + no network requirement for restore
-  - Validation: focused browser restore test with one imported document
-
-- **Scalability**
-  - Scenario: Shared store supports thousands of documents and chunk rows per workspace without mandatory PostgreSQL
-  - Pattern: normalized SQLite schema + targeted indexes + cursor-based sync
-  - Validation: bounded sync and query test against representative fixture data
-
-- **Security**
-  - Scenario: Client bundle contains no database secrets and cannot write to shared persistence without the API contract
-  - Pattern: Pages for static UI, Worker for controlled access, server-side credentials only
-  - Validation: deployment review and secret-scan checks
-
-- **Observability**
-  - Scenario: Sync failures are diagnosable by workspace, device, and event type
-  - Pattern: `sync_events` plus per-request status codes and payload metadata
-  - Validation: focused API integration tests and sampled logs
-
----
-
-### Migration Path
-
-#### Phase 0: Current Lean State
-
-- canonical markdown in Git
-- browser RxDB for local persistence
-- no mandatory shared server store
-
-#### Phase 1: Recommended Shared Cloud State
-
-- keep canonical markdown in Git
-- add Worker sync API
-- add D1 with SQLite schema in this document
-- sync documents, chunks, graph snapshots, and cursors
-
-#### Phase 2: Scale State
-
-- preserve API contract
-- move shared relational store from D1/SQLite to PostgreSQL where needed
-- keep RxDB client schema stable where possible
-- add vector or analytics extensions only after usage validates the need
-
----
-
-### Requirement Traceability
-
-| PRD ID | Requirement | TAD Component / Decision |
-|---|---|---|
-| PRD-STO-E001-S001 | Canonical markdown authority | Canonical Document Source |
-| PRD-STO-E001-S002 | Local-first draft persistence | RxDB Client Store, ADR-001 |
-| PRD-STO-E001-S003 | Token-efficient retrieval | Document Parser and Chunker, RxDB and SQLite schemas |
-| PRD-STO-E002-S001 | Cross-device sync | Sync API, Shared SQLite Store |
-| PRD-STO-E002-S002 | Cloudflare-compatible runtime | Recommended Topology, Deployment Strategy, ADR-002 |
-| PRD-STO-E002-S003 | Cost-bounded server adoption | Storage Comparison, ADR-003 |
-
----
-
-### Validation Checklist
-
-- [ ] Canonical docs remain upstream in `knowgrph/docs/**`
-- [ ] RxDB schema covers local document, chunk, graph, and sync state
-- [ ] SQLite schema covers first shared-store needs on Cloudflare
-- [ ] PostgreSQL schema is documented as a future-compatible migration path
-- [ ] Topology is explicit for Dev, Prod mirror, and Cloudflare
-- [ ] Token-economics controls are built into the schema, not left implicit
-
----
-
-### Final Recommendation
-
-For Knowgrph, the recommended storage topology is:
-
-1. **Canonical source**: Git markdown in `knowgrph/docs/**`
-2. **Per-device working state**: RxDB in the browser
-3. **First shared cloud store**: SQLite on Cloudflare D1 behind a Worker sync API
-4. **Optional blob storage**: Cloudflare R2 for large generated assets
-5. **Future scale-up path**: PostgreSQL only after collaboration, retrieval, or analytics justify it
-
-This keeps the system Lean, local-first, Cloudflare-compatible, and aligned with current token economics.
+See continuation in `knowgrph-cross-repo-publish-topology.md` for the shared `knowgrph` + `singabldr` Dev-to-publish topology and route-ownership boundary.

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { AlertCircle, CheckCircle, Info, X, AlertTriangle, Pin, PinOff } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UiActionButtons } from '@/components/ui/UiActionButtons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { sanitizeMessageText } from '@/lib/ui'
 import { cn } from '@/lib/utils'
@@ -54,7 +55,10 @@ function ToastCard({
     >
       <div className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 py-2">
         <Icon className="w-4 h-4 mt-0.5" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-        <div className="min-w-0 whitespace-pre-wrap break-words text-xs leading-5">{message}</div>
+        <div className="min-w-0">
+          <div className="whitespace-pre-wrap break-words text-xs leading-5">{message}</div>
+          <UiActionButtons actions={toast.actions} className="mt-2" />
+        </div>
         <div className="mt-0.5 flex items-center gap-1 pointer-events-auto">
           <button
             type="button"
@@ -120,6 +124,7 @@ export function ToastHost() {
         ttlMs: pinned ? 10_000 : null,
         dismissible: toast.dismissible,
         log: false,
+        actions: toast.actions,
       })
     },
     [pushUiToast],

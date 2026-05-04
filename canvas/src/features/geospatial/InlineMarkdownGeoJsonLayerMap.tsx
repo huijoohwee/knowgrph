@@ -9,6 +9,7 @@ import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
 import { hashText } from '@/features/parsers/hash'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const sanitizeId = (raw: string): string => {
   const s = String(raw || '').trim()
@@ -17,6 +18,7 @@ const sanitizeId = (raw: string): string => {
 }
 
 const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
+const geoJsonOverlayBadgeClassName = `absolute bottom-2 right-2 z-20 pointer-events-none px-2 py-1 rounded-md text-[11px] ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.panel.overlayBg} border ${UI_THEME_TOKENS.panel.border}`
 
 function GeoJsonSvgPreview(args: {
   fc: FeatureCollection
@@ -384,13 +386,13 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
       {overlayMessage && (
         <div
           data-testid="geojson-map-overlay"
-          className="absolute bottom-2 right-2 z-20 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60"
+          className={geoJsonOverlayBadgeClassName}
         >
           {overlayMessage}
         </div>
       )}
       {!overlayMessage && hasInputText && !parsed.fc ? (
-        <div className="absolute bottom-2 right-2 z-20 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60">
+        <div className={geoJsonOverlayBadgeClassName}>
           Invalid GeoJSON
         </div>
       ) : null}

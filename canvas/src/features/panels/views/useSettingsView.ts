@@ -56,6 +56,7 @@ import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_MCP_DOC_AREA } from './
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
 import { buildIntegrationVirtualSettingMeta } from '@/features/integrations/integrationVirtualSettings'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildGrabMapsProxyRequestHeadersFromAuth, normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 
@@ -360,7 +361,9 @@ export function useSettingsView({
   const schema = useGraphStore(s => s.schema)
   const setSchema = useGraphStore(s => s.setSchema)
   const uiPanelKeyValueInputClass = useGraphStore(
-    s => s.uiPanelKeyValueInputClass || 'w-full h-6 px-2 text-xs border border-gray-300 rounded text-right',
+    s =>
+      s.uiPanelKeyValueInputClass ||
+      `w-full h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')

@@ -56,7 +56,7 @@
 
 ## Happy Path Sequence Diagrams
 
-### Source Files List Import → Markdown Render (Curagrph)
+### Source Files List Import → Markdown Render (Singabldr)
 
 ```mermaid
 sequenceDiagram
@@ -158,10 +158,10 @@ sequenceDiagram
   - `knowgrph/canvas/src/features/source-files/workspaceSeedSourceFiles.ts` keeps the canonical source-file aliases for the 3-file initialization family aligned with the root-level workspace paths.
 - **Workspace Seed Bootstrap (Knowgrph)**:
   - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
-- **Curation UI (Curagrph)**:
-  - `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
-  - `curagrph/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
-  - `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` renders the Source Files ingest controls in the Markdown toolbar.
+- **Curation UI (Singabldr)**:
+  - `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
+  - `singabldr/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
+  - `singabldr/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` renders the Source Files ingest controls in the Markdown toolbar.
 - **Geospatial Mode (Gympgrph)**:
   - `gympgrph/src/geospatialDatasets.ts` exposes a lightweight dataset-add API for hosts.
   - `gympgrph/src/hooks/store/geospatialSlice.ts` persists `mapOverlayDatasets` under `kg:ui:geospatial:*` keys.
@@ -268,5 +268,5 @@ Note: The current website-import artifact set is `raw.html`, `page.md`, `convers
 |---|---|---|---|---|---|---|---|
 | Utilities | Centralize parsing | - [ ] Reuse URL normalization; forbid ad-hoc GitHub URL handling | `knowgrph/canvas/src/lib/url.ts` | `normalizeGitHubBlobLikeUrl` | URL | URL | Normalize blob-like URLs to the canonical fetch URL when possible |
 | Fetch | Bound remote work | - [ ] Bound fetch; forbid indefinite streaming | `knowgrph/canvas/src/lib/net/fetchRemoteText.ts` | `fetchRemoteTextDetailed` | URL | `{ ok,text }` | Timeout + max-bytes guard |
-| Curation UI | Preserve discoverability | - [ ] Show Source Files/Outline/Backlinks in Explorer; forbid hidden state | `curagrph/.../MarkdownPanelLayout.tsx` | `MarkdownPanelLayout` | `sourceFiles`, `tokens` | Explorer sidebar | Render Source Files tree + Outline (TOC) + Backlinks as stable sections |
+| Curation UI | Preserve discoverability | - [ ] Show Source Files/Outline/Backlinks in Explorer; forbid hidden state | `singabldr/.../MarkdownPanelLayout.tsx` | `MarkdownPanelLayout` | `sourceFiles`, `tokens` | Explorer sidebar | Render Source Files tree + Outline (TOC) + Backlinks as stable sections |
 | Geospatial | Avoid duplicate import surfaces | - [ ] Consolidate dataset import; forbid conflicting UIs | `gympgrph/src/features/geospatial/GeospatialPanel.tsx` | `GeospatialPanel` | Dataset list | Dataset list UI | Geo panel does not provide dataset-add inputs; adding is consolidated into Source Files import |

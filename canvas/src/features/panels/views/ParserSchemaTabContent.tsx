@@ -7,6 +7,7 @@ import {
   type SchemaSectionCopy,
   type SchemaSidebarItem,
 } from '@/features/panels/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface SchemaTabContentProps {
   schemaError: string
@@ -39,14 +40,17 @@ function SchemaTabContent({
   const step331 = SCHEMA_STEP_COPY['3.3.1']
   const step311 = SCHEMA_STEP_COPY['3.1.1']
   const step332 = SCHEMA_STEP_COPY['3.3.2']
+  const titleClassName = `text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const descriptionClassName = `${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const sectionHeadingClassName = `text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`
 
   const getStepTitle = (step: SchemaSectionCopy, opts?: { showDescription?: boolean }) => (
     <div className="flex flex-col">
-      <span className="text-xs font-semibold text-gray-800">
+      <span className={titleClassName}>
         {step.title}
       </span>
       {(opts?.showDescription ?? true) && step.descriptionShort && (
-        <span className={`${uiPanelMicroLabelTextSizeClass} text-gray-600`}>
+        <span className={descriptionClassName}>
           {step.descriptionShort}
         </span>
       )}
@@ -71,11 +75,11 @@ function SchemaTabContent({
     if (item.sectionId === 'schemaApplyPresets') {
       return (
         <div className="mt-1 space-y-1">
-          <div className="text-xs font-semibold text-gray-800">
+          <div className={sectionHeadingClassName}>
             {step311.title}
           </div>
           {step311.descriptionShort && (
-            <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-600`}>
+            <div className={descriptionClassName}>
               {step311.descriptionShort}
             </div>
           )}
@@ -91,11 +95,11 @@ function SchemaTabContent({
     if (item.sectionId === 'schemaTuneRules') {
       return (
         <div className="mt-1 space-y-1">
-          <div className="text-xs font-semibold text-gray-800">
+          <div className={sectionHeadingClassName}>
             {step321.title}
           </div>
           {step321.descriptionShort && (
-            <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-600`}>
+            <div className={descriptionClassName}>
               {step321.descriptionShort}
             </div>
           )}
@@ -106,11 +110,11 @@ function SchemaTabContent({
     if (item.sectionId === 'schemaCustomizeUi') {
       return (
         <div className="mt-1 space-y-1">
-          <div className="text-xs text-gray-700 font-semibold">
+          <div className={sectionHeadingClassName}>
             {step331.title}
           </div>
           {step331.descriptionShort && (
-            <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-600`}>
+            <div className={descriptionClassName}>
               {step331.descriptionShort}
             </div>
           )}
@@ -121,11 +125,11 @@ function SchemaTabContent({
     if (item.sectionId === 'schemaValidationRules') {
       return (
         <div className="mt-1 space-y-1">
-          <div className="text-xs text-gray-700 font-semibold">
+          <div className={sectionHeadingClassName}>
             {step332.title}
           </div>
           {step332.descriptionShort && (
-            <div className={`${uiPanelMicroLabelTextSizeClass} text-gray-600`}>
+            <div className={descriptionClassName}>
               {step332.descriptionShort}
             </div>
           )}

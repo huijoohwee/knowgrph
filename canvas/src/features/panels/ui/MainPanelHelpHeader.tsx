@@ -5,6 +5,7 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { HELP_TAB_HEADER_TOOLTIP } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type MainPanelHelpHeaderProps = {
   allSectionsCollapsed: boolean
@@ -32,7 +33,7 @@ export default function MainPanelHelpHeader({
     <div
       className={
         [
-          'mt-4 border-t border-gray-200 flex items-center justify-between mb-1',
+          `mt-4 border-t ${UI_THEME_TOKENS.panel.divider} flex items-center justify-between mb-1`,
           uiSectionHeaderRowHeightClass,
           uiSectionHeaderRowPaddingClass,
         ].join(' ')
@@ -40,7 +41,7 @@ export default function MainPanelHelpHeader({
     >
       <div
         className={[
-          'flex items-center gap-1 text-gray-600',
+          `flex items-center gap-1 ${UI_THEME_TOKENS.text.tertiary}`,
           uiPanelMicroLabelTextSizeClass,
         ].join(' ')}
       >
@@ -65,7 +66,7 @@ export default function MainPanelHelpHeader({
         showTooltip
       >
         <ChevronDown
-          className={`${iconSizeClass} text-gray-700 transition-transform ${allSectionsCollapsed ? '' : 'rotate-180'}`}
+          className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform ${allSectionsCollapsed ? '' : 'rotate-180'}`}
           aria-hidden="true"
         />
       </IconButton>

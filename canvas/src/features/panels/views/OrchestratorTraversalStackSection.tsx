@@ -162,7 +162,7 @@ export function OrchestratorTraversalSection({
           collapsed={presetsCollapsed}
           onToggle={setPresetsCollapsed}
         >
-          <div className="mb-1 text-gray-600">
+          <div className={`mb-1 ${UI_THEME_TOKENS.text.secondary}`}>
             {UI_COPY.orchestratorTraversalPresetsIntro(getOrchestratorSectionListLabel())}
           </div>
           <Tooltip
@@ -170,7 +170,7 @@ export function OrchestratorTraversalSection({
             maxWidthPx={260}
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <div className="mb-2 flex items-center gap-1 text-gray-700">
+            <div className={`mb-2 flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`}>
               <div>
                 {UI_COPY.orchestratorTraversalAgenticReasoningLabelsTitle}
               </div>

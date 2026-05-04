@@ -31,8 +31,18 @@ const normalizeSourceFileCanonicalPath = (file: SourceFile): string => {
 const buildSourceFileDocumentId = (fileId: string): string =>
   `${KNOWGRPH_SOURCE_FILE_DOCUMENT_ID_PREFIX}${normalizeString(fileId)}`
 
-const buildSourceFileGraphSnapshotId = (fileId: string): string =>
+export const buildSourceFileGraphSnapshotId = (fileId: string): string =>
   `${KNOWGRPH_SOURCE_FILE_GRAPH_SNAPSHOT_ID_PREFIX}${normalizeString(fileId)}`
+
+export const isKnowgrphSourceFileDocumentId = (value: unknown): boolean =>
+  normalizeString(value).startsWith(KNOWGRPH_SOURCE_FILE_DOCUMENT_ID_PREFIX)
+
+export const readKnowgrphSourceFileIdFromDocumentId = (value: unknown): string => {
+  const documentId = normalizeString(value)
+  return isKnowgrphSourceFileDocumentId(documentId)
+    ? documentId.slice(KNOWGRPH_SOURCE_FILE_DOCUMENT_ID_PREFIX.length)
+    : ''
+}
 
 const buildSourceFileDocumentHash = (file: SourceFile): string =>
   hashStringToHex(

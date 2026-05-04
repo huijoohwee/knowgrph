@@ -10,6 +10,8 @@ import {
   queueKnowgrphStorageMutation,
   syncKnowgrphStorageNow,
 } from '@/lib/storage/knowgrphStorageClientSync'
+import { applyPulledKnowgrphStorageChangesToSourceFiles } from '@/features/source-files/sourceFilesInboundStorageApply'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { KNOWGRPH_STORAGE_API_VERSION } from '@/lib/storage/knowgrphStorageSyncContract'
 
 const createWorkerFetch = (env: ReturnType<typeof createFakeKnowgrphStorageWorkerEnv>) => {
@@ -252,11 +254,109 @@ export async function testKnowgrphStorageClientSyncRetainsConflictingOutboxMutat
     dbState,
   })
   if (result.conflictCount !== 1) throw new Error('expected one conflict acknowledgement for the stale outbox mutation')
+  if (result.unresolvedConflictCount !== 1) throw new Error('expected one unresolved conflict to remain tracked in the local outbox state')
+  if (result.conflictEntries.length !== 1 || result.conflictEntries[0]?.mutationId !== mutationId) {
+    throw new Error('expected sync result to expose the retained conflicting mutation for shared UX reuse')
+  }
 
   const conflictRow = await dbState.collections.syncOutbox.findOne(mutationId).exec()
   if (!conflictRow) throw new Error('expected conflicting outbox row to be retained for later resolution')
   if (Number(conflictRow.get('attemptCount') || 0) !== 1) {
     throw new Error('expected conflicting outbox row attemptCount to increment after failed push')
+  }
+  if (conflictRow.get('lastAckStatus') !== 'conflict') {
+    throw new Error('expected conflicting outbox row to retain local conflict state for shared UX reuse')
+  }
+  if (!String(conflictRow.get('lastAckMessage') || '')) {
+    throw new Error('expected conflicting outbox row to retain the latest conflict message')
+  }
+
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testKnowgrphStorageClientSyncCanApplyPulledRemoteChangesIntoVisibleSourceFiles() {
+  await __resetKnowgrphStorageDbForTests()
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setSourceFiles([])
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const fetchImpl = createWorkerFetch(env)
+  const dbState = await getKnowgrphStorageDb()
+  const deviceId = 'dev_pull_visible'
+
+  await worker.fetch(
+    new Request('https://example.com/api/storage/push', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'wk_client_visible',
+        deviceId: 'dev_remote_visible',
+        mutations: [
+          {
+            mutationId: 'mut_visible_doc',
+            workspaceId: 'wk_client_visible',
+            entity: 'document',
+            op: 'upsert',
+            recordId: 'sf:visible_remote',
+            baseRevision: null,
+            record: {
+              id: 'sf:visible_remote',
+              workspaceId: 'wk_client_visible',
+              canonicalPath: 'workspace:/visible-remote.md',
+              title: 'visible-remote.md',
+              docType: 'markdown',
+              lang: null,
+              graphId: 'sf-graph:visible_remote',
+              sourceKind: 'markdown',
+              contentMd: '# Visible Remote',
+              contentHash: 'sha256:visible-remote',
+              parserVersion: 'markdown-frontmatter',
+              revision: 1,
+              updatedAtMs: 1_777_100_002_000,
+              deleted: false,
+            },
+          },
+          {
+            mutationId: 'mut_visible_graph',
+            workspaceId: 'wk_client_visible',
+            entity: 'graphSnapshot',
+            op: 'upsert',
+            recordId: 'sf-graph:visible_remote',
+            baseRevision: null,
+            record: {
+              id: 'sf-graph:visible_remote',
+              documentId: 'sf:visible_remote',
+              workspaceId: 'wk_client_visible',
+              graphRevision: 1,
+              graphHash: 'sha256:visible-graph',
+              graphJson: { type: 'Graph', nodes: [{ id: 'visible-node', label: 'Visible Node' }], edges: [], metadata: {} },
+              layoutJson: null,
+              derivedFromDocumentRevision: 1,
+              updatedAtMs: 1_777_100_002_050,
+            },
+          },
+        ],
+      }),
+    }),
+    env as never,
+  )
+
+  await syncKnowgrphStorageNow({
+    workspaceId: 'wk_client_visible',
+    deviceId,
+    baseUrl: 'https://example.com',
+    fetchImpl,
+    dbState,
+    onPulledChangesApplied: ({ workspaceId, changes }) => {
+      applyPulledKnowgrphStorageChangesToSourceFiles({ workspaceId, changes })
+    },
+  })
+
+  const file = useGraphStore.getState().sourceFiles.find(entry => entry.id === 'visible_remote') || null
+  if (!file) throw new Error('expected client sync to make pulled remote document visible in sourceFiles')
+  if (String(file.text || '') !== '# Visible Remote') throw new Error('expected visible source file text to match pulled remote document')
+  if (!Array.isArray(useGraphStore.getState().graphData?.nodes) || useGraphStore.getState().graphData.nodes.length < 1) {
+    throw new Error('expected pulled remote source file to become visible in a non-empty composed canvas graph')
   }
 
   await __resetKnowgrphStorageDbForTests()

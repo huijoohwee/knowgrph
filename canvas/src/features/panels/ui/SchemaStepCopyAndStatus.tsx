@@ -3,6 +3,7 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import SchemaSummary from '@/features/panels/ui/SchemaSummary'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface SchemaStepCopyAndStatusProps {
   layout: 'workflow' | 'schema'
@@ -44,7 +45,7 @@ export default function SchemaStepCopyAndStatus({
         {showSchemaInlineStatus && (
           <div
             className={[
-              'mt-1 text-gray-600',
+              `mt-1 ${UI_THEME_TOKENS.text.secondary}`,
               uiPanelMicroLabelTextSizeClass,
             ].join(' ')}
           >
@@ -64,14 +65,14 @@ export default function SchemaStepCopyAndStatus({
   return (
     <div
       className={[
-        'mt-1 flex flex-wrap items-center gap-2 text-gray-600',
+        `mt-1 flex flex-wrap items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`,
         uiPanelMicroLabelTextSizeClass,
       ].join(' ')}
     >
       {renderActions ? renderActions(statusNode) : statusNode}
       {showSchemaInlineStatus && (
         <>
-          <span className="text-gray-300">|</span>
+          <span className={UI_THEME_TOKENS.text.subtle}>|</span>
           <SchemaSummary
             variant="inline"
             showTitle={false}

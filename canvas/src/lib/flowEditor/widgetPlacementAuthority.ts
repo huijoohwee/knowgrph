@@ -14,6 +14,19 @@ const FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_SIZE = {
   height: 520,
 } as const
 
+function hasAutoManagedWidgetOverlap(items: Array<{ left: number; top: number; width: number; height: number }>, gapPx: number): boolean {
+  for (let i = 0; i < items.length; i += 1) {
+    const left = items[i]!
+    for (let j = i + 1; j < items.length; j += 1) {
+      const right = items[j]!
+      const overlapX = left.left < right.left + right.width + gapPx && right.left < left.left + left.width + gapPx
+      const overlapY = left.top < right.top + right.height + gapPx && right.top < left.top + left.height + gapPx
+      if (overlapX && overlapY) return true
+    }
+  }
+  return false
+}
+
 export function isCanonicalFrontmatterBuiltInWidgetNode(node: Pick<GraphNode, 'id' | 'type'> | null | undefined): boolean {
   const nodeType = String(node?.type || '').trim()
   return nodeType === FLOW_TEXT_GENERATION_NODE_TYPE_ID
@@ -94,7 +107,8 @@ export function shouldPreserveFrontmatterAutoManagedBalancedCollective(args: {
     })
   }
   if (autoManagedNodeCount === 0 || items.length !== autoManagedNodeCount) return false
-  return !isVerticalOverlayCluster({ items, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
+  return !hasAutoManagedWidgetOverlap(items, FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX)
+    && !isVerticalOverlayCluster({ items, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
     && !isHorizontalOverlayStrip({ items, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
 }
 

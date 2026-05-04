@@ -37,7 +37,7 @@ const buildToast = (input: UiToastInput, nowMs: number): UiToast => {
   const expiresAtMs = ttlMs ? nowMs + ttlMs : null
   const dismissible = coerceDismissible(input.dismissible, true)
   const kind = input.kind || 'neutral'
-  return { id, kind, message, createdAtMs: nowMs, expiresAtMs, dismissible }
+  return { id, kind, message, createdAtMs: nowMs, expiresAtMs, dismissible, actions: Array.isArray(input.actions) ? input.actions : undefined }
 }
 
 const appendToastLog = (args: { state: GraphState; toast: UiToast; source: string }): Partial<GraphState> => {
@@ -49,6 +49,7 @@ const appendToastLog = (args: { state: GraphState; toast: UiToast; source: strin
       message: args.toast.message,
       tsMs: args.toast.createdAtMs,
       source: args.source,
+      actions: Array.isArray(args.toast.actions) ? args.toast.actions : undefined,
     },
     ...cur,
   ].slice(0, 250)

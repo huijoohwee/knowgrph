@@ -9,6 +9,7 @@ import type { HighlightedLineRange, MarkdownGeoDatasetIntegration } from './Mark
 import type { MarkdownFragmentConfig } from './markdownPreviewFragments'
 import { parseMermaidConfigFromFrontmatter } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { SlideHeader, SlideFooter } from './SlideParts'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { 
   getSlideVisualMeta, 
   buildBackgroundStyle 
@@ -20,6 +21,8 @@ export {
   normalizeThemeStyle, 
   type SlideVisualMeta 
 } from './markdownSlideVisuals'
+
+const markdownSlidePreviewShellClassName = `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
 
 const getSlidePrimaryHeading = (slideText: string): string => {
   const lines = splitMarkdownLines(slideText)
@@ -240,10 +243,10 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
 
   if (!hasSlides) {
     return (
-      <section className="w-full h-full flex items-center justify-center px-8 py-10 bg-gray-50" aria-label="Presentation Empty State">
+      <section className={`w-full h-full flex items-center justify-center px-8 py-10 ${UI_THEME_TOKENS.panel.bg}`} aria-label="Presentation Empty State">
         <div
           className={[
-            'inline-flex flex-col items-center justify-center rounded-md border border-dashed border-blue-200/80 bg-white/70 px-4 py-3 text-center text-xs text-gray-600',
+            `inline-flex flex-col items-center justify-center rounded-md border border-dashed border-blue-200/80 ${UI_THEME_TOKENS.panel.overlayBg} px-4 py-3 text-center text-xs ${UI_THEME_TOKENS.text.secondary}`,
             uiPanelTextFontClass,
           ].join(' ')}
         >
@@ -255,7 +258,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
               {UI_COPY.markdownPresentationEmptyTitle}
             </div>
           </div>
-          <div className="mt-1 text-[11px] text-gray-600">
+          <div className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>
             {UI_COPY.markdownPresentationEmptyBody}
           </div>
         </div>
@@ -443,7 +446,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
     return (
       <div
         className={[
-          'w-full rounded border border-gray-200 bg-white overflow-hidden',
+          markdownSlidePreviewShellClassName,
           slideClassPreview,
         ].filter(Boolean).join(' ')}
         style={slideStylePreview}
@@ -478,7 +481,7 @@ export const buildSlidePreview = (args: BuildSlidePreviewArgs): React.ReactNode 
   return (
     <div
       className={[
-        'w-full rounded border border-gray-200 bg-white overflow-hidden',
+        markdownSlidePreviewShellClassName,
         slideClassPreview,
       ].filter(Boolean).join(' ')}
       style={slideStylePreview}

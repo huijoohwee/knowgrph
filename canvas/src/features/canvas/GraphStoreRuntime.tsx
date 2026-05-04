@@ -28,7 +28,7 @@ const buildPendingSignature = (
   if (!value) return 'none'
   const s = value.state || {}
   return hashSignatureParts([
-    'v2',
+    'v3',
     value.key,
     value.ref,
     (s as any).canvasRenderMode,
@@ -36,6 +36,7 @@ const buildPendingSignature = (
     (s as any).canvas2dRenderer,
     (s as any).documentSemanticMode,
     (s as any).frontmatterModeEnabled,
+    (s as any).multiDimTableModeEnabled,
     (s as any).viewPinned,
     (s as any).fitToScreenMode,
     (s as any).zoomToSelectionMode,
@@ -130,6 +131,7 @@ export function GraphStoreRuntime() {
           canvas2dRenderer: s.canvas2dRenderer,
           documentSemanticMode: s.documentSemanticMode,
           frontmatterModeEnabled: s.frontmatterModeEnabled,
+          multiDimTableModeEnabled: s.multiDimTableModeEnabled,
           viewPinned: s.viewPinned,
           fitToScreenMode: s.fitToScreenMode,
           zoomToSelectionMode: s.zoomToSelectionMode,
@@ -154,6 +156,7 @@ export function GraphStoreRuntime() {
               canvas2dRenderer: prev.canvas2dRenderer,
               documentSemanticMode: prev.documentSemanticMode,
               frontmatterModeEnabled: prev.frontmatterModeEnabled,
+              multiDimTableModeEnabled: prev.multiDimTableModeEnabled,
               viewPinned: prev.viewPinned,
               fitToScreenMode: prev.fitToScreenMode,
               zoomToSelectionMode: prev.zoomToSelectionMode,
@@ -179,6 +182,7 @@ export function GraphStoreRuntime() {
               canvas2dRenderer: next.canvas2dRenderer,
               documentSemanticMode: next.documentSemanticMode,
               frontmatterModeEnabled: next.frontmatterModeEnabled,
+              multiDimTableModeEnabled: next.multiDimTableModeEnabled,
               viewPinned: next.viewPinned,
               fitToScreenMode: next.fitToScreenMode,
               zoomToSelectionMode: next.zoomToSelectionMode,
@@ -222,6 +226,7 @@ export function GraphStoreRuntime() {
             if (!presetApplied) {
               if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
               if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
+              if (typeof saved.multiDimTableModeEnabled === 'boolean') api.setMultiDimTableModeEnabled(saved.multiDimTableModeEnabled)
               if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
               if (saved.canvas3dMode) api.setCanvas3dMode(saved.canvas3dMode)
               if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
@@ -270,6 +275,7 @@ export function GraphStoreRuntime() {
             canvas2dRenderer: current.canvas2dRenderer,
             documentSemanticMode: current.documentSemanticMode,
             frontmatterModeEnabled: current.frontmatterModeEnabled,
+            multiDimTableModeEnabled: current.multiDimTableModeEnabled,
             viewPinned: current.viewPinned,
             fitToScreenMode: current.fitToScreenMode,
             zoomToSelectionMode: current.zoomToSelectionMode,

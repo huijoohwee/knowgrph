@@ -262,9 +262,9 @@ Key behaviors:
   - Applies bounded timeout/size limits via `KNOWGRPH_REMOTE_FETCH_TIMEOUT_MS` and `KNOWGRPH_REMOTE_FETCH_MAX_BYTES`.
   - Streams upstream `fetch(url)` responses back to the browser while enforcing `maxBytes`.
 
-**Media URL proxying (Canvas + Curagrph + Gympgrph)**:
+**Media URL proxying (Canvas + Singabldr + Gympgrph)**:
 - `applyMediaProxySrc(src)` (shared) rewrites cross-origin media URLs to `/__fetch_remote?url=...` when `shouldUseRemoteFetchProxy()` is true.
-- Gympgrph and Curagrph import and reuse this helper for map tiles and markdown media respectively.
+- Gympgrph and Singabldr import and reuse this helper for map tiles and markdown media respectively.
 
 ### 3. Parse (Graph + GeoJSON) and apply to stores
 
@@ -276,7 +276,7 @@ Key behaviors:
 - `performMarkdownImport(args)` → prompts for URL or local file, uses `fetchRemoteMarkdownText` for URL, then calls `applyImportedMarkdownToStore`.
 - `performJsonImport(args)` / `performCsvImport(args)` → normalize names via `normalizeImportName` and delegate to graph parsers.
 
-**Markdown Apply (Curagrph BottomPanel)**:
+**Markdown Apply (Singabldr BottomPanel)**:
 - `useMarkdownApply()` → calls `loadGraphDataFromTextViaParser(text, { applyToStore: false })` for each source, composes graphs, then applies via `setGraphData` / `setGraphDataPreservingLayout`.
 
 **Geospatial datasets (Gympgrph)**:
@@ -319,7 +319,7 @@ Key behaviors:
 
 ## State-Sync, Indexing, and Scheduler SSOT (Knowgrph)
 
-- State-sync and indexing across Knowgrph, Gympgrph, and Curagrph must use revision+viewKey gating and shared coalesced scheduler keys; ad-hoc timers for production state-sync/indexing paths are forbidden.
+- State-sync and indexing across Knowgrph, Gympgrph, and Singabldr must use revision+viewKey gating and shared coalesced scheduler keys; ad-hoc timers for production state-sync/indexing paths are forbidden.
 - Workspace FS changes emit `kg:workspace-fs:changed` (see `workspaceFsEvents.ts`); Markdown Workspace listens once and uses a shared `markdown-workspace:refresh` scheduler key to coalesce refreshes, respecting dirty-editor guards and applying `mergeWorkspaceEntriesIntoSourceFiles` idempotently.
 - SourceFiles persistence uses `source-files:persist` (graph sourceFiles snapshot) and `source-files:workspace` (folder/access/cache/selection state) scheduler keys; both write via LS+RxDB only after revision changes and equality checks, never on every keystroke or pointermove.
 - Per-document UI state persistence (document key/ref, canvas render mode, semantic/frontmatter modes, zoom/pin, selection) uses the `per-document-ui` scheduler key; no module may introduce separate per-doc timers for these fields or bypass the scheduler when writing per-document LS state.

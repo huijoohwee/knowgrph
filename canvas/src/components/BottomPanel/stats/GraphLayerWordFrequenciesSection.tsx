@@ -16,8 +16,8 @@ const statsFilterInactiveClassName = `${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOK
 const statsTokenChipBaseClassName = `inline-flex items-center gap-1 px-2 py-[2px] rounded border cursor-pointer`
 const statsTokenDefaultClassName = `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.input.border}`
 const statsTokenIncludedClassName = `bg-blue-50 ${UI_THEME_TOKENS.text.primary} border-blue-200 dark:bg-blue-900/20 dark:text-blue-100 dark:border-blue-800`
-const statsTokenExcludedClassName = `bg-red-50 text-gray-400 border-red-200 line-through dark:bg-red-900/20 dark:text-red-200 dark:border-red-800`
-const statsTokenInactiveIncludedClassName = `bg-gray-50 text-gray-400 ${UI_THEME_TOKENS.input.border}`
+const statsTokenExcludedClassName = `bg-red-50 ${UI_THEME_TOKENS.text.tertiary} border-red-200 line-through dark:bg-red-900/20 dark:text-red-200 dark:border-red-800`
+const statsTokenInactiveIncludedClassName = `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.input.border}`
 const statsPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
 const statsSubpanelClassName = `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-y-auto`
 

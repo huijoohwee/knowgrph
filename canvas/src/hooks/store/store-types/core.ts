@@ -84,6 +84,14 @@ export type DocumentStructureBaselineSnapshot = {
 
 export type UiToastKind = 'neutral' | 'success' | 'warning' | 'error'
 
+export type UiActionTone = 'neutral' | 'warning' | 'danger' | 'primary'
+
+export type UiAction = {
+  id: string
+  label: string
+  tone?: UiActionTone
+}
+
 export type UiToast = {
   id: string
   kind: UiToastKind
@@ -91,6 +99,7 @@ export type UiToast = {
   createdAtMs: number
   expiresAtMs: number | null
   dismissible: boolean
+  actions?: UiAction[]
 }
 
 export type UiToastInput = {
@@ -100,6 +109,7 @@ export type UiToastInput = {
   ttlMs?: number | null
   dismissible?: boolean
   log?: boolean
+  actions?: UiAction[]
 }
 
 export type UiLogKind = UiToastKind
@@ -110,6 +120,7 @@ export type UiLogEntry = {
   message: string
   tsMs: number
   source: string | null
+  actions?: UiAction[]
 }
 
 export type UiLogEntryInput = {
@@ -117,6 +128,7 @@ export type UiLogEntryInput = {
   message: string
   tsMs?: number
   source?: string | null
+  actions?: UiAction[]
 }
 
 export type ChatExchangeLogEntry = {

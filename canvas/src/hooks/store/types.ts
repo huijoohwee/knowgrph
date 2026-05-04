@@ -25,6 +25,8 @@ export type {
   ThreeCameraSnapshotFns,
   ThreeGlbSnapshotFns,
   ThreeLayoutSnapshotFns,
+  UiAction,
+  UiActionTone,
   UiLogEntry,
   UiLogEntryInput,
   UiLogKind,

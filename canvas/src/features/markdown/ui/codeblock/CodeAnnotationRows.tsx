@@ -76,13 +76,23 @@ export const AnnotatedRow = React.memo(function AnnotatedRow({
 }) {
   if (!row.code.trim() && !row.annotation) return null
 
+  const codeBlockClassName = [
+    `flex-1 min-w-0 p-4 ${UI_THEME_TOKENS.code.bg} overflow-x-auto`,
+    !isBeside && row.annotation ? `border-b border-dashed ${UI_THEME_TOKENS.code.border}` : '',
+  ].filter(Boolean).join(' ')
+  const annotationBlockClassName = [
+    `flex-shrink-0 p-4 ${UI_THEME_TOKENS.panel.headerBg} text-xs ${UI_THEME_TOKENS.text.secondary}`,
+    isBeside ? 'w-full lg:w-72 border-t lg:border-t-0 lg:border-l ' : 'w-full ',
+    UI_THEME_TOKENS.panel.divider,
+  ].join(' ')
+  const rowClassName = [
+    `flex ${isBeside ? 'flex-col lg:flex-row-reverse' : 'flex-col'} border-b`,
+    UI_THEME_TOKENS.panel.divider,
+    'last:border-0 group/row relative transition-shadow duration-200',
+  ].join(' ')
+
   const codeBlock = (
-    <section
-      className={
-        `flex-1 min-w-0 p-4 bg-white dark:bg-[#0d1117] overflow-x-auto ` +
-        (!isBeside && row.annotation ? 'border-b border-dashed border-gray-200 dark:border-gray-800' : '')
-      }
-    >
+    <section className={codeBlockClassName}>
       <pre className={`m-0 p-0 bg-transparent ${wrapClass} ${textSizeClass}`}>
         <HighlightedCode code={row.code} lang={lang} highlightLines={null} />
       </pre>
@@ -90,13 +100,7 @@ export const AnnotatedRow = React.memo(function AnnotatedRow({
   )
 
   const annotationBlock = row.annotation ? (
-    <aside
-      className={
-        `flex-shrink-0 p-4 bg-gray-50 dark:bg-gray-900/50 text-xs text-gray-600 dark:text-gray-400 ` +
-        (isBeside ? 'w-full lg:w-72 border-t lg:border-t-0 lg:border-l ' : 'w-full ') +
-        'border-gray-100 dark:border-gray-800'
-      }
-    >
+    <aside className={annotationBlockClassName}>
       <section className="prose prose-xs max-w-none dark:prose-invert">
         <p className="whitespace-pre-wrap leading-relaxed m-0">{row.annotation}</p>
       </section>
@@ -104,11 +108,7 @@ export const AnnotatedRow = React.memo(function AnnotatedRow({
   ) : null
 
   return (
-    <section
-      className={
-        `flex ${isBeside ? 'flex-col lg:flex-row-reverse' : 'flex-col'} border-b border-gray-100 dark:border-gray-800 last:border-0 group/row relative transition-shadow duration-200`
-      }
-    >
+    <section className={rowClassName}>
       <span
         className="absolute inset-0 pointer-events-none border-2 border-transparent group-hover/row:border-blue-500 z-10 transition-colors duration-200"
         aria-hidden="true"
@@ -118,4 +118,3 @@ export const AnnotatedRow = React.memo(function AnnotatedRow({
     </section>
   )
 })
-

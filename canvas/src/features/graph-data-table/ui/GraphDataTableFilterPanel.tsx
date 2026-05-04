@@ -57,6 +57,10 @@ export function FilterPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const matchComboboxClassName = `inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.microLabelClass}`
+  const filterComboboxClassName = `inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`
+  const filterValueInputClassName = `h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors ${UI_THEME_TOKENS.input.placeholder} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`
+  const filterGroupPanelClassName = `flex flex-col gap-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} p-2`
 
   const handleFilterOperatorChange = React.useCallback(
     (id: string, operator: GraphDataTableFilterOperator) => {
@@ -100,7 +104,7 @@ export function FilterPanel({
                   { value: 'any', label: 'or' },
                 ]}
                 onChange={value => setFilterMatch(value === 'any' ? 'any' : 'all')}
-                className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.microLabelClass}`}
+                className={matchComboboxClassName}
               />
             )
           if (clause.kind === 'condition') {
@@ -117,7 +121,7 @@ export function FilterPanel({
                   onChange={value =>
                     handleFilterColumnChange(condition.id, value as GraphDataTableColumnKey)
                   }
-                  className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
+                  className={filterComboboxClassName}
                 />
                 <FilterCombobox
                   value={condition.operator}
@@ -128,7 +132,7 @@ export function FilterPanel({
                   className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.textSizeClass}`}
                 />
                 <input
-                  className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${
+                  className={`${filterValueInputClassName} ${
                     isValueDisabled ? 'opacity-50' : ''
                   }`}
                   placeholder={`Enter value for ${columnLabel.toLowerCase()}`}
@@ -150,7 +154,7 @@ export function FilterPanel({
 
           const group = clause
           return (
-            <div key={group.id} className={`flex flex-col gap-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} p-2`}>
+            <div key={group.id} className={filterGroupPanelClassName}>
               <div className="flex items-center justify-between gap-2">
                 <div className={`flex items-center gap-2 ${panelTypography.textSizeClass}`}>
                   {prefix}
@@ -161,7 +165,7 @@ export function FilterPanel({
                       { value: 'any', label: 'any' },
                     ]}
                     onChange={value => setFilterGroupMatch(group.id, value)}
-                    className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
+                    className={filterComboboxClassName}
                   />
                   <span className={UI_THEME_TOKENS.text.tertiary}>of the following conditions:</span>
                 </div>
@@ -188,7 +192,7 @@ export function FilterPanel({
                         onChange={value =>
                           handleFilterColumnChange(condition.id, value as GraphDataTableColumnKey)
                         }
-                        className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
+                        className={filterComboboxClassName}
                       />
                       <FilterCombobox
                         value={condition.operator}
@@ -202,7 +206,7 @@ export function FilterPanel({
                         className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.textSizeClass}`}
                       />
                       <input
-                        className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${
+                        className={`${filterValueInputClassName} ${
                           isValueDisabled ? 'opacity-50' : ''
                         }`}
                         placeholder={`Enter value for ${columnLabel.toLowerCase()}`}

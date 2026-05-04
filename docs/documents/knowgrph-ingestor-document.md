@@ -385,7 +385,7 @@ knowgrph_parser/
 | Media Extraction  | Parsed content                 | Media node properties          | Extract URLs, resolve relative paths                        | Regex/DOM-based, O(n) in content length      |
 | Graph Construction| JSON-LD or raw nodes/edges     | GraphData                      | Normalize to canonical GraphData structure                  | Structural sharing for efficiency            |
 | Store Update      | GraphData                      | Updated store state            | Zustand store sets graphData and derived state (including Multi-dimensional Table materialization via GraphTableDb) | Immutable updates                            |
-| UI Rendering      | Store state                    | Visual display                 | Canvas, Multi-dimensional Table, curagrph tables, panels react to store changes | Memoized selectors, virtualization           |
+| UI Rendering      | Store state                    | Visual display                 | Canvas, Multi-dimensional Table, singabldr tables, panels react to store changes | Memoized selectors, virtualization           |
 
 ---
 

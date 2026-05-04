@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { GraphField, GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 function inferPropertyTypeFromFieldType(
   fieldType: GraphFieldSettingsResolved['fieldType'],
@@ -65,51 +66,61 @@ export default function FieldSchemaSection({
   )
 
   const shouldShowOwnersWithField = (ownersWithField?.length ?? 0) > 0
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
+  const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const labelClassName = `block ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const helperTextClassName = `mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const constraintsPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.neutralSubtle} p-2 space-y-2`
+  const constraintLabelClassName = `flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const constraintStatusClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+    <div className={panelClassName}>
+      <div className={headingClassName}>
         Schema
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="min-w-0">
-          <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <label className={labelClassName}>
             {ownerLabel}
           </label>
           {shouldShowOwnersWithField ? (
-            <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+            <div className={helperTextClassName}>
               Detected on {ownersWithField!.length}: {ownersWithField!.join(', ')}
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="rounded border border-gray-200 bg-gray-50 p-2 space-y-2">
+      <div className={constraintsPanelClassName}>
         <div className="min-w-0">
-          <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <label className={labelClassName}>
             Constraints
           </label>
           <div className="mt-1 flex items-center gap-4">
-            <label className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+            <label className={constraintLabelClassName}>
               <input
                 type="checkbox"
+                className={selectionControlClassName}
                 checked={!!spec?.required}
                 onChange={e => upsertProperty({ required: e.target.checked })}
                 disabled={!ownerKey}
               />
               <span>required</span>
             </label>
-            <label className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+            <label className={constraintLabelClassName}>
               <input
                 type="checkbox"
+                className={selectionControlClassName}
                 checked={!!spec?.uniqueness}
                 onChange={e => upsertProperty({ uniqueness: e.target.checked })}
                 disabled={!ownerKey}
               />
               <span>unique</span>
             </label>
-            <span className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+            <span className={constraintStatusClassName}>
               {spec ? 'In schema' : 'Not in schema'}
             </span>
           </div>

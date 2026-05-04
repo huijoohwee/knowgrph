@@ -107,7 +107,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     headingControlVisibilityClassName,
     'no-underline',
     UI_THEME_TOKENS.text.tertiary,
-    'hover:text-gray-900 dark:hover:text-gray-100',
+    UI_THEME_TOKENS.button.hoverText,
   ].join(' ')
   const headingButtonClassName = [
     headingControlVisibilityClassName,

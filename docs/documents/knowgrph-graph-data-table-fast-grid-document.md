@@ -10,7 +10,7 @@
 
 ## Ownership
 
-- This Graph Data Table is **host-owned** (Knowgrph) and is **not** the extracted `curagrph` Graph Data Table surface.
+- This Graph Data Table is **host-owned** (Knowgrph) and is **not** the extracted `singabldr` Graph Data Table surface.
 - It exists as a workspace tool for inspecting the active graph view and syncing selection with the shared Canvas pane / TOC.
 
 ---

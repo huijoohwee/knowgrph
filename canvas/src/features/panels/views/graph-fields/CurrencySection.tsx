@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function CurrencySection({
   selectedSettings,
@@ -14,18 +15,20 @@ export function CurrencySection({
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
   if (selectedSettings.fieldType !== 'Currency') return null
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
+  const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const inputClassName = `h-8 w-24 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
-    <div className="rounded border border-gray-200 bg-white p-3">
+    <div className={panelClassName}>
       <div className="flex items-center justify-between">
-        <span className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>Currency</span>
+        <span className={labelClassName}>Currency</span>
         <input
           value={selectedSettings.currencyCode}
           onChange={e => updateSettings({ currencyCode: e.target.value })}
           placeholder="USD"
-          className="h-8 w-24 rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+          className={inputClassName}
         />
       </div>
     </div>
   )
 }
-

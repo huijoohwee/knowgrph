@@ -1,5 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type PreviewOverlayProps = {
   open: boolean
@@ -42,7 +43,7 @@ export default function PreviewOverlay({
     >
       <div
         className={[
-          'bg-white rounded border border-gray-200 shadow-lg w-[95vw] h-[95vh] overflow-hidden',
+          `${UI_THEME_TOKENS.panel.bg} rounded border ${UI_THEME_TOKENS.panel.border} shadow-lg w-[95vw] h-[95vh] overflow-hidden`,
           panelClassName || '',
         ].filter(Boolean).join(' ')}
         onMouseDown={(e) => e.stopPropagation()}

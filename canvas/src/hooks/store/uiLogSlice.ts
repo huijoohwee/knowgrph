@@ -28,6 +28,7 @@ export const createUiLogSlice = (
           message,
           tsMs: nowMs,
           source: entry?.source || null,
+          actions: Array.isArray(entry?.actions) ? entry.actions : undefined,
         }
         const cur = state.uiLogEntries || []
         return { uiLogEntries: [next, ...cur].slice(0, MAX_LOG_ENTRIES) }

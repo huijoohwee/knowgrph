@@ -339,7 +339,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       endLine: t.startLine,
       replacementLines: [replacementOpenLine],
     })
-  }, [c.info, meta.lang, opts.markdownSourceLines, opts.onReplaceLineRange, t.startLine])
+  }, [c.info, meta.lang, opts, t.startLine])
   const codeFenceContentClassName = `${MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`
   const codeFencePreClassName = `${MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS} ${MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS} ${effectiveWrapClass} ${monospaceCodeClass}`
 
@@ -353,7 +353,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
 
   const headerNode = (
     <header
-      className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} bg-gray-50/50 dark:bg-gray-800/50`}
+      className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
     >
       {canChangeFenceLanguage ? (
         <select
@@ -375,7 +375,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
           ))}
         </select>
       ) : (
-        <span className="flex-1 font-mono text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase">
+        <span className={`flex-1 font-mono text-xs ${UI_THEME_TOKENS.text.secondary} font-semibold uppercase`}>
           {lang || 'text'}
         </span>
       )}
@@ -580,7 +580,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
                   <img
                     src={src}
                     alt={alt}
-                    className="inline-block max-w-full h-auto rounded border border-gray-200"
+                    className={`inline-block max-w-full h-auto rounded border ${UI_THEME_TOKENS.code.border}`}
                   />
                 </section>
               )
@@ -616,7 +616,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     </>
   )
 
-  const editStaticHeaderNode = React.useMemo(() => headerNode, [headerNode])
+  const editStaticHeaderNode = headerNode
 
   const codeOuterClassName = [MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS, figureClassName].filter(Boolean).join(' ')
   const codeGutterWrapperClassName = [

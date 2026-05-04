@@ -80,7 +80,7 @@ function AgenticContextSummary({ agenticContext }: AgenticContextSummaryProps) {
   return (
     <div
       className={[
-        'mt-2 mb-1 text-gray-500',
+        `mt-2 mb-1 ${UI_THEME_TOKENS.text.tertiary}`,
         uiPanelKeyValueTextSizeClass,
         uiPanelTextFontClass,
       ].join(' ')}
@@ -132,12 +132,12 @@ export function AgenticRagIgnoreFiltersSummaryView({
   const containerClassName = className
     ? [
         className,
-        'text-gray-500',
+        UI_THEME_TOKENS.text.tertiary,
         uiPanelKeyValueTextSizeClass,
         uiPanelTextFontClass,
       ].join(' ')
     : [
-        'text-gray-500',
+        UI_THEME_TOKENS.text.tertiary,
         uiPanelKeyValueTextSizeClass,
         uiPanelTextFontClass,
       ].join(' ')
@@ -151,9 +151,9 @@ export function AgenticRagIgnoreFiltersSummaryView({
       <span
         className={getPillClass('badge', {
           baseClass:
-            'inline-flex items-center px-1 py-[1px] mr-1 rounded border border-gray-300 bg-gray-50',
+            `inline-flex items-center px-1 py-[1px] mr-1 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`,
           badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-          textColorClass: 'text-gray-600',
+          textColorClass: UI_THEME_TOKENS.text.secondary,
         })}
       >
         {badgeLabel}

@@ -17,6 +17,9 @@ import {
   SchemaUiValidationRulesRow,
 } from './SchemaUiEditorRows'
 
+const schemaEditorPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
+const schemaEditorSectionTitleClassName = `text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`
+
 function tryParseJsonWithKind<T>(
   text: string,
   fallback: T,
@@ -396,9 +399,9 @@ export default function SchemaUiEditor({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-2">
-      <div className="rounded border border-gray-200 bg-white p-3">
+      <div className={schemaEditorPanelClassName}>
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold text-gray-800">
+          <div className={schemaEditorSectionTitleClassName}>
             Global schema
           </div>
           {!registerApply ? (
@@ -441,9 +444,9 @@ export default function SchemaUiEditor({
       </div>
 
       {mode !== 'globalOnly' ? (
-        <div className="rounded border border-gray-200 bg-white p-3 flex-1 min-h-0">
+        <div className={`${schemaEditorPanelClassName} flex-1 min-h-0`}>
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold text-gray-800">
+            <div className={schemaEditorSectionTitleClassName}>
               Local schema (per owner)
             </div>
             <div className="flex items-center gap-1">

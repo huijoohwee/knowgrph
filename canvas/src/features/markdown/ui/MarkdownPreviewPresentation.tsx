@@ -461,7 +461,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
           onMouseUp={onMouseUp}
           onContextMenu={onContextMenu}
           className={[
-            'relative flex-1 min-h-0 w-full overflow-hidden outline-none flex flex-col bg-gray-50 dark:bg-gray-900',
+            `relative flex-1 min-h-0 w-full overflow-hidden outline-none flex flex-col ${UI_THEME_TOKENS.panel.bg}`,
             uiPanelTextFontClass,
           ].join(' ')}
           data-testid="markdown-presentation-root"
@@ -495,7 +495,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         <div ref={previewOverlayContainerRef} className="w-full h-full bg-[color:var(--kg-panel-bg)] relative overflow-hidden">
           {/* Sidebar Trigger Area */}
           <div
-            className="absolute left-0 top-0 bottom-0 w-2 z-[60] bg-transparent hover:bg-gray-200/20 dark:hover:bg-gray-700/20 transition-colors duration-200"
+            className={`absolute left-0 top-0 bottom-0 w-2 z-[60] bg-transparent ${UI_THEME_TOKENS.button.hoverBg} transition-colors duration-200`}
             title="Show Slides Sidebar"
             onMouseEnter={handleSidebarMouseEnter}
             onMouseLeave={handleSidebarMouseLeave}

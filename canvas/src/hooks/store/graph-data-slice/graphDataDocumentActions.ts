@@ -79,13 +79,10 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     if (args?.applyViewPreset !== false && !args?.applyToGraph && text.trim()) {
       try {
         const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
-        const presetApplied = applyCanvasFrontmatterPreset({
+        applyCanvasFrontmatterPreset({
           graphData: get().graphData,
           rawText: text,
         })
-        if (presetApplied && get().multiDimTableModeEnabled !== false) {
-          get().setMultiDimTableModeEnabled(false)
-        }
       } catch {
         void 0
       }

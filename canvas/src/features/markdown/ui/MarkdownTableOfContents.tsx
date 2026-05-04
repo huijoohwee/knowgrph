@@ -99,7 +99,7 @@ function TocItemRenderer({
           <MarkdownTocReorderHandle
             ariaLabel="Reorder section"
             title="Reorder section"
-            className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-600 dark:hover:text-gray-400`}
+            className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverText}`}
             iconClassName={iconSizeClass}
             strokeWidth={uiIconStrokeWidth}
             onDragStart={handleDragStart}

@@ -2,6 +2,7 @@ import React from 'react'
 import { AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sanitizeMessageText } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type ErrorFeedbackProps = {
   title?: string
@@ -50,7 +51,7 @@ export function ErrorFeedback({ title, error, details, code, variant = 'default'
       ) : null}
       {code && (
         <pre className="m-0 overflow-x-auto">
-          <code className="font-mono text-xs text-gray-700 dark:text-gray-300">
+          <code className={`font-mono text-xs ${UI_THEME_TOKENS.code.text}`}>
             {code}
           </code>
         </pre>

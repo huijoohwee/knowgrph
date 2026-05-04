@@ -452,7 +452,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     const overlay = schema?.layout?.flow && typeof schema.layout.flow === 'object' ? (schema.layout.flow as { overlay?: { collisionGapPx?: unknown } }).overlay : null
     const gapPx = Math.max(0, Math.min(40, Math.floor(typeof overlay?.collisionGapPx === 'number' ? overlay.collisionGapPx : 12)))
     const cellW = WIDGET_BASE_SIZE.width + gapPx + portExtraPadPx
-    const cellH = Math.round(WIDGET_BASE_SIZE.height * 0.76) + gapPx
+    const cellH = WIDGET_BASE_SIZE.height + gapPx
     const rowsMax = Math.max(1, Math.floor((viewportH - 96 - 24) / Math.max(1, cellH)))
     const colsNeeded = Math.max(1, Math.ceil(unpinnedCount / rowsMax))
     const colsMax = Math.max(1, Math.min(3, Math.floor((viewportW - 20 - 20) / Math.max(1, cellW))))

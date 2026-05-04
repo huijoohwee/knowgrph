@@ -145,7 +145,7 @@ export default function PreviewGallery({
 
   return (
     <section
-      className={`p-2 rounded outline-none focus-visible:ring-1 ${UI_THEME_TOKENS.button.ring}`}
+      className={`p-2 rounded outline-none ${UI_THEME_TOKENS.focus.primaryRing}`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
       aria-label="Slides"

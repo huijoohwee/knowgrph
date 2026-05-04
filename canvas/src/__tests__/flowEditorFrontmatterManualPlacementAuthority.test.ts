@@ -39,6 +39,9 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!authorityText.includes('isVerticalOverlayCluster') || !authorityText.includes('isHorizontalOverlayStrip')) {
     throw new Error('expected widget placement authority SSOT to detect vertical/horizontal residue before preserving same-source frontmatter screen layouts')
   }
+  if (!authorityText.includes('function hasAutoManagedWidgetOverlap(')) {
+    throw new Error('expected widget placement authority SSOT to reject overlapped frontmatter collectives before preserving same-source screen layouts')
+  }
   if (!overlayText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority')) {
     throw new Error('expected node overlay runtime to reuse the shared frontmatter floating screen-authority helper')
   }

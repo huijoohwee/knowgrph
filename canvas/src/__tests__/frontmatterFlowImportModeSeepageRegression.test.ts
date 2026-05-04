@@ -1,4 +1,7 @@
+import React, { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyInteractiveImportModes } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { resolveCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
@@ -6,8 +9,11 @@ import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemo
 import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/sourceFilesRuntimeShared'
 import { LS_KEYS } from '@/lib/config'
 import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildDocumentKey, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { lsBool } from '@/lib/persistence'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { createMemoryStorage } from '@/tests/lib/memoryStorage'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -387,6 +393,85 @@ export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatt
   if (st.frontmatterModeEnabled !== true) throw new Error('expected active doc switch to re-enable frontmatter mode')
   if (st.documentStructureBaselineLock !== false) throw new Error('expected active doc switch to reapply unlocked baseline setting')
   if (st.multiDimTableModeEnabled !== false) throw new Error('expected active doc switch to disable multi-dimensional table mode when preset reapplies')
+}
+
+export async function testGraphStoreRuntimeExplicitFrontmatterPresetBeatsSavedUiCarryover() {
+  const storage = createMemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  let root: ReturnType<typeof createRoot> | null = null
+  try {
+    useGraphStore.getState().resetAll()
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('expected test root container')
+    root = createRoot(container)
+    await act(async () => {
+      root!.render(React.createElement(GraphStoreRuntime))
+    })
+
+    const name = '/notes/custom-table-mode.md'
+    const text = [
+      '---',
+      'title: "Custom Table Mode"',
+      'kgCanvasSurfaceMode: "2d"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "flowchart"',
+      'kgDocumentSemanticMode: "Keyword Mode"',
+      'kgFrontmatterModeEnabled: false',
+      'kgMultiDimTableModeEnabled: true',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      '# Custom Table Mode',
+    ].join('\n')
+    const documentKey = buildDocumentKey({ name, sourceUrl: null })
+    writePerDocumentUiState({
+      storage,
+      documentKey,
+      documentRef: name,
+      state: {
+        canvasRenderMode: '2d',
+        canvas2dRenderer: 'd3',
+        documentSemanticMode: 'document',
+        frontmatterModeEnabled: true,
+        multiDimTableModeEnabled: false,
+      },
+    })
+
+    await act(async () => {
+      await useGraphStore.getState().setActiveMarkdownDocument({
+        name,
+        text,
+        normalizeMermaidMmd: false,
+        autoEnableFrontmatter: false,
+      })
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    const next = useGraphStore.getState()
+    if (next.canvas2dRenderer !== 'flowchart') {
+      throw new Error(`expected explicit frontmatter preset to keep flowchart renderer, got ${String(next.canvas2dRenderer)}`)
+    }
+    if (next.documentSemanticMode !== 'keyword') {
+      throw new Error(`expected explicit frontmatter preset to keep keyword mode, got ${String(next.documentSemanticMode)}`)
+    }
+    if (next.frontmatterModeEnabled !== false) {
+      throw new Error('expected explicit frontmatter preset to keep frontmatter mode disabled')
+    }
+    if (next.multiDimTableModeEnabled !== true) {
+      throw new Error('expected explicit frontmatter preset to keep multi-dimensional table mode enabled instead of restoring saved carryover')
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+    restoreWindow()
+  }
 }
 
 export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatterPresetForPassiveSelection() {

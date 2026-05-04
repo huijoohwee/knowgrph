@@ -1,6 +1,7 @@
 import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type LayoutAndRoutingSectionProps = {
   schema: GraphSchema
@@ -21,13 +22,16 @@ export default function LayoutAndRoutingSection({
   setAlphaDecay,
   setThreeConfig,
 }: LayoutAndRoutingSectionProps) {
+  const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
+  const selectClassName = `px-2 py-1 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
     <div className="space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-700`}>Layout</div>
+      <div className={sectionHeadingClassName}>Layout</div>
       <Subsection title="Layout">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs">
-            <span>Charge</span>
+            <span className={inlineLabelClassName}>Charge</span>
             <input
               type="number"
               step={10}
@@ -35,7 +39,7 @@ export default function LayoutAndRoutingSection({
               onChange={e => setCharge(parseFloat(e.target.value || '-300'))}
               className={uiPanelKeyValueInputClass}
             />
-            <span className="ml-4 text-xs">Alpha Decay</span>
+            <span className={`ml-4 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Alpha Decay</span>
             <input
               type="number"
               min={0}
@@ -51,7 +55,7 @@ export default function LayoutAndRoutingSection({
       <Subsection title="Edge Routing">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs">
-            <span>Routing Mode</span>
+            <span className={inlineLabelClassName}>Routing Mode</span>
             {(() => {
               const routing = schema.edgeRouting || {}
               const mode = routing.mode || 'quadratic'
@@ -70,7 +74,7 @@ export default function LayoutAndRoutingSection({
                       },
                     })
                   }}
-                  className="px-2 py-1 text-xs border border-gray-300 rounded"
+                  className={selectClassName}
                 >
                   <option value="quadratic">Quadratic</option>
                   <option value="straight">Straight</option>
@@ -82,7 +86,7 @@ export default function LayoutAndRoutingSection({
       </Subsection>
       <Subsection title="3D Layout">
         <div className="flex items-center gap-2 text-xs">
-          <span>Sphere Radius</span>
+          <span className={inlineLabelClassName}>Sphere Radius</span>
           <input
             type="number"
             min={20}
@@ -92,7 +96,7 @@ export default function LayoutAndRoutingSection({
             onChange={e => setThreeConfig({ sphereRadius: parseFloat(e.target.value || '120') })}
             className={uiPanelKeyValueInputClass}
           />
-          <span className="ml-4">Seed</span>
+          <span className={`ml-4 ${UI_THEME_TOKENS.text.secondary}`}>Seed</span>
           <input
             type="number"
             min={0}
@@ -102,7 +106,7 @@ export default function LayoutAndRoutingSection({
             onChange={e => setThreeConfig({ seed: parseInt(e.target.value || '1', 10) })}
             className={uiPanelKeyValueInputClass}
           />
-          <span className="ml-4">Min Spacing</span>
+          <span className={`ml-4 ${UI_THEME_TOKENS.text.secondary}`}>Min Spacing</span>
           <input
             type="number"
             min={0}

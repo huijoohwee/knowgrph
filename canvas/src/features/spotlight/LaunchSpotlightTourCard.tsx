@@ -10,6 +10,7 @@ import { getSpotlightCardStyle } from '@/features/spotlight/positioning'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { getGraphCapabilities } from '@/lib/graph/helpers'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 import { LAUNCH_SPOTLIGHT_TOUR_TOOLTIP } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
@@ -244,7 +245,7 @@ export function LaunchSpotlightTourCard({
                   <span
                     key={stepConfig.id}
                     className={`h-1.5 w-1.5 rounded-full ${
-                      stepIndex === clampedIndex ? 'bg-blue-600' : 'bg-gray-300'
+                      stepIndex === clampedIndex ? 'bg-blue-600' : UI_INTENT_TOKENS.neutral.accentBg
                     }`}
                   />
                 ))}

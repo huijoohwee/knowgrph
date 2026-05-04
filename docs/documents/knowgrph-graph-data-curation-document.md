@@ -1,14 +1,14 @@
-# Knowgrph Graph Data Curation (curagrph Extraction)
+# Knowgrph Graph Data Curation (singabldr Extraction)
 
 ## Overview
 
-Knowgrph hosts the end-to-end import → parse → store → render pipeline, while the Graph Data curation and document presentation surfaces are owned by the sibling repo `curagrph`.
+Knowgrph hosts the end-to-end import → parse → store → render pipeline, while the Graph Data curation and document presentation surfaces are owned by the sibling repo `singabldr`.
 
 **Goal**: enforce single-source-of-truth ownership for Graph Data UI (tables + editors + presentation) without changing the visible frontend/UI behavior.
 
 Canonical ownership and contract details live in:
 
-- `knowgrph/docs/documents/curagrph-graph-data-curation-document.md`
+- `knowgrph/docs/documents/singabldr-graph-data-curation-document.md`
 
 ---
 
@@ -19,7 +19,7 @@ Canonical ownership and contract details live in:
 - Owns pipeline orchestration: ingest/import → parser selection → GraphData commit → canvas render.
 - Owns global state wiring (Zustand store and app routing) and calls Graph Data surfaces as UI modules.
 
-#### Host-only workspace tools (do not drift into curagrph)
+#### Host-only workspace tools (do not drift into singabldr)
 
 - The Editor workspace includes a host-owned **Multi-dimensional Table** (Graph Table / “Graph Data Table” inside Editor mode) that is intentionally lightweight:
   - Canvas fast-grid renderer for the body grid with a DOM header overlay (synced to the same scroll owner) + a small toolbar (fields/filter/group/sort/row height).
@@ -28,9 +28,9 @@ Canonical ownership and contract details live in:
 
 This surface must remain stable under stress: forbid ResizeObserver→React state loops, forbid scroll/resize feedback loops, and ensure pinned header/columns are fully opaque (no scrolled text bleed-through).
 
-This host workspace tool must not be duplicated inside `curagrph` (keep one owner per surface).
+This host workspace tool must not be duplicated inside `singabldr` (keep one owner per surface).
 
-### curagrph (Graph Data surfaces)
+### singabldr (Graph Data surfaces)
 
 - Owns Graph Data curation/presentation UI and supporting modules:
   - BottomPanel curator + markdown section + JSON-backed markdown helpers
@@ -45,19 +45,19 @@ This boundary mirrors the earlier pattern used for Geospatial Mode extraction (i
 
 ## Module Map
 
-**curagrph**
-- `curagrph/src/components/BottomPanel/*`: BottomPanel submodules that implement curation and document views.
-- `curagrph/src/features/graph-data-table/*`: Graph Data Table model and UI.
-- `curagrph/src/features/markdown/*`: Markdown lexing/rendering/presentation surfaces.
-- `curagrph/src/features/markdown/ui/MarkdownStructuredTextEditor.tsx`: Monaco-backed structured editor (JSON/YAML) consolidated under Markdown.
-- `curagrph/src/features/panels/views/preview-panel/ui/*`: gallery + preview overlay primitives used by markdown/presentation.
+**singabldr**
+- `singabldr/src/components/BottomPanel/*`: BottomPanel submodules that implement curation and document views.
+- `singabldr/src/features/graph-data-table/*`: Graph Data Table model and UI.
+- `singabldr/src/features/markdown/*`: Markdown lexing/rendering/presentation surfaces.
+- `singabldr/src/features/markdown/ui/MarkdownStructuredTextEditor.tsx`: Monaco-backed structured editor (JSON/YAML) consolidated under Markdown.
+- `singabldr/src/features/panels/views/preview-panel/ui/*`: gallery + preview overlay primitives used by markdown/presentation.
 
 **knowgrph**
 - `knowgrph/canvas/src/*`: continues to host the app entrypoints, renderers, store orchestration, and pipeline logic.
 
 ---
 
-## Graph Data Table (curagrph) Notes
+## Graph Data Table (singabldr) Notes
 
 - The curation table is a DOM `<table>` with a single scroll owner; sticky header and optional frozen first data column must remain aligned with the scrollable columns.
 - Column widths must be shared between header and body so horizontal scroll never produces drift.
@@ -70,11 +70,11 @@ This boundary mirrors the earlier pattern used for Geospatial Mode extraction (i
 
 Knowgrph integrates the extracted Graph Data code via:
 
-- Local dependency wiring for `curagrph` (sibling repo).
-- Runtime module resolution targets the installed package copy at `knowgrph/canvas/node_modules/curagrph/src` (not direct sibling `../../curagrph/src` imports) to avoid cross-repo path coupling.
+- Local dependency wiring for `singabldr` (sibling repo).
+- Runtime module resolution targets the installed package copy at `knowgrph/canvas/node_modules/singabldr/src` (not direct sibling `../../singabldr/src` imports) to avoid cross-repo path coupling.
 - Host resolution preserves symlink paths in both Vite and TypeScript so extracted modules resolve dependencies from the host install (single node_modules truth).
 - Host bundler config dedupes shared deps (notably `react` and `highlight.js`) and pre-optimizes `highlight.js` so extracted markdown rendering does not hit ESM/CJS default-export hazards at runtime.
-- Tailwind content scanning includes `node_modules/curagrph/src` so UI classes remain stable.
+- Tailwind content scanning includes `node_modules/singabldr/src` so UI classes remain stable.
 
 ---
 

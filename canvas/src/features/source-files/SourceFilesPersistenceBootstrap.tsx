@@ -45,11 +45,13 @@ import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
   syncSourceFilesToKnowgrphStorage,
 } from '@/features/source-files/sourceFilesStorageSync'
+import { applyPulledKnowgrphStorageChangesToSourceFiles } from '@/features/source-files/sourceFilesInboundStorageApply'
 import {
   cancelKnowgrphStorageSync,
   scheduleKnowgrphStorageSync,
   startKnowgrphStorageSyncLoop,
 } from '@/lib/storage/knowgrphStorageClientSync'
+import { notifyKnowgrphStorageConflictUx } from '@/lib/storage/knowgrphStorageConflictUx'
 
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
 
@@ -163,6 +165,10 @@ export function SourceFilesPersistenceBootstrap() {
                 workspaceId: latestWorkspaceId,
                 delayMs: 0,
                 signature: `${latestSignature}:${result.queuedMutationCount}`,
+                onSyncCompleted: syncResult => {
+                  if (activeKnowgrphWorkspaceIdRef.current !== syncResult.workspaceId) return
+                  notifyKnowgrphStorageConflictUx(syncResult)
+                },
               })
             }
           })
@@ -201,6 +207,18 @@ export function SourceFilesPersistenceBootstrap() {
       knowgrphStorageLoopCleanupRef.current = startKnowgrphStorageSyncLoop({
         workspaceId: nextWorkspaceId,
         initialDelayMs: 0,
+        onSyncCompleted: result => {
+          if (activeKnowgrphWorkspaceIdRef.current !== result.workspaceId) return
+          notifyKnowgrphStorageConflictUx(result)
+        },
+        onPulledChangesApplied: ({ workspaceId, changes }) => {
+          if (activeKnowgrphWorkspaceIdRef.current !== workspaceId) return
+          const result = applyPulledKnowgrphStorageChangesToSourceFiles({ workspaceId, changes })
+          if (!result.applied) return
+          const nextSourceFiles = useGraphStore.getState().sourceFiles
+          lastQueuedKnowgrphStorageSourceFilesRef.current = nextSourceFiles
+          lastQueuedKnowgrphStorageSignatureRef.current = `${workspaceId}:${buildSourceFilesPersistenceSignature(nextSourceFiles)}`
+        },
       })
       scheduleKnowgrphStorageQueueSync(useGraphStore.getState().sourceFiles)
     }

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import IconButton from '@/components/IconButton'
+import { UiActionButtons } from '@/components/ui/UiActionButtons'
 // import { performMarkdownImport } from '@/features/toolbar/markdownImportAction'
 // import { performJsonImport } from '@/features/toolbar/jsonImportAction'
 import { Save as SaveIcon, RotateCcw as ResetIcon, RotateCcw as RestoreIcon, FileText, Link as LinkIcon, FileJson, FileCode, FileType } from 'lucide-react'
@@ -74,8 +75,11 @@ function buildUiLogEntriesSignature(rows: readonly UiLogEntry[]): string {
         message: String(row?.message || ''),
         tsMs: typeof row?.tsMs === 'number' ? row.tsMs : 0,
         source: String(row?.source || ''),
+        actions: Array.isArray(row?.actions)
+          ? row.actions.map(action => `${String(action?.id || '')}:${String(action?.label || '')}:${String(action?.tone || '')}`).join('|')
+          : '',
       })),
-      { maxItems: Math.max(80, rows.length), maxKeysPerItem: 5 },
+      { maxItems: Math.max(80, rows.length), maxKeysPerItem: 6 },
     ),
   ])
 }
@@ -423,7 +427,10 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
                     {filteredLog.map(row => (
                       <tr key={row.id} className={`hover:${UI_THEME_TOKENS.table.rowHover}`}>
                         <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>{formatTimestamp(row.tsMs)}</td>
-                        <td className={`px-3 py-2 align-top ${UI_THEME_TOKENS.text.primary} break-words`}>{row.message}</td>
+                        <td className={`px-3 py-2 align-top ${UI_THEME_TOKENS.text.primary} break-words`}>
+                          <div>{row.message}</div>
+                          <UiActionButtons actions={row.actions} className="mt-2" />
+                        </td>
                         <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>{row.source || ''}</td>
                         <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.secondary} whitespace-nowrap`}>{row.kind}</td>
                       </tr>

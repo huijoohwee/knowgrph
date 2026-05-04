@@ -81,7 +81,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Webpage-backed documents must expose per-document webpage controls only in the header `nav` (no duplicates in Source Files rows): `View` (`markdown/html/dom/raw/json`), `Script`, `Imgs`, `Fid`, plus an explicit `Sync` (DOM→Markdown) action.
 - Sync output must remain Markdown-only (no duplicate artifact-doc wrappers, no HTML/YAML snapshot blocks, no synthetic HTML Head sections). If the page HTML contains an embedded Markdown payload (e.g. `data-page` JSON `props.article.content`), the importer should prefer and write that Markdown directly.
 
-- **Canonical implementation**: `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` (`ViewerHeaderRow`).
+- **Canonical implementation**: `singabldr/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` (`ViewerHeaderRow`).
 - **Required behavior**:
   - Same header structure across Editor/Viewer/Presentation; only state changes (enabled/disabled) are allowed.
   - `Apply changes`, `Save`, `Save As...` are always present but disabled when not in editing mode.
@@ -92,20 +92,20 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 ### Explorer Sidebar (SSOT)
 **Contract**: The Explorer sidebar uses a stable, semantic DOM with SSOT typography; it owns the only Source Files tree and the only Outline (TOC) renderer.
 
-- **Canonical container**: `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx`.
-- **Canonical frame**: `curagrph/src/features/markdown/ui/MarkdownSidebarFrame.tsx`.
+- **Canonical container**: `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx`.
+- **Canonical frame**: `singabldr/src/features/markdown/ui/MarkdownSidebarFrame.tsx`.
   - Renders the sidebar `<aside>` and the top `Explorer` header.
-- **Canonical section wrapper**: `curagrph/src/features/markdown/ui/MarkdownSidebarSection.tsx`.
+- **Canonical section wrapper**: `singabldr/src/features/markdown/ui/MarkdownSidebarSection.tsx`.
   - Renders section title (`h3`) and section body.
   - **Rule**: section headers are typography-only except Source Files (may include an action menu for Explorer parity).
   - **Rule**: section headers (`EXPLORER`, `SOURCE FILES`, `TOC`) must remain visible while scrolling (sticky within the sidebar scroll container).
 - **Canonical sections**:
-  - Source files: `curagrph/src/features/markdown/ui/MarkdownSourceFilesPanel.tsx`
-  - Outline (TOC): `curagrph/src/features/markdown/ui/MarkdownTableOfContents.tsx`
-  - Backlinks: `curagrph/src/features/markdown/ui/MarkdownBacklinksPanel.tsx`
+  - Source files: `singabldr/src/features/markdown/ui/MarkdownSourceFilesPanel.tsx`
+  - Outline (TOC): `singabldr/src/features/markdown/ui/MarkdownTableOfContents.tsx`
+  - Backlinks: `singabldr/src/features/markdown/ui/MarkdownBacklinksPanel.tsx`
 
 ### Explorer Persistence (SSOT)
-- **Shared state hook**: `curagrph/src/features/markdown/ui/useMarkdownExplorerControls.ts`
+- **Shared state hook**: `singabldr/src/features/markdown/ui/useMarkdownExplorerControls.ts`
   - Centralizes sidebar-open + collapsed-heading persistence across Viewer and BottomPanel (no duplicated local fallbacks).
 - **LocalStorage (UI state)**: keys are SSOT in `knowgrph/canvas/src/lib/config.ls.ts`.
   - Sidebar: `LS_KEYS.markdownSidebarOpen`, `LS_KEYS.markdownSidebarWidthPx`
@@ -117,7 +117,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 
 ## Typography Contract
 - Sidebar labels use `uiPanelMicroLabelTextSizeClass` (default `text-[10px]`) and the shared builder:
-  - `curagrph/src/features/markdown/ui/markdownSidebarText.ts`
+  - `singabldr/src/features/markdown/ui/markdownSidebarText.ts`
 - Viewer and Presentation must pass the same micro label sizing into `MarkdownPanelLayout`.
 - Floating panel (Inspector / Props / Tool Menu) is the baseline typography ladder for non-markdown panels.
   - Host must apply `uiPanelTextFontClass` + `uiPanelKeyValueTextSizeClass` at the floating panel content root.
@@ -209,7 +209,7 @@ Shared markdown logic is contractually owned by `knowgrph/grph-shared`.
 - If webpage view controls exist outside the canonical toolbar `nav` (for example in Source Files row affordances), they are legacy/conflicting UI and must be removed.
 
 ## Verification (Bounded)
-- `npm --prefix curagrph run typecheck`
+- `npm --prefix singabldr run typecheck`
 - `npm --prefix knowgrph/canvas run typecheck`
 - `node knowgrph/canvas/src/tests/subsetEditorSmoke.ts`
 - `node knowgrph/canvas/src/tests/subsetWebpageSmoke.ts`

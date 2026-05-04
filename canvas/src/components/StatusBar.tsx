@@ -7,6 +7,7 @@ import {
   setSelectionPerfEnabled,
 } from '@/lib/selectionPerf';
 import { UI_LABELS } from '@/lib/config';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function StatusBar() {
   const { graphData, selectedNodeId } = useGraphStore(
@@ -85,11 +86,11 @@ export default function StatusBar() {
           {UI_LABELS.selectedLabel} <span className="font-medium">{selectedLabel}</span>
         </span>
         {import.meta.env.DEV && (
-          <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} text-gray-600`}>
+          <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             <button
               type="button"
               className={`px-2 py-0.5 rounded border ${
-                perfEnabled ? `border-blue-500 ${uiPrimaryIconActiveClassName}` : `border-gray-300 ${uiPrimaryIconInactiveClassName}`
+                perfEnabled ? `border-blue-500 ${uiPrimaryIconActiveClassName}` : `${UI_THEME_TOKENS.input.border} ${uiPrimaryIconInactiveClassName}`
               }`}
               onClick={() => setPerfEnabled(v => !v)}
             >

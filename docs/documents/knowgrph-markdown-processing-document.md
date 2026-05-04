@@ -7,8 +7,8 @@ The Markdown rendering engine in Knowgrph has been enhanced to support GitHub-st
 Markdown Editor/Viewer/Presentation must share a single SSOT header and a single SSOT Contents sidebar/TOC structure.
 
 - SSOT contract document: `knowgrph/docs/documents/knowgrph-markdown-ssot-ui-contract-document.md`
-- Header SSOT: `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx`
-- Sidebar SSOT: `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` (frame + sections)
+- Header SSOT: `singabldr/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx`
+- Sidebar SSOT: `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx` (frame + sections)
 - Shared utils SSOT: `knowgrph/grph-shared/src/markdown/*` (wikilinks/backlinks/slugify)
 
 ## Non-Goals (Explicit)
@@ -118,7 +118,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **GeoJSON Error UI**: GeoJSON render failures show a compact error bar (≈50% of the Markdown toolbar nav height) to avoid consuming the code block preview area.
 
 ### Media Proxy Handling
-- **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](../../../curagrph/src/features/markdown/ui/markdownSlideVisuals.ts) before render.
+- **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](../../../singabldr/src/features/markdown/ui/markdownSlideVisuals.ts) before render.
 - **Proxy Routing**: Cross-origin URLs are routed through `/__fetch_remote` by [applyMediaProxySrc](../../canvas/src/lib/url.ts).
 - **Domain Neutrality**: No special-case domain rewrites; all remote backgrounds follow the same proxy path.
 - **Webpage SSOT conversion**: For HTML/CSS/JS → Markdown SSOT rules (URL resolution, lazy media src filling, and duplicate-content forbiddance), use `knowgrph-webpage-proxy-and-srcdoc-iframe-document.md` + `knowgrph-markdown-editor-mode-contract-document.md` as the canonical references.

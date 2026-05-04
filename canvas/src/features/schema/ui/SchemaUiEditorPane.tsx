@@ -1,6 +1,7 @@
 import React from 'react'
 import { SchemaTabContent } from '@/features/panels/views/ParserSchemaTabContent'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface SchemaUiEditorPaneProps {
   schemaError: string
@@ -35,7 +36,7 @@ export default function SchemaUiEditorPane({
     <div className="h-full min-h-0 flex flex-col overflow-auto">
       <div
         className={[
-          'py-2 text-gray-600 space-y-3',
+          `py-2 ${UI_THEME_TOKENS.text.secondary} space-y-3`,
           uiPanelKeyValueTextSizeClass,
           uiPanelTextFontClass,
         ].join(' ')}

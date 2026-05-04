@@ -335,20 +335,20 @@ export function useFlowEditorOverlayCollision(args: {
         if (Number.isFinite(left) && Number.isFinite(top)) rectByNodeId.set(id, { left, top, width: floatingScaled.width, height: floatingScaled.height })
       }
 
-      let sumW = 0
-      let sumH = 0
+      let maxW = 0
+      let maxH = 0
       let count = 0
       for (let i = 0; i < overlayNodeIds.length; i += 1) {
         const r = rectByNodeId.get(overlayNodeIds[i]!)
         if (!r || !(r.width > 0 && r.height > 0)) continue
-        sumW += r.width
-        sumH += r.height
+        maxW = Math.max(maxW, r.width)
+        maxH = Math.max(maxH, r.height)
         count += 1
       }
       const typicalSize = count > 0
         ? {
-            width: Math.max(120, Math.min(floatingScaled.width, sumW / count)),
-            height: Math.max(160, Math.min(floatingScaled.height, sumH / count)),
+            width: Math.max(120, Math.min(floatingScaled.width, maxW)),
+            height: Math.max(160, Math.min(floatingScaled.height, maxH)),
           }
         : floatingScaled
       const gapBase = typeof schema?.layout?.flow?.overlay?.collisionGapPx === 'number' ? schema.layout.flow.overlay.collisionGapPx : 12
@@ -363,7 +363,7 @@ export function useFlowEditorOverlayCollision(args: {
       const snapScreen = (v: number): number => (snapStepPx > 1 ? snapToGridPx(v, snapStepPx) : v)
       const cellSize = {
         width: Math.max(1, snapScreen(typicalSize.width + gapPx)),
-        height: Math.max(1, snapScreen(Math.round(typicalSize.height * 0.76) + gapPx)),
+        height: Math.max(1, snapScreen(typicalSize.height + gapPx)),
       }
       const spreadMargins = computeBalancedSpreadViewportMargins({
         viewportW: viewportW,

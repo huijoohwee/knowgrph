@@ -32,6 +32,14 @@ function readCanonicalGraphIdentity(raw: unknown): string {
   return splitComposedNodeId(id).inner || id
 }
 
+function readGraphSourceIdentity(graph: GraphData | null | undefined): string {
+  const meta = ((graph || null)?.metadata || {}) as Record<string, unknown>
+  const kind = String(meta.kind || '').trim()
+  const source = String(meta.source || '').trim()
+  if (!kind || !source) return ''
+  return `${kind}:${source}`
+}
+
 function getCanonicalLookupValue<T>(lookup: ReadonlyMap<string, T>, rawId: unknown): T | undefined {
   const candidateIds = parseCanonicalNodeIds(rawId)
   for (let i = 0; i < candidateIds.length; i += 1) {
@@ -200,10 +208,14 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
     const currentGraph = get().graphData
     const currentGraphKey = buildGraphMetaKeyIgnoringPending(currentGraph)
     const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphDataBase)
+    const currentSourceIdentity = readGraphSourceIdentity(currentGraph)
+    const nextSourceIdentity = readGraphSourceIdentity(nextGraphDataBase)
     const stableSameSourceTopology = hasStableSameSourceTopology(currentGraph, nextGraphDataBase)
     const carryForwardSameSourceUiState =
       !!collapsedKey &&
       !!currentGraphKey &&
+      !!currentSourceIdentity &&
+      currentSourceIdentity === nextSourceIdentity &&
       collapsedKey !== currentGraphKey &&
       stableSameSourceTopology
     const currentPinnedByNodeId = get().flowWidgetPinnedByNodeId || {}
@@ -434,10 +446,14 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
     const currentGraph = get().graphData
     const currentGraphKey = buildGraphMetaKeyIgnoringPending(currentGraph)
     const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphData)
+    const currentSourceIdentity = readGraphSourceIdentity(currentGraph)
+    const nextSourceIdentity = readGraphSourceIdentity(nextGraphData)
     const stableSameSourceTopology = hasStableSameSourceTopology(currentGraph, nextGraphData)
     const carryForwardSameSourceUiState =
       !!collapsedKey &&
       !!currentGraphKey &&
+      !!currentSourceIdentity &&
+      currentSourceIdentity === nextSourceIdentity &&
       collapsedKey !== currentGraphKey &&
       stableSameSourceTopology
     const currentPinnedByNodeId = get().flowWidgetPinnedByNodeId || {}

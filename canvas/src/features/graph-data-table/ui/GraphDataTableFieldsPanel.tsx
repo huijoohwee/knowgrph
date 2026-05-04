@@ -43,6 +43,7 @@ export function FieldsPanel({
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const searchInputClassName = `h-7 w-full rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} pl-7 pr-2 ${panelTypography.textSizeClass} shadow-sm ${UI_THEME_TOKENS.input.placeholder} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`
   const handleDragStart = React.useCallback(
     (event: React.DragEvent<HTMLButtonElement>, key: GraphDataTableColumnKey) => {
       event.dataTransfer.effectAllowed = 'move'
@@ -87,7 +88,7 @@ export function FieldsPanel({
             value={fieldsQuery}
             onChange={event => setFieldsQuery(event.target.value)}
             placeholder={UI_COPY.searchFieldsPlaceholder}
-            className={`h-7 w-full rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} pl-7 pr-2 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`}
+            className={searchInputClassName}
           />
         </div>
         <button type="button" className={secondaryButtonClassName} onClick={showAllColumns}>
@@ -101,7 +102,7 @@ export function FieldsPanel({
         {fieldsPanelColumnKeys.length === 0 ? (
           <div className={`flex h-32 items-center justify-center ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.noFieldsMatch}</div>
         ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          <div className={`divide-y ${UI_THEME_TOKENS.table.rowDivider}`}>
             {fieldsPanelColumnKeys.map(key => {
               const isVisible = isColumnVisible(key)
               const label = columnLabelByKey.get(key) ?? key

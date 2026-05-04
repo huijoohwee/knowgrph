@@ -65,6 +65,12 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('computeBalancedSpreadViewportMargins')) {
     throw new Error('expected overlay collision path to reuse shared 16:9 viewport margins instead of local hardcodes')
   }
+  if (!hookText.includes('height: Math.max(1, snapScreen(typicalSize.height + gapPx))')) {
+    throw new Error('expected overlay collision grid cells to reserve full measured overlay height plus gap so dense frontmatter collectives cannot overlap by construction')
+  }
+  if (!hookText.includes('width: Math.max(120, Math.min(floatingScaled.width, maxW))') || !hookText.includes('height: Math.max(160, Math.min(floatingScaled.height, maxH))')) {
+    throw new Error('expected overlay collision planner to size seeded cells from the largest measured overlay footprint instead of the average mixed widget size')
+  }
   if (!hookText.includes('const OVERLAY_POSITION_QUANTUM_PX = 1')) {
     throw new Error('expected overlay collision path to quantize persisted floating positions')
   }
@@ -214,6 +220,12 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (surfaceText.includes('args.overlayTopologyLayoutSignature, args.renderGraphDataOverride')) {
     throw new Error('expected Flow Editor pin seeding deps to avoid raw graph-object identity churn')
+  }
+
+  const flowCanvasLayoutStatePath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasLayoutState.ts')
+  const flowCanvasLayoutStateText = readUtf8(flowCanvasLayoutStatePath)
+  if (!flowCanvasLayoutStateText.includes('const cellH = WIDGET_BASE_SIZE.height + gapPx')) {
+    throw new Error('expected Flow Canvas dock reservation to reserve full widget height plus gap for dense unpinned collectives')
   }
 
   const seedSpreadPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'seedGroupSpread.ts')

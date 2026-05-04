@@ -8,6 +8,7 @@ import { formatTimestamp } from '@/features/panels/utils/time'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function HistoryPanel({ onClose }: { onClose?: () => void }) {
   const { history, historyIndex, addHistory, undoHistory, redoHistory, restoreHistory, uiIconScale, uiIconStrokeWidth } = useGraphStore()
@@ -63,14 +64,14 @@ export default function HistoryPanel({ onClose }: { onClose?: () => void }) {
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3">
         {filtered.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-gray-500">No history yet</div>
+          <div className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No history yet</div>
         ) : (
           <div>
             {filtered.map((h, idx) => (
               <div key={h.id} className={`px-3 py-2 text-sm flex items-center justify-between ${idx === historyIndex ? 'bg-blue-50' : ''}`}>
                 <div>
-                  <div className="text-gray-800">{h.label}</div>
-                  <div className="text-xs text-gray-500">{formatTimestamp(h.timestamp)}</div>
+                  <div className={UI_THEME_TOKENS.text.primary}>{h.label}</div>
+                  <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{formatTimestamp(h.timestamp)}</div>
                 </div>
                 <IconButton className="App-toolbar__btn" title={UI_LABELS.restore} onClick={() => restoreHistory(history.findIndex(x => x.id === h.id))} showTooltip>
                   <RestoreIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />

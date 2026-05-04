@@ -63,7 +63,7 @@ export function MarkdownTocTreeRow(props: MarkdownTocTreeRowProps) {
       <MarkdownTocReorderHandle
         ariaLabel="Reorder heading"
         title="Reorder heading"
-        className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 shrink-0 flex items-center justify-center rounded ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-600 dark:hover:text-gray-400`}
+        className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 shrink-0 flex items-center justify-center rounded ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverText}`}
         iconClassName="w-3 h-3"
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}

@@ -199,7 +199,7 @@ Canonical GraphData (Zustand store)
 - Table surfaces (Multi-dimensional Table):
   - Host Graph Data Table workspace renders a canvas fast-grid over the RxDB GraphTableDb materialization and shares the same derived `GraphData` and collapse state used by Canvas.
 - UI surfaces:
-  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](../../../curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
+  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](../../../singabldr/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 
 **Invariant**: UI toggles that affect presentation only (node shape, port handles, group overlay shape, media-as-nodes) update layers in-place and do not trigger re-layout or simulation rebuild.
 

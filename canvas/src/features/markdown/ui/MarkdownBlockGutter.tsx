@@ -143,7 +143,7 @@ export function MarkdownBlockGutterControls(props: {
       {canInsertLine && (
         <button
           type="button"
-          className="w-4 h-4 flex items-center justify-center rounded cursor-pointer hover:text-gray-600 dark:hover:text-gray-400"
+          className={`w-4 h-4 flex items-center justify-center rounded cursor-pointer ${UI_THEME_TOKENS.button.hoverText}`}
           aria-label={labelInsert}
           title={labelInsert}
           onClick={(e: React.MouseEvent) => {
@@ -158,7 +158,7 @@ export function MarkdownBlockGutterControls(props: {
       {canReorder && (
         <button
           type="button"
-          className="w-4 h-4 flex items-center justify-center cursor-grab active:cursor-grabbing hover:text-gray-600 dark:hover:text-gray-400"
+          className={`w-4 h-4 flex items-center justify-center cursor-grab active:cursor-grabbing ${UI_THEME_TOKENS.button.hoverText}`}
           draggable
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}

@@ -20,7 +20,7 @@ Keep the repository fast to clone/pull/push by preventing large local artifacts 
 Apply the same “no large local artifacts in git history” rule to these repos:
 
 - `/GitHub/knowgrph`
-- `/GitHub/curagrph`
+- `/GitHub/singabldr`
 - `/GitHub/chatgrph`
 - `/GitHub/sandbox`
 

@@ -72,6 +72,12 @@ export type KnowgrphStorageSyncNowArgs = {
   fetchImpl?: KnowgrphStorageFetchLike
   pushBatchSize?: number
   maxRetryCount?: number
+  onPulledChangesApplied?: ((args: {
+    workspaceId: string
+    deviceId: string
+    changes: KnowgrphStoragePullResponse['changes']
+  }) => void | Promise<void>) | null
+  onSyncCompleted?: ((result: KnowgrphStorageSyncRunResult) => void | Promise<void>) | null
   dbState?: KnowgrphStorageDb | null
 }
 
@@ -86,6 +92,13 @@ export type KnowgrphStorageSyncRunResult = {
   conflictCount: number
   rejectedCount: number
   deferredCount: number
+  unresolvedConflictCount: number
+  conflictEntries: Array<{
+    mutationId: string
+    entity: string
+    recordId: string
+    message: string | null
+  }>
   lastPushCursor: string | null
   lastPullCursor: string | null
 }
@@ -96,6 +109,7 @@ type SyncPushOutcome = {
   conflictCount: number
   rejectedCount: number
   deferredCount: number
+  conflictEntries: KnowgrphStorageSyncRunResult['conflictEntries']
   ackCursor: string | null
 }
 
@@ -182,15 +196,31 @@ const removeOutboxDocById = async (collections: KnowgrphStorageCollections, id: 
 const bumpOutboxAttemptCount = async (
   collections: KnowgrphStorageCollections,
   id: string,
-  nextAttemptCount: number,
-  nowMs: number,
+  args: {
+    nextAttemptCount: number
+    nowMs: number
+    lastAckStatus: 'conflict' | 'rejected' | 'deferred' | ''
+    lastAckMessage: string | null
+  },
 ): Promise<void> => {
   const existing = await collections.syncOutbox.findOne(id).exec()
   if (!existing) return
   await existing.incrementalPatch({
-    attemptCount: nextAttemptCount,
-    updatedAtMs: nowMs,
+    attemptCount: args.nextAttemptCount,
+    updatedAtMs: args.nowMs,
+    lastAckStatus: args.lastAckStatus,
+    lastAckMessage: args.lastAckMessage,
   })
+}
+
+const readUnresolvedConflictCount = async (
+  collections: KnowgrphStorageCollections,
+  workspaceId: string,
+): Promise<number> => {
+  const rows = await collections.syncOutbox
+    .find({ selector: { workspaceId, lastAckStatus: 'conflict' } })
+    .exec()
+  return rows.length
 }
 
 const applyPulledDocuments = async (collections: KnowgrphStorageCollections, documents: KgDocumentRecord[]): Promise<void> => {
@@ -256,6 +286,8 @@ export const queueKnowgrphStorageMutation = async (
     payload: payload as unknown as Record<string, unknown>,
     payloadHash: hashStringToHex(payloadText),
     attemptCount: 0,
+    lastAckStatus: '',
+    lastAckMessage: null,
     createdAtMs: nowMs,
     updatedAtMs: nowMs,
   })
@@ -279,6 +311,7 @@ const pushKnowgrphStorageOutbox = async (
       conflictCount: 0,
       rejectedCount: 0,
       deferredCount: 0,
+      conflictEntries: [],
       ackCursor: null,
     }
   }
@@ -301,6 +334,7 @@ const pushKnowgrphStorageOutbox = async (
   let appliedCount = 0
   let conflictCount = 0
   let rejectedCount = 0
+  const conflictEntries: KnowgrphStorageSyncRunResult['conflictEntries'] = []
   const handledMutationIds = new Set<string>()
   const nowMs = Date.now()
   for (let i = 0; i < json.acknowledgements.length; i += 1) {
@@ -314,11 +348,28 @@ const pushKnowgrphStorageOutbox = async (
       continue
     }
     const attemptCount = normalizePositiveInt(outboxDoc.get('attemptCount'), 0) + 1
-    await bumpOutboxAttemptCount(args.collections, acknowledgement.mutationId, attemptCount, nowMs)
     if (acknowledgement.status === 'conflict') {
+      await bumpOutboxAttemptCount(args.collections, acknowledgement.mutationId, {
+        nextAttemptCount: attemptCount,
+        nowMs,
+        lastAckStatus: 'conflict',
+        lastAckMessage: acknowledgement.message || null,
+      })
       conflictCount += 1
+      conflictEntries.push({
+        mutationId: acknowledgement.mutationId,
+        entity: acknowledgement.entity,
+        recordId: acknowledgement.recordId,
+        message: acknowledgement.message || null,
+      })
       continue
     }
+    await bumpOutboxAttemptCount(args.collections, acknowledgement.mutationId, {
+      nextAttemptCount: attemptCount,
+      nowMs,
+      lastAckStatus: 'rejected',
+      lastAckMessage: acknowledgement.message || null,
+    })
     rejectedCount += 1
   }
   let deferredCount = 0
@@ -327,7 +378,12 @@ const pushKnowgrphStorageOutbox = async (
     const id = normalizeString(doc.get('id'))
     if (!id || handledMutationIds.has(id)) continue
     const attemptCount = normalizePositiveInt(doc.get('attemptCount'), 0) + 1
-    await bumpOutboxAttemptCount(args.collections, id, attemptCount, nowMs)
+    await bumpOutboxAttemptCount(args.collections, id, {
+      nextAttemptCount: attemptCount,
+      nowMs,
+      lastAckStatus: 'deferred',
+      lastAckMessage: 'No acknowledgement received for queued mutation during the latest sync attempt.',
+    })
     deferredCount += 1
   }
   return {
@@ -336,6 +392,7 @@ const pushKnowgrphStorageOutbox = async (
     conflictCount,
     rejectedCount,
     deferredCount,
+    conflictEntries,
     ackCursor: json.ackCursor || null,
   }
 }
@@ -402,6 +459,13 @@ export const syncKnowgrphStorageNow = async (
       fetchImpl: args.fetchImpl,
       collections,
     })
+    if (typeof args.onPulledChangesApplied === 'function') {
+      await args.onPulledChangesApplied({
+        workspaceId,
+        deviceId,
+        changes: pullResponse.changes,
+      })
+    }
     const nowMs = Date.now()
     await upsertCursorRow(collections, {
       id: buildKnowgrphStorageCursorId(workspaceId, deviceId),
@@ -412,7 +476,7 @@ export const syncKnowgrphStorageNow = async (
       serverClockMs: Number.isFinite(pullResponse.serverTimeMs) ? Math.floor(pullResponse.serverTimeMs) : nowMs,
       updatedAtMs: nowMs,
     })
-    return {
+    const result: KnowgrphStorageSyncRunResult = {
       workspaceId,
       deviceId,
       pushedCount: pushOutcome.pushedCount,
@@ -423,9 +487,15 @@ export const syncKnowgrphStorageNow = async (
       conflictCount: pushOutcome.conflictCount,
       rejectedCount: pushOutcome.rejectedCount,
       deferredCount: pushOutcome.deferredCount,
+      unresolvedConflictCount: await readUnresolvedConflictCount(collections, workspaceId),
+      conflictEntries: pushOutcome.conflictEntries,
       lastPushCursor: pushOutcome.ackCursor,
       lastPullCursor: pullResponse.nextCursor || null,
     }
+    if (typeof args.onSyncCompleted === 'function') {
+      await args.onSyncCompleted(result)
+    }
+    return result
   })()
   inFlightSyncByWorkspace.set(inFlightKey, run)
   return run.finally(() => {

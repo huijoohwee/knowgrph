@@ -9,6 +9,7 @@ import {
   STARFIELD_BRIGHTNESS_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeViewStarfieldSectionProps {
   schema: GraphSchema
@@ -25,6 +26,10 @@ export default function ThreeViewStarfieldSection({
   onToggle,
   uiPanelKeyValueInputClass,
 }: ThreeViewStarfieldSectionProps) {
+  const keyLabelClassName = UI_THEME_TOKENS.text.secondary
+  const valueTextClassName = UI_THEME_TOKENS.text.tertiary
+  const selectionControlClassName = `h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const colorPickerClassName = `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   return (
     <CollapsibleSection
       title="Starfield"
@@ -36,11 +41,11 @@ export default function ThreeViewStarfieldSection({
       <div className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Starfield</span>}
+          keyNode={<span className={keyLabelClassName}>Starfield</span>}
           valueNode={(
             <input
               type="checkbox"
-              className="h-3 w-3"
+              className={selectionControlClassName}
               checked={Boolean(schema.three?.starfieldEnabled ?? false)}
               onChange={e => setThreeConfig({ starfieldEnabled: e.target.checked })}
             />
@@ -48,7 +53,7 @@ export default function ThreeViewStarfieldSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Star Count</span>}
+          keyNode={<span className={keyLabelClassName}>Star Count</span>}
           valueNode={(
             <>
               <input
@@ -64,7 +69,7 @@ export default function ThreeViewStarfieldSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.starfieldCount ?? 0)}
                 </span>
               </Tooltip>
@@ -73,7 +78,7 @@ export default function ThreeViewStarfieldSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Starfield Radius</span>}
+          keyNode={<span className={keyLabelClassName}>Starfield Radius</span>}
           valueNode={(
             <>
               <input
@@ -93,7 +98,7 @@ export default function ThreeViewStarfieldSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(
                     schema.three?.starfieldRadius ??
                       schema.three?.sphereRadius ??
@@ -106,7 +111,7 @@ export default function ThreeViewStarfieldSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Starfield Brightness</span>}
+          keyNode={<span className={keyLabelClassName}>Starfield Brightness</span>}
           valueNode={(
             <>
               <input
@@ -122,7 +127,7 @@ export default function ThreeViewStarfieldSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.starfieldOpacity ?? 0.9)}
                 </span>
               </Tooltip>
@@ -131,12 +136,12 @@ export default function ThreeViewStarfieldSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Starfield Color</span>}
+          keyNode={<span className={keyLabelClassName}>Starfield Color</span>}
           valueNode={(
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent"
+                className={colorPickerClassName}
                 value={
                   (() => {
                     const raw = String(schema.three?.starfieldColor ?? '')

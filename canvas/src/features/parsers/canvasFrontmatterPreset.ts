@@ -195,5 +195,5 @@ export function applyCanvasFrontmatterPreset(args: {
     changed = true
   }
 
-  return changed
+  return !!preset || changed
 }

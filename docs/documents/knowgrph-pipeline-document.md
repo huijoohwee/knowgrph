@@ -43,7 +43,7 @@
 - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
 
 ## Pipeline Discipline (Runtime Import → Render)
-- Scope: `/GitHub/{knowgrph,gympgrph,curagrph}` → import → render.
+- Scope: `/GitHub/{knowgrph,gympgrph,singabldr}` → import → render.
 - Support all `/GitHub/sandbox/` test data; no hardcoding.
 - Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
 - For arbitrary JSON ingest, render only explicit graph entities (`nodes`/`edges`); forbid synthetic placeholder/fallback graph construction when entities are absent.
@@ -90,7 +90,7 @@
 
 This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → Canvas and Multi-dimensional Table render from the same derived `GraphData`. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
 
-When changing shared packages that are wired via `file:` links (for example `curagrph` or `gympgrph`), restart or rebuild the Canvas dev server so the preview reflects the current checkout and not a stale build.
+When changing shared packages that are wired via `file:` links (for example `singabldr` or `gympgrph`), restart or rebuild the Canvas dev server so the preview reflects the current checkout and not a stale build.
 
 ### Guardrails: No Synthetic Render Data
 
@@ -384,7 +384,7 @@ provenance_tracking: {track_lineage, versioning_strategy}
 |------|----------------------------------------|------------------------------------------|-------------------------------------|
 | 1    | Edit markdown documentation            | Manual editing in `docs/documents/`      | —                                   |
 | 2    | Run pipeline via Canvas UI             | Tools menu → "Run codebase index pipeline" | Vite dev server                   |
-| 3    | Load generated artifacts               | `runMarkdownPipelineAndLoadArtifacts()`  | Graph Data Table (curagrph), Schema + Workflow views (Knowgrph host) |
+| 3    | Load generated artifacts               | `runMarkdownPipelineAndLoadArtifacts()`  | Graph Data Table (singabldr), Schema + Workflow views (Knowgrph host) |
 | 4    | Validate in Canvas                     | Visual inspection, traversal tests       | Canvas UI layers                    |
 | 5    | Update docs with findings              | `npm run docs:update`                    | Preview artifacts                   |
 
