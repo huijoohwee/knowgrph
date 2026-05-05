@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Token, TokensParagraph, TokensGeneric, TokensLink, TokensImage, TokensText } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+import { getLinkDisplayMode } from './linkDisplayMode'
 import {
   applyMediaProxySrc,
   buildYouTubeEmbedUrl,
@@ -29,6 +30,83 @@ import {
 } from './MarkdownBlockGutter'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+
+const extractLinkText = (token: Token): string => {
+  const p = token as unknown as TokensParagraph
+  const inner = Array.isArray(p.tokens) ? p.tokens : []
+  for (const t of inner) {
+    const tt = t as unknown as { type?: unknown }
+    if (String(tt.type || '') === 'link') {
+      const link = t as unknown as TokensLink
+      const children = Array.isArray(link.tokens) ? link.tokens : []
+      return children.map(c => String((c as unknown as TokensText).text || '')).join('').trim()
+    }
+  }
+  return ''
+}
+
+const extractDomain = (href: string): string => {
+  try {
+    const u = new URL(href)
+    return u.hostname || ''
+  } catch {
+    return ''
+  }
+}
+
+type StandaloneLinkCardProps = {
+  href: string
+  title: string
+  domain: string
+  opts: RenderOpts
+}
+
+const StandaloneLinkCard = React.memo(function StandaloneLinkCard({ href, title, domain }: StandaloneLinkCardProps) {
+  const [imgError, setImgError] = React.useState(false)
+  const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : ''
+  const displayTitle = title || domain || href
+  const truncatedUrl = href.length > 60 ? `${href.slice(0, 57)}...` : href
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`sm:flex ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded-xl shadow-sm hover:shadow-md transition-shadow no-underline text-inherit block`}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="shrink-0 relative w-full rounded-t-xl overflow-hidden sm:rounded-s-xl sm:rounded-se-none sm:max-w-20 bg-gray-100 dark:bg-gray-800">
+        {!imgError && faviconUrl ? (
+          <img
+            className="size-full absolute top-0 start-0 object-contain p-2"
+            src={faviconUrl}
+            alt=""
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-16 sm:h-full text-[color:var(--kg-text-tertiary)] text-xs font-mono">
+            {domain ? domain.charAt(0).toUpperCase() : '?'}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap min-w-0">
+        <div className="p-3 flex flex-col h-full sm:p-4 min-w-0">
+          <h3 className={`font-semibold ${UI_THEME_TOKENS.text.primary} text-sm leading-snug truncate`}>
+            {displayTitle}
+          </h3>
+          <p className={`mt-1 ${UI_THEME_TOKENS.text.secondary} text-xs truncate`}>
+            {truncatedUrl}
+          </p>
+          <div className="mt-2 sm:mt-auto">
+            <p className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} font-mono`}>
+              {domain}
+            </p>
+          </div>
+        </div>
+      </div>
+    </a>
+  )
+})
 
 type MarkdownParagraphBlockProps = {
   token: TokenWithLines
@@ -346,6 +424,17 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     }
 
     const normalizedHref = normalizeWebpageLikeUrl(standaloneHref)
+    const linkText = extractLinkText(t as unknown as Token)
+    const linkDomain = extractDomain(standaloneHref)
+    const linkDisplayMode = getLinkDisplayMode(t.startLine)
+
+    if (linkDisplayMode === 'card') {
+      return renderStandaloneMedia(
+        'webpage',
+        <StandaloneLinkCard href={standaloneHref} title={linkText} domain={linkDomain} opts={opts} />,
+      )
+    }
+
     return renderStandaloneMedia(
       'webpage',
       <MediaWebpageSnapshot url={normalizedHref} title="Webpage" presentationMode={opts.markdownPresentationMode} />,

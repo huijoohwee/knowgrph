@@ -2,6 +2,7 @@ import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { SsotSurface } from 'grph-shared/ssot/types'
 import { MoreHorizontal } from 'lucide-react'
+import { getLinkDisplayMode, setLinkDisplayMode } from './linkDisplayMode'
 
 export type MarkdownSelectionToolbarState = {
   x: number
@@ -38,16 +39,26 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
   } = props
 
   const [menuOpen, setMenuOpen] = React.useState<boolean>(!!toolbar?.menuOpen)
+  const [linkMode, setLinkMode] = React.useState<'snapshot' | 'card'>(() =>
+    toolbar ? getLinkDisplayMode(toolbar.startLine) : 'snapshot',
+  )
   React.useEffect(() => {
     if (!toolbar) {
       setMenuOpen(false)
       return
     }
     setMenuOpen(!!toolbar.menuOpen)
-  }, [toolbar?.endLine, toolbar?.menuOpen, toolbar?.startLine, toolbar?.text, toolbar?.x, toolbar?.y])
+    setLinkMode(getLinkDisplayMode(toolbar.startLine))
+  }, [toolbar])
   if (!toolbar) return null
   const btnClass = `block w-full px-3 py-1 text-left ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed`
   const bubbleButtonClass = `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} h-7 w-7`
+
+  const handleSetLinkMode = (mode: 'snapshot' | 'card') => {
+    setLinkDisplayMode(toolbar.startLine, mode)
+    setLinkMode(mode)
+    onClose()
+  }
 
   return (
     <section
@@ -116,6 +127,23 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
             onClick={() => { onShowInGraphDataTable(toolbar.startLine); onClose() }}
           >
             Show in Graph Data Table
+          </button>
+          <hr className={`my-1 border-0 ${UI_THEME_TOKENS.panel.border} border-t`} />
+          <button
+            type="button"
+            className={btnClass}
+            disabled={linkMode === 'snapshot'}
+            onClick={() => handleSetLinkMode('snapshot')}
+          >
+            Link: Inline URL (default)
+          </button>
+          <button
+            type="button"
+            className={btnClass}
+            disabled={linkMode === 'card'}
+            onClick={() => handleSetLinkMode('card')}
+          >
+            Link: Horizontal Card
           </button>
         </menu>
       ) : null}

@@ -27,7 +27,7 @@ export function useMarkdownPreviewEvents({
   } | null>(null)
   const emitSelectionToolbar = React.useCallback((next: MarkdownSelectionToolbarState | null) => {
     if (!next) return
-    if (!next.text.trim()) return
+    if (!next.text.trim() && !next.menuOpen) return
     const signature = [
       next.startLine,
       next.endLine,
@@ -127,8 +127,15 @@ export function useMarkdownPreviewEvents({
     (e: React.MouseEvent<HTMLDivElement>) => {
       const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
       if (!rootEl) return
+      scheduleSelectionToolbarResolve({
+        rootEl,
+        eventTarget: e.target,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        menuOpen: true,
+      })
     },
-    [rootElRef],
+    [rootElRef, scheduleSelectionToolbarResolve],
   )
 
   const handleMouseUp = React.useCallback(

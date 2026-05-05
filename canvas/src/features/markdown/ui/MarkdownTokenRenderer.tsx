@@ -235,6 +235,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     const href = typeof only?.href === 'string' ? only.href.trim() : ''
     const alt = typeof only?.text === 'string' ? only.text : ''
     if (!href) return null
+    if (!/^data:image\//i.test(href) && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(\?|#|$)/i.test(href)) return null
     return { href, alt }
   }
 
