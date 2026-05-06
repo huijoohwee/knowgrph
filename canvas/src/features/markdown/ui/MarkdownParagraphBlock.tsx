@@ -121,6 +121,17 @@ type MarkdownParagraphBlockProps = {
   fragmentTags?: string[]
 }
 
+const hasInlineMediaToken = (tokens: Token[] | undefined): boolean => {
+  const list = Array.isArray(tokens) ? tokens : []
+  for (const t of list) {
+    const type = String((t as unknown as { type?: unknown }).type || '')
+    if (type === 'image' || type === 'html') return true
+    const nested = (t as unknown as { tokens?: unknown }).tokens
+    if (Array.isArray(nested) && hasInlineMediaToken(nested as Token[])) return true
+  }
+  return false
+}
+
 const isStandaloneLinkParagraph = (token: Token): string | null => {
   const p = token as unknown as TokensParagraph
   const inner = Array.isArray(p.tokens) ? p.tokens : []
@@ -135,6 +146,9 @@ const isStandaloneLinkParagraph = (token: Token): string | null => {
   const only = meaningful[0] as unknown as TokensGeneric
   if (only.type !== 'link') return null
   const link = only as unknown as TokensLink
+  // Preserve markdown semantics for linked media thumbnails: [![alt](img)](url)
+  // should render as a clickable image, not be rewritten into an auto-embed iframe.
+  if (hasInlineMediaToken(link.tokens)) return null
   const href = String(link.href || '').trim()
   return href || null
 }

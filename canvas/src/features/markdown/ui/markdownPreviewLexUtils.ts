@@ -47,7 +47,7 @@ export const selectTokensInLineRange = (
   for (const t of tokens) {
     if (t.endLine < start) continue
     if (t.startLine > end) break
-    if (t.startLine >= start && t.endLine <= end) out.push(t)
+    if (t.startLine <= end && t.endLine >= start) out.push(t)
   }
   return out
 }

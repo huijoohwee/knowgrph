@@ -757,8 +757,8 @@ export async function printElementToPdf(
     const pageSizeCss = `${pageSizeMm.widthMm}mm ${pageSizeMm.heightMm}mm`
     const mmToCssPx = (mm: number): number => (mm / 25.4) * 96
     const presentationSlideScale = mmToCssPx(presentationSlideMm.widthMm) / PRESENTATION_BASE_SLIDE_SIZE_PX.width
-    // Guard against cumulative print rounding that can create a trailing blank page.
-    const presentationSectionHeightMm = Math.max(0, viewportMm.heightMm - 0.2)
+    // Stable section-height epsilon to avoid trailing blank pages from engine rounding drift.
+    const presentationSectionHeightMm = Math.max(0, viewportMm.heightMm - 0.5)
     const compactHorizontalContent = Boolean(args?.compactHorizontalContent)
     const centerContent = Boolean(args?.centerContent)
     const allowMediaMutation = !preservePresentationLayout
@@ -845,6 +845,46 @@ export async function printElementToPdf(
     root.appendChild(clone)
     document.body.appendChild(root)
     await waitForImagesToLoad(root, 5_000)
+    const presentationPaginationCss = preservePresentationLayout
+      ? `
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section {
+          margin: 0 !important;
+          padding: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          overflow: hidden !important;
+          height: ${presentationSectionHeightMm}mm !important;
+          min-height: ${presentationSectionHeightMm}mm !important;
+          max-height: ${presentationSectionHeightMm}mm !important;
+          width: ${viewportMm.widthMm}mm !important;
+          min-width: ${viewportMm.widthMm}mm !important;
+          max-width: ${viewportMm.widthMm}mm !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-hr="1"],
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-page-break="1"] {
+          display: none !important;
+          break-before: auto !important;
+          page-break-before: auto !important;
+          break-after: auto !important;
+          page-break-after: auto !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article {
+          border-color: transparent !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
+          min-width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
+          max-width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
+          height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
+          min-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
+          max-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          zoom: ${presentationSlideScale} !important;
+        }
+      `
+      : ''
 
     const style = document.createElement('style')
     style.id = styleId
@@ -895,49 +935,10 @@ export async function printElementToPdf(
           box-sizing: border-box !important;
           overflow: hidden !important;
         }
+        ${presentationPaginationCss}
         ${
           preservePresentationLayout
             ? `
-        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section {
-          margin: 0 !important;
-          padding: 0 !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          overflow: hidden !important;
-          height: ${presentationSectionHeightMm}mm !important;
-          min-height: ${presentationSectionHeightMm}mm !important;
-          max-height: ${presentationSectionHeightMm}mm !important;
-          width: ${viewportMm.widthMm}mm !important;
-          min-width: ${viewportMm.widthMm}mm !important;
-          max-width: ${viewportMm.widthMm}mm !important;
-        }
-        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section:not(:first-of-type) {
-          break-before: page !important;
-          page-break-before: always !important;
-        }
-        #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-hr="1"],
-        #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-page-break="1"] {
-          display: none !important;
-          break-before: auto !important;
-          page-break-before: auto !important;
-          break-after: auto !important;
-          page-break-after: auto !important;
-        }
-        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article {
-          border-color: transparent !important;
-          box-shadow: none !important;
-          margin: 0 !important;
-          width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
-          min-width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
-          max-width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
-          height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
-          min-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
-          max-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
-          box-sizing: border-box !important;
-          overflow: hidden !important;
-          zoom: ${presentationSlideScale} !important;
-        }
         #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Document"] {
           height: 100% !important;
           min-height: 100% !important;
