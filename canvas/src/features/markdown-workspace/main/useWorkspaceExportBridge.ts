@@ -118,15 +118,17 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportPdf')
     const { exportViewerPdf } = mod
-    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'portrait' })
-  }, [exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
+    const markdownText = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
+    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'portrait', markdownText })
+  }, [activeText, exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, markdownEditText, pushUiToast, viewerEl, viewerTextOverride])
 
   const handleExportPdfLandscape = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportPdf')
     const { exportViewerPdf } = mod
-    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'landscape' })
-  }, [exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
+    const markdownText = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
+    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'landscape', markdownText })
+  }, [activeText, exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, markdownEditText, pushUiToast, viewerEl, viewerTextOverride])
 
   const exportBridge = React.useMemo(
     () => ({

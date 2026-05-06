@@ -287,7 +287,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [debouncedSignalText, webpageMeta?.url])
 
-  const handleViewerRootRef = React.useCallback((el: HTMLDivElement | null) => {
+  const handleViewerRootRef = React.useCallback((el: HTMLElement | null) => {
     viewerRef.current = el
     setViewerEl(prev => (prev === el ? prev : el))
   }, [])
@@ -491,7 +491,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       iframeSrcDoc={iframeSrcDoc}
       onIframeRef={handleIframeRef}
       onViewerRef={el => {
-        viewerRef.current = el
+        handleViewerRootRef(el)
       }}
     />
   ) : (viewerMode === 'read' || viewerMode === 'table') && viewerKind === 'markdown' ? (
@@ -586,6 +586,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         revealLineInEditor={(line: number) => revealLineInEditor(line)}
         showInPresentation={showInPresentation}
         showInSlidesGallery={showInSlidesGallery}
+        onSurfaceRef={handleViewerRootRef}
       />
     </React.Suspense>
   )
@@ -611,6 +612,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         revealLineInEditor={(line: number) => revealLineInEditor(line)}
         showInPresentation={showInPresentation}
         showInSlidesGallery={showInSlidesGallery}
+        onSurfaceRef={handleViewerRootRef}
       />
     </React.Suspense>
   )

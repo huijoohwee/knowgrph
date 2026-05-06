@@ -7,6 +7,7 @@ type MarkdownWorkspaceWebpageSurfaceProps = {
   webpageUrl: string
   iframeSrc: string | null
   iframeSrcDoc: string | null
+  containerRef?: (el: HTMLElement | null) => void
 }
 
 export function MarkdownWorkspaceWebpageSurface(props: MarkdownWorkspaceWebpageSurfaceProps) {
@@ -16,7 +17,11 @@ export function MarkdownWorkspaceWebpageSurface(props: MarkdownWorkspaceWebpageS
   const hasHttpUrl = /^https?:\/\//i.test(webpageUrl)
 
   return (
-    <section className="flex-1 min-h-0 flex" aria-label={props.ariaLabel}>
+    <section
+      ref={props.containerRef}
+      className="flex-1 min-h-0 flex"
+      aria-label={props.ariaLabel}
+    >
       <SharedWebpageSurface
         renderMode={!preferEmbed && hasHttpUrl ? 'snapshot' : 'iframe'}
         webpageUrl={webpageUrl}

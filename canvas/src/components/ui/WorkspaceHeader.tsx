@@ -19,7 +19,7 @@ export function WorkspaceHeader(props: {
 
 export function WorkspaceHeaderRow(props: { ariaLabel?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={['px-3 py-2 flex items-center justify-between gap-3', props.className || ''].join(' ').trim()} aria-label={props.ariaLabel}>
+    <section className={['kg-workspace-header-row flex items-center justify-between', props.className || ''].join(' ').trim()} aria-label={props.ariaLabel}>
       {props.children}
     </section>
   )

@@ -426,6 +426,25 @@ const waitForImagesToLoad = (root: HTMLElement, timeoutMs: number): Promise<void
 
 export type PrintOrientation = 'portrait' | 'landscape'
 
+type PrintLayoutPreset = {
+  pageSize: string
+  pageMargin: string
+  rootPadding: string
+}
+
+const PRINT_LAYOUT_PRESETS: Readonly<Record<PrintOrientation, PrintLayoutPreset>> = {
+  portrait: {
+    pageSize: '9in 16in',
+    pageMargin: '14mm 10mm 14mm 10mm',
+    rootPadding: '12mm 10mm 12mm 10mm',
+  },
+  landscape: {
+    pageSize: '16in 9in',
+    pageMargin: '10mm 14mm 10mm 14mm',
+    rootPadding: '10mm 12mm 10mm 12mm',
+  },
+}
+
 export async function printElementToPdf(el: HTMLElement, args?: { title?: string; orientation?: PrintOrientation }): Promise<void> {
   try {
     if (typeof window === 'undefined') return
@@ -467,7 +486,9 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
     root.style.zIndex = '2147483647'
     root.style.background = 'white'
     root.style.overflow = 'auto'
-    root.style.padding = '14mm'
+    const orientation: PrintOrientation = args?.orientation === 'landscape' ? 'landscape' : 'portrait'
+    const preset = PRINT_LAYOUT_PRESETS[orientation]
+    root.style.padding = preset.rootPadding
 
     const clone = el.cloneNode(true) as HTMLElement
 
@@ -531,12 +552,6 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
 
     await waitForImagesToLoad(root, 5_000)
 
-    const isLandscape = args?.orientation === 'landscape'
-    const pageSize = isLandscape ? '16in 9in' : '9in 16in'
-    const pageMargin = isLandscape
-      ? '12mm 18mm 12mm 18mm'
-      : '18mm 12mm 18mm 12mm'
-
     const style = document.createElement('style')
     style.id = styleId
     style.textContent = `
@@ -548,7 +563,7 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
         #${printRootId} svg { max-width: 100% !important; height: auto !important; }
         #${printRootId} [data-kg-mermaid-visibility-gate="pending"] { display: none !important; }
         #${printRootId} [data-kg-hr="1"] { break-after: page; }
-        @page { margin: ${pageMargin}; size: ${pageSize}; }
+        @page { margin: ${preset.pageMargin}; size: ${preset.pageSize}; }
       }
     `
     document.head.appendChild(style)

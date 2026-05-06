@@ -23,6 +23,7 @@ export function MarkdownWorkspacePresentationSurface(props: {
   revealLineInEditor: (line: number) => void
   showInPresentation: (line: number) => void
   showInSlidesGallery: (line: number) => void
+  onSurfaceRef?: (el: HTMLElement | null) => void
 }) {
   if (props.showWebpageHtml) {
     return (
@@ -31,6 +32,7 @@ export function MarkdownWorkspacePresentationSurface(props: {
         webpageUrl={props.webpageUrl}
         iframeSrc={props.iframeSrc}
         iframeSrcDoc={props.iframeSrcDoc}
+        containerRef={props.onSurfaceRef}
       />
     )
   }
@@ -38,6 +40,7 @@ export function MarkdownWorkspacePresentationSurface(props: {
   return (
     <section className="flex-1 min-h-0 flex" aria-label="Presentation Surface">
       <MarkdownPreview
+        ref={el => props.onSurfaceRef?.(el)}
         markdownText={props.viewerText}
         activeDocumentPath={props.activeDocumentKey}
         highlightedLineRange={props.highlightedLineRange}

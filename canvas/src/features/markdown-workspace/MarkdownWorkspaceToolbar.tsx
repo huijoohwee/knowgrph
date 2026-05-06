@@ -200,7 +200,7 @@ export function MarkdownWorkspaceToolbar({
 
 
   return (
-      <WorkspaceHeaderRow className="gap-2 kg-toolbar h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
+      <WorkspaceHeaderRow className="kg-toolbar h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
         {webpageSignalsNode ? (
           <span className="min-w-0 flex items-center">
             <span className="sr-only">Workspace editor</span>
@@ -209,7 +209,7 @@ export function MarkdownWorkspaceToolbar({
         ) : (
           <span className="sr-only">Workspace editor</span>
         )}
-        <CollapsibleToolbar className="kg-toolbar flex items-center gap-1 justify-end" ariaLabel="Markdown view controls">
+        <CollapsibleToolbar className="kg-toolbar kg-workspace-toolbar-controls flex items-center justify-end" ariaLabel="Markdown view controls">
           <IconButton
             title={explorerOpen ? 'Hide Explorer' : 'Show Explorer'}
             onClick={() => setExplorerOpen(!explorerOpen)}
@@ -273,7 +273,7 @@ export function MarkdownWorkspaceToolbar({
               }}
               className={TOOLBAR_BUTTON_CLASSNAME}
               aria-pressed={layoutMode === 'split'}
-              title="Split"
+              title="Split (Markdown)"
               onClick={() => {
                 if (layoutMode !== 'split') {
                   setLayoutMode('split')
@@ -319,7 +319,7 @@ export function MarkdownWorkspaceToolbar({
           maxHeightPx={120}
           onClose={() => setSplitSelectorOpen(false)}
         >
-          <section className={`${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded p-2 shadow-sm`}>
+          <section className={`kg-workspace-split-selector ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded shadow-sm`}>
             <menu className="flex items-center gap-2 list-none m-0 p-0" aria-label="Split panes">
               <li className="list-none">
                 <label className="inline-flex items-center gap-1 text-xs cursor-pointer">

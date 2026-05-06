@@ -151,13 +151,13 @@ export function LaunchDropdown({
   }, [pushUiToast])
 
   const menuItemClass = cn(
-    'w-full flex items-center gap-2 rounded px-2 py-1.5 text-sm',
+    'kg-launch-menu-item w-full flex items-center gap-2 rounded text-sm',
     UI_THEME_TOKENS.text.primary,
     UI_THEME_TOKENS.button.hoverBg,
   )
   const menuIconClass = 'w-4 h-4'
   const menuRootClass = cn(
-    'p-1 flex flex-col gap-1 w-80 list-none m-0',
+    'kg-launch-menu-root flex flex-col w-80 list-none m-0',
     UI_THEME_TOKENS.panel.bg,
     'border',
     UI_THEME_TOKENS.panel.border,
@@ -191,7 +191,7 @@ export function LaunchDropdown({
   )
 
   const exportMenuClass = cn(
-    'absolute left-full top-0 p-1 flex flex-col gap-1 w-72 list-none m-0',
+    'kg-launch-menu-root absolute left-full top-0 flex flex-col w-72 list-none m-0',
     UI_THEME_TOKENS.panel.bg,
     'border',
     UI_THEME_TOKENS.panel.border,

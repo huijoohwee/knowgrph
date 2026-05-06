@@ -46,6 +46,15 @@
   --kg-inline-code-font-size: inherit;
   --kg-inline-code-line-height: inherit;
   --kg-control-height: 28px;
+  --kg-workspace-header-pad-y: 0.5rem;
+  --kg-workspace-header-pad-x: 0.75rem;
+  --kg-workspace-header-gap: 0.75rem;
+  --kg-workspace-toolbar-gap: 0.25rem;
+  --kg-workspace-split-selector-pad: 0.5rem;
+  --kg-launch-menu-pad: 0.25rem;
+  --kg-launch-menu-gap: 0.25rem;
+  --kg-launch-menu-item-pad-y: 0.375rem;
+  --kg-launch-menu-item-pad-x: 0.5rem;
   --kg-status-pill-height: 24px;
   --kg-table-row-height: 44px;
   --kg-canvas-bg: var(--app-bg);
@@ -210,6 +219,30 @@
   .kg-toolbar-btn {
     height: var(--kg-control-height, 28px);
     width: var(--kg-control-height, 28px);
+  }
+
+  .kg-workspace-header-row {
+    padding-block: var(--kg-workspace-header-pad-y, 0.5rem);
+    padding-inline: var(--kg-workspace-header-pad-x, 0.75rem);
+    gap: var(--kg-workspace-header-gap, 0.75rem);
+  }
+
+  .kg-workspace-toolbar-controls {
+    gap: var(--kg-workspace-toolbar-gap, 0.25rem);
+  }
+
+  .kg-workspace-split-selector {
+    padding: var(--kg-workspace-split-selector-pad, 0.5rem);
+  }
+
+  .kg-launch-menu-root {
+    padding: var(--kg-launch-menu-pad, 0.25rem);
+    gap: var(--kg-launch-menu-gap, 0.25rem);
+  }
+
+  .kg-launch-menu-item {
+    padding-block: var(--kg-launch-menu-item-pad-y, 0.375rem);
+    padding-inline: var(--kg-launch-menu-item-pad-x, 0.5rem);
   }
 
   .kg-truncate {

@@ -574,6 +574,8 @@ export const UI_COPY = {
   markdownWorkspaceJsonMarkdownModeKeyValueLabel: 'Key–value',
   markdownWorkspaceJsonMarkdownModeHierarchicalLabel: 'Hierarchical',
   markdownWorkspaceJsonMarkdownModeSuggestedPrefix: 'Suggested:',
+  markdownWorkspaceExportPdfMissingSurfaceWarning: 'Open a visible Workspace surface to export PDF.',
+  markdownWorkspaceExportPdfDebugTargetMessage: (target: string) => `PDF export target: ${target}`,
   jsonToMarkdownEmptyArrayLabel: '(empty array)',
   jsonToMarkdownEmptyListLabel: '(empty list)',
   jsonToMarkdownMoreRowsLabel: (remaining: number) => `... ${remaining} more rows`,
