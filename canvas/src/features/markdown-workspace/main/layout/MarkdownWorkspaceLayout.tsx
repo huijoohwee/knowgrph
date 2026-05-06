@@ -63,14 +63,16 @@ export function MarkdownWorkspaceLayout(props: {
       ) : props.layoutMode === 'viewer' ? (
         props.viewer
       ) : props.layoutMode === 'presentation' ? (
-        props.presentation
+        <section className="flex-1 min-h-0 flex kg-workspace-surface-shell" aria-label="Presentation view">
+          {props.presentation}
+        </section>
       ) : props.layoutMode === 'slides-gallery' ? (
         props.slidesGallery
       ) : (
-        <section className="flex-1 min-h-0 flex" aria-label="Split view">
+        <section className="flex-1 min-h-0 flex kg-workspace-surface-shell" aria-label="Split view">
           {effectiveSplitPanes.map((pane, index) => (
             <React.Fragment key={pane.key || `pane-${index}`}>
-              {index > 0 ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
+              {index > 0 ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0 kg-workspace-split-divider" aria-hidden="true" /> : null}
               {pane}
             </React.Fragment>
           ))}

@@ -1,3 +1,9 @@
+import {
+  PRESENTATION_BASE_SLIDE_SIZE_PX,
+  resolvePrintGeometryMm,
+  type PrintOrientation,
+} from './printLayoutTokens'
+
 const captureVideoFrameAsDataUrl = (video: HTMLVideoElement): string | null => {
   try {
     if (!video.videoWidth || !video.videoHeight) return null
@@ -7,7 +13,11 @@ const captureVideoFrameAsDataUrl = (video: HTMLVideoElement): string | null => {
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
     ctx.drawImage(video, 0, 0)
-    return canvas.toDataURL('image/jpeg', 0.92)
+    try {
+      return canvas.toDataURL('image/png')
+    } catch {
+      return canvas.toDataURL('image/jpeg', 0.92)
+    }
   } catch {
     return null
   }
@@ -34,6 +44,62 @@ const captureImageAsDataUrl = (img: HTMLImageElement): string | null => {
 
 const YOUTUBE_ID_RE = /(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=|shorts\/|live\/)|youtu\.be\/)([\w-]+)/i
 const PROXY_URL_RE = /^\/__(?:media|webpage|webpage_asset)_proxy\?url=(.+)$/i
+const KNOWN_VIDEO_IFRAME_HOST_RE = /(youtube(?:-nocookie)?\.com|youtu\.be|bilibili\.com|tiktok\.com|douyin\.com|vimeo\.com|twitter\.com|x\.com)/i
+
+type ThumbnailFormat = 'svg' | 'png' | 'jpg' | 'other'
+
+const detectThumbnailFormat = (src: string): ThumbnailFormat => {
+  const raw = String(src || '').trim().toLowerCase()
+  if (!raw) return 'other'
+  if (raw.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(raw)) return 'svg'
+  if (
+    raw.startsWith('data:image/png')
+    || /\.png(\?|#|$)/i.test(raw)
+    || raw.startsWith('data:image/webp')
+    || /\.webp(\?|#|$)/i.test(raw)
+    || raw.startsWith('data:image/avif')
+    || /\.avif(\?|#|$)/i.test(raw)
+  ) {
+    return 'png'
+  }
+  if (raw.startsWith('data:image/jpeg') || raw.startsWith('data:image/jpg') || /\.jpe?g(\?|#|$)/i.test(raw)) return 'jpg'
+  return 'other'
+}
+
+const thumbnailFormatScore = (format: ThumbnailFormat): number => {
+  if (format === 'svg') return 3
+  if (format === 'png') return 2
+  if (format === 'jpg') return 1
+  return 0
+}
+
+const pickPreferredThumbnailSource = (sources: Array<string | null | undefined>): string | null => {
+  let best: { src: string; score: number } | null = null
+  const seen = new Set<string>()
+  for (let i = 0; i < sources.length; i += 1) {
+    const raw = String(sources[i] || '').trim()
+    if (!raw || seen.has(raw)) continue
+    seen.add(raw)
+    const score = thumbnailFormatScore(detectThumbnailFormat(raw))
+    if (!best || score > best.score) best = { src: raw, score }
+  }
+  return best?.src || null
+}
+
+const probeImageUrl = (url: string, timeoutMs = 1_200): Promise<boolean> =>
+  new Promise<boolean>((resolve) => {
+    let settled = false
+    const finish = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      resolve(ok)
+    }
+    const probe = new Image()
+    probe.onload = () => finish(true)
+    probe.onerror = () => finish(false)
+    probe.src = url
+    setTimeout(() => finish(false), timeoutMs)
+  })
 
 const unwrapProxyUrl = (src: string): string => {
   const m = src.match(PROXY_URL_RE)
@@ -53,24 +119,26 @@ const extractYouTubeVideoId = (url: string): string | null => {
 
 const resolveYouTubeThumbnail = (ytId: string): Promise<string> => {
   const candidates = [
+    `https://img.youtube.com/vi/${ytId}/maxresdefault.png`,
+    `https://img.youtube.com/vi/${ytId}/sddefault.png`,
+    `https://img.youtube.com/vi/${ytId}/hqdefault.png`,
     `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`,
     `https://img.youtube.com/vi/${ytId}/sddefault.jpg`,
     `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
   ]
   return new Promise<string>((resolve) => {
-    let settled = false
-    const finish = (url: string) => {
-      if (settled) return
-      settled = true
-      resolve(url)
+    const run = async () => {
+      for (let i = 0; i < candidates.length; i += 1) {
+        const candidate = candidates[i]
+        const ok = await probeImageUrl(candidate)
+        if (ok) {
+          resolve(candidate)
+          return
+        }
+      }
+      resolve(candidates[candidates.length - 1])
     }
-    for (const url of candidates) {
-      const probe = new Image()
-      probe.onload = () => finish(url)
-      probe.onerror = () => { void 0 }
-      probe.src = url
-    }
-    setTimeout(() => finish(candidates[candidates.length - 1]), 4_000)
+    void run()
   })
 }
 
@@ -84,6 +152,35 @@ const createImg = (src: string, alt: string): HTMLImageElement => {
   img.style.display = 'block'
   img.style.objectFit = 'contain'
   return img
+}
+
+const buildVideoFallbackSvgThumbnail = (href: string): string => {
+  const label = inferPlatformLabel(href)
+  const host = (() => {
+    try {
+      const url = new URL(href)
+      return url.hostname.replace(/^www\./, '')
+    } catch {
+      return ''
+    }
+  })()
+  const esc = (value: string): string =>
+    value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#g)"/>
+  <circle cx="640" cy="360" r="86" fill="rgba(255,255,255,0.16)"/>
+  <polygon points="622,322 622,398 690,360" fill="#ffffff"/>
+  <text x="640" y="500" fill="rgba(255,255,255,0.95)" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="44" text-anchor="middle">${esc(label)}</text>
+  <text x="640" y="540" fill="rgba(255,255,255,0.70)" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="24" text-anchor="middle">${esc(host)}</text>
+</svg>`.trim()
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
 const inferPlatformLabel = (url: string): string => {
@@ -199,6 +296,14 @@ const annotateSourceImages = (el: Element): void => {
   }
 }
 
+const resolvePreferredThumbnailFromImage = (img: HTMLImageElement | null): string | null => {
+  if (!img) return null
+  const originalSrc = String(img.currentSrc || img.getAttribute('src') || '').trim()
+  const originalSourceSrc = String(img.getAttribute('data-kg-original-src') || '').trim()
+  const bakedDataUrl = captureImageAsDataUrl(img)
+  return pickPreferredThumbnailSource([originalSourceSrc, originalSrc, bakedDataUrl])
+}
+
 const bakeLoadedImages = (src: Element, dst: Element): void => {
   const srcImgs = src.querySelectorAll('img')
   const dstImgs = dst.querySelectorAll('img')
@@ -246,24 +351,77 @@ const replaceVideosWithFrames = (src: Element, dst: Element): void => {
   }
 }
 
-const replaceYouTubeIframes = async (clone: Element): Promise<void> => {
+const replaceVideoIframes = async (clone: Element): Promise<void> => {
   const iframes = clone.querySelectorAll('iframe')
   const tasks: Promise<void>[] = []
   for (let i = 0; i < iframes.length; i += 1) {
     const iframe = iframes[i] as HTMLIFrameElement
-    const src = String(iframe.getAttribute('src') || '').trim()
+    const src = unwrapProxyUrl(String(iframe.getAttribute('src') || '').trim())
+    if (!KNOWN_VIDEO_IFRAME_HOST_RE.test(src)) continue
     const ytId = extractYouTubeVideoId(src)
-    if (!ytId) continue
-    const watchUrl = `https://www.youtube.com/watch?v=${ytId}`
+    const href = ytId ? `https://www.youtube.com/watch?v=${ytId}` : src
     tasks.push(
-      resolveYouTubeThumbnail(ytId).then((thumbUrl) => {
+      (ytId ? resolveYouTubeThumbnail(ytId) : Promise.resolve('')).then((thumbUrl) => {
         try {
+          const parent = iframe.parentElement
+          const parentThumb = parent
+            ? (parent.querySelector('img[data-kg-media-thumbnail="1"], img') as HTMLImageElement | null)
+            : null
+          const preferredFromParent = resolvePreferredThumbnailFromImage(parentThumb)
+          const preferredThumb = pickPreferredThumbnailSource([preferredFromParent, thumbUrl]) || buildVideoFallbackSvgThumbnail(href)
           const container = iframe.parentElement
           if (container && container !== clone && container.children.length <= 2) {
-            container.replaceWith(createVideoEmbedPreview(thumbUrl, `YouTube: ${ytId}`, watchUrl))
+            container.replaceWith(createVideoEmbedPreview(preferredThumb, `${inferPlatformLabel(href)} video`, href))
           } else {
-            iframe.replaceWith(createVideoEmbedPreview(thumbUrl, `YouTube: ${ytId}`, watchUrl))
+            iframe.replaceWith(createVideoEmbedPreview(preferredThumb, `${inferPlatformLabel(href)} video`, href))
           }
+        } catch {
+          void 0
+        }
+      }),
+    )
+  }
+  await Promise.all(tasks)
+}
+
+const freezeIframesToStaticThumbnails = async (src: Element, dst: Element): Promise<void> => {
+  const srcIframes = src.querySelectorAll('iframe')
+  const dstIframes = dst.querySelectorAll('iframe')
+  const len = Math.min(srcIframes.length, dstIframes.length)
+  const tasks: Promise<void>[] = []
+  for (let i = 0; i < len; i += 1) {
+    const srcIframe = srcIframes[i] as HTMLIFrameElement
+    const dstIframe = dstIframes[i] as HTMLIFrameElement
+    tasks.push(
+      Promise.resolve().then(async () => {
+        const iframeSrc = unwrapProxyUrl(String(srcIframe.getAttribute('src') || '').trim())
+        const parentThumb = srcIframe.parentElement
+          ? (srcIframe.parentElement.querySelector('img[data-kg-media-thumbnail="1"], img') as HTMLImageElement | null)
+          : null
+        let preferredThumb = pickPreferredThumbnailSource([resolvePreferredThumbnailFromImage(parentThumb)])
+        if (!preferredThumb) {
+          const ytId = extractYouTubeVideoId(iframeSrc)
+          if (ytId) preferredThumb = await resolveYouTubeThumbnail(ytId)
+        }
+        if (!preferredThumb) preferredThumb = buildVideoFallbackSvgThumbnail(iframeSrc || 'about:blank')
+        const href = /^https?:\/\//i.test(iframeSrc) ? iframeSrc : ''
+        const replacement = href
+          ? createVideoEmbedPreview(preferredThumb, `${inferPlatformLabel(href)} embed`, href)
+          : createImg(preferredThumb, 'embedded content')
+        try {
+          const iframeClassName = String(dstIframe.getAttribute('class') || '').trim()
+          if (iframeClassName) replacement.setAttribute('class', iframeClassName)
+        } catch {
+          void 0
+        }
+        try {
+          const iframeStyle = String(dstIframe.getAttribute('style') || '').trim()
+          if (iframeStyle) replacement.setAttribute('style', iframeStyle)
+        } catch {
+          void 0
+        }
+        try {
+          dstIframe.replaceWith(replacement)
         } catch {
           void 0
         }
@@ -327,13 +485,13 @@ const replaceVideoSnapshots = (src: Element, clone: Element): void => {
     const ss = srcSnapshots[i] as HTMLElement
     const cs = cloneSnapshots[i] as HTMLElement
     const srcThumb = ss.querySelector('img[data-kg-media-thumbnail="1"]') as HTMLImageElement | null
-    if (!srcThumb) continue
-    const dataUrl = captureImageAsDataUrl(srcThumb)
-    if (!dataUrl) continue
     const videoSrc = unwrapProxyUrl(String(cs.getAttribute('data-src') || '').trim())
+    const preferredThumb =
+      pickPreferredThumbnailSource([resolvePreferredThumbnailFromImage(srcThumb)])
+      || buildVideoFallbackSvgThumbnail(videoSrc)
     const href = /^https?:\/\//i.test(videoSrc) ? videoSrc : ''
     try {
-      cs.replaceWith(href ? createVideoEmbedPreview(dataUrl, videoSrc, href) : createImg(dataUrl, videoSrc))
+      cs.replaceWith(href ? createVideoEmbedPreview(preferredThumb, videoSrc, href) : createImg(preferredThumb, videoSrc))
     } catch {
       void 0
     }
@@ -348,13 +506,16 @@ const bakeWebpageSnapshotThumbnails = (src: Element, clone: Element): void => {
     const ss = srcSnapshots[i] as HTMLElement
     const cs = cloneSnapshots[i] as HTMLElement
     const srcThumb = ss.querySelector('img[data-kg-media-thumbnail="1"]') as HTMLImageElement | null
-    if (!srcThumb) continue
-    const dataUrl = captureImageAsDataUrl(srcThumb)
-    if (!dataUrl) continue
     const cloneThumb = cs.querySelector('img[data-kg-media-thumbnail="1"]') as HTMLImageElement | null
     if (cloneThumb) {
+      const preferredThumb = pickPreferredThumbnailSource([
+        resolvePreferredThumbnailFromImage(srcThumb),
+        String(cloneThumb.getAttribute('src') || '').trim(),
+        String(cloneThumb.currentSrc || '').trim(),
+      ])
+      if (!preferredThumb) continue
       try {
-        cloneThumb.setAttribute('src', dataUrl)
+        cloneThumb.setAttribute('src', preferredThumb)
         cloneThumb.removeAttribute('loading')
         cloneThumb.removeAttribute('decoding')
       } catch {
@@ -374,6 +535,33 @@ const stripLazyAttrs = (el: Element): void => {
     }
     try {
       media[i].removeAttribute('decoding')
+    } catch {
+      void 0
+    }
+  }
+}
+
+const markMarkdownDividerPageBreaks = (root: Element): void => {
+  const hrs = root.querySelectorAll('hr')
+  const hasFollowingContent = (node: Element): boolean => {
+    let cursor: Element | null = node
+    while (cursor && cursor !== root) {
+      if (cursor.nextElementSibling) return true
+      cursor = cursor.parentElement
+    }
+    return false
+  }
+  for (let i = 0; i < hrs.length; i += 1) {
+    const hr = hrs[i] as HTMLElement
+    if (!hasFollowingContent(hr)) continue
+    try {
+      hr.setAttribute('data-kg-hr', '1')
+      const next = hr.nextElementSibling as HTMLElement | null
+      if (!next || next.getAttribute('data-kg-page-break') !== '1') {
+        const marker = document.createElement('div')
+        marker.setAttribute('data-kg-page-break', '1')
+        hr.insertAdjacentElement('afterend', marker)
+      }
     } catch {
       void 0
     }
@@ -424,28 +612,42 @@ const waitForImagesToLoad = (root: HTMLElement, timeoutMs: number): Promise<void
   })
 }
 
-export type PrintOrientation = 'portrait' | 'landscape'
-
-type PrintLayoutPreset = {
-  pageSize: string
-  pageMargin: string
-  rootPadding: string
+const copyScrollableState = (src: HTMLElement, dst: HTMLElement): void => {
+  try {
+    dst.scrollTop = src.scrollTop
+    dst.scrollLeft = src.scrollLeft
+  } catch {
+    void 0
+  }
+  const srcNodes = src.querySelectorAll('*')
+  const dstNodes = dst.querySelectorAll('*')
+  const len = Math.min(srcNodes.length, dstNodes.length)
+  for (let i = 0; i < len; i += 1) {
+    const srcNode = srcNodes[i] as HTMLElement
+    const dstNode = dstNodes[i] as HTMLElement
+    try {
+      dstNode.scrollTop = srcNode.scrollTop
+      dstNode.scrollLeft = srcNode.scrollLeft
+    } catch {
+      void 0
+    }
+  }
 }
 
-const PRINT_LAYOUT_PRESETS: Readonly<Record<PrintOrientation, PrintLayoutPreset>> = {
-  portrait: {
-    pageSize: '9in 16in',
-    pageMargin: '14mm 10mm 14mm 10mm',
-    rootPadding: '12mm 10mm 12mm 10mm',
-  },
-  landscape: {
-    pageSize: '16in 9in',
-    pageMargin: '10mm 14mm 10mm 14mm',
-    rootPadding: '10mm 12mm 10mm 12mm',
-  },
-}
+export type { PrintOrientation } from './printLayoutTokens'
 
-export async function printElementToPdf(el: HTMLElement, args?: { title?: string; orientation?: PrintOrientation }): Promise<void> {
+export async function printElementToPdf(
+  el: HTMLElement,
+  args?: {
+    title?: string
+    orientation?: PrintOrientation
+    horizontalInsetScale?: number
+    verticalInsetScale?: number
+    compactHorizontalContent?: boolean
+    centerContent?: boolean
+    fidelityMode?: 'balanced' | 'presentation-wysiwyg' | 'presentation-viewer-fidelity'
+  },
+): Promise<void> {
   try {
     if (typeof window === 'undefined') return
     if (!el) return
@@ -487,10 +689,41 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
     root.style.background = 'white'
     root.style.overflow = 'auto'
     const orientation: PrintOrientation = args?.orientation === 'landscape' ? 'landscape' : 'portrait'
-    const preset = PRINT_LAYOUT_PRESETS[orientation]
-    root.style.padding = preset.rootPadding
+    const fidelityMode = args?.fidelityMode || 'balanced'
+    const preservePresentationLayout =
+      fidelityMode === 'presentation-wysiwyg' || fidelityMode === 'presentation-viewer-fidelity'
+    const horizontalInsetScale = Number.isFinite(Number(args?.horizontalInsetScale)) && Number(args?.horizontalInsetScale) > 0
+      ? Number(args?.horizontalInsetScale)
+      : 1
+    const verticalInsetScale = Number.isFinite(Number(args?.verticalInsetScale)) && Number(args?.verticalInsetScale) > 0
+      ? Number(args?.verticalInsetScale)
+      : 1
+    const geometry = resolvePrintGeometryMm({
+      orientation,
+      horizontalInsetScale,
+      verticalInsetScale,
+      presentationVerticalInsetSymmetry: preservePresentationLayout,
+    })
+    const { effectiveInsetsMm: effectiveInsets, pageSizeMm, viewportMm, presentationSlideMm } = geometry
+    const formatInsetCss = (insets: { top: number; right: number; bottom: number; left: number }): string =>
+      `${insets.top}mm ${insets.right}mm ${insets.bottom}mm ${insets.left}mm`
+    const pageMarginCss = formatInsetCss(effectiveInsets.pageMarginMm)
+    const rootPaddingCss = formatInsetCss(effectiveInsets.rootPaddingMm)
+    const pageSizeCss = `${pageSizeMm.widthMm}mm ${pageSizeMm.heightMm}mm`
+    const mmToCssPx = (mm: number): number => (mm / 25.4) * 96
+    const presentationSlideScale = mmToCssPx(presentationSlideMm.widthMm) / PRESENTATION_BASE_SLIDE_SIZE_PX.width
+    const compactHorizontalContent = Boolean(args?.compactHorizontalContent)
+    const centerContent = Boolean(args?.centerContent)
+    const allowMediaMutation = !preservePresentationLayout
+    const freezePresentationMedia = preservePresentationLayout
+    root.style.padding = rootPaddingCss
 
     const clone = el.cloneNode(true) as HTMLElement
+    try {
+      copyScrollableState(el, clone)
+    } catch {
+      void 0
+    }
 
     try {
       annotateSourceImages(clone)
@@ -503,37 +736,42 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
       void 0
     }
     try {
-      bakeLoadedImages(el, clone)
+      if (allowMediaMutation || freezePresentationMedia) bakeLoadedImages(el, clone)
     } catch {
       void 0
     }
     try {
-      bakeWebpageSnapshotThumbnails(el, clone)
+      if (allowMediaMutation || freezePresentationMedia) bakeWebpageSnapshotThumbnails(el, clone)
     } catch {
       void 0
     }
     try {
-      replaceVideosWithFrames(el, clone)
+      if (allowMediaMutation || freezePresentationMedia) replaceVideosWithFrames(el, clone)
     } catch {
       void 0
     }
     try {
-      await replaceYouTubeIframes(clone)
+      if (allowMediaMutation) await replaceVideoIframes(clone)
     } catch {
       void 0
     }
     try {
-      await replaceYouTubeBrokenImgs(clone)
+      if (freezePresentationMedia) await freezeIframesToStaticThumbnails(el, clone)
     } catch {
       void 0
     }
     try {
-      await replaceYouTubeWebpageSnapshots(el, clone)
+      if (allowMediaMutation) await replaceYouTubeBrokenImgs(clone)
     } catch {
       void 0
     }
     try {
-      replaceVideoSnapshots(el, clone)
+      if (allowMediaMutation) await replaceYouTubeWebpageSnapshots(el, clone)
+    } catch {
+      void 0
+    }
+    try {
+      if (allowMediaMutation) replaceVideoSnapshots(el, clone)
     } catch {
       void 0
     }
@@ -543,13 +781,17 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
       void 0
     }
     try {
-      wrapImagesWithSourceLinks(clone)
+      markMarkdownDividerPageBreaks(clone)
+    } catch {
+      void 0
+    }
+    try {
+      if (!preservePresentationLayout) wrapImagesWithSourceLinks(clone)
     } catch {
       void 0
     }
     root.appendChild(clone)
     document.body.appendChild(root)
-
     await waitForImagesToLoad(root, 5_000)
 
     const style = document.createElement('style')
@@ -558,12 +800,105 @@ export async function printElementToPdf(el: HTMLElement, args?: { title?: string
       @media print {
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body > *:not(#${printRootId}) { display: none !important; }
-        #${printRootId} { position: static !important; inset: auto !important; overflow: visible !important; padding: 0 !important; }
-        #${printRootId} section { overflow: visible !important; }
-        #${printRootId} svg { max-width: 100% !important; height: auto !important; }
+        #${printRootId} { position: static !important; inset: auto !important; overflow: visible !important; padding: ${rootPaddingCss} !important; box-sizing: border-box !important; }
+        ${preservePresentationLayout ? '' : `#${printRootId} section { overflow: visible !important; }`}
+        ${preservePresentationLayout ? '' : `#${printRootId} svg { max-width: 100% !important; height: auto !important; }`}
+        ${
+          compactHorizontalContent
+            ? `
+        #${printRootId} [data-testid="markdown-preview-root"] { width: 100% !important; max-width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
+        #${printRootId} article { width: 100% !important; max-width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
+        #${printRootId} .mx-auto { margin-left: 0 !important; margin-right: 0 !important; }
+      `
+            : ''
+        }
+        ${
+          centerContent
+            ? `
+        #${printRootId} { display: flex !important; justify-content: center !important; align-items: center !important; min-height: 100vh !important; }
+        #${printRootId} > * { margin: auto !important; max-width: 100% !important; }
+      `
+            : ''
+        }
         #${printRootId} [data-kg-mermaid-visibility-gate="pending"] { display: none !important; }
-        #${printRootId} [data-kg-hr="1"] { break-after: page; }
-        @page { margin: ${preset.pageMargin}; size: ${preset.pageSize}; }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] {
+          display: block !important;
+          width: ${viewportMm.widthMm}mm !important;
+          min-width: ${viewportMm.widthMm}mm !important;
+          max-width: ${viewportMm.widthMm}mm !important;
+          margin: 0 auto !important;
+          box-sizing: border-box !important;
+        }
+        ${
+          preservePresentationLayout
+            ? `
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section {
+          margin: 0 !important;
+          padding: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          overflow: hidden !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          height: ${viewportMm.heightMm}mm !important;
+          min-height: ${viewportMm.heightMm}mm !important;
+          max-height: ${viewportMm.heightMm}mm !important;
+          width: ${viewportMm.widthMm}mm !important;
+          min-width: ${viewportMm.widthMm}mm !important;
+          max-width: ${viewportMm.widthMm}mm !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section:not(:first-of-type) {
+          break-before: page !important;
+          page-break-before: always !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-hr="1"],
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-page-break="1"] {
+          display: none !important;
+          break-before: auto !important;
+          page-break-before: auto !important;
+          break-after: auto !important;
+          page-break-after: auto !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article {
+          border-color: transparent !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
+          min-width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
+          max-width: ${PRESENTATION_BASE_SLIDE_SIZE_PX.width}px !important;
+          height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
+          min-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
+          max-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          transform: scale(${presentationSlideScale}) !important;
+          transform-origin: center center !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Document"] {
+          height: 100% !important;
+          min-height: 100% !important;
+          max-height: 100% !important;
+          position: relative !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] [aria-label="Slide Document"] > footer {
+          background-color: rgb(255 255 255) !important;
+          opacity: 1 !important;
+        }
+      `
+            : ''
+        }
+        ${
+          preservePresentationLayout
+            ? ''
+            : `
+        #${printRootId} [data-kg-hr="1"] { break-after: page; page-break-after: always; }
+        #${printRootId} [data-kg-page-break="1"] { display: block !important; height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; break-before: page; page-break-before: always; }
+      `
+        }
+        @page { margin: ${pageMarginCss}; size: ${pageSizeCss}; }
       }
     `
     document.head.appendChild(style)

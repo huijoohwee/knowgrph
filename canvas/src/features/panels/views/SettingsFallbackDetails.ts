@@ -1,4 +1,60 @@
+const WORKSPACE_LAYOUT_SETTING_KEYS = [
+  'workspace.surface.padding.top',
+  'workspace.surface.padding.right',
+  'workspace.surface.padding.bottom',
+  'workspace.surface.padding.left',
+  'workspace.surface.margin.top',
+  'workspace.surface.margin.right',
+  'workspace.surface.margin.bottom',
+  'workspace.surface.margin.left',
+  'workspace.surface.gap',
+  'workspace.split.divider.gap',
+] as const
+
+const WORKSPACE_PRINT_SETTING_KEYS = [
+  'print.portrait.pageMargin.top',
+  'print.portrait.pageMargin.right',
+  'print.portrait.pageMargin.bottom',
+  'print.portrait.pageMargin.left',
+  'print.portrait.rootPadding.top',
+  'print.portrait.rootPadding.right',
+  'print.portrait.rootPadding.bottom',
+  'print.portrait.rootPadding.left',
+  'print.landscape.pageMargin.top',
+  'print.landscape.pageMargin.right',
+  'print.landscape.pageMargin.bottom',
+  'print.landscape.pageMargin.left',
+  'print.landscape.rootPadding.top',
+  'print.landscape.rootPadding.right',
+  'print.landscape.rootPadding.bottom',
+  'print.landscape.rootPadding.left',
+] as const
+
+const WORKSPACE_LAYOUT_FALLBACK_DETAILS = Object.fromEntries(
+  WORKSPACE_LAYOUT_SETTING_KEYS.map(key => [
+    key,
+    {
+      area: 'Workspace',
+      responsibility: `Workspace surface spacing token (${key.split('.').slice(-2).join(' ')})`,
+      notes: 'Unit: rem',
+    },
+  ]),
+)
+
+const WORKSPACE_PRINT_FALLBACK_DETAILS = Object.fromEntries(
+  WORKSPACE_PRINT_SETTING_KEYS.map(key => [
+    key,
+    {
+      area: 'Workspace',
+      responsibility: `PDF print layout token (${key.split('.').slice(0, 3).join(' ')} ${key.split('.').slice(-1)[0]})`,
+      notes: 'Unit: mm',
+    },
+  ]),
+)
+
 export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: string; notes?: string }> = {
+  ...WORKSPACE_LAYOUT_FALLBACK_DETAILS,
+  ...WORKSPACE_PRINT_FALLBACK_DETAILS,
   'payments.stripe.mode': { area: 'Stripe Payment API', responsibility: 'Stripe mode label (test vs live)' },
   'payments.stripe.secretKey': { area: 'Stripe Payment API', responsibility: 'Stripe secret key (server-side)', notes: 'Keep secret keys server-side only; do not expose in client code.' },
   'payments.stripe.publishableKey': { area: 'Stripe Payment API', responsibility: 'Stripe publishable key (client-side)' },

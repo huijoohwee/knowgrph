@@ -8,12 +8,14 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveRouterBasename } from '@/lib/routing/basePath'
 import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
+import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceLayoutSettings'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
 
 function AppThemeRuntime() {
   useLayoutEffect(() => {
     applyThemeMode(getInitialThemeMode(getLocalStorage()))
+    ensureWorkspaceLayoutTokensInstalled()
   }, [])
 
   return null

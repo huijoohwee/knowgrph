@@ -4110,6 +4110,318 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L741; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L231; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L279"
   },
+  "workspace.surface.padding.top": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (padding top)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.padding.right": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (padding right)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.padding.bottom": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (padding bottom)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.padding.left": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (padding left)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.margin.top": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (margin top)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.margin.right": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (margin right)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.margin.bottom": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (margin bottom)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.margin.left": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (margin left)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.surface.gap": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (surface gap)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "workspace.split.divider.gap": {
+    "area": "Workspace",
+    "responsibility": "Workspace surface spacing token (divider gap)",
+    "notes": "Unit: rem",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.pageMargin.top": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait pageMargin top)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.pageMargin.right": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait pageMargin right)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.pageMargin.bottom": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait pageMargin bottom)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.pageMargin.left": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait pageMargin left)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.rootPadding.top": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait rootPadding top)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.rootPadding.right": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait rootPadding right)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.rootPadding.bottom": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait rootPadding bottom)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.portrait.rootPadding.left": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print portrait rootPadding left)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.pageMargin.top": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape pageMargin top)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.pageMargin.right": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape pageMargin right)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.pageMargin.bottom": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape pageMargin bottom)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.pageMargin.left": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape pageMargin left)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.rootPadding.top": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape rootPadding top)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.rootPadding.right": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape rootPadding right)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.rootPadding.bottom": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape rootPadding bottom)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
+  "print.landscape.rootPadding.left": {
+    "area": "Workspace",
+    "responsibility": "PDF print layout token (print landscape rootPadding left)",
+    "notes": "Unit: mm",
+    "modules": [],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": ""
+  },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",
     "responsibility": "Include extracted PDF images in Markdown output",

@@ -225,6 +225,7 @@ type BuildSlideBodyArgs = {
   effectiveHighlightBackgroundColor: string | null
   effectiveHighlightUnderlineColor: string | null
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
+  headerFooterPositionMode?: 'viewport-fixed' | 'slide-absolute' | 'slide-flow'
 }
 
 export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
@@ -239,6 +240,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     uiPanelMonospaceTextClass,
     uiPanelMicroLabelTextSizeClass,
     mermaidFrontmatterConfig,
+    headerFooterPositionMode = 'viewport-fixed',
   } = args
 
   if (!hasSlides) {
@@ -283,33 +285,54 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      positionMode={headerFooterPositionMode}
     />
   )
+  const footerNode = (
+    <SlideFooter
+      meta={visualMeta}
+      page={safeActiveSlideId + 1}
+      total={slides.length}
+      uiPanelTextFontClass={uiPanelTextFontClass}
+      uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+      uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      positionMode={headerFooterPositionMode}
+    />
+  )
+  const hasHeaderChrome = Boolean(headerNode)
+  const hasFooterChrome = Boolean(footerNode)
+  const sharedChromePx = visualMeta.themeStyle === 'academic' ? 40 : 32
+  const headerChromePx = hasHeaderChrome ? sharedChromePx : 0
+  const footerChromePx = hasFooterChrome ? sharedChromePx : 0
   
   let stickyHeadingTopPx = 0
-  if (headerNode) {
-    if (visualMeta.themeStyle === 'academic') {
-      stickyHeadingTopPx = 40 // 40px (h-10)
-    } else {
-      stickyHeadingTopPx = 32 // 32px (h-8)
-    }
+  if (headerNode && headerFooterPositionMode !== 'slide-flow') {
+    stickyHeadingTopPx = headerChromePx
   }
 
   const slideMermaidConfig = parseMermaidConfigFromFrontmatter(currentSlide.meta || {})
   const effectiveMermaidConfig = slideMermaidConfig || mermaidFrontmatterConfig
   
   let content: React.ReactNode = null
+  const isFlowChrome = headerFooterPositionMode === 'slide-flow'
+  const isAbsoluteChrome = headerFooterPositionMode === 'slide-absolute'
 
   if (layout === 'two-cols' && twoColumnTokens) {
     content = (
       <section className="w-full h-full grid grid-cols-2 gap-8" aria-label="Slide Columns">
-        <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Left Column">
+        <section
+          className={`w-full h-full px-8 ${isFlowChrome ? 'py-6 overflow-visible' : isAbsoluteChrome ? 'pt-6 pb-6 overflow-auto' : 'pt-10 pb-14 overflow-auto'}`}
+          aria-label="Slide Left Column"
+        >
           <MarkdownTokenRenderer
             {...buildTokenRendererProps(twoColumnTokens.left, args, null, undefined, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
           />
         </section>
-        <section className="w-full h-full px-8 pt-10 pb-14 overflow-auto" aria-label="Slide Right Column">
+        <section
+          className={`w-full h-full px-8 ${isFlowChrome ? 'py-6 overflow-visible' : isAbsoluteChrome ? 'pt-6 pb-6 overflow-auto' : 'pt-10 pb-14 overflow-auto'}`}
+          aria-label="Slide Right Column"
+        >
           <MarkdownTokenRenderer
             {...buildTokenRendererProps(twoColumnTokens.right, args, null, undefined, stickyHeadingTopPx)}
             mermaidFrontmatterConfig={effectiveMermaidConfig}
@@ -320,12 +343,12 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   } else if (slideTokens) {
     const slideOuterClass =
       layout === 'center'
-        ? 'w-full h-full flex flex-col items-center justify-center relative'
-        : 'w-full h-full flex flex-col relative'
+        ? `w-full ${isFlowChrome ? 'min-h-0' : 'h-full'} flex flex-col items-center justify-center relative`
+        : `w-full ${isFlowChrome ? 'min-h-0' : 'h-full'} flex flex-col relative`
     const slideContentClass =
       layout === 'center'
-        ? 'flex-1 min-h-0 w-full max-w-full overflow-y-auto px-16 py-12 mx-auto flex flex-col items-center justify-center pb-16'
-        : 'flex-1 min-h-0 w-full px-16 py-12 overflow-y-auto pb-16'
+        ? `flex-1 min-h-0 w-full max-w-full ${isFlowChrome ? 'overflow-visible px-16 py-8' : isAbsoluteChrome ? 'overflow-y-auto px-16 py-8' : 'overflow-y-auto px-16 py-12 pb-16'} mx-auto flex flex-col items-center justify-center`
+        : `flex-1 min-h-0 w-full ${isFlowChrome ? 'overflow-visible px-16 py-8' : isAbsoluteChrome ? 'overflow-y-auto px-16 py-8' : 'overflow-y-auto px-16 py-12 pb-16'}`
 
     content = (
       <section className={slideOuterClass} aria-label="Slide Body">
@@ -347,18 +370,30 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
 
   if (!content) return null
 
+  const slideDocumentStyle =
+    isAbsoluteChrome
+      ? {
+          height: '100%',
+          paddingTop: `${headerChromePx}px`,
+          paddingBottom: `${footerChromePx}px`,
+          boxSizing: 'border-box' as const,
+          overflow: 'hidden',
+        }
+      : undefined
+  const slideDocumentClass = headerFooterPositionMode === 'slide-absolute'
+    ? 'w-full h-full relative'
+    : headerFooterPositionMode === 'slide-flow'
+      ? 'w-full h-full relative flex flex-col'
+      : 'w-full h-full relative pb-14'
+  const slideContentNode = headerFooterPositionMode === 'slide-flow'
+    ? <section className="flex-1 min-h-0 w-full">{content}</section>
+    : content
+
   return (
-    <section className="w-full h-full relative pb-14" aria-label="Slide Document">
+    <section className={slideDocumentClass} style={slideDocumentStyle} aria-label="Slide Document">
       {headerNode}
-      {content}
-      <SlideFooter
-        meta={visualMeta}
-        page={safeActiveSlideId + 1}
-        total={slides.length}
-        uiPanelTextFontClass={uiPanelTextFontClass}
-        uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
-        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-      />
+      {slideContentNode}
+      {footerNode}
     </section>
   )
 }

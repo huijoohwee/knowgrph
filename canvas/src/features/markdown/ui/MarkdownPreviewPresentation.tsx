@@ -24,6 +24,7 @@ import { SlidesSidebar } from './SlidesSidebar'
 import type { MarkdownSourceFilesPanelIntegration } from './markdownSourceFilesPanelTypes'
 
 import { usePresentationEffects } from './usePresentationEffects'
+import { resolvePresentationFrameModel } from './markdownPresentationFrame'
 
 export { SlidesSidebar }
 
@@ -156,26 +157,11 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     showSlidesSidebar,
   })
 
-  const baseSlideSize = React.useMemo(() => {
-    const meta = headMeta
-    const raw = String(meta.aspectRatio || '').trim()
-    // Default to 1920x1080 (16:9) as requested for Fit to View/Screen support
-    let width = 1920
-    let height = 1080
-    if (raw) {
-      const m = /^(\d+)\s*\/\s*(\d+)$/.exec(raw)
-      if (m) {
-        const w = Number.parseInt(m[1], 10)
-        const h = Number.parseInt(m[2], 10)
-        if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-          const baseHeight = 1080
-          height = baseHeight
-          width = Math.max(1, Math.round((baseHeight * w) / h))
-        }
-      }
-    }
-    return { w: width, h: height }
-  }, [headMeta])
+  const baseSlideSize = React.useMemo(
+    // Keep presentation viewport stable at 16:9 for consistent editor/presentation framing.
+    () => ({ w: 1920, h: 1080 }),
+    [],
+  )
 
   const hasSlides = React.useMemo(
     () => slides.length > 0,
@@ -293,8 +279,6 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
     backgroundPosition,
     themeStyle,
   } = getSlideVisualMeta(slideMeta, headMetaRecord, uiPanelTextFontClass)
-  const frameVariantRaw = String(slideMeta.frame || headMetaRecord.frame || '').trim().toLowerCase()
-  const framePaddingRaw = slideMeta.framePadding ?? headMetaRecord.framePadding
   const slideStyle = buildBackgroundStyle(activeDocumentPath, backgroundRaw, backgroundSize, backgroundPosition)
 
   const slideTransitionStyle: React.CSSProperties = React.useMemo(
@@ -304,33 +288,17 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
   const isAcademicTheme = themeStyle === 'academic'
   const slideContent = slideBody
 
-  let slideFramePaddingPx: number | undefined
-  if (typeof framePaddingRaw === 'number' && Number.isFinite(framePaddingRaw)) {
-    slideFramePaddingPx = framePaddingRaw
-  } else if (typeof framePaddingRaw === 'string') {
-    const trimmed = framePaddingRaw.trim()
-    if (trimmed) {
-      const parsed = Number.parseFloat(trimmed)
-      if (Number.isFinite(parsed)) {
-        slideFramePaddingPx = parsed
-      }
-    }
-  }
-
-  const frameVariant = frameVariantRaw || 'default'
-  let baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-  if (isAcademicTheme && !frameVariantRaw) {
-    baseFrameClass = `rounded ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-  }
-  if (frameVariant === 'borderless') {
-    baseFrameClass = `rounded ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-  } else if (frameVariant === 'minimal') {
-    baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-  } else if (frameVariant === 'dark') {
-    baseFrameClass = 'rounded border border-gray-700 shadow bg-gray-900 text-gray-100'
-  } else if (frameVariant === 'auto') {
-    baseFrameClass = `rounded border ${UI_THEME_TOKENS.panel.border} shadow ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-  }
+  const frameModel = React.useMemo(
+    () =>
+      resolvePresentationFrameModel({
+        slideMeta,
+        headMeta: headMetaRecord,
+        isAcademicTheme,
+      }),
+    [headMetaRecord, isAcademicTheme, slideMeta],
+  )
+  const slideFramePaddingPx = frameModel.slideFramePaddingPx
+  const baseFrameClass = frameModel.baseFrameClass
 
   const [sidebarFocusSlideId, setSidebarFocusSlideId] = React.useState<number | null>(null)
 

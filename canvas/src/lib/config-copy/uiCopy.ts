@@ -575,7 +575,16 @@ export const UI_COPY = {
   markdownWorkspaceJsonMarkdownModeHierarchicalLabel: 'Hierarchical',
   markdownWorkspaceJsonMarkdownModeSuggestedPrefix: 'Suggested:',
   markdownWorkspaceExportPdfMissingSurfaceWarning: 'Open a visible Workspace surface to export PDF.',
-  markdownWorkspaceExportPdfDebugTargetMessage: (target: string) => `PDF export target: ${target}`,
+  markdownWorkspaceExportPdfDebugTargetMessage: (
+    target: string,
+    dividerBreakCount?: number,
+    debugSuffix?: string,
+  ) => {
+    const base = typeof dividerBreakCount === 'number'
+      ? `PDF export target: ${target} · divider-breaks: ${dividerBreakCount}`
+      : `PDF export target: ${target}`
+    return debugSuffix ? `${base} · ${debugSuffix}` : base
+  },
   jsonToMarkdownEmptyArrayLabel: '(empty array)',
   jsonToMarkdownEmptyListLabel: '(empty list)',
   jsonToMarkdownMoreRowsLabel: (remaining: number) => `... ${remaining} more rows`,

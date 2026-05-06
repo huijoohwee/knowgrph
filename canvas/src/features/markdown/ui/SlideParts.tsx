@@ -10,10 +10,20 @@ type SlideHeaderProps = {
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   uiPanelMonospaceTextClass: string
+  positionMode?: 'viewport-fixed' | 'slide-absolute' | 'slide-flow'
 }
 
 export function SlideHeader(props: SlideHeaderProps) {
-  const { meta, heading, page, total, uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, uiPanelMonospaceTextClass } = props
+  const {
+    meta,
+    heading,
+    page,
+    total,
+    uiPanelTextFontClass,
+    uiPanelMicroLabelTextSizeClass,
+    uiPanelMonospaceTextClass,
+    positionMode = 'viewport-fixed',
+  } = props
   if (
     !heading &&
     !meta.authors.length &&
@@ -28,12 +38,25 @@ export function SlideHeader(props: SlideHeaderProps) {
 
   if (meta.layout === 'cover' || meta.layout === 'intro') return null
 
+  const absoluteHeaderClass = 'absolute top-0 left-0 w-full'
+  const fixedHeaderClass = 'fixed top-0 left-0 w-full'
+  const flowHeaderClass = 'relative w-full shrink-0'
+  const headerPositionClass =
+    positionMode === 'slide-absolute'
+      ? absoluteHeaderClass
+      : positionMode === 'slide-flow'
+        ? flowHeaderClass
+        : meta.themeStyle === 'academic'
+          ? absoluteHeaderClass
+          : fixedHeaderClass
+  const absoluteClampClass = positionMode === 'slide-absolute' ? 'overflow-hidden whitespace-nowrap' : ''
+
   if (meta.themeStyle === 'academic') {
     return (
       <header
-        className={`absolute top-0 left-0 w-full h-10 px-8 flex justify-between items-center ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.bg}/95 border-b ${UI_THEME_TOKENS.panel.border} z-20 ${uiPanelTextFontClass}`}
+        className={`${headerPositionClass} h-10 px-8 flex justify-between items-center ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.bg}/95 border-b ${UI_THEME_TOKENS.panel.border} z-20 ${uiPanelTextFontClass}`}
       >
-        <div className="min-w-0 flex items-center gap-4">
+        <div className={`min-w-0 flex items-center gap-4 ${absoluteClampClass}`}>
           {heading ? (
             <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
               {heading}
@@ -56,7 +79,8 @@ export function SlideHeader(props: SlideHeaderProps) {
   return (
     <header
       className={[
-        'fixed top-0 left-0 w-full h-8 px-4 border-b flex justify-between items-center z-20',
+        headerPositionClass,
+        `h-8 px-4 border-b flex justify-between items-center z-20 ${absoluteClampClass}`,
         uiPanelTextFontClass,
         uiPanelMicroLabelTextSizeClass,
         UI_THEME_TOKENS.text.tertiary,
@@ -82,10 +106,19 @@ type SlideFooterProps = {
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   uiPanelMonospaceTextClass: string
+  positionMode?: 'viewport-fixed' | 'slide-absolute' | 'slide-flow'
 }
 
 export function SlideFooter(props: SlideFooterProps) {
-  const { meta, page, total, uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, uiPanelMonospaceTextClass } = props
+  const {
+    meta,
+    page,
+    total,
+    uiPanelTextFontClass,
+    uiPanelMicroLabelTextSizeClass,
+    uiPanelMonospaceTextClass,
+    positionMode = 'viewport-fixed',
+  } = props
   if (
     !meta.authors.length &&
     !meta.meeting &&
@@ -99,12 +132,19 @@ export function SlideFooter(props: SlideFooterProps) {
 
   if (meta.layout === 'cover' || meta.layout === 'intro') return null
 
+  const absoluteFooterClass = 'absolute bottom-0 left-0 w-full'
+  const fixedFooterClass = 'fixed bottom-0 left-0 w-full'
+  const flowFooterClass = 'relative w-full shrink-0'
+  const footerPositionClass =
+    positionMode === 'slide-absolute' ? absoluteFooterClass : positionMode === 'slide-flow' ? flowFooterClass : fixedFooterClass
+  const absoluteFooterClampClass = positionMode === 'slide-absolute' ? 'overflow-hidden whitespace-nowrap' : ''
+
   if (meta.themeStyle === 'academic') {
     return (
       <footer
-        className={`fixed bottom-0 left-0 w-full h-8 px-4 flex justify-between items-center ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
+        className={`${footerPositionClass} h-10 px-4 flex justify-between items-center ${absoluteFooterClampClass} ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.panel.bg}/95 border-t ${UI_THEME_TOKENS.panel.border} z-10 ${uiPanelTextFontClass}`}
       >
-        <div className="min-w-0 flex items-center gap-4">
+        <div className={`min-w-0 flex items-center gap-4 ${absoluteFooterClampClass}`}>
           {meta.meeting && (
             <span className={`min-w-0 font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>
               {meta.meeting}
@@ -133,7 +173,8 @@ export function SlideFooter(props: SlideFooterProps) {
   return (
     <footer
       className={[
-        'fixed bottom-0 left-0 w-full h-8 px-4 border-t flex justify-between items-center z-10',
+        footerPositionClass,
+        `h-8 px-4 border-t flex justify-between items-center z-10 ${absoluteFooterClampClass}`,
         uiPanelTextFontClass,
         uiPanelMicroLabelTextSizeClass,
         UI_THEME_TOKENS.text.tertiary,

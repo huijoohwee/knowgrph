@@ -51,6 +51,16 @@
   --kg-workspace-header-gap: 0.75rem;
   --kg-workspace-toolbar-gap: 0.25rem;
   --kg-workspace-split-selector-pad: 0.5rem;
+  --kg-workspace-surface-pad-top: 0.5rem;
+  --kg-workspace-surface-pad-right: 0.25rem;
+  --kg-workspace-surface-pad-bottom: 0.5rem;
+  --kg-workspace-surface-pad-left: 0.25rem;
+  --kg-workspace-surface-margin-top: 0rem;
+  --kg-workspace-surface-margin-right: 0rem;
+  --kg-workspace-surface-margin-bottom: 0rem;
+  --kg-workspace-surface-margin-left: 0rem;
+  --kg-workspace-surface-gap: 0.25rem;
+  --kg-workspace-split-divider-gap: 0.25rem;
   --kg-launch-menu-pad: 0.25rem;
   --kg-launch-menu-gap: 0.25rem;
   --kg-launch-menu-item-pad-y: 0.375rem;
@@ -233,6 +243,23 @@
 
   .kg-workspace-split-selector {
     padding: var(--kg-workspace-split-selector-pad, 0.5rem);
+  }
+
+  .kg-workspace-surface-shell {
+    box-sizing: border-box;
+    padding-top: var(--kg-workspace-surface-pad-top, 0.5rem);
+    padding-right: var(--kg-workspace-surface-pad-right, 0.25rem);
+    padding-bottom: var(--kg-workspace-surface-pad-bottom, 0.5rem);
+    padding-left: var(--kg-workspace-surface-pad-left, 0.25rem);
+    margin-top: var(--kg-workspace-surface-margin-top, 0);
+    margin-right: var(--kg-workspace-surface-margin-right, 0);
+    margin-bottom: var(--kg-workspace-surface-margin-bottom, 0);
+    margin-left: var(--kg-workspace-surface-margin-left, 0);
+    gap: var(--kg-workspace-surface-gap, 0.25rem);
+  }
+
+  .kg-workspace-split-divider {
+    margin-inline: var(--kg-workspace-split-divider-gap, 0.25rem);
   }
 
   .kg-launch-menu-root {
