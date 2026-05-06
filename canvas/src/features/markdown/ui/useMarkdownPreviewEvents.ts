@@ -26,8 +26,14 @@ export function useMarkdownPreviewEvents({
     menuOpen?: boolean
   } | null>(null)
   const emitSelectionToolbar = React.useCallback((next: MarkdownSelectionToolbarState | null) => {
-    if (!next) return
-    if (!next.text.trim() && !next.menuOpen) return
+    if (!next) {
+      setSelectionToolbar(null)
+      return
+    }
+    if (!next.text.trim() && !next.menuOpen) {
+      setSelectionToolbar(null)
+      return
+    }
     const signature = [
       next.startLine,
       next.endLine,
@@ -127,27 +133,24 @@ export function useMarkdownPreviewEvents({
     (e: React.MouseEvent<HTMLDivElement>) => {
       const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
       if (!rootEl) return
-      scheduleSelectionToolbarResolve({
-        rootEl,
-        eventTarget: e.target,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        menuOpen: true,
-      })
     },
-    [rootElRef, scheduleSelectionToolbarResolve],
+    [rootElRef],
   )
 
   const handleMouseUp = React.useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const rootEl = (e.currentTarget as HTMLDivElement) || rootElRef.current
       if (!rootEl) return
+      const target = e.target as HTMLElement | null
+      const isMediaBlock = !!target?.closest('figure')
+      const sel = typeof window !== 'undefined' ? window.getSelection() : null
+      const hasText = sel && !sel.isCollapsed && sel.toString().trim().length > 0
       scheduleSelectionToolbarResolve({
         rootEl,
         eventTarget: e.target,
         clientX: e.clientX,
         clientY: e.clientY,
-        menuOpen: false,
+        menuOpen: isMediaBlock && !hasText ? true : false,
       })
     },
     [rootElRef, scheduleSelectionToolbarResolve],

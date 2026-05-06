@@ -402,7 +402,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               editHtmlRender="block"
               editHtmlDisableDefaultBlockFlow
             >
-              <hr className={`border-t-2 ${UI_THEME_TOKENS.panel.divider}`} />
+              <hr data-kg-hr="1" className={`border-t-2 ${UI_THEME_TOKENS.panel.divider}`} />
             </MarkdownBlockContainer>
           )
           continue

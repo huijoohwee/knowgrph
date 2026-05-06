@@ -60,7 +60,6 @@ export type MarkdownWorkspaceToolbarProps = {
   onExportHtmlCanvas?: () => void
   onExportJson?: () => void
   onExportSvg?: () => void
-  onExportPdf?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
@@ -105,7 +104,6 @@ export function MarkdownWorkspaceToolbar({
   onExportHtmlCanvas,
   onExportJson,
   onExportSvg,
-  onExportPdf,
   onToggleFullscreen,
   presentationApiRef,
   isEditing,

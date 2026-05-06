@@ -15,7 +15,8 @@ export type MarkdownWorkspaceActionBridge = {
     htmlCanvas?: () => void
     json?: () => void
     svg?: () => void
-    pdf?: () => void
+    pdfPortrait?: () => void
+    pdfLandscape?: () => void
   }
 }
 

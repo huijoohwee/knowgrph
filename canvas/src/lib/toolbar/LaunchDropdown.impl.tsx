@@ -186,7 +186,8 @@ export function LaunchDropdown({
     exportActions?.htmlCanvas ||
     exportActions?.json ||
     exportActions?.svg ||
-    exportActions?.pdf
+    exportActions?.pdfPortrait ||
+    exportActions?.pdfLandscape
   )
 
   const exportMenuClass = cn(

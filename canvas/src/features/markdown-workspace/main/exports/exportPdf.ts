@@ -1,4 +1,5 @@
 import { printElementToPdf } from '@/lib/print/printElementToPdf'
+import type { PrintOrientation } from '@/lib/print/printElementToPdf'
 import type { UiToastInput } from '@/hooks/store/types'
 
 export async function exportViewerPdf(args: {
@@ -6,6 +7,7 @@ export async function exportViewerPdf(args: {
   viewerEl: HTMLElement | null
   viewerRefCurrent: HTMLElement | null
   pushUiToast: (toast: UiToastInput) => void
+  orientation?: PrintOrientation
 }): Promise<void> {
   const root = args.viewerEl || args.viewerRefCurrent
   if (!root) {
@@ -14,5 +16,5 @@ export async function exportViewerPdf(args: {
   }
   const previewRoot = (root.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null) || root
   const target = (previewRoot.querySelector('article') as HTMLElement | null) || previewRoot
-  await printElementToPdf(target, { title: args.exportBaseName })
+  await printElementToPdf(target, { title: args.exportBaseName, orientation: args.orientation })
 }

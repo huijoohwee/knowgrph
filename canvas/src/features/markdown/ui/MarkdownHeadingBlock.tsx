@@ -14,10 +14,11 @@ import { getStickyHeadingCascadeOffsets } from './markdownSectionUtils'
 import { getMarkdownHeadingTextSizeClass } from '@/features/markdown/ui/markdownTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
-  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
   MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
 } from './markdownEditSurfaceLayout'
 import {
+  LINE_BLOCK_TRANSFER_TYPE,
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
   MarkdownBlockDropMarkers,
@@ -95,11 +96,11 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const headingTypographyClass = ['font-semibold', baseSize, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const headingEditorClassName = [
-    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
     'block',
     headingTypographyClass,
     'pr-6',
-    'overflow-hidden text-ellipsis whitespace-nowrap',
+    'overflow-x-auto whitespace-nowrap',
   ].filter(Boolean).join(' ')
   const headingRightRailClassName = 'absolute right-0 inset-y-0 flex items-center gap-1 shrink-0'
   const headingControlVisibilityClassName = 'opacity-0 group-hover:opacity-100 transition-opacity'
@@ -145,7 +146,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     !opts.markdownPresentationMode &&
     !!opts.viewerBlockEditingEnabled &&
     opts.markdownBlockControlsEnabled !== false
-  const canReorder = blockControlsAllowed && !!opts.onReorderHeadingSection && !!id
+  const canReorder = blockControlsAllowed && (!!opts.onReorderHeadingSection || !!opts.onReorderLineBlock) && !!id
   const canInsertLine = blockControlsAllowed && !!opts.onInsertLineAfter && !!id
   const gutterAvailable =
     blockControlsAllowed
@@ -165,10 +166,17 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     (e: React.DragEvent) => {
       if (!canReorder || !id) return
       setIsDragging(true)
-      e.dataTransfer.setData('text/plain', id)
       e.dataTransfer.effectAllowed = 'move'
+      if (opts.onReorderHeadingSection) {
+        e.dataTransfer.setData('text/plain', id)
+      }
+      if (opts.onReorderLineBlock) {
+        try {
+          e.dataTransfer.setData(LINE_BLOCK_TRANSFER_TYPE, JSON.stringify({ startLine, endLine }))
+        } catch { void 0 }
+      }
     },
-    [canReorder, id],
+    [canReorder, endLine, id, opts.onReorderHeadingSection, opts.onReorderLineBlock, startLine],
   )
 
   const handleDragEnd = React.useCallback(() => {
@@ -179,6 +187,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const handleDragOver = React.useCallback(
     (e: React.DragEvent) => {
       if (!canReorder || !id) return
+      if (!e.dataTransfer.types.includes(LINE_BLOCK_TRANSFER_TYPE) && !e.dataTransfer.types.includes('text/plain')) return
       e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
       const rect = e.currentTarget.getBoundingClientRect()
@@ -203,11 +212,28 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
       e.preventDefault()
       e.stopPropagation()
       setDragState('none')
-      const sourceId = e.dataTransfer.getData('text/plain')
-      if (!sourceId || sourceId === id) return
-      opts.onReorderHeadingSection?.(sourceId, id, dragState === 'bottom' ? 'after' : 'before')
+      const position = dragState === 'bottom' ? 'after' : 'before'
+      if (opts.onReorderHeadingSection) {
+        const sourceId = e.dataTransfer.getData('text/plain')
+        if (sourceId && sourceId !== id) {
+          opts.onReorderHeadingSection(sourceId, id, position)
+          return
+        }
+      }
+      if (opts.onReorderLineBlock) {
+        const raw = e.dataTransfer.getData(LINE_BLOCK_TRANSFER_TYPE)
+        if (!raw) return
+        let parsed: { startLine?: number; endLine?: number } | null = null
+        try { parsed = JSON.parse(raw) } catch { parsed = null }
+        if (!parsed || !parsed.startLine) return
+        opts.onReorderLineBlock(
+          { startLine: Number(parsed.startLine), endLine: Number(parsed.endLine || parsed.startLine) },
+          { startLine, endLine },
+          position,
+        )
+      }
     },
-    [canReorder, dragState, id, opts],
+    [canReorder, dragState, endLine, id, opts, startLine],
   )
   const stripHeadingPrefix = React.useCallback((line: string) => {
     const m = line.match(/^(\s*#{1,6}\s+)([\s\S]*)$/)

@@ -573,11 +573,11 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!headingText.includes('headingRightRailClassName') || !headingText.includes('headingControlVisibilityClassName')) {
     throw new Error('expected heading right-rail controls to reuse centralized local class contracts and avoid duplicated drift paths')
   }
-  if (!headingText.includes('overflow-hidden text-ellipsis whitespace-nowrap')) {
-    throw new Error('expected heading inline editor to preserve read-view ellipsis and no-overflow class contract during edit')
+  if (!headingText.includes('overflow-x-auto whitespace-nowrap')) {
+    throw new Error('expected heading inline editor to allow horizontal scroll reveal during edit')
   }
-  if (headingText.includes('focus:overflow-x-auto') || headingText.includes('focus:[text-overflow:clip]')) {
-    throw new Error('expected heading inline editor to avoid focus-overflow reveal overrides that break read/edit ellipsis parity')
+  if (headingText.includes('overflow-hidden text-ellipsis') || headingText.includes('focus:overflow-x-auto') || headingText.includes('focus:[text-overflow:clip]')) {
+    throw new Error('expected heading inline editor to avoid ellipsis clipping and focus-overflow overrides')
   }
   if (!blockquoteText.includes('editTrimEdgeNewlines')) {
     throw new Error('expected blockquote inline editor to trim edge newlines to avoid extra-row mutations')

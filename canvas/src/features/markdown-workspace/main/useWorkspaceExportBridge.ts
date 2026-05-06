@@ -114,11 +114,18 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     await exportGraphJson({ graphData: gd, exportBaseName, pushUiToast })
   }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
-  const handleExportPdf = React.useCallback(async () => {
+  const handleExportPdfPortrait = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportPdf')
     const { exportViewerPdf } = mod
-    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast })
+    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'portrait' })
+  }, [exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
+
+  const handleExportPdfLandscape = React.useCallback(async () => {
+    flushGraphWritebackForExport()
+    const mod = await import('./exports/exportPdf')
+    const { exportViewerPdf } = mod
+    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'landscape' })
   }, [exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
 
   const exportBridge = React.useMemo(
@@ -132,7 +139,8 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
         htmlCanvas: () => void handleExportHtmlCanvas(),
         json: () => void handleExportJson(),
         svg: () => void handleExportSvg(),
-        pdf: () => void handleExportPdf(),
+        pdfPortrait: () => void handleExportPdfPortrait(),
+        pdfLandscape: () => void handleExportPdfLandscape(),
       },
     }),
     [
@@ -141,7 +149,8 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
       handleExportJson,
       handleExportMarkdown,
       handleExportPng,
-      handleExportPdf,
+      handleExportPdfLandscape,
+      handleExportPdfPortrait,
       handleExportSvg,
       handleExportWorkspaceFile,
       onSaveAs,
@@ -160,6 +169,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     handleExportHtmlCanvas,
     handleExportSvg,
     handleExportJson,
-    handleExportPdf,
+    handleExportPdfPortrait,
+    handleExportPdfLandscape,
   }
 }

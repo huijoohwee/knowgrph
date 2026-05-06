@@ -38,14 +38,14 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
   if (!headingText.includes('editPresentation="html"')) {
     throw new Error('expected MarkdownHeadingBlock to use html edit presentation')
   }
-  if (!headingText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
-    throw new Error('expected heading edit surface to reuse centralized normal-text edit surface layout contract')
+  if (!headingText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
+    throw new Error('expected heading edit surface to reuse centralized normal-text edit surface base layout contract without whitespace-pre-wrap conflict')
   }
-  if (!headingText.includes('overflow-hidden text-ellipsis whitespace-nowrap')) {
-    throw new Error('expected heading edit surface to preserve ellipsis contract and forbid overflow reveal on edit')
+  if (!headingText.includes('overflow-x-auto whitespace-nowrap')) {
+    throw new Error('expected heading edit surface to allow horizontal scroll reveal during edit')
   }
-  if (headingText.includes('focus:overflow-x-auto') || headingText.includes('focus:[text-overflow:clip]')) {
-    throw new Error('expected heading edit surface to avoid focus-time overflow override and maintain read/edit ellipsis parity')
+  if (headingText.includes('overflow-hidden text-ellipsis') || headingText.includes('focus:overflow-x-auto') || headingText.includes('focus:[text-overflow:clip]')) {
+    throw new Error('expected heading edit surface to avoid ellipsis clipping and focus-time overflow overrides')
   }
   if (headingText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected heading edit surface to avoid extra spacing snapshot replay and stay on normal-text SSOT baseline')

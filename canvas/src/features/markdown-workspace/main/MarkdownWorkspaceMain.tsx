@@ -552,7 +552,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     handleExportHtmlCanvas,
     handleExportSvg,
     handleExportJson,
-    handleExportPdf,
   } = useWorkspaceExportBridge({
     activeDocumentKey,
     activeText,
@@ -641,7 +640,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onExportHtmlCanvas: handleExportHtmlCanvas,
         onExportJson: handleExportJson,
         onExportSvg: handleExportSvg,
-        onExportPdf: handleExportPdf,
         onToggleFullscreen,
         presentationApiRef,
         isEditing,

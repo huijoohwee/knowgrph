@@ -7,7 +7,8 @@ export type ExportMenuActionKey =
   | 'htmlCanvas'
   | 'json'
   | 'svg'
-  | 'pdf'
+  | 'pdfPortrait'
+  | 'pdfLandscape'
 
 export type ExportMenuItem = {
   id: ExportMenuActionKey
@@ -24,6 +25,6 @@ export const WORKSPACE_EXPORT_MENU_ITEMS: readonly ExportMenuItem[] = [
   { id: 'htmlCanvas', menuLabel: 'HTML (.html) — Canvas', toastLabel: 'HTML Canvas' },
   { id: 'json', menuLabel: 'JSON (.json)', toastLabel: 'JSON' },
   { id: 'svg', menuLabel: 'SVG (.svg)', toastLabel: 'SVG' },
-  { id: 'pdf', menuLabel: 'PDF (Print…)', toastLabel: 'PDF' },
+  { id: 'pdfPortrait', menuLabel: 'PDF — Portrait 9:16 (Print…)', toastLabel: 'PDF Portrait' },
+  { id: 'pdfLandscape', menuLabel: 'PDF — Landscape 16:9 (Print…)', toastLabel: 'PDF Landscape' },
 ]
-
