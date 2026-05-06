@@ -25,6 +25,7 @@ type PreviewGalleryProps = {
   onSelect: (id: string) => void
   onReorder: (nextIds: string[]) => void
   showPreview?: boolean
+  layout?: 'list' | 'grid'
   onHighlightChange?: (id: string | null) => void
   selectedIds?: string[]
   onSelectedIdsChange?: (ids: string[]) => void
@@ -38,6 +39,7 @@ export default function PreviewGallery({
   onSelect,
   onReorder,
   showPreview = true,
+  layout = 'list',
   onHighlightChange,
   selectedIds,
   onSelectedIdsChange,
@@ -55,6 +57,7 @@ export default function PreviewGallery({
   const dragImageActiveBadgeRef = React.useRef<HTMLDivElement | null>(null)
 
   const ids = React.useMemo(() => items.map(i => i.id), [items])
+  const isGridLayout = layout === 'grid'
   const isDomNode = React.useCallback((v: unknown): v is Node => {
     try {
       return typeof Node !== 'undefined' && v instanceof Node
@@ -156,8 +159,8 @@ export default function PreviewGallery({
           Drag or use arrows to reorder
         </p>
       </header>
-      <ul className="space-y-3">
-        {items.length > 0 && draggingId ? (
+      <ul className={isGridLayout ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-3'}>
+        {!isGridLayout && items.length > 0 && draggingId ? (
           <li
             className={`h-6 flex items-center justify-center ${UI_COLOR_PRIMARY_BLUE_BG} border-y-2 cursor-move transition-colors rounded`}
             style={{ borderColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
@@ -217,7 +220,7 @@ export default function PreviewGallery({
           const showBottomDivider = isDragOver && !isDragging && fromIdx >= 0 && fromIdx < idx
           return (
             <li key={it.id} className="relative">
-              {showTopDivider ? (
+              {!isGridLayout && showTopDivider ? (
                 <div
                   className={`absolute left-0 right-0 -top-2 h-5 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-t-2 cursor-move transition-colors`}
                   style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
@@ -256,7 +259,7 @@ export default function PreviewGallery({
                   />
                 </div>
               ) : null}
-              {showBottomDivider ? (
+              {!isGridLayout && showBottomDivider ? (
                 <div
                   className={`absolute left-0 right-0 -bottom-2 h-5 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-b-2 cursor-move transition-colors`}
                   style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
@@ -534,7 +537,7 @@ export default function PreviewGallery({
             </li>
           )
         })}
-        {items.length > 0 && draggingId ? (
+        {!isGridLayout && items.length > 0 && draggingId ? (
           <li
             className={`h-6 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-y-2 cursor-move transition-colors rounded`}
             style={{ borderColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}

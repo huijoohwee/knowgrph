@@ -308,8 +308,8 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     const modWorkspaceCanvasPaneOpenGuard = await import('../__tests__/workspaceCanvasPaneOpenEditorGuard.test')
     await execTest(
       results,
-      'ui.workspaceEditor.overlay.canvasPaneOpen.forcedTrue',
-      modWorkspaceCanvasPaneOpenGuard.testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode,
+      'ui.workspaceEditor.overlay.canvasPaneOpen.explicitCloseRespected',
+      modWorkspaceCanvasPaneOpenGuard.testWorkspaceCanvasPaneOpenCanCloseWhileEditorMode,
     )
 
     const modMarkdownWorkspaceGraphDataChurn = await import('../__tests__/markdownWorkspaceAvoidsGraphDataChurnRegression.test')

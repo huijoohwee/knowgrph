@@ -568,6 +568,40 @@ const markMarkdownDividerPageBreaks = (root: Element): void => {
   }
 }
 
+const normalizePresentationDeckForPrint = (root: Element): void => {
+  const deck = root.querySelector('[data-testid="markdown-presentation-print-deck"]')
+  if (!deck) return
+  const sections = Array.from(deck.querySelectorAll(':scope > section')) as HTMLElement[]
+  try {
+    deck.replaceChildren(...sections)
+  } catch {
+    void 0
+  }
+  const isMeaningful = (section: HTMLElement): boolean => {
+    const article = section.querySelector(':scope > article') as HTMLElement | null
+    const probe = article || section
+    if (
+      probe.querySelector(
+        'img,video,iframe,svg,canvas,table,pre,code,blockquote,h1,h2,h3,h4,h5,h6,p,li,[data-kg-video-snapshot="1"],[data-kg-webpage-snapshot="1"]',
+      )
+    ) {
+      return true
+    }
+    const text = String(probe.textContent || '').replace(/\u200B/g, '').trim()
+    return text.length > 0
+  }
+
+  for (let i = sections.length - 1; i >= 0; i -= 1) {
+    const section = sections[i]
+    if (isMeaningful(section)) break
+    try {
+      section.remove()
+    } catch {
+      void 0
+    }
+  }
+}
+
 const forceRenderPendingMermaidGates = (el: HTMLElement): Promise<void> => {
   const pendingGates = el.querySelectorAll('[data-kg-mermaid-visibility-gate="pending"]')
   if (pendingGates.length === 0) return Promise.resolve()
@@ -723,6 +757,8 @@ export async function printElementToPdf(
     const pageSizeCss = `${pageSizeMm.widthMm}mm ${pageSizeMm.heightMm}mm`
     const mmToCssPx = (mm: number): number => (mm / 25.4) * 96
     const presentationSlideScale = mmToCssPx(presentationSlideMm.widthMm) / PRESENTATION_BASE_SLIDE_SIZE_PX.width
+    // Guard against cumulative print rounding that can create a trailing blank page.
+    const presentationSectionHeightMm = Math.max(0, viewportMm.heightMm - 0.2)
     const compactHorizontalContent = Boolean(args?.compactHorizontalContent)
     const centerContent = Boolean(args?.centerContent)
     const allowMediaMutation = !preservePresentationLayout
@@ -797,6 +833,11 @@ export async function printElementToPdf(
       void 0
     }
     try {
+      if (preservePresentationLayout) normalizePresentationDeckForPrint(clone)
+    } catch {
+      void 0
+    }
+    try {
       if (!preservePresentationLayout) wrapImagesWithSourceLinks(clone)
     } catch {
       void 0
@@ -809,9 +850,22 @@ export async function printElementToPdf(
     style.id = styleId
     style.textContent = `
       @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+        }
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body > *:not(#${printRootId}) { display: none !important; }
-        #${printRootId} { position: static !important; inset: auto !important; overflow: visible !important; padding: ${rootPaddingCss} !important; box-sizing: border-box !important; }
+        #${printRootId} {
+          position: static !important;
+          inset: auto !important;
+          overflow: visible !important;
+          margin: 0 !important;
+          padding: ${rootPaddingCss} !important;
+          box-sizing: border-box !important;
+        }
         ${preservePresentationLayout ? '' : `#${printRootId} section { overflow: visible !important; }`}
         ${preservePresentationLayout ? '' : `#${printRootId} svg { max-width: 100% !important; height: auto !important; }`}
         ${
@@ -839,6 +893,7 @@ export async function printElementToPdf(
           max-width: ${viewportMm.widthMm}mm !important;
           margin: 0 auto !important;
           box-sizing: border-box !important;
+          overflow: hidden !important;
         }
         ${
           preservePresentationLayout
@@ -850,11 +905,9 @@ export async function printElementToPdf(
           align-items: center !important;
           justify-content: center !important;
           overflow: hidden !important;
-          break-inside: avoid !important;
-          page-break-inside: avoid !important;
-          height: ${viewportMm.heightMm}mm !important;
-          min-height: ${viewportMm.heightMm}mm !important;
-          max-height: ${viewportMm.heightMm}mm !important;
+          height: ${presentationSectionHeightMm}mm !important;
+          min-height: ${presentationSectionHeightMm}mm !important;
+          max-height: ${presentationSectionHeightMm}mm !important;
           width: ${viewportMm.widthMm}mm !important;
           min-width: ${viewportMm.widthMm}mm !important;
           max-width: ${viewportMm.widthMm}mm !important;
@@ -883,8 +936,7 @@ export async function printElementToPdf(
           max-height: ${PRESENTATION_BASE_SLIDE_SIZE_PX.height}px !important;
           box-sizing: border-box !important;
           overflow: hidden !important;
-          transform: scale(${presentationSlideScale}) !important;
-          transform-origin: center center !important;
+          zoom: ${presentationSlideScale} !important;
         }
         #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Document"] {
           height: 100% !important;

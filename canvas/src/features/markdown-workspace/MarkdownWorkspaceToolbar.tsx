@@ -1,22 +1,15 @@
 import React from 'react'
 import {
-  Columns,
   LayoutGrid,
   LayoutPanelTop,
   Maximize2,
   X,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
   Quote,
 } from 'lucide-react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
-import IconButton from '@/components/IconButton'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
-import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -134,8 +127,7 @@ export function MarkdownWorkspaceToolbar({
     && isEditing
     && isMarkdown
   const showMarkdownDisplayMenu = viewerKind === 'markdown' && (viewerMode === 'read' || !viewerMode)
-  const [splitSelectorOpen, setSplitSelectorOpen] = React.useState(false)
-  const splitButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const workspacePanesControlId = React.useId()
   const toggleSplitPane = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
     if (!setSplitPaneVisibility) return
     const current = effectiveSplitPanes
@@ -143,6 +135,13 @@ export function MarkdownWorkspaceToolbar({
     if (current[key] && enabledCount <= 1) return
     setSplitPaneVisibility({ ...current, [key]: !current[key] })
   }, [effectiveSplitPanes, setSplitPaneVisibility])
+  const handleSplitPaneToggle = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
+    if (!setSplitPaneVisibility) return
+    if (layoutMode !== 'split') {
+      setLayoutMode('split')
+    }
+    toggleSplitPane(key)
+  }, [layoutMode, setLayoutMode, setSplitPaneVisibility, toggleSplitPane])
 
   const webpageControls = React.useMemo(() => {
     const meta = webpageWorkspaceMeta
@@ -210,24 +209,6 @@ export function MarkdownWorkspaceToolbar({
           <span className="sr-only">Workspace editor</span>
         )}
         <CollapsibleToolbar className="kg-toolbar kg-workspace-toolbar-controls flex items-center justify-end" ariaLabel="Markdown view controls">
-          <IconButton
-            title={explorerOpen ? 'Hide Explorer' : 'Show Explorer'}
-            onClick={() => setExplorerOpen(!explorerOpen)}
-            className={UI_THEME_TOKENS.button.square}
-            showTooltip={false}
-          >
-            {explorerOpen ? <PanelLeftClose className="w-4 h-4" aria-hidden="true" /> : <PanelLeftOpen className="w-4 h-4" aria-hidden="true" />}
-          </IconButton>
-          {typeof canvasOpen === 'boolean' && typeof setCanvasOpen === 'function' ? (
-            <IconButton
-              title={canvasOpen ? 'Hide Canvas' : 'Show Canvas'}
-              onClick={() => setCanvasOpen(!canvasOpen)}
-              className={UI_THEME_TOKENS.button.square}
-              showTooltip={false}
-            >
-              {canvasOpen ? <PanelRightClose className="w-4 h-4" aria-hidden="true" /> : <PanelRightOpen className="w-4 h-4" aria-hidden="true" />}
-            </IconButton>
-          ) : null}
           {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
             <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
             <li className="list-none">
@@ -266,25 +247,55 @@ export function MarkdownWorkspaceToolbar({
 
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Layout mode">
           <li className="list-none">
-            <button
-              type="button"
-              ref={el => {
-                splitButtonRef.current = el
-              }}
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              aria-pressed={layoutMode === 'split'}
-              title="Split (Markdown)"
-              onClick={() => {
-                if (layoutMode !== 'split') {
-                  setLayoutMode('split')
-                  setSplitSelectorOpen(true)
-                  return
-                }
-                setSplitSelectorOpen(prev => !prev)
-              }}
+            <fieldset
+              id={workspacePanesControlId}
+              className={`inline-flex items-center gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+              aria-label="Workspace panes"
+              title="Workspace panes"
             >
-              <Columns className="w-4 h-4" strokeWidth={1.6} />
-            </button>
+              <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={explorerOpen}
+                  onChange={() => setExplorerOpen(!explorerOpen)}
+                />
+                <span>Explorer</span>
+              </label>
+              <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={effectiveSplitPanes.json}
+                  onChange={() => handleSplitPaneToggle('json')}
+                />
+                <span>JSON</span>
+              </label>
+              <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={effectiveSplitPanes.markdown}
+                  onChange={() => handleSplitPaneToggle('markdown')}
+                />
+                <span>Markdown</span>
+              </label>
+              <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={effectiveSplitPanes.viewer}
+                  onChange={() => handleSplitPaneToggle('viewer')}
+                />
+                <span>Viewer</span>
+              </label>
+              {typeof canvasOpen === 'boolean' && typeof setCanvasOpen === 'function' ? (
+                <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={canvasOpen}
+                    onChange={() => setCanvasOpen(!canvasOpen)}
+                  />
+                  <span>Canvas</span>
+                </label>
+              ) : null}
+            </fieldset>
           </li>
           <li className="list-none">
             <button
@@ -309,51 +320,6 @@ export function MarkdownWorkspaceToolbar({
             </button>
           </li>
         </menu>
-        <AnchoredPopover
-          open={splitSelectorOpen && layoutMode === 'split'}
-          anchorEl={splitButtonRef.current}
-          ariaLabel="Split panes selector"
-          placement="bottom-start"
-          minWidthPx={220}
-          maxWidthPx={320}
-          maxHeightPx={120}
-          onClose={() => setSplitSelectorOpen(false)}
-        >
-          <section className={`kg-workspace-split-selector ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded shadow-sm`}>
-            <menu className="flex items-center gap-2 list-none m-0 p-0" aria-label="Split panes">
-              <li className="list-none">
-                <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={effectiveSplitPanes.json}
-                    onChange={() => toggleSplitPane('json')}
-                  />
-                  <span>JSON</span>
-                </label>
-              </li>
-              <li className="list-none">
-                <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={effectiveSplitPanes.markdown}
-                    onChange={() => toggleSplitPane('markdown')}
-                  />
-                  <span>Markdown</span>
-                </label>
-              </li>
-              <li className="list-none">
-                <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={effectiveSplitPanes.viewer}
-                    onChange={() => toggleSplitPane('viewer')}
-                  />
-                  <span>Viewer</span>
-                </label>
-              </li>
-            </menu>
-          </section>
-        </AnchoredPopover>
         <MarkdownWorkspacePresentationNavMenu
           canNavigateSlides={canNavigateSlides}
           toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}

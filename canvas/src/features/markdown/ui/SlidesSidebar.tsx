@@ -73,6 +73,10 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
     layout === 'grid'
       ? `${width} border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col rounded`
       : `${width} shrink-0 border-r ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col`
+  const embeddedClassName =
+    layout === 'grid'
+      ? `${width} h-full min-h-0 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} flex flex-col rounded`
+      : `${width} h-full min-h-0 ${UI_THEME_TOKENS.panel.bg} flex flex-col`
 
   // When embedded in MarkdownPanelLayout, we let the layout handle the container.
   // But we might want to customize the header.
@@ -122,7 +126,7 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
       <MarkdownSidebarFrame
         as={embedded ? 'section' : Tag}
         ariaLabel={UI_COPY.markdownSlidesSidebarViewTitle}
-        className={embedded ? undefined : containerClassName}
+        className={embedded ? embeddedClassName : containerClassName}
         title={title}
         headerRight={headerRight}
       >
@@ -166,6 +170,7 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
               if (!Number.isFinite(idx)) return
               if (onSlideContextMenu) onSlideContextMenu(idx, e)
             }}
+            layout={layout}
           />
         </nav>
       </MarkdownSidebarFrame>

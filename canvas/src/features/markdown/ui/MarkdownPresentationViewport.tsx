@@ -28,7 +28,7 @@ type MarkdownPresentationViewportProps = {
   previewOverlayPortalTarget?: HTMLElement | null
   disablePan?: boolean
   showControls?: boolean
-  autoScaleTo100?: boolean
+  lockViewportAtFitScale?: boolean
 }
 
 export function MarkdownPresentationViewport(props: MarkdownPresentationViewportProps) {
@@ -54,7 +54,7 @@ export function MarkdownPresentationViewport(props: MarkdownPresentationViewport
     previewOverlayPortalTarget,
     disablePan = false,
     showControls = false,
-    autoScaleTo100,
+    lockViewportAtFitScale,
   } = props
 
   return (
@@ -70,7 +70,7 @@ export function MarkdownPresentationViewport(props: MarkdownPresentationViewport
         framePaddingPx={slideFramePaddingPx}
         disablePan={disablePan}
         frameClassName={[baseFrameClass, slideClass].filter(Boolean).join(' ')}
-        autoScaleTo100={autoScaleTo100}
+        lockViewportAtFitScale={lockViewportAtFitScale}
       >
         <section
           style={{ width: `${baseSlideSize.w}px`, height: `${baseSlideSize.h}px` }}

@@ -54,9 +54,7 @@ export const createUiInitialState = (
     'canvas',
     value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
   )
-  const initialWorkspaceCanvasPaneOpen = initialWorkspaceViewMode === 'editor'
-    ? true
-    : lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
+  const initialWorkspaceCanvasPaneOpen = lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -99,8 +97,7 @@ export const createUiInitialState = (
     markdownWorkspaceIndexingInFlight: false,
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
-        const rawNext = open === false ? false : true
-        const next = state.workspaceViewMode === 'editor' ? true : rawNext
+        const next = open === false ? false : true
         if (state.workspaceCanvasPaneOpen === next) return {}
         lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
         return { workspaceCanvasPaneOpen: next } as Partial<GraphState>

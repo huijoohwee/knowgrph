@@ -445,8 +445,9 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
               slideStyle={slideStyle}
               slideTransitionStyle={slideTransitionStyle}
               onDoubleClick={handleDoubleClick}
-              disablePan={false}
+              disablePan={true}
               showControls={false}
+              lockViewportAtFitScale={true}
             >
               {slideContent}
             </MarkdownPresentationViewport>
@@ -517,7 +518,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
               rootThemeMode={rootThemeMode}
               previewOverlayScope={previewOverlayScope}
               previewOverlayPortalTarget={previewOverlayPortalTarget}
-              autoScaleTo100={true}
+              lockViewportAtFitScale={true}
             >
               {slideContent}
             </MarkdownPresentationViewport>

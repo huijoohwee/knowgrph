@@ -1,7 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
-export async function testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode() {
+export async function testWorkspaceCanvasPaneOpenCanCloseWhileEditorMode() {
   const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {
     try {
@@ -19,8 +19,8 @@ export async function testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode() {
     }
     opened.setWorkspaceCanvasPaneOpen(false)
     const after = useGraphStore.getState()
-    if (after.workspaceCanvasPaneOpen !== true) {
-      throw new Error('expected workspaceCanvasPaneOpen to remain true while workspaceViewMode is editor')
+    if (after.workspaceCanvasPaneOpen !== false) {
+      throw new Error('expected workspaceCanvasPaneOpen to follow explicit close while workspaceViewMode is editor')
     }
     after.setWorkspaceViewState({ mode: 'canvas', paneOpen: false })
     const atomicClose = useGraphStore.getState()
@@ -49,4 +49,3 @@ export async function testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode() {
     bootstrap.restore()
   }
 }
-

@@ -40,7 +40,7 @@ type ZoomPanViewportProps = {
   showZoomIndicator?: boolean
   frameClassName?: string
   disablePan?: boolean
-  autoScaleTo100?: boolean
+  lockViewportAtFitScale?: boolean
 }
 
 export default function ZoomPanViewport({
@@ -61,7 +61,7 @@ export default function ZoomPanViewport({
   showZoomIndicator = false,
   frameClassName,
   disablePan = false,
-  autoScaleTo100 = false,
+  lockViewportAtFitScale = false,
 }: ZoomPanViewportProps) {
   const viewportRef = React.useRef<HTMLDivElement | null>(null)
   const frameRef = React.useRef<HTMLDivElement | null>(null)
@@ -161,13 +161,13 @@ export default function ZoomPanViewport({
 
   React.useEffect(() => {
     if (!open) return
-    if (autoScaleTo100) {
+    if (lockViewportAtFitScale) {
       fitToViewport()
       return
     }
     if (!fitOnOpen) return
     fitToViewport()
-  }, [fitOnOpen, fitToViewport, open, autoScaleTo100])
+  }, [fitOnOpen, fitToViewport, open, lockViewportAtFitScale, scheduleApply])
 
   React.useEffect(() => {
     if (!open) return
@@ -220,6 +220,7 @@ export default function ZoomPanViewport({
         data-kg-canvas-wheel-ignore="true"
         className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
         onWheel={(e) => {
+          if (lockViewportAtFitScale) return
           const isModifierZoom = e.altKey
           const behavior =
             wheelZoomBehavior || (wheelZoomRequiresModifier ? 'modifier' : 'always')
@@ -245,6 +246,7 @@ export default function ZoomPanViewport({
           scheduleApply({ zoom: nextZoom, pan: prevPan })
         }}
         onPointerDown={(e) => {
+          if (lockViewportAtFitScale) return
           if (disablePan) return
           wheelActiveRef.current = true
           didUserInteractRef.current = true
