@@ -707,8 +707,19 @@ export async function printElementToPdf(
     const { effectiveInsetsMm: effectiveInsets, pageSizeMm, viewportMm, presentationSlideMm } = geometry
     const formatInsetCss = (insets: { top: number; right: number; bottom: number; left: number }): string =>
       `${insets.top}mm ${insets.right}mm ${insets.bottom}mm ${insets.left}mm`
-    const pageMarginCss = formatInsetCss(effectiveInsets.pageMarginMm)
-    const rootPaddingCss = formatInsetCss(effectiveInsets.rootPaddingMm)
+    const pageMarginForCss = preservePresentationLayout
+      ? {
+          top: effectiveInsets.pageMarginMm.top + effectiveInsets.rootPaddingMm.top,
+          right: effectiveInsets.pageMarginMm.right + effectiveInsets.rootPaddingMm.right,
+          bottom: effectiveInsets.pageMarginMm.bottom + effectiveInsets.rootPaddingMm.bottom,
+          left: effectiveInsets.pageMarginMm.left + effectiveInsets.rootPaddingMm.left,
+        }
+      : effectiveInsets.pageMarginMm
+    const rootPaddingForCss = preservePresentationLayout
+      ? { top: 0, right: 0, bottom: 0, left: 0 }
+      : effectiveInsets.rootPaddingMm
+    const pageMarginCss = formatInsetCss(pageMarginForCss)
+    const rootPaddingCss = formatInsetCss(rootPaddingForCss)
     const pageSizeCss = `${pageSizeMm.widthMm}mm ${pageSizeMm.heightMm}mm`
     const mmToCssPx = (mm: number): number => (mm / 25.4) * 96
     const presentationSlideScale = mmToCssPx(presentationSlideMm.widthMm) / PRESENTATION_BASE_SLIDE_SIZE_PX.width
