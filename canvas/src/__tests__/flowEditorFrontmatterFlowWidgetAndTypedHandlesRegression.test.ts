@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   const flowEditorRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
@@ -817,8 +818,8 @@ export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRow
   if (!text.includes("renderFlowContractDot({ dir: rowSpec.dir, linked: false, portKey: '' })")) {
     throw new Error('expected flow contract handle rows to render explicit linked-state dot nodes')
   }
-  if (text.includes('showOutPortDot: false') || text.includes('showInPortDot: false')) {
-    throw new Error('expected flow contract handle rows to keep opposite-side fallback dots for consistent | dot | key | type | value | dot | alignment')
+  if (!text.includes('forcePortDots')) {
+    throw new Error('expected flow contract handle rows to keep table-level fallback dots for consistent | dot | key | type | value | dot | alignment')
   }
 }
 
@@ -971,7 +972,7 @@ export function testFlowEditorInactiveWarmMountDoesNotMutateWidgetsAcrossRendere
 }
 
 export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgainstFlowCanvasInterference() {
-  const videoDemoPath = resolve(process.cwd(), '..', 'knowgrph-video-demo.md')
+  const videoDemoPath = resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
@@ -986,10 +987,10 @@ export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgains
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
 
   if (!videoDemoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
-    throw new Error('expected knowgrph-video-demo.md to keep Flow Editor as the canonical frontmatter-selected 2D renderer')
+    throw new Error(`expected ${KNOWGRPH_VIDEO_DEMO_BASENAME} to keep Flow Editor as the canonical frontmatter-selected 2D renderer`)
   }
   if (!videoDemoText.includes('kgDocumentSemanticMode: "document"') || !videoDemoText.includes('kgFrontmatterModeEnabled: true')) {
-    throw new Error('expected knowgrph-video-demo.md to keep document frontmatter mode enabled for widget-visible landing')
+    throw new Error(`expected ${KNOWGRPH_VIDEO_DEMO_BASENAME} to keep document frontmatter mode enabled for widget-visible landing`)
   }
   if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
     throw new Error('expected knowgrph-video-demo Flow Editor view visibility to stay bound to the active Flow Editor renderer, not sibling renderer mounts')

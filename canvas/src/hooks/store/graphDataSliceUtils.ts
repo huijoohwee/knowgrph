@@ -188,6 +188,10 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
 }
 
 export function applyWidgetRegistryFromMetadata(get: GetGraph, metadata: unknown, graphData?: GraphData | null) {
+  const metadataRecord = isRecord(metadata) ? metadata : ({} as Record<string, unknown>)
+  const raw = metadataRecord.widgetRegistry
+  const rawArr = Array.isArray(raw) ? raw : []
+  void rawArr
   const validatedRaw = readValidatedWidgetRegistryMetadataEntries(metadata)
   const validated = (() => {
     const graph = graphData || null

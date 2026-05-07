@@ -67,6 +67,7 @@ export default function FlowEditorCanvasRuntime(
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
+  const graphContentRevision = useGraphStore(s => s.graphContentRevision || 0)
   const resolvedThemeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const {
     canvasRenderMode,
@@ -302,6 +303,7 @@ export default function FlowEditorCanvasRuntime(
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     flowEditorSurfaceId,
+    graphContentRevision,
   })
 
   const { overlayEdgesSvgRef, scheduleOverlayEdgeUpdate } = useFlowEditorOverlayEdges({
@@ -543,6 +545,7 @@ export default function FlowEditorCanvasRuntime(
     overlayEditorNodeIds,
     overlayOnlyActive,
     overlayOnlyHidePortHandleNodeIds,
+    flowCanvasGraphDataOverride,
   } = useFlowEditorOverlaySurface({
     flowEditorSurfaceId,
     canEdit,
@@ -611,7 +614,7 @@ export default function FlowEditorCanvasRuntime(
       active={active}
       canEdit={canEdit}
       geospatialWidgetPanelMode={geospatialWidgetPanelMode}
-      renderGraphDataOverride={renderGraphDataOverride}
+      renderGraphDataOverride={flowCanvasGraphDataOverride}
       flowEditorViewActive={flowEditorViewActive}
       draftGraphDataRevision={draftGraphDataRevision}
       baseGraphDataRevision={baseGraphDataRevision}

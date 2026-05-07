@@ -71,14 +71,14 @@ export type FrontmatterWidgetContractRowSpec =
     }
   | {
       kind: 'data'
-      rowKey: 'flow-envelope-data'
+      rowKey: 'flow-data'
       fieldKey: 'data'
       typeLabel: 'object'
       valueText: string
     }
   | {
       kind: 'compute'
-      rowKey: 'flow-envelope-compute'
+      rowKey: 'flow-compute'
       fieldKey: 'compute'
       typeLabel: 'function'
       valueText: string
@@ -291,7 +291,7 @@ export function buildFrontmatterWidgetContractRowSpecs(
   if (model.hasFlowData) {
     envelopeRows.push({
       kind: 'data',
-      rowKey: 'flow-envelope-data',
+      rowKey: 'flow-data',
       fieldKey: 'data',
       typeLabel: 'object',
       valueText: model.flowDataJson,
@@ -300,7 +300,7 @@ export function buildFrontmatterWidgetContractRowSpecs(
   if (model.hasFlowCompute) {
     envelopeRows.push({
       kind: 'compute',
-      rowKey: 'flow-envelope-compute',
+      rowKey: 'flow-compute',
       fieldKey: 'compute',
       typeLabel: 'function',
       valueText: model.flowCompute,

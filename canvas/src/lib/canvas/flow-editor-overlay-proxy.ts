@@ -123,6 +123,7 @@ export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; can
   const overlayRoot = root instanceof HTMLElement ? root : null
   if (!overlayRoot) return { kind: 'none' }
   const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  if (!activeSurfaceId) return { kind: 'none' }
   if (activeSurfaceId) {
     const overlaySurfaceId = readFlowEditorOverlaySurfaceId(overlayRoot)
     if (!overlaySurfaceId || overlaySurfaceId !== activeSurfaceId) return { kind: 'none' }

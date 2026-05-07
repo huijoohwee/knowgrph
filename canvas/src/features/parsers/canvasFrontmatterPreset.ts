@@ -110,14 +110,27 @@ export function applyCanvasFrontmatterPreset(args: {
   const preset = resolveCanvasFrontmatterPreset(args)
   const store = useGraphStore.getState()
   let changed = false
-  const documentStructureBaselineLock =
-    preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
   const surfacePreset = resolveCanvasSurfacePreset({
     preset,
     defaultCanvasSurfaceMode: args.defaultCanvasSurfaceMode,
     defaultCanvasRenderMode: args.defaultCanvasRenderMode,
     defaultCanvas3dMode: args.defaultCanvas3dMode,
   })
+  const documentStructureBaselineLock =
+    preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
+  const canvas2dRenderer = preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer
+  const frontmatterOnlyPolicyActive = isFrontmatterOnlyPolicyActive({
+    canvasRenderMode: surfacePreset.canvasRenderMode ?? store.canvasRenderMode,
+    canvas2dRenderer: canvas2dRenderer ?? store.canvas2dRenderer,
+  })
+  if (
+    frontmatterOnlyPolicyActive &&
+    documentStructureBaselineLock !== true &&
+    store.documentStructureBaselineLock !== false
+  ) {
+    store.setDocumentStructureBaselineLock(false)
+    changed = true
+  }
 
   if (documentStructureBaselineLock === false && store.documentStructureBaselineLock !== false) {
     store.setDocumentStructureBaselineLock(false)
@@ -132,8 +145,11 @@ export function applyCanvasFrontmatterPreset(args: {
   }
   const canvasRenderMode = surfacePreset.canvasRenderMode
   if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
+    if (store.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
+      store.setDocumentStructureBaselineLock(false)
+    }
     store.setCanvasRenderMode(canvasRenderMode)
-    changed = true
+    if (useGraphStore.getState().canvasRenderMode === canvasRenderMode) changed = true
   }
   const canvas3dMode = surfacePreset.canvas3dMode
   if (canvas3dMode && store.canvas3dMode !== canvas3dMode) {
@@ -141,16 +157,13 @@ export function applyCanvasFrontmatterPreset(args: {
     changed = true
   }
 
-  const canvas2dRenderer = preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer
   if (canvas2dRenderer && store.canvas2dRenderer !== canvas2dRenderer) {
+    if (store.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
+      store.setDocumentStructureBaselineLock(false)
+    }
     store.setCanvas2dRenderer(canvas2dRenderer)
-    changed = true
+    if (useGraphStore.getState().canvas2dRenderer === canvas2dRenderer) changed = true
   }
-
-  const frontmatterOnlyPolicyActive = isFrontmatterOnlyPolicyActive({
-    canvasRenderMode: canvasRenderMode ?? store.canvasRenderMode,
-    canvas2dRenderer: canvas2dRenderer ?? store.canvas2dRenderer,
-  })
 
   const documentSemanticMode = frontmatterOnlyPolicyActive
     ? 'document'

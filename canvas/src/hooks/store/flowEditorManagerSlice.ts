@@ -381,11 +381,11 @@ export function normalizeWidgetRegistryEntries(
     }),
   })
   canonicalizeBuiltInForm({
-    formId: 'textGeneration.zai',
+    formId: 'textGeneration.deerflow',
     draft: buildTextGenerationRegistryDraft({
-      providerFamily: 'zai',
+      providerFamily: 'deerflow',
       widgetTypeId: 'default',
-      formId: 'textGeneration.zai',
+      formId: 'textGeneration.deerflow',
     }),
   })
 
@@ -542,8 +542,19 @@ export function ensureDefaultWidgetRegistryEntries(
     }),
     nowIso,
   })
-  const seededOpenAiVideoScript = ensureDefaultRegistryEntry({
+  const seededDeerFlowText = ensureDefaultRegistryEntry({
     entries: seededOpenAiText.entries,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    formId: 'textGeneration.deerflow',
+    draft: buildTextGenerationRegistryDraft({
+      providerFamily: 'deerflow',
+      widgetTypeId: 'default',
+      formId: 'textGeneration.deerflow',
+    }),
+    nowIso,
+  })
+  const seededOpenAiVideoScript = ensureDefaultRegistryEntry({
+    entries: seededDeerFlowText.entries,
     nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
     formId: FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
     draft: buildOpenAiVideoScriptRegistryDraft(),
@@ -578,6 +589,7 @@ export function ensureDefaultWidgetRegistryEntries(
       || seededText.changed
       || seededVideoScript.changed
       || seededOpenAiText.changed
+      || seededDeerFlowText.changed
       || seededOpenAiVideoScript.changed
       || seededVideoTranscriber.changed
       || seededRichMediaPanel.changed

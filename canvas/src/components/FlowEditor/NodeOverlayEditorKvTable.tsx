@@ -132,11 +132,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
                 {row.typeNode}
               </td>
               <td
-                className={cn(
-                  'px-3 py-2 align-top overflow-hidden',
-                  UI_THEME_TOKENS.text.secondary,
-                  row.onValueClick ? 'cursor-pointer' : '',
-                )}
+                className={cn('px-3 py-2 align-top overflow-hidden', UI_THEME_TOKENS.text.secondary, row.onValueClick ? 'cursor-pointer' : '')}
                 onClick={row.onValueClick}
               >
                 <section className="w-full min-w-0">{row.valueNode}</section>

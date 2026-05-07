@@ -4,12 +4,18 @@ import { workspaceBasename } from '@/features/workspace-fs/path'
 import { buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
+  GEOSPATIAL_WORKSPACE_SEED_REL_PATH,
   GEOSPATIAL_WORKSPACE_SEED_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH as LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  WORKSPACE_README_SEED_REL_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 export const WORKSPACE_README_SOURCE_PATH = `workspace:${WORKSPACE_README_SEED_PATH}`
 export const WORKSPACE_README_SOURCE_ID = `ws:${hashStringToHex(WORKSPACE_README_SOURCE_PATH)}`
@@ -21,47 +27,74 @@ export const GEOSPATIAL_WORKSPACE_SOURCE_PATH = `workspace:${GEOSPATIAL_WORKSPAC
 export const GEOSPATIAL_WORKSPACE_SOURCE_ID = `ws:${hashStringToHex(GEOSPATIAL_WORKSPACE_SOURCE_PATH)}`
 export const BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH = '/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md'
 export const BUNDLED_GEOSPATIAL_WORKSPACE_SOURCE_PATH = `workspace:${BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH}`
-export const LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH = '/knowgrph-maps-grabmap-multim-demo.md'
-export const LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH = '/knowgrph-video-demo.md'
+export const LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH = LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH
+export const LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH = LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH
 
 const DEFAULT_WORKSPACE_SEED_SOURCE_PATHS = new Set<string>([
-  `workspace:${LEGACY_WORKSPACE_README_PATH}`,
-  `workspace:${LEGACY_WORKSPACE_TRIP_DEMO_PATH}`,
-  BUNDLED_TEST_VALIDATION_SOURCE_PATH,
-  BUNDLED_GEOSPATIAL_WORKSPACE_SOURCE_PATH,
   WORKSPACE_README_SOURCE_PATH,
   TEST_VALIDATION_SOURCE_PATH,
   GEOSPATIAL_WORKSPACE_SOURCE_PATH,
 ])
 
+const buildSeedWorkspacePathAliases = (...paths: Array<unknown>): string[] => {
+  const out = new Set<string>()
+  for (let i = 0; i < paths.length; i += 1) {
+    const normalized = normalizeWorkspacePath(paths[i] as string)
+    if (!normalized || normalized === '/') continue
+    out.add(String(normalized))
+  }
+  return [...out]
+}
+
 const WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH = new Map<string, string>([
-  [String(LEGACY_WORKSPACE_README_PATH), WORKSPACE_README_SOURCE_PATH],
-  [String(WORKSPACE_README_SEED_PATH), WORKSPACE_README_SOURCE_PATH],
-  [String(LEGACY_WORKSPACE_TRIP_DEMO_PATH), TEST_VALIDATION_SOURCE_PATH],
-  [String(LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH), TEST_VALIDATION_SOURCE_PATH],
-  [String(BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH), TEST_VALIDATION_SOURCE_PATH],
-  [String(TEST_VALIDATION_WORKSPACE_SEED_PATH), TEST_VALIDATION_SOURCE_PATH],
-  [String(LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH), GEOSPATIAL_WORKSPACE_SOURCE_PATH],
-  [String(BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH), GEOSPATIAL_WORKSPACE_SOURCE_PATH],
-  [String(GEOSPATIAL_WORKSPACE_SEED_PATH), GEOSPATIAL_WORKSPACE_SOURCE_PATH],
+  ...buildSeedWorkspacePathAliases(
+    LEGACY_WORKSPACE_README_PATH,
+    WORKSPACE_README_SEED_PATH,
+    WORKSPACE_README_SEED_REL_PATH,
+  ).map(path => [path, WORKSPACE_README_SOURCE_PATH] as const),
+  ...buildSeedWorkspacePathAliases(
+    LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+    LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  ).map(path => [path, TEST_VALIDATION_SOURCE_PATH] as const),
+  ...buildSeedWorkspacePathAliases(
+    LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH,
+    BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH,
+    GEOSPATIAL_WORKSPACE_SEED_PATH,
+    GEOSPATIAL_WORKSPACE_SEED_REL_PATH,
+  ).map(path => [path, GEOSPATIAL_WORKSPACE_SOURCE_PATH] as const),
 ])
 
 export function isDefaultWorkspaceSeedSourcePath(path: unknown): boolean {
-  return DEFAULT_WORKSPACE_SEED_SOURCE_PATHS.has(String(path || '').trim())
+  const normalized = String(path || '').trim()
+  const canonical = resolveWorkspaceSeedSourcePath(normalized)
+  return DEFAULT_WORKSPACE_SEED_SOURCE_PATHS.has(canonical || normalized)
 }
 
 export function isCanonicalWorkspaceSeedSourcePath(path: unknown): boolean {
   const normalized = String(path || '').trim()
+  const canonical = resolveWorkspaceSeedSourcePath(normalized) || normalized
   return (
-    normalized === WORKSPACE_README_SOURCE_PATH
-    || normalized === TEST_VALIDATION_SOURCE_PATH
-    || normalized === GEOSPATIAL_WORKSPACE_SOURCE_PATH
+    canonical === WORKSPACE_README_SOURCE_PATH
+    || canonical === TEST_VALIDATION_SOURCE_PATH
+    || canonical === GEOSPATIAL_WORKSPACE_SOURCE_PATH
   )
 }
 
 export function resolveWorkspaceSeedSourcePath(path: unknown): string | null {
   const normalized = String(path || '').trim()
-  return WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(normalized) || null
+  if (!normalized) return null
+  const direct = WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(normalized)
+  if (direct) return direct
+  if (normalized.startsWith('workspace:')) {
+    const workspacePath = normalizeWorkspacePath(normalized.slice('workspace:'.length))
+    if (workspacePath) {
+      return WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(workspacePath) || null
+    }
+  }
+  return null
 }
 
 export function defaultEnabledForWorkspaceSourcePath(path: unknown, forceEnabled = false): boolean {

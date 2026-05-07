@@ -269,6 +269,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const queryActiveFlowEditorOverlays = React.useCallback((): HTMLElement[] => {
     if (!flowEditorOverlayInteractionMode || typeof document === 'undefined') return []
     const surfaceId = String(flowEditorOverlaySurfaceId || '').trim()
+    if (!surfaceId) return []
     const surfaceRoot = surfaceId
       ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(surfaceId)}"]`)
       : null

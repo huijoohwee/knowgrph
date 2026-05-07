@@ -34,6 +34,8 @@ import {
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  CHAT_DEERFLOW_ENDPOINT_URL,
+  CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_BYTEPLUS,
 } from '@/lib/chatEndpoint'
 
@@ -243,16 +245,16 @@ export function testFlowEditorManagerBuildsReusableTextRegistryDrafts() {
     }
   })
 
-  const zaiDraft = buildTextGenerationRegistryDraft({ providerFamily: 'zai' })
-  if (zaiDraft.formId !== 'textGeneration.zai') {
-    throw new Error(`expected z.ai text draft to keep a provider-specific form id, got ${String(zaiDraft.formId)}`)
+  const deerflowDraft = buildTextGenerationRegistryDraft({ providerFamily: 'deerflow' })
+  if (deerflowDraft.formId !== 'textGeneration.deerflow') {
+    throw new Error(`expected DeerFlow text draft to keep a provider-specific form id, got ${String(deerflowDraft.formId)}`)
   }
-  if (!zaiDraft.fields.some(field => field.fieldKey === 'chatMessagesJson')) {
-    throw new Error('expected z.ai text draft scaffold to stay on the OpenAI-compatible text widget field set')
+  if (!deerflowDraft.fields.some(field => field.fieldKey === 'chatMessagesJson')) {
+    throw new Error('expected DeerFlow text draft scaffold to stay on the OpenAI-compatible text widget field set')
   }
-  const zaiLabel = getTextGenerationWidgetLabel({ formId: zaiDraft.formId })
-  if (zaiLabel !== 'z.ai Text Widget') {
-    throw new Error(`expected z.ai label helper to classify future text widgets, got ${String(zaiLabel)}`)
+  const deerflowLabel = getTextGenerationWidgetLabel({ formId: deerflowDraft.formId })
+  if (deerflowLabel !== 'DeerFlow Text Widget') {
+    throw new Error(`expected DeerFlow label helper to classify future text widgets, got ${String(deerflowLabel)}`)
   }
 }
 
@@ -264,6 +266,30 @@ export function testFlowEditorManagerSeedsOpenAiTextRegistryEntry() {
   ;['chatMessagesJson', 'chatResponseFormatJson', 'chatToolsJson'].forEach(key => {
     if (!fieldKeys.has(key)) throw new Error(`expected seeded OpenAI text widget entry to expose ${key}`)
   })
+}
+
+export function testFlowEditorManagerSeedsDeerFlowTextRegistryEntry() {
+  const seeded = ensureDefaultWidgetRegistryEntries([], '2026-02-06T00:00:00.000Z')
+  const deerflowEntry = seeded.entries.find(entry => entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && entry.formId === 'textGeneration.deerflow')
+  if (!deerflowEntry) throw new Error('expected default widget registry seed to include DeerFlow text widget entry')
+  const fieldKeys = new Set((deerflowEntry.fields || []).map(field => field.fieldKey))
+  ;['chatProvider', 'chatEndpointUrl', 'chatModel', 'chatMessagesJson', 'chatResponseFormatJson'].forEach(key => {
+    if (!fieldKeys.has(key)) throw new Error(`expected seeded DeerFlow text widget entry to expose ${key}`)
+  })
+  const normalized = normalizeTextGenerationWidgetPropertiesForProviderFamily({
+    providerFamily: 'deerflow',
+    properties: {
+      chatProvider: 'openai',
+      chatEndpointUrl: 'https://api.openai.com/v1/responses',
+      chatModel: 'gpt-5.4-nano',
+    },
+  })
+  if (String(normalized.chatProvider || '') !== CHAT_PROVIDER_DEERFLOW) {
+    throw new Error(`expected DeerFlow normalization to force provider ${CHAT_PROVIDER_DEERFLOW}`)
+  }
+  if (String(normalized.chatEndpointUrl || '') !== CHAT_DEERFLOW_ENDPOINT_URL) {
+    throw new Error(`expected DeerFlow normalization to force endpoint ${CHAT_DEERFLOW_ENDPOINT_URL}`)
+  }
 }
 
 export function testFlowEditorManagerSeedsGrabMapsDiscoveryRegistryEntry() {
@@ -554,6 +580,22 @@ export function testFlowEditorManagerResolvesWidgetRegistryApiDocRefs() {
     throw new Error(`expected OpenAI text widget prompt doc ref, got ${JSON.stringify(openAiPrompt)}`)
   }
 
+  const deerflowPrompt = resolveWidgetRegistryApiDocRef({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration.deerflow',
+    },
+    properties: {
+      chatProvider: 'deerflow',
+    },
+    fieldKey: 'prompt',
+    schemaPath: 'properties.prompt',
+  })
+  if (!deerflowPrompt || deerflowPrompt.rowKey !== 'deerflowApi.input' || deerflowPrompt.apiKey !== 'input') {
+    throw new Error(`expected DeerFlow text widget prompt doc ref, got ${JSON.stringify(deerflowPrompt)}`)
+  }
+
   const videoOutput = resolveWidgetRegistryApiDocRef({
     registryEntry: {
       nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
@@ -595,5 +637,20 @@ export function testFlowEditorManagerResolvesWidgetRegistryMainPanelLinks() {
   })
   if (!bytePlusVideoLink || bytePlusVideoLink.tab !== 'integrations' || bytePlusVideoLink.searchQuery !== 'byteplusVideoApi.polling_endpoint' || bytePlusVideoLink.anchorId !== 'byteplus-video-generation-api-row-byteplusvideoapi-polling-endpoint') {
     throw new Error(`expected BytePlus video widget main-panel link, got ${JSON.stringify(bytePlusVideoLink)}`)
+  }
+
+  const deerflowPromptLink = resolveWidgetRegistryMainPanelLink({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration.deerflow',
+    },
+    properties: {
+      chatProvider: 'deerflow',
+    },
+    portKey: 'prompt_in',
+  })
+  if (!deerflowPromptLink || deerflowPromptLink.tab !== 'integrations' || deerflowPromptLink.searchQuery !== 'deerflowApi.input' || deerflowPromptLink.anchorId !== 'deerflow-api-row-deerflowapi-input') {
+    throw new Error(`expected DeerFlow text widget main-panel link, got ${JSON.stringify(deerflowPromptLink)}`)
   }
 }

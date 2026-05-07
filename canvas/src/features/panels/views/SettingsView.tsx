@@ -57,6 +57,7 @@ import {
 } from '@/features/integrations/config'
 import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusSharedTextApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
+import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
@@ -97,6 +98,12 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsUrl: 'https://developers.openai.com/api/reference/resources/responses',
     docsLabel: 'Open OpenAI Chat API Docs',
     panelLabel: 'Open FloatingPanel Props Panel OpenAI Text Widget',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+  [DEERFLOW_API_DOC_AREA]: {
+    docsUrl: 'https://github.com/bytedance/deer-flow',
+    docsLabel: 'Open DeerFlow Docs',
+    panelLabel: 'Open FloatingPanel Props Panel DeerFlow Text Widget',
     openPanel: () => emitPropsPanelOpen(),
   },
   'BytePlus Video Generation API': {

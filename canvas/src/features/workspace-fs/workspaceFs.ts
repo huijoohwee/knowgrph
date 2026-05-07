@@ -236,10 +236,12 @@ export function resetWorkspaceFsForTests(): void {
 
 export const LEGACY_WORKSPACE_README_PATH = '/README.md' as WorkspacePath
 export const LEGACY_WORKSPACE_TRIP_DEMO_PATH = '/trip-demo-mmd.md' as WorkspacePath
+export const LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH = '/knowgrph-video-demo.md' as WorkspacePath
 export const LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH = '/knowgrph-maps-grabmap-multim-demo.md' as WorkspacePath
 export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
 ])
 export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
@@ -276,9 +278,9 @@ const normalizedValidationSeedSourcePath = normalizeWorkspacePath(TEST_VALIDATIO
 export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE
     ? (
-        normalizedValidationSeedSourcePath === WORKSPACE_ROOT_PATH
-          ? ('/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' as WorkspacePath)
-          : normalizedValidationSeedSourcePath
+        normalizedValidationSeedSourcePath && normalizedValidationSeedSourcePath !== WORKSPACE_ROOT_PATH
+          ? normalizedValidationSeedSourcePath
+          : normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
       )
     : normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
 export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
@@ -303,12 +305,9 @@ const DEFAULT_VALIDATION_WORKSPACE_SEED_TEXT = [
   '---',
   `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || TEST_VALIDATION_WORKSPACE_SEED_BASENAME}"`,
   'kgCanvasSurfaceMode: "2d"',
-  'kgCanvasRenderMode: "2d"',
   'kgCanvas2dRenderer: "flowEditor"',
   'kgDocumentSemanticMode: "document"',
   'kgFrontmatterModeEnabled: true',
-  'kgMultiDimTableModeEnabled: false',
-  'kgDocumentStructureBaselineLock: false',
   '---',
   '',
   `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
@@ -349,9 +348,23 @@ const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
   },
 ]
 const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(seed => seed.path))
+const WORKSPACE_SEED_SOURCE_REL_PATH_SET = new Set<WorkspacePath>(
+  WORKSPACE_SEED_SPECS
+    .map(seed => normalizeWorkspacePath(seed.sourceRelPath))
+    .filter((path): path is WorkspacePath => Boolean(path && path !== WORKSPACE_ROOT_PATH)),
+)
+const WORKSPACE_INITIALIZATION_PATH_SET = new Set<WorkspacePath>([
+  LEGACY_WORKSPACE_README_PATH,
+  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
+  ...WORKSPACE_SEED_PATH_SET,
+  ...WORKSPACE_SEED_SOURCE_REL_PATH_SET,
+])
 const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   ...WORKSPACE_SEED_SPECS.map(seed => seed.path),
 ])
@@ -386,7 +399,7 @@ const loadWorkspaceSeedText = async (relPath: string, fallbackText: string): Pro
 export function isInitializationWorkspacePath(path: WorkspacePath | null | undefined): boolean {
   const normalized = path ? normalizeWorkspacePath(path) : null
   if (!normalized) return false
-  return WORKSPACE_SEED_PATH_SET.has(normalized)
+  return WORKSPACE_INITIALIZATION_PATH_SET.has(normalized)
 }
 
 export function buildWorkspaceSeedFileEntry(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry {
@@ -440,6 +453,7 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
   const staleSeedPaths = new Set<WorkspacePath>([
     LEGACY_WORKSPACE_README_PATH,
     LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+    LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
     LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   ])
   const hasStaleSeedPath = normalized.some(path => staleSeedPaths.has(path))

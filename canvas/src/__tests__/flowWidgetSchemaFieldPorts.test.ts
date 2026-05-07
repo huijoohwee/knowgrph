@@ -22,7 +22,7 @@ async function renderFrontmatterBuiltInWidget(args: {
   nodeId: string
   nodeTypeId: string
   properties: Record<string, unknown>
-  providerFamily?: 'byteplus' | 'openai' | 'zai'
+  providerFamily?: 'byteplus' | 'openai' | 'deerflow'
 }) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
   const g = globalThis as unknown as { window?: unknown; document?: unknown }

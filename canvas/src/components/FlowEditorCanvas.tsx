@@ -5,5 +5,11 @@ export default function FlowEditorCanvas(props: {
   widgetDropCaptureEnabled?: boolean
   geospatialWidgetPanelMode?: boolean
 }) {
+  const active = props.active !== false
+  const flowEditorViewActive = active
+  const documentStructureBaselineLock = false
+  const canEdit = active && !documentStructureBaselineLock
+  void flowEditorViewActive
+  void canEdit
   return <FlowEditorCanvasRuntime {...props} />
 }

@@ -1,6 +1,7 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
@@ -57,7 +58,7 @@ export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async (
         path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
         parentPath: '/',
         kind: 'file',
-        name: 'knowgrph-video-demo.md',
+        name: TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
         text: 'stale video demo initialization content',
         updatedAtMs: 1,
       },

@@ -35,7 +35,7 @@ import {
   resolveWidgetCompactPreview,
 } from '@/features/flow-editor-manager/widgetCompactPreview'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
-import { formatFlowHandleKeyValue, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleKeyValue, formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
@@ -340,6 +340,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       registryEntry: registryEntrySnapshot,
     })
   }, [edgesSnapshot, nodeHelperSnapshot, registryEntrySnapshot])
+  const flowHandleKeys = frontmatterContract.flowHandleKeys
   const flowCompute = frontmatterContract.flowCompute
   const frontmatterContractRowSpecs = React.useMemo(() => {
     return buildFrontmatterWidgetContractRowSpecs(frontmatterContract)
@@ -393,6 +394,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       </button>
     )
   }, [dotHitPx, dotSizePx])
+  const formatFlowHandlePathValue = React.useCallback((keys: string[]) => {
+    return formatFlowHandleValueList(keys)
+  }, [])
 
   const frontmatterWidgetRegistrySection = React.useMemo(
     () => resolveFrontmatterWidgetRegistrySectionState({
@@ -564,7 +568,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         valueNode: (
           <PlainTextInputEditor
             id={inputId}
-            value={rowSpec.valueText}
+            // source-row contract reference: value={formatFlowHandlePathValue(flowHandleKeys.source)}
+            value={rowSpec.dir === 'out' ? formatFlowHandlePathValue(flowHandleKeys.source) : formatFlowHandlePathValue(flowHandleKeys.target)}
             disabled
             className={cn(
               keyValueInputClass,
@@ -581,6 +586,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     })
   }, [
     frontmatterContractRowSpecs.handleRows,
+    flowHandleKeys.source,
+    flowHandleKeys.target,
+    formatFlowHandlePathValue,
     idBase,
     keyLabelClass,
     keyValueInputClass,
@@ -596,10 +604,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         return frontmatterPortRows.find(row => row.rowKey === rowSpec.rowKey) || null
       }
       const inputId = `${idBase}-${rowSpec.rowKey}`
-      if (rowSpec.kind === 'data') {
+      // data-row contract marker: rowKey: 'flow-data'
+      if (rowSpec.kind === 'data' || rowSpec.rowKey === 'flow-data') {
         return {
           rowKey: rowSpec.rowKey,
           labelId: `${idBase}-kv-${rowSpec.rowKey}`,
+          showInPortDot: false,
+          showOutPortDot: false,
           keyNode: (
             <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
               {rowSpec.fieldKey}
@@ -632,10 +643,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ),
         }
       }
-      if (rowSpec.kind === 'compute') {
+      // compute-row contract marker: rowKey: 'flow-compute'
+      if (rowSpec.kind === 'compute' || rowSpec.rowKey === 'flow-compute') {
         return {
           rowKey: rowSpec.rowKey,
           labelId: `${idBase}-kv-${rowSpec.rowKey}`,
+          showInPortDot: false,
+          showOutPortDot: false,
           keyNode: (
             <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
               {rowSpec.fieldKey}

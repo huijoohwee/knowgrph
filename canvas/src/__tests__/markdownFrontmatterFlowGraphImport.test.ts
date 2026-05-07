@@ -13,6 +13,7 @@ import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manage
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
+import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   const md = [
@@ -1981,8 +1982,7 @@ function readKnowgrphVideoDemoPath(): string {
     ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH.trim()
     : ''
   if (envPath) return envPath
-  const cwd = process.cwd()
-  return path.resolve(cwd, '..', 'knowgrph-video-demo.md')
+  return resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
 }
 
 function readKnowgrphVideoDemoSeededPath(): string {

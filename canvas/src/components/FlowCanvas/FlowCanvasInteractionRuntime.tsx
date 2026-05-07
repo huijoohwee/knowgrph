@@ -14,6 +14,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
 ) {
   const {
     active,
+    flowEditorSurfaceId,
     allowMutations,
     schema,
     runtimeRef,
@@ -190,6 +191,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       zoomRequest,
       runtime,
       graphData: graphDataForZoomRequests,
+      flowEditorSurfaceId,
       width: widthEffective,
       height: viewportH,
       selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,
@@ -206,6 +208,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
     active,
     canvas2dRenderer,
     flowEditorReservedW,
+    flowEditorSurfaceId,
     graphDataForZoomRequests,
     handleInteractionFrame,
     requestCommit,

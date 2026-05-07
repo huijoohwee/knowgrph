@@ -119,8 +119,8 @@ const resolveSurfacePrintPolicy = (
   if (surface === 'split-viewer') {
     return resolveSplitViewerPrintPolicy(true, orientation)
   }
-  // Presentation deck is a paged multi-slide surface; avoid flex-centering the whole
-  // deck in print because it can shift per-slide header/footer anchors between pages.
+  // Presentation deck is a paged multi-slide surface; keep print policy neutral and
+  // let presentation print CSS control slide centering/fidelity.
   return {
     compactHorizontalContent: false,
     centerContent: false,

@@ -41,7 +41,7 @@ export function resolveDefaultFlowWidgetPinnedInCanvas(args: {
   geospatialWidgetPanelMode?: boolean
 }): boolean {
   if (args.geospatialWidgetPanelMode === true) return false
-  return String(args.graphMetaKind || '').trim() === 'frontmatter-flow'
+  return true
 }
 
 export function shouldAutoPlaceFlowEditorWidget(args: {

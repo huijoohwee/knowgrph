@@ -649,7 +649,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         canvas2dRenderer: radialRenderer,
       })
       const nextWidgets =
-        enforceFrontmatterOnly && eligibleFlowWidgetNodeIds.size > 0
+        enforceFrontmatterOnly
           ? targetValid.filter(id => eligibleFlowWidgetNodeIds.has(id))
           : targetValid
       const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode

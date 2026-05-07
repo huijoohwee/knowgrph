@@ -189,15 +189,15 @@ const OPENAI_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
 ]
 
 export function buildOpenAiCompatibleTextGenerationFields(args?: {
-  providerFamily?: 'openai' | 'zai'
+  providerFamily?: 'openai' | 'deerflow'
 }): WidgetRegistryField[] {
-  const providerFamily = args?.providerFamily === 'zai' ? 'zai' : 'openai'
+  const providerFamily = args?.providerFamily === 'deerflow' ? 'deerflow' : 'openai'
   const fields = OPENAI_TEXT_WIDGET_FIELD_BINDINGS
     .map(binding => binding.field)
     .filter((field): field is WidgetRegistryField => !!field)
     .map(field => ({ ...field }))
 
-  const normalizedFields = providerFamily === 'zai'
+  const normalizedFields = providerFamily === 'deerflow'
     ? fields.map(field => {
         if (field.fieldKey !== 'chatModel') return field
         const { options, ...rest } = field

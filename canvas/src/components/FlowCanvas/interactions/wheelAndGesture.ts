@@ -108,9 +108,9 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const wheelBehavior = schemaForWheel ? readWheelBehavior(schemaForWheel) : 'preset'
     const wheelZoom = shouldWheelZoom({ event: e, preset, wheelBehavior })
 
-    const ignoreWheel = opts?.skipIgnoreGuard ? false : shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
+    const ignoreWheelTarget = opts?.skipIgnoreGuard ? false : shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     const allowZoomThroughIgnore = wheelZoom && (e.ctrlKey === true || e.metaKey === true)
-    if (ignoreWheel && !allowZoomThroughIgnore) {
+    if (ignoreWheelTarget && !allowZoomThroughIgnore) {
       if (isFlowEditor && !opts?.skipIgnoreGuard) {
         const cx = (e as unknown as { clientX?: unknown }).clientX
         const cy = (e as unknown as { clientY?: unknown }).clientY
@@ -121,6 +121,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
           }
         }
       }
+      if (ignoreWheelTarget) return
       try {
         e.preventDefault()
       } catch {

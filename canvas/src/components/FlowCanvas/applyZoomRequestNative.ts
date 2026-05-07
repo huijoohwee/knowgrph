@@ -9,8 +9,10 @@ import type { GraphData } from '@/lib/graph/types'
 import { setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import {
   collectCanonicalFlowEditorOverlayRectEntries,
+  FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
@@ -25,14 +27,22 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
   runtime: FlowNativeRuntime
   viewportW: number
   viewportH: number
+  flowEditorSurfaceId?: string
   onFrame?: () => void
 }) {
   if (typeof document === 'undefined') return
+  const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  if (!activeSurfaceId) return
   const run = () => {
     const merged = new Map<string, { left: number; right: number; top: number; bottom: number; area: number }>()
     const pushEntries = (selector: string) => {
-      const els = Array.from(document.querySelectorAll(selector))
+      const surfaceRoot = document.querySelector<HTMLElement>(
+        `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(activeSurfaceId)}"]`,
+      )
+      const queryRoot: ParentNode = surfaceRoot || document
+      const els = Array.from(queryRoot.querySelectorAll(selector))
         .filter((el): el is HTMLElement => el instanceof HTMLElement)
+        .filter(el => readFlowEditorOverlaySurfaceId(el) === activeSurfaceId)
       const entries = collectCanonicalFlowEditorOverlayRectEntries(els)
       for (let i = 0; i < entries.length; i += 1) {
         const entry = entries[i]!
@@ -88,6 +98,7 @@ export const applyZoomRequestNative = (args: {
   zoomRequest: ZoomRequest
   runtime: FlowNativeRuntime
   graphData: GraphData | null
+  flowEditorSurfaceId?: string
   width: number
   height: number
   selectedNodeId: string | null
@@ -210,6 +221,7 @@ export const applyZoomRequestNative = (args: {
         runtime: args.runtime,
         viewportW,
         viewportH,
+        flowEditorSurfaceId: args.flowEditorSurfaceId,
         onFrame: args.onFrame,
       })
     }
@@ -239,6 +251,7 @@ export const applyZoomRequestNative = (args: {
           runtime: args.runtime,
           viewportW,
           viewportH,
+          flowEditorSurfaceId: args.flowEditorSurfaceId,
           onFrame: args.onFrame,
         })
       }

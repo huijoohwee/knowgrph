@@ -1,4 +1,5 @@
 import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
+import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 
@@ -38,15 +39,16 @@ export async function testWorkspaceImportUrlAcceptsAbsoluteFsPathViaViteFsFetch(
     } as Response
   }) as unknown as typeof fetch
   try {
-    const inputPath = '/Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph-video-demo.md'
+    const inputPath = resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const normalizedFsPath = inputPath.replace(/\\/g, '/')
     const res = await fetchWorkspaceUrlContent(inputPath, { mode: 'import' })
-    if (calledUrl !== '/@fs/Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph-video-demo.md') {
+    if (calledUrl !== `/@fs${normalizedFsPath}`) {
       throw new Error(`expected absolute filesystem import to fetch through Vite /@fs, got ${String(calledUrl)}`)
     }
     if (res.normalizedUrl !== inputPath) {
       throw new Error(`expected absolute filesystem import to preserve the original source path, got ${String(res.normalizedUrl)}`)
     }
-    if (res.name !== 'knowgrph-video-demo.md') {
+    if (res.name !== KNOWGRPH_VIDEO_DEMO_BASENAME) {
       throw new Error(`expected absolute filesystem import to derive the source basename, got ${String(res.name)}`)
     }
     if (res.text !== '# Local Demo\n') {

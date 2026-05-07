@@ -2,6 +2,7 @@ import React from 'react'
 
 import {
   deriveOpenWidgetOverlayNodeIds,
+  filterGraphByExcludedNodeIds,
   FlowEditorWidgetOverlay,
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
@@ -467,7 +468,7 @@ export function useFlowEditorOverlaySurface(args: {
             onSetProperties={(props) => setNodePropertiesById(id, props)}
             onValidate={() => validateNodeById(id)}
             onRun={() => {
-              void runWorkflowNode(id)
+              void args.runWorkflowNode(id)
             }}
             onDuplicate={() => {
               const pinnedMap = flowWidgetPinnedByNodeId || {}
@@ -605,6 +606,23 @@ export function useFlowEditorOverlaySurface(args: {
       return true
     })()
 
+  const flowCanvasGraphDataOverride = React.useMemo(() => {
+    if (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow') return renderGraphDataOverride
+    const excludedNodeIds =
+      renderGraphPlacementContext?.isFrontmatterFlow === true
+        ? renderGraphPlacementContext.frontmatterOverlayNodeIds
+        : overlayEditorNodeIdsSnapshot
+    return filterGraphByExcludedNodeIds({
+      graphData: renderGraphDataOverride,
+      excludedNodeIds,
+    })
+  }, [
+    frontmatterOverlayHideSafety.kind,
+    overlayEditorNodeIdsSnapshot,
+    renderGraphDataOverride,
+    renderGraphPlacementContext,
+  ])
+
   const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
     if (!overlayOnlyActive) return undefined
     return renderGraphNodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
@@ -617,5 +635,6 @@ export function useFlowEditorOverlaySurface(args: {
     overlayEditorNodeIds,
     overlayOnlyActive,
     overlayOnlyHidePortHandleNodeIds,
+    flowCanvasGraphDataOverride,
   }
 }

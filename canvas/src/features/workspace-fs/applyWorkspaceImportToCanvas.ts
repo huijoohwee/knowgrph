@@ -58,6 +58,8 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
     }
   } else if (frontmatterOnlyDoc) {
     try {
+      store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
+      store.setFrontmatterModeEnabled(true)
       applyCanvasFrontmatterPreset({
         rawText,
         defaultCanvasRenderMode: '2d',
@@ -72,6 +74,8 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
     }
   } else {
     try {
+      store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
+      store.setFrontmatterModeEnabled(true)
       applyCanvasFrontmatterPreset({
         rawText,
         defaultCanvasRenderMode: '2d',

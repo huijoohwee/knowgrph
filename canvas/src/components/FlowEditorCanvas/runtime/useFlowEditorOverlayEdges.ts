@@ -249,8 +249,10 @@ export function useFlowEditorOverlayEdges(args: {
       ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeForAttr(surfaceId)}"]`)
       : null
     // Overlay widgets are portal-mounted, so scope by surface id instead of DOM ancestry.
-    const overlayRoots = Array.from(document.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
-      .filter(el => !surfaceId || readFlowEditorOverlaySurfaceId(el) === surfaceId)
+    const overlayRoots = !surfaceId
+      ? []
+      : Array.from(document.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
+        .filter(el => readFlowEditorOverlaySurfaceId(el) === surfaceId)
     const rootRect = root ? root.getBoundingClientRect() : null
     const svgRect = svg ? svg.getBoundingClientRect() : null
     const samplePaths = svg
@@ -495,11 +497,18 @@ export function useFlowEditorOverlayEdges(args: {
         if (typeof document === 'undefined') return [] as Array<{ id: string; el: HTMLElement }>
         const entries: Array<{ id: string; el: HTMLElement }> = []
         const surfaceId = String(args.flowEditorSurfaceId || '').trim()
+        if (!surfaceId) return entries
+        const escapeForAttr = (value: string): string => {
+          return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        }
         const surfaceRoot = surfaceId
-          ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(surfaceId)}"]`)
+          ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeForAttr(surfaceId)}"]`)
           : null
+        const root = args.rootRef.current
+        if (!surfaceRoot && !root) return entries
+        const queryRoot: ParentNode = surfaceRoot || root
         // Overlay widgets are portal-mounted, so scope by surface id instead of DOM ancestry.
-        const els = Array.from(document.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
+        const els = Array.from(queryRoot.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
         for (let i = 0; i < els.length; i += 1) {
           const el = els[i]
           if (readFlowEditorOverlaySurfaceId(el) !== surfaceId) continue

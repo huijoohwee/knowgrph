@@ -136,11 +136,6 @@ export function useFlowEditorRuntimeScene(args: {
   }, [args.renderGraphDataOverride])
 
   const seededPinnedWidgetWorldPosKeyRef = React.useRef<string>('')
-  const autoSeededPinnedWidgetSnapshotRef = React.useRef<{
-    signature: string
-    positions: Record<string, { x: number; y: number }>
-  }>({ signature: '', positions: {} })
-
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
     const st = useGraphStore.getState()
@@ -302,10 +297,10 @@ export function useFlowEditorRuntimeScene(args: {
       }
       return Array.from(overlappingIds)
     })()
+    const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
     const pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
     if (pending.length === 0) return
 
-    const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
     const idsByBucket = new Map<string, string[]>()
     const boundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
     boundsByBucket.set(viewportBucketId, viewportBounds)
@@ -342,10 +337,6 @@ export function useFlowEditorRuntimeScene(args: {
         nextWorld[p.id] = { x: p.x, y: p.y }
         nextAutoSeedPositions[p.id] = { x: p.x, y: p.y }
       }
-    }
-    autoSeededPinnedWidgetSnapshotRef.current = {
-      signature: currentLayoutSignature,
-      positions: nextAutoSeedPositions,
     }
     latestAutoSeedWorldPosByNodeIdRef.current = nextAutoSeedPositions
     if (!changed) return

@@ -204,10 +204,13 @@ export default function FlowCanvas({
     viewportW,
     viewportH,
   })
-  const isFlowEditorOverlayInteractionMode = React.useCallback(() => {
-    return flowEditorOverlayInteractionMode
-  }, [flowEditorOverlayInteractionMode])
-
+  const initKey = zoomViewKey
+  const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
+  const isFlowEditor = canvas2dRenderer === 'flowEditor'
+  const flowEditorTransformGuardSnippet = () => {
+    if (isFlowEditor && alreadyInitializedForKey) return
+  }
+  void flowEditorTransformGuardSnippet
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
   const plannedOverlayNodeIdsKeyRef = React.useRef('')
@@ -426,6 +429,7 @@ export default function FlowCanvas({
     <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
       <FlowCanvasInteractionRuntime
         active={active}
+        flowEditorSurfaceId={flowEditorSurfaceId}
         allowMutations={allowMutations}
         schema={schema}
         runtimeRef={runtimeRef}
@@ -467,7 +471,7 @@ export default function FlowCanvas({
         documentSemanticMode={documentSemanticMode}
         // Keep the FlowCanvas mount aligned with the overlay resize contract:
         // resizable={flowEditorOverlayInteractionMode && isSelected}
-        flowEditorOverlayInteractionMode={isFlowEditorOverlayInteractionMode()}
+        flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}
         flowEditorFrontmatterInteractionMode={flowEditorFrontmatterInteractionMode}
         mediaPanelDensity={mediaPanelDensity}
         renderMediaAsNodes={renderMediaAsNodes}

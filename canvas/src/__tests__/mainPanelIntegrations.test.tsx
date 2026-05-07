@@ -108,6 +108,12 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'openaiApi.input',
       'openaiApi.text',
       'openaiApi.tool_choice',
+      'DeerFlow Gateway API',
+      'Open FloatingPanel Props Panel DeerFlow Text Widget',
+      'deerflowApi.provider',
+      'deerflowApi.endpoint_url',
+      'deerflowApi.model',
+      'deerflowApi.input',
       'BytePlus Video Generation API',
       'Open FloatingPanel BytePlus Video Widget',
       'BytePlus Image Generation API',
@@ -178,14 +184,15 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel Chat UI')
     await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Text Widget')
+    await clickButton('Open FloatingPanel Props Panel DeerFlow Text Widget')
     await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel BytePlus Image Widget')
 
     if (sidePanelEvents.filter(value => value === 'chat').length !== 1) {
       throw new Error(`expected chat section link to open floating chat once, got ${JSON.stringify(sidePanelEvents)}`)
     }
-    if (propsPanelEvents.length !== 4) {
-      throw new Error(`expected text/openai/video/image section links to open floating props panel four times, got ${JSON.stringify(propsPanelEvents)}`)
+    if (propsPanelEvents.length !== 5) {
+      throw new Error(`expected text/openai/deerflow/video/image section links to open floating props panel five times, got ${JSON.stringify(propsPanelEvents)}`)
     }
     eventWindow.dispatchEvent = originalDispatchEvent
   } finally {

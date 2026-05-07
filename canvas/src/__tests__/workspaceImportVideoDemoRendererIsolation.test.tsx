@@ -1,7 +1,5 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
 import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
@@ -11,6 +9,7 @@ import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
+import { KNOWGRPH_VIDEO_DEMO_BASENAME, readDocsSsotFixtureText } from '@/tests/lib/docsSsotFixture'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -112,10 +111,10 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
 
     assertRendererScopedSeeds(seedRenderers)
 
-    const videoText = readFileSync(resolve(process.cwd(), '..', 'knowgrph-video-demo.md'), 'utf8')
+    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
     const videoImport = await importWorkspaceLocalFiles({
       fs,
-      files: [createFile('knowgrph-video-demo.md', videoText)],
+      files: [createFile(KNOWGRPH_VIDEO_DEMO_BASENAME, videoText)],
       parentPath: '/',
     })
     const importedVideoPath = String(videoImport.createdPaths[0] || '').trim()

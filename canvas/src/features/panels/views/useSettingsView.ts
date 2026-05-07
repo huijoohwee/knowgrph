@@ -10,6 +10,7 @@ import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
 import {
   CHAT_OPENAI_MODEL_OPTIONS,
+  CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_BYTEPLUS,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
@@ -27,6 +28,11 @@ import {
   OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
   getOpenAiChatApiRowAnchorId,
 } from './openaiChatApiDocs'
+import {
+  DEERFLOW_API_DOC_AREA,
+  DEERFLOW_API_REQUEST_DOC_ENTRIES,
+  getDeerFlowApiRowAnchorId,
+} from './deerflowApiDocs'
 import {
   STRIPE_PAYMENT_API_DOC_AREA,
   STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
@@ -82,6 +88,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
+  DEERFLOW_API_DOC_AREA,
 ]
 
 const SETTINGS_AREA_CANONICAL: Readonly<Record<string, string>> = {
@@ -114,6 +121,7 @@ function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
     || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
+    || area === DEERFLOW_API_DOC_AREA
   ) {
     return true
   }
@@ -209,15 +217,16 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
+  ...DEERFLOW_API_REQUEST_DOC_ENTRIES,
 ] as const
 
 const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
 const INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY: Readonly<Record<string, ReadonlySet<string>>> = {
-  chatMessagesJson: new Set(['byteplusApi.messages', 'openaiApi.input']),
+  chatMessagesJson: new Set(['byteplusApi.messages', 'openaiApi.input', 'deerflowApi.input']),
   chatThinkingJson: new Set(['byteplusApi.thinking']),
-  chatResponseFormatJson: new Set(['byteplusApi.response_format', 'openaiApi.text']),
-  chatToolsJson: new Set(['byteplusApi.tools', 'openaiApi.tools']),
-  chatToolChoiceJson: new Set(['byteplusApi.tool_choice', 'openaiApi.tool_choice']),
+  chatResponseFormatJson: new Set(['byteplusApi.response_format', 'openaiApi.text', 'deerflowApi.text']),
+  chatToolsJson: new Set(['byteplusApi.tools', 'openaiApi.tools', 'deerflowApi.tools']),
+  chatToolChoiceJson: new Set(['byteplusApi.tool_choice', 'openaiApi.tool_choice', 'deerflowApi.tool_choice']),
   chatStreamOptionsJson: new Set(['byteplusApi.stream_options']),
 }
 
@@ -240,16 +249,29 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       read: () => CHAT_PROVIDER_BYTEPLUS,
     }
   }
+  if (String(entry.meta.key || '').trim() === 'deerflowApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => CHAT_PROVIDER_DEERFLOW,
+    }
+  }
   if (String(entry.meta.key || '').trim() === 'byteplusApi.model') {
     const mapped = SETTINGS_REGISTRY_BY_KEY.get('chatModel')
     if (mapped) return mapped
   }
   const mappedMeta = entry.valueKey ? SETTINGS_REGISTRY_BY_KEY.get(entry.valueKey) : undefined
   if (mappedMeta) {
-    if (String(entry.meta.key || '').trim() === 'openaiApi.model') {
+    const rowKey = String(entry.meta.key || '').trim()
+    if (rowKey === 'openaiApi.model') {
       return {
         ...mappedMeta,
         options: [...CHAT_OPENAI_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'deerflowApi.model') {
+      return {
+        ...mappedMeta,
+        options: undefined,
       }
     }
     if (mappedMeta.type !== 'json') return mappedMeta
@@ -706,6 +728,13 @@ export function useSettingsView({
     }),
     [values],
   )
+  const normalizedDeerFlowValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'deerflow',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
 
   const renderInput = (
     key: string,
@@ -756,6 +785,8 @@ export function useSettingsView({
           ? normalizedBytePlusValues
           : area === OPENAI_CHAT_API_DOC_AREA
             ? normalizedOpenAiValues
+            : area === DEERFLOW_API_DOC_AREA
+              ? normalizedDeerFlowValues
             : values
       const anchorId =
         area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
@@ -766,6 +797,8 @@ export function useSettingsView({
             ? getBytePlusVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
+            : area === DEERFLOW_API_DOC_AREA
+              ? getDeerFlowApiRowAnchorId(entry.meta.key)
             : undefined
       const displayValue =
         usesMappedDisplayValue && entry.valueKey && Object.prototype.hasOwnProperty.call(normalizedDisplayValues, entry.valueKey)
@@ -980,7 +1013,7 @@ export function useSettingsView({
 
     const providerArea = resolvePaymentsProviderSpec(paymentsProviderId).areaLabel
     return filteredByMode.filter(entry => normalizeSettingsAreaLabel(entry.details.area) === providerArea)
-  }, [flow, mode, normalizedBytePlusValues, normalizedOpenAiValues, paymentsProviderId, shouldHideSetting, values])
+  }, [flow, mode, normalizedBytePlusValues, normalizedDeerFlowValues, normalizedOpenAiValues, paymentsProviderId, shouldHideSetting, values])
 
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const filtered = React.useMemo(
@@ -1024,6 +1057,11 @@ export function useSettingsView({
           title: OPENAI_CHAT_API_DOC_AREA,
           searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel OpenAI Text Widget text generation'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
+        },
+        {
+          title: DEERFLOW_API_DOC_AREA,
+          searchIndex: normalizeText('DeerFlow Gateway API OpenAI-compatible gateway local llm proxy floatingpanel props panel text widget'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === DEERFLOW_API_DOC_AREA,
         },
         {
           title: BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,

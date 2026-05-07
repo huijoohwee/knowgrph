@@ -19,6 +19,11 @@ import { resolveWorkspaceFileJsonLdExport } from '@/features/markdown-workspace/
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+import {
+  KNOWGRPH_VIDEO_DEMO_BASENAME,
+  KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
+  readDocsSsotFixtureText,
+} from '@/tests/lib/docsSsotFixture'
 
 const createFile = (name: string, text: string) => {
   const blob = new Blob([text], { type: 'text/plain' })
@@ -116,7 +121,7 @@ export async function testLaunchDropdownImportLocalFilesFallbackAppliesCanvasFro
       '# Imported Video Demo',
       '',
     ].join('\n')
-    const file = createFile('knowgrph-video-demo.md', text)
+    const file = createFile(KNOWGRPH_VIDEO_DEMO_BASENAME, text)
     await importLocalFilesFallback({
       files: [file] as unknown as FileList,
       pushUiToast: () => void 0,
@@ -429,7 +434,7 @@ export function testWorkspaceImportCanvasFrontmatterDocsOptIntoGraphLanding() {
     '# Plain Note',
   ].join('\n')
 
-  if (!shouldApplyImportedCanvasDocumentToGraph({ path: '/knowgrph-video-demo.md', text: canvasDoc })) {
+  if (!shouldApplyImportedCanvasDocumentToGraph({ path: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH, text: canvasDoc })) {
     throw new Error('expected imported canvas frontmatter markdown to opt into graph-aware landing')
   }
   if (shouldApplyImportedCanvasDocumentToGraph({ path: '/note.md', text: plainDoc })) {
@@ -534,8 +539,8 @@ export async function testActivateFirstImportedWorkspaceFilePreservesImportedFro
       throw new Error(`expected prior active import to land on d3, got ${String(afterPriorActiveImport.canvas2dRenderer || '')}`)
     }
 
-    const videoText = readFileSync(resolve(process.cwd(), '..', 'knowgrph-video-demo.md'), 'utf8')
-    const videoFile = createFile('knowgrph-video-demo.md', videoText)
+    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const videoFile = createFile(KNOWGRPH_VIDEO_DEMO_BASENAME, videoText)
     const videoImport = await importWorkspaceLocalFiles({ fs, files: [videoFile], parentPath: '/' })
     const importedVideoPath = String(videoImport.createdPaths[0] || '').trim()
     if (!importedVideoPath) {

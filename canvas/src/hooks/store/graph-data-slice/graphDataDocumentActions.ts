@@ -5,12 +5,14 @@ import { isJsonValue } from '@/lib/graph/jsonValue'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersistence'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
+import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import {
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
   withGraphDataRevision,
 } from '@/hooks/store/graphDataSliceUtils'
-import { findSourceFileForMarkdownDocument } from './graphDataFrontmatterFlowSync'
 
 export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   return ({
@@ -138,7 +140,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
 
     if (!shouldApply) return false
 
-    const exactSourceFile = findSourceFileForMarkdownDocument(state, nextName)
+    const exactSourceFile = state.sourceFiles.find(file => String(file?.name || '').trim() === nextName) || null
     if (exactSourceFile) {
       const nextSourceText = nextText
       if (
@@ -154,16 +156,69 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           }),
         })
       }
-      const mod = (await import('@/features/source-files/sourceFilesIngestIntegration')) as typeof import('@/features/source-files/sourceFilesIngestIntegration')
-      await mod.parseAndApplySourceFile(exactSourceFile.id)
-      const latest = get().sourceFiles.find(file => file.id === exactSourceFile.id) || null
-      const parsedGraph = latest?.parsedGraphData || null
-      return !!(parsedGraph && ((parsedGraph.nodes || []).length > 0 || (parsedGraph.edges || []).length > 0))
     }
 
     const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
-    const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: true, syncMarkdownDocument: false })
-    return !!(res?.graphData && ((res.graphData.nodes || []).length > 0 || (res.graphData.edges || []).length > 0))
+    const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: false, syncMarkdownDocument: false })
+    const parsedGraph = res?.graphData || null
+    const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
+    applyCanvasFrontmatterPreset({
+      graphData: parsedGraph,
+      rawText: nextText,
+    })
+    const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(nextText)
+    const strictFlowEditorPreset =
+      parsedTextPreset?.canvasSurfaceMode === '2d' &&
+      parsedTextPreset?.canvas2dRenderer === 'flowEditor' &&
+      parsedTextPreset?.documentSemanticMode === 'document' &&
+      parsedTextPreset?.frontmatterModeEnabled === true
+    if (strictFlowEditorPreset) {
+      const nextState = get()
+      if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)
+      nextState.setCanvasRenderMode('2d')
+      nextState.setCanvas2dRenderer('flowEditor')
+      nextState.setDocumentSemanticMode('document')
+      nextState.setFrontmatterModeEnabled(true)
+    }
+    if (parsedGraph) {
+      get().setGraphData(parsedGraph)
+      const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
+      applyFrontmatterFlowImportModes(parsedGraph)
+      const afterApplyState = get()
+      const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
+        canvasRenderMode: afterApplyState.canvasRenderMode,
+        canvas2dRenderer: afterApplyState.canvas2dRenderer,
+      })
+      if (enforceFrontmatterOnly) {
+        const parsedNodes = Array.isArray(parsedGraph.nodes) ? parsedGraph.nodes : []
+        const eligibleFlowWidgetNodeIds = buildFlowWidgetEligibleNodeIdSet(parsedNodes as any)
+        const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
+          const normalized = String(id || '').trim()
+          return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
+        }
+        const activeWidgetIds = Array.isArray(afterApplyState.openWidgetNodeIds) ? afterApplyState.openWidgetNodeIds : []
+        const sanitizedWidgetIds = activeWidgetIds
+          .map(id => String(id || '').trim())
+          .filter(isEligibleFlowWidgetNodeId)
+        afterApplyState.setOpenWidgetNodeIds(sanitizedWidgetIds)
+        const currentPinnedByNodeId = afterApplyState.flowWidgetPinnedByNodeId || {}
+        const nextPinnedByNodeId = Object.fromEntries(
+          Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
+        ) as Record<string, boolean>
+        afterApplyState.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
+        const currentPosByNodeId = afterApplyState.flowWidgetPosByNodeId || {}
+        const nextPosByNodeId = Object.fromEntries(
+          Object.entries(currentPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
+        ) as Record<string, { top: number; left: number }>
+        afterApplyState.setFlowWidgetPosByNodeId(nextPosByNodeId)
+        const currentWorldPosByNodeId = afterApplyState.flowWidgetWorldPosByNodeId || {}
+        const nextWorldPosByNodeId = Object.fromEntries(
+          Object.entries(currentWorldPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
+        ) as Record<string, { x: number; y: number }>
+        afterApplyState.setFlowWidgetWorldPosByNodeId(nextWorldPosByNodeId)
+      }
+    }
+    return !!(parsedGraph && ((parsedGraph.nodes || []).length > 0 || (parsedGraph.edges || []).length > 0))
   },
 
   setMarkdownTokens: (args: {

@@ -53,7 +53,9 @@ export function LaunchDropdown({
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
+  const [pdfMenuOpen, setPdfMenuOpen] = React.useState(false)
   const exportCloseTimeoutRef = React.useRef<number | null>(null)
+  const pdfCloseTimeoutRef = React.useRef<number | null>(null)
 
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
@@ -66,9 +68,14 @@ export function LaunchDropdown({
     if (!open) return
     setUrlInputOpen(false)
     setExportMenuOpen(false)
+    setPdfMenuOpen(false)
     if (exportCloseTimeoutRef.current != null) {
       window.clearTimeout(exportCloseTimeoutRef.current)
       exportCloseTimeoutRef.current = null
+    }
+    if (pdfCloseTimeoutRef.current != null) {
+      window.clearTimeout(pdfCloseTimeoutRef.current)
+      pdfCloseTimeoutRef.current = null
     }
   }, [open])
 
@@ -88,6 +95,25 @@ export function LaunchDropdown({
     exportCloseTimeoutRef.current = window.setTimeout(() => {
       exportCloseTimeoutRef.current = null
       setExportMenuOpen(false)
+    }, 180)
+  }, [])
+
+  const openPdfMenu = React.useCallback(() => {
+    if (pdfCloseTimeoutRef.current != null) {
+      window.clearTimeout(pdfCloseTimeoutRef.current)
+      pdfCloseTimeoutRef.current = null
+    }
+    setPdfMenuOpen(true)
+  }, [])
+
+  const scheduleClosePdfMenu = React.useCallback(() => {
+    if (pdfCloseTimeoutRef.current != null) {
+      window.clearTimeout(pdfCloseTimeoutRef.current)
+      pdfCloseTimeoutRef.current = null
+    }
+    pdfCloseTimeoutRef.current = window.setTimeout(() => {
+      pdfCloseTimeoutRef.current = null
+      setPdfMenuOpen(false)
     }, 180)
   }, [])
 
@@ -197,6 +223,13 @@ export function LaunchDropdown({
     UI_THEME_TOKENS.panel.border,
     'rounded shadow-md',
   )
+  const pdfExportMenuClass = cn(
+    'kg-launch-menu-root absolute left-full top-0 flex flex-col w-64 list-none m-0',
+    UI_THEME_TOKENS.panel.bg,
+    'border',
+    UI_THEME_TOKENS.panel.border,
+    'rounded shadow-md',
+  )
 
   const runExportAction = React.useCallback(
     (label: string, action: (() => void) | undefined) => {
@@ -209,6 +242,11 @@ export function LaunchDropdown({
     },
     [onClose, pushUiToast],
   )
+  const nonPdfExportItems = React.useMemo(
+    () => WORKSPACE_EXPORT_MENU_ITEMS.filter(item => item.id !== 'pdfPortrait' && item.id !== 'pdfLandscape'),
+    [],
+  )
+  const canExportPdf = Boolean(exportActions?.pdfPortrait || exportActions?.pdfLandscape)
 
   return (
     <>
@@ -479,7 +517,7 @@ export function LaunchDropdown({
               </button>
               {exportMenuOpen ? (
                 <menu className={exportMenuClass} aria-label="Export" onPointerEnter={openExportMenu} onPointerLeave={scheduleCloseExportMenu}>
-                  {WORKSPACE_EXPORT_MENU_ITEMS.map(item => (
+                  {nonPdfExportItems.map(item => (
                     <li key={item.id} className="list-none">
                       <button
                         type="button"
@@ -495,6 +533,47 @@ export function LaunchDropdown({
                       </button>
                     </li>
                   ))}
+                  {canExportPdf ? (
+                    <li className="list-none">
+                      <section className="relative" onPointerEnter={openPdfMenu} onPointerLeave={scheduleClosePdfMenu}>
+                        <button
+                          type="button"
+                          className={menuItemClass}
+                          onClick={() => {
+                            runExportAction('PDF Landscape', exportActions?.pdfLandscape || exportActions?.pdfPortrait)
+                          }}
+                        >
+                          <span className="truncate">PDF (.pdf) — Print…</span>
+                        </button>
+                        {pdfMenuOpen ? (
+                          <menu className={pdfExportMenuClass} aria-label="PDF export orientation" onPointerEnter={openPdfMenu} onPointerLeave={scheduleClosePdfMenu}>
+                            <li className="list-none">
+                              <button
+                                type="button"
+                                className={menuItemClass}
+                                onClick={() => {
+                                  runExportAction('PDF Portrait', exportActions?.pdfPortrait)
+                                }}
+                              >
+                                <span className="truncate">Portrait 9:16</span>
+                              </button>
+                            </li>
+                            <li className="list-none">
+                              <button
+                                type="button"
+                                className={menuItemClass}
+                                onClick={() => {
+                                  runExportAction('PDF Landscape', exportActions?.pdfLandscape)
+                                }}
+                              >
+                                <span className="truncate">Landscape 16:9</span>
+                              </button>
+                            </li>
+                          </menu>
+                        ) : null}
+                      </section>
+                    </li>
+                  ) : null}
                 </menu>
               ) : null}
             </section>

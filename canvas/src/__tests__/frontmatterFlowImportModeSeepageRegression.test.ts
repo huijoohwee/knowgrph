@@ -11,6 +11,11 @@ import { LS_KEYS } from '@/lib/config'
 import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { buildDocumentKey, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { lsBool } from '@/lib/persistence'
+import {
+  KNOWGRPH_VIDEO_DEMO_BASENAME,
+  KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
+  readDocsSsotFixtureText,
+} from '@/tests/lib/docsSsotFixture'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -379,7 +384,7 @@ export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatt
   ].join('\n')
 
   const ok = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: '/knowgrph-video-demo.md',
+    name: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
     text,
     normalizeMermaidMmd: false,
     autoEnableFrontmatter: false,
@@ -525,7 +530,7 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
   ].join('\n')
 
   const ok = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: '/knowgrph-video-demo.md',
+    name: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
     text,
     normalizeMermaidMmd: false,
     autoEnableFrontmatter: false,
@@ -534,7 +539,7 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
   if (ok !== true) throw new Error('expected passive active markdown document switch to complete')
 
   const st = useGraphStore.getState()
-  if (st.markdownDocumentName !== '/knowgrph-video-demo.md') {
+  if (st.markdownDocumentName !== KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH) {
     throw new Error(`expected passive active doc switch to update markdown document name, got ${String(st.markdownDocumentName)}`)
   }
   if (st.markdownDocumentText !== text) {
@@ -575,14 +580,14 @@ export function testInitializationWorkspaceSelectionPromotesAtomicGraphAndPreset
   if (!documentActionsText.includes('args?.applyViewPreset !== false && !args?.applyToGraph && text.trim()')) {
     throw new Error('expected active markdown document switching to defer raw frontmatter preset replay when graph apply is requested')
   }
-  if (!indexingText.includes('const shouldApplyInitializationDocumentLanding =')) {
-    throw new Error('expected workspace indexing to centralize initialization-file landing behind an explicit switch contract')
+  if (!indexingText.includes('const shouldApplyFrontmatterDrivenDocumentLanding =')) {
+    throw new Error('expected workspace indexing to centralize frontmatter-driven landing behind an explicit switch contract')
   }
-  if (!indexingText.includes('isInitializationWorkspacePath(path)')) {
-    throw new Error('expected initialization-file landing contract to target the shared workspace seed path helper')
+  if (!indexingText.includes('isInitializationWorkspacePath(path) || hasCanvasWorkspaceFrontmatterPreset')) {
+    throw new Error('expected frontmatter-driven landing contract to target initialization seed paths and explicit canvas frontmatter presets')
   }
   if (!indexingText.includes('applyViewPreset: true') || !indexingText.includes('applyToGraph: true') || !indexingText.includes('forceApplyToGraph: true')) {
-    throw new Error('expected initialization-file landing to atomically reapply both graph payload and canvas/document preset state')
+    throw new Error('expected frontmatter-driven landing to atomically reapply both graph payload and canvas/document preset state')
   }
   if (!indexingText.includes('} else {')) {
     throw new Error('expected initialization-file landing to skip only the passive preset-suppressed refresh branch')
@@ -609,7 +614,7 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
     }
 
     const readmeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'README.md'), 'utf8')
-    const videoText = fs.readFileSync(path.resolve(process.cwd(), '..', 'knowgrph-video-demo.md'), 'utf8')
+    const videoText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
     const geospatialText = fs.readFileSync(
       path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-maps-grabmap-multim-demo.md'),
       'utf8',
@@ -618,10 +623,10 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
       initialEntries: [
         { path: '/README.md', parentPath: '/', kind: 'file', name: 'README.md', text: readmeText, updatedAtMs: 1 },
         {
-          path: '/knowgrph-video-demo.md',
+          path: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
           parentPath: '/',
           kind: 'file',
-          name: 'knowgrph-video-demo.md',
+          name: KNOWGRPH_VIDEO_DEMO_BASENAME,
           text: videoText,
           updatedAtMs: 2,
         },
@@ -638,7 +643,7 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
     const workspaceEntries = await workspaceFs.listEntries()
 
     await materializeActiveWorkspaceEntryIntoSourceFiles({
-      activePathOverride: '/knowgrph-video-demo.md',
+      activePathOverride: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
       fs: workspaceFs,
       workspaceEntries,
       sourcesByPath: {},

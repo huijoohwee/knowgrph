@@ -2,8 +2,10 @@ import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } fro
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  CHAT_DEERFLOW_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_OPENAI,
   getDefaultChatModelForProvider,
   normalizeChatProviderId,
@@ -64,9 +66,13 @@ import {
   resolveOpenAiTextWidgetChatApiRowKey,
 } from '@/features/integrations/openaiResponsesSsot'
 import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
+import {
+  getDeerFlowApiRowAnchorId,
+  mapOpenAiRowKeyToDeerFlowRowKey,
+} from '@/features/panels/views/deerflowApiDocs'
 import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
 
-export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'zai'
+export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'deerflow'
 
 export type WidgetRegistryApiDocRef = {
   rowKey: string
@@ -99,11 +105,11 @@ const TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY: Readonly<Record<TextGeneration
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_OPENAI),
     widgetLabel: 'OpenAI Text Widget',
   },
-  zai: {
-    providerId: CHAT_PROVIDER_OPENAI,
-    defaultEndpointUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
-    defaultModel: 'glm-5.1',
-    widgetLabel: 'z.ai Text Widget',
+  deerflow: {
+    providerId: CHAT_PROVIDER_DEERFLOW,
+    defaultEndpointUrl: CHAT_DEERFLOW_ENDPOINT_URL,
+    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_DEERFLOW),
+    widgetLabel: 'DeerFlow Text Widget',
   },
 } as const
 
@@ -119,7 +125,7 @@ function hasTextGenerationOverrideValue(value: unknown): boolean {
 
 function getTextGenerationProviderProfile(providerFamily?: TextGenerationProviderFamily): TextGenerationProviderProfile {
   if (providerFamily === 'openai') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.openai
-  if (providerFamily === 'zai') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.zai
+  if (providerFamily === 'deerflow') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.deerflow
   return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.byteplus
 }
 
@@ -131,11 +137,11 @@ export function inferTextGenerationProviderFamily(args: {
   const provider = String(args.provider || '').trim().toLowerCase()
   const widgetTypeId = String(args.widgetTypeId || '').trim().toLowerCase()
   const formId = String(args.formId || '').trim().toLowerCase()
-  if (widgetTypeId.includes('z.ai') || widgetTypeId.includes('zai') || formId.includes('z.ai') || formId.includes('zai')) return 'zai'
+  if (widgetTypeId.includes('deerflow') || widgetTypeId.includes('deer-flow') || formId.includes('deerflow') || formId.includes('deer-flow')) return 'deerflow'
   if (widgetTypeId.includes('openai') || formId.includes('openai')) return 'openai'
   if (formId === FLOW_VIDEO_SCRIPT_FORM_ID.toLowerCase()) return 'byteplus'
   if (widgetTypeId.includes('byteplus') || formId.includes('byteplus') || formId === 'textgeneration') return 'byteplus'
-  if (provider.includes('z.ai') || provider.includes('zai')) return 'zai'
+  if (provider.includes('deerflow') || provider.includes('deer-flow')) return 'deerflow'
   if (provider.includes('openai')) return 'openai'
   if (provider.includes('byteplus') || provider.includes('modelark')) return 'byteplus'
   return 'byteplus'
@@ -196,15 +202,16 @@ export function resolveWidgetRegistryApiDocRef(args: {
       widgetTypeId: args.registryEntry?.widgetTypeId,
       formId: args.registryEntry?.formId,
     })
-    const rowKey = providerFamily === 'openai'
+    const rowKey = providerFamily === 'openai' || providerFamily === 'deerflow'
       ? resolveOpenAiTextWidgetChatApiRowKey({ schemaPath, fieldKey, portKey })
       : resolveBytePlusTextWidgetSharedTextApiRowKey({ schemaPath, fieldKey, portKey })
     if (!rowKey) return null
-    const row = providerFamily === 'openai'
+    const normalizedRowKey = providerFamily === 'deerflow' ? mapOpenAiRowKeyToDeerFlowRowKey(rowKey) : rowKey
+    const row = providerFamily === 'openai' || providerFamily === 'deerflow'
       ? getOpenAiApiDocRowByRowKey(rowKey)
       : getBytePlusSharedTextApiDocRowByRowKey(rowKey)
     const apiKey = String(row?.key || '').trim()
-    return apiKey ? { rowKey, apiKey } : null
+    return apiKey ? { rowKey: normalizedRowKey, apiKey } : null
   }
 
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
@@ -256,6 +263,8 @@ export function resolveWidgetRegistryMainPanelLink(args: {
       searchQuery: apiDocRef.rowKey,
       anchorId: providerFamily === 'openai'
         ? getOpenAiChatApiRowAnchorId(apiDocRef.rowKey)
+        : providerFamily === 'deerflow'
+          ? getDeerFlowApiRowAnchorId(apiDocRef.rowKey)
         : getBytePlusSharedTextApiRowAnchorId(apiDocRef.rowKey),
     }
   }
@@ -312,7 +321,7 @@ export function normalizeTextGenerationWidgetPropertiesForProviderFamily(args: {
   properties?: Record<string, unknown>
 }): Record<string, unknown> {
   const providerFamily: TextGenerationProviderFamily =
-    args.providerFamily === 'openai' ? 'openai' : args.providerFamily === 'zai' ? 'zai' : 'byteplus'
+    args.providerFamily === 'openai' ? 'openai' : args.providerFamily === 'deerflow' ? 'deerflow' : 'byteplus'
   const prev = { ...(args.properties || {}) }
   const profile = getTextGenerationProviderProfile(providerFamily)
   const rawProvider = String(prev.chatProvider || '').trim()
@@ -348,7 +357,7 @@ export function resolveEffectiveTextGenerationWidgetProperties(args: {
   globalProperties?: Record<string, unknown>
 }): Record<string, unknown> {
   const providerFamily: TextGenerationProviderFamily =
-    args.providerFamily === 'openai' ? 'openai' : args.providerFamily === 'zai' ? 'zai' : 'byteplus'
+    args.providerFamily === 'openai' ? 'openai' : args.providerFamily === 'deerflow' ? 'deerflow' : 'byteplus'
   const base = resolveTextGenerationGlobalDefaultsForProviderFamily({
     providerFamily,
     globalProperties: args.globalProperties,
@@ -556,7 +565,7 @@ export function buildTextGenerationRegistryDraft(args?: {
   formId?: string
 }): Omit<WidgetRegistryEntry, 'updatedAt'> {
   const providerFamily: TextGenerationProviderFamily =
-    args?.providerFamily === 'openai' ? 'openai' : args?.providerFamily === 'zai' ? 'zai' : 'byteplus'
+    args?.providerFamily === 'openai' ? 'openai' : args?.providerFamily === 'deerflow' ? 'deerflow' : 'byteplus'
   return {
     id: '',
     isEnabled: true,
@@ -565,7 +574,7 @@ export function buildTextGenerationRegistryDraft(args?: {
     formId: String(args?.formId || '').trim() || (providerFamily === 'byteplus' ? 'textGeneration' : `textGeneration.${providerFamily}`),
     fields: providerFamily === 'byteplus'
       ? buildBytePlusTextGenerationFields()
-      : buildOpenAiCompatibleTextGenerationFields({ providerFamily: providerFamily === 'zai' ? 'zai' : 'openai' }),
+      : buildOpenAiCompatibleTextGenerationFields({ providerFamily: providerFamily === 'deerflow' ? 'deerflow' : 'openai' }),
     ports: buildCommonTextGenerationPorts(),
     schemaMappings: [],
   }

@@ -101,6 +101,7 @@ export function useFlowEditorOverlayCollision(args: {
   getLiveNodeWorldPos: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform: () => { k: number; x: number; y: number } | null
   flowEditorSurfaceId?: string
+  graphContentRevision: number
 }) {
   const {
     editorRuntimeActive,
@@ -118,6 +119,7 @@ export function useFlowEditorOverlayCollision(args: {
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     flowEditorSurfaceId,
+    graphContentRevision,
   } = args
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
@@ -142,6 +144,7 @@ export function useFlowEditorOverlayCollision(args: {
   const queryActiveSurfaceOverlays = React.useCallback((selector: string): HTMLElement[] => {
     if (typeof document === 'undefined') return []
     const surfaceId = String(flowEditorSurfaceId || '').trim()
+    if (!surfaceId) return []
     const surfaceRoot = surfaceId
       ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeSelectorAttrValue(surfaceId)}"]`)
       : null
@@ -810,6 +813,7 @@ export function useFlowEditorOverlayCollision(args: {
     editorRuntimeActive,
     overlayOnlyModeEnabled,
     overlayTopologyLayoutSignature,
+    args.graphContentRevision,
     viewportH,
     viewportW,
     resetOverlayCollisionTransientState,

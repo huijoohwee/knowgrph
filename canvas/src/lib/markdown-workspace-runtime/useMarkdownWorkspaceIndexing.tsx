@@ -13,6 +13,7 @@ import {
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { getWorkspaceSeedFiles, isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
   isPendingLocalImportStubText,
@@ -235,11 +236,12 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 map.delete(oldest)
               }
             }
-            const shouldApplyInitializationDocumentLanding =
-              isInitializationWorkspacePath(path)
-              && !!args.activeDocumentKey
+            const hasCanvasWorkspaceFrontmatterPreset = !!parseCanvasWorkspaceFrontmatterPreset(nextText)
+            const shouldApplyFrontmatterDrivenDocumentLanding =
+              !!args.activeDocumentKey
               && nextText.trim().length > 0
-            if (shouldApplyInitializationDocumentLanding) {
+              && (isInitializationWorkspacePath(path) || hasCanvasWorkspaceFrontmatterPreset)
+            if (shouldApplyFrontmatterDrivenDocumentLanding) {
               pushWorkspaceTextToActiveMarkdownDocument({
                 activeDocumentKey: args.activeDocumentKey,
                 activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,

@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH } from '@/tests/lib/docsSsotFixture'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import { useMarkdownWorkspaceWidgetMode } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceWidgetMode'
 
@@ -63,7 +64,7 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
 
   try {
     await act(async () => {
-      root.render(React.createElement(Harness, { active: false, activePath: '/knowgrph-video-demo.md', graphContentRevision: 1 }))
+      root.render(React.createElement(Harness, { active: false, activePath: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH, graphContentRevision: 1 }))
       await tick(2)
     })
 
@@ -72,7 +73,7 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
     }
 
     await act(async () => {
-      root.render(React.createElement(Harness, { active: true, activePath: '/knowgrph-video-demo.md', graphContentRevision: 1 }))
+      root.render(React.createElement(Harness, { active: true, activePath: KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH, graphContentRevision: 1 }))
       await tick(2)
     })
 

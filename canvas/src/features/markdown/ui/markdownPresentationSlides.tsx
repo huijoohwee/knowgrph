@@ -240,7 +240,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
     uiPanelMonospaceTextClass,
     uiPanelMicroLabelTextSizeClass,
     mermaidFrontmatterConfig,
-    headerFooterPositionMode = 'viewport-fixed',
+    headerFooterPositionMode = 'slide-absolute',
   } = args
 
   if (!hasSlides) {
@@ -306,7 +306,7 @@ export const buildSlideBody = (args: BuildSlideBodyArgs): React.ReactNode => {
   const footerChromePx = hasFooterChrome ? sharedChromePx : 0
   
   let stickyHeadingTopPx = 0
-  if (headerNode && headerFooterPositionMode !== 'slide-flow') {
+  if (headerNode && headerFooterPositionMode === 'viewport-fixed') {
     stickyHeadingTopPx = headerChromePx
   }
 

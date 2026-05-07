@@ -7,19 +7,24 @@ export const CHAT_BYTEPLUS_COMPLETIONS_PATH = '/api/v3/chat/completions'
 export const CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH = '/api/v3/images/generations'
 export const CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH = '/api/v3/contents/generations/tasks'
 export const CHAT_OPENAI_RESPONSES_PATH = '/v1/responses'
+export const CHAT_DEERFLOW_CHAT_COMPLETIONS_PATH = '/api/llm/chat/completions'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 export const CHAT_OPENAI_HOST = 'api.openai.com'
+export const CHAT_DEERFLOW_LOCAL_HOST = 'localhost'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_BASE = `https://${CHAT_BYTEPLUS_AP_SOUTHEAST_HOST}`
 export const CHAT_BYTEPLUS_EU_WEST_BASE = `https://${CHAT_BYTEPLUS_EU_WEST_HOST}`
 export const CHAT_OPENAI_BASE = `https://${CHAT_OPENAI_HOST}`
+export const CHAT_DEERFLOW_LOCAL_BASE = 'http://localhost:8001'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL = `${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL = `${CHAT_BYTEPLUS_EU_WEST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_RESPONSES_PATH}`
+export const CHAT_DEERFLOW_ENDPOINT_URL = `${CHAT_DEERFLOW_LOCAL_BASE}${CHAT_DEERFLOW_CHAT_COMPLETIONS_PATH}`
 export const CHAT_PROVIDER_OPENAI = 'openai'
 export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
+export const CHAT_PROVIDER_DEERFLOW = 'deerflow'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
-export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_LM_STUDIO] as const
+export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
 export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-mini-260215'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
@@ -47,6 +52,7 @@ export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
   ...CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
 ] as const
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5'] as const
+export const CHAT_DEERFLOW_MODEL_OPTIONS = CHAT_OPENAI_MODEL_OPTIONS
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
 export const CHAT_DEFAULT_MODEL = CHAT_OPENAI_MODEL_OPTIONS[0]
@@ -64,6 +70,7 @@ const CHAT_MODEL_ALIASES: Record<string, string> = {
 }
 const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_BYTEPLUS]: 'BytePlus ModelArk',
+  [CHAT_PROVIDER_DEERFLOW]: 'DeerFlow Gateway',
   [CHAT_PROVIDER_OPENAI]: 'OpenAI',
   [CHAT_PROVIDER_LM_STUDIO]: 'Local Gateway',
 }
@@ -91,6 +98,7 @@ const isTrustedBytePlusHost = (hostname: string): boolean => {
 const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_AP_SOUTHEAST_BASE
+  if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_LOCAL_BASE
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_BASE
   return null
 }
@@ -98,6 +106,7 @@ const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
 const getProviderDefaultEndpointUrl = (provider: unknown): string => {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL
+  if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_ENDPOINT_URL
   return `${CHAT_PROXY_PATH_PREFIX}${CHAT_COMPLETIONS_PATH}`
 }
@@ -121,6 +130,9 @@ const toProxyPathFromLocalUrl = (url: URL): string => {
 const replaceCompletionsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/api\/llm\/chat\/completions\/?$/i.test(normalized)) {
+    return normalized.replace(/\/api\/llm\/chat\/completions\/?$/i, '/api/models')
+  }
   if (/\/v1\/responses\/?$/i.test(normalized)) {
     return '/v1/models'
   }
@@ -136,6 +148,9 @@ const replaceCompletionsPath = (path: string): string => {
 const toModelsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/api\/llm\/chat\/completions\/?$/i.test(normalized)) {
+    return normalized.replace(/\/api\/llm\/chat\/completions\/?$/i, '/api/models')
+  }
   if (/\/v1\/responses\/?$/i.test(normalized)) {
     return '/v1/models'
   }
@@ -163,6 +178,7 @@ export function normalizeChatModelId(value: unknown): string {
 export function normalizeChatProviderId(value: unknown): ChatProviderId {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
   if (raw === CHAT_PROVIDER_BYTEPLUS || raw === 'byteplus' || raw === 'modelark') return CHAT_PROVIDER_BYTEPLUS
+  if (raw === CHAT_PROVIDER_DEERFLOW || raw === 'deer-flow' || raw === 'deerflow-gateway') return CHAT_PROVIDER_DEERFLOW
   if (raw === CHAT_PROVIDER_OPENAI) return CHAT_PROVIDER_OPENAI
   if (raw === CHAT_PROVIDER_LM_STUDIO) return CHAT_PROVIDER_LM_STUDIO
   return CHAT_DEFAULT_PROVIDER
@@ -171,6 +187,7 @@ export function normalizeChatProviderId(value: unknown): ChatProviderId {
 export function getChatModelOptions(provider: unknown): readonly string[] {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_MODEL_OPTIONS
+  if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return CHAT_LOCAL_MODEL_OPTIONS
   return CHAT_OPENAI_MODEL_OPTIONS
 }
@@ -182,6 +199,7 @@ export function getChatProviderLabel(provider: unknown): string {
 export function getChatProviderRegionLabel(provider: unknown, endpointUrl?: unknown): string {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return 'Global'
+  if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return 'Local'
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return 'Local'
   const upstream = resolveChatUpstreamBaseForProxy(endpointUrl, normalizedProvider)
   const host = (() => {
@@ -338,6 +356,9 @@ export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknow
     if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
       return isTrustedOpenAiHost(parsed.hostname) ? parsed.origin : null
     }
+    if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) {
+      return isLocalHost(parsed.hostname) ? parsed.origin : null
+    }
     if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
       return isTrustedBytePlusHost(parsed.hostname) ? parsed.origin : null
     }
@@ -375,6 +396,9 @@ export function getChatRecommendedModelHint(provider: unknown): string {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
     return `Default text: ${CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT}. Image Run uses ${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT}; video Run uses ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}.`
+  }
+  if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) {
+    return 'Use a DeerFlow-configured model id; endpoint defaults to the local DeerFlow Gateway OpenAI-compatible surface.'
   }
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
     return 'Use an OpenAI model id and keep API keys server-routed through the proxy.'

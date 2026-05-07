@@ -6305,6 +6305,7 @@
     "modules": [
       "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts",
+      "canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
     ],
@@ -9205,6 +9206,7 @@
     "modules": [
       "canvas/src/features/settings/registry-presets.ts",
       "canvas/src/hooks/store/canvasSlice.ts",
+      "canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts",
       "canvas/src/hooks/store/schemaSlice.ts"

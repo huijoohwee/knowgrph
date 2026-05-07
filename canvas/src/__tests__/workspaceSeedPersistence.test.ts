@@ -14,6 +14,7 @@ import {
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
   LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
@@ -137,7 +138,7 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
           path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
           parentPath: '/',
           kind: 'file',
-          name: 'knowgrph-video-demo.md',
+          name: TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
           text: [
             '---',
             'kgCanvas2dRenderer: "flowEditor"',

@@ -25,6 +25,7 @@ import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 import type { GraphNode } from '@/lib/graph/types'
+import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
   const docPath = resolveMarkdownSlideDemoDocumentPath() || 'sandbox/demo/markdown-slide-demo.md'
@@ -65,7 +66,7 @@ const readKnowgrphVideoDemoPath = (): string => {
     ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH.trim()
     : ''
   if (envPath) return envPath
-  return path.resolve(process.cwd(), '..', 'knowgrph-video-demo.md')
+  return resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
 }
 
 const readKnowgrphVideoDemoSeededPath = (): string => {

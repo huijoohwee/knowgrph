@@ -16,7 +16,6 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
-const FLOW_WIDGET_FORM_ID_KEY_LEGACY = 'flow:widgetFormId' as const
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -77,9 +76,7 @@ const normalizeOpenWidgetNodeIds = (ids: string[], graphData: GraphState['graphD
     const explicitFormId =
       typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string'
         ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
-        : typeof props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] === 'string'
-          ? String(props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] || '').trim()
-          : ''
+        : ''
     const expectedFormId = explicitFormId || `fm:${id}`
     return allowedFormIds.has(expectedFormId)
   })

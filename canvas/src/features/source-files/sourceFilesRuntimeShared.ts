@@ -17,6 +17,7 @@ import {
   isInitializationWorkspacePath,
   resolveWorkspaceStartupActivePath,
 } from '@/features/workspace-fs/workspaceFs'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 export function resolveMaterializedWorkspaceActivePath(args?: {
   activePathOverride?: WorkspacePath | null
@@ -100,6 +101,15 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     fs,
     workspaceEntries: args?.workspaceEntries,
   })
+  const activeWorkspaceEntry = workspaceEntries.find(
+    entry => entry.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath,
+  )
+  const activeWorkspaceText = (() => {
+    if (!activeWorkspaceEntry || activeWorkspaceEntry.kind !== 'file') return ''
+    return typeof activeWorkspaceEntry.text === 'string' ? activeWorkspaceEntry.text : ''
+  })()
+  const activePathHasCanvasWorkspacePreset = !!parseCanvasWorkspaceFrontmatterPreset(activeWorkspaceText)
+  const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath) || activePathHasCanvasWorkspacePreset
   const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)
   const store = useGraphStore.getState()
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
@@ -114,22 +124,20 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   if (merged !== existing) {
     store.setSourceFiles(merged)
   }
-  const preserveCanonicalInitializationLanding =
-    args?.applyToGraph === true &&
-    isInitializationWorkspacePath(activePath)
+  const preserveFrontmatterDrivenLanding = shouldApplyToGraph && (isInitializationWorkspacePath(activePath) || activePathHasCanvasWorkspacePreset)
   const materialized = await applyWorkspaceImportToCanvas({
     fs,
     createdPaths: [activePath],
     opts: {
       workspaceEntries,
       sourcesByPath,
-      applyToGraph: args?.applyToGraph === true,
-      skipComposedGraphApply: preserveCanonicalInitializationLanding,
+      applyToGraph: shouldApplyToGraph,
+      skipComposedGraphApply: preserveFrontmatterDrivenLanding,
     },
   })
   if (
-    !preserveCanonicalInitializationLanding &&
-    args?.applyToGraph === true &&
+    !preserveFrontmatterDrivenLanding &&
+    shouldApplyToGraph &&
     (materialized.parsedCount > 0 || materialized.enabledCount > 0)
   ) {
     scheduleApplyComposedGraphFromSourceFiles()

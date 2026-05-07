@@ -54,6 +54,7 @@ export type FlowCanvasProps = {
 
 export type FlowCanvasInteractionRuntimeProps = {
   active: boolean
+  flowEditorSurfaceId?: string
   allowMutations: boolean
   schema: GraphSchema | null
   runtimeRef: React.MutableRefObject<FlowNativeRuntime | null>

@@ -172,6 +172,43 @@ const isStandaloneTextUrlParagraph = (token: Token): string | null => {
   return raw
 }
 
+const getStandaloneLinkedImageParagraph = (
+  token: Token,
+): { linkHref: string; imageHref: string; imageAlt: string } | null => {
+  const p = token as unknown as TokensParagraph
+  const inner = Array.isArray(p.tokens) ? p.tokens : []
+  const meaningful = inner.filter(t => {
+    const type = String((t as unknown as { type?: unknown }).type || '')
+    if (type === 'space' || type === 'br' || type === 'softbreak') return false
+    if (type === 'text') return String((t as unknown as TokensText).text || '').trim().length > 0
+    return true
+  })
+  if (meaningful.length !== 1) return null
+  const only = meaningful[0] as unknown as TokensGeneric
+  if (only.type !== 'link') return null
+  const link = only as unknown as TokensLink
+  const linkHref = String(link.href || '').trim()
+  if (!linkHref || !isAbsoluteWebUrl(linkHref) || !isSafeHref(linkHref)) return null
+  const linkTokens = Array.isArray(link.tokens) ? link.tokens : []
+  const mediaTokens = linkTokens.filter(t => {
+    const type = String((t as unknown as { type?: unknown }).type || '')
+    if (type === 'space' || type === 'br' || type === 'softbreak') return false
+    if (type === 'text') return String((t as unknown as TokensText).text || '').trim().length > 0
+    return true
+  })
+  if (mediaTokens.length !== 1) return null
+  const media = mediaTokens[0] as unknown as TokensGeneric
+  if (media.type !== 'image') return null
+  const image = media as unknown as TokensImage
+  const imageHref = String(image.href || '').trim()
+  if (!imageHref || !isSafeHref(imageHref)) return null
+  return {
+    linkHref,
+    imageHref,
+    imageAlt: String(image.text || '').trim() || imageHref,
+  }
+}
+
 const isBlockHtmlToken = (t: Token): boolean => {
   const tt = t as unknown as { type?: unknown; text?: unknown; raw?: unknown }
   if (tt.type !== 'html') return false
@@ -359,6 +396,24 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     targetEndLine: endLine,
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
+
+  const standaloneLinkedImage = getStandaloneLinkedImageParagraph(t as unknown as Token)
+  if (standaloneLinkedImage) {
+    const resolvedImageHref = resolveHref(standaloneLinkedImage.imageHref, opts.activeDocumentPath)
+    return (
+      <MediaWrapper
+        type="image"
+        srcRaw={standaloneLinkedImage.linkHref}
+        startLine={t.startLine}
+        endLine={endLine}
+        highlightClass={highlightClass}
+        highlightStyle={highlightStyle}
+        opts={opts}
+      >
+        <MediaImage src={resolvedImageHref} alt={standaloneLinkedImage.imageAlt} />
+      </MediaWrapper>
+    )
+  }
 
   const standaloneHref = isStandaloneLinkParagraph(t as unknown as Token) || isStandaloneTextUrlParagraph(t as unknown as Token)
   if (standaloneHref && isSafeHref(standaloneHref) && isAbsoluteWebUrl(standaloneHref)) {

@@ -14,6 +14,11 @@ export { ensureSessionTabId, readInitialSessionTabId } from './uiSettingsSliceSe
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
+const STARTUP_DOCUMENT_MODE_DEFAULTS = {
+  frontmatterModeEnabled: true,
+  documentSemanticMode: 'document' as const,
+}
+
 export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   const readers = createUiStorageReaders()
   const { lsInt, storage } = readers
@@ -34,5 +39,6 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     ...createUiSettingsCoreState(set, themeMode, resolvedThemeMode, keywordDefaults),
     ...createUiSettingsModeActions(set, get, keywordDefaults),
     ...createUiSettingsDataTableSlice(set),
+    ...STARTUP_DOCUMENT_MODE_DEFAULTS,
   }
 }

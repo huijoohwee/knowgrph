@@ -8,6 +8,7 @@ import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { isCanonicalFrontmatterBuiltInWidgetNode } from '@/lib/flowEditor/widgetPlacementAuthority'
@@ -159,6 +160,27 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     next.push(id)
   }
   return next.sort(compareNodeIdsByVisualIndex)
+}
+
+export function filterGraphByExcludedNodeIds(args: {
+  graphData: GraphData | null | undefined
+  excludedNodeIds: ReadonlyArray<string> | null | undefined
+}): GraphData | null {
+  const graphData = args.graphData
+  if (!graphData) return null
+  const excludedNodeIds = Array.from(new Set((args.excludedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
+  if (excludedNodeIds.length === 0) return graphData
+  const excluded = new Set(excludedNodeIds)
+  const nodes = Array.isArray(graphData.nodes)
+    ? graphData.nodes.filter(node => !excluded.has(String(node?.id || '').trim()))
+    : []
+  const edges = Array.isArray(graphData.edges)
+    ? graphData.edges.filter(edge => {
+      const { src, tgt } = readGraphEdgeEndpoints(edge)
+      return Boolean(src && tgt && !excluded.has(src) && !excluded.has(tgt))
+    })
+    : []
+  return { ...graphData, nodes, edges }
 }
 
 function isFlowEditorOverlayExcludedNode(node: GraphNode | null | undefined): boolean {

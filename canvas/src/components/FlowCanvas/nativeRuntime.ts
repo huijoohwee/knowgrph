@@ -921,7 +921,12 @@ const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime, groupAabbById: Map<string
 
 const drawEdgeLabels = (
   rt: FlowNativeRuntime,
-  args: { selectedEdgeIds: Set<string>; routingObstacles: Rect[] | null; groupAabbById: Map<string, FlowGroupAabb> | null },
+  args: {
+    selectedEdgeIds: Set<string>
+    routingObstacles: Rect[] | null
+    groupAabbById: Map<string, FlowGroupAabb> | null
+    hiddenNodeIds: Set<string>
+  },
 ) => {
   const scene = rt.scene
   if (!scene) return
@@ -943,6 +948,7 @@ const drawEdgeLabels = (
   const blockers: AabbRect[] = []
   for (let i = 0; i < scene.nodes.length; i += 1) {
     const n = scene.nodes[i]
+    if (args.hiddenNodeIds.has(n.id)) continue
     const cx = n.x + n.width / 2
     const cy = n.y + n.height / 2
     blockers.push({ x: cx, y: cy, halfW: n.width / 2 + 4, halfH: n.height / 2 + 4 })
@@ -1001,6 +1007,7 @@ const drawEdgeLabels = (
     const s = scene.nodeById.get(e.source)
     const t = scene.nodeById.get(e.target)
     if (!s || !t) continue
+    if (args.hiddenNodeIds.has(s.id) || args.hiddenNodeIds.has(t.id)) continue
 
     const sPct = portHandlesEnabled ? ((s.outHandleTopPctById[e.outHandleId] ?? 50) as number) : 50
     const tPct = portHandlesEnabled ? ((t.inHandleTopPctById[e.inHandleId] ?? 50) as number) : 50
@@ -1424,6 +1431,7 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       const s = scene.nodeById.get(e.source)
       const t = scene.nodeById.get(e.target)
       if (!s || !t) continue
+      if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
       drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
     }
 
@@ -1448,9 +1456,10 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       const s = scene.nodeById.get(e.source)
       const t = scene.nodeById.get(e.target)
       if (!s || !t) continue
+      if (hiddenNodeIds.has(s.id) || hiddenNodeIds.has(t.id)) continue
       drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
     }
-    drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById })
+    drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById, hiddenNodeIds })
   }
 
   if (selectedGroupId) drawGroupResizeHandleOverlay(rt, { groupAabbById, selectedGroupId, enabled: showGroupResizeHandle })
