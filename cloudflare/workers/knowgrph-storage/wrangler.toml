@@ -1,0 +1,12 @@
+name = "knowgrph-storage"
+main = "cloudflare/workers/knowgrph-storage/index.ts"
+compatibility_date = "2026-05-07"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "knowgrph-storage"
+database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+migrations_dir = "../../d1/migrations"
