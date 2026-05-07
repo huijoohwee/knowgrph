@@ -559,6 +559,7 @@ export async function exportViewerPdf(args: {
       ? root
       : root.querySelector?.('[data-testid="markdown-presentation-root"]')
   ) as HTMLElement | null
+  const orientation = args.orientation || 'portrait'
   const presentationSurface = !!presentationSurfaceEl
   try {
     if (presentationSurfaceEl && presentationDeckTarget) {
@@ -576,7 +577,6 @@ export async function exportViewerPdf(args: {
   else if (target === articleTarget) targetPath = 'viewer-article'
   else if (target === markdownFallbackTarget) targetPath = 'markdown-fallback'
   const isDev = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.DEV)
-  const orientation = args.orientation || 'portrait'
   const surfaceKind: PdfSurfaceKind = presentationSurface ? 'presentation' : 'split-viewer'
   const surfacePrintPolicy = resolveSurfacePrintPolicy(surfaceKind, orientation)
   if (isDev) {

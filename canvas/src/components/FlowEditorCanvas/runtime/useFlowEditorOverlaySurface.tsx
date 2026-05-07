@@ -610,7 +610,7 @@ export function useFlowEditorOverlaySurface(args: {
     if (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow') return renderGraphDataOverride
     const excludedNodeIds =
       renderGraphPlacementContext?.isFrontmatterFlow === true
-        ? renderGraphPlacementContext.frontmatterOverlayNodeIds
+        ? frontmatterOverlayHideSafety.visibleNodeIds
         : overlayEditorNodeIdsSnapshot
     return filterGraphByExcludedNodeIds({
       graphData: renderGraphDataOverride,
@@ -618,6 +618,7 @@ export function useFlowEditorOverlaySurface(args: {
     })
   }, [
     frontmatterOverlayHideSafety.kind,
+    frontmatterOverlayHideSafety.visibleNodeIds,
     overlayEditorNodeIdsSnapshot,
     renderGraphDataOverride,
     renderGraphPlacementContext,

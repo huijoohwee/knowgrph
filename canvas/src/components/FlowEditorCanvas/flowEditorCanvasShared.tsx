@@ -101,7 +101,16 @@ export function deriveFlowEditorViewGraph(args: {
 }): GraphData | null {
   const base = args.graphData
   if (!base) return null
-  const filtered = args.forceFrontmatterFlow === true ? filterGraphToFlowWidgetEligible(base) : base
+  const filteredByPolicy = args.forceFrontmatterFlow === true ? filterGraphToFlowWidgetEligible(base) : base
+  const filtered = (() => {
+    if (args.forceFrontmatterFlow !== true || !isFrontmatterFlowGraph(filteredByPolicy)) return filteredByPolicy
+    const frontmatterOverlayNodeIds = deriveFrontmatterFlowOverlayNodeIds(filteredByPolicy)
+    if (frontmatterOverlayNodeIds.length === 0) return filteredByPolicy
+    return filterGraphByIncludedNodeIds({
+      graphData: filteredByPolicy,
+      includedNodeIds: frontmatterOverlayNodeIds,
+    })
+  })()
   if (!Array.isArray(args.collapsedGroupIds) || args.collapsedGroupIds.length === 0) return filtered
   return deriveGraphDataWithGroupCollapse({
     graphData: filtered,
@@ -178,6 +187,27 @@ export function filterGraphByExcludedNodeIds(args: {
     ? graphData.edges.filter(edge => {
       const { src, tgt } = readGraphEdgeEndpoints(edge)
       return Boolean(src && tgt && !excluded.has(src) && !excluded.has(tgt))
+    })
+    : []
+  return { ...graphData, nodes, edges }
+}
+
+export function filterGraphByIncludedNodeIds(args: {
+  graphData: GraphData | null | undefined
+  includedNodeIds: ReadonlyArray<string> | null | undefined
+}): GraphData | null {
+  const graphData = args.graphData
+  if (!graphData) return null
+  const includedNodeIds = Array.from(new Set((args.includedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
+  if (includedNodeIds.length === 0) return { ...graphData, nodes: [], edges: [] }
+  const included = new Set(includedNodeIds)
+  const nodes = Array.isArray(graphData.nodes)
+    ? graphData.nodes.filter(node => included.has(String(node?.id || '').trim()))
+    : []
+  const edges = Array.isArray(graphData.edges)
+    ? graphData.edges.filter(edge => {
+      const { src, tgt } = readGraphEdgeEndpoints(edge)
+      return Boolean(src && tgt && included.has(src) && included.has(tgt))
     })
     : []
   return { ...graphData, nodes, edges }

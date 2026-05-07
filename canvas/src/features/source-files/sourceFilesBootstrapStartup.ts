@@ -4,6 +4,7 @@ import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentPars
 import {
   buildMaterializedWorkspaceActivePathKey,
   buildMaterializedWorkspaceForceIncludePaths,
+  hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
@@ -14,6 +15,7 @@ import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sou
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import type { SourceFilesWorkspaceState } from '@/features/source-files/sourceFilesWorkspaceState'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 
 export function restoreBootstrapPersistedSourceFiles(args: {
   persistedSourceFiles: unknown[]
@@ -37,6 +39,11 @@ export async function runBootstrapSourceFileHydration(): Promise<void> {
 
 export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string> {
   const startup = await resolveInitialWorkspaceStartupState()
+  const fs = await getWorkspaceFs()
+  const hydratedEntries = await hydrateWorkspaceEntriesInlineText({
+    fs,
+    workspaceEntries: startup.workspaceEntries,
+  })
   const startupActivePath = resolveMaterializedWorkspaceActivePath({
     activePathOverride: startup.activePath,
   })
@@ -45,7 +52,7 @@ export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   const merged = mergeWorkspaceEntriesIntoSourceFiles({
     existing,
-    workspaceEntries: startup.workspaceEntries,
+    workspaceEntries: hydratedEntries,
     sourcesByPath: startupSourcesByPath,
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: startupActivePath,
@@ -56,7 +63,7 @@ export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string
   }
   await materializeActiveWorkspaceEntryIntoSourceFiles({
     activePathOverride: startupActivePath,
-    workspaceEntries: readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries),
+    workspaceEntries: readReusableWorkspaceEntriesSnapshot(hydratedEntries),
     sourcesByPath: startupSourcesByPath,
     applyToGraph: true,
   })

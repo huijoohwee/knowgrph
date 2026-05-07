@@ -9,7 +9,8 @@ import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sou
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
-import { buildMaterializedWorkspaceForceIncludePaths } from '@/features/source-files/sourceFilesRuntimeShared'
+import { buildMaterializedWorkspaceForceIncludePaths, hydrateWorkspaceEntriesInlineText } from '@/features/source-files/sourceFilesRuntimeShared'
+import { readEnvString } from '@/lib/config.env'
 import { persistMarkdownExplorerChromeState } from '@/features/markdown/ui/markdownExplorerChromePersistence'
 import { persistMarkdownExplorerModePreferences } from '@/features/markdown/ui/markdownExplorerModePreferencesPersistence'
 import { persistMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
@@ -35,6 +36,19 @@ import {
 } from './markdownWorkspaceRuntime.shared'
 import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
+
+const WORKSPACE_SEED_SYNC_ENABLED = (() => {
+  const raw = String(readEnvString('VITE_WORKSPACE_SEED_SYNC_ENABLED', 'true') || '')
+    .trim()
+    .toLowerCase()
+  if (!raw) return true
+  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
+})()
+const WORKSPACE_SEED_SYNC_POLL_MS = (() => {
+  const raw = Number.parseInt(readEnvString('VITE_WORKSPACE_SEED_SYNC_POLL_MS', '3000'), 10)
+  if (!Number.isFinite(raw)) return 3000
+  return Math.min(60_000, Math.max(1000, raw))
+})()
 
 export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntimeInteractionStatusBindings & {
   active: boolean
@@ -64,6 +78,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
   const workspaceFsRef = React.useRef<Awaited<ReturnType<typeof getWorkspaceFs>> | null>(null)
   const refreshInFlightRef = React.useRef(false)
   const refreshQueuedRef = React.useRef(false)
+  const seedSyncInFlightRef = React.useRef(false)
 
   const getFs = React.useCallback(async () => {
     const existing = workspaceFsRef.current
@@ -95,7 +110,11 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       const fs = await getFs()
       await fs.ensureSeed()
       const list = await fs.listEntries()
-      const pruned = pruneWorkspaceEntriesForInlineSnapshot(list)
+      const hydratedList = await hydrateWorkspaceEntriesInlineText({
+        fs,
+        workspaceEntries: list,
+      })
+      const pruned = pruneWorkspaceEntriesForInlineSnapshot(hydratedList)
       runtime.setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))
       const sources = resolveWorkspaceSourceIndexSnapshot(undefined)
       runtime.setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))
@@ -188,6 +207,42 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       unsubscribe()
     }
   }, [args.active, refresh])
+
+  React.useEffect(() => {
+    if (!args.active || !WORKSPACE_SEED_SYNC_ENABLED) return
+    if (typeof window === 'undefined') return
+    let stopped = false
+    const ensureSeedTick = async () => {
+      if (stopped || seedSyncInFlightRef.current) return
+      const runtime = runtimeRef.current
+      if (runtime.viewerInlineEditActiveRef.current) return
+      seedSyncInFlightRef.current = true
+      try {
+        const fs = await getFs()
+        await fs.ensureSeed()
+      } catch {
+        void 0
+      } finally {
+        seedSyncInFlightRef.current = false
+      }
+    }
+    const onWake = () => {
+      if (document.visibilityState === 'hidden') return
+      void ensureSeedTick()
+    }
+    void ensureSeedTick()
+    const timer = window.setInterval(() => {
+      void ensureSeedTick()
+    }, WORKSPACE_SEED_SYNC_POLL_MS)
+    window.addEventListener('focus', onWake)
+    document.addEventListener('visibilitychange', onWake)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+      window.removeEventListener('focus', onWake)
+      document.removeEventListener('visibilitychange', onWake)
+    }
+  }, [args.active, getFs])
 
   const persistWorkspacePrefsPendingRef = React.useRef<{
     sidebarWidthPx: number

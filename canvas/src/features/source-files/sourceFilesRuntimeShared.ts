@@ -10,6 +10,7 @@ import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/sy
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
@@ -57,6 +58,28 @@ export function readReusableWorkspaceEntriesSnapshot(
   workspaceEntries: WorkspaceEntry[] | null | undefined,
 ): WorkspaceEntry[] | undefined {
   return Array.isArray(workspaceEntries) && workspaceEntries.length > 0 ? workspaceEntries : undefined
+}
+
+export async function hydrateWorkspaceEntriesInlineText(args: {
+  fs: WorkspaceFs
+  workspaceEntries: WorkspaceEntry[]
+}): Promise<WorkspaceEntry[]> {
+  const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
+  if (entries.length === 0) return entries
+  let changed = false
+  const next = await Promise.all(
+    entries.map(async entry => {
+      if (!entry || entry.kind !== 'file' || typeof entry.text === 'string') return entry
+      const text = await args.fs.readFileText(entry.path)
+      if (typeof text !== 'string') return entry
+      changed = true
+      return {
+        ...entry,
+        text,
+      }
+    }),
+  )
+  return changed ? next : entries
 }
 
 export function buildInitialWorkspaceStartupSnapshot(args: {

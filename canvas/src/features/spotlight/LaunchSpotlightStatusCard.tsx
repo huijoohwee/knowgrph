@@ -15,6 +15,7 @@ import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWor
 import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 
 type FlowWidgetTraceEntry = {
   ts?: number
@@ -112,6 +113,25 @@ export function LaunchSpotlightStatusCard({
     const statusPhrase = status === 'invalid' ? 'completed with errors' : 'completed'
     return `Graph validation ${statusPhrase} ${timePhrase}`
   }, [graphValidationStatus, graphValidationTimestamp, graphData])
+  const [debugNowMs, setDebugNowMs] = React.useState(() => Date.now())
+  React.useEffect(() => {
+    const id = window.setInterval(() => {
+      setDebugNowMs(Date.now())
+    }, 1000)
+    return () => {
+      window.clearInterval(id)
+    }
+  }, [])
+  const workspaceSeedSyncDebugText = React.useMemo(() => {
+    const ts = __canvasStartupDebug.workspaceSeedLastSyncAtMs
+    const source = String(__canvasStartupDebug.workspaceSeedLastSyncSource || '').trim() || 'unknown'
+    if (!ts) return 'Seed sync: pending'
+    const diffMs = Math.max(0, debugNowMs - ts)
+    const diffSeconds = Math.floor(diffMs / 1000)
+    const diffMinutes = Math.floor(diffSeconds / 60)
+    const ageLabel = diffMinutes > 0 ? `${diffMinutes}m ago` : diffSeconds <= 2 ? 'just now' : `${diffSeconds}s ago`
+    return `Seed sync: ${ageLabel} · ${source}`
+  }, [debugNowMs])
 
   const ingestionMetricsRecord = React.useMemo(() => {
     if (!graphData || !graphData.metadata || typeof graphData.metadata !== 'object' || Array.isArray(graphData.metadata)) {
@@ -362,6 +382,7 @@ export function LaunchSpotlightStatusCard({
                   <div>
                     GraphData: {nodesCount.toLocaleString()} nodes · {edgesCount.toLocaleString()} edges
                   </div>
+                  <div className={`${UI_THEME_TOKENS.text.tertiary}`}>{workspaceSeedSyncDebugText}</div>
                   <div>Selected: {selectedLabel}</div>
                   {schemaImport ? <div>Import: {schemaImport}</div> : null}
                   {widgetTraceBadge ? (

@@ -728,3 +728,17 @@ export function testFrontmatterIngestPipelineDefersPresetReplayUntilGraphApply()
     throw new Error('expected workspace import pipeline to preserve frontmatter-driven canvas landing for parsed non-frontmatter-flow graphs')
   }
 }
+
+export function testWorkspaceInitializationSeedDefaultsStayRepoNeutral() {
+  const workspaceFsPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceFs.ts')
+  const text = fs.readFileSync(workspaceFsPath, 'utf8')
+  if (text.includes("'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',\n  'huijoohwee/docs'")) {
+    throw new Error('expected workspace initialization seed defaults to avoid sibling-repo hardcoded docs root')
+  }
+  if (!text.includes("const DEFAULT_WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS = ['docs/workspace-seeds', 'docs'] as const")) {
+    throw new Error('expected workspace initialization seed defaults to prefer repo-local docs paths')
+  }
+  if (!text.includes('buildInitializationSeedRelPathCandidates')) {
+    throw new Error('expected workspace initialization seed loader to support ordered candidate paths with fallback')
+  }
+}

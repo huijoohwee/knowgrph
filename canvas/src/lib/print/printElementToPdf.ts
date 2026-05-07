@@ -215,6 +215,8 @@ export async function printElementToPdf(
     root.style.padding = rootPaddingCss
 
     const clone = el.cloneNode(true) as HTMLElement
+    const cloneIsDeckRoot = clone.matches('[data-testid="markdown-presentation-print-deck"]')
+    const preferNativeLandscapeSlides = preservePresentationLayout && orientation === 'landscape' && cloneIsDeckRoot
     try {
       if (preservePresentationLayout) copyPresentationScrollableState(el, clone)
       else copyScrollableState(el, clone)
@@ -272,12 +274,12 @@ export async function printElementToPdf(
       void 0
     }
     try {
-      if (allowMediaMutation) await replaceYouTubeWebpageSnapshots(el, clone)
+      if (allowMediaMutation || preferNativeLandscapeSlides) await replaceYouTubeWebpageSnapshots(el, clone)
     } catch {
       void 0
     }
     try {
-      if (allowMediaMutation) replaceVideoSnapshots(el, clone)
+      if (allowMediaMutation || preferNativeLandscapeSlides) replaceVideoSnapshots(el, clone)
     } catch {
       void 0
     }
@@ -309,8 +311,6 @@ export async function printElementToPdf(
     root.appendChild(clone)
     document.body.appendChild(root)
     await waitForImagesToLoad(root, 5_000)
-    const cloneIsDeckRoot = clone.matches('[data-testid="markdown-presentation-print-deck"]')
-    const preferNativeLandscapeSlides = preservePresentationLayout && orientation === 'landscape' && cloneIsDeckRoot
     try {
       if (preservePresentationLayout) {
         // Deck-based export targets already encode slide geometry; forcing viewport-freeze
@@ -464,6 +464,25 @@ export async function printElementToPdf(
         #${printRootId}[data-kg-native-presentation-landscape="1"] [aria-label="Slide Document"] main {
           overflow: visible !important;
           max-height: none !important;
+        }
+        #${printRootId}[data-kg-native-presentation-landscape="1"] [data-kg-video-snapshot="1"],
+        #${printRootId}[data-kg-native-presentation-landscape="1"] [data-kg-webpage-snapshot="1"] {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          width: 100% !important;
+          overflow: visible !important;
+        }
+        #${printRootId}[data-kg-native-presentation-landscape="1"] [data-kg-video-snapshot="1"] img,
+        #${printRootId}[data-kg-native-presentation-landscape="1"] [data-kg-webpage-snapshot="1"] img,
+        #${printRootId}[data-kg-native-presentation-landscape="1"] img[data-kg-media-thumbnail="1"] {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          object-fit: contain !important;
         }
         #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-hr="1"],
         #${printRootId} [data-testid="markdown-presentation-print-deck"] [data-kg-page-break="1"] {

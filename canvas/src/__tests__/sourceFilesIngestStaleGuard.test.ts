@@ -161,6 +161,34 @@ export function testSourceFilesBootstrapResyncsOnlyOnActivePathChanges() {
   }
 }
 
+export function testSourceFilesBootstrapResyncsOnWorkspaceFsSeedChanges() {
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const text = readFileSync(bootstrapPath, 'utf8')
+  if (!text.includes("import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'")) {
+    throw new Error('expected source files bootstrap to subscribe to workspace-fs change events for seed-driven source-file rematerialization')
+  }
+  if (!text.includes("import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'")) {
+    throw new Error('expected source files bootstrap to resolve workspace fs directly for periodic ensureSeed sync')
+  }
+  if (!text.includes("if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return")) {
+    throw new Error('expected source files bootstrap to rematerialize workspace-backed source files only for canonical workspace-fs mutation operations')
+  }
+  if (!text.includes('await materializeActiveWorkspaceEntryIntoSourceFiles()')) {
+    if (!text.includes('await materializeActiveWorkspaceEntryIntoSourceFiles({')) {
+      throw new Error('expected source files bootstrap workspace-fs event handler to rematerialize source files through the shared upstream materialization path')
+    }
+  }
+  if (!text.includes('await fs.ensureSeed()')) {
+    throw new Error('expected source files bootstrap to periodically call ensureSeed for dynamic external docs seed reflection')
+  }
+  if (!text.includes('const workspaceEntries = await fs.listEntries()')) {
+    throw new Error('expected source files bootstrap workspace-fs event handler to refresh workspace entry snapshot from fs listEntries')
+  }
+  if (!text.includes('const merged = mergeWorkspaceEntriesIntoSourceFiles({')) {
+    throw new Error('expected source files bootstrap workspace-fs event handler to merge latest workspace entries into sourceFiles before rematerialization')
+  }
+}
+
 export function testSourceFilesBootstrapSchedulesComposeOnlyForCompositionSignatureChanges() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const helperPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesSignatures.ts')

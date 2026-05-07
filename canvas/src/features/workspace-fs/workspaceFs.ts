@@ -1,7 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
-import { buildCodebaseFilePath } from '@/lib/url'
+import { readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 
 const notifyWorkspaceFsDegraded = async (err: unknown) => {
   try {
@@ -244,34 +244,53 @@ export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
   LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
 ])
-export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
-  'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',
-  'huijoohwee/docs',
-)
-const buildInitializationSeedRelPath = (basename: string): string => {
-  const root = String(WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH || '')
+const normalizeInitializationSeedRelPath = (value: string): string => {
+  return String(value || '')
     .trim()
     .replace(/\\/g, '/')
     .replace(/^\/+/, '')
     .replace(/\/+$/, '')
-  const name = String(basename || '')
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '')
-  if (!root) return name
-  if (!name) return root
-  return `${root}/${name}`
+}
+const DEFAULT_WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS = ['docs/workspace-seeds', 'docs'] as const
+export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
+  'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',
+  '',
+)
+const WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS = (() => {
+  const explicitRoot = normalizeInitializationSeedRelPath(WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH)
+  if (explicitRoot) return [explicitRoot]
+  return [...DEFAULT_WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS]
+})()
+const buildInitializationSeedRelPathCandidates = (basename: string): string[] => {
+  const name = normalizeInitializationSeedRelPath(basename)
+  if (!name) return []
+  const out = new Set<string>()
+  for (let i = 0; i < WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS.length; i += 1) {
+    const root = normalizeInitializationSeedRelPath(WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS[i] || '')
+    if (!root) continue
+    out.add(`${root}/${name}`)
+  }
+  out.add(name)
+  return [...out]
 }
 export const WORKSPACE_README_SEED_BASENAME = 'knowgrph-maps-readme.md'
 export const TEST_VALIDATION_WORKSPACE_SEED_BASENAME = 'knowgrph-video-demo.md'
 export const GEOSPATIAL_WORKSPACE_SEED_BASENAME = 'knowgrph-maps-places.md'
-export const WORKSPACE_README_SEED_REL_PATH = buildInitializationSeedRelPath(WORKSPACE_README_SEED_BASENAME)
+const WORKSPACE_README_SEED_REL_PATH_CANDIDATES = buildInitializationSeedRelPathCandidates(WORKSPACE_README_SEED_BASENAME)
+export const WORKSPACE_README_SEED_REL_PATH = WORKSPACE_README_SEED_REL_PATH_CANDIDATES[0] || WORKSPACE_README_SEED_BASENAME
 export const WORKSPACE_README_SEED_PATH = normalizeWorkspacePath(WORKSPACE_README_SEED_BASENAME)
-export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH =
+  buildInitializationSeedRelPathCandidates(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)[0] || TEST_VALIDATION_WORKSPACE_SEED_BASENAME
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
 )
+const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH_CANDIDATES = (() => {
+  const explicit = normalizeInitializationSeedRelPath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
+  const defaults = buildInitializationSeedRelPathCandidates(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
+  if (!explicit) return defaults
+  return Array.from(new Set([explicit, ...defaults]))
+})()
 export const CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE =
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
 const normalizedValidationSeedSourcePath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
@@ -283,7 +302,8 @@ export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
           : normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
       )
     : normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
-export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
+const GEOSPATIAL_WORKSPACE_SEED_REL_PATH_CANDIDATES = buildInitializationSeedRelPathCandidates(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
+export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = GEOSPATIAL_WORKSPACE_SEED_REL_PATH_CANDIDATES[0] || GEOSPATIAL_WORKSPACE_SEED_BASENAME
 export const GEOSPATIAL_WORKSPACE_SEED_PATH = normalizeWorkspacePath(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
 const DEFAULT_WORKSPACE_README_TEXT = [
   '---',
@@ -327,30 +347,34 @@ const DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT = [
 ].join('\n')
 type WorkspaceSeedSpec = {
   path: WorkspacePath
-  sourceRelPath: string
+  basename: string
+  sourceRelPaths: string[]
   fallbackText: string
 }
 const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
   {
     path: WORKSPACE_README_SEED_PATH,
-    sourceRelPath: WORKSPACE_README_SEED_REL_PATH,
+    basename: WORKSPACE_README_SEED_BASENAME,
+    sourceRelPaths: WORKSPACE_README_SEED_REL_PATH_CANDIDATES,
     fallbackText: DEFAULT_WORKSPACE_README_TEXT,
   },
   {
     path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
-    sourceRelPath: TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+    basename: TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
+    sourceRelPaths: TEST_VALIDATION_WORKSPACE_SEED_REL_PATH_CANDIDATES,
     fallbackText: DEFAULT_VALIDATION_WORKSPACE_SEED_TEXT,
   },
   {
     path: GEOSPATIAL_WORKSPACE_SEED_PATH,
-    sourceRelPath: GEOSPATIAL_WORKSPACE_SEED_REL_PATH,
+    basename: GEOSPATIAL_WORKSPACE_SEED_BASENAME,
+    sourceRelPaths: GEOSPATIAL_WORKSPACE_SEED_REL_PATH_CANDIDATES,
     fallbackText: DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT,
   },
 ]
 const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(seed => seed.path))
 const WORKSPACE_SEED_SOURCE_REL_PATH_SET = new Set<WorkspacePath>(
   WORKSPACE_SEED_SPECS
-    .map(seed => normalizeWorkspacePath(seed.sourceRelPath))
+    .flatMap(seed => seed.sourceRelPaths.map(path => normalizeWorkspacePath(path)))
     .filter((path): path is WorkspacePath => Boolean(path && path !== WORKSPACE_ROOT_PATH)),
 )
 const WORKSPACE_INITIALIZATION_PATH_SET = new Set<WorkspacePath>([
@@ -380,20 +404,16 @@ export const LEGACY_WORKSPACE_README_TEXT = [
   'This workspace is stored locally in your browser.',
 ].join('\n')
 
-const loadWorkspaceSeedText = async (relPath: string, fallbackText: string): Promise<string> => {
-  const codebaseFilePath = buildCodebaseFilePath(relPath)
-  if (typeof fetch === 'function') {
-    try {
-      const res = await fetch(codebaseFilePath)
-      if (res.ok) {
-        const text = (await res.text()).trim()
-        if (text) return text
-      }
-    } catch {
-      void 0
-    }
-  }
-  return fallbackText
+const loadWorkspaceSeedText = async (args: {
+  basename: string
+  relPaths: ReadonlyArray<string>
+  fallbackText: string
+}): Promise<string> => {
+  const text = await readWorkspaceInitializationSeedText({
+    basename: args.basename,
+    relPathCandidates: args.relPaths,
+  })
+  return text || args.fallbackText
 }
 
 export function isInitializationWorkspacePath(path: WorkspacePath | null | undefined): boolean {
@@ -439,7 +459,11 @@ export async function getWorkspaceSeedFiles(): Promise<Array<{ path: WorkspacePa
   const loaded = await Promise.all(
     WORKSPACE_SEED_SPECS.map(async seed => ({
       path: seed.path,
-      text: (await loadWorkspaceSeedText(seed.sourceRelPath, seed.fallbackText)) || seed.fallbackText,
+      text: (await loadWorkspaceSeedText({
+        basename: seed.basename,
+        relPaths: seed.sourceRelPaths,
+        fallbackText: seed.fallbackText,
+      })) || seed.fallbackText,
     })),
   )
   return loaded

@@ -1,7 +1,12 @@
+import React, { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
+import { getWorkspaceFs, resetWorkspaceFsForTests, TEST_VALIDATION_WORKSPACE_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 import {
   buildInitialWorkspaceStartupSnapshot,
   buildMaterializedWorkspaceActivePathKey,
@@ -42,6 +47,7 @@ import {
   applyActiveMarkdownDocumentPayload,
   buildActiveMarkdownDocumentPayload,
 } from '@/features/markdown/activeMarkdownDocument'
+import { readWorkspaceInitializationSeedText } from '@/features/workspace-fs/workspaceSeedProvider'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
@@ -751,5 +757,132 @@ export async function testActiveMarkdownDocumentHelpersCentralizePayloadDefaults
     calls[0]?.applyViewPreset !== false
   ) {
     throw new Error('expected active markdown document apply helper to preserve shared payload defaults across runtime/import callers')
+  }
+}
+
+export async function testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  const previousFetch = globalThis.fetch
+  const calls: string[] = []
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    calls.push(url)
+    if (url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')) {
+      return new Response('# absolute docs seed', { status: 200 })
+    }
+    return new Response('', { status: 404 })
+  }) as typeof fetch
+  try {
+    const text = await readWorkspaceInitializationSeedText({
+      basename: 'knowgrph-video-demo.md',
+      relPathCandidates: ['docs/knowgrph-video-demo.md'],
+    })
+    if (text !== '# absolute docs seed') {
+      throw new Error(`expected absolute docs seed provider path to win, got ${String(text || '')}`)
+    }
+    if (!calls.some(url => url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md'))) {
+      throw new Error('expected workspace seed provider to probe configured absolute docs root through Vite /@fs')
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+  }
+}
+
+export async function testRuntimeSourceFilesReflectWorkspaceSeedFileContentChanges() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  let root: ReturnType<typeof createRoot> | null = null
+  const { restore } = initJsdomHarness()
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  let docsText = '# seed v1\n\nruntime reflection baseline'
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')) {
+      return new Response(docsText, { status: 200 })
+    }
+    return new Response('', { status: 404 })
+  }) as typeof fetch
+
+  const waitFor = async (predicate: () => boolean, timeoutMs = 5000) => {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      if (predicate()) return
+      await new Promise<void>(resolve => setTimeout(resolve, 10))
+    }
+    const debugPaths = useGraphStore
+      .getState()
+      .sourceFiles
+      .map(file => `${String(file.name || '')}::${String(file.source?.path || '')}`)
+      .slice(0, 8)
+    throw new Error(`timed out waiting for runtime source-file seed reflection; sourceFiles=${JSON.stringify(debugPaths)}`)
+  }
+
+  try {
+    resetWorkspaceFsForTests()
+    useGraphStore.getState().resetAll()
+    useGraphStore.getState().setSourceFiles([])
+    const fs = await getWorkspaceFs()
+    await fs.ensureSeed()
+    const entries = await fs.listEntries()
+    const validationEntryPath = String(
+      entries.find(entry => entry.kind === 'file' && String(entry.name || '') === 'knowgrph-video-demo.md')?.path || '',
+    ).trim()
+    if (!validationEntryPath) {
+      throw new Error('expected runtime test workspace seed bootstrap to include knowgrph-video-demo.md entry')
+    }
+    useMarkdownExplorerStore.getState().setActivePath(validationEntryPath as never)
+    const seededText = await fs.readFileText(validationEntryPath as never)
+    if (!String(seededText || '').includes('seed v1')) {
+      throw new Error(`expected workspace seed file text to load v1 before runtime mount, got ${String(seededText || '')}`)
+    }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    await act(async () => {
+      root = createRoot(container)
+      root.render(React.createElement(SourceFilesPersistenceBootstrap))
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+    })
+
+    docsText = '# seed v2\n\nruntime reflection updated'
+    await new Promise<void>(resolve => setTimeout(resolve, 80))
+    await fs.ensureSeed()
+    const seededTextAfterUpdate = await fs.readFileText(validationEntryPath as never)
+    if (!String(seededTextAfterUpdate || '').includes('seed v2')) {
+      throw new Error(`expected workspace seed file text to update to v2, got ${String(seededTextAfterUpdate || '')}`)
+    }
+    await waitFor(() => {
+      const file = useGraphStore.getState().sourceFiles.find(entry => {
+        const sourcePath = String(entry.source?.path || '')
+        const name = String(entry.name || '')
+        return sourcePath.startsWith('workspace:') && (name === 'knowgrph-video-demo.md' || sourcePath.includes('knowgrph-video-demo.md'))
+      })
+      return Boolean(file && String(file.text || '').includes('seed v2'))
+    })
+  } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+        await new Promise<void>(resolve => setTimeout(resolve, 0))
+      })
+    } catch {
+      void 0
+    }
+    restore()
+    resetWorkspaceFsForTests()
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
   }
 }

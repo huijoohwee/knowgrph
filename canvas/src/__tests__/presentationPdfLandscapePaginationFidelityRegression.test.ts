@@ -6,6 +6,8 @@ export function testPresentationPdfLandscapePaginationEnforcesOneSlidePerA4Page(
   const printText = readFileSync(printPath, 'utf8')
   const presentationHelpersPath = resolve(process.cwd(), 'src', 'lib', 'print', 'printElementToPdf.presentation.ts')
   const presentationHelpersText = readFileSync(presentationHelpersPath, 'utf8')
+  const exportPdfPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'exports', 'exportPdf.ts')
+  const exportPdfText = readFileSync(exportPdfPath, 'utf8')
 
   if (
     !printText.includes("orientation === 'landscape' ? 0.6 : 0.4")
@@ -100,10 +102,22 @@ export function testPresentationPdfLandscapePaginationEnforcesOneSlidePerA4Page(
     throw new Error('expected presentation deck-root export path to skip viewport freeze and avoid top-region clipping in landscape PDF fidelity')
   }
   if (
+    exportPdfText.includes('presentation-live-surface')
+    || exportPdfText.includes('presentationLiveSurfaceTarget')
+  ) {
+    throw new Error('expected presentation PDF export to keep full-slide deck as primary landscape source so all slides render, and avoid single-live-surface targeting')
+  }
+  if (
     !printText.includes("const preferNativeLandscapeSlides = preservePresentationLayout && orientation === 'landscape' && cloneIsDeckRoot")
     || !printText.includes('if (!preferNativeLandscapeSlides) {')
   ) {
     throw new Error('expected landscape deck-root export to bypass SVG foreignObject conversion and preserve native slide section rendering')
+  }
+  if (
+    !printText.includes('if (allowMediaMutation || preferNativeLandscapeSlides) await replaceYouTubeWebpageSnapshots(el, clone)')
+    || !printText.includes('if (allowMediaMutation || preferNativeLandscapeSlides) replaceVideoSnapshots(el, clone)')
+  ) {
+    throw new Error('expected native landscape presentation path to rewrite webpage/video snapshots to concrete thumbnail surfaces for print fidelity')
   }
   if (
     !presentationHelpersText.includes('const frameContent = surface || section || article')
@@ -112,6 +126,8 @@ export function testPresentationPdfLandscapePaginationEnforcesOneSlidePerA4Page(
     || !printText.includes('max-width: 100% !important;')
     || !printText.includes("root.setAttribute('data-kg-native-presentation-landscape', '1')")
     || !printText.includes('[data-kg-native-presentation-landscape="1"] [aria-label="Slide Content"]')
+    || !printText.includes('[data-kg-native-presentation-landscape="1"] [data-kg-video-snapshot="1"]')
+    || !printText.includes('[data-kg-native-presentation-landscape="1"] img[data-kg-media-thumbnail="1"]')
   ) {
     throw new Error('expected presentation page flattening and CSS to support native section/article frame content when slide-surface SVG is bypassed')
   }
