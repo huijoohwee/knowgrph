@@ -885,6 +885,28 @@ export async function printElementToPdf(
         }
       `
       : ''
+    const presentationLandscapeMediaFitCss =
+      preservePresentationLayout && orientation === 'landscape'
+        ? `
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Content"] {
+          min-height: 0 !important;
+          overflow: hidden !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Content"] figure {
+          margin-top: 8px !important;
+          margin-bottom: 8px !important;
+          max-height: 100% !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Content"] img,
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [aria-label="Slide Content"] [data-kg-media-thumbnail="1"] {
+          max-height: calc(${presentationSectionHeightMm}mm - 24mm) !important;
+          width: auto !important;
+          object-fit: contain !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+      `
+        : ''
 
     const style = document.createElement('style')
     style.id = styleId
@@ -936,6 +958,7 @@ export async function printElementToPdf(
           overflow: hidden !important;
         }
         ${presentationPaginationCss}
+        ${presentationLandscapeMediaFitCss}
         ${
           preservePresentationLayout
             ? `
@@ -946,6 +969,17 @@ export async function printElementToPdf(
           position: relative !important;
           box-sizing: border-box !important;
           overflow: hidden !important;
+        }
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article img,
+        #${printRootId} [data-testid="markdown-presentation-print-deck"] > section > article [data-kg-media-thumbnail="1"] {
+          visibility: visible !important;
+          opacity: 1 !important;
+          display: block !important;
+          max-width: 100% !important;
+          height: auto !important;
+          object-fit: contain !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
         }
         #${printRootId} [data-testid="markdown-presentation-print-deck"] [aria-label="Slide Document"] > footer {
           background-color: rgb(255 255 255) !important;

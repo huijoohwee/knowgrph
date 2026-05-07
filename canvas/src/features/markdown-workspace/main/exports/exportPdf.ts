@@ -194,6 +194,55 @@ const countPendingPresentationMediaSurfaces = (root: HTMLElement): number => {
   return pending
 }
 
+const copyExportScrollableState = (src: HTMLElement, dst: HTMLElement): void => {
+  try {
+    dst.scrollTop = src.scrollTop
+    dst.scrollLeft = src.scrollLeft
+  } catch {
+    void 0
+  }
+  const srcNodes = src.querySelectorAll('*')
+  const dstNodes = dst.querySelectorAll('*')
+  const len = Math.min(srcNodes.length, dstNodes.length)
+  for (let i = 0; i < len; i += 1) {
+    const srcNode = srcNodes[i] as HTMLElement
+    const dstNode = dstNodes[i] as HTMLElement
+    try {
+      dstNode.scrollTop = srcNode.scrollTop
+      dstNode.scrollLeft = srcNode.scrollLeft
+    } catch {
+      void 0
+    }
+  }
+}
+
+const syncPresentationDeckScrollState = (
+  presentationRoot: HTMLElement,
+  presentationDeckTarget: HTMLElement,
+): void => {
+  const srcSlides = presentationRoot.querySelectorAll('[aria-label="Slide Document"]')
+  const dstSlides = presentationDeckTarget.querySelectorAll('[aria-label="Slide Document"]')
+  const len = Math.min(srcSlides.length, dstSlides.length)
+  const SCROLLABLE_A11Y_LABELS = [
+    'Slide Content',
+    'Slide Left Column',
+    'Slide Right Column',
+  ] as const
+  for (let i = 0; i < len; i += 1) {
+    const srcSlide = srcSlides[i] as HTMLElement
+    const dstSlide = dstSlides[i] as HTMLElement
+    for (let j = 0; j < SCROLLABLE_A11Y_LABELS.length; j += 1) {
+      const label = SCROLLABLE_A11Y_LABELS[j]
+      const srcScroller = srcSlide.querySelector(`[aria-label="${label}"]`) as HTMLElement | null
+      const dstScroller = dstSlide.querySelector(`[aria-label="${label}"]`) as HTMLElement | null
+      if (srcScroller && dstScroller) {
+        copyExportScrollableState(srcScroller, dstScroller)
+      }
+    }
+    copyExportScrollableState(srcSlide, dstSlide)
+  }
+}
+
 function buildPrintableMarkdownArticle(markdownText: string): HTMLElement | null {
   const text = String(markdownText || '')
   if (!text.trim()) return null
@@ -505,9 +554,19 @@ export async function exportViewerPdf(args: {
   const presentationDeckTarget = await buildPresentationFidelityDeckTarget(String(args.markdownText || ''))
     || buildPrintablePresentationDeck(String(args.markdownText || ''))
   const viewerFidelityTarget = await buildViewerFidelityTarget(String(args.markdownText || ''))
-  const presentationSurface =
+  const presentationSurfaceEl = (
     root.matches?.('[data-testid="markdown-presentation-root"]')
-    || root.querySelector?.('[data-testid="markdown-presentation-root"]')
+      ? root
+      : root.querySelector?.('[data-testid="markdown-presentation-root"]')
+  ) as HTMLElement | null
+  const presentationSurface = !!presentationSurfaceEl
+  try {
+    if (presentationSurfaceEl && presentationDeckTarget) {
+      syncPresentationDeckScrollState(presentationSurfaceEl, presentationDeckTarget)
+    }
+  } catch {
+    void 0
+  }
   const target = presentationSurface
     ? (presentationDeckTarget || viewerFidelityTarget || articleTarget || markdownFallbackTarget || previewRoot)
     : (articleTarget || markdownFallbackTarget || previewRoot)
