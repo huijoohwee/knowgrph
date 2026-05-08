@@ -8,6 +8,30 @@ const DISPLAY_MODE_MINIMAL_UI_MEDIA = '(display-mode: minimal-ui)'
 type NavigatorWithStandalone = Navigator & { standalone?: boolean }
 type PwaDisplayMode = 'browser' | 'standalone' | 'fullscreen' | 'minimal-ui'
 
+type BeforeInstallPromptEvent = Event & {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+let deferredInstallPrompt: BeforeInstallPromptEvent | null = null
+
+export function getDeferredInstallPrompt(): BeforeInstallPromptEvent | null {
+  return deferredInstallPrompt
+}
+
+export async function promptPwaInstall(): Promise<boolean> {
+  if (!deferredInstallPrompt) return false
+  try {
+    await deferredInstallPrompt.prompt()
+    const result = await deferredInstallPrompt.userChoice
+    deferredInstallPrompt = null
+    return result.outcome === 'accepted'
+  } catch {
+    deferredInstallPrompt = null
+    return false
+  }
+}
+
 const pushPwaToast = (args: {
   id: string
   kind: 'success' | 'warning' | 'neutral'
@@ -100,6 +124,13 @@ export function installPwaRuntime(): void {
     }
   }
   window.addEventListener('appinstalled', handleAppInstalled)
+
+  const handleBeforeInstallPrompt = (event: Event) => {
+    event.preventDefault()
+    deferredInstallPrompt = event as BeforeInstallPromptEvent
+    document.documentElement?.setAttribute('data-kg-installable', '1')
+  }
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
   const updateServiceWorker = registerSW({
     immediate: true,

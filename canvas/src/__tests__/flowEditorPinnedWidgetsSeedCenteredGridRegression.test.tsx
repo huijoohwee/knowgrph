@@ -130,6 +130,111 @@ export async function testFlowEditorPinnedWidgetsInitCenteredEvenGrid() {
   }
 }
 
+export async function testFlowEditorPinnedWidgetsInitCenteredWithViewportOffset() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    useGraphStore.setState(s => ({
+      ...s,
+      graphData: {
+        type: 'Graph',
+        nodes: [
+          { id: 'n1', label: 'n1', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n2', label: 'n2', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n3', label: 'n3', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n4', label: 'n4', type: 'Anchor', x: 0, y: 0, properties: {} },
+        ],
+        edges: [],
+        metadata: { kind: 'test', source: 'flowEditorPinnedWidgetsSeedOffsetCenter' },
+      },
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      documentStructureBaselineLock: false,
+    }))
+
+    const transform = { k: 1.2, x: 180, y: -90 }
+    api.setZoomState(transform)
+    api.setOpenWidgetNodeIds(['n1', 'n2', 'n3', 'n4'])
+    api.setFlowWidgetWorldPosByNodeId({})
+    api.setFlowWidgetPinnedByNodeId({})
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+
+    const ids = ['n1', 'n2', 'n3', 'n4']
+    const waitForSeed = async () => {
+      const deadline = Date.now() + 800
+      while (Date.now() < deadline) {
+        const st = useGraphStore.getState()
+        const worldById =
+          (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+            .flowWidgetWorldPosByNodeId || {}
+        const ok = ids.every(id => {
+          const w = worldById[id]
+          return w && Number.isFinite(w.x) && Number.isFinite(w.y)
+        })
+        if (ok) return worldById
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 5))
+      }
+      throw new Error('expected seeded world positions with non-zero viewport offset')
+    }
+    const worldById = await waitForSeed()
+
+    const viewportW = 800
+    const viewportH = 600
+    const center = viewportCenterToWorld({ transform, viewportW, viewportH })
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: transform.k,
+      viewportW,
+      viewportH,
+      count: ids.length,
+      baseWidth: 360,
+      baseHeight: 520,
+    })
+    const panelScreen = computeWidgetScaledSize(panelScale)
+    const panelWorldW = panelScreen.width / transform.k
+    const panelWorldH = panelScreen.height / transform.k
+
+    const centers = ids.map(id => {
+      const p = worldById[id]!
+      return { x: p.x + panelWorldW / 2, y: p.y + panelWorldH / 2 }
+    })
+    const centroid = centers.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 })
+    centroid.x /= centers.length
+    centroid.y /= centers.length
+
+    if (Math.abs(centroid.x - center.x) > 2 || Math.abs(centroid.y - center.y) > 30) {
+      throw new Error(`expected centroid near ${center.x},${center.y} with non-zero viewport offset, got ${centroid.x},${centroid.y}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })

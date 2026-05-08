@@ -173,14 +173,31 @@ export function useFlowEditorRuntimeScene(args: {
       })
 
     const liveZoom = getLiveZoomTransform()
-    const z =
-      liveZoom ||
+    const persistedZoom =
       getEffectiveZoomStateForKey({
         zoomViewKey: args.zoomViewKeyRef.current,
         zoomStateByKey: st.zoomStateByKey,
         zoomState: st.zoomState,
-      }) ||
-      { k: 1, x: 0, y: 0 }
+      }) || null
+    const liveLooksDefault =
+      !liveZoom
+      || (
+        Math.abs((Number.isFinite(liveZoom.k) ? liveZoom.k : 1) - 1) <= 1e-6
+        && Math.abs(Number.isFinite(liveZoom.x) ? liveZoom.x : 0) <= 0.5
+        && Math.abs(Number.isFinite(liveZoom.y) ? liveZoom.y : 0) <= 0.5
+      )
+    const persistedHasViewportOffset =
+      !!persistedZoom
+      && (
+        Math.abs((Number.isFinite(persistedZoom.k) ? persistedZoom.k : 1) - 1) > 1e-3
+        || Math.abs(Number.isFinite(persistedZoom.x) ? persistedZoom.x : 0) > 0.5
+        || Math.abs(Number.isFinite(persistedZoom.y) ? persistedZoom.y : 0) > 0.5
+      )
+    const z =
+      (persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)
+      || liveZoom
+      || persistedZoom
+      || { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
     const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
     const spreadMargins = computeBalancedSpreadViewportMargins({
@@ -226,8 +243,8 @@ export function useFlowEditorRuntimeScene(args: {
     const worldStep = widgetGrid.gridEnabled && !isFrontmatterFlow ? Math.max(1, widgetGrid.stepPx) : 1
     const snapWorld = (v: number) => (worldStep > 1 ? snapToGridPx(v, worldStep) : v)
     const safeZoomK = Math.max(0.001, zoomK)
-    const zoomX = 0
-    const zoomY = 0
+    const zoomX = typeof z.x === 'number' && Number.isFinite(z.x) ? z.x : 0
+    const zoomY = typeof z.y === 'number' && Number.isFinite(z.y) ? z.y : 0
     const viewportBounds = useViewportOnlyBucket
       ? {
           minX: (0 - zoomX) / safeZoomK,

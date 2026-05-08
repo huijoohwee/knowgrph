@@ -5729,12 +5729,27 @@ export default defineConfig(({ command }) => ({
             type: 'image/svg+xml',
             purpose: 'any maskable',
           },
+          {
+            src: 'apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'any',
+          },
         ],
+        share_target: {
+          action: './?share=1',
+          method: 'GET',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallback: 'index.html',
-        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'assets/*.{js,css,woff,woff2,ttf}'],
+        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/*.{js,css,woff,woff2,ttf}'],
         globIgnores: ['assets/monaco-*.js', 'assets/mermaid-*.js'],
         runtimeCaching: [
           {

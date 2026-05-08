@@ -292,6 +292,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["viewport.flowEditor.fit.frontmatterInitialFillRatioOverride","@/__tests__/flowFitRuntimeOptions.test","testBuildFlowFitOptionsAllowsFrontmatterInitialFitOverride"],
   ["viewport.flowEditor.overlay.drag.pinnedPansNotNodeDrag","@/__tests__/flowEditorPinnedWidgetDragPansCanvasRegression.test","testFlowEditorPinnedWidgetDragDoesNotProxyNodeDrag"],
   ["viewport.flowEditor.overlay.initCenteredGrid","@/__tests__/flowEditorPinnedWidgetsSeedCenteredGridRegression.test","testFlowEditorPinnedWidgetsInitCenteredEvenGrid"],
+  ["viewport.flowEditor.overlay.initCenteredGridWithViewportOffset","@/__tests__/flowEditorPinnedWidgetsSeedCenteredGridRegression.test","testFlowEditorPinnedWidgetsInitCenteredWithViewportOffset"],
   ["viewport.flowEditor.overlay.reseedsAfterViewportStabilizes","@/__tests__/flowEditorPinnedWidgetsSeedCenteredGridRegression.test","testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes"],
   ["viewport.flowEditor.overlay.reseedsWhenInitiallyStacked","@/__tests__/flowEditorPinnedWidgetsSeedCenteredGridRegression.test","testFlowEditorPinnedWidgetsReseedWhenInitiallyStacked"],
   ["viewport.flowEditor.overlay.reseedsWhenInitiallyVerticalStrip","@/__tests__/flowEditorPinnedWidgetsSeedCenteredGridRegression.test","testFlowEditorPinnedWidgetsReseedWhenInitiallyVerticalStrip"],

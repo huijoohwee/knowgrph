@@ -228,6 +228,7 @@ export const UI_LABELS = {
   minimizePanel: 'Minimize panel',
   restorePanel: 'Restore panel',
   designSystem: 'Design System',
+  installApp: 'Install App',
 } as const;
 
 export const COPY_ZOOM_FIT_SCREEN = UI_LABELS.fitToScreen

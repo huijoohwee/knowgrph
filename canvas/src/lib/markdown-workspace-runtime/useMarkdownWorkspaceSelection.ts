@@ -140,7 +140,18 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return
 
     const nextSig = `${activeDocumentKey}:${nextText}`
-    if (lastFrontmatterSwitchApplySigRef.current === nextSig) return
+    if (lastFrontmatterSwitchApplySigRef.current === nextSig) {
+      const st = useGraphStore.getState()
+      const graphData = st.graphData
+      const hasGraphData = !!(
+        graphData
+        && (
+          (Array.isArray(graphData.nodes) && graphData.nodes.length > 0)
+          || (Array.isArray(graphData.edges) && graphData.edges.length > 0)
+        )
+      )
+      if (hasGraphData) return
+    }
     lastFrontmatterSwitchApplySigRef.current = nextSig
     void applyActiveMarkdownDocumentPayload({
       setActiveMarkdownDocument: args.setActiveMarkdownDocument,

@@ -152,18 +152,6 @@ export default function CanvasPage() {
           </main>
         ) : (
           <>
-            {workspaceEditorModeActive ? (
-              <header className="absolute top-0 inset-x-0 z-[400] pointer-events-none" aria-label="Workspace Toolbar Header">
-                <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
-                  <div className="pointer-events-auto">
-                    <React.Suspense fallback={null}>
-                      <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                    </React.Suspense>
-                  </div>
-                </nav>
-              </header>
-            ) : null}
-
             <React.Suspense fallback={null}>
               <ToastHostLazy />
             </React.Suspense>
@@ -200,6 +188,15 @@ export default function CanvasPage() {
 
                   {workspaceEditorModeActive ? (
                     <section className="absolute inset-0 z-[300] pointer-events-none" aria-label="Workspace editor overlay shell">
+                      <header className="absolute top-0 inset-x-0 z-[200] pointer-events-none" aria-label="Workspace Toolbar Header">
+                        <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                          <div className="pointer-events-auto">
+                            <React.Suspense fallback={null}>
+                              <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                            </React.Suspense>
+                          </div>
+                        </nav>
+                      </header>
                       <section
                         className={`absolute inset-y-0 left-0 pointer-events-auto overflow-hidden bg-[var(--kg-panel-bg)] ${workspaceCanvasPaneVisible ? 'border-r border-[var(--kg-border)] shadow-2xl' : ''}`}
                         style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}

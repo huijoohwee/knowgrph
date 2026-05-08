@@ -27,13 +27,16 @@ function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   if (typeof document === 'undefined') return null
   const normalizedSurfaceId = String(activeSurfaceId || '').trim()
   const hasSurfaceId = normalizedSurfaceId.length > 0
+  const surfaceRoot = hasSurfaceId
+    ? document.querySelector<HTMLElement>(
+      `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(normalizedSurfaceId)}"]`,
+    )
+    : null
+  const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+  const surfaceOffsetLeft = Number.isFinite(surfaceRect?.left) ? Number(surfaceRect?.left) : 0
+  const surfaceOffsetTop = Number.isFinite(surfaceRect?.top) ? Number(surfaceRect?.top) : 0
   const merged = new Map<string, { left: number; right: number; top: number; bottom: number; area: number }>()
   const pushEntries = (selector: string) => {
-    const surfaceRoot = hasSurfaceId
-      ? document.querySelector<HTMLElement>(
-        `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(normalizedSurfaceId)}"]`,
-      )
-      : null
     const queryRoot: ParentNode = surfaceRoot || document
     const els = Array.from(queryRoot.querySelectorAll(selector))
       .filter((el): el is HTMLElement => el instanceof HTMLElement)
@@ -45,10 +48,10 @@ function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
       const prev = merged.get(entry.id)
       if (prev && prev.area >= area) continue
       merged.set(entry.id, {
-        left: entry.rect.left,
-        right: entry.rect.right,
-        top: entry.rect.top,
-        bottom: entry.rect.bottom,
+        left: entry.rect.left - surfaceOffsetLeft,
+        right: entry.rect.right - surfaceOffsetLeft,
+        top: entry.rect.top - surfaceOffsetTop,
+        bottom: entry.rect.bottom - surfaceOffsetTop,
         area,
       })
     }
@@ -164,25 +167,44 @@ export const applyZoomRequestNative = (args: {
   const autoMinK = getFlowAutoMinScale(args.runtime)
   const viewportW = Math.max(1, Math.floor(args.width))
   const viewportH = Math.max(1, Math.floor(args.height))
-  const isFlowEditorFitRequest =
+  const isFlowEditorFitLikeRequest =
     state.canvasRenderMode === '2d'
     && state.canvas2dRenderer === 'flowEditor'
+    && (
+      args.zoomRequest.type === 'reset'
+      || args.zoomRequest.type === 'fit'
+    )
+  const isFlowEditorGraphFitRequest =
+    isFlowEditorFitLikeRequest
     && !!args.graphData
     && Array.isArray(args.graphData.nodes)
     && args.graphData.nodes.length > 0
-    && (
-      args.zoomRequest.type === 'reset'
-      || args.zoomRequest.type === 'fit'
-    )
-  const isFlowEditorOverlayOnlyFitRequest =
-    state.canvasRenderMode === '2d'
-    && state.canvas2dRenderer === 'flowEditor'
-    && (!args.graphData || !Array.isArray(args.graphData.nodes) || args.graphData.nodes.length === 0)
-    && (
-      args.zoomRequest.type === 'reset'
-      || args.zoomRequest.type === 'fit'
-    )
-  const resolved = isFlowEditorFitRequest
+  const flowEditorOverlayFitResolved = isFlowEditorFitLikeRequest
+    ? (() => {
+        const bounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
+        if (!bounds) return null
+        const pad = 48
+        const fitW = Math.max(1, viewportW - pad * 2)
+        const fitH = Math.max(1, viewportH - pad * 2)
+        const base = args.runtime.transform || d3.zoomIdentity
+        const safeBaseK = Number.isFinite(base.k) && base.k > 0 ? base.k : 1
+        const scaleBy = Math.min(fitW / bounds.width, fitH / bounds.height)
+        const targetK = Math.max(flowMinK, Math.min(flowMaxK, safeBaseK * scaleBy))
+        const appliedScale = targetK / safeBaseK
+        const centerX = (bounds.minX + bounds.maxX) / 2
+        const centerY = (bounds.minY + bounds.maxY) / 2
+        const targetX = viewportW / 2 - (centerX - base.x) * appliedScale
+        const targetY = viewportH / 2 - (centerY - base.y) * appliedScale
+        return {
+          nextTransform: d3.zoomIdentity.translate(targetX, targetY).scale(targetK),
+          durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
+          nextMinScale: targetK,
+        }
+      })()
+    : null
+  const resolved = flowEditorOverlayFitResolved
+    ? flowEditorOverlayFitResolved
+    : isFlowEditorGraphFitRequest
     ? (() => {
         const intent =
           args.zoomRequest.type === 'fit' && args.zoomRequest.intent === 'fitToScreen'
@@ -221,29 +243,7 @@ export const applyZoomRequestNative = (args: {
           nextMinScale: fit.k,
         }
       })()
-    : isFlowEditorOverlayOnlyFitRequest
-      ? (() => {
-          const bounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
-          if (!bounds) return null
-          const pad = 48
-          const fitW = Math.max(1, viewportW - pad * 2)
-          const fitH = Math.max(1, viewportH - pad * 2)
-          const base = args.runtime.transform || d3.zoomIdentity
-          const safeBaseK = Number.isFinite(base.k) && base.k > 0 ? base.k : 1
-          const scaleBy = Math.min(fitW / bounds.width, fitH / bounds.height)
-          const targetK = Math.max(flowMinK, Math.min(flowMaxK, safeBaseK * scaleBy))
-          const appliedScale = targetK / safeBaseK
-          const centerX = (bounds.minX + bounds.maxX) / 2
-          const centerY = (bounds.minY + bounds.maxY) / 2
-          const targetX = viewportW / 2 - (centerX - base.x) * appliedScale
-          const targetY = viewportH / 2 - (centerY - base.y) * appliedScale
-          return {
-            nextTransform: d3.zoomIdentity.translate(targetX, targetY).scale(targetK),
-            durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
-            nextMinScale: targetK,
-          }
-        })()
-      : resolveZoomRequest2d({
+    : resolveZoomRequest2d({
         zoomRequest: args.zoomRequest,
         graphData: args.graphData,
         schema,
@@ -281,7 +281,7 @@ export const applyZoomRequestNative = (args: {
     cancelFlowZoomRequestAnim(args.runtime)
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
-    if (isFlowEditorFitRequest || isFlowEditorOverlayOnlyFitRequest) {
+    if (isFlowEditorFitLikeRequest) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime: args.runtime,
         viewportW,
@@ -311,7 +311,7 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
-      if (isFlowEditorFitRequest || isFlowEditorOverlayOnlyFitRequest) {
+      if (isFlowEditorFitLikeRequest) {
         recenterVisibleFlowEditorOverlayCentroid({
           runtime: args.runtime,
           viewportW,

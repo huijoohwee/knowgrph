@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play } from 'lucide-react';
+import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play, Download } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
@@ -13,6 +13,7 @@ import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelec
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitWorkflowRunAll } from '@/features/canvas/utils'
+import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
@@ -66,6 +67,17 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
+  const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (!root) return
+    const observer = new MutationObserver(() => {
+      setIsInstallable(root.getAttribute('data-kg-installable') === '1')
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['data-kg-installable'] })
+    return () => observer.disconnect()
+  }, [])
 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
   const clampedMainPanelPos = isMainPanelOpen ? clampMainPanelPos(mainPanelDragPos) : mainPanelDragPos
@@ -287,6 +299,19 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <SunMoon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
+      {isInstallable && (
+        <IconButton
+          className="App-toolbar__btn"
+          title={UI_LABELS.installApp}
+          tooltipContent={UI_LABELS.installApp}
+          onClick={() => {
+            promptPwaInstall()
+          }}
+          showTooltip
+        >
+          <Download className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        </IconButton>
+      )}
  
     </nav>
   );

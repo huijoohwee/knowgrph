@@ -426,3 +426,26 @@ export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
     throw new Error('expected D3 scene hook to keep workspace overlay gating local to gesture handling')
   }
 }
+
+export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
+  const zoomPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
+  const text = readFileSync(zoomPath, 'utf8')
+  if (!text.includes('const surfaceRect = surfaceRoot?.getBoundingClientRect() || null')) {
+    throw new Error('expected Flow Editor overlay fit bounds to resolve the active surface root window rect')
+  }
+  if (!text.includes('const surfaceOffsetLeft = Number.isFinite(surfaceRect?.left) ? Number(surfaceRect?.left) : 0')) {
+    throw new Error('expected Flow Editor overlay fit bounds to normalize horizontal screen coordinates by active surface offset')
+  }
+  if (!text.includes('const surfaceOffsetTop = Number.isFinite(surfaceRect?.top) ? Number(surfaceRect?.top) : 0')) {
+    throw new Error('expected Flow Editor overlay fit bounds to normalize vertical screen coordinates by active surface offset')
+  }
+  if (!text.includes('left: entry.rect.left - surfaceOffsetLeft')) {
+    throw new Error('expected Flow Editor overlay fit bounds to store left edge in active surface-local coordinates')
+  }
+  if (!text.includes('top: entry.rect.top - surfaceOffsetTop')) {
+    throw new Error('expected Flow Editor overlay fit bounds to store top edge in active surface-local coordinates')
+  }
+  if (text.includes('left: entry.rect.left,')) {
+    throw new Error('expected Flow Editor overlay fit bounds to avoid raw window-space left coordinates')
+  }
+}

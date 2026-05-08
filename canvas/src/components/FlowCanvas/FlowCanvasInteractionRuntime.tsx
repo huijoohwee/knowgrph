@@ -182,7 +182,19 @@ export default React.memo(function FlowCanvasInteractionRuntime(
   React.useEffect(() => {
     if (!active) return
     const runtime = runtimeRef.current
-    if (!runtime || !zoomRequest) return
+    if (!zoomRequest) return
+    if (!runtime) {
+      try {
+        const st = useGraphStore.getState()
+        if (canvas2dRenderer === 'flowEditor' && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {
+          st.setFlowWidgetWorldPosByNodeId({})
+        }
+        st.clearZoomRequest()
+      } catch {
+        void 0
+      }
+      return
+    }
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
     const widthEffective =
       isFlowEditor && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')
