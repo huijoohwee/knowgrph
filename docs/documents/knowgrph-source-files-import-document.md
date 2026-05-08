@@ -166,6 +166,30 @@ sequenceDiagram
   - `gympgrph/src/geospatialDatasets.ts` exposes a lightweight dataset-add API for hosts.
   - `gympgrph/src/hooks/store/geospatialSlice.ts` persists `mapOverlayDatasets` under `kg:ui:geospatial:*` keys.
 
+### Component Inventory
+
+| Layer | Component | File | Status |
+|---|---|---|---|
+| Workspace Actions | Workflow Step 3 UI | `WorkspaceActionsPanel.tsx` | Built |
+| Source Files | Import/export/clear/parse | `sourceFilesIngestIntegration.ts` | Built |
+| Source Files | Seed aliases (3-file family) | `workspaceSeedSourceFiles.ts` | Built |
+| Workspace FS | Seed bootstrap | `workspaceFs.ts` | Built |
+| Workspace FS | RxDB-backed FS | `workspaceFsRxdb.ts` | Built |
+| Workspace FS | In-memory FS | `workspaceFsMemory.ts` | Built |
+| Workspace FS | Change events | `workspaceFsEvents.ts` | Built |
+| Workspace FS | Bootstrap startup | `sourceFilesBootstrapStartup.ts` | Built |
+| Curation UI | Explorer sidebar | `MarkdownPanelLayout.tsx` (Singabldr) | Built |
+| Curation UI | Workspace runtime | `MarkdownWorkspaceRuntime.impl.tsx` | Built |
+| Curation UI | Toolbar ingest controls | `MarkdownWorkspaceToolbar.tsx` | Built |
+| Geospatial | Dataset add API | `geospatialDatasets.ts` (Gympgrph) | Built |
+| Geospatial | Dataset store | `geospatialSlice.ts` (Gympgrph) | Built |
+| Utilities | URL normalization | `url.ts` → `normalizeGitHubBlobLikeUrl` | Built |
+| Fetch | Bounded remote fetch | `fetchRemoteText.ts` → `fetchRemoteTextDetailed` | Built |
+| Import | YouTube pipeline | `youtube_cmd.py` | Built |
+| Import | Webpage proxy | `/__webpage_proxy` route | Built |
+| Import | Website import | `/__website_import/start` route | Built |
+| Import | Geo upload | `/__geo_upload` route | Built |
+
 ---
 
 ## Specifications

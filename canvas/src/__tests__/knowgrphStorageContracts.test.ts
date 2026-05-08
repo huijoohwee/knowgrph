@@ -12,7 +12,7 @@ import {
   KNOWGRPH_STORAGE_ROUTE_PATHS,
   buildKnowgrphStorageCursorId,
   buildKnowgrphStorageExportPath,
-  buildKnowgrphStoragePullPath,
+  buildKnowgrphStoragePullRequest,
   isKnowgrphStorageEntityKind,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 
@@ -29,13 +29,18 @@ export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () =>
   if (KNOWGRPH_STORAGE_ROUTE_PATHS.pull !== '/api/storage/pull') {
     throw new Error('expected pull route to match the storage document contract')
   }
-  const pullPath = buildKnowgrphStoragePullPath({
+  const pullRequest = buildKnowgrphStoragePullRequest({
     workspaceId: 'wk_123',
     deviceId: 'dev_macbook',
     since: 'cursor_1',
   })
-  if (!pullPath.includes('workspaceId=wk_123') || !pullPath.includes('deviceId=dev_macbook') || !pullPath.includes('since=cursor_1')) {
-    throw new Error('expected pull path helper to serialize workspace, device, and cursor parameters')
+  if (
+    pullRequest.workspaceId !== 'wk_123'
+    || pullRequest.deviceId !== 'dev_macbook'
+    || pullRequest.since !== 'cursor_1'
+    || pullRequest.apiVersion !== KNOWGRPH_STORAGE_API_VERSION
+  ) {
+    throw new Error('expected pull request helper to build the documented POST payload shape')
   }
   if (buildKnowgrphStorageExportPath('wk_123') !== '/api/storage/export/wk_123') {
     throw new Error('expected export path helper to keep workspace-scoped route structure')

@@ -18,6 +18,10 @@ import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImp
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const workspaceRoot = path.resolve(repoRoot, '..')
+const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs')
+if (!String(process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT || '').trim() && existsSync(siblingDocsRoot)) {
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = siblingDocsRoot
+}
 const nodeRequire = createRequire(import.meta.url)
 const resolvedReact = nodeRequire.resolve('react')
 const resolvedReactJsxRuntime = nodeRequire.resolve('react/jsx-runtime')

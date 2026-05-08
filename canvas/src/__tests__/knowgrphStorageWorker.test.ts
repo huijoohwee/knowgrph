@@ -91,7 +91,16 @@ export async function testKnowgrphStorageWorkerPushPullAndExportFlow() {
   }
 
   const pullResponse = await worker.fetch(
-    new Request('https://example.com/api/storage/pull?workspaceId=wk_1&deviceId=dev_1'),
+    new Request('https://example.com/api/storage/pull', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'wk_1',
+        deviceId: 'dev_1',
+        since: null,
+      }),
+    }),
     env as never,
   )
   if (!pullResponse.ok) throw new Error(`expected pull response ok, received ${pullResponse.status}`)

@@ -795,6 +795,41 @@ export async function testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot
   }
 }
 
+export async function testWorkspaceSeedProviderResolvesDocsWorkspaceSeedsFromConfiguredAbsoluteDocsRoot() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  const previousFetch = globalThis.fetch
+  const calls: string[] = []
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    calls.push(url)
+    if (url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/workspace-seeds/knowgrph-video-demo.md')) {
+      return new Response('# docs workspace-seeds absolute root', { status: 200 })
+    }
+    return new Response('', { status: 404 })
+  }) as typeof fetch
+  try {
+    const text = await readWorkspaceInitializationSeedText({
+      basename: 'knowgrph-video-demo.md',
+      relPathCandidates: ['docs/workspace-seeds/knowgrph-video-demo.md', 'docs/knowgrph-video-demo.md'],
+    })
+    if (text !== '# docs workspace-seeds absolute root') {
+      throw new Error(`expected docs/workspace-seeds absolute docs-root seed to resolve, got ${String(text || '')}`)
+    }
+    if (!calls.some(url => url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/workspace-seeds/knowgrph-video-demo.md'))) {
+      throw new Error('expected workspace seed provider to probe docs/workspace-seeds path relative to configured absolute docs root')
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+  }
+}
+
 export async function testRuntimeSourceFilesReflectWorkspaceSeedFileContentChanges() {
   const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousFetch = globalThis.fetch

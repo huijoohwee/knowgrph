@@ -21,7 +21,7 @@ Canonical companion for the clean end-state topology shared with `singabldr`.
 
 ## Companion
 
-- Canonical storage index: `knowgrph-storage-document.md`
-- Storage topology appendix: `knowgrph-storage-document-schemas-and-topology.md`
+- Canonical storage & sync index: `knowgrph-storage-sync-document.md`
+- Storage schema appendix: `knowgrph-storage-schemas-document.md`
 - Shared sibling doc: `singabldr/docs/documents/singabldr-cross-repo-publish-topology.md`
 - Shared schema note: `huijoohwee.github.io/schema/AgenticRAG/README.md`

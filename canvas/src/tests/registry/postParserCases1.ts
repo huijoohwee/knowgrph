@@ -543,6 +543,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspaceFs.envBridge.prefersImportMetaStyleRecord","@/__tests__/workspaceSeedPersistence.test","testCanvasEnvBridgeReadsImportMetaStyleRecordFirst"],
   ["workspaceFs.envBridge.fallsBackToProcessEnvOutsideBrowser","@/__tests__/workspaceSeedPersistence.test","testCanvasEnvBridgeFallsBackToProcessEnvOutsideBrowser"],
   ["workspaceFs.seedProvider.prefersConfiguredAbsoluteDocsRoot","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot"],
+  ["workspaceFs.seedProvider.resolvesDocsWorkspaceSeedsFromConfiguredAbsoluteDocsRoot","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderResolvesDocsWorkspaceSeedsFromConfiguredAbsoluteDocsRoot"],
   ["workspaceFs.seedProvider.runtimeReflectsSourceFilesFromDynamicDocsRoot","@/__tests__/workspaceSeedPersistence.test","testRuntimeSourceFilesReflectWorkspaceSeedFileContentChanges"],
   ["workspaceFs.bootstrap.materializesActiveWorkspaceEntryIntoParsedSourceFile","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializesActiveWorkspaceEntryIntoParsedSourceFile"],
   ["workspaceFs.bootstrap.materialize.reusesProvidedWorkspaceSnapshot","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializeReusesProvidedWorkspaceSnapshotWithoutExtraListEntries"],

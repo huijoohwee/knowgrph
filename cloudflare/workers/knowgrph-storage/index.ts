@@ -355,17 +355,6 @@ const handlePush = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D
   })
 }
 
-const readPullRequest = (request: Request): KnowgrphStoragePullRequest | null => {
-  const url = new URL(request.url)
-  const queryCandidate: KnowgrphStoragePullRequest = {
-    apiVersion: KNOWGRPH_STORAGE_API_VERSION,
-    workspaceId: url.searchParams.get('workspaceId') || '',
-    deviceId: url.searchParams.get('deviceId') || '',
-    since: url.searchParams.get('since'),
-  }
-  return isPullRequest(queryCandidate) ? queryCandidate : null
-}
-
 const readPullChanges = async (db: D1DatabaseLike, workspaceId: string, since: string | null): Promise<KnowgrphStoragePullChanges> => {
   const sinceValue = normalizeNullableString(since)
   const documentSql = sinceValue
@@ -391,7 +380,8 @@ const readPullChanges = async (db: D1DatabaseLike, workspaceId: string, since: s
 }
 
 const handlePull = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D1DatabaseLike): Promise<Response> => {
-  const pullRequest = readPullRequest(request)
+  const body = await readJsonBody(request)
+  const pullRequest = isPullRequest(body) ? body : null
   if (!pullRequest) return errorResponse(400, 'bad_request', 'invalid storage pull request')
   const workspaceId = normalizeString(pullRequest.workspaceId)
   const deviceId = normalizeString(pullRequest.deviceId)
@@ -466,7 +456,7 @@ export const createKnowgrphStorageWorker = () => ({
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.push) {
         return await handlePush(request, env, db)
       }
-      if (request.method === 'GET' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.pull) {
+      if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.pull) {
         return await handlePull(request, env, db)
       }
       if (request.method === 'GET' && url.pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.exportPrefix)) {

@@ -28,11 +28,26 @@ const readWorkspaceInitializationDocsAbsRoot = (): string => {
   return normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', ''))
 }
 
-const buildWorkspaceSeedAbsolutePath = (basename: string): string | null => {
+const buildWorkspaceSeedAbsolutePathCandidates = (args: {
+  basename: string
+  relPathCandidates: ReadonlyArray<string>
+}): string[] => {
   const root = readWorkspaceInitializationDocsAbsRoot()
-  const file = normalizeBasename(basename)
-  if (!root || !file) return null
-  return `${root}/${file}`
+  if (!root) return []
+  const basename = normalizeBasename(args.basename)
+  const relPathCandidates = Array.from(
+    new Set((args.relPathCandidates || []).map(path => normalizeRelPath(path)).filter(Boolean)),
+  )
+  const out = new Set<string>()
+  if (basename) out.add(`${root}/${basename}`)
+  for (let i = 0; i < relPathCandidates.length; i += 1) {
+    const relPath = relPathCandidates[i]!
+    out.add(`${root}/${relPath}`)
+    if (relPath.startsWith('docs/')) {
+      out.add(`${root}/${relPath.slice('docs/'.length)}`)
+    }
+  }
+  return [...out]
 }
 
 const readTextViaFetch = async (url: string): Promise<string | null> => {
@@ -65,8 +80,12 @@ export async function readWorkspaceInitializationSeedText(args: {
   const basename = normalizeBasename(args.basename)
   if (!basename) return null
 
-  const absolutePath = buildWorkspaceSeedAbsolutePath(basename)
-  if (absolutePath) {
+  const absolutePathCandidates = buildWorkspaceSeedAbsolutePathCandidates({
+    basename,
+    relPathCandidates: args.relPathCandidates,
+  })
+  for (let i = 0; i < absolutePathCandidates.length; i += 1) {
+    const absolutePath = absolutePathCandidates[i]!
     const absoluteViaFetch = buildLocalFsFetchPath(absolutePath)
     if (absoluteViaFetch) {
       const text = await readTextViaFetch(absoluteViaFetch)
@@ -90,7 +109,10 @@ export async function upsertWorkspaceInitializationSeedText(args: {
   basename: string
   text: string
 }): Promise<boolean> {
-  const absolutePath = buildWorkspaceSeedAbsolutePath(args.basename)
+  const absolutePath = buildWorkspaceSeedAbsolutePathCandidates({
+    basename: args.basename,
+    relPathCandidates: [],
+  })[0] || null
   if (!absolutePath || typeof window !== 'undefined') return false
   try {
     const fs = (await import('node:fs/promises')) as typeof import('node:fs/promises')
@@ -106,7 +128,10 @@ export async function upsertWorkspaceInitializationSeedText(args: {
 export async function deleteWorkspaceInitializationSeedText(args: {
   basename: string
 }): Promise<boolean> {
-  const absolutePath = buildWorkspaceSeedAbsolutePath(args.basename)
+  const absolutePath = buildWorkspaceSeedAbsolutePathCandidates({
+    basename: args.basename,
+    relPathCandidates: [],
+  })[0] || null
   if (!absolutePath || typeof window !== 'undefined') return false
   try {
     const fs = (await import('node:fs/promises')) as typeof import('node:fs/promises')

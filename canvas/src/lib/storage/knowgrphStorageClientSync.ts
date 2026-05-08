@@ -2,10 +2,10 @@ import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { getLocalStorage } from '@/lib/persistence'
 import {
+  buildKnowgrphStoragePullRequest,
   buildKnowgrphStorageCursorId,
   buildKnowgrphStorageExportPath,
   buildKnowgrphStorageOutboxId,
-  buildKnowgrphStoragePullPath,
   KNOWGRPH_STORAGE_API_VERSION,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
   type KgDocumentChunkRecord,
@@ -506,17 +506,17 @@ const pullKnowgrphStorageChanges = async (
 ) => {
   const fetchImpl = getClientFetch(args.fetchImpl)
   const apiOrigin = buildApiOriginKey(args.baseUrl)
-  const response = await fetchImpl(
-    resolveApiUrl(
-      buildKnowgrphStoragePullPath({
+  const response = await fetchImpl(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.pull, args.baseUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(
+      buildKnowgrphStoragePullRequest({
         workspaceId: args.workspaceId,
         deviceId: args.deviceId,
         since: args.since,
       }),
-      args.baseUrl,
     ),
-    { method: 'GET' },
-  )
+  })
   const json = await parseStorageResponseJson<KnowgrphStoragePullResponse | { ok?: false; error?: string }>(response, {
     requestLabel: 'knowgrph storage pull',
     apiOrigin,

@@ -207,18 +207,16 @@ export type KnowgrphStorageWorkerEnv = {
 export const isKnowgrphStorageEntityKind = (value: unknown): value is KnowgrphStorageEntityKind =>
   value === 'document' || value === 'documentChunk' || value === 'graphSnapshot'
 
-export const buildKnowgrphStoragePullPath = (args: {
+export const buildKnowgrphStoragePullRequest = (args: {
   workspaceId: string
   deviceId: string
   since?: string | null
-}): string => {
-  const params = new URLSearchParams()
-  params.set('workspaceId', String(args.workspaceId || '').trim())
-  params.set('deviceId', String(args.deviceId || '').trim())
-  const since = typeof args.since === 'string' ? args.since.trim() : ''
-  if (since) params.set('since', since)
-  return `${KNOWGRPH_STORAGE_ROUTE_PATHS.pull}?${params.toString()}`
-}
+}): KnowgrphStoragePullRequest => ({
+  apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+  workspaceId: String(args.workspaceId || '').trim(),
+  deviceId: String(args.deviceId || '').trim(),
+  since: typeof args.since === 'string' && args.since.trim() ? args.since.trim() : null,
+})
 
 export const buildKnowgrphStorageExportPath = (workspaceId: string): string =>
   `/api/storage/export/${encodeURIComponent(String(workspaceId || '').trim())}`
