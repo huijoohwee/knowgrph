@@ -4,6 +4,7 @@ import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMark
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
 import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
@@ -128,6 +129,35 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     args.lastLoadedRef,
     args.setActiveTextProgrammatic,
     args.setHighlightedLineRange,
+  ])
+
+  const lastFrontmatterSwitchApplySigRef = React.useRef<string>('')
+  React.useEffect(() => {
+    if (activeEntryKind === 'folder') return
+    if (!activeDocumentKey) return
+    const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
+    if (!nextText.trim()) return
+    if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return
+
+    const nextSig = `${activeDocumentKey}:${nextText}`
+    if (lastFrontmatterSwitchApplySigRef.current === nextSig) return
+    lastFrontmatterSwitchApplySigRef.current = nextSig
+    void applyActiveMarkdownDocumentPayload({
+      setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+      name: activeDocumentKey,
+      text: nextText,
+      sourceUrl: activeDocumentSourceUrl,
+      autoEnableFrontmatter: false,
+      applyViewPreset: true,
+      applyToGraph: false,
+      normalizeWebpageFrontmatterToMarkdown: true,
+    })
+  }, [
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeEntryKind,
+    activeEntryText,
+    args.setActiveMarkdownDocument,
   ])
 
   useMarkdownEditorSsotSync({

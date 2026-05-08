@@ -62,6 +62,7 @@ export function computeMediaOverlaySizing(args: {
     quantizeStep: Math.max(0.01, quantizeStepPx / Math.max(1, baseW)),
     hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
     hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
+    viewportPreset: 'richMedia',
   })
   const contentW = Math.max(2, Math.min(maxPanelPx, quantize(baseW * adaptiveScale, quantizeStepPx)))
   const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))

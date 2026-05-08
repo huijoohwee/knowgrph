@@ -166,6 +166,22 @@ export const testMarkdownWorkspaceSelectionClearsStaleEditorTextBeforeSsotDocume
   }
 }
 
+export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileSwitch = () => {
+  const text = readUtf8(markdownWorkspaceSelectionPath())
+  if (!text.includes('const lastFrontmatterSwitchApplySigRef = React.useRef<string>(\'\')')) {
+    throw new Error('Expected markdown workspace selection to track per-document frontmatter switch signatures and avoid repeated preset replay churn')
+  }
+  if (!text.includes('if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return')) {
+    throw new Error('Expected markdown workspace selection to gate immediate switch-time view preset replay behind explicit YAML canvas frontmatter detection')
+  }
+  if (!text.includes('applyViewPreset: true')) {
+    throw new Error('Expected markdown workspace selection switch-time active-document replay to reapply view presets from YAML frontmatter')
+  }
+  if (!text.includes('applyToGraph: false')) {
+    throw new Error('Expected markdown workspace selection switch-time preset replay to stay view-only and defer graph parse/apply to indexing')
+  }
+}
+
 export const testMarkdownWorkspaceDerivedViewsCentralizePersistenceWriteback = () => {
   const derivedViewsPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceDerivedViews.tsx')
   const ioPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')

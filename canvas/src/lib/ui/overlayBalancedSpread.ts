@@ -488,6 +488,7 @@ export function clampBalancedCollectiveScaleToViewport(args: {
   quantizeStep?: number
   hardMinScale?: number
   hardMaxScale?: number
+  viewportPreset?: BalancedSpreadViewportPreset
 }): number {
   const scale = Number.isFinite(args.scale) ? Number(args.scale) : 1
   const viewportW = Math.max(1, Number(args.viewportW) || 1)
@@ -496,34 +497,60 @@ export function clampBalancedCollectiveScaleToViewport(args: {
   const baseWidth = Math.max(1, Number(args.baseWidth) || 1)
   const baseHeight = Math.max(1, Number(args.baseHeight) || 1)
   const quantizeStep = Number.isFinite(args.quantizeStep) && Number(args.quantizeStep) > 0 ? Number(args.quantizeStep) : 0.02
-  const hardMinScale = Number.isFinite(args.hardMinScale) ? Number(args.hardMinScale) : 0.68
-  const hardMaxScale = Number.isFinite(args.hardMaxScale) ? Number(args.hardMaxScale) : 1.06
+  const requestedHardMin = Number.isFinite(args.hardMinScale) ? Number(args.hardMinScale) : 0.68
+  const requestedHardMax = Number.isFinite(args.hardMaxScale) ? Number(args.hardMaxScale) : 1.06
+  const minScaleBound = Math.max(0.001, Math.min(requestedHardMin, requestedHardMax))
+  const maxScaleBound = Math.max(minScaleBound, Math.max(requestedHardMin, requestedHardMax))
   const quantize = (v: number) => Math.round(v / quantizeStep) * quantizeStep
-  if (count <= 1) return clamp(quantize(clamp(scale, hardMinScale, hardMaxScale)), hardMinScale, hardMaxScale)
+  const clampToBounds = (v: number) => clamp(v, minScaleBound, maxScaleBound)
+  const boundedScale = clampToBounds(scale)
+  if (count <= 1) return clampToBounds(quantize(boundedScale))
 
-  const density = Math.max(0, count - 1)
-  const targetAspect = BALANCED_OVERLAY_SPREAD_TARGET_ASPECT
-  const viewportAspect = viewportW / Math.max(1, viewportH)
-  const aspectBias = clamp(Math.sqrt(viewportAspect / Math.max(0.5, targetAspect)), 0.9, 1.1)
-  const denseCountBias = clamp(Math.sqrt(4 / Math.max(4, count)), 0.76, 1)
-  const minWidthRatio = clamp((0.11 - Math.min(0.035, density * 0.0045)) * denseCountBias * aspectBias, 0.075, 0.12)
-  // Keep dense 16:9 collectives legible by avoiding an overly small shared floor
-  // once count-driven shrinkage bottoms out.
-  const maxWidthRatio = clamp((0.225 - Math.min(0.115, density * 0.011)) * denseCountBias * aspectBias, 0.14, 0.26)
-  const minHeightRatio = clamp((0.17 - Math.min(0.055, density * 0.0055)) * denseCountBias, 0.11, 0.18)
-  const maxHeightRatio = clamp((0.39 - Math.min(0.18, density * 0.016)) * denseCountBias, 0.26, 0.48)
+  const margins = computeBalancedSpreadViewportMargins({
+    viewportW,
+    viewportH,
+    preset: args.viewportPreset || 'widgetCanvas',
+  })
+  const usableW = Math.max(1, viewportW - margins.left - margins.right)
+  const usableH = Math.max(1, viewportH - margins.top - margins.bottom)
+  const baseGapPx = Math.max(12, Math.min(40, Math.round(usableW * 0.012)))
+  const gapPx = computeBalancedSpreadSpacingPx({
+    baseGapPx,
+    zoomK: 1,
+    count,
+  })
+  const fitsViewportAtScale = (candidateScale: number): boolean => {
+    const scale = clampToBounds(candidateScale)
+    const panelW = Math.max(1, baseWidth * scale)
+    const panelH = Math.max(1, baseHeight * scale)
+    const cellW = panelW + gapPx
+    const cellH = panelH + gapPx
+    const colsCap = Math.max(1, Math.floor((usableW + gapPx) / Math.max(1, cellW)))
+    const rowsCap = Math.max(1, Math.floor((usableH + gapPx) / Math.max(1, cellH)))
+    if (colsCap * rowsCap < count) return false
+    const grid = computeBalancedSpreadGridForTargetAspect({
+      count,
+      cellW,
+      cellH,
+      targetAspect: BALANCED_OVERLAY_SPREAD_TARGET_ASPECT,
+      minCols: count >= 4 && colsCap >= 2 ? 2 : 1,
+      maxCols: colsCap,
+      maxRows: rowsCap,
+    })
+    const footprintW = Math.max(1, grid.cols * cellW - gapPx)
+    const footprintH = Math.max(1, grid.rows * cellH - gapPx)
+    return footprintW <= usableW + 0.5 && footprintH <= usableH + 0.5
+  }
+  if (fitsViewportAtScale(boundedScale)) return clampToBounds(quantize(boundedScale))
+  if (fitsViewportAtScale(maxScaleBound)) return clampToBounds(quantize(maxScaleBound))
+  if (!fitsViewportAtScale(minScaleBound)) return clampToBounds(quantize(minScaleBound))
 
-  const viewportMinScale = Math.max(
-    hardMinScale,
-    (viewportW * minWidthRatio) / baseWidth,
-    (viewportH * minHeightRatio) / baseHeight,
-  )
-  const viewportMaxScale = Math.min(
-    hardMaxScale,
-    (viewportW * maxWidthRatio) / baseWidth,
-    (viewportH * maxHeightRatio) / baseHeight,
-  )
-  const minScale = clamp(viewportMinScale, hardMinScale, hardMaxScale)
-  const maxScale = clamp(Math.max(minScale, viewportMaxScale), minScale, hardMaxScale)
-  return clamp(quantize(clamp(scale, minScale, maxScale)), minScale, maxScale)
+  let lo = minScaleBound
+  let hi = maxScaleBound
+  for (let i = 0; i < 24; i += 1) {
+    const mid = (lo + hi) / 2
+    if (fitsViewportAtScale(mid)) lo = mid
+    else hi = mid
+  }
+  return clampToBounds(quantize(lo))
 }

@@ -598,10 +598,11 @@ export default function FlowEditorCanvasRuntime(
     overlayEditorNodeIdsRef.current = overlayEditorNodeIds
   }, [overlayEditorNodeIds])
   React.useEffect(() => {
-    overlayEdgesEnabledRef.current = overlayOnlyActive
-    if (!overlayOnlyActive) return
+    const overlayEdgesActive = flowEditorViewActive && hasOverlayEditors
+    overlayEdgesEnabledRef.current = overlayEdgesActive
+    if (!overlayEdgesActive) return
     scheduleOverlayEdgeUpdate()
-  }, [overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
+  }, [flowEditorViewActive, hasOverlayEditors, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
 
   if (widgetDropBridgeOnly) {
     return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />

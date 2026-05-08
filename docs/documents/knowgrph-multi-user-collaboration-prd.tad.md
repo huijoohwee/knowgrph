@@ -465,6 +465,8 @@ The canonical authoring source is a local filesystem (`huijoohwee/docs/`), which
 
 ## Deployment Strategy
 
+See `knowgrph-storage-sync-document.md` for the full deployment phase history (Phase 1 and 1.5 are DONE).
+
 ### Phase 1 — Auth + Roles (unblock multi-user)
 1. Add D1 migration `0002_knowgrph_auth.sql` for `users`, `workspace_members`, `invitations` tables
 2. Implement JWT sign/verify in Worker
@@ -570,8 +572,11 @@ flowchart TB
 | Worker | Request handler | `cloudflare/workers/knowgrph-storage/index.ts` | Add auth middleware wrapper |
 | Worker | D1 query helpers | `cloudflare/workers/knowgrph-storage/db.ts` | Add user/member query helpers |
 | Worker | Contract types | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Add auth-related types |
-| Client | Sync engine | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` | Add JWT to requests |
+| Client | Sync engine | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` | Add JWT to requests, auto-clear stale conflicts |
 | Client | Sync contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Add auth header constant |
+| Client | Workspace FS | `canvas/src/features/workspace-fs/workspaceFs.ts` | RxDB CONFLICT retry before degradation |
+| Settings | Workspace registry | `canvas/src/features/settings/registry-ui.workspace.ts` | Add `workspace.import.defaultSourceUrl` setting |
+| Seed | Seed provider | `canvas/src/features/workspace-fs/workspaceSeedProvider.ts` | Add URL fetch step in priority chain |
 
 ---
 

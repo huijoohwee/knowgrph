@@ -112,10 +112,10 @@ export default function FlowEditorCanvasSurface(props: {
         renderGroups={!props.geospatialWidgetPanelMode}
         renderNodes={!props.overlayOnlyActive}
         hidePortHandleNodeIds={props.overlayOnlyHidePortHandleNodeIds}
-        excludeRichMediaOverlayNodeIds={props.overlayEditorNodeIds}
+        excludeRichMediaOverlayNodeIds={props.overlayOnlyActive ? props.overlayEditorNodeIds : []}
       />
 
-      {props.overlayOnlyActive && (
+      {props.hasOverlayEditors && (
         <svg
           ref={props.overlayEdgesSvgRef}
           className="absolute inset-0 pointer-events-none"

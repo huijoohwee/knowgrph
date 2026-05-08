@@ -47,7 +47,11 @@ import {
   applyActiveMarkdownDocumentPayload,
   buildActiveMarkdownDocumentPayload,
 } from '@/features/markdown/activeMarkdownDocument'
-import { readWorkspaceInitializationSeedText, upsertWorkspaceInitializationSeedText } from '@/features/workspace-fs/workspaceSeedProvider'
+import {
+  readWorkspaceInitializationDocsMirrorEntries,
+  readWorkspaceInitializationSeedText,
+  upsertWorkspaceInitializationSeedText,
+} from '@/features/workspace-fs/workspaceSeedProvider'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
@@ -895,6 +899,197 @@ export async function testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy()
     } else {
       delete (globalThis as unknown as { window?: Window }).window
     }
+  }
+}
+
+export async function testWorkspaceSeedProviderReadsDocsMirrorFromSelectedLocalFolderHandle() {
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  type MockFsEntry = {
+    kind: 'file' | 'directory'
+    name: string
+    entries?: () => AsyncIterable<[string, MockFsEntry]>
+    getDirectoryHandle?: (name: string) => Promise<MockFsEntry>
+    getFile?: () => Promise<File>
+  }
+  const makeDirectoryEntry = (name: string, children: Record<string, MockFsEntry>): MockFsEntry => ({
+    kind: 'directory',
+    name,
+    entries: async function* () {
+      const keys = Object.keys(children).sort((a, b) => a.localeCompare(b))
+      for (let i = 0; i < keys.length; i += 1) {
+        const key = keys[i]!
+        const child = children[key]
+        if (!child) continue
+        yield [key, child]
+      }
+    },
+    getDirectoryHandle: async (childName: string) => {
+      const child = children[String(childName || '').trim()]
+      if (!child || child.kind !== 'directory') throw new Error(`missing directory ${childName}`)
+      return child
+    },
+  })
+  const makeFileEntry = (name: string, text: string, lastModified: number): MockFsEntry => ({
+    kind: 'file',
+    name,
+    getFile: async () => new File([text], name, { lastModified }),
+  })
+  const workspaceSeedsDir = makeDirectoryEntry('workspace-seeds', {
+    'knowgrph-video-demo.md': makeFileEntry('knowgrph-video-demo.md', '# seed from selected folder handle', 1710000000000),
+    'ignore.txt': makeFileEntry('ignore.txt', 'ignore me', 1710000000000),
+  })
+  const docsDir = makeDirectoryEntry('docs', {
+    'workspace-seeds': workspaceSeedsDir,
+  })
+  const rootDir = makeDirectoryEntry('root', {
+    docs: docsDir,
+  })
+
+  try {
+    store.setLocalMarkdownFolderHandle(rootDir as unknown as FileSystemDirectoryHandle, { accessMode: 'fs-access', name: 'root' })
+    store.setLocalMarkdownSelectedFolderPath('docs/workspace-seeds')
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    const target = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (!target || !String(target.text || '').includes('seed from selected folder handle')) {
+      throw new Error(`expected docs mirror to read markdown from selected local folder handle, got ${JSON.stringify(mirrored)}`)
+    }
+    if (mirrored.some(entry => String(entry.relPath || '').toLowerCase().endsWith('.txt'))) {
+      throw new Error('expected docs mirror to include markdown-like files only from selected local folder handle')
+    }
+  } finally {
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+  }
+}
+
+export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesState() {
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath('Users/huijoohwee/Documents/GitHub/huijoohwee/docs')
+    store.setSourceFiles([
+      {
+        id: 'sf-remote-video',
+        name: 'knowgrph-video-demo.md',
+        text: '# remote source files state',
+        enabled: true,
+        source: {
+          kind: 'local',
+          path: '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md',
+        },
+        updatedAtMs: 1710000000000,
+      },
+      {
+        id: 'sf-outside-root',
+        name: 'outside.md',
+        text: '# outside root should be ignored',
+        enabled: true,
+        source: {
+          kind: 'local',
+          path: '/Users/huijoohwee/Documents/GitHub/knowgrph/docs/outside.md',
+        },
+        updatedAtMs: 1710000001000,
+      },
+    ])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    const target = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (!target || !String(target.text || '').includes('remote source files state')) {
+      throw new Error(`expected docs mirror to resolve from sourceFiles state, got ${JSON.stringify(mirrored)}`)
+    }
+    if (mirrored.some(entry => entry.relPath.includes('outside.md'))) {
+      throw new Error(`expected selected-folder filter to exclude outside docs, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+  }
+}
+
+export async function testWorkspaceSeedProviderCollapsesRedundantDocsPrefixFromSourceFilesState() {
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath(null)
+    store.setSourceFiles([
+      {
+        id: 'sf-docs-double',
+        name: 'docs/docs/knowgrph-video-demo.md',
+        text: '# dedupe docs prefix',
+        enabled: true,
+        source: {
+          kind: 'local',
+          path: 'docs/docs/knowgrph-video-demo.md',
+        },
+        updatedAtMs: 1710000002000,
+      },
+    ])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    if (mirrored.length !== 1 || mirrored[0]?.relPath !== 'knowgrph-video-demo.md') {
+      throw new Error(`expected redundant docs/docs prefix to collapse to single mirror relPath, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+  }
+}
+
+export async function testWorkspaceSeedProviderResolvesRelativeDocsPathForAbsoluteSelectedFolder() {
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs')
+    store.setSourceFiles([
+      {
+        id: 'sf-relative-docs',
+        name: 'docs/knowgrph-video-demo.md',
+        text: '# relative docs path should map',
+        enabled: true,
+        source: {
+          kind: 'local',
+          path: 'docs/knowgrph-video-demo.md',
+        },
+        updatedAtMs: 1710000003000,
+      },
+    ])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    const target = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (!target || !String(target.text || '').includes('relative docs path should map')) {
+      throw new Error(`expected relative docs path to map with absolute selected folder, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
   }
 }
 

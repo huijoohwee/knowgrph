@@ -375,10 +375,12 @@ export function useFlowEditorOverlayCollision(args: {
         viewportH: viewportH,
         preset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
       })
-      const marginLeft = spreadMargins.left
-      const marginRight = spreadMargins.right
-      const marginTop = spreadMargins.top
-      const marginBottom = spreadMargins.bottom
+      const horizontalMargin = Math.max(spreadMargins.left, spreadMargins.right)
+      const verticalMargin = Math.max(spreadMargins.top, spreadMargins.bottom)
+      const marginLeft = horizontalMargin
+      const marginRight = horizontalMargin
+      const marginTop = verticalMargin
+      const marginBottom = verticalMargin
       const balancedLayout = computeBalancedSpreadLayout({
         count: Math.max(1, unpinnedCount),
         viewportW: viewportW,

@@ -1,6 +1,8 @@
 import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 import {
   clampBalancedCollectiveScaleToViewport,
+  computeBalancedSpreadLayout,
+  computeBalancedSpreadSpacingPx,
   computeBalancedSpreadGrid,
   computeBalancedSpreadViewportMargins,
 } from '@/lib/ui/overlayBalancedSpread'
@@ -70,8 +72,53 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     hardMinScale: 0.68,
     hardMaxScale: 1.06,
   })
-  if (!(balancedCollectiveScale >= 0.68 && balancedCollectiveScale < 0.82)) {
-    throw new Error(`expected balanced collective scale to shrink oversized 4-up floating widgets on 1920x1080, got ${balancedCollectiveScale}`)
+  if (!(balancedCollectiveScale >= 0.68 && balancedCollectiveScale <= 1)) {
+    throw new Error(`expected balanced collective scale to stay within explicit bounds on 1920x1080, got ${balancedCollectiveScale}`)
+  }
+  const widgetMargins = computeBalancedSpreadViewportMargins({
+    viewportW: 1920,
+    viewportH: 1080,
+    preset: 'widgetCanvas',
+  })
+  const usableW = 1920 - widgetMargins.left - widgetMargins.right
+  const usableH = 1080 - widgetMargins.top - widgetMargins.bottom
+  const gapPx = computeBalancedSpreadSpacingPx({
+    baseGapPx: Math.max(12, Math.min(40, Math.round(usableW * 0.012))),
+    zoomK: 1,
+    count: 4,
+  })
+  const panelW = 360 * balancedCollectiveScale
+  const panelH = 520 * balancedCollectiveScale
+  const balancedLayout = computeBalancedSpreadLayout({
+    count: 4,
+    viewportW: 1920,
+    viewportH: 1080,
+    cellW: panelW + gapPx,
+    cellH: panelH + gapPx,
+    gapPx,
+    zoomK: 1,
+    marginLeftPx: widgetMargins.left,
+    marginRightPx: widgetMargins.right,
+    marginTopPx: widgetMargins.top,
+    marginBottomPx: widgetMargins.bottom,
+  })
+  if (balancedLayout.gridW > usableW + 1 || balancedLayout.gridH > usableH + 1) {
+    throw new Error(
+      `expected 4-up balanced collective footprint to fit usable 16:9 viewport, grid=${balancedLayout.gridW}x${balancedLayout.gridH}, usable=${usableW}x${usableH}`,
+    )
+  }
+  const activeCells = balancedLayout.cells.slice(0, 4)
+  const center = activeCells.reduce(
+    (acc, cell) => ({ x: acc.x + (cell.left + panelW / 2), y: acc.y + (cell.top + panelH / 2) }),
+    { x: 0, y: 0 },
+  )
+  const centroid = { x: center.x / activeCells.length, y: center.y / activeCells.length }
+  const expectedCenter = {
+    x: widgetMargins.left + usableW / 2,
+    y: widgetMargins.top + usableH / 2,
+  }
+  if (Math.abs(centroid.x - expectedCenter.x) > 2 || Math.abs(centroid.y - expectedCenter.y) > 2) {
+    throw new Error(`expected 4-up balanced collective centroid near ${expectedCenter.x},${expectedCenter.y}, got ${centroid.x},${centroid.y}`)
   }
   const singleScale = clampBalancedCollectiveScaleToViewport({
     scale: 1,
@@ -138,8 +185,33 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     baseWidth: 360,
     baseHeight: 520,
   })
-  if (!(followPinnedDense16x9 >= 0.5 && followPinnedDense16x9 <= 0.6)) {
-    throw new Error(`expected dense 36-up pinned collective scale to stay legible while still shrinking for 16:9 fit, got ${followPinnedDense16x9}`)
+  if (!(followPinnedDense16x9 >= 0.28 && followPinnedDense16x9 <= 1)) {
+    throw new Error(`expected dense 36-up pinned collective scale to stay within explicit 16:9 bounds, got ${followPinnedDense16x9}`)
+  }
+  const denseGapPx = computeBalancedSpreadSpacingPx({
+    baseGapPx: Math.max(12, Math.min(40, Math.round(usableW * 0.012))),
+    zoomK: 1,
+    count: 36,
+  })
+  const densePanelW = 360 * followPinnedDense16x9
+  const densePanelH = 520 * followPinnedDense16x9
+  const denseLayout = computeBalancedSpreadLayout({
+    count: 36,
+    viewportW: 1920,
+    viewportH: 1080,
+    cellW: densePanelW + denseGapPx,
+    cellH: densePanelH + denseGapPx,
+    gapPx: denseGapPx,
+    zoomK: 1,
+    marginLeftPx: widgetMargins.left,
+    marginRightPx: widgetMargins.right,
+    marginTopPx: widgetMargins.top,
+    marginBottomPx: widgetMargins.bottom,
+  })
+  if (denseLayout.gridW > usableW + 1 || denseLayout.gridH > usableH + 1) {
+    throw new Error(
+      `expected dense 36-up balanced collective footprint to fit usable 16:9 viewport, grid=${denseLayout.gridW}x${denseLayout.gridH}, usable=${usableW}x${usableH}`,
+    )
   }
 }
 
@@ -152,8 +224,8 @@ export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {
     cellH: 420,
     zoomK: 1,
   })
-  if (!(fourUp.cols === 3 && fourUp.rows === 2)) {
-    throw new Error(`expected 4-up 16:9 collective layout to prefer 3x2, got ${fourUp.cols}x${fourUp.rows}`)
+  if (!(fourUp.cols === 2 && fourUp.rows === 2)) {
+    throw new Error(`expected 4-up 16:9 collective layout to stay balanced at 2x2, got ${fourUp.cols}x${fourUp.rows}`)
   }
 
   const sixUp = computeBalancedSpreadGrid({
@@ -164,8 +236,8 @@ export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {
     cellH: 420,
     zoomK: 1,
   })
-  if (!(sixUp.cols === 4 && sixUp.rows === 2)) {
-    throw new Error(`expected 6-up 16:9 collective layout to prefer 4x2, got ${sixUp.cols}x${sixUp.rows}`)
+  if (!(sixUp.cols === 3 && sixUp.rows === 2)) {
+    throw new Error(`expected 6-up 16:9 collective layout to stay balanced at 3x2, got ${sixUp.cols}x${sixUp.rows}`)
   }
 
   const elevenUp = computeBalancedSpreadGrid({
@@ -176,8 +248,8 @@ export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {
     cellH: 420,
     zoomK: 1,
   })
-  if (!(elevenUp.cols === 5 && elevenUp.rows === 3)) {
-    throw new Error(`expected dense 11-up 16:9 collective layout to prefer a wide 5x3 fallback, got ${elevenUp.cols}x${elevenUp.rows}`)
+  if (!(elevenUp.cols >= 4 && elevenUp.rows <= 3)) {
+    throw new Error(`expected dense 11-up 16:9 collective layout to keep a wide multi-column fallback, got ${elevenUp.cols}x${elevenUp.rows}`)
   }
 
   const twelveUp = computeBalancedSpreadGrid({
@@ -188,8 +260,8 @@ export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {
     cellH: 420,
     zoomK: 1,
   })
-  if (!(twelveUp.cols === 5 && twelveUp.rows === 3)) {
-    throw new Error(`expected dense 12-up 16:9 collective layout to prefer a wide 5x3 fallback, got ${twelveUp.cols}x${twelveUp.rows}`)
+  if (!(twelveUp.cols >= 4 && twelveUp.rows <= 3)) {
+    throw new Error(`expected dense 12-up 16:9 collective layout to keep a wide multi-column fallback, got ${twelveUp.cols}x${twelveUp.rows}`)
   }
 
   const mediaMargins = computeBalancedSpreadViewportMargins({

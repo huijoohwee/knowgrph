@@ -30,7 +30,7 @@ const OPENAI_REGISTRY_ENTRY: WidgetRegistryEntry = {
   formId: 'textGeneration.openai',
 }
 
-export function testResolveWidgetCompactPreviewSkipsBytePlusTextWidgets() {
+export function testResolveWidgetCompactPreviewIncludesBytePlusTextWidgets() {
   const preview = resolveWidgetCompactPreview({
     node: {
       id: 'text-byteplus',
@@ -45,8 +45,11 @@ export function testResolveWidgetCompactPreviewSkipsBytePlusTextWidgets() {
     registryEntry: BASE_REGISTRY_ENTRY,
   })
 
-  if (preview !== null) {
-    throw new Error('expected compact preview helper to suppress BytePlus text widget previews')
+  if (!preview || preview.kind !== 'text') {
+    throw new Error('expected compact preview helper to render BytePlus text widget previews')
+  }
+  if (preview.source !== 'local' || preview.text !== 'Should stay hidden') {
+    throw new Error(`expected BytePlus compact preview to preserve local output, got ${JSON.stringify(preview)}`)
   }
 }
 

@@ -10,7 +10,12 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
+import {
+  computeBalancedSpreadViewportMargins,
+  computeBalancedSpreadSpacingPx,
+  isHorizontalOverlayStrip,
+  isVerticalOverlayCluster,
+} from '@/lib/ui/overlayBalancedSpread'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import type { GraphData } from '@/lib/graph/types'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
@@ -198,7 +203,12 @@ export function useFlowEditorRuntimeScene(args: {
     const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
     const widgetGrid = readWidgetGridLayoutSettings(args.schema)
 
-    const gapScreenPx = Math.max(24, widgetGrid.gapPx)
+    const gapBasePx = Math.max(24, widgetGrid.gapPx)
+    const gapScreenPx = computeBalancedSpreadSpacingPx({
+      baseGapPx: gapBasePx,
+      zoomK,
+      count: Math.max(1, pinnedOpenIds.length),
+    })
     const gapWorld = gapScreenPx / Math.max(0.001, zoomK)
     const cellW = (panelScreen.width + gapScreenPx) / Math.max(0.001, zoomK)
     const cellH = (panelScreen.height + gapScreenPx) / Math.max(0.001, zoomK)
@@ -206,18 +216,44 @@ export function useFlowEditorRuntimeScene(args: {
     const snapWorld = (v: number) => (worldStep > 1 ? snapToGridPx(v, worldStep) : v)
 
     const center = viewportCenterToWorld({ transform: z, viewportW: args.viewportW, viewportH: args.viewportH })
-    const viewportHalfWorldW = args.viewportW / Math.max(0.001, zoomK) / 2
-    const viewportHalfWorldH = args.viewportH / Math.max(0.001, zoomK) / 2
+    const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
+    const spreadMargins = computeBalancedSpreadViewportMargins({
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      preset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
+    })
+    const horizontalMargin = Math.max(spreadMargins.left, spreadMargins.right)
+    const verticalMargin = Math.max(spreadMargins.top, spreadMargins.bottom)
+    const usableViewportW = Math.max(1, args.viewportW - horizontalMargin * 2)
+    const usableViewportH = Math.max(1, args.viewportH - verticalMargin * 2)
+    const viewportHalfWorldW = usableViewportW / Math.max(0.001, zoomK) / 2
+    const viewportHalfWorldH = usableViewportH / Math.max(0.001, zoomK) / 2
     const viewportBounds = {
       minX: center.x - viewportHalfWorldW,
       minY: center.y - viewportHalfWorldH,
       maxX: center.x + viewportHalfWorldW,
       maxY: center.y + viewportHalfWorldH,
     }
+    const normalizeSeedBoundsToViewport = (bounds: { minX: number; minY: number; maxX: number; maxY: number }) => {
+      const bounded = {
+        minX: Number.isFinite(bounds.minX) ? bounds.minX : viewportBounds.minX,
+        minY: Number.isFinite(bounds.minY) ? bounds.minY : viewportBounds.minY,
+        maxX: Number.isFinite(bounds.maxX) ? bounds.maxX : viewportBounds.maxX,
+        maxY: Number.isFinite(bounds.maxY) ? bounds.maxY : viewportBounds.maxY,
+      }
+      const intersected = {
+        minX: Math.max(viewportBounds.minX, bounded.minX),
+        minY: Math.max(viewportBounds.minY, bounded.minY),
+        maxX: Math.min(viewportBounds.maxX, bounded.maxX),
+        maxY: Math.min(viewportBounds.maxY, bounded.maxY),
+      }
+      if (intersected.maxX - intersected.minX >= 1 && intersected.maxY - intersected.minY >= 1) return intersected
+      return viewportBounds
+    }
     const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
       placeWidgetsCenteredInGroupBounds({
         ids,
-        bounds,
+        bounds: normalizeSeedBoundsToViewport(bounds),
         cellW,
         cellH,
         gapWorld,
@@ -231,7 +267,10 @@ export function useFlowEditorRuntimeScene(args: {
       const id = pinnedOpenIds[i]!
       const group = getLiveContainmentGroupAabbForNode(id)
       if (!group) continue
-      allBoundsByBucket.set(`group:${group.groupId}`, { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY })
+      allBoundsByBucket.set(
+        `group:${group.groupId}`,
+        normalizeSeedBoundsToViewport({ minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY }),
+      )
     }
 
     const bucketSignature = Array.from(allBoundsByBucket.entries())
@@ -247,18 +286,38 @@ export function useFlowEditorRuntimeScene(args: {
 
     const overlapEligible = (() => {
       const idsByBucket = new Map<string, string[]>()
+      const pinnedWorldIdsByBucket = new Map<string, string[]>()
       for (let i = 0; i < pinnedOpenIds.length; i += 1) {
         const id = pinnedOpenIds[i]!
         const world = worldById[id]
-        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world })) continue
-        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
         const group = getLiveContainmentGroupAabbForNode(id)
         const bucketId = group ? `group:${group.groupId}` : viewportBucketId
+        if (world && Number.isFinite(world.x) && Number.isFinite(world.y)) {
+          const pinnedList = pinnedWorldIdsByBucket.get(bucketId) || []
+          pinnedList.push(id)
+          pinnedWorldIdsByBucket.set(bucketId, pinnedList)
+        }
+        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world })) continue
+        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
         const list = idsByBucket.get(bucketId) || []
         list.push(id)
         idsByBucket.set(bucketId, list)
       }
       const overlappingIds = new Set<string>()
+      const isOutsideViewportBounds = (id: string, bucketId: string) => {
+        const world = worldById[id]
+        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return false
+        const bounds = allBoundsByBucket.get(bucketId) || viewportBounds
+        const left = world.x
+        const top = world.y
+        const right = left + panelWorldW
+        const bottom = top + panelWorldH
+        if (right <= bounds.minX) return true
+        if (bottom <= bounds.minY) return true
+        if (left >= bounds.maxX) return true
+        if (top >= bounds.maxY) return true
+        return false
+      }
       const hasOverlap = (aId: string, bId: string) => {
         const a = worldById[aId]
         const b = worldById[bId]
@@ -266,6 +325,12 @@ export function useFlowEditorRuntimeScene(args: {
         const overlapX = a.x < b.x + panelWorldW && b.x < a.x + panelWorldW
         const overlapY = a.y < b.y + panelWorldH && b.y < a.y + panelWorldH
         return overlapX && overlapY
+      }
+      for (const [bucketId, pinnedIds] of pinnedWorldIdsByBucket.entries()) {
+        for (let i = 0; i < pinnedIds.length; i += 1) {
+          const id = pinnedIds[i]!
+          if (isOutsideViewportBounds(id, bucketId)) overlappingIds.add(id)
+        }
       }
       for (const ids of idsByBucket.values()) {
         const bucketItems = ids
@@ -311,7 +376,12 @@ export function useFlowEditorRuntimeScene(args: {
       const list = idsByBucket.get(bucketId) || []
       list.push(id)
       idsByBucket.set(bucketId, list)
-      if (group) boundsByBucket.set(bucketId, { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY })
+      if (group) {
+        boundsByBucket.set(
+          bucketId,
+          normalizeSeedBoundsToViewport({ minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY }),
+        )
+      }
     }
     const bucketIds = Array.from(idsByBucket.keys()).sort((a, b) => a.localeCompare(b))
     const pendingSet = new Set(pending)

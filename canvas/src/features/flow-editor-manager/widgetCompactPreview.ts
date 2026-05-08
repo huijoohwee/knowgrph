@@ -5,8 +5,6 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { inferWidgetAutoRenderKind } from '@/lib/flowEditor/widgetAutoRender'
 import { setObjectPath } from '@/lib/data/objectPath'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
-import { inferTextGenerationProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
-import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export type WidgetCompactPreviewKind = 'text' | 'image' | 'video'
@@ -212,18 +210,6 @@ export function resolveWidgetCompactPreview(args: {
   registryEntry?: WidgetRegistryEntry | null
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): WidgetCompactPreviewSpec | null {
-  const nodeTypeId = String(args.node.type || '').trim()
-  if (nodeTypeId === 'TextGeneration') {
-    const props = readNodeProperties(args.node)
-    const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node, registryEntry: args.registryEntry })
-    const providerFamily = inferTextGenerationProviderFamily({
-      provider: props.chatProvider,
-      widgetTypeId: widgetIdentity.widgetTypeId,
-      formId: widgetIdentity.formId,
-    })
-    if (providerFamily === 'byteplus') return null
-  }
-
   const fieldSpecs = readWidgetPreviewFieldSpecs(args)
   const fieldSpecByKey = new Map<string, WidgetPreviewFieldSpec>()
   const fieldSpecBySchemaPath = new Map<string, WidgetPreviewFieldSpec>()

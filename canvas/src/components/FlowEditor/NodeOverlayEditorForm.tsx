@@ -469,13 +469,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [])
 
   const compactPreview = React.useMemo(() => {
-    if (!hideFields || isRichMediaPanelWidget) return null
+    if (!hideFields) return null
     return resolveWidgetCompactPreview({
       node: nodeHelperSnapshot as GraphNode,
       registryEntry: registryEntrySnapshot,
       connectedValuesBySchemaPath: connectedValuesSnapshot,
     })
-  }, [connectedValuesSnapshot, hideFields, isRichMediaPanelWidget, nodeHelperSnapshot, registryEntrySnapshot])
+  }, [connectedValuesSnapshot, hideFields, nodeHelperSnapshot, registryEntrySnapshot])
   const compactPreviewView = React.useMemo(() => {
     return buildWidgetCompactPreviewViewModel({
       preview: compactPreview,

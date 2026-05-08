@@ -432,12 +432,23 @@ export function useFlowEditorOverlayEdges(args: {
           liveGraphEdgeCount,
         })
       } else if (workspaceOverlayOpen) {
+        const hasLiveGraphGeometry = !!liveGraph && liveGraphNodeCount > 0 && liveGraphEdgeCount > 0
+        if (hasLiveGraphGeometry) {
+          pushOverlayEdgeTrace('schedule-workspace-open-live-graph-bootstrap', {
+            overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
+            stableGraphNodeCount,
+            stableGraphEdgeCount,
+            liveGraphNodeCount,
+            liveGraphEdgeCount,
+          })
+        } else {
         const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
         pushOverlayEdgeTrace('schedule-skip-workspace-open', {
           overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
           restoredFrozenPathCount,
         })
         return
+        }
       }
       if (!graph) {
         pushOverlayEdgeTrace('missing-graph-data', {

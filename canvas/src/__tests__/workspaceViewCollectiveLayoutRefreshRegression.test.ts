@@ -363,17 +363,19 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
 
   const interactionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
   const interactionRuntimeText = readFileSync(interactionRuntimePath, 'utf8')
-  const interactionGuardIndex = interactionRuntimeText.indexOf("if (workspaceMutationBlocked && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {")
-  const interactionClearIndex = interactionRuntimeText.indexOf('useGraphStore.getState().clearZoomRequest()')
+  const interactionGuardIndex = interactionRuntimeText.indexOf('if (workspaceMutationBlocked) return')
+  const interactionBlockedSelectorIndex = interactionRuntimeText.indexOf('isWorkspaceGraphMutationBlocked({')
   const interactionApplyIndex = interactionRuntimeText.indexOf('applyZoomRequestNative({')
   if (
-    interactionGuardIndex < 0
-    || interactionClearIndex < 0
-    || interactionApplyIndex < 0
-    || interactionGuardIndex > interactionClearIndex
-    || interactionClearIndex > interactionApplyIndex
+    interactionApplyIndex < 0
   ) {
-    throw new Error('expected FlowCanvas interaction runtime to consume workspace-triggered fit/reset zoom requests before native zoom application')
+    throw new Error('expected FlowCanvas interaction runtime to route zoom requests through native zoom application')
+  }
+  if (interactionGuardIndex >= 0 || interactionBlockedSelectorIndex >= 0) {
+    throw new Error('expected FlowCanvas interaction runtime zoom handling to avoid workspace mutation-block gating so manual zoom actions always function')
+  }
+  if (interactionRuntimeText.includes('useGraphStore.getState().clearZoomRequest()')) {
+    throw new Error('expected FlowCanvas interaction runtime to avoid discarding zoom requests before native zoom application')
   }
 
   const uiModeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSliceModeActions.ts')

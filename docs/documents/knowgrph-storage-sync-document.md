@@ -6,9 +6,9 @@
 
 ---
 
-**Version**: 2.1.0
-**Date**: 2026-05-07
-**Status**: Deployed (Worker + D1 + seeded 5 docs)
+**Version**: 2.2.0
+**Date**: 2026-05-08
+**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -25,19 +25,34 @@
 
 ## Storage Ladder
 
-1. **Canonical authoring source**: Git markdown in `huijoohwee/docs/**`
+1. **Canonical authoring source**: Git markdown in `huijoohwee/docs/**` (single-author) or Cloudflare D1 (multi-user)
 2. **Per-device working store**: RxDB in the browser (IndexedDB)
 3. **First shared cloud store**: Cloudflare D1 through a Cloudflare Worker sync API
 4. **Optional large-asset spillover**: Cloudflare R2 when assets stop fitting cleanly in document rows
 5. **Future scale-up path**: PostgreSQL only when multi-user collaboration or server-side retrieval clearly outgrows D1
 
+### SSOT Transition
+
+The canonical authoring source depends on workspace membership:
+
+- **Single-user workspace**: Filesystem (`huijoohwee/docs/`) remains SSOT. Seed script populates D1 from filesystem.
+- **Multi-user workspace** (≥2 members): D1 becomes operational SSOT. Filesystem becomes bootstrap-only seed source. Optional D1→filesystem export script available for git-backed backup.
+
+### Default Workspace Initialization Source
+
+Users can configure a default import source URL via Settings → Workspace → `workspace.import.defaultSourceUrl`. When the workspace is empty and this URL is set, `ensureSeed()` fetches content from the URL and seeds the workspace, reusing the existing `importUrlFallback()` pipeline.
+
+Supported URL types: Cloudflare D1 export endpoint, GitHub repo/folder/blob, any webpage, raw markdown URL, local dev path (via Vite proxy).
+
 ### Why This Remains The Default
 
-- Git markdown stays the authoring source of truth; docs do not drift into a database-first workflow.
+- Git markdown stays the authoring source of truth for single-user; docs do not drift into a database-first workflow.
+- D1 becomes SSOT only when multi-user collaboration requires a shared authoritative store.
 - RxDB matches the current canvas runtime and preserves refresh-safe, offline-first editing.
 - D1 keeps the first shared-store step operationally lean on Cloudflare.
 - Token savings come from chunk reuse, graph snapshot reuse, and bounded pull/push contracts.
 - Conflict handling stays inside the existing toast/log/runtime path; no second UX system.
+- Auto-clear of stale outbox conflicts after pull eliminates manual resolution after re-seeds.
 
 ---
 
@@ -91,7 +106,15 @@ flowchart TB
 
     subgraph Edge["Cloudflare Edge (airvio.co/knowgrph)"]
         pages["Pages: static SPA"]
-        noServer{{"Worker: NOT DEPLOYED<br/>D1: NOT PROVISIONED"}}
+        workerDeployed["Worker: /api/storage/*"]
+        subgraph d1r["D1 (remote SQLite)"]
+            r1["workspaces"]
+            r2["documents"]
+            r3["document_chunks"]
+            r4["graph_snapshots"]
+            r5["sync_devices"]
+            r6["sync_events"]
+        end
     end
 
     subgraph Browser["Browser (any device)"]
@@ -99,19 +122,83 @@ flowchart TB
         bsync["Client sync engine (30s poll)"]
         bbridge["SF ↔ Storage bridge"]
         bconflict["Conflict UX (toast + log)"]
+        bautoClear["Auto-clear stale conflicts"]
     end
 
-    Browser -.->|"push/pull<br/>(no server)"| Edge
+    Browser -->|"push/pull"| Edge
 ```
 
 ### As-Is Gaps
 
-| Gap | Impact |
-|---|---|
-| Cloudflare Worker not deployed to Edge | Client push/pull has no server endpoint |
-| D1 database not provisioned | No shared remote store exists |
-| No cross-device sync | Workspace state is siloed per-browser |
-| No seed write-back | Dev edits to seed docs don't flow back to `huijoohwee/docs/` |
+| Gap | Impact | Status |
+|---|---|---|
+| Cloudflare Worker not deployed to Edge | Client push/pull has no server endpoint | **Resolved** — Worker deployed at `airvio.co/api/storage/*` |
+| D1 database not provisioned | No shared remote store exists | **Resolved** — D1 provisioned (`633355bf-…152`) |
+| No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 30s polling loop |
+| No seed write-back | Dev edits to seed docs don't flow back to `huijoohwee/docs/` | Deferred — filesystem export script planned |
+| No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
+| No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
+| Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
+
+---
+
+## Happy Paths
+
+### Path A — Local Filesystem (Single Author, Current Default)
+
+```
+1. Author edits .md files in huijoohwee/docs/
+2. npm run storage:d1:seed:docs
+3. D1 upserts documents with fresh revisions
+4. Browser pulls from D1 on next 30s poll cycle
+5. autoClearStaleOutboxConflicts removes any stale conflicts
+6. Workspace renders updated docs
+```
+
+### Path B — Cloudflare D1 Export URL (Multi-User, Production)
+
+```
+1. Owner sets workspace.import.defaultSourceUrl in Settings
+   → https://airvio.co/api/storage/export/{workspaceId}
+2. New user opens workspace in browser
+3. ensureSeed() finds empty workspace + URL set
+4. Fetches export JSON from D1 endpoint
+5. Extracts documents[].contentMd → seeds workspace
+6. User edits in browser → push to D1
+7. Other users pull on next poll cycle → state parity
+```
+
+### Path C — GitHub Repo Docs Folder (Import from External Source)
+
+```
+1. User sets workspace.import.defaultSourceUrl in Settings
+   → https://github.com/user/repo/tree/main/docs
+2. ensureSeed() calls importWorkspaceUrl() via existing pipeline
+3. importGitHubFolder() fetches all .md files from the repo
+4. Workspace populated with imported docs
+5. Edits stay local (push to D1 if sync enabled)
+```
+
+### Path D — Recover Deleted Workspace Files
+
+```
+1. User deletes all workspace files (userClearedAll flag set)
+2. To recover: clear localStorage flags in browser console:
+   localStorage.removeItem('kg:ui:markdown:workspace:userClearedAllFiles')
+   localStorage.removeItem('kg:ui:markdown:workspace:seeded')
+   location.reload()
+3. ensureSeed() re-seeds from configured source (filesystem or URL)
+```
+
+### Path E — Re-Seed Without Conflict Accumulation
+
+```
+1. npm run storage:d1:seed:docs (re-seeds D1 with fresh revisions)
+2. Browser pulls on next poll cycle
+3. autoClearStaleOutboxConflicts compares server revisions vs outbox
+4. All stale conflicts auto-removed (serverRevision >= localRevision)
+5. Toast auto-dismisses — zero user intervention
+```
 
 ---
 
@@ -371,12 +458,14 @@ flowchart TB
 
 ### Rules
 
-- Keep local conflicting outbox rows retained until user action or later retry.
+- Auto-clear stale outbox conflicts after pull: when server revision >= local revision, the conflict is stale (server already won) and the outbox row is removed without user intervention.
+- Keep non-stale conflicting outbox rows retained until user action or later retry.
 - Summarize unresolved conflicts at workspace scope.
 - Expose `Keep Local`, `Accept Remote`, and `Review Log` through shared action descriptors.
 - Dispatch actions through one runtime path (`uiActionRuntime.ts`).
 - Reuse shared toast (`ToastHost.tsx`) and History log (`HistoryView.tsx`) rendering surfaces.
 - Forbid a second storage-only modal, drawer, or panel system.
+- Handle RxDB CONFLICT errors in workspace FS resilient wrapper: retry once before degrading to memory FS, preventing false "persistence unavailable" toasts from concurrent write race conditions.
 
 ---
 
@@ -412,26 +501,52 @@ flowchart TB
 
 **Status**: Accepted. `upsertWorkspaceInitializationSeedText` implements Node.js-only file write with `typeof window !== 'undefined'` guard; prevents browser-side filesystem access; docs directory is Dev-only concern.
 
+### ADR-007: Auto-Clear Stale Outbox Conflicts After Pull
+
+**Status**: Accepted. After every pull, `autoClearStaleOutboxConflicts()` compares pulled server revisions against conflicted outbox entries. When `serverRevision >= localRevision`, the conflict is stale (the server already has the authoritative version) and the outbox row is auto-removed. This eliminates manual conflict resolution after re-seeding D1.
+
+**Alternatives considered**: (1) Require user to manually resolve each conflict — poor UX at scale (48+ conflicts). (2) Clear all conflicts unconditionally — risks losing legitimate local edits that are ahead of the server. (3) Reset outbox attempt count only — conflicts re-accumulate on next push.
+
+### ADR-008: Default Workspace Initialization Source URL
+
+**Status**: Proposed. Add `workspace.import.defaultSourceUrl` setting (localStorage-backed, string, default empty). When set and the workspace is empty, `ensureSeed()` fetches content from the URL using the existing `importUrlFallback()` pipeline. This enables users to configure D1 export URLs, GitHub repos, or any URL as the workspace seed source without code changes.
+
+**Alternatives considered**: (1) Hardcode D1 export URL — not configurable, breaks for users without D1. (2) Add a new seed provider type — unnecessary complexity when `importUrlFallback()` already handles all URL types. (3) Use Vite env var only — not user-configurable at runtime.
+
 ---
 
 ## Deployment Phases
 
-### Phase 1 — Worker + D1 (unblock sync)
+### Phase 1 — Worker + D1 (DONE)
 
-1. Create `wrangler.toml` with D1 binding and Pages Function route pattern
-2. Apply D1 migration for 6 tables
-3. Deploy Worker handlers for push, pull, export
-4. Wire `pages:build-sync` to deploy Worker alongside static assets
-5. Verify end-to-end: Dev browser push → D1 → second browser pull → state parity
+1. ~~Create `wrangler.toml` with D1 binding and Pages Function route pattern~~ ✅
+2. ~~Apply D1 migration for 6 tables~~ ✅
+3. ~~Deploy Worker handlers for push, pull, export~~ ✅
+4. ~~Wire `pages:build-sync` to deploy Worker alongside static assets~~ ✅
+5. ~~Verify end-to-end: Dev browser push → D1 → second browser pull → state parity~~ ✅
 
-### Phase 2 — Docs Real-Time Seed Sync
+### Phase 1.5 — Conflict Resilience (DONE)
 
-1. Add Vite plugin or `fs.watch` on `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT`
-2. On file change, trigger `ensureSeed` re-read (bypass poll interval)
-3. Wire seed document edits through `upsertWorkspaceInitializationSeedText`
-4. Add `--check` mode to seed sync for CI drift detection
+1. ~~Add `autoClearStaleOutboxConflicts()` to sync client~~ ✅ — auto-removes stale conflicts after pull
+2. ~~Add `isRxConflictError()` retry in workspace FS resilient wrapper~~ ✅ — prevents false persistence degradation
+3. ~~Verify: re-seed D1 → browser pull → conflicts auto-clear → toast dismisses~~ ✅
 
-### Phase 3 — Real-Time Collaboration (future)
+### Phase 2 — Default Source URL + SSOT Transition (IN PROGRESS)
+
+1. Add `workspace.import.defaultSourceUrl` setting to workspace settings registry
+2. Extend `readWorkspaceInitializationDocsMirrorEntries()` priority chain with URL fetch step
+3. Implement D1→filesystem export script for git-backed backup
+4. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
+
+### Phase 3 — Multi-User Auth + Authorization (PROPOSED)
+
+1. Add D1 migration for `users`, `workspace_members`, `invitations` tables
+2. Implement JWT auth middleware in Worker
+3. Add role-based push/pull permission enforcement (owner, editor, viewer)
+4. Extend conflict UX with user identity display
+5. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
+
+### Phase 4 — Real-Time Collaboration (FUTURE)
 
 1. Introduce Cloudflare Durable Objects for per-workspace WebSocket channels
 2. Replace 30s polling with push-based mutation broadcast
@@ -446,10 +561,10 @@ flowchart TB
 |---|---|
 | Performance | Push/pull round-trip <500ms p95; D1 queries <50ms p95 |
 | Scalability | D1 free tier: 5M reads/day, 100K writes/day; pagination for >500 documents |
-| Security | Optimistic concurrency via base revision; workspace-scoped isolation; no auth in Phase 1 |
+| Security | Optimistic concurrency via base revision; workspace-scoped isolation; no auth in Phase 1; JWT auth + RBAC in Phase 3 |
 | Observability | Worker logs via `wrangler tail`; D1 metrics via Cloudflare dashboard; client telemetry via `pipelinePerf.ts` |
-| Resilience | RxDB outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations |
-| Maintainability | Worker is thin validation + D1 proxy; business logic stays client-side; numbered SQL migrations |
+| Resilience | RxDB outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations; auto-clear stale conflicts after pull; RxDB CONFLICT retry before FS degradation |
+| Maintainability | Worker is thin validation + D1 proxy; business logic stays client-side; numbered SQL migrations; settings-driven default source URL |
 
 ---
 
