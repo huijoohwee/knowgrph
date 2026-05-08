@@ -6,9 +6,9 @@
 
 ---
 
-**Version**: 2.3.0
+**Version**: 2.4.0
 **Date**: 2026-05-08
-**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view)
+**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view, deep link canvas rendering)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -139,7 +139,7 @@ flowchart TB
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
-| No public document view URL | Cannot share a readable link to a specific D1 document | Open — see ADR-009 |
+| No public document view URL | Cannot share a readable link to a specific D1 document | **Resolved** — `GET /api/storage/doc/:workspaceId/:canonicalPath` + deep link canvas rendering |
 
 ---
 
@@ -313,7 +313,8 @@ flowchart TB
 | Layer | Component | File | Status |
 |---|---|---|---|
 | Worker | Request handlers | `workers/knowgrph-storage/index.ts` | Built |
-| Worker | Public doc view route | `workers/knowgrph-storage/index.ts` (`/api/storage/doc/`) | Proposed — see ADR-009 |
+| Worker | Public doc view route | `workers/knowgrph-storage/index.ts` (`/api/storage/doc/`) | **Built** — see ADR-009 |
+| Canvas | Deep link runtime | `features/canvas/CanvasDocDeepLinkRuntime.tsx` | **Built** — renders `/doc/{workspaceId}/{path}` in canvas |
 | Worker | D1 query helpers | `workers/knowgrph-storage/db.ts` | Built |
 | Worker | Contract re-export | `workers/knowgrph-storage/contract.ts` | Built |
 | Worker | Wrangler config | `workers/knowgrph-storage/wrangler.toml` | Built |
@@ -519,24 +520,27 @@ flowchart TB
 
 ### ADR-009: Public Single-Document View Endpoint
 
-**Status**: Proposed. Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route that returns a single document's `content_md` as `text/markdown`. This provides a shareable, human-readable URL for any document stored in D1 without requiring the SPA or sync protocol.
+**Status**: Accepted. `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route returns a single document's `content_md` as `text/markdown` with `deleted = 0` filter, CORS headers, and 60s cache. Deployed at `airvio.co/api/storage/doc/*`.
 
 **URL structure**: `https://airvio.co/api/storage/doc/{workspaceId}/{canonicalPath}`
 
 | Segment | Source | Example |
 |---|---|---|
-| `workspaceId` | D1 `documents.workspace_id` | `kgws:abc123` |
-| `canonicalPath` | D1 `documents.canonical_path` | `docs/knowgrph-maps-readme.md` |
+| `workspaceId` | D1 `documents.workspace_id` | `kgws:canonical-docs` |
+| `canonicalPath` | D1 `documents.canonical_path` | `huijoohwee/docs/knowgrph-maps-readme.md` |
 
-**Response**: `200 Content-Type: text/markdown; charset=utf-8` with raw `content_md`. `404` if document not found. No authentication required (public read).
+**Response**: `200 Content-Type: text/markdown; charset=utf-8` with raw `content_md`. `404` if document not found or soft-deleted. No authentication required (public read).
 
 **Worker logic**:
-1. Decode `workspaceId` and `canonicalPath` from URL path
-2. Query D1: `SELECT content_md FROM documents WHERE workspace_id = ? AND canonical_path = ?`
+1. Decode `workspaceId` and `canonicalPath` from URL path (split on first `/` after prefix)
+2. Query D1: `SELECT content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0`
 3. Return `content_md` as plain text or 404
+
+**Deep link canvas rendering**: Visiting `https://airvio.co/knowgrph/doc/{workspaceId}/{canonicalPath}` renders the document in the knowledge graph canvas. `CanvasRouteRuntime` normalizes the path to `?kgPath=`, then `CanvasDocDeepLinkRuntime` reads the param, constructs the `/api/storage/doc/` URL, and calls `importWorkspaceUrl()` to fetch and render the document.
 
 **Use cases**:
 - Share a readable link to a specific document (browser renders markdown natively or via extension)
+- Share a canvas-rendered link: `/knowgrph/doc/{workspaceId}/{canonicalPath}` opens the document in the knowledge graph canvas
 - Use as `workspace.import.defaultSourceUrl` input — `fetchWorkspaceUrlContent()` handles `text/markdown` responses
 - Programmatic access via `curl` or API clients without JSON parsing
 
@@ -564,9 +568,10 @@ flowchart TB
 
 1. ~~Add `workspace.import.defaultSourceUrl` setting to workspace settings registry~~ ✅
 2. ~~Extend `readWorkspaceInitializationDocsMirrorEntries()` priority chain with URL fetch step~~ ✅
-3. Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route for public single-document view
-4. Implement D1→filesystem export script for git-backed backup
-5. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
+3. ~~Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route for public single-document view~~ ✅
+4. ~~Add `CanvasDocDeepLinkRuntime` for deep link canvas rendering (`/knowgrph/doc/{workspaceId}/{canonicalPath}`)~~ ✅
+5. Implement D1→filesystem export script for git-backed backup
+6. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
 
 ### Phase 3 — Multi-User Auth + Authorization (PROPOSED)
 

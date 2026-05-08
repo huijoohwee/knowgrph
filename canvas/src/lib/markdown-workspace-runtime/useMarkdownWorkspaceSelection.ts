@@ -149,8 +149,8 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       sourceUrl: activeDocumentSourceUrl,
       autoEnableFrontmatter: false,
       applyViewPreset: true,
-      applyToGraph: false,
-      normalizeWebpageFrontmatterToMarkdown: true,
+      applyToGraph: true,
+      normalizeWebpageFrontmatterToMarkdown: false,
     })
   }, [
     activeDocumentKey,

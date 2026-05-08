@@ -213,11 +213,9 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           Object.entries(currentPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
         ) as Record<string, { top: number; left: number }>
         afterApplyState.setFlowWidgetPosByNodeId(nextPosByNodeId)
-        const currentWorldPosByNodeId = afterApplyState.flowWidgetWorldPosByNodeId || {}
-        const nextWorldPosByNodeId = Object.fromEntries(
-          Object.entries(currentWorldPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
-        ) as Record<string, { x: number; y: number }>
-        afterApplyState.setFlowWidgetWorldPosByNodeId(nextWorldPosByNodeId)
+        // Frontmatter flow imports should reseed overlay placement from graph anchors,
+        // not stale persisted world coordinates from previous documents/sessions.
+        afterApplyState.setFlowWidgetWorldPosByNodeId({})
       }
     }
     return !!(parsedGraph && ((parsedGraph.nodes || []).length > 0 || (parsedGraph.edges || []).length > 0))

@@ -177,8 +177,11 @@ export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileS
   if (!text.includes('applyViewPreset: true')) {
     throw new Error('Expected markdown workspace selection switch-time active-document replay to reapply view presets from YAML frontmatter')
   }
-  if (!text.includes('applyToGraph: false')) {
-    throw new Error('Expected markdown workspace selection switch-time preset replay to stay view-only and defer graph parse/apply to indexing')
+  if (!text.includes('applyToGraph: true')) {
+    throw new Error('Expected markdown workspace selection switch-time preset replay to apply graph data immediately for strict Source Files frontmatter documents')
+  }
+  if (!text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
+    throw new Error('Expected Source Files frontmatter replay to keep original markdown flow blocks instead of normalizing to webpage key/value markdown')
   }
 }
 

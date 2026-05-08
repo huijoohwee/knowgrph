@@ -20,6 +20,14 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
   if (!(rendererIndex < geoDisableIndex && geoDisableIndex < viewModeIndex)) {
     throw new Error('Expected Geospatial Mode disable call to run after Flow Editor renderer selection and before canvas view switch')
   }
+  const sourceInferApplyIndex = workspaceText.indexOf('const inferredApplyToGraph = shouldApplyImportedCanvasDocumentToGraph(')
+  const sourceShouldApplyIndex = workspaceText.indexOf('const shouldApplyToGraph = opts?.applyToGraph === true || inferredApplyToGraph')
+  if (sourceInferApplyIndex < 0 || sourceShouldApplyIndex < 0) {
+    throw new Error('Expected Source Files sync path to infer apply-to-graph for frontmatter and flow markdown documents')
+  }
+  if (sourceInferApplyIndex > sourceShouldApplyIndex) {
+    throw new Error('Expected Source Files apply-to-graph inference to be computed before apply-to-graph resolution')
+  }
 
   const documentActionPath = path.resolve(
     process.cwd(),
