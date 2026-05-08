@@ -8,6 +8,7 @@ import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFil
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import {
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
@@ -177,6 +178,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)
       nextState.setCanvasRenderMode('2d')
       nextState.setCanvas2dRenderer('flowEditor')
+      void setGeospatialModeEnabled(false).catch(() => void 0)
       nextState.setDocumentSemanticMode('document')
       nextState.setFrontmatterModeEnabled(true)
     }

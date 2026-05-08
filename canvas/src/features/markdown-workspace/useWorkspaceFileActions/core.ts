@@ -21,6 +21,7 @@ import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import { getDefaultNewWorkspaceFileName, resolveNewWorkspaceFileDraft } from './fileDraft'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
 
@@ -246,6 +247,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         }
         store.setCanvasRenderMode('2d')
         store.setCanvas2dRenderer('flowEditor')
+        void setGeospatialModeEnabled(false).catch(() => void 0)
         store.setWorkspaceViewMode('canvas')
         return
       }
