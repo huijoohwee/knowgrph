@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
-import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -87,16 +86,25 @@ export function useD3GraphScene2d(args: {
   selectedEdgeIdsRef: MutableRefObject<string[] | undefined>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
-  const { workspaceViewMode, workspaceCanvasPaneOpen } = useGraphStore(
-    useShallow(s => ({
-      workspaceViewMode: s.workspaceViewMode,
-      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
-    })),
-  )
-  const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
-  const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
-  workspaceOverlayOpenRef.current = workspaceOverlayOpen
-  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'flowchart'
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const workspaceOverlayOpenRef = useRef(false)
+  useEffect(() => {
+    const sync = (mode: 'canvas' | 'editor') => {
+      workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen({
+        workspaceViewMode: mode,
+        workspaceCanvasPaneOpen: true,
+      })
+    }
+    const state = useGraphStore.getState()
+    sync(state.workspaceViewMode)
+    return useGraphStore.subscribe(
+      s => s.workspaceViewMode,
+      next => {
+        sync(next)
+      },
+    )
+  }, [])
+  const enableEditorGestures = workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'flowchart'
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
   const {

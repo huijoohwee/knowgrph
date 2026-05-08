@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
-import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -100,15 +99,24 @@ export function useD3PresentationUpdates2d(args: {
   selectedEdgeIdRef: MutableRefObject<string | null>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
-  const { workspaceViewMode, workspaceCanvasPaneOpen } = useGraphStore(
-    useShallow(s => ({
-      workspaceViewMode: s.workspaceViewMode,
-      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
-    })),
-  )
-  const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
-  const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
-  workspaceOverlayOpenRef.current = workspaceOverlayOpen
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const workspaceOverlayOpenRef = useRef(false)
+  useEffect(() => {
+    const sync = (mode: 'canvas' | 'editor') => {
+      workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen({
+        workspaceViewMode: mode,
+        workspaceCanvasPaneOpen: true,
+      })
+    }
+    const state = useGraphStore.getState()
+    sync(state.workspaceViewMode)
+    return useGraphStore.subscribe(
+      s => s.workspaceViewMode,
+      next => {
+        sync(next)
+      },
+    )
+  }, [])
   const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())
 
   const {
@@ -150,7 +158,7 @@ export function useD3PresentationUpdates2d(args: {
     selectedEdgeIdRef,
     setHoverInfo,
   } = args
-  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'flowchart'
+  const enableEditorGestures = workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'flowchart'
   const graphStoreActions = useMemo(
     () =>
       buildGraphCanvasStoreActionAdapters({

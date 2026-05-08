@@ -25,6 +25,8 @@ import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/Workspa
 import { KindPill, resolveFieldTypeIconKind } from '@/features/graph-fields/ui/graphFieldIcons'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { LS_KEYS } from '@/lib/config'
+import { lsRemove } from '@/lib/persistence'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -214,6 +216,8 @@ export default function SettingsView({
     setValues,
     dirtyRef,
   } = useSettingsView({ searchQuery, onRegisterActions, mode, paymentsProviderId })
+  const [isRestoringWorkspace, setIsRestoringWorkspace] = React.useState(false)
+
   const [chatModelsStatus, setChatModelsStatus] = React.useState<string | null>(null)
   const [isRefreshingChatModels, setIsRefreshingChatModels] = React.useState(false)
   const [discoveredChatModels, setDiscoveredChatModels] = React.useState<string[]>([])
@@ -230,6 +234,24 @@ export default function SettingsView({
   const bridgeImportUrl = bridge.importUrl
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+
+  const onRestoreWorkspace = React.useCallback(async () => {
+    if (isRestoringWorkspace) return
+    setIsRestoringWorkspace(true)
+    try {
+      lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      lsRemove(LS_KEYS.markdownWorkspaceSeeded)
+      const { getWorkspaceFs } = await import('@/features/workspace-fs/workspaceFs') as typeof import('@/features/workspace-fs/workspaceFs')
+      const fs = await getWorkspaceFs()
+      await fs.ensureSeed()
+      pushUiToast({ id: 'workspace-restored', kind: 'success', message: 'Workspace files restored.', ttlMs: 3000, dismissible: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to restore workspace'
+      pushUiToast({ id: 'workspace-restore-error', kind: 'error', message, ttlMs: 5000, dismissible: true })
+    } finally {
+      setIsRestoringWorkspace(false)
+    }
+  }, [isRestoringWorkspace, pushUiToast])
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
@@ -1675,6 +1697,19 @@ export default function SettingsView({
                 onClick={onGlobalReset}
               >
                 Global Reset
+              </button>
+            </div>
+            <div className={`mt-3 space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+              <div>
+                Restore default workspace seed files after clearing all workspace files in Source Files.
+              </div>
+              <button
+                type="button"
+                className={uiDangerButtonClassName}
+                disabled={isRestoringWorkspace}
+                onClick={onRestoreWorkspace}
+              >
+                {isRestoringWorkspace ? 'Restoring…' : 'Restore Workspace'}
               </button>
             </div>
           </CollapsibleSection>

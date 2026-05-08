@@ -8,6 +8,7 @@ import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
 import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
+import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -357,7 +358,26 @@ export function useFlowCanvasRuntime(args: {
           fitOpts: opts,
         })
       : fitAllTransform(nodesForFit, fitW, viewportH, { ...opts, graphData: graphDataForZoomRequests || undefined })
-    const seed = initial || (!fitToScreenMode && !zoomToSelectionMode && hasNonIdentityTransform ? { k: current.k, x: current.x, y: current.y } : fit)
+    const isUsableFlowTransform = (t: d3.ZoomTransform | null | undefined): boolean => {
+      if (!t || !isFlowEditor) return true
+      return isFlowTransformShowingGraph(
+        { k: t.k, x: t.x, y: t.y },
+        {
+          nodes: nodesForFit as Array<{ x?: unknown; y?: unknown }>,
+          viewportW,
+          viewportH,
+          nodeW: flowConfigEffective.node.widthPx,
+          nodeH: flowConfigEffective.node.heightPx,
+        },
+      )
+    }
+    const preserveCurrentTransform =
+      !fitToScreenMode &&
+      !zoomToSelectionMode &&
+      hasNonIdentityTransform &&
+      isUsableFlowTransform(current)
+    const initialTransformUsable = isUsableFlowTransform(initial)
+    const seed = (initialTransformUsable ? initial : null) || (preserveCurrentTransform ? { k: current.k, x: current.x, y: current.y } : fit)
     const next = d3.zoomIdentity.translate(seed.x, seed.y).scale(seed.k)
     lastInitTransformZoomViewKeyRef.current = initKey
     if (Math.abs(current.k - next.k) > 1e-9 || Math.abs(current.x - next.x) > 1e-6 || Math.abs(current.y - next.y) > 1e-6) {
@@ -371,6 +391,8 @@ export function useFlowCanvasRuntime(args: {
     documentStructureBaselineLock,
     fitToScreenMode,
     flowEditorReservedW,
+    flowConfigEffective.node.heightPx,
+    flowConfigEffective.node.widthPx,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     frontmatterModeEnabled,

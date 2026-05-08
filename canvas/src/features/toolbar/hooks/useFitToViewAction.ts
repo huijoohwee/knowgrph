@@ -9,6 +9,7 @@ export function useFitToViewAction() {
     requestZoom,
     requestThreeCamera,
     canvasRenderMode,
+    canvas2dRenderer,
     selectedNodeId,
     selectedEdgeId,
     selectedGroupId,
@@ -20,6 +21,7 @@ export function useFitToViewAction() {
       requestZoom: s.requestZoom,
       requestThreeCamera: s.requestThreeCamera,
       canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
       selectedNodeId: s.selectedNodeId,
       selectedEdgeId: s.selectedEdgeId,
       selectedGroupId: s.selectedGroupId,
@@ -32,6 +34,12 @@ export function useFitToViewAction() {
   const disabled = false
 
   const handleFitToView = React.useCallback(() => {
+    const flowEditor2dActive = canvas2dRenderer === 'flowEditor'
+    if (flowEditor2dActive) {
+      requestZoom('fit', { intent: 'fitToView' })
+      return
+    }
+
     const geospatialEnabled = (() => {
       try {
         return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
@@ -73,6 +81,7 @@ export function useFitToViewAction() {
     }
     requestZoom('fit', { intent: 'fitToView' })
   }, [
+    canvas2dRenderer,
     canvasRenderMode,
     requestThreeCamera,
     requestZoom,

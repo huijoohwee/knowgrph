@@ -2,7 +2,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 
 export type MarkdownFileTreeContextMenuItem = {
-  key: 'reveal' | 'copyPath' | 'copyRelativePath' | 'rename' | 'delete'
+  key: 'shareUrl' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'rename' | 'delete'
   label: string
   tone?: 'default' | 'danger'
   onSelect: () => void
@@ -11,6 +11,7 @@ export type MarkdownFileTreeContextMenuItem = {
 type BuildMarkdownFileTreeContextMenuItemsArgs = {
   entry: WorkspaceEntry
   copyToClipboard: (text: string) => Promise<boolean>
+  buildShareUrl?: (entryPath: WorkspacePath) => string | null
   onRevealInFinder?: (path: WorkspacePath) => void
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry?: (path: WorkspacePath) => void
@@ -28,6 +29,19 @@ export function buildMarkdownFileTreeContextMenuItems(
   const isInitializationEntry = isInitializationWorkspacePath(entryPath)
 
   const items: MarkdownFileTreeContextMenuItem[] = [
+    {
+      key: 'shareUrl',
+      label: 'Share URL',
+      onSelect: () => {
+        const url = args.buildShareUrl?.(entryPath)
+        if (!url) {
+          args.closeContextMenu()
+          return
+        }
+        void shareOrCopyUrl(url, args.copyToClipboard)
+        args.closeContextMenu()
+      },
+    },
     {
       key: 'reveal',
       label: 'Reveal in Finder',
@@ -86,4 +100,19 @@ export function buildMarkdownFileTreeContextMenuItems(
   }
 
   return items
+}
+
+async function shareOrCopyUrl(
+  url: string,
+  copyToClipboard: (text: string) => Promise<boolean>,
+): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      await navigator.share({ title: 'Knowgrph Document', url })
+      return
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+    }
+  }
+  await copyToClipboard(url)
 }

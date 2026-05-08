@@ -77,15 +77,21 @@ export default function CanvasPage() {
     if (workspaceViewMode === 'editor') setEditorShellWarmed(true)
   }, [workspaceViewMode])
 
+  const [toolbarHeaderElevated, setToolbarHeaderElevated] = React.useState(false)
+  const toolbarHeaderRef = React.useRef<HTMLElement>(null)
+  const editorOverlayRef = React.useRef<HTMLElement>(null)
+  React.useEffect(() => {
+    if (workspaceViewMode !== 'editor') setToolbarHeaderElevated(false)
+  }, [workspaceViewMode])
+
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
-  const workspaceEditorModeActive = workspaceViewMode === 'editor'
-  const workspaceCanvasPaneVisible = workspaceEditorModeActive && workspaceCanvasPaneOpen
+  const workspaceCanvasPaneVisible = workspaceEditorOverlayOpen && workspaceCanvasPaneOpen
   const workspacePaneBoundaryCss = `min(${workspacePreviewWidthPx}px, calc(100% - 3rem))`
 
   React.useEffect(() => {
     if (!workspaceEditorOverlayOpen) return
-    runGlobalInteractionCleanup({ resetViewportControllers: true })
+    runGlobalInteractionCleanup({ resetViewportControllers: false })
   }, [workspaceEditorOverlayOpen])
 
   const { canvasRenderMode, canvas3dMode, canvas2dRenderer } = useGraphStore(
@@ -152,6 +158,23 @@ export default function CanvasPage() {
           </main>
         ) : (
           <>
+            {workspaceEditorOverlayOpen ? (
+              <header
+                ref={toolbarHeaderRef}
+                className={`absolute top-0 inset-x-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[400]' : 'z-[300]'}`}
+                aria-label="Workspace Toolbar Header"
+                onPointerDown={() => setToolbarHeaderElevated(true)}
+              >
+                <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                  <div className="pointer-events-auto">
+                    <React.Suspense fallback={null}>
+                      <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                    </React.Suspense>
+                  </div>
+                </nav>
+              </header>
+            ) : null}
+
             <React.Suspense fallback={null}>
               <ToastHostLazy />
             </React.Suspense>
@@ -160,10 +183,10 @@ export default function CanvasPage() {
               <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">
                 <section className="relative flex-1 min-h-0 overflow-hidden" aria-label="Workspace overlay stage">
                   <section
-                    className={`absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]${workspaceEditorModeActive ? ' pointer-events-none' : ''}`}
+                    className="absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]"
                     aria-label="Canvas pane"
                   >
-                    {!workspaceEditorModeActive ? (
+                    {!workspaceEditorOverlayOpen ? (
                       <nav
                         className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"
@@ -186,25 +209,22 @@ export default function CanvasPage() {
                     />
                   </section>
 
-                  {workspaceEditorModeActive ? (
-                    <section className="absolute inset-0 z-[300] pointer-events-none" aria-label="Workspace editor overlay shell">
-                      <header className="absolute top-0 inset-x-0 z-[200] pointer-events-none" aria-label="Workspace Toolbar Header">
-                        <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
-                          <div className="pointer-events-auto">
-                            <React.Suspense fallback={null}>
-                              <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                            </React.Suspense>
-                          </div>
-                        </nav>
-                      </header>
+                  {workspaceEditorOverlayOpen ? (
+                    <section
+                      ref={editorOverlayRef}
+                      className="absolute inset-0 z-[300] pointer-events-none"
+                      aria-label="Workspace editor overlay shell"
+                      onPointerDown={() => setToolbarHeaderElevated(false)}
+                    >
                       <section
                         className={`absolute inset-y-0 left-0 pointer-events-auto overflow-hidden bg-[var(--kg-panel-bg)] ${workspaceCanvasPaneVisible ? 'border-r border-[var(--kg-border)] shadow-2xl' : ''}`}
                         style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}
                         aria-label="Workspace left pane"
+                        data-kg-workspace-left-pane="1"
                       >
                         {editorShellWarmed ? (
                           <React.Suspense fallback={null}>
-                            <EmbeddedEditorShellLazy active={workspaceEditorModeActive} />
+                            <EmbeddedEditorShellLazy active={workspaceEditorOverlayOpen} />
                           </React.Suspense>
                         ) : null}
                       </section>

@@ -230,6 +230,21 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const graphKey = `${buildGraphMetaKeyIgnoringPending(sceneGraphData)}:')) {
     throw new Error('expected Flow runtime scene rebuild key to reuse semantic graph identity')
   }
+  if (!runtimeText.includes("import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'")) {
+    throw new Error('expected Flow runtime zoom seeding to reuse the shared flow transform visibility guard helper')
+  }
+  if (!runtimeText.includes('const preserveCurrentTransform =')) {
+    throw new Error('expected Flow runtime zoom seeding to centralize stale offscreen transform preservation checks')
+  }
+  if (!runtimeText.includes('!isFlowEditor ||') || !runtimeText.includes('isFlowTransformShowingGraph(')) {
+    throw new Error('expected Flow Editor zoom seeding to preserve non-identity transforms only when the current transform still shows graph content')
+  }
+  if (!runtimeText.includes('const initialTransformUsable = isUsableFlowTransform(initial)')) {
+    throw new Error('expected Flow runtime zoom seeding to reject stale offscreen initial transforms in Flow Editor mode')
+  }
+  if (!runtimeText.includes('const seed = (initialTransformUsable ? initial : null)')) {
+    throw new Error('expected Flow runtime zoom seeding to fallback from unusable initial transforms to fit/current guard path')
+  }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
   if (computedPositionsText.includes('const rev = typeof graphDataRevision')) {
@@ -422,14 +437,55 @@ export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
   }
   const hookPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3GraphScene2d.ts')
   const hookText = readFileSync(hookPath, 'utf8')
-  if (!hookText.includes('const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === \'editor\'')) {
-    throw new Error('expected D3 scene hook to keep workspace overlay gating local to gesture handling')
+  if (!hookText.includes('const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)')) {
+    throw new Error('expected D3 scene hook to scope reactive dependencies to workspace view mode only')
+  }
+  if (hookText.includes('workspaceCanvasPaneOpen } = useGraphStore(')) {
+    throw new Error('expected D3 scene hook to avoid subscribing scene rebuilds to workspaceCanvasPaneOpen toggle churn')
+  }
+  if (!hookText.includes('const workspaceOverlayOpenRef = useRef(false)')) {
+    throw new Error('expected D3 scene hook to track workspace overlay-open state through a non-reactive ref')
+  }
+  if (!hookText.includes('s => s.workspaceViewMode')) {
+    throw new Error('expected D3 scene hook overlay-open subscription to listen only to workspaceViewMode')
+  }
+  if (hookText.includes('s => [s.workspaceCanvasPaneOpen, s.workspaceViewMode] as const')) {
+    throw new Error('expected D3 scene hook overlay-open subscription to avoid workspaceCanvasPaneOpen tuple churn')
+  }
+  if (!hookText.includes('const enableEditorGestures = workspaceViewMode === \'editor\'')) {
+    throw new Error('expected D3 scene hook to keep pane-open overlay toggles outside scene rebuild keys')
+  }
+  const presentationHookPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
+  const presentationHookText = readFileSync(presentationHookPath, 'utf8')
+  if (presentationHookText.includes('workspaceCanvasPaneOpen } = useGraphStore(')) {
+    throw new Error('expected D3 presentation hook to avoid reacting to workspaceCanvasPaneOpen toggle churn')
+  }
+  if (!presentationHookText.includes('const workspaceOverlayOpenRef = useRef(false)')) {
+    throw new Error('expected D3 presentation hook to use shared overlay-open refs instead of reactive pane-open subscriptions')
+  }
+  if (!presentationHookText.includes('s => s.workspaceViewMode')) {
+    throw new Error('expected D3 presentation hook overlay-open subscription to listen only to workspaceViewMode')
+  }
+  if (presentationHookText.includes('s => [s.workspaceCanvasPaneOpen, s.workspaceViewMode] as const')) {
+    throw new Error('expected D3 presentation hook overlay-open subscription to avoid workspaceCanvasPaneOpen tuple churn')
+  }
+  if (!presentationHookText.includes('const enableEditorGestures = workspaceViewMode === \'editor\'')) {
+    throw new Error('expected D3 presentation hook to keep gesture-gating independent from workspace pane open/close toggles')
   }
 }
 
 export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   const zoomPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
   const text = readFileSync(zoomPath, 'utf8')
+  if (!text.includes('readCanvasOverlayNodeId,')) {
+    throw new Error('expected Flow Editor fit recentering to reuse shared overlay node-id resolution when translating world positions')
+  }
+  if (!text.includes("const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane=\"1\"]'")) {
+    throw new Error('expected Flow Editor zoom fit to read workspace occlusion from the canonical workspace-left-pane marker')
+  }
+  if (!text.includes('function resolveFlowEditorVisibleViewport(args: {')) {
+    throw new Error('expected Flow Editor zoom fit to centralize visible viewport resolution for workspace-occluded layouts')
+  }
   if (!text.includes('const surfaceRect = surfaceRoot?.getBoundingClientRect() || null')) {
     throw new Error('expected Flow Editor overlay fit bounds to resolve the active surface root window rect')
   }
@@ -444,6 +500,21 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   }
   if (!text.includes('top: entry.rect.top - surfaceOffsetTop')) {
     throw new Error('expected Flow Editor overlay fit bounds to store top edge in active surface-local coordinates')
+  }
+  if (!text.includes('const fitW = Math.max(1, visibleViewport.width - pad * 2)')) {
+    throw new Error('expected Flow Editor zoom fit to clamp collective bounds to the visible viewport width when workspace editor occludes the left pane')
+  }
+  if (!text.includes('const targetX = visibleViewport.centerX - (centerX - base.x) * appliedScale')) {
+    throw new Error('expected Flow Editor zoom fit to center collective overlays inside the visible viewport center')
+  }
+  if (!text.includes('recenterOverlayWidgetPositions(deltaX, deltaY)')) {
+    throw new Error('expected Flow Editor fit recentering to shift widget world positions alongside viewport transform updates')
+  }
+  if (!text.includes('st.setFlowWidgetWorldPosByNodeId(nextWorld)')) {
+    throw new Error('expected Flow Editor fit recentering to persist translated world positions through the shared widget world-position setter')
+  }
+  if (!text.includes('st.setFlowWidgetPosByNodeId(nextScreen)')) {
+    throw new Error('expected Flow Editor fit recentering to persist translated screen positions through the shared widget screen-position setter')
   }
   if (text.includes('left: entry.rect.left,')) {
     throw new Error('expected Flow Editor overlay fit bounds to avoid raw window-space left coordinates')

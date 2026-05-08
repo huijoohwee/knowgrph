@@ -30,18 +30,19 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
   })
 
   const labels = items.map(item => item.label).join(',')
-  if (labels !== 'Reveal in Finder,Copy Path,Copy Relative Path,Rename,Delete') {
+  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path,Rename,Delete') {
     throw new Error(`expected shared file-tree context-menu labels, got ${labels}`)
   }
-  if (items[4]?.tone !== 'danger') {
-    throw new Error(`expected delete menu item to be danger tone, got ${String(items[4]?.tone || '')}`)
+  if (items[5]?.tone !== 'danger') {
+    throw new Error(`expected delete menu item to be danger tone, got ${String(items[5]?.tone || '')}`)
   }
 
   items[0]?.onSelect()
-  await items[1]?.onSelect()
+  items[1]?.onSelect()
   await items[2]?.onSelect()
-  items[3]?.onSelect()
+  await items[3]?.onSelect()
   items[4]?.onSelect()
+  items[5]?.onSelect()
 
   const callLog = calls.join(',')
   if (!callLog.includes('reveal:/docs/note.md,close')) {
@@ -72,7 +73,7 @@ export async function testMarkdownFileTreeContextMenuItemsHideMutationsForInitia
   })
 
   const labels = items.map(item => item.label).join(',')
-  if (labels !== 'Reveal in Finder,Copy Path,Copy Relative Path') {
+  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path') {
     throw new Error(`expected initialization-file menu to hide rename and delete, got ${labels}`)
   }
 }

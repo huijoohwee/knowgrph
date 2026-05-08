@@ -48,6 +48,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   onRevealInFinder?: (path: WorkspacePath) => void
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry?: (path: WorkspacePath) => void
+  buildShareUrl?: (entryPath: WorkspacePath) => string | null
   renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }) {
   const {
@@ -61,6 +62,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     onRevealInFinder,
     onRenameEntry,
     onDeleteEntry,
+    buildShareUrl,
     renderFileRight,
   } = props
   const panelTypography = usePanelTypography()
@@ -97,19 +99,29 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     }
     return false
   }, [])
+  const defaultBuildShareUrl = React.useCallback((entryPath: WorkspacePath): string | null => {
+    if (buildShareUrl) return buildShareUrl(entryPath)
+    const relative = String(entryPath || '').replace(/^\/+/, '')
+    if (!relative) return null
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const base = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') : '/knowgrph'
+    return `${origin}${base}/doc/${encodeURIComponent(relative)}`
+  }, [buildShareUrl])
+
   const contextMenuItems = React.useMemo(
     () =>
       contextMenu
         ? buildMarkdownFileTreeContextMenuItems({
             entry: contextMenu.entry,
             copyToClipboard,
+            buildShareUrl: defaultBuildShareUrl,
             onRevealInFinder,
             onRenameEntry,
             onDeleteEntry,
             closeContextMenu,
           })
         : [],
-    [closeContextMenu, contextMenu, copyToClipboard, onDeleteEntry, onRenameEntry, onRevealInFinder],
+    [closeContextMenu, contextMenu, copyToClipboard, defaultBuildShareUrl, onDeleteEntry, onRenameEntry, onRevealInFinder],
   )
 
   const renderNode = (node: Node, depth: number) => {

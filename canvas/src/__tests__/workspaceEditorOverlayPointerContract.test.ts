@@ -230,11 +230,11 @@ export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
   if (!sceneText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected D3 scene hook to reuse workspace overlay-open SSOT')
   }
-  if (!sceneText.includes('const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
-    throw new Error('expected D3 scene hook to derive workspace overlay-open state via SSOT helper')
+  if (!sceneText.includes('const workspaceOverlayOpenRef = useRef(false)')) {
+    throw new Error('expected D3 scene hook to keep workspace overlay-open state behind a non-reactive ref')
   }
-  if (!sceneText.includes('workspaceOverlayOpenRef.current = workspaceOverlayOpen')) {
-    throw new Error('expected D3 scene hook to keep overlay-open state as a latest-value guard')
+  if (!sceneText.includes('workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen({')) {
+    throw new Error('expected D3 scene hook to update workspace overlay-open state through SSOT helper in the store subscription')
   }
   if (!actionsText.includes('if (args.workspaceOverlayOpenRef?.current) return')) {
     throw new Error('expected shared GraphCanvasRoot store action adapter to block guarded writes while workspace overlay is open')
@@ -259,11 +259,11 @@ export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
   if (!presentationText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected D3 presentation hook to reuse workspace overlay-open SSOT')
   }
-  if (!presentationText.includes('const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
-    throw new Error('expected D3 presentation hook to derive workspace overlay-open state via SSOT helper')
+  if (!presentationText.includes('const workspaceOverlayOpenRef = useRef(false)')) {
+    throw new Error('expected D3 presentation hook to keep workspace overlay-open state behind a non-reactive ref')
   }
-  if (!presentationText.includes('workspaceOverlayOpenRef.current = workspaceOverlayOpen')) {
-    throw new Error('expected D3 presentation hook to keep overlay-open state as a latest-value guard')
+  if (!presentationText.includes('workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen({')) {
+    throw new Error('expected D3 presentation hook to update workspace overlay-open state through SSOT helper in the store subscription')
   }
   if (!presentationText.includes("import { buildGraphCanvasStoreActionAdapters } from '@/components/GraphCanvasRoot/utils/graphStoreActionAdapters'")) {
     throw new Error('expected D3 presentation hook to reuse the shared GraphCanvasRoot store action adapter helper')

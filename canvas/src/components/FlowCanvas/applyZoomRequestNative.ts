@@ -12,6 +12,7 @@ import {
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
@@ -20,6 +21,7 @@ import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
+const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane="1"]'
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
@@ -80,6 +82,55 @@ function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   return { minX, maxX, minY, maxY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) }
 }
 
+function resolveFlowEditorVisibleViewport(args: {
+  flowEditorSurfaceId?: string
+  viewportW: number
+  viewportH: number
+}) {
+  const fallback = {
+    left: 0,
+    top: 0,
+    right: args.viewportW,
+    bottom: args.viewportH,
+    width: args.viewportW,
+    height: args.viewportH,
+    centerX: args.viewportW / 2,
+    centerY: args.viewportH / 2,
+  }
+  if (typeof document === 'undefined') return fallback
+  const normalizedSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  if (!normalizedSurfaceId) return fallback
+  const surfaceRoot = document.querySelector<HTMLElement>(
+    `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(normalizedSurfaceId)}"]`,
+  )
+  const paneEl = document.querySelector<HTMLElement>(WORKSPACE_LEFT_PANE_SELECTOR)
+  const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+  const paneRect = paneEl?.getBoundingClientRect() || null
+  if (!surfaceRect || !paneRect) return fallback
+  const overlapLeft = Math.max(surfaceRect.left, paneRect.left)
+  const overlapRight = Math.min(surfaceRect.right, paneRect.right)
+  const overlapTop = Math.max(surfaceRect.top, paneRect.top)
+  const overlapBottom = Math.min(surfaceRect.bottom, paneRect.bottom)
+  const overlapW = Math.max(0, overlapRight - overlapLeft)
+  const overlapH = Math.max(0, overlapBottom - overlapTop)
+  const paneOccludesFromLeft = overlapW > 0 && overlapH > 0 && paneRect.left <= surfaceRect.left + 1
+  if (!paneOccludesFromLeft) return fallback
+  const leftInset = Math.max(0, Math.min(args.viewportW - 1, overlapW))
+  const left = leftInset
+  const right = args.viewportW
+  const width = Math.max(1, right - left)
+  return {
+    left,
+    top: 0,
+    right,
+    bottom: args.viewportH,
+    width,
+    height: args.viewportH,
+    centerX: left + width / 2,
+    centerY: args.viewportH / 2,
+  }
+}
+
 function recenterVisibleFlowEditorOverlayCentroid(args: {
   runtime: FlowNativeRuntime
   viewportW: number
@@ -89,14 +140,62 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
 }) {
   if (typeof document === 'undefined') return
   const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  const recenterOverlayWidgetPositions = (deltaX: number, deltaY: number) => {
+    if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return
+    if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
+    const st = useGraphStore.getState()
+    const base = st.flowWidgetWorldPosByNodeId || {}
+    const ids = new Set<string>()
+    const selectors = [FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, RICH_MEDIA_OVERLAY_ROOT_SELECTOR]
+    for (let i = 0; i < selectors.length; i += 1) {
+      const selector = selectors[i]!
+      const roots = Array.from(document.querySelectorAll(selector)).filter(
+        (el): el is HTMLElement =>
+          el instanceof HTMLElement
+          && readFlowEditorOverlaySurfaceId(el) === activeSurfaceId,
+      )
+      for (let j = 0; j < roots.length; j += 1) {
+        const nodeId = readCanvasOverlayNodeId(roots[j])
+        if (nodeId) ids.add(nodeId)
+      }
+    }
+    if (ids.size === 0) return
+    let changedWorld = false
+    let changedScreen = false
+    const nextWorld = { ...base }
+    const nextScreen = { ...(st.flowWidgetPosByNodeId || {}) }
+    ids.forEach((nodeId) => {
+      const curWorld = nextWorld[nodeId]
+      if (curWorld && Number.isFinite(curWorld.x) && Number.isFinite(curWorld.y)) {
+        nextWorld[nodeId] = { x: curWorld.x + deltaX, y: curWorld.y + deltaY }
+        changedWorld = true
+      }
+      const curScreen = nextScreen[nodeId]
+      if (curScreen && Number.isFinite(curScreen.x) && Number.isFinite(curScreen.y)) {
+        nextScreen[nodeId] = { x: curScreen.x + deltaX, y: curScreen.y + deltaY }
+        changedScreen = true
+      }
+    })
+    if (changedWorld) st.setFlowWidgetWorldPosByNodeId(nextWorld)
+    if (changedScreen) st.setFlowWidgetPosByNodeId(nextScreen)
+  }
   const run = () => {
     const bounds = collectFlowEditorOverlayBounds(activeSurfaceId)
     if (!bounds) return
+    const visibleViewport = resolveFlowEditorVisibleViewport({
+      flowEditorSurfaceId: activeSurfaceId,
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+    })
     const allEntries = [
       { left: bounds.minX, right: bounds.maxX, top: bounds.minY, bottom: bounds.maxY },
     ]
     const visibleEntries = allEntries.filter(
-      entry => entry.right > 0 && entry.bottom > 0 && entry.left < args.viewportW && entry.top < args.viewportH,
+      entry =>
+        entry.right > visibleViewport.left
+        && entry.bottom > visibleViewport.top
+        && entry.left < visibleViewport.right
+        && entry.top < visibleViewport.bottom,
     )
     // If every overlay drifted outside viewport, fall back to the full collective
     // bounds so fit/reset can always recover and recenter the layout.
@@ -107,11 +206,12 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
     }), { x: 0, y: 0 })
     centroid.x /= entries.length
     centroid.y /= entries.length
-    const deltaX = args.viewportW / 2 - centroid.x
-    const deltaY = args.viewportH / 2 - centroid.y
+    const deltaX = visibleViewport.centerX - centroid.x
+    const deltaY = visibleViewport.centerY - centroid.y
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
     const current = args.runtime.transform || d3.zoomIdentity
     setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))
+    recenterOverlayWidgetPositions(deltaX, deltaY)
     args.onFrame?.()
   }
   requestAnimationFrame(() => {
@@ -167,6 +267,11 @@ export const applyZoomRequestNative = (args: {
   const autoMinK = getFlowAutoMinScale(args.runtime)
   const viewportW = Math.max(1, Math.floor(args.width))
   const viewportH = Math.max(1, Math.floor(args.height))
+  const visibleViewport = resolveFlowEditorVisibleViewport({
+    flowEditorSurfaceId: args.flowEditorSurfaceId,
+    viewportW,
+    viewportH,
+  })
   const isFlowEditorFitLikeRequest =
     state.canvasRenderMode === '2d'
     && state.canvas2dRenderer === 'flowEditor'
@@ -184,8 +289,8 @@ export const applyZoomRequestNative = (args: {
         const bounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
         if (!bounds) return null
         const pad = 48
-        const fitW = Math.max(1, viewportW - pad * 2)
-        const fitH = Math.max(1, viewportH - pad * 2)
+        const fitW = Math.max(1, visibleViewport.width - pad * 2)
+        const fitH = Math.max(1, visibleViewport.height - pad * 2)
         const base = args.runtime.transform || d3.zoomIdentity
         const safeBaseK = Number.isFinite(base.k) && base.k > 0 ? base.k : 1
         const scaleBy = Math.min(fitW / bounds.width, fitH / bounds.height)
@@ -193,8 +298,8 @@ export const applyZoomRequestNative = (args: {
         const appliedScale = targetK / safeBaseK
         const centerX = (bounds.minX + bounds.maxX) / 2
         const centerY = (bounds.minY + bounds.maxY) / 2
-        const targetX = viewportW / 2 - (centerX - base.x) * appliedScale
-        const targetY = viewportH / 2 - (centerY - base.y) * appliedScale
+        const targetX = visibleViewport.centerX - (centerX - base.x) * appliedScale
+        const targetY = visibleViewport.centerY - (centerY - base.y) * appliedScale
         return {
           nextTransform: d3.zoomIdentity.translate(targetX, targetY).scale(targetK),
           durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),

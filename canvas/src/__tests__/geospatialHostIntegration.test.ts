@@ -22,15 +22,28 @@ export const testGeospatialOverlayHostNotGatedBySidebar = () => {
 export const testFitToViewActionDoesNotRouteFlowEditor2dToGeospatialFallback = () => {
   const fitToViewPath = path.resolve(process.cwd(), 'src', 'features', 'toolbar', 'hooks', 'useFitToViewAction.ts')
   const text = readUtf8(fitToViewPath)
+  if (!text.includes("const flowEditor2dActive = canvas2dRenderer === 'flowEditor'")) {
+    throw new Error('Expected Fit-to-View action to fast-path Flow Editor onto the canvas zoom pipeline')
+  }
+  if (!text.includes('if (flowEditor2dActive) {')) {
+    throw new Error('Expected Fit-to-View action to guard Flow Editor before geospatial fallback branches')
+  }
   if (!text.includes("const allowGeospatialFit = geospatialEnabled && canvasRenderMode !== '2d'")) {
     throw new Error('Expected Fit-to-View action to keep Flow Editor 2D requests on the canvas zoom pipeline')
   }
+  const flowEditorGuardIndex = text.indexOf('if (flowEditor2dActive) {')
   const geospatialGuardIndex = text.indexOf('if (allowGeospatialFit)')
-  const canvasFitZoomIndex = text.indexOf("requestZoom('fit', { intent: 'fitToView' })")
+  const flowEditorBranchText =
+    flowEditorGuardIndex >= 0 && geospatialGuardIndex > flowEditorGuardIndex
+      ? text.slice(flowEditorGuardIndex, geospatialGuardIndex)
+      : ''
+  const fallbackFitZoomIndex = text.lastIndexOf("requestZoom('fit', { intent: 'fitToView' })")
   if (
-    geospatialGuardIndex < 0
-    || canvasFitZoomIndex < 0
-    || geospatialGuardIndex > canvasFitZoomIndex
+    flowEditorGuardIndex < 0
+    || geospatialGuardIndex < 0
+    || flowEditorGuardIndex > geospatialGuardIndex
+    || !flowEditorBranchText.includes("requestZoom('fit', { intent: 'fitToView' })")
+    || fallbackFitZoomIndex < geospatialGuardIndex
   ) {
     throw new Error('Expected non-geospatial Fit-to-View path to route through fit zoom requests for 2D canvas')
   }

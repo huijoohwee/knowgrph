@@ -54,7 +54,9 @@ export const createUiInitialState = (
     'canvas',
     value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
   )
-  const initialWorkspaceCanvasPaneOpen = lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
+  const initialWorkspaceCanvasPaneOpen = initialWorkspaceViewMode === 'editor'
+    ? true
+    : lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
   return {
     ...createPanelLayoutUiSlice(set),
 
