@@ -1,6 +1,6 @@
 import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 export type MarkdownFsAccessMode = 'fs-access' | 'opfs' | 'file-input' | null
 
@@ -83,7 +83,7 @@ const getDb = async () => {
           throw err
         }
         didReset = true
-        clearRxdbLocalstorageForDatabaseName(MARKDOWN_FS_DB_NAME)
+        await clearRxdbForDatabaseName(MARKDOWN_FS_DB_NAME)
       }
     }
     throw new Error('Failed to initialize markdown-fs database')

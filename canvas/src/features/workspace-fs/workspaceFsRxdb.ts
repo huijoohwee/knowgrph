@@ -16,7 +16,7 @@ import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 const DB_NAME = 'kg:workspace-fs'
 
@@ -67,7 +67,7 @@ const getDb = async () => {
           throw err
         }
         didReset = true
-        clearRxdbLocalstorageForDatabaseName(DB_NAME)
+        await clearRxdbForDatabaseName(DB_NAME)
       }
     }
     throw new Error('Failed to initialize workspace-fs database')

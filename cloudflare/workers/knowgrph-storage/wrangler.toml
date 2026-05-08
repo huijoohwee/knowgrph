@@ -1,9 +1,13 @@
 name = "knowgrph-storage"
-main = "cloudflare/workers/knowgrph-storage/index.ts"
+main = "index.ts"
 compatibility_date = "2026-05-07"
 
 [observability]
 enabled = true
+
+[[routes]]
+pattern = "airvio.co/api/storage/*"
+zone_name = "airvio.co"
 
 [[d1_databases]]
 binding = "DB"

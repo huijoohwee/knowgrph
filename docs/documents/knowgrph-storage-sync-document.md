@@ -8,7 +8,7 @@
 
 **Version**: 2.1.0
 **Date**: 2026-05-07
-**Status**: Implemented (client), Missing (Cloudflare Edge deployment)
+**Status**: Deployed (Worker + D1 + seeded 5 docs)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -19,6 +19,7 @@
 | `knowgrph-storage-schemas.md` | D1 SQL, RxDB shapes, contract types, route contracts |
 | `knowgrph-local-storage.md` | Browser LocalStorage keys (UI state, not sync) |
 | `knowgrph-source-files-import.md` | Import workflows, format routing, geo layer registration |
+| `knowgrph-multi-user-collaboration-prd.tad.md` | Multi-user auth, authorization, role-based access, SSOT transition |
 
 ---
 
@@ -227,8 +228,8 @@ flowchart TB
 | Worker | Contract re-export | `workers/knowgrph-storage/contract.ts` | Built |
 | Worker | Wrangler config | `workers/knowgrph-storage/wrangler.toml` | Built |
 | D1 | Migration SQL | `d1/migrations/0001_knowgrph_storage.sql` | Built |
-| Edge | Deployed Worker | — | **Missing** |
-| Edge | Provisioned D1 | — | **Missing** |
+| Edge | Deployed Worker | `wrangler.toml` + `index.ts` | **Pending deploy** (API token) |
+| Edge | Provisioned D1 | `633355bf-…152` | **Pending migrate** (API token) |
 
 ### Deploy & Test
 

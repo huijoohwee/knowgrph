@@ -73,6 +73,10 @@ const WORKSPACE_SEED_SYNC_POLL_MS = (() => {
   if (!Number.isFinite(raw)) return 3000
   return Math.min(60_000, Math.max(1000, raw))
 })()
+const KNOWGRPH_STORAGE_BASE_URL = (() => {
+  const raw = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
+  return raw || null
+})()
 const markWorkspaceSeedSyncDebug = (source: string): void => {
   __canvasStartupDebug.workspaceSeedLastSyncAtMs = Date.now()
   __canvasStartupDebug.workspaceSeedLastSyncSource = String(source || '').trim()
@@ -262,6 +266,7 @@ export function SourceFilesPersistenceBootstrap() {
       lastQueuedKnowgrphStorageSourceFilesRef.current = []
       knowgrphStorageLoopCleanupRef.current = startKnowgrphStorageSyncLoop({
         workspaceId: nextWorkspaceId,
+        baseUrl: KNOWGRPH_STORAGE_BASE_URL,
         initialDelayMs: 0,
         onSyncCompleted: result => {
           if (activeKnowgrphWorkspaceIdRef.current !== result.workspaceId) return

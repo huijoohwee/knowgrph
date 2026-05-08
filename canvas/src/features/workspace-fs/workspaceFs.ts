@@ -103,11 +103,28 @@ const readShadowFileText = (path: WorkspacePath): string | null => {
   return String(entry.text ?? '')
 }
 
+const isRxConflictError = (err: unknown): boolean => {
+  if (!err || typeof err !== 'object') return false
+  const rec = err as Record<string, unknown>
+  if (rec.code === 'CONFLICT') return true
+  const name = typeof rec.name === 'string' ? rec.name : ''
+  if (name === 'RxError' && typeof rec.message === 'string' && rec.message.includes('CONFLICT')) return true
+  return false
+}
+
 export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
   const run = async <T>(op: keyof WorkspaceFs, fn: (fs: WorkspaceFs) => Promise<T>): Promise<T> => {
     try {
       return await fn(inner)
     } catch (e: unknown) {
+      if (isRxConflictError(e)) {
+        console.warn(`[workspace-fs] RxDB CONFLICT on ${String(op)} — retrying once after re-read`)
+        try {
+          return await fn(inner)
+        } catch {
+          void 0
+        }
+      }
       const { createMemoryWorkspaceFs } = (await import('./workspaceFsMemory.ts')) as typeof import('./workspaceFsMemory.ts')
       const memory = createMemoryWorkspaceFs({ initialEntries: snapshotShadowEntries() })
       fsSingleton = memory

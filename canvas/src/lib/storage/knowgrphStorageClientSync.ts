@@ -30,7 +30,7 @@ const DEFAULT_PUSH_BATCH_SIZE = 50
 const DEFAULT_MAX_RETRY_COUNT = 3
 const DEFAULT_POLL_INTERVAL_MS = 30_000
 const DEFAULT_SCHEDULE_DELAY_MS = 250
-const KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS = 60_000
+const KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS = 10_000
 
 type KnowgrphStorageFetchLike = typeof fetch
 
@@ -151,6 +151,7 @@ const buildApiOriginKey = (baseUrl?: string | null): string => {
 const markRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): void => {
   if (!apiOrigin) return
   routeUnavailableUntilByApiOrigin.set(apiOrigin, nowMs + KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS)
+  console.warn(`[knowgrph-storage] route unavailable for ${apiOrigin} — retry in ${KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS}ms`)
 }
 
 const isRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): boolean => {
@@ -316,6 +317,57 @@ const readUnresolvedConflictCount = async (
     .find({ selector: { workspaceId, lastAckStatus: 'conflict' } })
     .exec()
   return rows.length
+}
+
+const autoClearStaleOutboxConflicts = async (
+  collections: KnowgrphStorageCollections,
+  workspaceId: string,
+  pulledDocuments: KgDocumentRecord[],
+  pulledGraphSnapshots: KgGraphSnapshotRecord[],
+): Promise<number> => {
+  const conflictRows = await collections.syncOutbox
+    .find({ selector: { workspaceId, lastAckStatus: 'conflict' } })
+    .exec()
+  if (conflictRows.length === 0) return 0
+
+  const serverDocRevisions = new Map<string, number>()
+  for (const doc of pulledDocuments) {
+    serverDocRevisions.set(doc.id, doc.revision)
+  }
+  const serverGraphRevisions = new Map<string, number>()
+  for (const snap of pulledGraphSnapshots) {
+    serverGraphRevisions.set(snap.id, snap.graphRevision)
+  }
+
+  let clearedCount = 0
+  for (const row of conflictRows) {
+    const entity = normalizeString(row.get('entity'))
+    const recordId = normalizeString(row.get('recordId'))
+    const payload = row.get('payload') as Record<string, unknown> | null
+    const record = (payload?.record ?? {}) as Record<string, unknown>
+    const localRevision = Number(record.revision ?? record.graphRevision ?? 0)
+
+    if (entity === 'document') {
+      const serverRevision = serverDocRevisions.get(recordId)
+      if (serverRevision != null && serverRevision >= localRevision) {
+        await row.remove()
+        clearedCount += 1
+        continue
+      }
+    }
+    if (entity === 'graphSnapshot') {
+      const serverRevision = serverGraphRevisions.get(recordId)
+      if (serverRevision != null && serverRevision >= localRevision) {
+        await row.remove()
+        clearedCount += 1
+        continue
+      }
+    }
+  }
+  if (clearedCount > 0) {
+    console.log(`[knowgrph-storage] auto-cleared ${clearedCount} stale outbox conflicts for workspace ${workspaceId}`)
+  }
+  return clearedCount
 }
 
 const applyPulledDocuments = async (collections: KnowgrphStorageCollections, documents: KgDocumentRecord[]): Promise<void> => {
@@ -525,9 +577,15 @@ const pullKnowgrphStorageChanges = async (
     throw new Error(`knowgrph storage pull failed: ${'error' in json ? String(json.error || 'request failed') : 'request failed'}`)
   }
   await applyPulledDocuments(args.collections, json.changes.documents)
-  await applyPulledDocumentChunks(args.collections, json.changes.documentChunks)
-  await applyPulledGraphSnapshots(args.collections, json.changes.graphSnapshots)
-  return json
+    await applyPulledDocumentChunks(args.collections, json.changes.documentChunks)
+    await applyPulledGraphSnapshots(args.collections, json.changes.graphSnapshots)
+    await autoClearStaleOutboxConflicts(
+      args.collections,
+      args.workspaceId,
+      json.changes.documents,
+      json.changes.graphSnapshots,
+    )
+    return json
 }
 
 export const syncKnowgrphStorageNow = async (
@@ -546,6 +604,7 @@ export const syncKnowgrphStorageNow = async (
     const currentCursor = await readCursorRow(collections, workspaceId, deviceId)
     const unresolvedConflictCount = await readUnresolvedConflictCount(collections, workspaceId)
     if (isRouteUnavailableForApiOrigin(apiOrigin)) {
+      console.warn(`[knowgrph-storage] sync skipped — route unavailable for ${apiOrigin}`)
       return buildSkippedSyncResult({
         workspaceId,
         deviceId,
@@ -609,6 +668,7 @@ export const syncKnowgrphStorageNow = async (
     if (typeof args.onSyncCompleted === 'function') {
       await args.onSyncCompleted(result)
     }
+    console.log(`[knowgrph-storage] sync ok: pushed=${result.pushedCount} pulled=${result.pulledDocumentCount} conflicts=${result.conflictCount} workspace=${workspaceId}`)
     return result
     } catch (error) {
       if (error instanceof KnowgrphStorageRouteUnavailableError) {

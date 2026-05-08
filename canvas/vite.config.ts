@@ -5475,12 +5475,19 @@ export default defineConfig(({ command }) => ({
     port: 5173,
     strictPort: false,
     headers: {
-      // Prevent stale immutable cache entries from serving mismatched prebundled deps across restarts.
       'Cache-Control': 'no-store',
+    },
+    proxy: {
+      '/api/storage': {
+        target: 'https://airvio.co',
+        changeOrigin: true,
+        secure: true,
+      },
     },
     fs: {
       allow: [
         path.resolve(__dirname, '..'),
+        path.resolve(__dirname, '../..'),
         path.resolve(__dirname, '../../grph'),
         path.resolve(__dirname, '../../sandbox'),
       ]

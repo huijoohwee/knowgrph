@@ -147,11 +147,19 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
       clearUiLog: s.clearUiLog,
       chatExchangeLogs: Array.isArray(s.chatExchangeLogs) ? s.chatExchangeLogs : EMPTY_CHAT_EXCHANGE_LOG_ENTRIES,
       clearChatExchangeLogs: s.clearChatExchangeLogs,
+      requestedHistorySubTab: s.requestedHistorySubTab as string | null,
+      requestHistorySubTab: s.requestHistorySubTab,
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
     })),
   )
   const [tab, setTab] = React.useState<HistorySubTab>('chat')
+  React.useEffect(() => {
+    if (!requestedHistorySubTab) return
+    const valid = requestedHistorySubTab === 'chat' || requestedHistorySubTab === 'history' || requestedHistorySubTab === 'log'
+    if (valid) setTab(requestedHistorySubTab as HistorySubTab)
+    requestHistorySubTab(null)
+  }, [requestedHistorySubTab, requestHistorySubTab])
   const [expandedChatLogIds, setExpandedChatLogIds] = React.useState<Record<string, boolean>>({})
   const normalizedQuery = normalizeText(searchQuery).trim()
   const historySignature = React.useMemo(() => buildHistoryEntriesSignature(historyRaw), [historyRaw])

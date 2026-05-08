@@ -113,6 +113,11 @@ const openConflictLogSurface = (): void => {
   } catch {
     void 0
   }
+  try {
+    store.requestHistorySubTab('log')
+  } catch {
+    void 0
+  }
 }
 
 const readOutboxMutation = async (workspaceId: string, mutationId: string, dbState?: KnowgrphStorageDb | null) => {

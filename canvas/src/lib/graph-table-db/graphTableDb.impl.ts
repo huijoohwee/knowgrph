@@ -5,7 +5,7 @@ import { getRxStorageMemory } from 'rxdb/plugins/storage-memory'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashRecordSignature32 } from '@/lib/hash/signature'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 export type GraphTableId = 'nodes' | 'edges'
 
@@ -230,7 +230,7 @@ export const getGraphTableDb = async (): Promise<GraphTableDb> => {
           throw err
         }
         didReset = true
-        clearRxdbLocalstorageForDatabaseName(GRAPH_TABLE_DB_NAME)
+        await clearRxdbForDatabaseName(GRAPH_TABLE_DB_NAME)
       }
     }
     throw new Error('Failed to initialize graph-table database')
@@ -265,7 +265,7 @@ export const __resetGraphTableDbForTests = async (): Promise<void> => {
       }
     }
   }
-  clearRxdbLocalstorageForDatabaseName(GRAPH_TABLE_DB_NAME)
+  clearRxdbForDatabaseName(GRAPH_TABLE_DB_NAME)
 }
 
 export const warmGraphTableDb = async (): Promise<void> => {

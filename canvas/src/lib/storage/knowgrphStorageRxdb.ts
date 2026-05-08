@@ -2,7 +2,7 @@ import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
 import { getRxStorageMemory } from 'rxdb/plugins/storage-memory'
-import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 import type {
   KgDocumentChunkRecord,
@@ -256,7 +256,7 @@ export const getKnowgrphStorageDb = async (): Promise<KnowgrphStorageDb> => {
           throw err
         }
         didReset = true
-        clearRxdbLocalstorageForDatabaseName(KNOWGRPH_STORAGE_DB_NAME)
+        await clearRxdbForDatabaseName(KNOWGRPH_STORAGE_DB_NAME)
       }
     }
     throw new Error('Failed to initialize knowgrph storage database')

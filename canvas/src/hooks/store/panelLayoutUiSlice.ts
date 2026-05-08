@@ -23,6 +23,7 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
     floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, Z_INDEX_FLOATING_PANEL_DEFAULT),
     bottomSurfaceTab: 'stats' as BottomSurfaceTab,
+    requestedHistorySubTab: null as string | null,
     schemaDeriveCacheCapacity: lsInt(LS_KEYS.schemaDeriveCacheCapacity, 16),
     graphFieldSettingsById: readGraphFieldSettingsById(storage),
     selectedGraphFieldId: null as GraphFieldId | null,
@@ -46,6 +47,10 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     setBottomSurfaceTab: (tab: BottomSurfaceTab) =>
       set(() => ({
         bottomSurfaceTab: tab,
+      })),
+    requestHistorySubTab: (subTab: string | null) =>
+      set(() => ({
+        requestedHistorySubTab: subTab,
       })),
     setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: lsSetInt(LS_KEYS.schemaDeriveCacheCapacity, n, { min: 1, max: 1024 }) }),
     setGraphFieldSettingsById: (next: GraphFieldSettingsById) =>

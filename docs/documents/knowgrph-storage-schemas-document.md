@@ -9,6 +9,7 @@
 **Version**: 2.0.0
 **Date**: 2026-05-07
 **Canonical index**: `knowgrph-storage-sync-document.md`
+**See also**: `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
 
 ## Schema Principles
 

@@ -3,7 +3,7 @@ import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
 import type { SourceFile } from '@/hooks/store/types'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 import { reconcileDefaultWorkspaceSeedSourceFiles } from '@/features/source-files/workspaceSeedSourceFiles'
 import {
   areSourceFilesWorkspaceStatesEqual,
@@ -123,7 +123,7 @@ const getDb = async () => {
           throw err
         }
         didReset = true
-        clearRxdbLocalstorageForDatabaseName(SOURCE_FILES_DB_NAME)
+        await clearRxdbForDatabaseName(SOURCE_FILES_DB_NAME)
       }
     }
     throw new Error('Failed to initialize source-files database')

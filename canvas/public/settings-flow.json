@@ -534,7 +534,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L319; canvas/src/hooks/store/panelLayoutUiSlice.ts:L34; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L204; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L52"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L319; canvas/src/hooks/store/panelLayoutUiSlice.ts:L35; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L204; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L52"
   },
   "floatingPanelHeightRatio": {
     "area": "Floating Panel Layout",
@@ -553,7 +553,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L328; canvas/src/hooks/store/panelLayoutUiSlice.ts:L38; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L205; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L53"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L328; canvas/src/hooks/store/panelLayoutUiSlice.ts:L39; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L205; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L53"
   },
   "floatingPanelZIndex": {
     "area": "Floating Panel Layout",
@@ -572,7 +572,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L337; canvas/src/hooks/store/panelLayoutUiSlice.ts:L42; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L206; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L54"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L337; canvas/src/hooks/store/panelLayoutUiSlice.ts:L43; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L206; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L54"
   },
   "enableLaunchSpotlight": {
     "area": "Launch Spotlight",
@@ -6702,7 +6702,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/panelLayoutUiSlice.ts:L50; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L213; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L18"
+    "lineRange": "canvas/src/hooks/store/panelLayoutUiSlice.ts:L55; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L213; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L18"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",
