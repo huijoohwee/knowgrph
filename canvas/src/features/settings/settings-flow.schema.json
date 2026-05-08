@@ -5310,7 +5310,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L198; canvas/src/hooks/store/uiSliceInitialState.ts:L151"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L198; canvas/src/hooks/store/uiSliceInitialState.ts:L153"
   },
   "flow.frontmatter.initialFitFillRatio": {
     "area": "—",
@@ -5327,7 +5327,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L199; canvas/src/hooks/store/uiSliceInitialState.ts:L161"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L199; canvas/src/hooks/store/uiSliceInitialState.ts:L163"
   },
   "flow.frontmatter.overlayFitProxyScale.phone": {
     "area": "—",
@@ -5344,7 +5344,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L171"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L173"
   },
   "flow.frontmatter.overlayFitProxyScale.tablet": {
     "area": "—",
@@ -5361,7 +5361,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L181"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L183"
   },
   "flow.frontmatter.overlayFitProxyScale.laptop": {
     "area": "—",
@@ -5378,7 +5378,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L191"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L193"
   },
   "flow.frontmatter.overlayFitProxyScale.desktop": {
     "area": "—",
@@ -5395,7 +5395,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L201"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L203"
   },
   "schema.layout.forces.physics2dChargeScale": {
     "area": "Graph Physics 2D",
@@ -9475,7 +9475,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L73; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L113"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L73; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L115"
   },
   "payments.stripe.checkoutUrl": {
     "area": "—",
@@ -9493,6 +9493,6 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L84; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L126"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L84; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L128"
   }
 }

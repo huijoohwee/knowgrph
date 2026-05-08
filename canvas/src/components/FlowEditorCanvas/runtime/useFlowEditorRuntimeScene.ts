@@ -421,7 +421,34 @@ export function useFlowEditorRuntimeScene(args: {
     const bucketIds = Array.from(idsByBucket.keys()).sort((a, b) => a.localeCompare(b))
     const pendingSet = new Set(pending)
     const seedKey = `${pending.join(',')}|${currentLayoutSignature}`
-    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey) return
+    const collectiveOutsideViewport = (() => {
+      if (pending.length === 0) return false
+      let minLeft = Number.POSITIVE_INFINITY
+      let minTop = Number.POSITIVE_INFINITY
+      let maxRight = Number.NEGATIVE_INFINITY
+      let maxBottom = Number.NEGATIVE_INFINITY
+      for (let i = 0; i < pending.length; i += 1) {
+        const id = pending[i]!
+        const world = worldById[id]
+        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
+        const left = world.x
+        const top = world.y
+        const right = world.x + panelWorldW
+        const bottom = world.y + panelWorldH
+        minLeft = Math.min(minLeft, left)
+        minTop = Math.min(minTop, top)
+        maxRight = Math.max(maxRight, right)
+        maxBottom = Math.max(maxBottom, bottom)
+      }
+      if (!Number.isFinite(minLeft) || !Number.isFinite(minTop) || !Number.isFinite(maxRight) || !Number.isFinite(maxBottom)) return false
+      const marginWorld = Math.max(panelWorldW, panelWorldH) * 0.2
+      if (maxRight < viewportBounds.minX - marginWorld) return true
+      if (maxBottom < viewportBounds.minY - marginWorld) return true
+      if (minLeft > viewportBounds.maxX + marginWorld) return true
+      if (minTop > viewportBounds.maxY + marginWorld) return true
+      return false
+    })()
+    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !collectiveOutsideViewport) return
 
     const nextWorld = { ...worldById }
     let changed = false

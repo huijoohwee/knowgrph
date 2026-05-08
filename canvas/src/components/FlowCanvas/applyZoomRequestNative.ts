@@ -25,7 +25,7 @@ const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane="1"]'
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
-function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
+export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   if (typeof document === 'undefined') return null
   const normalizedSurfaceId = String(activeSurfaceId || '').trim()
   const hasSurfaceId = normalizedSurfaceId.length > 0
@@ -82,7 +82,7 @@ function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   return { minX, maxX, minY, maxY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) }
 }
 
-function resolveFlowEditorVisibleViewport(args: {
+export function resolveFlowEditorVisibleViewport(args: {
   flowEditorSurfaceId?: string
   viewportW: number
   viewportH: number

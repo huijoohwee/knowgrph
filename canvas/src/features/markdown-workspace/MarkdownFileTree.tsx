@@ -105,7 +105,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     if (!relative) return null
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const base = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') : '/knowgrph'
-    return `${origin}${base}/doc/${encodeURIComponent(relative)}`
+    const params = new URLSearchParams()
+    params.set('kgDoc', relative)
+    return `${origin}${base}/?${params.toString()}`
   }, [buildShareUrl])
 
   const contextMenuItems = React.useMemo(

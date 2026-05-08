@@ -245,6 +245,15 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const seed = (initialTransformUsable ? initial : null)')) {
     throw new Error('expected Flow runtime zoom seeding to fallback from unusable initial transforms to fit/current guard path')
   }
+  if (!runtimeText.includes('const lastOffscreenOverlayRecoveryKeyRef = React.useRef<string | null>(null)')) {
+    throw new Error('expected Flow runtime to track one-shot offscreen recovery while Workspace overlay is open')
+  }
+  if (!runtimeText.includes('const overlayOpen = isWorkspaceEditorOverlayOpen({')) {
+    throw new Error('expected Flow runtime to gate offscreen recovery by shared Workspace overlay-open SSOT')
+  }
+  if (!runtimeText.includes('const graphVisible = isFlowTransformShowingGraph(')) {
+    throw new Error('expected Flow runtime to detect stale offscreen transforms before enforcing overlay recovery fit')
+  }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
   if (computedPositionsText.includes('const rev = typeof graphDataRevision')) {
