@@ -5,6 +5,7 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import { areSourceFileRecordsEqual, buildSourceFileRecord, readSourceFileParsedState } from '@/features/source-files/sourceFileParsedState'
 import {
   defaultEnabledForWorkspaceSourcePath,
+  isCanonicalWorkspaceSeedSourcePath,
   resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
 
@@ -18,14 +19,32 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   workspaceEntries: WorkspaceEntry[]
   sourcesByPath: WorkspaceSourceIndex
   forceIncludePaths?: string[]
+  workspaceDocsOnly?: boolean
 }): SourceFile[] {
   const existing = Array.isArray(args.existing) ? args.existing : []
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const sourcesByPath = args.sourcesByPath || {}
   const forceInclude = new Set((Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : []).map(path => String(path || '').trim()).filter(Boolean))
+  const workspaceDocsOnly = args.workspaceDocsOnly === true
+  const docsMirrorCanonicalSeedSourcePathSet = new Set<string>(
+    entries
+      .filter(entry => entry?.kind === 'file')
+      .map(entry => String(entry.path || '').trim())
+      .filter(path => path.startsWith('/docs/'))
+      .map(path => {
+        const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
+        const basename = normalized.split('/').pop() || ''
+        return resolveWorkspaceSeedSourcePath(`/${basename}`)
+      })
+      .filter(
+        (seedSourcePath): seedSourcePath is string =>
+          !!seedSourcePath && isCanonicalWorkspaceSeedSourcePath(seedSourcePath),
+      ),
+  )
 
   const nonWorkspace = existing.filter(f => {
     const path = String(f?.source?.path || '')
+    if (workspaceDocsOnly) return false
     return !path.startsWith('workspace:')
   })
 
@@ -36,13 +55,22 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     existingWorkspaceByPath.set(srcPath, f)
   }
 
-  const nextWorkspace: SourceFile[] = []
+  const nextWorkspaceBySourcePath = new Map<string, SourceFile>()
+  const nextWorkspaceRankBySourcePath = new Map<string, number>()
+  const nextWorkspaceKeyBySourcePath = new Map<string, string>()
   for (const e of entries) {
     if (!e || e.kind !== 'file') continue
     const path = String(e.path || '').trim()
     if (!path) continue
+    if (workspaceDocsOnly && !path.startsWith('/docs/')) continue
 
     const seedSourcePath = resolveWorkspaceSeedSourcePath(path)
+    const isLegacyRootSeedAliasCoveredByDocsMirror =
+      !!seedSourcePath
+      && isCanonicalWorkspaceSeedSourcePath(seedSourcePath)
+      && !path.startsWith('/docs/')
+      && docsMirrorCanonicalSeedSourcePathSet.has(seedSourcePath)
+    if (isLegacyRootSeedAliasCoveredByDocsMirror) continue
     const srcPath = seedSourcePath || workspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
     if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !seedSourcePath) continue
@@ -77,13 +105,24 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       source,
     })
 
-    if (prev && areSourceFileRecordsEqual(prev, candidate)) {
-      nextWorkspace.push(prev)
-    } else {
-      nextWorkspace.push(candidate)
+    const nextCandidate = prev && areSourceFileRecordsEqual(prev, candidate) ? prev : candidate
+    const candidateRank =
+      (forceInclude.has(path) ? 100 : 0)
+      + (path.startsWith('/docs/') ? 10 : 0)
+      + (typeof e.text === 'string' ? 1 : 0)
+    const candidateSortKey = `${String(path).length}:${String(path)}`
+    const previousRank = nextWorkspaceRankBySourcePath.get(srcPath)
+    const previousSortKey = nextWorkspaceKeyBySourcePath.get(srcPath)
+    if (typeof previousRank === 'number') {
+      if (previousRank > candidateRank) continue
+      if (previousRank === candidateRank && typeof previousSortKey === 'string' && previousSortKey <= candidateSortKey) continue
     }
+    nextWorkspaceBySourcePath.set(srcPath, nextCandidate)
+    nextWorkspaceRankBySourcePath.set(srcPath, candidateRank)
+    nextWorkspaceKeyBySourcePath.set(srcPath, candidateSortKey)
   }
 
+  const nextWorkspace = [...nextWorkspaceBySourcePath.values()]
   const next = [...nonWorkspace, ...nextWorkspace]
   if (existing.length === next.length) {
     let same = true

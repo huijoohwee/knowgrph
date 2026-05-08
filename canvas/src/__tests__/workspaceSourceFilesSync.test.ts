@@ -14,6 +14,7 @@ import {
 } from '@/features/source-files/workspaceSeedSourceFiles'
 import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH as LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 
@@ -174,6 +175,108 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
   if (geospatial.enabled !== false) throw new Error('expected canonical geospatial seed to stay disabled by default until explicitly activated')
 }
 
+export async function testWorkspaceSourceFilesSyncSuppressesLegacyRootSeedAliasesWhenDocsMirrorExists() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-readme.md', text: '# Readme root', updatedAtMs: 1 },
+      { kind: 'file', path: GEOSPATIAL_WORKSPACE_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-places.md', text: '# Places root', updatedAtMs: 1 },
+      { kind: 'file', path: '/docs/knowgrph-maps-readme.md', parentPath: '/docs', name: 'knowgrph-maps-readme.md', text: '# Readme docs', updatedAtMs: 1 },
+      { kind: 'file', path: '/docs/knowgrph-maps-places.md', parentPath: '/docs', name: 'knowgrph-maps-places.md', text: '# Places docs', updatedAtMs: 1 },
+    ],
+    sourcesByPath: {
+      '/docs/knowgrph-maps-readme.md': { kind: 'local', originalName: 'knowgrph-maps-readme.md' },
+      '/docs/knowgrph-maps-places.md': { kind: 'local', originalName: 'knowgrph-maps-places.md' },
+    },
+  })
+
+  const rootReadme = next.find(f => f.source?.path === WORKSPACE_README_SOURCE_PATH)
+  if (rootReadme) throw new Error('expected root README seed alias to be suppressed when docs mirror provides canonical file with same basename')
+  const rootGeospatial = next.find(f => f.source?.path === GEOSPATIAL_WORKSPACE_SOURCE_PATH)
+  if (rootGeospatial) throw new Error('expected root geospatial seed alias to be suppressed when docs mirror provides canonical file with same basename')
+  const docsReadme = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-maps-readme.md')
+  if (!docsReadme) throw new Error('expected docs mirrored README to stay present as canonical Source Files entry')
+  const docsPlaces = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-maps-places.md')
+  if (!docsPlaces) throw new Error('expected docs mirrored places markdown to stay present as canonical Source Files entry')
+}
+
+export async function testWorkspaceSourceFilesSyncDeduplicatesLegacyAliasFamilyToSingleCanonicalSourcePath() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        parentPath: '/sandbox/test-data/test-generate-video',
+        name: 'knowgrph-demo-video.md',
+        text: '# bundled',
+        updatedAtMs: 1,
+      },
+      {
+        kind: 'file',
+        path: LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        parentPath: '/',
+        name: 'knowgrph-video-demo.md',
+        text: '# legacy',
+        updatedAtMs: 2,
+      },
+    ],
+    sourcesByPath: {},
+  })
+
+  const canonicalValidation = next.filter(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
+  if (canonicalValidation.length !== 1) {
+    throw new Error(`expected seed alias family to collapse into one canonical validation source entry, got ${canonicalValidation.length}`)
+  }
+}
+
+export async function testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWorkspaceFiles() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      { kind: 'file', path: '/docs/documents/knowgrph-storage-sync-document.md', parentPath: '/docs/documents', name: 'knowgrph-storage-sync-document.md', text: '# docs', updatedAtMs: 1 },
+      { kind: 'file', path: '/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md', parentPath: '/sandbox/demo', name: 'knowgrph-maps-grabmap-multim-demo.md', text: '# demo', updatedAtMs: 1 },
+    ],
+    sourcesByPath: {
+      '/docs/documents/knowgrph-storage-sync-document.md': { kind: 'local', originalName: 'knowgrph-storage-sync-document.md' },
+      '/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md': { kind: 'local', originalName: 'knowgrph-maps-grabmap-multim-demo.md' },
+    },
+    workspaceDocsOnly: true,
+  })
+
+  const docs = next.find(f => f.source?.path === 'workspace:/docs/documents/knowgrph-storage-sync-document.md')
+  if (!docs) throw new Error('expected docs mirror entry to remain in docs-only mode')
+  const sandbox = next.find(f => f.source?.path === 'workspace:/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md')
+  if (sandbox) throw new Error('expected non-docs workspace entries to be excluded in docs-only mode')
+}
+
+export async function testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWorkspaceEntries() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [
+      {
+        id: 'legacy-root-readme',
+        name: 'knowgrph-maps-readme.md',
+        text: '# legacy root',
+        enabled: true,
+        status: 'idle',
+        source: { kind: 'url', url: 'https://example.com/knowgrph-maps-readme.md', path: 'legacy:root:knowgrph-maps-readme.md' },
+      },
+    ],
+    workspaceEntries: [
+      { kind: 'file', path: '/docs/knowgrph-storage-sync-cloudflare-d1.md', parentPath: '/docs', name: 'knowgrph-storage-sync-cloudflare-d1.md', text: '# docs', updatedAtMs: 1 },
+    ],
+    sourcesByPath: {
+      '/docs/knowgrph-storage-sync-cloudflare-d1.md': { kind: 'local', originalName: 'knowgrph-storage-sync-cloudflare-d1.md' },
+    },
+    workspaceDocsOnly: true,
+  })
+
+  const legacyRoot = next.find(f => f.id === 'legacy-root-readme')
+  if (legacyRoot) throw new Error('expected docs-only mode to remove existing non-workspace/legacy source files')
+  const docs = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-storage-sync-cloudflare-d1.md')
+  if (!docs) throw new Error('expected docs-only mode to keep docs mirrored source files')
+}
+
 export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath() {
   if (resolveWorkspaceSeedSourcePath(BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
     throw new Error('expected bundled validation workspace seed alias to resolve onto the canonical validation source-file path')
@@ -189,6 +292,9 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
   }
   if (resolveWorkspaceSeedSourcePath(LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
     throw new Error('expected legacy geospatial workspace seed alias to resolve onto the canonical geospatial source-file path')
+  }
+  if (resolveWorkspaceSeedSourcePath('/docs/documents/knowgrph-storage-sync-document.md') !== 'workspace:/docs/documents/knowgrph-storage-sync-document.md') {
+    throw new Error('expected docs-mirrored workspace paths to resolve into canonical workspace source-file paths')
   }
   if (resolveWorkspaceSeedSourcePath('/notes/custom.md') !== null) {
     throw new Error('expected non-seed workspace paths to stay outside canonical seed source-file remapping')

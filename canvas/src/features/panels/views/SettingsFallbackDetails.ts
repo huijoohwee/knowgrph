@@ -55,6 +55,33 @@ const WORKSPACE_PRINT_FALLBACK_DETAILS = Object.fromEntries(
 export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: string; notes?: string }> = {
   ...WORKSPACE_LAYOUT_FALLBACK_DETAILS,
   ...WORKSPACE_PRINT_FALLBACK_DETAILS,
+  'workspace.sync.seed.enabled': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Enable periodic workspace seed/docs sync into local workspace FS',
+  },
+  'workspace.sync.seed.pollMs': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Polling interval for workspace seed/docs sync',
+    notes: 'Unit: ms, clamped to [1000, 60000]',
+  },
+  'workspace.sync.seed.idleMaxMs': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Max adaptive backoff interval for workspace seed/docs sync when no updates are detected',
+    notes: 'Unit: ms, clamped to [1000, 300000]',
+  },
+  'workspace.sync.autoRefresh.enabled': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Auto-refresh editor workspace when workspace FS changes',
+  },
+  'workspace.sync.sourceFiles.docsOnly': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Keep Source Files constrained to /docs workspace mirror entries only',
+  },
+  'workspace.sync.sourceFiles.debounceMs': {
+    area: 'Workspace Storage Sync',
+    responsibility: 'Debounce interval before Source Files rematerialization after workspace FS updates',
+    notes: 'Unit: ms, clamped to [100, 10000]',
+  },
   'payments.stripe.mode': { area: 'Stripe Payment API', responsibility: 'Stripe mode label (test vs live)' },
   'payments.stripe.secretKey': { area: 'Stripe Payment API', responsibility: 'Stripe secret key (server-side)', notes: 'Keep secret keys server-side only; do not expose in client code.' },
   'payments.stripe.publishableKey': { area: 'Stripe Payment API', responsibility: 'Stripe publishable key (client-side)' },

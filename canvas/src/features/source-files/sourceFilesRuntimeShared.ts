@@ -19,6 +19,7 @@ import {
   resolveWorkspaceStartupActivePath,
 } from '@/features/workspace-fs/workspaceFs'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export function resolveMaterializedWorkspaceActivePath(args?: {
   activePathOverride?: WorkspacePath | null
@@ -143,6 +144,7 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: activePath,
     }),
+    workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
   })
   if (merged !== existing) {
     store.setSourceFiles(merged)

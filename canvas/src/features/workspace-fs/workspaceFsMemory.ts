@@ -51,13 +51,15 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     })
   }
 
-  const ensureSeed = async () => {
+  const ensureSeed = async (): Promise<boolean> => {
     ensureRoot()
+    let changed = false
 
     const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
     const legacy = entriesByPath.get(legacyPath)
     if (legacy && legacy.kind === 'file' && String(legacy.text ?? '') === LEGACY_WORKSPACE_README_TEXT) {
       entriesByPath.delete(legacyPath)
+      changed = true
     }
 
     const existingFilePaths = [...entriesByPath.values()]
@@ -65,7 +67,10 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
       .map(e => normalizeWorkspacePath(e.path))
       .filter((path): path is WorkspacePath => Boolean(path))
     if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
-      for (const path of existingFilePaths) entriesByPath.delete(path)
+      for (const path of existingFilePaths) {
+        entriesByPath.delete(path)
+        changed = true
+      }
     }
 
     const hasAnyFilesNow = [...entriesByPath.values()].some(e => e.kind === 'file')
@@ -78,6 +83,7 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
         const entries = expandWorkspaceSeedFileEntries(TEST_VALIDATION_WORKSPACE_SEED_PATH, validationSeed.text, now)
         for (const entry of entries) {
           entriesByPath.set(entry.path, entry)
+          changed = true
         }
       }
     }
@@ -87,7 +93,7 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
     if (hasFiles) {
       const seeds = await getWorkspaceSeedFiles()
-      let changed = false
+      let seededTextChanged = false
       for (const seed of seeds) {
         const path = normalizeWorkspacePath(seed.path)
         const existing = entriesByPath.get(path)
@@ -95,23 +101,25 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
         const nextText = String(seed.text ?? '')
         if (String(existing.text ?? '') === nextText) continue
         entriesByPath.set(path, buildWorkspaceSeedFileEntry(path, nextText, Date.now()))
-        changed = true
+        seededTextChanged = true
       }
-      if (changed) notifyWorkspaceFsChanged({ op: 'ensureSeed', path: WORKSPACE_ROOT_PATH })
+      if (seededTextChanged) changed = true
       if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
       if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
-      return
+      return changed
     }
-    if (userClearedAll) return
+    if (userClearedAll) return changed
     const seeds = await getWorkspaceSeedFiles()
     for (const seed of seeds) {
       const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, Date.now())
       for (const entry of entries) {
         entriesByPath.set(entry.path, entry)
+        changed = true
       }
     }
     lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
     if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+    return changed
   }
 
   const listEntries = async () => {

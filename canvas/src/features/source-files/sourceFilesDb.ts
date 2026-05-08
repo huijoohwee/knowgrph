@@ -5,6 +5,7 @@ import type { SourceFile } from '@/hooks/store/types'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 import { reconcileDefaultWorkspaceSeedSourceFiles } from '@/features/source-files/workspaceSeedSourceFiles'
+import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import {
   areSourceFilesWorkspaceStatesEqual,
   EMPTY_SOURCE_FILES_WORKSPACE_STATE,
@@ -148,6 +149,7 @@ export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
       }
     })
     .filter(Boolean) as SourceFile[]
+  if (readWorkspaceSourceFilesDocsOnlySetting()) return loaded
   return reconcileDefaultWorkspaceSeedSourceFiles(loaded)
 }
 

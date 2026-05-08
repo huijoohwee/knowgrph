@@ -9,8 +9,17 @@ import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sou
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
 import { buildMaterializedWorkspaceForceIncludePaths, hydrateWorkspaceEntriesInlineText } from '@/features/source-files/sourceFilesRuntimeShared'
-import { readEnvString } from '@/lib/config.env'
+import {
+  readWorkspaceAutoRefreshEnabledSetting,
+  readWorkspaceSeedSyncEnabledSetting,
+  readWorkspaceSeedSyncIdleMaxMsSetting,
+  readWorkspaceSeedSyncPollMsSetting,
+  readWorkspaceSourceFilesDocsOnlySetting,
+  subscribeWorkspaceStoreSyncSettingsChanged,
+} from '@/lib/workspace/workspaceStoreSyncSettings'
+import { computeWorkspaceSeedSyncNextDelayMs } from '@/lib/workspace/workspaceSeedSyncBackoff'
 import { persistMarkdownExplorerChromeState } from '@/features/markdown/ui/markdownExplorerChromePersistence'
 import { persistMarkdownExplorerModePreferences } from '@/features/markdown/ui/markdownExplorerModePreferencesPersistence'
 import { persistMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
@@ -36,19 +45,6 @@ import {
 } from './markdownWorkspaceRuntime.shared'
 import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
-
-const WORKSPACE_SEED_SYNC_ENABLED = (() => {
-  const raw = String(readEnvString('VITE_WORKSPACE_SEED_SYNC_ENABLED', 'true') || '')
-    .trim()
-    .toLowerCase()
-  if (!raw) return true
-  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
-})()
-const WORKSPACE_SEED_SYNC_POLL_MS = (() => {
-  const raw = Number.parseInt(readEnvString('VITE_WORKSPACE_SEED_SYNC_POLL_MS', '3000'), 10)
-  if (!Number.isFinite(raw)) return 3000
-  return Math.min(60_000, Math.max(1000, raw))
-})()
 
 export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntimeInteractionStatusBindings & {
   active: boolean
@@ -79,6 +75,27 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
   const refreshInFlightRef = React.useRef(false)
   const refreshQueuedRef = React.useRef(false)
   const seedSyncInFlightRef = React.useRef(false)
+  const workspaceSeedSyncSignatureRef = React.useRef('')
+  const workspaceRefreshSemanticKeyRef = React.useRef('')
+  const [workspaceSyncSettingsRev, setWorkspaceSyncSettingsRev] = React.useState(0)
+
+  React.useEffect(() => {
+    return subscribeWorkspaceStoreSyncSettingsChanged(() => {
+      setWorkspaceSyncSettingsRev(prev => prev + 1)
+    })
+  }, [])
+
+  const [workspaceAutoRefreshEnabled, setWorkspaceAutoRefreshEnabled] = React.useState(() => readWorkspaceAutoRefreshEnabledSetting())
+  const [workspaceSeedSyncEnabled, setWorkspaceSeedSyncEnabled] = React.useState(() => readWorkspaceSeedSyncEnabledSetting())
+  const [workspaceSeedSyncPollMs, setWorkspaceSeedSyncPollMs] = React.useState(() => readWorkspaceSeedSyncPollMsSetting())
+  const [workspaceSeedSyncIdleMaxMs, setWorkspaceSeedSyncIdleMaxMs] = React.useState(() => readWorkspaceSeedSyncIdleMaxMsSetting())
+
+  React.useEffect(() => {
+    setWorkspaceAutoRefreshEnabled(readWorkspaceAutoRefreshEnabledSetting())
+    setWorkspaceSeedSyncEnabled(readWorkspaceSeedSyncEnabledSetting())
+    setWorkspaceSeedSyncPollMs(readWorkspaceSeedSyncPollMsSetting())
+    setWorkspaceSeedSyncIdleMaxMs(readWorkspaceSeedSyncIdleMaxMsSetting())
+  }, [workspaceSyncSettingsRev])
 
   const getFs = React.useCallback(async () => {
     const existing = workspaceFsRef.current
@@ -100,11 +117,14 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
     }
   }, [])
 
-  const refreshOnce = React.useCallback(async (): Promise<WorkspaceRefreshSnapshot> => {
+  const refreshOnce = React.useCallback(async (opts?: { silent?: boolean }): Promise<WorkspaceRefreshSnapshot> => {
     const runtime = runtimeRef.current
-    runtime.setStatusProgress('Refreshing')
-    runtime.setLoading(true)
-    runtime.setLoadError('')
+    const silent = !!opts?.silent
+    if (!silent) runtime.setStatusProgress('Refreshing')
+    if (!silent) {
+      runtime.setLoading(true)
+      runtime.setLoadError('')
+    }
     try {
       const currentActivePath = runtime.activePathRef.current
       const fs = await getFs()
@@ -115,6 +135,21 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
         workspaceEntries: list,
       })
       const pruned = pruneWorkspaceEntriesForInlineSnapshot(hydratedList)
+      const semanticKey = buildWorkspaceEntriesSemanticKey({
+        entries: pruned,
+        docsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+      })
+      if (silent && semanticKey === workspaceRefreshSemanticKeyRef.current) {
+        return buildWorkspaceRefreshSnapshot({
+          entries: runtime.entries,
+          sourcesByPath: resolveWorkspaceSourceIndexSnapshot(undefined),
+        })
+      }
+      workspaceRefreshSemanticKeyRef.current = semanticKey
+      workspaceSeedSyncSignatureRef.current = buildWorkspaceEntriesSemanticKey({
+        entries: pruned,
+        docsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+      })
       runtime.setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))
       const sources = resolveWorkspaceSourceIndexSnapshot(undefined)
       runtime.setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))
@@ -127,6 +162,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
           forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
             activePathOverride: currentActivePath,
           }),
+          workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
         })
         if (merged !== store.sourceFiles) {
           store.setSourceFiles(merged)
@@ -135,31 +171,35 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       } catch {
         void 0
       }
-      runtime.setLoading(false)
-      applyMarkdownWorkspaceInfoStatus({
-        setStatusInfo: runtime.setStatusInfo,
-        label: 'Ready',
-      })
+      if (!silent) runtime.setLoading(false)
+      if (!silent) {
+        applyMarkdownWorkspaceInfoStatus({
+          setStatusInfo: runtime.setStatusInfo,
+          label: 'Ready',
+        })
+      }
       return buildWorkspaceRefreshSnapshot({
         entries: pruned,
         sourcesByPath: sources,
       })
     } catch (e) {
       const currentRuntime = runtimeRef.current
-      currentRuntime.setLoading(false)
-      currentRuntime.setLoadError(String((e as { message?: unknown })?.message ?? e))
-      applyMarkdownWorkspaceErrorStatus({
-        setStatusError: currentRuntime.setStatusError,
-        prefix: 'Refresh failed',
-        error: e,
-        fallbackMessage: 'Request failed',
-        includeDetail: false,
-      })
+      if (!silent) {
+        currentRuntime.setLoading(false)
+        currentRuntime.setLoadError(String((e as { message?: unknown })?.message ?? e))
+        applyMarkdownWorkspaceErrorStatus({
+          setStatusError: currentRuntime.setStatusError,
+          prefix: 'Refresh failed',
+          error: e,
+          fallbackMessage: 'Request failed',
+          includeDetail: false,
+        })
+      }
       return buildFailedWorkspaceRefreshSnapshot()
     }
   }, [getFs, scheduleApplyComposedFromSourceFiles])
 
-  const refresh = React.useCallback(async (): Promise<WorkspaceRefreshSnapshot> => {
+  const refresh = React.useCallback(async (opts?: { silent?: boolean }): Promise<WorkspaceRefreshSnapshot> => {
     if (refreshInFlightRef.current) {
       refreshQueuedRef.current = true
       return buildWorkspaceRefreshSnapshot({
@@ -173,7 +213,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
     try {
       do {
         refreshQueuedRef.current = false
-        snapshot = await refreshOnce()
+        snapshot = await refreshOnce({ silent: !!opts?.silent })
       } while (refreshQueuedRef.current)
       return snapshot
     } finally {
@@ -182,7 +222,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
   }, [refreshOnce])
 
   React.useEffect(() => {
-    if (!args.active) return
+    if (!args.active || !workspaceAutoRefreshEnabled) return
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
       const runtime = runtimeRef.current
       if (runtime.viewerInlineEditActiveRef.current) return
@@ -191,10 +231,11 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       const isDirty = !!(activePath && last?.path === activePath && last.text !== runtime.activeTextRef.current)
       const changedPath = typeof detail?.path === 'string' && detail.path ? detail.path : null
       const operation = typeof detail?.op === 'string' ? detail.op : ''
+      if (operation === 'ensureSeed') return
       if (isDirty && (!changedPath || changedPath === activePath)) return
       if (operation === 'writeFileText' && activePath && changedPath && changedPath !== activePath) return
       scheduleMarkdownWorkspaceRefreshSync(() => {
-        void refresh()
+        void refresh({ silent: true })
       }, {
         activePath,
         changedPath,
@@ -206,43 +247,92 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       cancelMarkdownWorkspaceRefreshSync()
       unsubscribe()
     }
-  }, [args.active, refresh])
+  }, [args.active, refresh, workspaceAutoRefreshEnabled])
 
   React.useEffect(() => {
-    if (!args.active || !WORKSPACE_SEED_SYNC_ENABLED) return
+    if (!args.active || !workspaceSeedSyncEnabled) return
     if (typeof window === 'undefined') return
     let stopped = false
+    let timer: ReturnType<typeof window.setTimeout> | null = null
+    let idleStreak = 0
     const ensureSeedTick = async () => {
       if (stopped || seedSyncInFlightRef.current) return
       const runtime = runtimeRef.current
       if (runtime.viewerInlineEditActiveRef.current) return
       seedSyncInFlightRef.current = true
+      let effectiveChanged = false
       try {
         const fs = await getFs()
-        await fs.ensureSeed()
+        const changed = await fs.ensureSeed()
+        if (changed) {
+          const list = await fs.listEntries()
+          const hydratedList = await hydrateWorkspaceEntriesInlineText({
+            fs,
+            workspaceEntries: list,
+          })
+          const docsOnly = readWorkspaceSourceFilesDocsOnlySetting()
+          const signature = buildWorkspaceEntriesSemanticKey({
+            entries: hydratedList,
+            docsOnly,
+          })
+          if (signature !== workspaceSeedSyncSignatureRef.current) {
+            workspaceSeedSyncSignatureRef.current = signature
+            effectiveChanged = true
+          }
+          const activePath = runtime.activePathRef.current
+          const last = runtime.lastLoadedRef.current
+          const isDirty = !!(activePath && last?.path === activePath && last.text !== runtime.activeTextRef.current)
+          if (!isDirty && workspaceAutoRefreshEnabled && effectiveChanged) {
+            scheduleMarkdownWorkspaceRefreshSync(() => {
+              void refresh({ silent: true })
+            }, {
+              activePath,
+              changedPath: null,
+              operation: 'seedSyncChanged',
+              isDirty: false,
+            })
+          }
+        }
       } catch {
         void 0
       } finally {
         seedSyncInFlightRef.current = false
+        const docsOnly = readWorkspaceSourceFilesDocsOnlySetting()
+        const next = computeWorkspaceSeedSyncNextDelayMs({
+          basePollMs: workspaceSeedSyncPollMs,
+          idleMaxMs: workspaceSeedSyncIdleMaxMs,
+          docsOnly,
+          changed: effectiveChanged,
+          idleStreak,
+        })
+        idleStreak = next.nextIdleStreak
+        if (!stopped) {
+          timer = window.setTimeout(() => {
+            timer = null
+            void ensureSeedTick()
+          }, next.nextDelayMs)
+        }
       }
     }
     const onWake = () => {
       if (document.visibilityState === 'hidden') return
+      idleStreak = 0
+      if (timer != null) {
+        window.clearTimeout(timer)
+        timer = null
+      }
       void ensureSeedTick()
     }
     void ensureSeedTick()
-    const timer = window.setInterval(() => {
-      void ensureSeedTick()
-    }, WORKSPACE_SEED_SYNC_POLL_MS)
     window.addEventListener('focus', onWake)
     document.addEventListener('visibilitychange', onWake)
     return () => {
       stopped = true
-      window.clearInterval(timer)
+      if (timer != null) window.clearTimeout(timer)
       window.removeEventListener('focus', onWake)
       document.removeEventListener('visibilitychange', onWake)
     }
-  }, [args.active, getFs])
+  }, [args.active, getFs, refresh, workspaceAutoRefreshEnabled, workspaceSeedSyncEnabled, workspaceSeedSyncPollMs, workspaceSeedSyncIdleMaxMs])
 
   const persistWorkspacePrefsPendingRef = React.useRef<{
     sidebarWidthPx: number

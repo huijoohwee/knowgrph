@@ -253,22 +253,22 @@ export async function testKnowgrphStorageClientSyncRetainsConflictingOutboxMutat
     fetchImpl,
     dbState,
   })
-  if (result.conflictCount !== 1) throw new Error('expected one conflict acknowledgement for the stale outbox mutation')
-  if (result.unresolvedConflictCount !== 1) throw new Error('expected one unresolved conflict to remain tracked in the local outbox state')
-  if (result.conflictEntries.length !== 1 || result.conflictEntries[0]?.mutationId !== mutationId) {
-    throw new Error('expected sync result to expose the retained conflicting mutation for shared UX reuse')
+  if (result.conflictCount !== 0) throw new Error('expected stale outbox conflict to be auto-rebased and retried within sync cycle')
+  if (result.unresolvedConflictCount !== 0) throw new Error('expected stale outbox conflict to be auto-rebased instead of staying unresolved')
+  if (result.conflictEntries.length !== 0) {
+    throw new Error('expected auto-rebased conflict to avoid surfacing retained conflict entries for manual UX flow')
   }
 
   const conflictRow = await dbState.collections.syncOutbox.findOne(mutationId).exec()
-  if (!conflictRow) throw new Error('expected conflicting outbox row to be retained for later resolution')
-  if (Number(conflictRow.get('attemptCount') || 0) !== 1) {
-    throw new Error('expected conflicting outbox row attemptCount to increment after failed push')
+  if (!conflictRow) throw new Error('expected auto-rebased mutation to stay queued for immediate retry cycle')
+  if (Number(conflictRow.get('attemptCount') || 0) !== 0) {
+    throw new Error('expected auto-rebased outbox row attemptCount to reset before retry')
   }
-  if (conflictRow.get('lastAckStatus') !== 'conflict') {
-    throw new Error('expected conflicting outbox row to retain local conflict state for shared UX reuse')
+  if (String(conflictRow.get('lastAckStatus') || '').trim() !== '') {
+    throw new Error('expected auto-rebased outbox row to clear conflict status so UX stays auto-sync')
   }
-  if (!String(conflictRow.get('lastAckMessage') || '')) {
-    throw new Error('expected conflicting outbox row to retain the latest conflict message')
+  if (!Number.isFinite(Number(conflictRow.get('baseRevision')))) {
+    throw new Error('expected auto-rebased outbox row baseRevision to stay a finite number before retry')
   }
 
   await __resetKnowgrphStorageDbForTests()

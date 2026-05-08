@@ -16,6 +16,7 @@ import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/sy
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import type { SourceFilesWorkspaceState } from '@/features/source-files/sourceFilesWorkspaceState'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export function restoreBootstrapPersistedSourceFiles(args: {
   persistedSourceFiles: unknown[]
@@ -57,6 +58,7 @@ export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: startupActivePath,
     }),
+    workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
   })
   if (merged !== existing) {
     store.setSourceFiles(merged)

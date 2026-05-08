@@ -5,18 +5,29 @@ import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   buildWorkspaceSeedFileEntry,
   expandWorkspaceSeedFileEntries,
+  GEOSPATIAL_WORKSPACE_SEED_BASENAME,
+  GEOSPATIAL_WORKSPACE_SEED_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   LEGACY_WORKSPACE_README_PATH,
+  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   LEGACY_WORKSPACE_README_TEXT,
+  TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
   getWorkspaceSeedFiles,
   isInitializationWorkspacePath,
+  WORKSPACE_README_SEED_BASENAME,
+  WORKSPACE_README_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   shouldMigrateLegacyWorkspaceSeedPaths,
 } from './workspaceFs'
+import { upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
+import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedProvider'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 const DB_NAME = 'kg:workspace-fs'
 
@@ -43,6 +54,108 @@ const workspaceEntrySchema: RxJsonSchema<WorkspaceEntryRow> = {
 }
 
 let dbSingleton: Promise<{ db: RxDatabase<WorkspaceCollections>; collections: WorkspaceCollections }> | null = null
+
+const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
+  [WORKSPACE_README_SEED_PATH, WORKSPACE_README_SEED_BASENAME],
+  [TEST_VALIDATION_WORKSPACE_SEED_PATH, TEST_VALIDATION_WORKSPACE_SEED_BASENAME],
+  [GEOSPATIAL_WORKSPACE_SEED_PATH, GEOSPATIAL_WORKSPACE_SEED_BASENAME],
+])
+const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
+
+const readWorkspaceSeedBasenameForPath = (path: WorkspacePath): string | null => {
+  return WORKSPACE_SEED_BASENAME_BY_PATH.get(path) || null
+}
+
+const normalizeDocsMirrorRelPath = (value: string): string => {
+  return String(value || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+}
+
+const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
+  const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
+  return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
+}
+
+const syncWorkspaceDocsMirrorEntries = async (
+  collections: WorkspaceCollections,
+  docsEntriesInput?: ReadonlyArray<{ relPath: string; text: string; updatedAtMs: number }>,
+): Promise<boolean> => {
+  const docsEntries = Array.isArray(docsEntriesInput)
+    ? [...docsEntriesInput]
+    : await readWorkspaceInitializationDocsMirrorEntries()
+  if (docsEntries.length === 0) return false
+  const desiredEntriesByPath = new Map<WorkspacePath, WorkspaceEntry>()
+  for (let i = 0; i < docsEntries.length; i += 1) {
+    const entry = docsEntries[i]
+    if (!entry) continue
+    const mirrorPath = toWorkspaceDocsMirrorPath(entry.relPath)
+    const expanded = expandWorkspaceSeedFileEntries(
+      mirrorPath,
+      String(entry.text || ''),
+      Number.isFinite(entry.updatedAtMs) ? entry.updatedAtMs : Date.now(),
+    )
+    for (let j = 0; j < expanded.length; j += 1) {
+      const next = expanded[j]
+      if (!next) continue
+      desiredEntriesByPath.set(next.path, next)
+    }
+  }
+  if (desiredEntriesByPath.size === 0) return false
+  const existingRows = await collections.entries.find().exec()
+  let changed = false
+  for (let i = 0; i < existingRows.length; i += 1) {
+    const row = existingRows[i]
+    if (!row) continue
+    const existingPath = normalizeWorkspacePath(String(row.get('path') || ''))
+    if (!existingPath.startsWith(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/`)) continue
+    const desired = desiredEntriesByPath.get(existingPath) || null
+    if (!desired) {
+      await row.remove()
+      changed = true
+      continue
+    }
+    desiredEntriesByPath.delete(existingPath)
+    const existingKind = String(row.get('kind') || '')
+    const existingName = String(row.get('name') || '')
+    const existingParentPath = String(row.get('parentPath') || '')
+    const existingText = String(row.get('text') ?? '')
+    const nextParentPath = String(desired.parentPath || '')
+    const nextText = desired.kind === 'file' ? String(desired.text || '') : ''
+    if (
+      existingKind !== desired.kind
+      || existingName !== desired.name
+      || existingParentPath !== nextParentPath
+      || (desired.kind === 'file' && existingText !== nextText)
+    ) {
+      await row.incrementalPatch({
+        parentPath: nextParentPath,
+        kind: desired.kind,
+        name: desired.name,
+        text: nextText,
+        updatedAtMs: desired.updatedAtMs,
+      })
+      changed = true
+    }
+  }
+  const pendingEntries = [...desiredEntriesByPath.values()].sort((a, b) => a.path.localeCompare(b.path))
+  for (let i = 0; i < pendingEntries.length; i += 1) {
+    const entry = pendingEntries[i]
+    if (!entry) continue
+    await collections.entries.incrementalUpsert({
+      path: entry.path,
+      parentPath: String(entry.parentPath || ''),
+      kind: entry.kind,
+      name: entry.name,
+      text: entry.kind === 'file' ? String(entry.text || '') : '',
+      updatedAtMs: entry.updatedAtMs,
+    })
+    changed = true
+  }
+  return changed
+}
 
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
@@ -92,13 +205,20 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     })
   }
 
-  const ensureSeed = async () => {
+  const ensureSeed = async (): Promise<boolean> => {
     const { collections } = await getDb()
     await ensureRoot()
+    let changed = false
+    const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
+    const docsMirrorEntries = docsOnlyMode
+      ? await readWorkspaceInitializationDocsMirrorEntries()
+      : []
+    const hasDocsMirrorFiles = docsMirrorEntries.length > 0
     const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
     const legacy = await collections.entries.findOne(legacyPath).exec()
     if (legacy && legacy.get('kind') === 'file' && String(legacy.get('text') ?? '') === LEGACY_WORKSPACE_README_TEXT) {
       await legacy.remove()
+      changed = true
     }
     const fileRows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
     const existingFilePaths = fileRows
@@ -107,9 +227,31 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
       for (let i = 0; i < fileRows.length; i += 1) {
         await fileRows[i]!.remove()
+        changed = true
       }
     }
     const hasAnyFilesNow = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length > 0)
+    if (docsOnlyMode && hasDocsMirrorFiles) {
+      const rootSeedPaths = new Set<WorkspacePath>([
+        WORKSPACE_README_SEED_PATH,
+        TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        GEOSPATIAL_WORKSPACE_SEED_PATH,
+        LEGACY_WORKSPACE_README_PATH,
+        LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+        LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
+      ])
+      const rows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
+      for (let i = 0; i < rows.length; i += 1) {
+        const row = rows[i]
+        if (!row) continue
+        const path = normalizeWorkspacePath(String(row.get('path') || ''))
+        if (!path || path.startsWith('/docs/')) continue
+        if (!rootSeedPaths.has(path)) continue
+        await row.remove()
+        changed = true
+      }
+    }
     if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && !hasAnyFilesNow) {
       const now = Date.now()
       const seeds = await getWorkspaceSeedFiles()
@@ -126,6 +268,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
             text: entry.kind === 'file' ? String(entry.text ?? '') : '',
             updatedAtMs: entry.updatedAtMs,
           })
+          changed = true
         }
       }
     }
@@ -133,46 +276,54 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
     const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
     if (fileCount > 0) {
-      const seeds = await getWorkspaceSeedFiles()
-      let changed = false
-      for (const seed of seeds) {
-        const path = normalizeWorkspacePath(seed.path)
-        const row = await collections.entries.findOne(path).exec()
-        if (!row || row.get('kind') !== 'file') continue
-        const nextText = String(seed.text ?? '')
-        if (String(row.get('text') ?? '') === nextText) continue
-        const entry = buildWorkspaceSeedFileEntry(path, nextText, Date.now())
-        await row.incrementalPatch({
-          parentPath: entry.parentPath || '',
-          name: entry.name,
-          text: String(entry.text ?? ''),
-          updatedAtMs: entry.updatedAtMs,
-        })
-        changed = true
+      if (!(docsOnlyMode && hasDocsMirrorFiles)) {
+        const seeds = await getWorkspaceSeedFiles()
+        let seededTextChanged = false
+        for (const seed of seeds) {
+          const path = normalizeWorkspacePath(seed.path)
+          const row = await collections.entries.findOne(path).exec()
+          if (!row || row.get('kind') !== 'file') continue
+          const nextText = String(seed.text ?? '')
+          if (String(row.get('text') ?? '') === nextText) continue
+          const entry = buildWorkspaceSeedFileEntry(path, nextText, Date.now())
+          await row.incrementalPatch({
+            parentPath: entry.parentPath || '',
+            name: entry.name,
+            text: String(entry.text ?? ''),
+            updatedAtMs: entry.updatedAtMs,
+          })
+          seededTextChanged = true
+        }
+        if (seededTextChanged) changed = true
       }
-      if (changed) notifyWorkspaceFsChanged({ op: 'ensureSeed', path: WORKSPACE_ROOT_PATH })
+      if (await syncWorkspaceDocsMirrorEntries(collections, docsMirrorEntries)) changed = true
       if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
       if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
-      return
+      return changed
     }
-    if (userClearedAll) return
+    if (userClearedAll) return changed
     const now = Date.now()
-    const seeds = await getWorkspaceSeedFiles()
-    for (const seed of seeds) {
-      const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, now)
-      for (const entry of entries) {
-        await collections.entries.incrementalUpsert({
-          path: entry.path,
-          parentPath: entry.parentPath || '',
-          kind: entry.kind,
-          name: entry.name,
-          text: entry.kind === 'file' ? String(entry.text ?? '') : '',
-          updatedAtMs: entry.updatedAtMs,
-        })
+    if (!(docsOnlyMode && hasDocsMirrorFiles)) {
+      const seeds = await getWorkspaceSeedFiles()
+      for (const seed of seeds) {
+        const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, now)
+        for (const entry of entries) {
+          await collections.entries.incrementalUpsert({
+            path: entry.path,
+            parentPath: entry.parentPath || '',
+            kind: entry.kind,
+            name: entry.name,
+            text: entry.kind === 'file' ? String(entry.text ?? '') : '',
+            updatedAtMs: entry.updatedAtMs,
+          })
+          changed = true
+        }
       }
     }
+    if (await syncWorkspaceDocsMirrorEntries(collections, docsMirrorEntries)) changed = true
     lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
     if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+    return changed
   }
 
   const listEntries = async () => {
@@ -203,10 +354,20 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     const p = normalizeWorkspacePath(path)
     const row = await collections.entries.findOne(p).exec()
     if (!row || row.get('kind') !== 'file') return
+    const nextText = String(text ?? '')
+    const previousText = String(row.get('text') ?? '')
+    if (previousText === nextText) return
     await row.incrementalPatch({
-      text: String(text ?? ''),
+      text: nextText,
       updatedAtMs: Date.now(),
     })
+    const seedBasename = readWorkspaceSeedBasenameForPath(p)
+    if (seedBasename) {
+      void upsertWorkspaceInitializationSeedText({
+        basename: seedBasename,
+        text: nextText,
+      })
+    }
     notifyWorkspaceFsChanged({ op: 'writeFileText', path: p })
   }
 

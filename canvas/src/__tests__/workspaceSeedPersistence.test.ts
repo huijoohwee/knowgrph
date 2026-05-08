@@ -6,7 +6,7 @@ import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
-import { getWorkspaceFs, resetWorkspaceFsForTests, TEST_VALIDATION_WORKSPACE_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   buildInitialWorkspaceStartupSnapshot,
   buildMaterializedWorkspaceActivePathKey,
@@ -47,7 +47,7 @@ import {
   applyActiveMarkdownDocumentPayload,
   buildActiveMarkdownDocumentPayload,
 } from '@/features/markdown/activeMarkdownDocument'
-import { readWorkspaceInitializationSeedText } from '@/features/workspace-fs/workspaceSeedProvider'
+import { readWorkspaceInitializationSeedText, upsertWorkspaceInitializationSeedText } from '@/features/workspace-fs/workspaceSeedProvider'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
@@ -345,6 +345,20 @@ export function testCanvasEnvBridgeFallsBackToProcessEnvOutsideBrowser() {
   } finally {
     if (typeof prev === 'string') process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH = prev
     else delete process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH
+  }
+}
+
+export function testCanvasEnvBridgeReadsKnowgrphStorageBaseUrlFromProcessEnv() {
+  const prev = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'http://127.0.0.1:8787'
+  try {
+    const next = readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '')
+    if (next !== 'http://127.0.0.1:8787') {
+      throw new Error(`expected storage base url to be readable through canvas env bridge, got ${String(next)}`)
+    }
+  } finally {
+    if (typeof prev === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = prev
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   }
 }
 
@@ -826,6 +840,60 @@ export async function testWorkspaceSeedProviderResolvesDocsWorkspaceSeedsFromCon
       ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
     } else {
       delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+  }
+}
+
+export async function testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy() {
+  const previousWindow = globalThis.window
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  const calls: Array<{ url: string; body: string }> = []
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  ;(globalThis as unknown as { window: Window }).window = {
+    setTimeout: ((handler: TimerHandler) => {
+      if (typeof handler === 'function') handler()
+      return 0 as unknown as number
+    }) as Window['setTimeout'],
+    clearTimeout: (() => void 0) as Window['clearTimeout'],
+  } as unknown as Window
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({
+      url: String(typeof input === 'string' ? input : (input as URL).toString()),
+      body: String(init?.body || ''),
+    })
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    const ok = await upsertWorkspaceInitializationSeedText({
+      basename: 'knowgrph-video-demo.md',
+      text: '# mirrored seed',
+    })
+    if (!ok) {
+      throw new Error('expected browser upsert to succeed through /__kg_fs_write proxy')
+    }
+    const writeCall = calls.find(call => call.url === '/__kg_fs_write')
+    if (!writeCall) {
+      throw new Error('expected workspace seed provider to call /__kg_fs_write in browser mode')
+    }
+    if (!writeCall.body.includes('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')) {
+      throw new Error('expected workspace seed provider write payload to target configured docs absolute path')
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+    if (previousWindow) {
+      ;(globalThis as unknown as { window: Window }).window = previousWindow
+    } else {
+      delete (globalThis as unknown as { window?: Window }).window
     }
   }
 }

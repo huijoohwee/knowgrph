@@ -4422,6 +4422,90 @@
     ],
     "lineRange": ""
   },
+  "workspace.sync.seed.enabled": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Enable periodic workspace seed/docs sync into local workspace FS",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L53"
+  },
+  "workspace.sync.seed.pollMs": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Polling interval for workspace seed/docs sync",
+    "notes": "Unit: ms, clamped to [1000, 60000]",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L63"
+  },
+  "workspace.sync.seed.idleMaxMs": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Max adaptive backoff interval for workspace seed/docs sync when no updates are detected",
+    "notes": "Unit: ms, clamped to [1000, 300000]",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L73"
+  },
+  "workspace.sync.autoRefresh.enabled": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Auto-refresh editor workspace when workspace FS changes",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L83"
+  },
+  "workspace.sync.sourceFiles.docsOnly": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Keep Source Files constrained to /docs workspace mirror entries only",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L93"
+  },
+  "workspace.sync.sourceFiles.debounceMs": {
+    "area": "Workspace Storage Sync",
+    "responsibility": "Debounce interval before Source Files rematerialization after workspace FS updates",
+    "notes": "Unit: ms, clamped to [100, 10000]",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L103"
+  },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",
     "responsibility": "Include extracted PDF images in Markdown output",

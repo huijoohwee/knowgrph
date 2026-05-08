@@ -59,20 +59,18 @@ import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFs
 import { readEnvString } from '@/lib/config.env'
 import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
+import {
+  readWorkspaceSeedSyncEnabledSetting,
+  readWorkspaceSeedSyncIdleMaxMsSetting,
+  readWorkspaceSeedSyncPollMsSetting,
+  readWorkspaceSourceFilesDocsOnlySetting,
+  readWorkspaceSourceFilesSyncDebounceMsSetting,
+  subscribeWorkspaceStoreSyncSettingsChanged,
+} from '@/lib/workspace/workspaceStoreSyncSettings'
+import { computeWorkspaceSeedSyncNextDelayMs } from '@/lib/workspace/workspaceSeedSyncBackoff'
 
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
-const WORKSPACE_SEED_SYNC_ENABLED = (() => {
-  const raw = String(readEnvString('VITE_WORKSPACE_SEED_SYNC_ENABLED', 'true') || '')
-    .trim()
-    .toLowerCase()
-  if (!raw) return true
-  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no')
-})()
-const WORKSPACE_SEED_SYNC_POLL_MS = (() => {
-  const raw = Number.parseInt(readEnvString('VITE_WORKSPACE_SEED_SYNC_POLL_MS', '3000'), 10)
-  if (!Number.isFinite(raw)) return 3000
-  return Math.min(60_000, Math.max(1000, raw))
-})()
 const KNOWGRPH_STORAGE_BASE_URL = (() => {
   const raw = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
   return raw || null
@@ -163,6 +161,29 @@ export function SourceFilesPersistenceBootstrap() {
   const knowgrphStorageLoopCleanupRef = React.useRef<(() => void) | null>(null)
   const workspaceMaterializeInFlightRef = React.useRef(false)
   const workspaceMaterializeQueuedRef = React.useRef(false)
+  const workspaceMaterializeTimerRef = React.useRef<number | null>(null)
+  const lastWorkspaceEntriesSignatureRef = React.useRef('')
+  const [workspaceSyncSettingsRev, setWorkspaceSyncSettingsRev] = React.useState(0)
+
+  React.useEffect(() => {
+    return subscribeWorkspaceStoreSyncSettingsChanged(() => {
+      setWorkspaceSyncSettingsRev(prev => prev + 1)
+    })
+  }, [])
+
+  const [workspaceSeedSyncEnabled, setWorkspaceSeedSyncEnabled] = React.useState(() => readWorkspaceSeedSyncEnabledSetting())
+  const [workspaceSeedSyncPollMs, setWorkspaceSeedSyncPollMs] = React.useState(() => readWorkspaceSeedSyncPollMsSetting())
+  const [workspaceSeedSyncIdleMaxMs, setWorkspaceSeedSyncIdleMaxMs] = React.useState(() => readWorkspaceSeedSyncIdleMaxMsSetting())
+  const [workspaceSourceFilesDocsOnly, setWorkspaceSourceFilesDocsOnly] = React.useState(() => readWorkspaceSourceFilesDocsOnlySetting())
+  const [workspaceSourceFilesSyncDebounceMs, setWorkspaceSourceFilesSyncDebounceMs] = React.useState(() => readWorkspaceSourceFilesSyncDebounceMsSetting())
+
+  React.useEffect(() => {
+    setWorkspaceSeedSyncEnabled(readWorkspaceSeedSyncEnabledSetting())
+    setWorkspaceSeedSyncPollMs(readWorkspaceSeedSyncPollMsSetting())
+    setWorkspaceSeedSyncIdleMaxMs(readWorkspaceSeedSyncIdleMaxMsSetting())
+    setWorkspaceSourceFilesDocsOnly(readWorkspaceSourceFilesDocsOnlySetting())
+    setWorkspaceSourceFilesSyncDebounceMs(readWorkspaceSourceFilesSyncDebounceMsSetting())
+  }, [workspaceSyncSettingsRev])
 
   const scheduleKnowgrphStorageQueueSync = React.useCallback((sourceFiles?: ReturnType<typeof useGraphStore.getState>['sourceFiles']) => {
     const workspaceId =
@@ -219,35 +240,66 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    if (!WORKSPACE_SEED_SYNC_ENABLED) return
+    if (!workspaceSeedSyncEnabled) return
     let cancelled = false
+    let timer: ReturnType<typeof window.setTimeout> | null = null
+    let idleStreak = 0
     const ensureSeed = async (source: string) => {
       if (cancelled) return
       try {
         const fs = await getWorkspaceFs()
-        await fs.ensureSeed()
-        markWorkspaceSeedSyncDebug(source)
+        const changed = await fs.ensureSeed()
+        if (changed) markWorkspaceSeedSyncDebug(source)
+        const next = computeWorkspaceSeedSyncNextDelayMs({
+          basePollMs: workspaceSeedSyncPollMs,
+          idleMaxMs: workspaceSeedSyncIdleMaxMs,
+          docsOnly: workspaceSourceFilesDocsOnly,
+          changed,
+          idleStreak,
+        })
+        idleStreak = next.nextIdleStreak
+        if (!cancelled) {
+          timer = window.setTimeout(() => {
+            timer = null
+            void ensureSeed('bootstrap:poll')
+          }, next.nextDelayMs)
+        }
       } catch {
-        void 0
+        const next = computeWorkspaceSeedSyncNextDelayMs({
+          basePollMs: workspaceSeedSyncPollMs,
+          idleMaxMs: workspaceSeedSyncIdleMaxMs,
+          docsOnly: workspaceSourceFilesDocsOnly,
+          changed: false,
+          idleStreak,
+        })
+        idleStreak = next.nextIdleStreak
+        if (!cancelled) {
+          timer = window.setTimeout(() => {
+            timer = null
+            void ensureSeed('bootstrap:poll')
+          }, next.nextDelayMs)
+        }
       }
     }
     const onWake = () => {
       if (document.visibilityState === 'hidden') return
+      idleStreak = 0
+      if (timer != null) {
+        window.clearTimeout(timer)
+        timer = null
+      }
       void ensureSeed('bootstrap:wake')
     }
     void ensureSeed('bootstrap:mount')
-    const timer = window.setInterval(() => {
-      void ensureSeed('bootstrap:poll')
-    }, WORKSPACE_SEED_SYNC_POLL_MS)
     window.addEventListener('focus', onWake)
     document.addEventListener('visibilitychange', onWake)
     return () => {
       cancelled = true
-      window.clearInterval(timer)
+      if (timer != null) window.clearTimeout(timer)
       window.removeEventListener('focus', onWake)
       document.removeEventListener('visibilitychange', onWake)
     }
-  }, [])
+  }, [workspaceSeedSyncEnabled, workspaceSeedSyncPollMs, workspaceSeedSyncIdleMaxMs, workspaceSourceFilesDocsOnly])
 
   React.useEffect(() => {
     const startForWorkspaceState = (workspaceState: SourceFilesWorkspaceState) => {
@@ -354,65 +406,97 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    const rematerializeWorkspaceBackedSourceFiles = () => {
+    const rematerializeWorkspaceBackedSourceFiles = async () => {
       if (!workspaceHydratedRef.current) return
       if (workspaceMaterializeInFlightRef.current) {
         workspaceMaterializeQueuedRef.current = true
         return
       }
       workspaceMaterializeInFlightRef.current = true
-      void (async () => {
-        try {
-          do {
-            workspaceMaterializeQueuedRef.current = false
-            const fs = await getWorkspaceFs()
-            const workspaceEntries = await fs.listEntries()
-            const hydratedWorkspaceEntries = await hydrateWorkspaceEntriesInlineText({
-              fs,
-              workspaceEntries,
-            })
-            const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
-            const activePath = resolveMaterializedWorkspaceActivePath({
-              explorerActivePath: useMarkdownExplorerStore.getState().activePath,
-            })
-            const store = useGraphStore.getState()
-            const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-            const merged = mergeWorkspaceEntriesIntoSourceFiles({
-              existing,
-              workspaceEntries: hydratedWorkspaceEntries,
-              sourcesByPath,
-              forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
-                activePathOverride: activePath,
-              }),
-            })
-            if (merged !== existing) {
-              store.setSourceFiles(merged)
-            }
-            await materializeActiveWorkspaceEntryIntoSourceFiles({
+      try {
+        do {
+          workspaceMaterializeQueuedRef.current = false
+          const fs = await getWorkspaceFs()
+          const workspaceEntries = await fs.listEntries()
+          const hydratedWorkspaceEntries = await hydrateWorkspaceEntriesInlineText({
+            fs,
+            workspaceEntries,
+          })
+          const signature = buildWorkspaceEntriesSemanticKey({
+            entries: hydratedWorkspaceEntries,
+            docsOnly: workspaceSourceFilesDocsOnly,
+          })
+          if (signature === lastWorkspaceEntriesSignatureRef.current) continue
+          lastWorkspaceEntriesSignatureRef.current = signature
+          const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
+          const activePath = resolveMaterializedWorkspaceActivePath({
+            explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+          })
+          const store = useGraphStore.getState()
+          const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+          const merged = mergeWorkspaceEntriesIntoSourceFiles({
+            existing,
+            workspaceEntries: hydratedWorkspaceEntries,
+            sourcesByPath,
+            forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
               activePathOverride: activePath,
-              fs,
-              workspaceEntries: readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries),
-              sourcesByPath,
-            })
-          } while (workspaceMaterializeQueuedRef.current)
-        } catch {
-          void 0
-        } finally {
-          workspaceMaterializeInFlightRef.current = false
-        }
-      })()
+            }),
+            workspaceDocsOnly: workspaceSourceFilesDocsOnly,
+          })
+          if (merged !== existing) {
+            store.setSourceFiles(merged)
+          }
+          await materializeActiveWorkspaceEntryIntoSourceFiles({
+            activePathOverride: activePath,
+            fs,
+            workspaceEntries: readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries),
+            sourcesByPath,
+          })
+        } while (workspaceMaterializeQueuedRef.current)
+      } catch {
+        void 0
+      } finally {
+        workspaceMaterializeInFlightRef.current = false
+      }
     }
+    const scheduleRematerialize = () => {
+      if (workspaceMaterializeTimerRef.current != null) {
+        window.clearTimeout(workspaceMaterializeTimerRef.current)
+        workspaceMaterializeTimerRef.current = null
+      }
+      const delayMs = Math.max(0, Number(workspaceSourceFilesSyncDebounceMs || 0))
+      if (delayMs === 0) {
+        void rematerializeWorkspaceBackedSourceFiles()
+        return
+      }
+      workspaceMaterializeTimerRef.current = window.setTimeout(() => {
+        workspaceMaterializeTimerRef.current = null
+        void rematerializeWorkspaceBackedSourceFiles()
+      }, delayMs)
+    }
+    lastWorkspaceEntriesSignatureRef.current = ''
+    scheduleRematerialize()
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
       const op = String(detail?.op || '')
       if (!op) return
       if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return
+      if (workspaceSourceFilesDocsOnly) {
+        const changedPath = String(detail?.path || '').trim()
+        const hasPath = !!changedPath
+        const isDocsPath = hasPath && changedPath.startsWith('/docs/')
+        if (hasPath && !isDocsPath) return
+      }
       markWorkspaceSeedSyncDebug(`workspace-fs:${op}`)
-      rematerializeWorkspaceBackedSourceFiles()
+      scheduleRematerialize()
     })
     return () => {
+      if (workspaceMaterializeTimerRef.current != null) {
+        window.clearTimeout(workspaceMaterializeTimerRef.current)
+        workspaceMaterializeTimerRef.current = null
+      }
       unsubscribe()
     }
-  }, [])
+  }, [workspaceSourceFilesDocsOnly, workspaceSourceFilesSyncDebounceMs])
 
   React.useEffect(() => {
     const syncNow = (activePathSnapshot?: string | null) => {

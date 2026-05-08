@@ -12,7 +12,7 @@ export type WorkspaceEntry = {
 }
 
 export type WorkspaceFs = {
-  ensureSeed: () => Promise<void>
+  ensureSeed: () => Promise<boolean>
   listEntries: () => Promise<WorkspaceEntry[]>
   readFileText: (path: WorkspacePath) => Promise<string | null>
   writeFileText: (path: WorkspacePath, text: string) => Promise<void>

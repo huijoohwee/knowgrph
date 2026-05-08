@@ -5,16 +5,16 @@ export async function testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfte
   let storedPath = ''
   let storedText = ''
   const inner: WorkspaceFs = {
-    ensureSeed: async () => void 0,
+    ensureSeed: async () => false,
     listEntries: async () => [{ path: '/' as WorkspacePath, parentPath: null, kind: 'folder' as const, name: '', updatedAtMs: 1 }],
     readFileText: async () => null,
     writeFileText: async () => void 0,
     createFile: async (args: { parentPath: WorkspacePath; name: string; text: string }) => {
-      storedPath = `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` || `/${args.name}`
+      storedPath = `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}`
       storedText = args.text
       return storedPath as WorkspacePath
     },
-    createFolder: async (args: { parentPath: WorkspacePath; name: string }) => (`${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` || `/${args.name}`) as WorkspacePath,
+    createFolder: async (args: { parentPath: WorkspacePath; name: string }) => `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` as WorkspacePath,
     deleteEntry: async () => void 0,
   }
 

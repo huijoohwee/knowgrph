@@ -45,6 +45,7 @@ const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
+const KG_FS_LIST_PATH = '/__kg_fs_list'
 const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
@@ -1231,6 +1232,28 @@ const kgFsWriteDevPlugin = {
         return
       }
       createKgFsWriteHandler()(req, res, next)
+    })
+  },
+}
+
+const kgFsListDevPlugin = {
+  name: 'knowgrph-kg-fs-list-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(KG_FS_LIST_PATH)) {
+        next()
+        return
+      }
+      createKgFsListHandler()(req, res, next)
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(KG_FS_LIST_PATH)) {
+        next()
+        return
+      }
+      createKgFsListHandler()(req, res, next)
     })
   },
 }
@@ -4509,6 +4532,167 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
   }
 }
 
+function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
+  const MAX_BODY_BYTES = 64 * 1024
+  const MAX_FILE_COUNT_DEFAULT = 500
+  const MAX_FILE_BYTES = 500 * 1024
+  const markdownExtSet = new Set(['.md', '.markdown', '.mdx', '.mmd'])
+  const workspaceMirrorRoot = path.resolve(repoRoot, '..')
+  const allowedRoots = [
+    workspaceMirrorRoot,
+    path.resolve(repoRoot, '..', '..'),
+    path.resolve(repoRoot),
+    path.resolve(repoRoot, '..'),
+  ]
+  const isAllowed = (candidate: string): boolean => {
+    const resolved = path.resolve(candidate)
+    return allowedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
+  }
+  const toHostPath = (candidate: string): string => {
+    const raw = String(candidate || '').trim()
+    if (!raw) return ''
+    const resolved = path.resolve(raw)
+    if (isAllowed(resolved)) return resolved
+    if (raw.startsWith('/')) return path.resolve(workspaceMirrorRoot, `.${raw}`)
+    return path.resolve(workspaceMirrorRoot, raw)
+  }
+  const normalizeRelPath = (candidate: string): string => {
+    return String(candidate || '')
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '')
+      .replace(/\/+$/, '')
+  }
+  const walkMarkdownFiles = async (rootAbsPath: string, maxFiles: number): Promise<Array<{ absPath: string; relPath: string }>> => {
+    const out: Array<{ absPath: string; relPath: string }> = []
+    const queue = [rootAbsPath]
+    while (queue.length > 0 && out.length < maxFiles) {
+      const dir = queue.shift()
+      if (!dir) continue
+      let entries: Array<import('node:fs').Dirent> = []
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true })
+      } catch {
+        continue
+      }
+      entries.sort((a, b) => a.name.localeCompare(b.name))
+      for (const entry of entries) {
+        if (out.length >= maxFiles) break
+        const absPath = path.resolve(dir, entry.name)
+        if (!isAllowed(absPath)) continue
+        if (entry.isDirectory()) {
+          queue.push(absPath)
+          continue
+        }
+        if (!entry.isFile()) continue
+        const ext = String(path.extname(entry.name) || '').toLowerCase()
+        if (!markdownExtSet.has(ext)) continue
+        const relPath = normalizeRelPath(path.relative(rootAbsPath, absPath))
+        if (!relPath) continue
+        out.push({ absPath, relPath })
+      }
+    }
+    return out
+  }
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    let body = ''
+    let tooLarge = false
+    await new Promise<void>((resolve) => {
+      req.on('data', (chunk) => {
+        if (tooLarge) return
+        body += chunk
+        if (body.length > MAX_BODY_BYTES) {
+          tooLarge = true
+          try {
+            req.destroy()
+          } catch {
+            void 0
+          }
+        }
+      })
+      req.on('end', () => resolve())
+      req.on('error', () => resolve())
+      req.on('close', () => resolve())
+    })
+    if (tooLarge) {
+      res.statusCode = 413
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Body too large' }))
+      return
+    }
+    let parsed: { path?: unknown; maxFiles?: unknown } | null = null
+    try {
+      parsed = JSON.parse(body) as { path?: unknown; maxFiles?: unknown }
+    } catch {
+      parsed = null
+    }
+    const incomingPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
+    if (!incomingPath || incomingPath.includes('\u0000')) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Missing path' }))
+      return
+    }
+    const rootAbsPath = toHostPath(incomingPath)
+    if (!isAllowed(rootAbsPath)) {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Forbidden' }))
+      return
+    }
+    const maxFilesRaw = Number(parsed?.maxFiles)
+    const maxFiles = Number.isFinite(maxFilesRaw)
+      ? Math.max(1, Math.min(2_000, Math.floor(maxFilesRaw)))
+      : MAX_FILE_COUNT_DEFAULT
+    try {
+      const stat = await fs.stat(rootAbsPath)
+      if (!stat.isDirectory()) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'Path is not a directory' }))
+        return
+      }
+      const files = await walkMarkdownFiles(rootAbsPath, maxFiles)
+      const payload: Array<{ relPath: string; text: string; updatedAtMs: number }> = []
+      for (const file of files) {
+        try {
+          const fileStat = await fs.stat(file.absPath)
+          if (!fileStat.isFile() || fileStat.size > MAX_FILE_BYTES) continue
+          const text = String(await fs.readFile(file.absPath, 'utf8'))
+          payload.push({
+            relPath: file.relPath,
+            text,
+            updatedAtMs: Number.isFinite(fileStat.mtimeMs) ? Math.floor(fileStat.mtimeMs) : Date.now(),
+          })
+        } catch {
+          void 0
+        }
+      }
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: true, rootPath: rootAbsPath, files: payload }))
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: msg || 'List failed' }))
+    }
+  }
+}
+
 function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
     if (req.method === 'OPTIONS') {
@@ -5613,6 +5797,7 @@ export default defineConfig(({ command }) => ({
           chatProxyDevPlugin,
           chatLogDevPlugin,
           kgFsWriteDevPlugin,
+          kgFsListDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,

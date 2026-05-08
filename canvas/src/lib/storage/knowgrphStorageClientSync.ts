@@ -108,6 +108,7 @@ type SyncPushOutcome = {
   pushedCount: number
   appliedCount: number
   conflictCount: number
+  autoRebasedConflictCount: number
   rejectedCount: number
   deferredCount: number
   conflictEntries: KnowgrphStorageSyncRunResult['conflictEntries']
@@ -309,6 +310,91 @@ const bumpOutboxAttemptCount = async (
   })
 }
 
+const patchOutboxForAutoRebaseRetry = async (args: {
+  collections: KnowgrphStorageCollections
+  mutationId: string
+  mutation: KnowgrphStorageMutation
+  nextBaseRevision: number | null
+  nextRecord: KnowgrphStorageMutation['record']
+  nowMs: number
+}): Promise<void> => {
+  const existing = await args.collections.syncOutbox.findOne(args.mutationId).exec()
+  if (!existing) return
+  const nextMutation: KnowgrphStorageMutation = {
+    ...args.mutation,
+    baseRevision: args.nextBaseRevision,
+    record: args.nextRecord as never,
+  }
+  await existing.incrementalPatch({
+    baseRevision: args.nextBaseRevision,
+    payload: nextMutation as unknown as Record<string, unknown>,
+    payloadHash: hashStringToHex(JSON.stringify(nextMutation)),
+    attemptCount: 0,
+    lastAckStatus: '',
+    lastAckMessage: null,
+    updatedAtMs: args.nowMs,
+  })
+}
+
+const autoRebaseKeepLocalConflict = async (args: {
+  collections: KnowgrphStorageCollections
+  acknowledgement: KnowgrphStoragePushResponse['acknowledgements'][number]
+  mutation: KnowgrphStorageMutation
+  nowMs: number
+}): Promise<boolean> => {
+  const serverReportedRevision = Number(args.acknowledgement.currentServerRevision)
+  const normalizedServerReportedRevision = Number.isFinite(serverReportedRevision) && serverReportedRevision >= 0
+    ? Math.floor(serverReportedRevision)
+    : null
+  const recordId = normalizeString(args.acknowledgement.recordId || args.mutation.recordId)
+  if (!recordId) return false
+  if (args.mutation.entity === 'document') {
+    const currentRecord = args.mutation.record as KgDocumentRecord
+    const remoteDoc = await args.collections.documents.findOne(recordId).exec()
+    const remoteRevision = normalizedServerReportedRevision ?? Number(remoteDoc?.get('documentRevision') || 0)
+    const nextRecord: KgDocumentRecord = {
+      ...currentRecord,
+      revision: Math.max(remoteRevision + 1, Number(currentRecord.revision || 0) || 1),
+      updatedAtMs: args.nowMs,
+    }
+    await args.collections.documents.incrementalUpsert({
+      ...nextRecord,
+      documentRevision: nextRecord.revision,
+      isDeleted: nextRecord.deleted,
+    })
+    await patchOutboxForAutoRebaseRetry({
+      collections: args.collections,
+      mutationId: args.acknowledgement.mutationId,
+      mutation: args.mutation,
+      nextBaseRevision: remoteRevision || null,
+      nextRecord,
+      nowMs: args.nowMs,
+    })
+    return true
+  }
+  if (args.mutation.entity === 'graphSnapshot') {
+    const currentRecord = args.mutation.record as KgGraphSnapshotRecord
+    const remoteGraph = await args.collections.graphSnapshots.findOne(recordId).exec()
+    const remoteRevision = normalizedServerReportedRevision ?? Number(remoteGraph?.get('graphRevision') || 0)
+    const nextRecord: KgGraphSnapshotRecord = {
+      ...currentRecord,
+      graphRevision: Math.max(remoteRevision + 1, Number(currentRecord.graphRevision || 0) || 1),
+      updatedAtMs: args.nowMs,
+    }
+    await args.collections.graphSnapshots.incrementalUpsert(nextRecord)
+    await patchOutboxForAutoRebaseRetry({
+      collections: args.collections,
+      mutationId: args.acknowledgement.mutationId,
+      mutation: args.mutation,
+      nextBaseRevision: remoteRevision || null,
+      nextRecord,
+      nowMs: args.nowMs,
+    })
+    return true
+  }
+  return false
+}
+
 const readUnresolvedConflictCount = async (
   collections: KnowgrphStorageCollections,
   workspaceId: string,
@@ -456,6 +542,7 @@ const pushKnowgrphStorageOutbox = async (
       pushedCount: 0,
       appliedCount: 0,
       conflictCount: 0,
+      autoRebasedConflictCount: 0,
       rejectedCount: 0,
       deferredCount: 0,
       conflictEntries: [],
@@ -484,6 +571,7 @@ const pushKnowgrphStorageOutbox = async (
   }
   let appliedCount = 0
   let conflictCount = 0
+  let autoRebasedConflictCount = 0
   let rejectedCount = 0
   const conflictEntries: KnowgrphStorageSyncRunResult['conflictEntries'] = []
   const handledMutationIds = new Set<string>()
@@ -500,6 +588,17 @@ const pushKnowgrphStorageOutbox = async (
     }
     const attemptCount = normalizePositiveInt(outboxDoc.get('attemptCount'), 0) + 1
     if (acknowledgement.status === 'conflict') {
+      const mutation = outboxDoc.get('payload') as unknown as KnowgrphStorageMutation
+      const autoRebased = await autoRebaseKeepLocalConflict({
+        collections: args.collections,
+        acknowledgement,
+        mutation,
+        nowMs,
+      })
+      if (autoRebased) {
+        autoRebasedConflictCount += 1
+        continue
+      }
       await bumpOutboxAttemptCount(args.collections, acknowledgement.mutationId, {
         nextAttemptCount: attemptCount,
         nowMs,
@@ -541,6 +640,7 @@ const pushKnowgrphStorageOutbox = async (
     pushedCount: outboxDocs.length,
     appliedCount,
     conflictCount,
+    autoRebasedConflictCount,
     rejectedCount,
     deferredCount,
     conflictEntries,
@@ -664,6 +764,21 @@ export const syncKnowgrphStorageNow = async (
       conflictEntries: pushOutcome.conflictEntries,
       lastPushCursor: pushOutcome.ackCursor,
       lastPullCursor: pullResponse.nextCursor || null,
+    }
+    if (pushOutcome.autoRebasedConflictCount > 0) {
+      scheduleKnowgrphStorageSync({
+        workspaceId,
+        deviceId,
+        baseUrl: args.baseUrl,
+        fetchImpl: args.fetchImpl,
+        pushBatchSize,
+        maxRetryCount,
+        onPulledChangesApplied: args.onPulledChangesApplied,
+        onSyncCompleted: args.onSyncCompleted,
+        dbState,
+        delayMs: 0,
+        signature: `${workspaceId}:${deviceId}:auto-rebased-conflicts:${pushOutcome.autoRebasedConflictCount}`,
+      })
     }
     if (typeof args.onSyncCompleted === 'function') {
       await args.onSyncCompleted(result)

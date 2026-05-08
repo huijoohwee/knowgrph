@@ -88,6 +88,15 @@ export function resolveWorkspaceSeedSourcePath(path: unknown): string | null {
   if (!normalized) return null
   const direct = WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(normalized)
   if (direct) return direct
+  const normalizedWorkspacePath = (() => {
+    if (normalized.startsWith('workspace:')) {
+      return normalizeWorkspacePath(normalized.slice('workspace:'.length))
+    }
+    return normalizeWorkspacePath(normalized)
+  })()
+  if (normalizedWorkspacePath.startsWith('/docs/')) {
+    return `workspace:${normalizedWorkspacePath}`
+  }
   if (normalized.startsWith('workspace:')) {
     const workspacePath = normalizeWorkspacePath(normalized.slice('workspace:'.length))
     if (workspacePath) {
