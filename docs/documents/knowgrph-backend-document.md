@@ -40,3 +40,23 @@ Implementation:
 These middleware endpoints exist for local development and preview builds. For production deployments, mirror the same routes in a real server (or replace them with a dedicated service) so the UI can continue to:
 - Proxy remote media safely
 - Trigger pipeline tasks where appropriate
+
+## Production Worker API (Cloudflare)
+
+The Cloudflare Worker at `airvio.co/api/storage/*` provides storage sync and document access endpoints. See `knowgrph-storage-sync-document.md` for full specification.
+
+### Public document view
+
+- Path: `/api/storage/doc/:workspaceId/:canonicalPath*` (GET)
+- Purpose: serve a single document's markdown content as `text/markdown` for public sharing, import, or programmatic access.
+- Response: `200 text/markdown; charset=utf-8` with raw `content_md` from D1 `documents` table; `404` if not found.
+- No authentication required.
+- Implementation: [index.ts](../../cloudflare/workers/knowgrph-storage/index.ts) — see ADR-009 in storage-sync-document.md.
+
+### Sync endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/storage/push` | Push workspace mutations to D1 |
+| POST | `/api/storage/pull` | Pull mutations since cursor from D1 |
+| GET | `/api/storage/export/:workspaceId` | Full workspace snapshot (JSON) |

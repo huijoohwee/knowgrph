@@ -4434,7 +4434,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L53"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L55"
   },
   "workspace.sync.seed.pollMs": {
     "area": "Workspace Storage Sync",
@@ -4448,7 +4448,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L63"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L65"
   },
   "workspace.sync.seed.idleMaxMs": {
     "area": "Workspace Storage Sync",
@@ -4462,7 +4462,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L73"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L75"
   },
   "workspace.sync.autoRefresh.enabled": {
     "area": "Workspace Storage Sync",
@@ -4476,7 +4476,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L83"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L85"
   },
   "workspace.sync.sourceFiles.docsOnly": {
     "area": "Workspace Storage Sync",
@@ -4490,7 +4490,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L93"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L95"
   },
   "workspace.sync.sourceFiles.debounceMs": {
     "area": "Workspace Storage Sync",
@@ -4504,7 +4504,21 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L103"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L105"
+  },
+  "workspace.import.defaultSourceUrl": {
+    "area": "—",
+    "responsibility": "default source url",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L115"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",

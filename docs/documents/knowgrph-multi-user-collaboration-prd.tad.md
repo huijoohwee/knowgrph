@@ -577,6 +577,7 @@ flowchart TB
 | Client | Workspace FS | `canvas/src/features/workspace-fs/workspaceFs.ts` | RxDB CONFLICT retry before degradation |
 | Settings | Workspace registry | `canvas/src/features/settings/registry-ui.workspace.ts` | Add `workspace.import.defaultSourceUrl` setting |
 | Seed | Seed provider | `canvas/src/features/workspace-fs/workspaceSeedProvider.ts` | Add URL fetch step in priority chain |
+| Worker | Public doc view | `cloudflare/workers/knowgrph-storage/index.ts` | `GET /api/storage/doc/:workspaceId/:canonicalPath*` — see ADR-009 |
 
 ---
 

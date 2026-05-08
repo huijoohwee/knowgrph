@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { workspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
+import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
@@ -46,7 +46,7 @@ export const updateExistingWorkspaceSourceFile = (args: {
 }): void => {
   try {
     const store = useGraphStore.getState()
-    const wsPath = workspaceSourcePathKey(args.path)
+    const wsPath = resolveWorkspaceSourcePathKey(args.path)
     const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
     const existing = current.find(file => String(file?.source?.path || '') === wsPath) || null
     if (!existing) return

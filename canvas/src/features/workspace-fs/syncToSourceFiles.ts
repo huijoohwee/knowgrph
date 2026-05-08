@@ -14,6 +14,14 @@ export function workspaceSourcePathKey(path: string): string {
   return p ? `workspace:${p}` : 'workspace:'
 }
 
+export function resolveWorkspaceSourcePathKey(path: string): string {
+  const raw = String(path || '').trim()
+  const seedSourcePath = resolveWorkspaceSeedSourcePath(raw)
+  if (seedSourcePath) return seedSourcePath
+  const withoutWorkspacePrefix = raw.startsWith('workspace:') ? raw.slice('workspace:'.length) : raw
+  return workspaceSourcePathKey(withoutWorkspacePrefix)
+}
+
 export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   existing: SourceFile[]
   workspaceEntries: WorkspaceEntry[]
@@ -71,7 +79,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       && !path.startsWith('/docs/')
       && docsMirrorCanonicalSeedSourcePathSet.has(seedSourcePath)
     if (isLegacyRootSeedAliasCoveredByDocsMirror) continue
-    const srcPath = seedSourcePath || workspaceSourcePathKey(path)
+    const srcPath = resolveWorkspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
     if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !seedSourcePath) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`

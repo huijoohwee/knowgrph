@@ -98,8 +98,10 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
         const path = normalizeWorkspacePath(seed.path)
         const existing = entriesByPath.get(path)
         if (!existing || existing.kind !== 'file') continue
+        const currentText = String(existing.text ?? '')
+        if (seed.isFallback && currentText.trim().length > 0) continue
         const nextText = String(seed.text ?? '')
-        if (String(existing.text ?? '') === nextText) continue
+        if (currentText === nextText) continue
         entriesByPath.set(path, buildWorkspaceSeedFileEntry(path, nextText, Date.now()))
         seededTextChanged = true
       }

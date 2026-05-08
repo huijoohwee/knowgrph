@@ -122,6 +122,7 @@ export function useCanvasMarkdownSync(args: {
   React.useEffect(() => {
     if (!active) return
     if (selectionSource !== 'canvas') return
+    if (useGraphStore.getState().selectionSource !== 'canvas') return
 
     const nodeId = selectedNodeId ? String(selectedNodeId) : ''
     const edgeId = !nodeId && selectedEdgeId ? String(selectedEdgeId) : ''
@@ -151,6 +152,7 @@ export function useCanvasMarkdownSync(args: {
     }
 
     const normalizedTarget = normalizeWorkspacePath(targetPath)
+    if (useGraphStore.getState().selectionSource !== 'canvas') return
     if (activePath !== normalizedTarget) {
       setExpandedPaths(prev => {
         const next = new Set(prev)

@@ -76,6 +76,17 @@ const workspaceSchema: RxJsonSchema<WorkspaceRowV1> = {
 
 let dbSingleton: Promise<{ db: RxDatabase<SourceFilesCollections>; collections: SourceFilesCollections }> | null = null
 
+const isRxConflictError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false
+  const rec = error as Record<string, unknown>
+  const status = Number(rec.status)
+  if (Number.isFinite(status) && status === 409) return true
+  const code = String(rec.code || '').trim().toUpperCase()
+  if (code === 'CONFLICT') return true
+  const message = String(rec.message || '').trim().toUpperCase()
+  return message.includes('CONFLICT')
+}
+
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
@@ -171,7 +182,11 @@ export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => 
   const keep = new Set(rows.map(r => r.id))
   for (const doc of existing) {
     if (keep.has(doc.get('id'))) continue
-    await doc.remove()
+    try {
+      await doc.remove()
+    } catch (error) {
+      if (!isRxConflictError(error)) throw error
+    }
   }
   for (const row of rows) {
     const existingDoc = existingById.get(row.id)

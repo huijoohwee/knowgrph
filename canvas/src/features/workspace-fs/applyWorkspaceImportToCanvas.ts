@@ -18,7 +18,7 @@ import {
   resolveWorkspaceSourceIndexSnapshot,
   type WorkspaceSourceIndex,
 } from './sourceIndex'
-import { mergeWorkspaceEntriesIntoSourceFiles, workspaceSourcePathKey } from './syncToSourceFiles'
+import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from './syncToSourceFiles'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
@@ -139,7 +139,7 @@ export async function applyWorkspaceImportToCanvas(args: {
 
   let enabledCount = 0
   for (const path of createdPaths) {
-    const idx = indexByWorkspaceSourcePath.get(workspaceSourcePathKey(path))
+    const idx = indexByWorkspaceSourcePath.get(resolveWorkspaceSourcePathKey(path))
     if (idx == null) continue
     const file = merged[idx]
     if (!file) continue
@@ -172,7 +172,7 @@ export async function applyWorkspaceImportToCanvas(args: {
 
   for (const path of createdPaths) {
     if (remainingFiles <= 0 || remainingChars <= 0) break
-    const idx = indexByWorkspaceSourcePath.get(workspaceSourcePathKey(path))
+    const idx = indexByWorkspaceSourcePath.get(resolveWorkspaceSourcePathKey(path))
     if (idx == null) continue
     const current = (next || merged)[idx]
     if (!current) continue

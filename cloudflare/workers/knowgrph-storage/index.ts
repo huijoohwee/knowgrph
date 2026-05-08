@@ -447,6 +447,32 @@ const handleExport = async (request: Request, env: KnowgrphStorageWorkerEnv, db:
   })
 }
 
+const DOC_VIEW_HEADERS = {
+  'content-type': 'text/markdown; charset=utf-8',
+  'cache-control': 'public, max-age=60, must-revalidate',
+  'access-control-allow-origin': '*',
+}
+
+const handleDocView = async (request: Request, _env: KnowgrphStorageWorkerEnv, db: D1DatabaseLike): Promise<Response> => {
+  const url = new URL(request.url)
+  const pathname = url.pathname
+  const suffix = pathname.slice(KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix.length)
+  if (!suffix) return errorResponse(400, 'bad_request', 'workspaceId and canonicalPath are required')
+  const firstSlash = suffix.indexOf('/')
+  if (firstSlash < 1) return errorResponse(400, 'bad_request', 'canonicalPath is required after workspaceId')
+  const workspaceId = normalizeString(decodeURIComponent(suffix.slice(0, firstSlash)))
+  const canonicalPath = normalizeString(decodeURIComponent(suffix.slice(firstSlash + 1)))
+  if (!workspaceId || !canonicalPath) return errorResponse(400, 'bad_request', 'workspaceId and canonicalPath are required')
+  const row = await queryFirst<{ content_md: string }>(
+    db,
+    'SELECT content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0',
+    [workspaceId, canonicalPath],
+  )
+  if (!row) return errorResponse(404, 'not_found', 'document not found')
+  const contentMd = typeof row.content_md === 'string' ? row.content_md : ''
+  return new Response(contentMd, { status: 200, headers: DOC_VIEW_HEADERS })
+}
+
 export const createKnowgrphStorageWorker = () => ({
   async fetch(request: Request, env: KnowgrphStorageWorkerEnv): Promise<Response> {
     const db = readDb(env)
@@ -461,6 +487,9 @@ export const createKnowgrphStorageWorker = () => ({
       }
       if (request.method === 'GET' && url.pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.exportPrefix)) {
         return await handleExport(request, env, db)
+      }
+      if (request.method === 'GET' && url.pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix)) {
+        return await handleDocView(request, env, db)
       }
       return errorResponse(404, 'not_found', 'storage route not found')
     } catch (err) {

@@ -10,6 +10,7 @@ import { CanvasFrontmatterRuntime } from '@/features/canvas/CanvasFrontmatterRun
 import { useCanvasWorkspacePaneRuntime } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
 import { useCanvasGeospatialRuntime } from '@/features/canvas/useCanvasGeospatialRuntime'
 import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'
+import { CanvasDocDeepLinkRuntime } from '@/features/canvas/CanvasDocDeepLinkRuntime'
 import { CanvasRootRuntime } from '@/features/canvas/CanvasRootRuntime'
 import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
@@ -133,6 +134,7 @@ export default function CanvasPage() {
         setIsEmbeddedPreview={setIsEmbeddedPreview}
         detectEmbeddedPreviewWriteback={detectEmbeddedPreviewWriteback}
       />
+      <CanvasDocDeepLinkRuntime search={location.search} />
       <CanvasStartupRuntimes />
       <section
         className="relative flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"

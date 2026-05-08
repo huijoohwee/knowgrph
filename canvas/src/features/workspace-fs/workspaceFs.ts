@@ -1,7 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
-import { readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
+import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 
 const notifyWorkspaceFsDegraded = async (err: unknown) => {
   try {
@@ -362,6 +362,11 @@ const DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT = [
   '',
   `Geospatial seed fallback for \`${GEOSPATIAL_WORKSPACE_SEED_REL_PATH}\`.`,
 ].join('\n')
+export type WorkspaceSeedFile = {
+  path: WorkspacePath
+  text: string
+  isFallback: boolean
+}
 type WorkspaceSeedSpec = {
   path: WorkspacePath
   basename: string
@@ -425,12 +430,32 @@ const loadWorkspaceSeedText = async (args: {
   basename: string
   relPaths: ReadonlyArray<string>
   fallbackText: string
-}): Promise<string> => {
+}): Promise<{ text: string; isFallback: boolean }> => {
+  const basename = normalizeInitializationSeedRelPath(args.basename)
+  const relPathSet = new Set(
+    (args.relPaths || [])
+      .map(path => normalizeInitializationSeedRelPath(path))
+      .filter(Boolean),
+  )
+  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries()
+  if (docsMirrorEntries.length > 0) {
+    const byUpdatedDesc = [...docsMirrorEntries].sort((a, b) => Number(b.updatedAtMs || 0) - Number(a.updatedAtMs || 0))
+    for (let i = 0; i < byUpdatedDesc.length; i += 1) {
+      const entry = byUpdatedDesc[i]
+      if (!entry) continue
+      const relPath = normalizeInitializationSeedRelPath(entry.relPath)
+      if (!relPath) continue
+      if (relPathSet.has(relPath)) return { text: String(entry.text || ''), isFallback: false }
+      if (basename && relPath.endsWith(`/${basename}`)) return { text: String(entry.text || ''), isFallback: false }
+      if (basename && relPath === basename) return { text: String(entry.text || ''), isFallback: false }
+    }
+  }
   const text = await readWorkspaceInitializationSeedText({
     basename: args.basename,
     relPathCandidates: args.relPaths,
   })
-  return text || args.fallbackText
+  if (text) return { text, isFallback: false }
+  return { text: args.fallbackText, isFallback: true }
 }
 
 export function isInitializationWorkspacePath(path: WorkspacePath | null | undefined): boolean {
@@ -472,15 +497,15 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
   return out
 }
 
-export async function getWorkspaceSeedFiles(): Promise<Array<{ path: WorkspacePath; text: string }>> {
+export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
   const loaded = await Promise.all(
     WORKSPACE_SEED_SPECS.map(async seed => ({
       path: seed.path,
-      text: (await loadWorkspaceSeedText({
+      ...(await loadWorkspaceSeedText({
         basename: seed.basename,
         relPaths: seed.sourceRelPaths,
         fallbackText: seed.fallbackText,
-      })) || seed.fallbackText,
+      })),
     })),
   )
   return loaded

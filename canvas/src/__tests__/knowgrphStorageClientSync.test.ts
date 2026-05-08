@@ -274,6 +274,122 @@ export async function testKnowgrphStorageClientSyncRetainsConflictingOutboxMutat
   await __resetKnowgrphStorageDbForTests()
 }
 
+export async function testKnowgrphStorageClientSyncAutoRebasesRetainedConflictsBeforePush() {
+  await __resetKnowgrphStorageDbForTests()
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const fetchImpl = createWorkerFetch(env)
+  const dbState = await getKnowgrphStorageDb()
+  const deviceId = 'dev_conflict_retained'
+
+  await worker.fetch(
+    new Request('https://example.com/api/storage/push', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'wk_client_conflict_retained',
+        deviceId: 'dev_remote_seed_retained',
+        mutations: [
+          {
+            mutationId: 'mut_seed_conflict_retained',
+            workspaceId: 'wk_client_conflict_retained',
+            entity: 'document',
+            op: 'upsert',
+            recordId: 'doc_conflict_retained',
+            baseRevision: null,
+            record: {
+              id: 'doc_conflict_retained',
+              workspaceId: 'wk_client_conflict_retained',
+              canonicalPath: 'docs/conflict-retained.md',
+              title: 'Conflict Retained',
+              docType: 'note',
+              lang: 'en-US',
+              graphId: null,
+              sourceKind: 'markdown',
+              contentMd: '# Server Retained',
+              contentHash: 'sha256:server-retained',
+              parserVersion: '1.0.0',
+              revision: 3,
+              updatedAtMs: 1_777_100_003_000,
+              deleted: false,
+            },
+          },
+        ],
+      }),
+    }),
+    env as never,
+  )
+
+  const mutationId = await queueKnowgrphStorageMutation({
+    workspaceId: 'wk_client_conflict_retained',
+    deviceId,
+    entity: 'document',
+    op: 'upsert',
+    baseRevision: 1,
+    record: {
+      id: 'doc_conflict_retained',
+      workspaceId: 'wk_client_conflict_retained',
+      canonicalPath: 'docs/conflict-retained.md',
+      title: 'Conflict Retained',
+      docType: 'note',
+      lang: 'en-US',
+      graphId: null,
+      sourceKind: 'markdown',
+      contentMd: '# Local Retained',
+      contentHash: 'sha256:local-retained',
+      parserVersion: '1.0.0',
+      revision: 1,
+      updatedAtMs: 1_777_100_003_100,
+      deleted: false,
+    },
+    dbState,
+  })
+
+  await dbState.collections.documents.incrementalUpsert({
+    id: 'doc_conflict_retained',
+    workspaceId: 'wk_client_conflict_retained',
+    canonicalPath: 'docs/conflict-retained.md',
+    title: 'Conflict Retained',
+    docType: 'note',
+    lang: 'en-US',
+    graphId: null,
+    sourceKind: 'markdown',
+    contentMd: '# Server Retained',
+    contentHash: 'sha256:server-retained',
+    parserVersion: '1.0.0',
+    documentRevision: 3,
+    updatedAtMs: 1_777_100_003_000,
+    isDeleted: false,
+  })
+
+  const outboxRow = await dbState.collections.syncOutbox.findOne(mutationId).exec()
+  if (!outboxRow) throw new Error('expected retained conflict test to enqueue local mutation')
+  await outboxRow.incrementalPatch({
+    attemptCount: 23,
+    lastAckStatus: 'conflict',
+    lastAckMessage: 'retained conflict seed',
+    updatedAtMs: Date.now(),
+  })
+
+  const result = await syncKnowgrphStorageNow({
+    workspaceId: 'wk_client_conflict_retained',
+    deviceId,
+    baseUrl: 'https://example.com',
+    fetchImpl,
+    dbState,
+  })
+
+  if (result.unresolvedConflictCount !== 0) {
+    throw new Error(`expected retained conflict auto-rebase to clear unresolved conflicts, received ${result.unresolvedConflictCount}`)
+  }
+  const retainedRow = await dbState.collections.syncOutbox.findOne(mutationId).exec()
+  if (retainedRow) {
+    throw new Error('expected retained conflicted outbox row to be retried/applied and cleared from outbox')
+  }
+
+  await __resetKnowgrphStorageDbForTests()
+}
+
 export async function testKnowgrphStorageClientSyncCanApplyPulledRemoteChangesIntoVisibleSourceFiles() {
   await __resetKnowgrphStorageDbForTests()
   useGraphStore.getState().resetAll()

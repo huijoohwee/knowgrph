@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { workspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
+import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import {
   resolveWorkspaceSourceIndexSnapshot,
@@ -77,7 +77,7 @@ export function subscribeMarkdownLayoutRequest(
 }
 
 export function findWorkspaceSourceFileByPath(path: WorkspacePath) {
-  const key = workspaceSourcePathKey(path)
+  const key = resolveWorkspaceSourcePathKey(path)
   const sourceFiles = Array.isArray(useGraphStore.getState().sourceFiles) ? useGraphStore.getState().sourceFiles : []
   return sourceFiles.find(file => String(file?.source?.path || '') === key) || null
 }

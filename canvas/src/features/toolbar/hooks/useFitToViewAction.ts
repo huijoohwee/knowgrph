@@ -32,14 +32,6 @@ export function useFitToViewAction() {
   const disabled = false
 
   const handleFitToView = React.useCallback(() => {
-    const hasSelection =
-      (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ||
-      (Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0) ||
-      (Array.isArray(selectedGroupIds) && selectedGroupIds.length > 0) ||
-      !!selectedNodeId ||
-      !!selectedEdgeId ||
-      !!selectedGroupId
-
     const geospatialEnabled = (() => {
       try {
         return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
@@ -48,7 +40,15 @@ export function useFitToViewAction() {
       }
     })()
 
-    if (geospatialEnabled) {
+    const allowGeospatialFit = geospatialEnabled && canvasRenderMode !== '2d'
+    if (allowGeospatialFit) {
+      const hasSelection =
+        (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ||
+        (Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0) ||
+        (Array.isArray(selectedGroupIds) && selectedGroupIds.length > 0) ||
+        !!selectedNodeId ||
+        !!selectedEdgeId ||
+        !!selectedGroupId
       void import('gympgrph')
         .then(m => {
           if (hasSelection && typeof m.requestGeospatialFitToSelection === 'function') {
@@ -68,11 +68,7 @@ export function useFitToViewAction() {
     }
 
     if (canvasRenderMode === '3d') {
-      requestThreeCamera(hasSelection ? 'selection' : 'fit')
-      return
-    }
-    if (hasSelection) {
-      requestZoom('selection')
+      requestThreeCamera('fit')
       return
     }
     requestZoom('fit', { intent: 'fitToView' })

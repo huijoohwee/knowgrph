@@ -13,7 +13,10 @@ export function testFlowEditorFrontmatterDocumentSuppressesAutoZoomModes() {
   if (!text.includes("documentSemanticMode === 'document'")) {
     throw new Error('expected FlowCanvas auto-zoom suppression to target document semantic mode')
   }
-  if (!text.includes('paused: !active || suppressAutoZoomModes')) {
-    throw new Error('expected FlowCanvas to pause auto-zoom modes while Flow Editor frontmatter document overlays are active')
+  if (!text.includes('const autoZoomPaused = !active || (suppressAutoZoomModes && !fitToScreenMode && !zoomToSelectionMode)')) {
+    throw new Error('expected FlowCanvas to pause auto-zoom only when Flow Editor frontmatter document overlays are active and no explicit auto-zoom mode is enabled')
+  }
+  if (!text.includes('useAutoZoomModes2d({ viewportW, viewportH, paused: autoZoomPaused })')) {
+    throw new Error('expected FlowCanvas to route auto-zoom pause through the explicit autoZoomPaused gate')
   }
 }

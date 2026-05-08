@@ -336,22 +336,22 @@ const patchOutboxForAutoRebaseRetry = async (args: {
   })
 }
 
-const autoRebaseKeepLocalConflict = async (args: {
+const autoRebaseMutationForRetry = async (args: {
   collections: KnowgrphStorageCollections
-  acknowledgement: KnowgrphStoragePushResponse['acknowledgements'][number]
+  mutationId: string
   mutation: KnowgrphStorageMutation
+  serverRevisionHint: number | null
   nowMs: number
 }): Promise<boolean> => {
-  const serverReportedRevision = Number(args.acknowledgement.currentServerRevision)
-  const normalizedServerReportedRevision = Number.isFinite(serverReportedRevision) && serverReportedRevision >= 0
-    ? Math.floor(serverReportedRevision)
-    : null
-  const recordId = normalizeString(args.acknowledgement.recordId || args.mutation.recordId)
+  const recordId = normalizeString(args.mutation.recordId)
   if (!recordId) return false
   if (args.mutation.entity === 'document') {
     const currentRecord = args.mutation.record as KgDocumentRecord
     const remoteDoc = await args.collections.documents.findOne(recordId).exec()
-    const remoteRevision = normalizedServerReportedRevision ?? Number(remoteDoc?.get('documentRevision') || 0)
+    const remoteRevisionFromDb = Number(remoteDoc?.get('documentRevision') || 0)
+    const remoteRevision = Number.isFinite(args.serverRevisionHint) && Number(args.serverRevisionHint) >= 0
+      ? Math.floor(Number(args.serverRevisionHint))
+      : remoteRevisionFromDb
     const nextRecord: KgDocumentRecord = {
       ...currentRecord,
       revision: Math.max(remoteRevision + 1, Number(currentRecord.revision || 0) || 1),
@@ -364,7 +364,7 @@ const autoRebaseKeepLocalConflict = async (args: {
     })
     await patchOutboxForAutoRebaseRetry({
       collections: args.collections,
-      mutationId: args.acknowledgement.mutationId,
+      mutationId: args.mutationId,
       mutation: args.mutation,
       nextBaseRevision: remoteRevision || null,
       nextRecord,
@@ -375,7 +375,10 @@ const autoRebaseKeepLocalConflict = async (args: {
   if (args.mutation.entity === 'graphSnapshot') {
     const currentRecord = args.mutation.record as KgGraphSnapshotRecord
     const remoteGraph = await args.collections.graphSnapshots.findOne(recordId).exec()
-    const remoteRevision = normalizedServerReportedRevision ?? Number(remoteGraph?.get('graphRevision') || 0)
+    const remoteRevisionFromDb = Number(remoteGraph?.get('graphRevision') || 0)
+    const remoteRevision = Number.isFinite(args.serverRevisionHint) && Number(args.serverRevisionHint) >= 0
+      ? Math.floor(Number(args.serverRevisionHint))
+      : remoteRevisionFromDb
     const nextRecord: KgGraphSnapshotRecord = {
       ...currentRecord,
       graphRevision: Math.max(remoteRevision + 1, Number(currentRecord.graphRevision || 0) || 1),
@@ -384,7 +387,7 @@ const autoRebaseKeepLocalConflict = async (args: {
     await args.collections.graphSnapshots.incrementalUpsert(nextRecord)
     await patchOutboxForAutoRebaseRetry({
       collections: args.collections,
-      mutationId: args.acknowledgement.mutationId,
+      mutationId: args.mutationId,
       mutation: args.mutation,
       nextBaseRevision: remoteRevision || null,
       nextRecord,
@@ -393,6 +396,25 @@ const autoRebaseKeepLocalConflict = async (args: {
     return true
   }
   return false
+}
+
+const autoRebaseKeepLocalConflict = async (args: {
+  collections: KnowgrphStorageCollections
+  acknowledgement: KnowgrphStoragePushResponse['acknowledgements'][number]
+  mutation: KnowgrphStorageMutation
+  nowMs: number
+}): Promise<boolean> => {
+  const serverReportedRevision = Number(args.acknowledgement.currentServerRevision)
+  const normalizedServerReportedRevision = Number.isFinite(serverReportedRevision) && serverReportedRevision >= 0
+    ? Math.floor(serverReportedRevision)
+    : null
+  return autoRebaseMutationForRetry({
+    collections: args.collections,
+    mutationId: args.acknowledgement.mutationId,
+    mutation: args.mutation,
+    serverRevisionHint: normalizedServerReportedRevision,
+    nowMs: args.nowMs,
+  })
 }
 
 const readUnresolvedConflictCount = async (
@@ -454,6 +476,38 @@ const autoClearStaleOutboxConflicts = async (
     console.log(`[knowgrph-storage] auto-cleared ${clearedCount} stale outbox conflicts for workspace ${workspaceId}`)
   }
   return clearedCount
+}
+
+const autoRebaseRetainedOutboxConflicts = async (
+  collections: KnowgrphStorageCollections,
+  workspaceId: string,
+): Promise<number> => {
+  const retainedRows = await collections.syncOutbox
+    .find({ selector: { workspaceId, lastAckStatus: 'conflict' } })
+    .exec()
+  if (retainedRows.length === 0) return 0
+  const nowMs = Date.now()
+  let rebasedCount = 0
+  for (let i = 0; i < retainedRows.length; i += 1) {
+    const row = retainedRows[i]
+    if (!row) continue
+    const mutationId = normalizeString(row.get('id'))
+    if (!mutationId) continue
+    const mutation = row.get('payload') as KnowgrphStorageMutation | null
+    if (!mutation) continue
+    const didRebase = await autoRebaseMutationForRetry({
+      collections,
+      mutationId,
+      mutation,
+      serverRevisionHint: null,
+      nowMs,
+    })
+    if (didRebase) rebasedCount += 1
+  }
+  if (rebasedCount > 0) {
+    console.log(`[knowgrph-storage] auto-rebased ${rebasedCount} retained outbox conflicts for workspace ${workspaceId}`)
+  }
+  return rebasedCount
 }
 
 const applyPulledDocuments = async (collections: KnowgrphStorageCollections, documents: KgDocumentRecord[]): Promise<void> => {
@@ -536,13 +590,14 @@ const pushKnowgrphStorageOutbox = async (
       collections: KnowgrphStorageCollections
     },
 ): Promise<SyncPushOutcome> => {
+  const retainedAutoRebasedCount = await autoRebaseRetainedOutboxConflicts(args.collections, args.workspaceId)
   const outboxDocs = await readPendingOutboxDocs(args.collections, args.workspaceId, args.maxRetryCount, args.pushBatchSize)
   if (outboxDocs.length === 0) {
     return {
       pushedCount: 0,
       appliedCount: 0,
       conflictCount: 0,
-      autoRebasedConflictCount: 0,
+      autoRebasedConflictCount: retainedAutoRebasedCount,
       rejectedCount: 0,
       deferredCount: 0,
       conflictEntries: [],
@@ -640,7 +695,7 @@ const pushKnowgrphStorageOutbox = async (
     pushedCount: outboxDocs.length,
     appliedCount,
     conflictCount,
-    autoRebasedConflictCount,
+    autoRebasedConflictCount: autoRebasedConflictCount + retainedAutoRebasedCount,
     rejectedCount,
     deferredCount,
     conflictEntries,

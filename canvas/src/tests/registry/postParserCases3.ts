@@ -132,6 +132,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.sourceFiles.sync.docsOnlyModeExcludesNonDocsWorkspaceFiles","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWorkspaceFiles"],
   ["workspace.sourceFiles.sync.docsOnlyModeDropsExistingNonWorkspaceEntries","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWorkspaceEntries"],
   ["workspace.sourceFiles.sync.seedAliasResolvesToCanonicalSourcePath","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath"],
+  ["workspace.sourceFiles.sync.resolvesCanonicalSourceKeyForSeedAliases","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForSeedAliases"],
   ["workspace.sourceFiles.sync.reconcilesPersistedDefaultFamilyToCanonicalOrder","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamilyToCanonicalOrder"],
   ["workspace.sourceFiles.sync.reconcilePreservesEnabledValidationSeed","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSeedSourceFilesReconcilePreservesEnabledValidationSeed"],
   ["workspace.import.semanticMode.forcesDocumentForGraphFiles","@/__tests__/editorWorkspaceImportSemanticMode.test","testEditorWorkspaceImportForcesDocumentModeForGraphFiles"],

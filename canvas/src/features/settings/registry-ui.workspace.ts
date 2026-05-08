@@ -9,12 +9,14 @@ import {
 } from '@/lib/workspace/workspaceLayoutSettings'
 import {
   readWorkspaceAutoRefreshEnabledSetting,
+  readWorkspaceImportDefaultSourceUrlSetting,
   readWorkspaceSeedSyncEnabledSetting,
   readWorkspaceSeedSyncIdleMaxMsSetting,
   readWorkspaceSeedSyncPollMsSetting,
   readWorkspaceSourceFilesDocsOnlySetting,
   readWorkspaceSourceFilesSyncDebounceMsSetting,
   writeWorkspaceAutoRefreshEnabledSetting,
+  writeWorkspaceImportDefaultSourceUrlSetting,
   writeWorkspaceSeedSyncEnabledSetting,
   writeWorkspaceSeedSyncIdleMaxMsSetting,
   writeWorkspaceSeedSyncPollMsSetting,
@@ -108,5 +110,15 @@ export const uiWorkspaceSettingsRegistry: SettingMeta[] = [
       writeWorkspaceSourceFilesSyncDebounceMsSetting(Number(value))
     },
     default: () => 1200,
+  },
+  {
+    key: 'workspace.import.defaultSourceUrl',
+    type: 'string',
+    source: 'localStorage',
+    read: () => readWorkspaceImportDefaultSourceUrlSetting(),
+    write: value => {
+      writeWorkspaceImportDefaultSourceUrlSetting(String(value ?? ''))
+    },
+    default: () => '',
   },
 ]

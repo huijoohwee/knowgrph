@@ -283,8 +283,10 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
           const path = normalizeWorkspacePath(seed.path)
           const row = await collections.entries.findOne(path).exec()
           if (!row || row.get('kind') !== 'file') continue
+          const currentText = String(row.get('text') ?? '')
+          if (seed.isFallback && currentText.trim().length > 0) continue
           const nextText = String(seed.text ?? '')
-          if (String(row.get('text') ?? '') === nextText) continue
+          if (currentText === nextText) continue
           const entry = buildWorkspaceSeedFileEntry(path, nextText, Date.now())
           await row.incrementalPatch({
             parentPath: entry.parentPath || '',

@@ -380,7 +380,7 @@ export function testParsedGraphStateOwnershipIsCentralized() {
   if (
     !syncToSourceFilesText.includes('readSourceFileParsedState(prev)') ||
     !syncToSourceFilesText.includes('const seedSourcePath = resolveWorkspaceSeedSourcePath(path)') ||
-    !syncToSourceFilesText.includes('const srcPath = seedSourcePath || workspaceSourcePathKey(path)') ||
+    !syncToSourceFilesText.includes('const srcPath = resolveWorkspaceSourcePathKey(path)') ||
     (
       !syncToSourceFilesText.includes('areSourceFileParsedStatesEqual(') &&
       !syncToSourceFilesText.includes('areSourceFileRecordsEqual(prev, candidate)')

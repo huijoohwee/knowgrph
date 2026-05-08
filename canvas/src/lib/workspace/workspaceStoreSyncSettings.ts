@@ -1,6 +1,6 @@
 import { LS_KEYS } from '@/lib/config'
 import { readEnvString } from '@/lib/config.env'
-import { lsBool, lsInt, lsSetBool, lsSetInt } from '@/lib/persistence'
+import { getLocalStorage, lsBool, lsInt, lsSetBool, lsSetInt } from '@/lib/persistence'
 
 const SETTINGS_EVENT = 'kg:workspace-store-sync-settings:changed'
 const SEED_SYNC_POLL_MIN_MS = 1000
@@ -114,4 +114,30 @@ export const writeWorkspaceSourceFilesSyncDebounceMsSetting = (next: number): nu
   })
   notifyWorkspaceStoreSyncSettingsChanged()
   return written
+}
+
+export const readWorkspaceImportDefaultSourceUrlSetting = (): string => {
+  const storage = getLocalStorage()
+  if (!storage) return ''
+  try {
+    return String(storage.getItem(LS_KEYS.workspaceImportDefaultSourceUrl) || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+export const writeWorkspaceImportDefaultSourceUrlSetting = (next: string): void => {
+  const storage = getLocalStorage()
+  if (!storage) return
+  try {
+    const value = String(next || '').trim()
+    if (value) {
+      storage.setItem(LS_KEYS.workspaceImportDefaultSourceUrl, value)
+    } else {
+      storage.removeItem(LS_KEYS.workspaceImportDefaultSourceUrl)
+    }
+    notifyWorkspaceStoreSyncSettingsChanged()
+  } catch {
+    void 0
+  }
 }

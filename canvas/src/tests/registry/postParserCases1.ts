@@ -626,6 +626,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["geospatial.gympgrphMapLibre.remountResetsStyleRevision","@/__tests__/geospatialHostIntegration.test","testGympgrphBasemapResetsStyleRevisionBeforeRemount"],
   ["geospatial.gympgrph.fitToSelection.requestExists","@/__tests__/geospatialHostIntegration.test","testGympgrphFitToSelectionRequestExists"],
   ["geospatial.host.zoomToSelection.callsSelectionFit","@/__tests__/geospatialHostIntegration.test","testHostGeoZoomToSelectionCallsGympgrphSelectionFit"],
+  ["toolbar.fitToView.flowEditor2d.usesCanvasZoomPipeline","@/__tests__/geospatialHostIntegration.test","testFitToViewActionDoesNotRouteFlowEditor2dToGeospatialFallback"],
   ["ui.zIndex.ssotUsedForToastsAndFloatingPanels","@/__tests__/geospatialHostIntegration.test","testZIndexSsotIsUsedForToastsAndFloatingPanels"],
   ["toolbar.launchDropdownFallback.activatesFirstImportedWorkspaceFile","@/__tests__/geospatialHostIntegration.test","testLaunchDropdownFallbackActivatesFirstImportedWorkspaceFile"],
   ["toolbar.launchDropdown.filePickerClosesAfterSelection","@/__tests__/geospatialHostIntegration.test","testLaunchDropdownFilePickerClosesAfterSelectionNotBefore"],

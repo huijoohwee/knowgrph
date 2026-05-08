@@ -6,9 +6,9 @@
 
 ---
 
-**Version**: 2.2.0
+**Version**: 2.3.0
 **Date**: 2026-05-08
-**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL)
+**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -139,6 +139,7 @@ flowchart TB
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
+| No public document view URL | Cannot share a readable link to a specific D1 document | Open — see ADR-009 |
 
 ---
 
@@ -235,6 +236,7 @@ flowchart TB
         push["POST /api/storage/push"]
         pull["POST /api/storage/pull"]
         export["GET /api/storage/export/:id"]
+        docview["GET /api/storage/doc/:id/:path"]
         subgraph d1l["D1 (local SQLite)"]
             t1["workspaces"]
             t2["documents"]
@@ -311,6 +313,7 @@ flowchart TB
 | Layer | Component | File | Status |
 |---|---|---|---|
 | Worker | Request handlers | `workers/knowgrph-storage/index.ts` | Built |
+| Worker | Public doc view route | `workers/knowgrph-storage/index.ts` (`/api/storage/doc/`) | Proposed — see ADR-009 |
 | Worker | D1 query helpers | `workers/knowgrph-storage/db.ts` | Built |
 | Worker | Contract re-export | `workers/knowgrph-storage/contract.ts` | Built |
 | Worker | Wrangler config | `workers/knowgrph-storage/wrangler.toml` | Built |
@@ -397,7 +400,8 @@ Local field names differ from remote to avoid RxDB reserved-name collisions (`do
 
 - `POST /api/storage/push` — validate mutations, upsert D1 rows, emit sync events
 - `POST /api/storage/pull` — query sync events after cursor, return mutations
-- `GET /api/storage/export/:workspaceId` — full workspace snapshot
+- `GET /api/storage/export/:workspaceId` — full workspace snapshot (JSON)
+- `GET /api/storage/doc/:workspaceId/:canonicalPath*` — public single-document view (text/markdown)
 
 ### Client Sync Loop
 
@@ -509,9 +513,34 @@ flowchart TB
 
 ### ADR-008: Default Workspace Initialization Source URL
 
-**Status**: Proposed. Add `workspace.import.defaultSourceUrl` setting (localStorage-backed, string, default empty). When set and the workspace is empty, `ensureSeed()` fetches content from the URL using the existing `importUrlFallback()` pipeline. This enables users to configure D1 export URLs, GitHub repos, or any URL as the workspace seed source without code changes.
+**Status**: Accepted. `workspace.import.defaultSourceUrl` setting added to workspace settings registry (localStorage-backed, string, default empty). When set and the workspace is empty, `readWorkspaceInitializationDocsMirrorEntries()` fetches content from the URL using `fetchWorkspaceUrlContent()` and seeds the workspace. Priority chain: sourceFiles → folderHandle → folderCache → defaultSourceUrl → Vite proxy → Node fs.
 
 **Alternatives considered**: (1) Hardcode D1 export URL — not configurable, breaks for users without D1. (2) Add a new seed provider type — unnecessary complexity when `importUrlFallback()` already handles all URL types. (3) Use Vite env var only — not user-configurable at runtime.
+
+### ADR-009: Public Single-Document View Endpoint
+
+**Status**: Proposed. Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route that returns a single document's `content_md` as `text/markdown`. This provides a shareable, human-readable URL for any document stored in D1 without requiring the SPA or sync protocol.
+
+**URL structure**: `https://airvio.co/api/storage/doc/{workspaceId}/{canonicalPath}`
+
+| Segment | Source | Example |
+|---|---|---|
+| `workspaceId` | D1 `documents.workspace_id` | `kgws:abc123` |
+| `canonicalPath` | D1 `documents.canonical_path` | `docs/knowgrph-maps-readme.md` |
+
+**Response**: `200 Content-Type: text/markdown; charset=utf-8` with raw `content_md`. `404` if document not found. No authentication required (public read).
+
+**Worker logic**:
+1. Decode `workspaceId` and `canonicalPath` from URL path
+2. Query D1: `SELECT content_md FROM documents WHERE workspace_id = ? AND canonical_path = ?`
+3. Return `content_md` as plain text or 404
+
+**Use cases**:
+- Share a readable link to a specific document (browser renders markdown natively or via extension)
+- Use as `workspace.import.defaultSourceUrl` input — `fetchWorkspaceUrlContent()` handles `text/markdown` responses
+- Programmatic access via `curl` or API clients without JSON parsing
+
+**Alternatives considered**: (1) `/knowgrph/docs/{path}` — rejected because SPA catch-all (`/knowgrph/*` → `index.html`) intercepts all paths under `/knowgrph/`; would require `_redirects` exception or Worker route priority override. (2) Extend `/export/` with query params — rejected because export returns full JSON workspace snapshot, not a single readable document. (3) Separate Cloudflare Pages function — rejected because the existing Worker already has D1 binding and route pattern; adding a route is zero operational overhead.
 
 ---
 
@@ -531,12 +560,13 @@ flowchart TB
 2. ~~Add `isRxConflictError()` retry in workspace FS resilient wrapper~~ ✅ — prevents false persistence degradation
 3. ~~Verify: re-seed D1 → browser pull → conflicts auto-clear → toast dismisses~~ ✅
 
-### Phase 2 — Default Source URL + SSOT Transition (IN PROGRESS)
+### Phase 2 — Default Source URL + Public Doc View + SSOT Transition (IN PROGRESS)
 
-1. Add `workspace.import.defaultSourceUrl` setting to workspace settings registry
-2. Extend `readWorkspaceInitializationDocsMirrorEntries()` priority chain with URL fetch step
-3. Implement D1→filesystem export script for git-backed backup
-4. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
+1. ~~Add `workspace.import.defaultSourceUrl` setting to workspace settings registry~~ ✅
+2. ~~Extend `readWorkspaceInitializationDocsMirrorEntries()` priority chain with URL fetch step~~ ✅
+3. Add `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route for public single-document view
+4. Implement D1→filesystem export script for git-backed backup
+5. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
 
 ### Phase 3 — Multi-User Auth + Authorization (PROPOSED)
 
@@ -595,6 +625,7 @@ Focused tests cover:
 
 - Shared contract routes and record shapes
 - Worker push, pull, and export behavior
+- Worker public doc view (single document markdown response)
 - Client sync loop scheduling and result handling
 - Source-files mutation enqueueing
 - Inbound pulled-record application into visible source-files state

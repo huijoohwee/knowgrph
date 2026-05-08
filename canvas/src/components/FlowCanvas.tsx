@@ -335,7 +335,8 @@ export default function FlowCanvas({
     && frontmatterModeEnabled
     && documentSemanticMode === 'document'
 
-  useAutoZoomModes2d({ viewportW, viewportH, paused: !active || suppressAutoZoomModes })
+  const autoZoomPaused = !active || (suppressAutoZoomModes && !fitToScreenMode && !zoomToSelectionMode)
+  useAutoZoomModes2d({ viewportW, viewportH, paused: autoZoomPaused })
 
   React.useEffect(() => {
     collisionSchemaRef.current = schema

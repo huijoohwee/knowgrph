@@ -1,5 +1,6 @@
 import { readEnvString } from '@/lib/config.env'
 import { buildCodebaseFilePath, buildLocalFsFetchPath } from '@/lib/url'
+import { readWorkspaceImportDefaultSourceUrlSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const KG_FS_LIST_PATH = '/__kg_fs_list'
@@ -482,6 +483,24 @@ const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
   }
 }
 
+const readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl = async (
+  url: string,
+): Promise<WorkspaceDocsMirrorEntry[]> => {
+  try {
+    const { fetchWorkspaceUrlContent } = await import(
+      '@/features/markdown-workspace/workspaceImport/urlContent'
+    ) as typeof import('@/features/markdown-workspace/workspaceImport/urlContent')
+    const content = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    const text = String(content.text || '').trim()
+    if (!text) return []
+    const name = String(content.name || '').trim()
+    const relPath = name.endsWith('.md') ? name : `${name || 'imported'}.md`
+    return [{ relPath, text, updatedAtMs: Date.now() }]
+  } catch {
+    return []
+  }
+}
+
 export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<WorkspaceDocsMirrorEntry[]> {
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()
   if (sourceFilesSelection?.sourceFiles?.length) {
@@ -504,6 +523,11 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
       selectedFolderPath: sourceFilesSelection.selectedFolderPath,
     })
     if (viaCache.length > 0) return viaCache
+  }
+  const defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
+  if (defaultSourceUrl) {
+    const viaUrl = await readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl(defaultSourceUrl)
+    if (viaUrl.length > 0) return viaUrl
   }
   const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
   if (!docsAbsRoot) return []

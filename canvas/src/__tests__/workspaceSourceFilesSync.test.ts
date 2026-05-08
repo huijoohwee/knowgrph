@@ -1,6 +1,6 @@
 import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
-import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import {
   BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH,
   BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
@@ -298,6 +298,17 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
   }
   if (resolveWorkspaceSeedSourcePath('/notes/custom.md') !== null) {
     throw new Error('expected non-seed workspace paths to stay outside canonical seed source-file remapping')
+  }
+}
+
+export async function testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForSeedAliases() {
+  const docsValidationAliasPath = '/docs/workspace-seeds/knowgrph-video-demo.md'
+  const canonicalSeedPath = LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH
+  if (resolveWorkspaceSourcePathKey(docsValidationAliasPath) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected docs validation alias path to resolve onto canonical validation source-file key')
+  }
+  if (resolveWorkspaceSourcePathKey(canonicalSeedPath) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected legacy validation alias path to resolve onto canonical validation source-file key')
   }
 }
 

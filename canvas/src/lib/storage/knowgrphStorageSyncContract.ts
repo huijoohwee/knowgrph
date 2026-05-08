@@ -4,6 +4,7 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   push: '/api/storage/push',
   pull: '/api/storage/pull',
   exportPrefix: '/api/storage/export/',
+  docPrefix: '/api/storage/doc/',
 } as const
 
 export const KNOWGRPH_STORAGE_D1_BINDING_NAME = 'DB'

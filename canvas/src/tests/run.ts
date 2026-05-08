@@ -395,6 +395,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.workspace.selection.doesNotAutoOpenWhenInactive',
       modWorkspaceAutoOpenGate.testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive,
     )
+    await execTest(
+      results,
+      'ui.workspaceAutoOpen.skipsWhenSelectionSourceChangesToEditor',
+      modWorkspaceAutoOpenGate.testCanvasSelectionSyncSkipsWhenLiveSelectionSourceChangesToEditor,
+    )
 
     const modDesignUnstick = await import('../__tests__/designCanvasGlobalUnstickRegression.test')
     await execTest(results, 'ui.design.globalUnstickFailsafe', modDesignUnstick.testDesignCanvasInstallsGlobalUnstickFailsafe)

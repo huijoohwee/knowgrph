@@ -53,9 +53,13 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
   const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceGraphMutationBlocked(st)) return')
+  const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
   const worldSeedWriteIndex = runtimeText.indexOf('st.setFlowWidgetWorldPosByNodeId(nextWorld)')
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
     throw new Error('expected pinned widget auto-seed world-position persistence to be blocked while Workspace/Indexing mutation guard is active')
+  }
+  if (worldSeedKeyWriteIndex < 0 || worldSeedGuardIndex > worldSeedKeyWriteIndex || worldSeedKeyWriteIndex > worldSeedWriteIndex) {
+    throw new Error('expected pinned widget auto-seed key to be committed only after Workspace/Indexing mutation guard')
   }
   if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
     throw new Error('expected pinned widget auto-seed to avoid reseeding already-placed world positions on layout-signature churn')

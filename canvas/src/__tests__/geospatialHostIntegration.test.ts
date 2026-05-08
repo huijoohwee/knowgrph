@@ -19,6 +19,23 @@ export const testGeospatialOverlayHostNotGatedBySidebar = () => {
   }
 }
 
+export const testFitToViewActionDoesNotRouteFlowEditor2dToGeospatialFallback = () => {
+  const fitToViewPath = path.resolve(process.cwd(), 'src', 'features', 'toolbar', 'hooks', 'useFitToViewAction.ts')
+  const text = readUtf8(fitToViewPath)
+  if (!text.includes("const allowGeospatialFit = geospatialEnabled && canvasRenderMode !== '2d'")) {
+    throw new Error('Expected Fit-to-View action to keep Flow Editor 2D requests on the canvas zoom pipeline')
+  }
+  const geospatialGuardIndex = text.indexOf('if (allowGeospatialFit)')
+  const canvasFitZoomIndex = text.indexOf("requestZoom('fit', { intent: 'fitToView' })")
+  if (
+    geospatialGuardIndex < 0
+    || canvasFitZoomIndex < 0
+    || geospatialGuardIndex > canvasFitZoomIndex
+  ) {
+    throw new Error('Expected non-geospatial Fit-to-View path to route through fit zoom requests for 2D canvas')
+  }
+}
+
 export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const text = readUtf8(viewportPath)
