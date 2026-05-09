@@ -714,7 +714,13 @@ export function useFlowCanvasRuntime(args: {
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
-    if (!overlayOpen && Date.now() - lastUserInteractionAtMsRef.current < 500) return
+    const interactionRecentMs = Date.now() - lastUserInteractionAtMsRef.current
+    const interactionInProgress = interactionRecentMs < 520
+    const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || '').trim()
+    const flowWidgetDragging = flowWidgetDraggingNodeId.length > 0
+    // Do not force-fit while user is actively panning/zooming/dragging in Workspace.
+    // Recovery still runs immediately after interaction settles.
+    if (interactionInProgress || flowWidgetDragging) return
 
     const graphKey = buildGraphMetaKeyIgnoringPending(sceneGraphData)
     const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)

@@ -436,8 +436,14 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('workspaceOverlayInteractionFrameTick,')) {
     throw new Error('expected Flow runtime offscreen recovery effect dependencies to rerun on live interaction frames while Workspace overlay is open')
   }
-  if (!runtimeText.includes('if (!overlayOpen && Date.now() - lastUserInteractionAtMsRef.current < 500) return')) {
-    throw new Error('expected Flow runtime offscreen recovery to avoid suppressing overlay-open corrective refits with recent interaction guard')
+  if (!runtimeText.includes('const interactionInProgress = interactionRecentMs < 520')) {
+    throw new Error('expected Flow runtime offscreen recovery to derive a shared recent-interaction guard before applying corrective fit')
+  }
+  if (!runtimeText.includes('const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || \'\').trim()')) {
+    throw new Error('expected Flow runtime offscreen recovery to detect active Flow widget drag state via shared store SSOT')
+  }
+  if (!runtimeText.includes('if (interactionInProgress || flowWidgetDragging) return')) {
+    throw new Error('expected Flow runtime offscreen recovery to defer corrective fit while user pan/zoom/drag interaction is active, including workspace-open mode')
   }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
@@ -553,6 +559,18 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
 
   const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
+  if (!flowEditorSurfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
+    throw new Error('expected Flow Editor overlay surface to subscribe to shared workspace mutation state for transient visibility hold')
+  }
+  if (!flowEditorSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
+    throw new Error('expected Flow Editor overlay ids to reuse last stable ids when flowEditorViewActive is transiently false during workspace mutation windows')
+  }
+  if (!flowEditorSurfaceText.includes('visible={flowEditorViewActive || (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)}')) {
+    throw new Error('expected Flow Editor widget overlays to remain visible during workspace-mutation transient view deactivation frames')
+  }
+  if (!flowEditorSurfaceText.includes('|| (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)')) {
+    throw new Error('expected Flow Editor overlay surface hasOverlayEditors guard to keep overlay layers mounted during transient workspace mutation frames')
+  }
   if (!flowEditorSurfaceText.includes("import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'")) {
     throw new Error('expected Flow Editor overlay surface node resolution to reuse shared canonical node-id helper')
   }

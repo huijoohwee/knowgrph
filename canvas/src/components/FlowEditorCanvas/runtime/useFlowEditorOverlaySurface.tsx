@@ -129,6 +129,7 @@ export function useFlowEditorOverlaySurface(args: {
     widgetRegistry,
     flowWidgetPinnedByNodeId,
   } = args
+  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')
@@ -136,11 +137,12 @@ export function useFlowEditorOverlaySurface(args: {
 
   React.useEffect(() => {
     if (!flowEditorViewActive) {
+      if (workspaceMutationBlocked) return
       lastStableOverlayEditorNodeIdsRef.current = []
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = ''
       frontmatterOverlayOnlyCoverageRef.current = null
     }
-  }, [flowEditorViewActive])
+  }, [flowEditorViewActive, workspaceMutationBlocked])
 
   const openWidgetNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('open-widget-node-ids', openWidgetNodeIds),
@@ -190,9 +192,12 @@ export function useFlowEditorOverlaySurface(args: {
   const renderGraphMetaKind = renderGraphPlacementContext?.graphMetaKind || renderGraphLookup?.graphMetaKind || null
 
   const overlayEditorNodeIds = React.useMemo(() => {
-    if (!flowEditorViewActive) return []
+    if (!flowEditorViewActive) {
+      const lastStable = lastStableOverlayEditorNodeIdsRef.current
+      if (workspaceMutationBlocked && lastStable.length > 0) return lastStable
+      return []
+    }
     const isFrontmatterFlow = renderGraphPlacementContext?.isFrontmatterFlow === true
-    const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     const nodes = renderGraphNodes
     const nodeById = renderGraphNodeById
     if (isFrontmatterFlow) {
@@ -232,6 +237,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphNodeById,
     renderGraphNodes,
     renderGraphSemanticKey,
+    workspaceMutationBlocked,
   ])
 
   React.useEffect(() => {
@@ -461,7 +467,7 @@ export function useFlowEditorOverlaySurface(args: {
         return (
           <FlowEditorWidgetOverlay
             key={`qe-${id}`}
-            visible={flowEditorViewActive}
+            visible={flowEditorViewActive || (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)}
             active={canEdit}
             flowEditorSurfaceId={flowEditorSurfaceId}
             node={node}
@@ -570,6 +576,7 @@ export function useFlowEditorOverlaySurface(args: {
     viewportW,
     widgetRegistry,
     zoomViewKey,
+    workspaceMutationBlocked,
     connectedValuesByNodeId,
     handlePinnedInCanvasChange,
     overlayEditorNodeIds,
@@ -579,7 +586,9 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphDataOverride,
   ])
 
-  const hasOverlayEditors = overlayEditorElements.length > 0
+  const hasOverlayEditors =
+    overlayEditorElements.length > 0
+    || (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)
   const frontmatterOverlayHideSafety = React.useMemo(() => {
     const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
     if (kind !== 'frontmatter-flow') {
