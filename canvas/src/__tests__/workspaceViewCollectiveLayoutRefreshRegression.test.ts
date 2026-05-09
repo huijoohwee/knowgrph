@@ -499,6 +499,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true) return')) {
     throw new Error('expected Flow runtime initialization to re-evaluate fit while Workspace overlay is open instead of short-circuiting after first init key hit')
   }
+  if (!runtimeText.includes('workspaceEditorOverlayOpen !== true')
+    || !runtimeText.includes('Date.now() - lastUserInteractionAtMsRef.current < 500')) {
+    throw new Error('expected Flow runtime to bypass recent-interaction init-fit suppression while Workspace overlay is open')
+  }
   if (!runtimeText.includes('&& (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
     throw new Error('expected Flow runtime workspace-open init-fit freeze to activate only after transform authority is stabilized or user-controlled')
   }
@@ -607,6 +611,41 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const workspaceOverlayZoomViewKeyRef = React.useRef<string | null>(null)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track active zoom view key for transform-authority resets')
   }
+  if (!runtimeText.includes('const workspaceVisibleViewportSignatureRef = React.useRef<string | null>(null)')
+    || !runtimeText.includes('const workspaceVisibleViewportStableTicksRef = React.useRef(0)')) {
+    throw new Error('expected Flow runtime workspace-open recovery to track visible viewport stability before applying fit/recovery transforms')
+  }
+  if (!runtimeText.includes('const isWorkspaceVisibleViewportSettled = React.useCallback((visibleViewport: {')
+    || !runtimeText.includes('workspaceVisibleViewportStableTicksRef.current >= 1')) {
+    throw new Error('expected Flow runtime workspace-open recovery to gate transform writes on settled pane-aware viewport bounds')
+  }
+  if (!runtimeText.includes('const shouldDeferWorkspaceOpenDraw = React.useCallback((): boolean => {')
+    || !runtimeText.includes('workspace-open-first-draw-deferred-unsettled-viewport')) {
+    throw new Error('expected Flow runtime workspace-open scene draw to defer first paint while pane-aware viewport is unsettled to avoid flash')
+  }
+  if (!runtimeText.includes('const workspaceDeferredDrawPendingRef = React.useRef(false)')
+    || !runtimeText.includes('workspaceDeferredDrawPendingRef.current = true')) {
+    throw new Error('expected Flow runtime workspace-open draw deferral to track pending draw flush state while viewport settles')
+  }
+  if (!runtimeText.includes('if (!workspaceDeferredDrawPendingRef.current) return')
+    || !runtimeText.includes('workspaceOverlayInteractionFrameTick')) {
+    throw new Error('expected Flow runtime workspace-open deferred first draw to flush once viewport settles on subsequent interaction/frame ticks')
+  }
+  if (!runtimeText.includes('const shouldSuppressWorkspacePreInitDraw = React.useCallback((): boolean => {')
+    || !runtimeText.includes('workspace-open-preinit-draw-suppressed')) {
+    throw new Error('expected Flow runtime workspace-open draw paths to suppress pre-init scene draws until the current zoom view key transform is initialized')
+  }
+  if (!runtimeText.includes('if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return')) {
+    throw new Error('expected Flow runtime workspace-open deferred draw flush to wait for current zoom view key init transform readiness')
+  }
+  if (!runtimeText.includes('workspace-open-preinit-recovery-suppressed')
+    || !runtimeText.includes('if (workspaceEditorOverlayOpen && lastInitTransformZoomViewKeyRef.current !== zoomViewKey) {')) {
+    throw new Error('expected Flow runtime workspace-open recovery to suppress pre-init corrective transforms/draws until the current zoom view key init transform is ready')
+  }
+  if (!runtimeText.includes('if (shouldDeferWorkspaceOpenDraw()) return')
+    || !runtimeText.includes('scheduleFlowDraw()')) {
+    throw new Error('expected Flow runtime workspace-open draw paths to gate scheduleFlowDraw behind viewport-settle deferral')
+  }
   if (!runtimeText.includes('if (prev != null && prev !== zoomViewKey) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
   }
@@ -626,6 +665,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const workspaceOffscreenDebounced =')
     || !runtimeText.includes('workspace-open-offscreen-debounce-pending')) {
     throw new Error('expected Flow runtime workspace-open offscreen recovery to debounce transient visibility misses before corrective refit')
+  }
+  if (!runtimeText.includes('workspace-open-viewport-settle-pending')) {
+    throw new Error('expected Flow runtime workspace-open recovery to expose deterministic viewport-settle pending reason while pane geometry stabilizes')
   }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
@@ -953,8 +995,14 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   if (!text.includes('function resolveFlowEditorVisibleViewport(args: {')) {
     throw new Error('expected Flow Editor zoom fit to centralize visible viewport resolution')
   }
-  if (text.includes('WORKSPACE_LEFT_PANE_SELECTOR')) {
-    throw new Error('expected Flow Editor zoom fit to NOT query workspace left pane DOM (overlay is CSS-layer, never shrinks logical viewport)')
+  if (!text.includes('const WORKSPACE_LEFT_PANE_SELECTOR = \'[data-kg-workspace-left-pane="1"]\'')) {
+    throw new Error('expected Flow Editor zoom fit to centralize workspace left-pane selector for pane-aware visible viewport resolution')
+  }
+  if (!text.includes('const paneEls = Array.from(document.querySelectorAll(WORKSPACE_LEFT_PANE_SELECTOR))')) {
+    throw new Error('expected Flow Editor zoom fit to query workspace left pane DOM and subtract overlap from visible viewport bounds')
+  }
+  if (!text.includes('left = Math.max(left, maxPaneRight)')) {
+    throw new Error('expected Flow Editor zoom fit to shift visible viewport left edge by overlapping workspace pane width')
   }
   if (!text.includes('const surfaceRect = surfaceRoot?.getBoundingClientRect() || null')) {
     throw new Error('expected Flow Editor overlay fit bounds to resolve the active surface root window rect')

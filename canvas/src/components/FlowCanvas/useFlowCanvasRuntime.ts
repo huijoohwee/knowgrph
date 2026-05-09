@@ -303,6 +303,9 @@ export function useFlowCanvasRuntime(args: {
   const workspaceOverlayOffscreenSinceMsRef = React.useRef(0)
   const workspaceOverlayStabilizedRef = React.useRef(false)
   const workspaceOverlayZoomViewKeyRef = React.useRef<string | null>(null)
+  const workspaceVisibleViewportSignatureRef = React.useRef<string | null>(null)
+  const workspaceVisibleViewportStableTicksRef = React.useRef(0)
+  const workspaceDeferredDrawPendingRef = React.useRef(false)
 
   React.useEffect(() => {
     if (!active) return
@@ -313,12 +316,18 @@ export function useFlowCanvasRuntime(args: {
       workspaceOverlayOpenedAtMsRef.current = Date.now()
       workspaceOverlayUserControlledRef.current = false
       workspaceOverlayStabilizedRef.current = false
+      workspaceVisibleViewportSignatureRef.current = null
+      workspaceVisibleViewportStableTicksRef.current = 0
+      workspaceDeferredDrawPendingRef.current = false
     }
     if (!open) {
       workspaceOverlayOpenedAtMsRef.current = 0
       workspaceOverlayUserControlledRef.current = false
       workspaceOverlayOffscreenSinceMsRef.current = 0
       workspaceOverlayStabilizedRef.current = false
+      workspaceVisibleViewportSignatureRef.current = null
+      workspaceVisibleViewportStableTicksRef.current = 0
+      workspaceDeferredDrawPendingRef.current = false
     }
     workspaceOverlayOpenPrevRef.current = open
   }, [active, canvas2dRenderer, workspaceEditorOverlayOpen])
@@ -334,9 +343,79 @@ export function useFlowCanvasRuntime(args: {
       workspaceOverlayStabilizedRef.current = false
       workspaceOverlayUserControlledRef.current = false
       workspaceOverlayOffscreenSinceMsRef.current = 0
+      workspaceVisibleViewportSignatureRef.current = null
+      workspaceVisibleViewportStableTicksRef.current = 0
+      workspaceDeferredDrawPendingRef.current = false
     }
     workspaceOverlayZoomViewKeyRef.current = zoomViewKey
   }, [active, canvas2dRenderer, workspaceEditorOverlayOpen, zoomViewKey])
+
+  const isWorkspaceVisibleViewportSettled = React.useCallback((visibleViewport: {
+    left: number
+    top: number
+    width: number
+    height: number
+  }): boolean => {
+    if (workspaceEditorOverlayOpen !== true) return true
+    const signature = `${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${Math.round(visibleViewport.width)}:${Math.round(visibleViewport.height)}`
+    if (workspaceVisibleViewportSignatureRef.current === signature) {
+      workspaceVisibleViewportStableTicksRef.current += 1
+    } else {
+      workspaceVisibleViewportSignatureRef.current = signature
+      workspaceVisibleViewportStableTicksRef.current = 0
+    }
+    return workspaceVisibleViewportStableTicksRef.current >= 1
+  }, [workspaceEditorOverlayOpen])
+  const shouldDeferWorkspaceOpenDraw = React.useCallback((): boolean => {
+    if (String(canvas2dRenderer || '') !== 'flowEditor') return false
+    if (workspaceEditorOverlayOpen !== true) return false
+    const visibleViewport = resolveVisibleFlowViewportWidth()
+    if (isWorkspaceVisibleViewportSettled(visibleViewport)) {
+      workspaceDeferredDrawPendingRef.current = false
+      return false
+    }
+    workspaceDeferredDrawPendingRef.current = true
+    __flowCanvasDebug.lastRecoveryReason = 'workspace-open-first-draw-deferred-unsettled-viewport'
+    syncFlowCanvasDebugToast({ enabled: true })
+    return true
+  }, [
+    canvas2dRenderer,
+    isWorkspaceVisibleViewportSettled,
+    resolveVisibleFlowViewportWidth,
+    workspaceEditorOverlayOpen,
+  ])
+  const shouldSuppressWorkspacePreInitDraw = React.useCallback((): boolean => {
+    if (String(canvas2dRenderer || '') !== 'flowEditor') return false
+    if (workspaceEditorOverlayOpen !== true) return false
+    if (lastInitTransformZoomViewKeyRef.current === zoomViewKey) return false
+    __flowCanvasDebug.lastRecoveryReason = 'workspace-open-preinit-draw-suppressed'
+    syncFlowCanvasDebugToast({ enabled: true })
+    return true
+  }, [canvas2dRenderer, workspaceEditorOverlayOpen, zoomViewKey, lastInitTransformZoomViewKeyRef])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (String(canvas2dRenderer || '') !== 'flowEditor') return
+    if (workspaceEditorOverlayOpen !== true) return
+    if (!workspaceDeferredDrawPendingRef.current) return
+    if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return
+    const visibleViewport = resolveVisibleFlowViewportWidth()
+    if (!isWorkspaceVisibleViewportSettled(visibleViewport)) return
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    workspaceDeferredDrawPendingRef.current = false
+    scheduleFlowDraw()
+  }, [
+    active,
+    canvas2dRenderer,
+    isWorkspaceVisibleViewportSettled,
+    resolveVisibleFlowViewportWidth,
+    runtimeRef,
+    scheduleFlowDraw,
+    workspaceEditorOverlayOpen,
+    workspaceOverlayInteractionFrameTick,
+    zoomViewKey,
+  ])
 
   React.useEffect(() => {
     if (!active) return
@@ -442,8 +521,10 @@ export function useFlowCanvasRuntime(args: {
     }
     if (applied > 0) runtime.positionsReady = true
     runtime.dirty = true
+    if (shouldSuppressWorkspacePreInitDraw()) return
+    if (shouldDeferWorkspaceOpenDraw()) return
     scheduleFlowDraw()
-  }, [active, computedPositions, lastAppliedPositionsRef, runtimeRef, scheduleFlowDraw])
+  }, [active, computedPositions, lastAppliedPositionsRef, runtimeRef, scheduleFlowDraw, shouldDeferWorkspaceOpenDraw, shouldSuppressWorkspacePreInitDraw])
 
   React.useEffect(() => {
     if (!active) return
@@ -477,8 +558,10 @@ export function useFlowCanvasRuntime(args: {
     if (runtime.canvas.width !== nextW) runtime.canvas.width = nextW
     if (runtime.canvas.height !== nextH) runtime.canvas.height = nextH
     if (resized) runtime.dirty = true
+    if (shouldSuppressWorkspacePreInitDraw()) return
+    if (shouldDeferWorkspaceOpenDraw()) return
     scheduleFlowDraw()
-  }, [active, dpr, runtimeRef, scheduleFlowDraw, viewportH, viewportW])
+  }, [active, dpr, runtimeRef, scheduleFlowDraw, viewportH, viewportW, shouldDeferWorkspaceOpenDraw, shouldSuppressWorkspacePreInitDraw])
 
   React.useEffect(() => {
     __flowCanvasDebug.lastZoomViewKey = zoomViewKey
@@ -515,7 +598,11 @@ export function useFlowCanvasRuntime(args: {
       return
     }
     if (!isFlowEditor && alreadyInitializedForKey && hasNonIdentityTransform) return
-    if (lastUserInteractionAtMsRef.current && Date.now() - lastUserInteractionAtMsRef.current < 500) return
+    if (
+      workspaceEditorOverlayOpen !== true
+      && lastUserInteractionAtMsRef.current
+      && Date.now() - lastUserInteractionAtMsRef.current < 500
+    ) return
 
     const state = useGraphStore.getState()
     const zoomState = pickZoomStateForView({
@@ -555,6 +642,7 @@ export function useFlowCanvasRuntime(args: {
     const nodesForFit = Array.isArray(graphDataForZoomRequests?.nodes) ? graphDataForZoomRequests.nodes : []
     if (isFlowEditor && nodesForFit.length === 0) return
     const visibleViewportFit = resolveVisibleFlowViewportWidth()
+    if (!isWorkspaceVisibleViewportSettled(visibleViewportFit)) return
     const fitW = Math.max(1, visibleViewportFit.width)
     const fitH = Math.max(1, visibleViewportFit.height)
     const useD3StyleInitFit = isFlowEditor && workspaceEditorOverlayOpen === true
@@ -645,6 +733,7 @@ export function useFlowCanvasRuntime(args: {
     zoomToSelectionMode,
     zoomViewKey,
     resolveVisibleFlowViewportWidth,
+    isWorkspaceVisibleViewportSettled,
     workspaceEditorOverlayOpen,
   ])
 
@@ -687,8 +776,18 @@ export function useFlowCanvasRuntime(args: {
       return
     }
     if (!scene || scene.nodes.length === 0) return
+    if (workspaceEditorOverlayOpen && lastInitTransformZoomViewKeyRef.current !== zoomViewKey) {
+      __flowCanvasDebug.lastRecoveryReason = 'workspace-open-preinit-recovery-suppressed'
+      syncFlowCanvasDebugToast({ enabled: true })
+      return
+    }
 
     const visibleViewport = resolveVisibleFlowViewportWidth()
+    if (!isWorkspaceVisibleViewportSettled(visibleViewport)) {
+      __flowCanvasDebug.lastRecoveryReason = 'workspace-open-viewport-settle-pending'
+      syncFlowCanvasDebugToast({ enabled: true })
+      return
+    }
     const fitW = Math.max(1, visibleViewport.width)
     const fitH = Math.max(1, visibleViewport.height)
     const current = runtime.transform || d3.zoomIdentity
@@ -874,8 +973,10 @@ export function useFlowCanvasRuntime(args: {
     viewPinned,
     viewportH,
     viewportW,
+    zoomViewKey,
     zoomToSelectionMode,
     resolveVisibleFlowViewportWidth,
+    isWorkspaceVisibleViewportSettled,
     remapTransformToVisibleViewport,
     isFlowTransformBalancedCollective,
     buildSceneViewportRecoverySignature,
@@ -904,6 +1005,8 @@ export function useFlowCanvasRuntime(args: {
       widgetRegistry,
     })
     __flowCanvasDebug.lastBuiltSceneNodeCount = result.nodeCount
+    if (shouldSuppressWorkspacePreInitDraw()) return
+    if (shouldDeferWorkspaceOpenDraw()) return
     scheduleFlowDraw()
   }, [
     active,
@@ -920,6 +1023,8 @@ export function useFlowCanvasRuntime(args: {
     scheduleFlowDraw,
     schema,
     seededFallbackPositions,
+    shouldDeferWorkspaceOpenDraw,
+    shouldSuppressWorkspacePreInitDraw,
     widgetRegistry,
   ])
 
@@ -928,8 +1033,10 @@ export function useFlowCanvasRuntime(args: {
     const runtime = runtimeRef.current
     if (!runtime) return
     setFlowNativePresentation(runtime, flowPresentation)
+    if (shouldSuppressWorkspacePreInitDraw()) return
+    if (shouldDeferWorkspaceOpenDraw()) return
     scheduleFlowDraw()
-  }, [active, flowPresentation, runtimeRef, scheduleFlowDraw])
+  }, [active, flowPresentation, runtimeRef, scheduleFlowDraw, shouldDeferWorkspaceOpenDraw, shouldSuppressWorkspacePreInitDraw])
 
   React.useEffect(() => {
     if (!active) return

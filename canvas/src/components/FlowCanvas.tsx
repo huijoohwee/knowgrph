@@ -17,6 +17,7 @@ import { useFlowCanvasSnapshots } from '@/components/FlowCanvas/useFlowCanvasSna
 import { useFlowCanvasStoreState } from '@/components/FlowCanvas/useFlowCanvasStoreState'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
@@ -213,6 +214,8 @@ export default function FlowCanvas({
     if (isFlowEditor && alreadyInitializedForKey) return
   }
   void flowEditorTransformGuardSnippet
+  const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
+  const workspacePreInitDeferredDrawRef = React.useRef(false)
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
   const plannedOverlayNodeIdsKeyRef = React.useRef('')
@@ -250,7 +253,17 @@ export default function FlowCanvas({
   const buildDrawArgs = React.useCallback(() => drawArgsRef.current, [])
 
   const drawRafRef = React.useRef<number | null>(null)
+  const shouldSuppressWorkspacePreInitCanvasDraw = React.useCallback((): boolean => {
+    if (canvas2dRenderer !== 'flowEditor') return false
+    if (workspaceEditorOverlayOpen !== true) return false
+    return lastInitTransformZoomViewKeyRef.current !== zoomViewKey
+  }, [canvas2dRenderer, workspaceEditorOverlayOpen, zoomViewKey])
   const scheduleFlowDraw = React.useCallback(() => {
+    if (shouldSuppressWorkspacePreInitCanvasDraw()) {
+      workspacePreInitDeferredDrawRef.current = true
+      return
+    }
+    workspacePreInitDeferredDrawRef.current = false
     if (drawRafRef.current != null) return
     drawRafRef.current = requestAnimationFrame(() => {
       drawRafRef.current = null
@@ -260,7 +273,15 @@ export default function FlowCanvas({
       runtime.dirty = true
       requestFlowNativeDraw(runtime, buildDrawArgs())
     })
-  }, [active, buildDrawArgs])
+  }, [active, buildDrawArgs, shouldSuppressWorkspacePreInitCanvasDraw])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!workspacePreInitDeferredDrawRef.current) return
+    if (shouldSuppressWorkspacePreInitCanvasDraw()) return
+    workspacePreInitDeferredDrawRef.current = false
+    scheduleFlowDraw()
+  }, [active, scheduleFlowDraw, shouldSuppressWorkspacePreInitCanvasDraw, zoomViewKey])
 
   React.useEffect(() => {
     const runtimeRefCurrent = runtimeRef

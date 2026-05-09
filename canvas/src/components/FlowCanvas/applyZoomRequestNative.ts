@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
 import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import type { ZoomRequest } from '@/lib/zoom/requests'
 import type { GraphData } from '@/lib/graph/types'
@@ -33,6 +34,7 @@ const escapeCssAttrValue = (value: string): string => {
 }
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
+const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane="1"]'
 
 export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   if (typeof document === 'undefined') return null
@@ -115,10 +117,32 @@ export function resolveFlowEditorVisibleViewport(args: {
   if (!(surfaceRoot instanceof HTMLElement)) return fallback
   const rect = surfaceRoot.getBoundingClientRect()
   if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.right) || !Number.isFinite(rect.bottom)) return fallback
-  const left = Math.max(0, Math.min(args.viewportW, rect.left))
-  const right = Math.max(left + 1, Math.min(args.viewportW, rect.right))
   const top = Math.max(0, Math.min(args.viewportH, rect.top))
   const bottom = Math.max(top + 1, Math.min(args.viewportH, rect.bottom))
+  let left = Math.max(0, Math.min(args.viewportW, rect.left))
+  const right = Math.max(left + 1, Math.min(args.viewportW, rect.right))
+  const paneEls = Array.from(document.querySelectorAll(WORKSPACE_LEFT_PANE_SELECTOR))
+    .filter((el): el is HTMLElement => el instanceof HTMLElement)
+  let maxPaneRight = Number.NEGATIVE_INFINITY
+  let maxPaneWidth = 0
+  for (let i = 0; i < paneEls.length; i += 1) {
+    const paneRect = paneEls[i]!.getBoundingClientRect()
+    if (!Number.isFinite(paneRect.left) || !Number.isFinite(paneRect.right) || !Number.isFinite(paneRect.top) || !Number.isFinite(paneRect.bottom)) continue
+    if (paneRect.right <= left || paneRect.left >= right) continue
+    if (paneRect.bottom <= top || paneRect.top >= bottom) continue
+    maxPaneRight = Math.max(maxPaneRight, Math.min(args.viewportW, Math.max(0, paneRect.right)))
+    maxPaneWidth = Math.max(maxPaneWidth, Math.max(0, Math.min(args.viewportW, paneRect.right) - Math.max(0, paneRect.left)))
+  }
+  const visibleViewportWidth = Math.max(1, right - left)
+  const paneCoverageRatio = maxPaneWidth / visibleViewportWidth
+  const hasUsableRightCanvasStrip = right - maxPaneRight >= 160
+  const shouldSubtractPaneOverlap =
+    Number.isFinite(maxPaneRight)
+    && paneCoverageRatio < 0.86
+    && hasUsableRightCanvasStrip
+  if (shouldSubtractPaneOverlap) {
+    left = Math.max(left, maxPaneRight)
+  }
   return {
     left,
     top,
@@ -171,8 +195,8 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
         changedWorld = true
       }
       const curScreen = nextScreen[nodeId]
-      if (curScreen && Number.isFinite(curScreen.x) && Number.isFinite(curScreen.y)) {
-        nextScreen[nodeId] = { x: curScreen.x + deltaX, y: curScreen.y + deltaY }
+      if (curScreen && Number.isFinite(curScreen.left) && Number.isFinite(curScreen.top)) {
+        nextScreen[nodeId] = { left: curScreen.left + deltaX, top: curScreen.top + deltaY }
         changedScreen = true
       }
     })
