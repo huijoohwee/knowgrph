@@ -7,6 +7,7 @@
     "postinstall": "npm run setup && npm run hooks:install",
     "predev": "npm run setup",
     "dev": "npm --prefix canvas run dev --",
+    "dev:all": "bash scripts/dev-all.sh",
     "build": "npm --prefix canvas run build",
     "pages:build": "KG_SKIP_DOCS_UPDATE=1 VITE_BASE_PATH=/knowgrph/ npm --prefix canvas run build",
     "pages:check-sync": "node ./scripts/sync-pages-knowgrph.mjs --check",

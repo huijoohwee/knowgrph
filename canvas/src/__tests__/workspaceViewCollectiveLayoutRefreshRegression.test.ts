@@ -52,20 +52,44 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceGraphMutationBlocked(st) && !collectiveOutsideViewport) return')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlocked && !collectiveOutsideViewport && !hasMissingWorldSeeds) return')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
   const worldSeedWriteIndex = runtimeText.indexOf('st.setFlowWidgetWorldPosByNodeId(nextWorld)')
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
-    throw new Error('expected pinned widget auto-seed world-position persistence to stay blocked unless collective overlays are fully offscreen')
+    throw new Error('expected pinned widget auto-seed world-position persistence to stay blocked unless overlays are offscreen or missing seeds require first-frame recovery')
   }
   if (worldSeedKeyWriteIndex < 0 || worldSeedGuardIndex > worldSeedKeyWriteIndex || worldSeedKeyWriteIndex > worldSeedWriteIndex) {
     throw new Error('expected pinned widget auto-seed key to be committed only after Workspace/Indexing mutation guard')
+  }
+  if (!runtimeText.includes('const hasMissingWorldSeeds = pendingRaw.length > 0')) {
+    throw new Error('expected pinned widget auto-seed guard to treat missing world seeds as a first-frame recovery exception')
+  }
+  if (!runtimeText.includes('if (workspaceMutationBlocked) {')) {
+    throw new Error('expected pinned widget auto-seed to route workspace-blocked writes through an explicit in-memory branch')
+  }
+  if (!runtimeText.includes('return { flowWidgetWorldPosByNodeId: nextWorld }')) {
+    throw new Error('expected pinned widget auto-seed workspace-blocked branch to apply non-persistent in-memory world positions')
   }
   if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
     throw new Error('expected pinned widget auto-seed to avoid reseeding already-placed world positions on layout-signature churn')
   }
   if (!runtimeText.includes('const pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))')) {
     throw new Error('expected pinned widget auto-seed to only seed missing or overlapping world positions')
+  }
+  if (!runtimeText.includes('const allowPersistedViewportOffsetSeed = !isWorkspaceGraphMutationBlocked(st)')) {
+    throw new Error('expected pinned widget auto-seed to disable persisted zoom-offset fallback while Workspace overlay/indexing mutation guard is active')
+  }
+  if (!runtimeText.includes('(allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)')) {
+    throw new Error('expected pinned widget auto-seed zoom source to gate persisted viewport-offset seed by workspace mutation guard')
+  }
+  if (!runtimeText.includes('isCanonicalFrontmatterBuiltInWidgetNode')) {
+    throw new Error('expected pinned widget auto-seed overlap detection to include canonical frontmatter widget identity')
+  }
+  if (!runtimeText.includes("graphMetaKind === 'frontmatter-flow'")) {
+    throw new Error('expected pinned widget auto-seed overlap detection to include frontmatter-flow pinned widgets with stale world positions')
+  }
+  if (!runtimeText.includes('&& !frontmatterPinnedWidget) continue')) {
+    throw new Error('expected pinned widget auto-seed overlap detection to avoid skipping frontmatter pinned widgets when world positions exist')
   }
 
   const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
@@ -233,6 +257,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes("import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'")) {
     throw new Error('expected Flow runtime zoom seeding to reuse the shared flow transform visibility guard helper')
   }
+  if (!runtimeText.includes('cancelFlowZoomRequestAnim(runtime)')) {
+    throw new Error('expected Flow runtime authoritative fit/recovery writes to cancel stale zoom-request animations before applying transforms')
+  }
   if (!runtimeText.includes('const preserveCurrentTransform =')) {
     throw new Error('expected Flow runtime zoom seeding to centralize stale offscreen transform preservation checks')
   }
@@ -242,8 +269,23 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const initialTransformUsable = isUsableFlowTransform(initial)')) {
     throw new Error('expected Flow runtime zoom seeding to reject stale offscreen initial transforms in Flow Editor mode')
   }
-  if (!runtimeText.includes('const seed = (initialTransformUsable ? initial : null)')) {
+  if (!runtimeText.includes('const shouldUseInitialTransform = workspaceEditorOverlayOpen !== true && initialTransformUsable')) {
+    throw new Error('expected Flow runtime to disable stale stored initial transform reuse while Workspace overlay is open')
+  }
+  if (!runtimeText.includes('const seed = (shouldUseInitialTransform ? initial : null)')) {
     throw new Error('expected Flow runtime zoom seeding to fallback from unusable initial transforms to fit/current guard path')
+  }
+  if (!runtimeText.includes('if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true) return')) {
+    throw new Error('expected Flow runtime initialization to re-evaluate fit while Workspace overlay is open instead of short-circuiting after first init key hit')
+  }
+  if (!runtimeText.includes('const useD3StyleInitFit = isFlowEditor && workspaceEditorOverlayOpen === true')) {
+    throw new Error('expected Flow runtime init fit to switch to D3-style centered fit while Workspace overlay is open')
+  }
+  if (!runtimeText.includes('x: fit.x + (useD3StyleInitFit ? 0 : visibleViewportFit.left),')) {
+    throw new Error('expected Flow Editor fit seed to avoid x viewport offset when Workspace overlay D3-style init fit is active')
+  }
+  if (!runtimeText.includes('y: fit.y + (useD3StyleInitFit ? 0 : visibleViewportFit.top),')) {
+    throw new Error('expected Flow Editor fit seed to avoid y viewport offset when Workspace overlay D3-style init fit is active')
   }
   if (!runtimeText.includes('const lastOffscreenOverlayRecoveryKeyRef = React.useRef<string | null>(null)')) {
     throw new Error('expected Flow runtime to track one-shot offscreen recovery while Workspace overlay is open')
@@ -257,14 +299,74 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const buildSceneViewportRecoverySignature = React.useCallback((scene: FlowNativeRuntime[\'scene\'] | null): string => {')) {
     throw new Error('expected Flow runtime offscreen recovery to derive a semantic scene viewport signature from live scene coordinates')
   }
+  if (!runtimeText.includes('const remapTransformToVisibleViewport = React.useCallback(')) {
+    throw new Error('expected Flow runtime to normalize transform visibility checks into visible-viewport-local coordinates')
+  }
+  if (!runtimeText.includes('syncFlowCanvasDebugToast({ enabled: true })')) {
+    throw new Error('expected Flow runtime recovery path to publish temporary debug status via toast SSOT')
+  }
+  if (!runtimeText.includes('x: t.x - visibleViewport.left,')) {
+    throw new Error('expected Flow runtime transform normalization to offset x by visible viewport left before visibility checks')
+  }
+  if (!runtimeText.includes('y: t.y - visibleViewport.top,')) {
+    throw new Error('expected Flow runtime transform normalization to offset y by visible viewport top before visibility checks')
+  }
+  if (!runtimeText.includes("import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'")) {
+    throw new Error('expected Flow runtime offscreen recovery to reuse shared Flow Editor interaction-frame event contract')
+  }
+  if (!runtimeText.includes("import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'")) {
+    throw new Error('expected Flow runtime offscreen recovery to reuse shared balanced-spread strip/cluster detectors')
+  }
+  if (!runtimeText.includes('const [workspaceOverlayInteractionFrameTick, setWorkspaceOverlayInteractionFrameTick] = React.useState(0)')) {
+    throw new Error('expected Flow runtime offscreen recovery to track interaction-frame ticks while Workspace overlay is open')
+  }
+  if (!runtimeText.includes('window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame)')) {
+    throw new Error('expected Flow runtime offscreen recovery to subscribe to live Flow Editor interaction frames')
+  }
+  if (!runtimeText.includes('workspaceEditorOverlayOpen !== true &&')) {
+    throw new Error('expected Flow runtime init preserve-current-transform guard to disable stale transform reuse while Workspace overlay is open')
+  }
+  if (!runtimeText.includes('const normalizedCurrent = remapTransformToVisibleViewport(')) {
+    throw new Error('expected Flow runtime offscreen recovery visibility checks to evaluate normalized current transform within visible viewport coordinates')
+  }
+  if (!runtimeText.includes('const graphBalanced = isFlowTransformBalancedCollective({')) {
+    throw new Error('expected Flow runtime offscreen recovery to detect visible-but-unbalanced collective layouts before skipping refit')
+  }
+  if (!runtimeText.includes('const transformDriftedFromFit =')) {
+    throw new Error('expected Flow runtime offscreen recovery to detect visible-but-drifted transforms relative to current viewport fit')
+  }
+  if (!runtimeText.includes('if (graphVisible && graphBalanced && !transformDriftedFromFit) {')) {
+    throw new Error('expected Flow runtime offscreen recovery to force refit when transform drifts from viewport fit even if graph remains visible')
+  }
+  if (!runtimeText.includes('const shouldIgnorePersistedWorldPosForWorkspaceOverlay = React.useMemo(() => {')) {
+    throw new Error('expected Flow runtime fit path to guard against stale persisted world positions while Workspace overlay is open')
+  }
+  if (!runtimeText.includes("return kind === 'frontmatter-flow'")) {
+    throw new Error('expected Flow runtime fit path to ignore persisted world positions for Workspace-open frontmatter-flow view switching')
+  }
+  if (!runtimeText.includes('worldPosById: fitWorldPosById,') && !runtimeText.includes('worldPosByNodeId: fitWorldPosById,')) {
+    throw new Error('expected Flow runtime fit path to route overlay-open fit through sanitized world positions')
+  }
+  if (!runtimeText.includes('const allowOverlayCentroidRecovery = !overlayOpen && (!scene || scene.nodes.length === 0)')) {
+    throw new Error('expected overlay centroid recovery to stay disabled while Workspace overlay is open and only run during pre-scene bootstrap without overlay')
+  }
   if (!runtimeText.includes('if (!overlayOpen) {\n      lastOffscreenOverlayRecoveryKeyRef.current = null\n      return\n    }')) {
     throw new Error('expected Flow runtime to clear stale offscreen recovery latches when Workspace overlay closes')
   }
   if (!runtimeText.includes('const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)')) {
     throw new Error('expected Flow runtime offscreen recovery key to include live scene viewport signature')
   }
-  if (!runtimeText.includes('const recoveryKey = `${graphKey}:${fitW}:${viewportH}:${sceneViewportSignature}`')) {
-    throw new Error('expected Flow runtime offscreen recovery key to avoid coarse graph-only keying')
+  if (!runtimeText.includes('const currentTransformSignature = `${Math.round(current.x)}:${Math.round(current.y)}:${Math.round(current.k * 1000)}`')) {
+    throw new Error('expected Flow runtime offscreen recovery key to include live transform signature so stale transform re-applies cannot block corrective refits')
+  }
+  if (!runtimeText.includes('const recoveryKey = `${graphKey}:${fitW}:${fitH}:${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${sceneViewportSignature}:${currentTransformSignature}`')) {
+    throw new Error('expected Flow runtime offscreen recovery key to avoid coarse graph-only keying and include current transform signature')
+  }
+  if (!runtimeText.includes('workspaceOverlayInteractionFrameTick,')) {
+    throw new Error('expected Flow runtime offscreen recovery effect dependencies to rerun on live interaction frames while Workspace overlay is open')
+  }
+  if (!runtimeText.includes('if (!overlayOpen && Date.now() - lastUserInteractionAtMsRef.current < 500) return')) {
+    throw new Error('expected Flow runtime offscreen recovery to avoid suppressing overlay-open corrective refits with recent interaction guard')
   }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
@@ -296,6 +398,16 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   const rootLayoutWriteIndex = storeText.indexOf('set({ layoutPositionCacheByMode: { ...prev, [key]: positions } })')
   if (rootLayoutGuardIndex < 0 || rootLayoutWriteIndex < 0 || rootLayoutGuardIndex > rootLayoutWriteIndex) {
     throw new Error('expected root layout cache setter to reject Workspace/Indexing mutation writes')
+  }
+  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'Toolbar.tsx')
+  const toolbarText = readFileSync(toolbarPath, 'utf8')
+  if (toolbarText.includes('__flowCanvasDebug.lastRuntimeTransform')) {
+    throw new Error('expected temporary Flow debug readout to move out of Toolbar and reuse toast SSOT')
+  }
+  const debugPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'flowCanvasDebug.ts')
+  const debugText = readFileSync(debugPath, 'utf8')
+  if (!debugText.includes("const FLOW_CANVAS_DEBUG_TOAST_ID = 'flow-canvas-runtime-debug-status'")) {
+    throw new Error('expected Flow debug helper to define a stable toast SSOT id for temporary runtime readout')
   }
   if (!text.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected FlowCanvas media overlays to reuse the shared workspace/indexing mutation guard')
@@ -400,6 +512,9 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (!graphDataSliceText.includes('resolveCommittedFlowWidgetScreenPositions')) {
     throw new Error('expected graph commit path to centralize collective screen-position carry/cleanup decisions')
   }
+  if (!graphDataSliceText.includes('currentSourceIdentity === nextSourceIdentity')) {
+    throw new Error('expected graph commit path to forbid cross-source frontmatter balanced overlay carry-forward on source-file switches')
+  }
 
   const interactionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
   const interactionRuntimeText = readFileSync(interactionRuntimePath, 'utf8')
@@ -498,6 +613,12 @@ export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
 export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   const zoomPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
   const text = readFileSync(zoomPath, 'utf8')
+  if (!text.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor zoom fit path to reuse shared Workspace overlay-open SSOT helper')
+  }
+  if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(state)')) {
+    throw new Error('expected Flow Editor zoom fit path to derive overlay-open state from shared workspace SSOT before fit/recenter')
+  }
   if (!text.includes('readCanvasOverlayNodeId,')) {
     throw new Error('expected Flow Editor fit recentering to reuse shared overlay node-id resolution when translating world positions')
   }
@@ -525,11 +646,35 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   if (!text.includes('const fitW = Math.max(1, visibleViewport.width - pad * 2)')) {
     throw new Error('expected Flow Editor zoom fit to clamp collective bounds to the visible viewport width when workspace editor occludes the left pane')
   }
+  if (!text.includes('const flowEditorOverlayFitResolved = isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen')) {
+    throw new Error('expected Flow Editor zoom fit to disable overlay-bounds fit branch while Workspace overlay is open')
+  }
+  if (!text.includes('const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest')) {
+    throw new Error('expected Flow Editor zoom fit/reset to force immediate (non-animated) application while Workspace overlay is open')
+  }
+  if (!text.includes('const durationMs = forceImmediateWorkspaceOverlayFit')) {
+    throw new Error('expected Flow Editor zoom duration to be forced to zero for Workspace overlay fit/reset requests')
+  }
+  if (!text.includes('const useWorkspaceOverlayGraphFallbackFit = workspaceEditorOverlayOpen')) {
+    throw new Error('expected Flow Editor zoom graph-fit branch to enable workspace-overlay fallback fit flag')
+  }
+  if (!text.includes('? fitAllTransform(')) {
+    throw new Error('expected Flow Editor zoom graph-fit branch to fallback to D3 fitAllTransform while Workspace overlay is open')
+  }
+  if (!text.includes('Math.max(1, visibleViewport.width),')) {
+    throw new Error('expected Flow Editor zoom graph-fit fallback to clamp width to visible viewport bounds while Workspace overlay is open')
+  }
+  if (!text.includes('Math.max(1, visibleViewport.height),')) {
+    throw new Error('expected Flow Editor zoom graph-fit fallback to clamp height to visible viewport bounds while Workspace overlay is open')
+  }
   if (!text.includes('const targetX = visibleViewport.centerX - (centerX - base.x) * appliedScale')) {
     throw new Error('expected Flow Editor zoom fit to center collective overlays inside the visible viewport center')
   }
   if (!text.includes('recenterOverlayWidgetPositions(deltaX, deltaY)')) {
     throw new Error('expected Flow Editor fit recentering to shift widget world positions alongside viewport transform updates')
+  }
+  if (!text.includes('if (isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen) {')) {
+    throw new Error('expected Flow Editor fit recentering to stay disabled while Workspace overlay is open')
   }
   if (!text.includes('st.setFlowWidgetWorldPosByNodeId(nextWorld)')) {
     throw new Error('expected Flow Editor fit recentering to persist translated world positions through the shared widget world-position setter')
@@ -539,5 +684,16 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   }
   if (text.includes('left: entry.rect.left,')) {
     throw new Error('expected Flow Editor overlay fit bounds to avoid raw window-space left coordinates')
+  }
+  const fitHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'fitPinnedWidgets.ts')
+  const fitHelperText = readFileSync(fitHelperPath, 'utf8')
+  if (!fitHelperText.includes('if (isFrontmatterOverlayFit) {')) {
+    throw new Error('expected Flow Editor pinned-widget fit helper to branch frontmatter-flow fit path explicitly')
+  }
+  if (!fitHelperText.includes('return fitAllTransform(nodes, args.fitW, args.viewportH')) {
+    throw new Error('expected Flow Editor frontmatter-flow fit path to share D3 fit/centroid basis via fitAllTransform')
+  }
+  if (!fitHelperText.includes('const worldById = args.worldPosById || {}')) {
+    throw new Error('expected non-frontmatter pinned-widget fit path to continue using persisted world positions')
   }
 }

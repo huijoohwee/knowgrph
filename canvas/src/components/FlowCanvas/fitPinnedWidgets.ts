@@ -39,6 +39,11 @@ export function fitFlowEditorPinnedWidgets(args: {
     frontmatterOverlayIds.length > 0 ||
     String(graphMeta.kind || '').trim() === 'frontmatter-flow' ||
     graphContext === 'frontmatter-flow'
+  // Frontmatter-flow Flow Editor must share the same centroid/center fit basis as D3.
+  // Do not include overlay/pinned widget extents in the fit source for this mode.
+  if (isFrontmatterOverlayFit) {
+    return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
+  }
   if (openIds.length === 0) {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }

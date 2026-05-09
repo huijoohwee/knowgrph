@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
@@ -84,12 +85,12 @@ export function testMultiDimTableGuidelinesBacktickJsonArraysAreRespected() {
 
 export function testMultiDimTableGuidelinesExternalFileParsesSampleTableWhenPresent() {
   const envPath = String(process.env.KG_MULTI_DIM_TABLE_GUIDELINES_FILE || '').trim()
-  const defaultPath = '/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/multi-dimensional-table-guidelines.md'
-  const path = envPath || defaultPath
-  if (!path || !existsSync(path)) return
+  const defaultPath = path.resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'guidelines', 'multi-dimensional-table-guidelines.md')
+  const filePath = envPath || defaultPath
+  if (!filePath || !existsSync(filePath)) return
 
-  const markdown = readFileSync(path, 'utf8')
-  const jsonld = buildMarkdownJsonLd(path, markdown)
+  const markdown = readFileSync(filePath, 'utf8')
+  const jsonld = buildMarkdownJsonLd(filePath, markdown)
   const graph = parseJsonLd(jsonld)
   const tables = (graph.nodes || []).filter(n => String((n as any)?.type || '') === 'Table') as any[]
   if (tables.length < 1) throw new Error('expected at least one Table node in guidelines file')

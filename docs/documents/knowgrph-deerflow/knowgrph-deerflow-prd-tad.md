@@ -1,6 +1,6 @@
 # Knowgrph DeerFlow Integration - PRD & TAD
 
-**Document Version**: 1.0.0  
+**Document Version**: 1.1.0  
 **Date**: 2026-05-07  
 **Status**: Proposed  
 **Scope**: MainPanel Integrations, Ingest->Parse->Render, Canvas 2D Flow Editor generation
@@ -54,6 +54,110 @@ Flow Editor users need consistent text/image/video generation in one run pipelin
 **Role**: Reviewer validating pipeline correctness  
 **Goal**: Verify ingest->parse->render with stable fixtures  
 **Pain Point**: No single canonical fixture-driven acceptance suite for DeerFlow
+
+---
+
+## User Journey Flows
+
+### Journey: Workflow Builder — Configure and Run DeerFlow Provider
+
+| Stage    | Action               | Touchpoint        | Pain Point      | Opportunity      |
+|----------|----------------------|-------------------|-----------------|------------------|
+| Trigger  | Needs text/image/video generation in Canvas flow | Flow Editor toolbar | No DeerFlow option in provider dropdown | Add DeerFlow as first-class provider |
+| Discover  | Opens MainPanel Integrations | Integrations tab | DeerFlow not listed; must configure externally | Show DeerFlow section with searchable rows |
+| Engage   | Configures endpoint, auth, mode | Integration settings | Unclear which fields are required per mode | Mode-gated validation with progressive disclosure |
+| Complete | Runs flow with DeerFlow-backed nodes | Canvas 2D renderer | Artifacts render inconsistently across providers | Canonical artifact schema for all providers |
+| Return   | Adjusts prompt or retries failed node | Node overlay + retry button | No retry semantics; must rebuild graph | Typed error categories with one-click retry |
+
+### Journey: Product Integrator — Add DeerFlow Provider Support
+
+| Stage    | Action               | Touchpoint        | Pain Point      | Opportunity      |
+|----------|----------------------|-------------------|-----------------|------------------|
+| Trigger  | New provider integration requested | GitHub issue / planning | No integration template or contract guide | SSOT-first integration pattern with contract catalog |
+| Discover  | Reviews existing integration code | Codebase search | Multiple config surfaces with no single source | One SSOT module consumed by all surfaces |
+| Engage   | Implements adapter and parser extension | Adapter + parser modules | Protocol quirks leak into UI and dispatcher | Adapter isolation pattern with canonical normalization |
+| Complete  | Validates with fixture test suite | CI pipeline | No canonical fixture for DeerFlow | `knowgrph-video-demo.md` fixture with focused test matrix |
+| Return   | Adds new generation mode or skill | Adapter layer only | Requires UI changes for each new mode | Add modes via adapter, not UI forks |
+
+### Journey: QA Engineer — Validate Pipeline Correctness
+
+| Stage    | Action               | Touchpoint        | Pain Point      | Opportunity      |
+|----------|----------------------|-------------------|-----------------|------------------|
+| Trigger  | New DeerFlow feature merged | PR review | No focused test scope; full-suite runs are slow | Focused diff testing with contract coverage |
+| Discover  | Reviews PRD acceptance criteria | PRD document | Criteria not mapped to test IDs | Traceability matrix linking stories to test IDs |
+| Engage   | Runs fixture-driven test matrix | CI pipeline | Missing end-to-end coverage for ingest->render | Canonical fixture with per-layer assertions |
+| Complete  | All gates pass with evidence | Quality gate dashboard | No gate definitions or rollback plan | Quality gate definitions with rollback runbook |
+| Return   | Monitors regression suite on subsequent changes | CI | No baseline snapshots for comparison | Baseline fixture snapshots for regression detection |
+
+---
+
+## Workflow Flows
+
+### Workflow: Configure DeerFlow Provider
+
+**Trigger**: User opens MainPanel Integrations and selects DeerFlow section  
+**Actors**: Workflow Builder, MainPanel Settings, Integration SSOT
+
+**Happy Path**:
+1. User opens Integrations mode → MainPanel displays provider sections
+2. User selects DeerFlow → SSOT rows render with mode selector
+3. User chooses mode (direct/MCP) → mode-gated fields appear
+4. User fills required fields → validation passes on save
+5. System persists config → provider ready for flow nodes
+
+**Alternate Paths**:
+- User switches mode after partial input: previously entered fields are preserved if applicable to new mode; incompatible fields are cleared with notice
+- User provides invalid endpoint: validation blocks save with explicit error message
+
+**Error Paths**:
+- Network unreachable during validation: save succeeds with deferred validation status; runtime validates on first use
+- Credential format invalid: immediate validation error with format hint
+
+**Postconditions**: DeerFlow provider config persisted with stable keys; all integration surfaces reflect updated config
+
+### Workflow: Ingest and Parse DeerFlow Flow
+
+**Trigger**: User imports or opens a markdown flow file containing DeerFlow generation nodes  
+**Actors**: Workflow Builder, Parser, Provider Metadata Normalizer
+
+**Happy Path**:
+1. User opens flow markdown → parser reads frontmatter
+2. Parser encounters DeerFlow provider metadata → normalizer maps to canonical schema
+3. Normalizer emits typed `ParsedProviderMetadata` → graph compiler consumes
+4. Graph builds successfully → generation nodes carry provider intent
+
+**Alternate Paths**:
+- Flow contains unknown optional DeerFlow fields: normalizer emits warnings, parse succeeds
+- Flow contains no provider metadata: nodes default to existing provider behavior
+
+**Error Paths**:
+- Missing required-by-mode fields: parse fails with actionable message identifying missing field and mode
+- Invalid field type coercion: parse fails with type mismatch error
+
+**Postconditions**: Graph contains typed provider metadata; no secret values in graph snapshot
+
+### Workflow: Run Generation and Render Artifacts
+
+**Trigger**: User clicks Run on a flow containing DeerFlow-backed generation nodes  
+**Actors**: Workflow Builder, Generation Dispatcher, DeerFlow Adapter, Artifact Normalizer, Canvas 2D Renderer
+
+**Happy Path**:
+1. Dispatcher receives generation request → selects adapter by provider+mode
+2. Adapter calls DeerFlow API or MCP tool → receives raw response
+3. Normalizer transforms raw response → emits canonical artifact
+4. Renderer consumes canonical artifact → displays text/image/video in Canvas
+5. Node state transitions: queued → running → succeeded
+
+**Alternate Paths**:
+- User cancels during generation: node state transitions to cancelled; adapter aborts in-flight request
+- Provider returns partial result: adapter returns partial artifact with degradation metadata
+
+**Error Paths**:
+- Timeout: dispatcher retries with bounded backoff → fails after max attempts with retryable error
+- Auth failure: dispatcher returns terminal auth error → no retry; user must update credentials
+- Rate limit: dispatcher retries after backoff → succeeds or fails with retryable error
+
+**Postconditions**: Canvas displays rendered artifacts; node states are monotonic; structured logs include provider mode, latency, and error category
 
 ---
 
@@ -242,6 +346,84 @@ Flow Editor users need consistent text/image/video generation in one run pipelin
 **From markdown flow input to rendered media artifacts**:  
 Knowgrph Ingest/Parser -> Provider Metadata Normalizer -> Graph Build -> Generation Dispatcher -> DeerFlow Adapter (Direct or MCP) -> Artifact Normalizer -> Canvas 2D Renderer.
 
+```mermaid
+flowchart LR
+    A[Flow Markdown] --> B[Parser + Normalizer]
+    B --> C[Graph Build]
+    C --> D[Generation Dispatcher]
+    D --> E{Provider Mode}
+    E -->|direct| F[Direct Adapter]
+    E -->|mcp| G[MCP Adapter]
+    F --> H[DeerFlow API]
+    G --> I[DeerFlow MCP Server]
+    H --> J[Artifact Normalizer]
+    I --> J
+    J --> K[Canvas 2D Renderer]
+```
+
+---
+
+## Component Inventory
+
+| ID | Component | Responsibility | Module | Input | Output |
+|----|-----------|---------------|--------|-------|--------|
+| TAD-C001 | Integration SSOT | Single source of truth for DeerFlow provider configuration rows | `features/integrations/config.ts` | `DeerFlowIntegrationRow[]` | `IntegrationRow[]` |
+| TAD-C002 | Provider Metadata Normalizer | Normalizes raw markdown frontmatter into typed provider metadata for graph nodes | `features/parsers/agenticRag.ts` | Raw frontmatter | `ParsedProviderMetadata` |
+| TAD-C003 | Generation Dispatcher | Routes generation requests to the correct adapter by provider+mode; manages retry and cancellation | `features/chat/richMediaRun.ts` | `RunGenerationRequest` | Adapter call result |
+| TAD-C004 | DeerFlow Adapter | Calls DeerFlow API (direct) or MCP server; handles auth, streaming, and error mapping | `features/integrations/deer-flow/deerFlowAdapter.ts` | HTTP/MCP payload | Raw provider response |
+| TAD-C005 | Artifact Normalizer | Transforms raw provider responses into canonical artifacts consumed by Canvas renderer | `features/integrations/deer-flow/artifactNormalizer.ts` | Raw response | `CanonicalArtifact` |
+
+---
+
+## Journey → System Mapping
+
+| Journey Stage | Workflow        | Data Flow       | Component        |
+|---------------|-----------------|-----------------|------------------|
+| Trigger       | Configure Provider | —               | TAD-C001 (SSOT)  |
+| Discover       | Configure Provider | —               | TAD-C001 (SSOT)  |
+| Engage        | Configure Provider | Config persist  | TAD-C001 (SSOT)  |
+| Complete       | Run Generation   | Config → Dispatch | TAD-C003 (Dispatch) |
+| Trigger       | Ingest & Parse   | Markdown → Metadata | TAD-C002 (Parse) |
+| Discover       | Ingest & Parse   | Raw → Normalized | TAD-C002 (Parse) |
+| Engage        | Ingest & Parse   | Metadata → Graph | TAD-C002 (Parse) |
+| Complete       | Run Generation   | Graph → Dispatch | TAD-C003 (Dispatch) |
+| Engage        | Run Generation   | Request → Adapter | TAD-C004 (Adapter) |
+| Complete       | Run Generation   | Raw → Canonical  | TAD-C005 (Normalizer) |
+| Complete       | Run Generation   | Artifact → Render | TAD-C005 (Normalizer) |
+| Return         | Failure & Retry  | Error → Category | TAD-C003 (Dispatch) |
+
+---
+
+## Data Flows
+
+### Data Flow: Provider Configuration
+
+| Stage     | Component        | Input Format     | Output Format    | Persistence       | Error Handling    |
+|-----------|------------------|------------------|------------------|-------------------|-------------------|
+| Ingest    | MainPanel UI     | User form input  | `DeerFlowIntegrationRow[]` | IndexedDB (uiSettings) | Validation error toast |
+| Transform | Mode Gator      | Raw row values   | Mode-filtered required set | None | Block save with message |
+| Store     | Settings Store   | Validated rows   | Persisted config | IndexedDB | Rollback on failure |
+| Serve     | SSOT Module      | Config read      | `IntegrationRow[]` | None | Fail closed on schema error |
+
+### Data Flow: Flow Markdown to Graph Metadata
+
+| Stage     | Component        | Input Format     | Output Format    | Persistence       | Error Handling    |
+|-----------|------------------|------------------|------------------|-------------------|-------------------|
+| Ingest    | Parser           | Markdown frontmatter | Raw node config | None | Syntax error |
+| Transform | Normalizer       | Raw node config  | `ParsedProviderMetadata` | None | Warning for unknown optional fields |
+| Store     | Graph Store      | Normalized metadata | Graph node properties | IndexedDB | Reject on missing required fields |
+| Serve     | Graph Compiler   | Graph nodes      | Compiled graph | None | Compilation error |
+
+### Data Flow: Generation Request to Rendered Artifact
+
+| Stage     | Component        | Input Format     | Output Format    | Persistence       | Error Handling    |
+|-----------|------------------|------------------|------------------|-------------------|-------------------|
+| Ingest    | Dispatcher       | `RunGenerationRequest` | Adapter call | None | Queue state |
+| Transform | Adapter          | HTTP/MCP payload | Raw provider response | None | Retry or terminal error |
+| Transform | Normalizer       | Raw response     | `CanonicalArtifact` | None | Fallback degradation |
+| Store     | Node State       | Artifact + state | Updated node properties | IndexedDB | State transition error |
+| Serve     | Renderer         | `CanonicalArtifact` | Rendered text/image/video | None | Fallback UI for missing optional fields |
+
 ---
 
 ## Component Specifications
@@ -380,12 +562,14 @@ Knowgrph Ingest/Parser -> Provider Metadata Normalizer -> Graph Build -> Generat
 
 ## Quality Attributes
 
-- **Performance**: provider dispatch overhead adds <=50ms median over current generation path (excluding provider latency).
-- **Scalability**: runtime supports bounded concurrent generation nodes with deterministic cancellation and retries.
-- **Security**: credentials are externalized; no secret literals in graph documents or integration rows.
-- **Reliability**: transient failures use bounded retry/backoff; terminal failures are explicit and non-silent.
-- **Observability**: structured logs include provider mode, node kind, latency, and error category.
-- **Maintainability**: provider-specific protocol logic remains isolated in adapter layer.
+| Attribute     | Scenario                           | Pattern             | Validation         |
+|---------------|------------------------------------|---------------------|--------------------|
+| Performance   | Dispatch overhead <=50ms median over current path | Adapter selection before provider call | Latency benchmark in CI |
+| Scalability   | Bounded concurrent generation nodes | Deterministic cancellation and retry limits | Concurrency stress test |
+| Security      | Credentials externalized from graph documents | Secure credential resolution in adapter | Secret-scan on graph snapshots |
+| Reliability    | Transient failure recovery | Bounded retry with jittered backoff | Error-path test matrix |
+| Observability | Structured logs for every generation run | Provider mode, node kind, latency, error category | Log assertion tests |
+| Maintainability | Provider protocol logic isolated | Adapter isolation pattern | Module dependency audit |
 
 ---
 
@@ -459,4 +643,5 @@ Knowgrph Ingest/Parser -> Provider Metadata Normalizer -> Graph Build -> Generat
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
-| 1.0.0 | 2026-05-07 | joohwee | Initial PRD/TAD for DeerFlow integration into Knowgrph |
+| 1.0.0 | 2026-05-07 | joohwee | Initial PRD-TAD for DeerFlow integration |
+| 1.1.0 | 2026-05-07 | joohwee | Added User Journeys, Workflow Flows, Data Flows, Mermaid architecture diagram, Component Inventory, Journey→System Mapping, Quality Attributes table per PRD-TAD guidelines |

@@ -1,6 +1,6 @@
 # Knowgrph DeerFlow Integration Contracts and Patterns
 
-**Document Version**: 1.0.0  
+**Document Version**: 1.1.0  
 **Date**: 2026-05-07  
 **Status**: Proposed  
 **Companion To**: `knowgrph-deerflow-prd-tad.md`
@@ -326,27 +326,86 @@ interface DeerFlowRunEvent {
 
 ## Sequence Patterns
 
-## Sequence S001: MainPanel Configuration
-1. User opens Integrations mode.
-2. User configures DeerFlow mode and required fields.
-3. System validates mode-gated requirements.
-4. System persists provider config with stable keys.
+### Sequence S001: MainPanel Configuration
 
-## Sequence S002: Parse to Runtime
-1. User imports or opens flow markdown.
-2. Parser extracts DeerFlow metadata for generation nodes.
-3. Compiler emits typed graph with normalized provider metadata.
-4. Dispatcher routes generation calls to selected adapter.
-5. Adapter returns raw response.
-6. Normalizer emits canonical artifact.
-7. Renderer displays artifact in Canvas 2D.
+```mermaid
+sequenceDiagram
+    participant User
+    participant MainPanel
+    participant SSOT as Integration SSOT
+    participant Store as Settings Store
 
-## Sequence S003: Failure and Retry
-1. Adapter returns error payload.
-2. Dispatcher maps error to canonical category.
-3. Node state updates to failed with retry hint.
-4. User clicks retry.
-5. Dispatcher replays request using same inputs with bounded attempt count.
+    User ->> MainPanel : Open Integrations mode
+    MainPanel ->> SSOT : Read DeerFlow rows
+    SSOT -->> MainPanel : DeerFlowIntegrationRow[]
+    MainPanel ->> User : Render mode selector + rows
+    User ->> MainPanel : Select mode + fill fields
+    MainPanel ->> SSOT : Validate mode-gated requirements
+    SSOT -->> MainPanel : Validation result
+    alt Validation passes
+        MainPanel ->> Store : Persist config
+        Store -->> MainPanel : Confirm
+        MainPanel ->> User : Show saved status
+    else Validation fails
+        MainPanel ->> User : Show error with field hint
+    end
+```
+
+### Sequence S002: Parse to Runtime
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Parser
+    participant Normalizer
+    participant Compiler
+    participant Dispatcher
+    participant Adapter as DeerFlow Adapter
+    participant Normalizer2 as Artifact Normalizer
+    participant Renderer
+
+    User ->> Parser : Open flow markdown
+    Parser ->> Parser : Extract frontmatter
+    Parser ->> Normalizer : Raw DeerFlow metadata
+    Normalizer -->> Compiler : ParsedProviderMetadata
+    Compiler -->> Dispatcher : Compiled graph with provider metadata
+    User ->> Dispatcher : Click Run
+    Dispatcher ->> Adapter : RunGenerationRequest
+    alt Direct mode
+        Adapter ->> Adapter : POST DeerFlow API
+    else MCP mode
+        Adapter ->> Adapter : Invoke MCP tool
+    end
+    Adapter -->> Normalizer2 : Raw provider response
+    Normalizer2 -->> Renderer : CanonicalArtifact
+    Renderer ->> User : Display text/image/video in Canvas
+```
+
+### Sequence S003: Failure and Retry
+
+```mermaid
+sequenceDiagram
+    participant Dispatcher
+    participant Adapter as DeerFlow Adapter
+    participant Taxonomy as Error Taxonomy
+    participant NodeState
+    participant User
+
+    Dispatcher ->> Adapter : RunGenerationRequest
+    Adapter -->> Dispatcher : Error payload
+    Dispatcher ->> Taxonomy : Map raw error
+    Taxonomy -->> Dispatcher : CanonicalProviderError
+    Dispatcher ->> NodeState : Update state = failed
+    NodeState -->> User : Show error with retry hint
+    alt retryable = true
+        User ->> Dispatcher : Click retry
+        Dispatcher ->> Adapter : Replay request (attempt +1)
+        Adapter -->> Dispatcher : Success response
+        Dispatcher ->> NodeState : Update state = succeeded
+    else retryable = false
+        User ->> User : Update credentials or fix input
+    end
+```
 
 ---
 
@@ -380,3 +439,4 @@ interface DeerFlowRunEvent {
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-05-07 | joohwee | Initial integration contracts and architecture patterns for DeerFlow |
+| 1.1.0 | 2026-05-07 | joohwee | Replaced ASCII sequence patterns with Mermaid sequence diagrams per PRD-TAD guidelines |

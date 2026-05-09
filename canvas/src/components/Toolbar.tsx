@@ -78,7 +78,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     observer.observe(root, { attributes: true, attributeFilter: ['data-kg-installable'] })
     return () => observer.disconnect()
   }, [])
-
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
   const clampedMainPanelPos = isMainPanelOpen ? clampMainPanelPos(mainPanelDragPos) : mainPanelDragPos
   const isNarrowViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
@@ -312,7 +311,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           <Download className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         </IconButton>
       )}
- 
     </nav>
   );
 }

@@ -7,11 +7,11 @@ description: "Orchestrates coordinated changes across knowgrph, curagrph, gympgr
 
 Use this skill to plan, implement, and verify changes that span multiple repositories under:
 
-- `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- `/Users/huijoohwee/Documents/GitHub/curagrph`
-- `/Users/huijoohwee/Documents/GitHub/gympgrph`
-- `/Users/huijoohwee/Documents/GitHub/sandbox`
-- `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io`
+- `${KG_GITHUB_ROOT}/knowgrph`
+- `${KG_GITHUB_ROOT}/curagrph`
+- `${KG_GITHUB_ROOT}/gympgrph`
+- `${KG_GITHUB_ROOT}/sandbox`
+- `${KG_GITHUB_ROOT}/huijoohwee.github.io`
 
 ## When To Invoke
 

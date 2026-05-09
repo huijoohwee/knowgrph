@@ -615,7 +615,7 @@ If adapting for long-form:
 | Field | Value |
 |-------|-------|
 | **Filename** | `artlist-seedance-2-0-video-script-glm-5v-t.md` |
-| **Path** | `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/` |
+| **Path** | `${KG_GITHUB_ROOT}/knowgrph/docs/documents/` |
 | **Related Document** | `artlist-seedance-2-0-transcript-glm-5v-t.md` (multimodal recognition report) |
 | **Analysis Model** | GLM-5v-Turbo (Script Generation) |
 | **Generated** | 2026-04-28T22:43:00+08:00 |

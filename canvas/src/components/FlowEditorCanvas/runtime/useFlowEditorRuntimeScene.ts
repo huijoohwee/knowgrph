@@ -4,6 +4,7 @@ import { computeFlowGroupAabb, type FlowNativeRuntime } from '@/components/FlowC
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import {
+  isCanonicalFrontmatterBuiltInWidgetNode,
   shouldAutoPlaceFlowEditorWidget,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -145,6 +146,14 @@ export function useFlowEditorRuntimeScene(args: {
     if (!args.active) return
     const st = useGraphStore.getState()
     const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
+    const nodeTypeById = new Map<string, string>()
+    const graphNodes = Array.isArray(graphDataForSeeding?.nodes) ? graphDataForSeeding.nodes : []
+    for (let i = 0; i < graphNodes.length; i += 1) {
+      const node = graphNodes[i]
+      const id = String(node?.id || '').trim()
+      if (!id || nodeTypeById.has(id)) continue
+      nodeTypeById.set(id, String(node?.type || '').trim())
+    }
     const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({
       graphData: graphDataForSeeding,
       graphRevision: readGraphDataRevision(graphDataForSeeding),
@@ -193,8 +202,9 @@ export function useFlowEditorRuntimeScene(args: {
         || Math.abs(Number.isFinite(persistedZoom.x) ? persistedZoom.x : 0) > 0.5
         || Math.abs(Number.isFinite(persistedZoom.y) ? persistedZoom.y : 0) > 0.5
       )
+    const allowPersistedViewportOffsetSeed = !isWorkspaceGraphMutationBlocked(st)
     const z =
-      (persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)
+      (allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)
       || liveZoom
       || persistedZoom
       || { k: 1, x: 0, y: 0 }
@@ -327,7 +337,11 @@ export function useFlowEditorRuntimeScene(args: {
           pinnedList.push(id)
           pinnedWorldIdsByBucket.set(bucketId, pinnedList)
         }
-        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world })) continue
+        const nodeTypeId = nodeTypeById.get(id) || ''
+        const frontmatterPinnedWidget =
+          graphMetaKind === 'frontmatter-flow'
+          && isCanonicalFrontmatterBuiltInWidgetNode({ id, type: nodeTypeId })
+        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world, nodeTypeId }) && !frontmatterPinnedWidget) continue
         if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
         const list = idsByBucket.get(bucketId) || []
         list.push(id)
@@ -528,9 +542,36 @@ export function useFlowEditorRuntimeScene(args: {
       lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
       return
     }
-    if (isWorkspaceGraphMutationBlocked(st) && !collectiveOutsideViewport) return
+    const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(st)
+    const hasMissingWorldSeeds = pendingRaw.length > 0
+    if (workspaceMutationBlocked && !collectiveOutsideViewport && !hasMissingWorldSeeds) return
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
+    if (workspaceMutationBlocked) {
+      useGraphStore.setState(prev => {
+        const prevWorld = (prev as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+          .flowWidgetWorldPosByNodeId || {}
+        const prevKeys = Object.keys(prevWorld)
+        const nextKeys = Object.keys(nextWorld)
+        if (prevKeys.length === nextKeys.length) {
+          let unchanged = true
+          for (let i = 0; i < nextKeys.length; i += 1) {
+            const key = nextKeys[i]!
+            const a = prevWorld[key]
+            const b = nextWorld[key]
+            if (!a || !b || Math.abs(a.x - b.x) > 0.0001 || Math.abs(a.y - b.y) > 0.0001) {
+              unchanged = false
+              break
+            }
+          }
+          if (unchanged) return {}
+        }
+        // Keep Workspace/indexing mutation guard semantics by skipping persistence,
+        // but still update in-memory world seeds so visible Flow Editor collectives can recover.
+        return { flowWidgetWorldPosByNodeId: nextWorld }
+      })
+      return
+    }
     st.setFlowWidgetWorldPosByNodeId(nextWorld)
   }, [args.active, args.openWidgetNodeIds, args.overlayTopologyLayoutSignature, args.schema, args.viewportH, args.viewportW, args.zoomViewKeyRef, getLiveContainmentGroupAabbForNode, getLiveZoomTransform])
 

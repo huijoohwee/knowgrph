@@ -60,14 +60,10 @@ export function resolveComposedApplyDeferralReason(args: {
   composedGraphData: GraphData | null | undefined
   previousGraphData: GraphData | null | undefined
   workspaceEditorOverlayOpen?: boolean
-}): 'pending-remote-source' | 'pending-parse-edge-only' | 'pending-text-without-parsed' | 'workspace-editor-overlay-open' | null {
+}): 'pending-remote-source' | 'pending-parse-edge-only' | 'pending-text-without-parsed' | null {
   const { layers } = args
   const composed = countGraphContent(args.composedGraphData)
   const previous = countGraphContent(args.previousGraphData)
-
-  if (args.workspaceEditorOverlayOpen === true) {
-    return 'workspace-editor-overlay-open'
-  }
 
   if (!composed.hasContent && hasPendingEnabledRemoteSource(layers)) {
     return 'pending-remote-source'

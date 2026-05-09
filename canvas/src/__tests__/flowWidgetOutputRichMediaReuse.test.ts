@@ -459,6 +459,18 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!text.includes('const publishTextRunOutput = (outputText: string, loading: boolean) => {')) {
     throw new Error('expected TextGeneration run path to centralize streamed/final output publishing in one SSOT helper')
   }
+  if (!text.includes('const runProvider = normalizedProvider || store.chatProvider')) {
+    throw new Error('expected rich-media run dispatch to derive provider from normalized active provider/store value instead of hard-forcing one provider')
+  }
+  if (!text.includes("const runEndpointUrl = String(store.chatEndpointUrl || '').trim() || getChatDefaultEndpointUrlForProvider(runProvider)")) {
+    throw new Error('expected rich-media run dispatch to resolve endpoint from active store endpoint with provider-scoped fallback')
+  }
+  if (text.includes('const runProvider = CHAT_PROVIDER_BYTEPLUS')) {
+    throw new Error('expected rich-media run dispatch to remove hardcoded BytePlus provider pinning')
+  }
+  if (text.includes('getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS)')) {
+    throw new Error('expected rich-media run dispatch to remove BytePlus-only endpoint fallback pinning')
+  }
   if (!text.includes('onText: (nextText) => {')) {
     throw new Error('expected TextGeneration run path to reuse streamed text callback for progressive Rich Media output updates')
   }

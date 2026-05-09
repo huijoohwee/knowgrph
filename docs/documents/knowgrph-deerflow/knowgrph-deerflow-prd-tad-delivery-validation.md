@@ -1,6 +1,6 @@
 # Knowgrph DeerFlow Delivery and Validation
 
-**Document Version**: 1.0.0  
+**Document Version**: 1.1.0  
 **Date**: 2026-05-07  
 **Status**: Proposed  
 **Companion To**: `knowgrph-deerflow-prd-tad.md`, `knowgrph-deerflow-prd-tad-integration-contracts-and-patterns.md`
@@ -16,6 +16,19 @@
 ---
 
 ## Delivery Strategy
+
+```mermaid
+flowchart LR
+    P0[Phase 0: Readiness] --> P1[Phase 1: MainPanel]
+    P1 --> P2[Phase 2: Parse]
+    P2 --> P3[Phase 3: Runtime]
+    P3 --> P4[Phase 4: E2E + Release]
+
+    P0 -.->|baseline snapshots| P4
+    P1 -.->|SSOT rows| P2
+    P2 -.->|normalized metadata| P3
+    P3 -.->|canonical artifacts| P4
+```
 
 ## Phase 0: Readiness and Baselines
 
@@ -199,6 +212,27 @@
 
 ## Quality Gate Definitions
 
+```mermaid
+flowchart TD
+    QG1[QG-1: Contract Gate] -->|pass| QG2[QG-2: Functionality Gate]
+    QG2 -->|pass| QG3[QG-3: Reliability Gate]
+    QG3 -->|pass| QG4[QG-4: Regression Gate]
+    QG4 -->|pass| QG5[QG-5: Release Gate]
+    QG5 -->|pass| REL[Release]
+
+    QG1 -->|fail| FIX1[Fix contract mismatch]
+    QG2 -->|fail| FIX2[Fix blocker defects]
+    QG3 -->|fail| FIX3[Fix retry/failure paths]
+    QG4 -->|fail| FIX4[Fix regressions]
+    QG5 -->|fail| FIX5[Complete documentation]
+
+    FIX1 --> QG1
+    FIX2 --> QG2
+    FIX3 --> QG3
+    FIX4 --> QG4
+    FIX5 --> QG5
+```
+
 ## QG-1: Contract Gate
 - All required contracts compile and validate.
 - No unresolved contract mismatch between parser and dispatcher.
@@ -222,6 +256,17 @@
 ---
 
 ## Rollback and Recovery Plan
+
+```mermaid
+flowchart TD
+    TRIGGER[Trigger: Critical failure detected] --> R1[Disable DeerFlow feature flag]
+    R1 --> R2[Revert to prior provider routing]
+    R2 --> R3[Preserve parsed metadata, bypass adapter]
+    R3 --> R4[Publish incident note + ETA]
+    R4 --> VERIFY[Smoke test MainPanel + parser + existing flow]
+    VERIFY -->|pass| STABLE[System stable on prior provider]
+    VERIFY -->|fail| R1
+```
 
 ## Trigger Conditions
 - Critical runtime failures in generation dispatch.
@@ -285,3 +330,4 @@
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-05-07 | joohwee | Initial delivery phases and validation matrix for DeerFlow integration |
+| 1.1.0 | 2026-05-07 | joohwee | Added Mermaid diagrams (delivery pipeline, quality gates, rollback flow) per PRD-TAD guidelines |

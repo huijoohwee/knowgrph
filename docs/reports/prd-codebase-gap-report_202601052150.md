@@ -1,7 +1,7 @@
 # PRD–Codebase Gap Report: Markdown-to-Rendering Pipeline
 
 - Report ID: `prd-codebase-gap-report_202601052150`
-- Repo: `/Users/huijoohwee/Documents/GitHub/knowgrph`
+- Repo: `${KG_GITHUB_ROOT}/knowgrph`
 - PRD / Guidelines Baseline: [knowgrph-pipeline-guidelines.md](https://huijoohwee.github.io/guidelines/knowgrph-pipeline-guidelines.md)
 - Scope: End-to-end automated, integrated markdown-to-rendering pipeline (excluding code under `/docs` for “current module” mapping)
 
@@ -24,16 +24,16 @@
 ### A) Automated markdown pipeline execution (dev server hook)
 
 1) Canvas constructs the markdown pipeline command text and artifacts paths:
-- Command text and output locations are centralized in [tooltips.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/config-copy/tooltips.ts#L479-L507) as:
+- Command text and output locations are centralized in [tooltips.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/config-copy/tooltips.ts#L479-L507) as:
   - `CODEBASE_INDEX_PIPELINE_COMMAND`
   - `CODEBASE_INDEX_PIPELINE_*_REL_PATH`
 
 2) In dev mode, Canvas can trigger the pipeline over HTTP:
-- Vite dev server registers a POST endpoint `/__run_markdown_pipeline` and executes the command via `spawn(...)` in [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts#L13-L62).
-- Canvas exposes a dev-only `window.knowgrphRunMarkdownPipeline()` helper and calls it inside `runMarkdownPipelineAndLoadArtifacts()` in [workflowJsonLdActions.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L351-L509).
+- Vite dev server registers a POST endpoint `/__run_markdown_pipeline` and executes the command via `spawn(...)` in [vite.config.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/vite.config.ts#L13-L62).
+- Canvas exposes a dev-only `window.knowgrphRunMarkdownPipeline()` helper and calls it inside `runMarkdownPipelineAndLoadArtifacts()` in [workflowJsonLdActions.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L351-L509).
 
 3) After (optionally) running the pipeline, Canvas loads the generated artifacts from disk:
-- `runMarkdownPipelineAndLoadArtifacts()` fetches graph/schema/orchestrator texts via `/@fs...` URLs built by `buildFsUrlForRelPath(...)` in [workflowJsonLdActions.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L377-L509).
+- `runMarkdownPipelineAndLoadArtifacts()` fetches graph/schema/orchestrator texts via `/@fs...` URLs built by `buildFsUrlForRelPath(...)` in [workflowJsonLdActions.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L377-L509).
 - It then:
   - Loads graph data via `loadGraphDataFromTextViaParser(...)` (same file).
   - Parses and sets schema via `parseSchemaText(...)` then `store.setSchema(...)`.
@@ -41,33 +41,33 @@
 
 ### B) Offline markdown → JSON-LD graph generation (Python CLI)
 
-1) CLI entrypoint dispatches `python -m knowgrph_parser markdown ...` to `markdown_cmd` in [cli.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/cli.py#L17-L45).
+1) CLI entrypoint dispatches `python -m knowgrph_parser markdown ...` to `markdown_cmd` in [cli.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/cli.py#L17-L45).
 
 2) `markdown_cmd` generates four artifacts in one run:
-- Graph JSON-LD: `parse_markdown_to_graph_jsonld(...)` in [markdown_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_cmd.py#L57-L69)
+- Graph JSON-LD: `parse_markdown_to_graph_jsonld(...)` in [markdown_cmd.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/markdown_cmd.py#L57-L69)
 - Schema JSON-LD: `build_schema_config_jsonld(...)` (called from `markdown_cmd.py`)
 - Orchestrator YAML: `build_orchestrator_config_yaml(...)` (called from `markdown_cmd.py`)
 - Generated markdown doc summary: `build_knowgrph_doc_markdown(...)` (called from `markdown_cmd.py`)
 
 3) Structural markdown parsing and provenance:
-- `parse_markdown_text_to_graph_jsonld(...)` in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L283-L511)
+- `parse_markdown_text_to_graph_jsonld(...)` in [graph_builder.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/graph_builder.py#L283-L511)
   - Creates `Document`, `Section`, `Paragraph`, `CodeBlock`, `Table`, `List`, `ListItem`, `Link` nodes.
   - Adds edges: `hasSection`, `hasBlock`, `hasItem`, `linksTo`, `next`.
   - Adds provenance metadata: `lineStart`, `lineEnd`, `sourcePath`, `sourceUri`, `codebaseRelPath`, `codebasePath` fragment ranges.
-- Block extraction is a custom markdown block splitter in [markdown_blocks.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/markdown_blocks.py#L42-L167).
+- Block extraction is a custom markdown block splitter in [markdown_blocks.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/markdown_blocks.py#L42-L167).
 
 ### C) In-app markdown rendering (React)
 
 1) Markdown lexing:
-- Tokenizes markdown via `marked.lexer` and annotates token line ranges in [markdownPreviewLex.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L44-L63).
+- Tokenizes markdown via `marked.lexer` and annotates token line ranges in [markdownPreviewLex.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L44-L63).
 
 2) Rendering:
-- Uses `MarkdownTokenRenderer` to render tokens with highlight ranges and safe link/media handling: [MarkdownTokenRenderer.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/MarkdownTokenRenderer.tsx).
-- The preview surface supports a presentation mode with slide splitting and optional MDX evaluation: [MarkdownPreview.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/MarkdownPreview.tsx#L95-L518).
+- Uses `MarkdownTokenRenderer` to render tokens with highlight ranges and safe link/media handling: [MarkdownTokenRenderer.tsx](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/MarkdownTokenRenderer.tsx).
+- The preview surface supports a presentation mode with slide splitting and optional MDX evaluation: [MarkdownPreview.tsx](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/MarkdownPreview.tsx#L95-L518).
 
 3) Safe link resolution + local file access:
-- Resolves relative links against the active document path and maps repo-relative paths to Vite `/@fs` URLs: [markdownPreviewLinks.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L47-L63).
-- Renders selected HTML blocks via `DOMParser` with a small safe subset (a/img/video/iframe/etc) and iframe sandboxing: [markdownPreviewLinks.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L118-L241).
+- Resolves relative links against the active document path and maps repo-relative paths to Vite `/@fs` URLs: [markdownPreviewLinks.tsx](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L47-L63).
+- Renders selected HTML blocks via `DOMParser` with a small safe subset (a/img/video/iframe/etc) and iframe sandboxing: [markdownPreviewLinks.tsx](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L118-L241).
 
 ---
 
@@ -104,8 +104,8 @@ gap-001:
 ```
 
 Evidence:
-- Structural parsing exists in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L283-L511).
-- UI tokenization exists (for rendering/highlighting) in [markdownPreviewLex.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L44-L63), but it does not emit entity nodes/edges into GraphData.
+- Structural parsing exists in [graph_builder.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/graph_builder.py#L283-L511).
+- UI tokenization exists (for rendering/highlighting) in [markdownPreviewLex.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L44-L63), but it does not emit entity nodes/edges into GraphData.
 
 ### Feature: Edge Elevation (Relationships + Confidence + Properties)
 
@@ -122,7 +122,7 @@ gap-002:
 ```
 
 Evidence:
-- Edge creation in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L91-L281) is limited to structural relations.
+- Edge creation in [graph_builder.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/graph_builder.py#L91-L281) is limited to structural relations.
 
 ### Feature: Threshold Tuning (Adaptive Boundary Calibration)
 
@@ -209,8 +209,8 @@ gap-008:
 ```
 
 Evidence:
-- Python provenance fields in [graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L27-L56).
-- UI line-range derivation in [markdownPreviewLex.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L18-L63).
+- Python provenance fields in [graph_builder.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/graph_builder.py#L27-L56).
+- UI line-range derivation in [markdownPreviewLex.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLex.ts#L18-L63).
 
 ### Feature: Zero Hardcoding (Domain Blindness)
 
@@ -227,7 +227,7 @@ gap-009:
 ```
 
 Evidence:
-- Example hardcoded vocab and predicate mapping in [pipeline_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/pipeline_cmd.py#L143-L180) and [pipeline_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/pipeline_cmd.py#L125-L140).
+- Example hardcoded vocab and predicate mapping in [pipeline_cmd.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/pipeline_cmd.py#L143-L180) and [pipeline_cmd.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/pipeline_cmd.py#L125-L140).
 
 ---
 
@@ -285,8 +285,8 @@ phase-4-agentic:
 
 ## Acceptance Criteria Validation (This Repo, Current Baseline)
 
-- [x] User workflow completes end-to-end: dev server can run pipeline and load artifacts into UI ([vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts#L35-L62), [workflowJsonLdActions.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L430-L509)).
-- [x] Provenance line ranges exist for structural markdown nodes ([graph_builder.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/graph_builder.py#L27-L56)).
-- [x] Rendering supports markdown and safe local link resolution for repo browsing ([markdownPreviewLinks.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L47-L63)).
+- [x] User workflow completes end-to-end: dev server can run pipeline and load artifacts into UI ([vite.config.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/vite.config.ts#L35-L62), [workflowJsonLdActions.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/panels/hooks/workflowJsonLdActions.ts#L430-L509)).
+- [x] Provenance line ranges exist for structural markdown nodes ([graph_builder.py](file://${KG_GITHUB_ROOT}/knowgrph/knowgrph_parser/graph_builder.py#L27-L56)).
+- [x] Rendering supports markdown and safe local link resolution for repo browsing ([markdownPreviewLinks.tsx](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown/ui/markdownPreviewLinks.tsx#L47-L63)).
 - [ ] Semantic extraction layers (TokenLinker/EdgeElevator/ThresholdTuner/DocumentUnifier/Feedback/Reasoning/Agentic engine) are implemented per guidelines.
 - [ ] Zero-hardcoding audit passes across pipeline utilities (see gap-009).

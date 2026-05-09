@@ -4,6 +4,8 @@ import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCan
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
 
 export const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 export const EMPTY_STRING_ARRAY: string[] = []
@@ -80,7 +82,14 @@ export function clampFinite(v: number, lo: number, hi: number): number {
 export function pickGraphDataForFlowRenderer(args: {
   graphData: GraphData | null
   effectiveFrontmatter: boolean
+  canvas2dRenderer?: string
 }): GraphData | null {
   if (!args.graphData) return null
+  const flowEditorFrontmatterFlowMode =
+    String(args.canvas2dRenderer || '').trim() === 'flowEditor'
+    && isFrontmatterFlowGraph(args.graphData)
+  if (flowEditorFrontmatterFlowMode) {
+    return filterGraphToFlowWidgetEligible(args.graphData)
+  }
   return args.graphData
 }

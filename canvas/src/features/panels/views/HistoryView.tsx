@@ -132,6 +132,8 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     clearUiLog,
     chatExchangeLogs: chatExchangeLogsRaw,
     clearChatExchangeLogs,
+    requestedHistorySubTab,
+    requestHistorySubTab,
     uiIconScale,
     uiIconStrokeWidth,
   } = useGraphStore(

@@ -25,19 +25,32 @@ export function placeWidgetsCenteredInGroupBounds(args: {
   const cellW = Number.isFinite(args.cellW) ? Math.max(1, args.cellW) : 1
   const cellH = Number.isFinite(args.cellH) ? Math.max(1, args.cellH) : 1
   const gapWorld = Number.isFinite(args.gapWorld) ? Math.max(0, args.gapWorld) : 0
-  const layout = computeBalancedSpreadLayout({
-    count: ids.length,
-    viewportW: boundW,
-    viewportH: boundH,
-    cellW,
-    cellH,
-    gapPx: gapWorld,
-    zoomK: 1,
-    marginLeftPx: 0,
-    marginRightPx: 0,
-    marginTopPx: 0,
-    marginBottomPx: 0,
-  })
+  const computeLayout = (viewportW: number, viewportH: number) =>
+    computeBalancedSpreadLayout({
+      count: ids.length,
+      viewportW,
+      viewportH,
+      cellW,
+      cellH,
+      gapPx: gapWorld,
+      zoomK: 1,
+      marginLeftPx: 0,
+      marginRightPx: 0,
+      marginTopPx: 0,
+      marginBottomPx: 0,
+    })
+  let layout = computeLayout(boundW, boundH)
+  const seededRowCount = new Set(layout.cells.map(cell => cell.row)).size
+  const shouldForceMultiRowReseed =
+    ids.length >= 5
+    && seededRowCount <= 1
+    && boundW >= Math.max(cellW * 3, boundH * 2)
+  if (shouldForceMultiRowReseed) {
+    const forcedViewportH = Math.max(boundH, cellH * 2)
+    const forcedLayout = computeLayout(boundW, forcedViewportH)
+    const forcedRows = new Set(forcedLayout.cells.map(cell => cell.row)).size
+    if (forcedRows > seededRowCount) layout = forcedLayout
+  }
 
   const out: Array<{ id: string; x: number; y: number }> = []
   for (let i = 0; i < ids.length; i += 1) {

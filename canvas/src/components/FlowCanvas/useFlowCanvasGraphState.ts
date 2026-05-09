@@ -94,8 +94,12 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   }, [renderGraphData])
 
   const filteredGraphDataForRenderer = React.useMemo(() => {
-    return pickGraphDataForFlowRenderer({ graphData: clonedGraphData, effectiveFrontmatter })
-  }, [clonedGraphData, effectiveFrontmatter])
+    return pickGraphDataForFlowRenderer({
+      graphData: clonedGraphData,
+      effectiveFrontmatter,
+      canvas2dRenderer,
+    })
+  }, [canvas2dRenderer, clonedGraphData, effectiveFrontmatter])
 
   const sceneDisplayGraphDerivation = React.useMemo(() => {
     if (!filteredGraphDataForRenderer) return null

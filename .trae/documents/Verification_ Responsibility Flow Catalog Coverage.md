@@ -21,4 +21,4 @@
 2. Re-run the Settings Schema build if we are also mirroring this in the generated JSON; otherwise keep as a direct catalog row.
 
 ## Result Expectation
-- After appending the `enableVirtualTables` row, the catalog will be 100% reflective of configurable settings in `/Users/huijoohwee/Documents/GitHub/knowgrph` and suitable as the reference for the Settings Panel.
+- After appending the `enableVirtualTables` row, the catalog will be 100% reflective of configurable settings in `${KG_GITHUB_ROOT}/knowgrph` and suitable as the reference for the Settings Panel.

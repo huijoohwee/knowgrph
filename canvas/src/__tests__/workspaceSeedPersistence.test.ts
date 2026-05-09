@@ -1,5 +1,6 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import path from 'node:path'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
@@ -52,6 +53,12 @@ import {
   readWorkspaceInitializationSeedText,
   upsertWorkspaceInitializationSeedText,
 } from '@/features/workspace-fs/workspaceSeedProvider'
+
+const normalizeFsPath = (value: string): string => String(value || '').replace(/\\/g, '/')
+const KG_GITHUB_ROOT = normalizeFsPath(path.resolve(process.cwd(), '..', '..'))
+const KG_HUIJOOHWEE_DOCS_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/docs`
+const KG_KNOWGRPH_DOCS_ROOT = `${KG_GITHUB_ROOT}/knowgrph/docs`
+const KG_HUIJOOHWEE_DOCS_FS_PREFIX = `/@fs${KG_HUIJOOHWEE_DOCS_ROOT}`
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
@@ -780,13 +787,13 @@ export async function testActiveMarkdownDocumentHelpersCentralizePayloadDefaults
 
 export async function testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot() {
   const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
-  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
   const previousFetch = globalThis.fetch
   const calls: string[] = []
   ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
     const url = String(typeof input === 'string' ? input : (input as URL).toString())
     calls.push(url)
-    if (url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')) {
+    if (url.includes(`${KG_HUIJOOHWEE_DOCS_FS_PREFIX}/knowgrph-video-demo.md`)) {
       return new Response('# absolute docs seed', { status: 200 })
     }
     return new Response('', { status: 404 })
@@ -799,7 +806,7 @@ export async function testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot
     if (text !== '# absolute docs seed') {
       throw new Error(`expected absolute docs seed provider path to win, got ${String(text || '')}`)
     }
-    if (!calls.some(url => url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md'))) {
+    if (!calls.some(url => url.includes(`${KG_HUIJOOHWEE_DOCS_FS_PREFIX}/knowgrph-video-demo.md`))) {
       throw new Error('expected workspace seed provider to probe configured absolute docs root through Vite /@fs')
     }
   } finally {
@@ -815,13 +822,13 @@ export async function testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot
 
 export async function testWorkspaceSeedProviderResolvesDocsWorkspaceSeedsFromConfiguredAbsoluteDocsRoot() {
   const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
-  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
   const previousFetch = globalThis.fetch
   const calls: string[] = []
   ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
     const url = String(typeof input === 'string' ? input : (input as URL).toString())
     calls.push(url)
-    if (url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/workspace-seeds/knowgrph-video-demo.md')) {
+    if (url.includes(`${KG_HUIJOOHWEE_DOCS_FS_PREFIX}/workspace-seeds/knowgrph-video-demo.md`)) {
       return new Response('# docs workspace-seeds absolute root', { status: 200 })
     }
     return new Response('', { status: 404 })
@@ -834,7 +841,7 @@ export async function testWorkspaceSeedProviderResolvesDocsWorkspaceSeedsFromCon
     if (text !== '# docs workspace-seeds absolute root') {
       throw new Error(`expected docs/workspace-seeds absolute docs-root seed to resolve, got ${String(text || '')}`)
     }
-    if (!calls.some(url => url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/workspace-seeds/knowgrph-video-demo.md'))) {
+    if (!calls.some(url => url.includes(`${KG_HUIJOOHWEE_DOCS_FS_PREFIX}/workspace-seeds/knowgrph-video-demo.md`))) {
       throw new Error('expected workspace seed provider to probe docs/workspace-seeds path relative to configured absolute docs root')
     }
   } finally {
@@ -853,7 +860,7 @@ export async function testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy()
   const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousFetch = globalThis.fetch
   const calls: Array<{ url: string; body: string }> = []
-  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
   ;(globalThis as unknown as { window: Window }).window = {
     setTimeout: ((handler: TimerHandler) => {
       if (typeof handler === 'function') handler()
@@ -883,7 +890,7 @@ export async function testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy()
     if (!writeCall) {
       throw new Error('expected workspace seed provider to call /__kg_fs_write in browser mode')
     }
-    if (!writeCall.body.includes('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')) {
+    if (!writeCall.body.includes(`${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`)) {
       throw new Error('expected workspace seed provider write payload to target configured docs absolute path')
     }
   } finally {
@@ -976,7 +983,7 @@ export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesSta
   try {
     store.setLocalMarkdownFolderHandle(null)
     store.setLocalMarkdownFolderCacheId(null, null)
-    store.setLocalMarkdownSelectedFolderPath('Users/huijoohwee/Documents/GitHub/huijoohwee/docs')
+    store.setLocalMarkdownSelectedFolderPath(KG_HUIJOOHWEE_DOCS_ROOT)
     store.setSourceFiles([
       {
         id: 'sf-remote-video',
@@ -985,7 +992,7 @@ export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesSta
         enabled: true,
         source: {
           kind: 'local',
-          path: '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md',
+          path: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`,
         },
         updatedAtMs: 1710000000000,
       },
@@ -996,7 +1003,7 @@ export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesSta
         enabled: true,
         source: {
           kind: 'local',
-          path: '/Users/huijoohwee/Documents/GitHub/knowgrph/docs/outside.md',
+          path: `${KG_KNOWGRPH_DOCS_ROOT}/outside.md`,
         },
         updatedAtMs: 1710000001000,
       },
@@ -1065,7 +1072,7 @@ export async function testWorkspaceSeedProviderResolvesRelativeDocsPathForAbsolu
   try {
     store.setLocalMarkdownFolderHandle(null)
     store.setLocalMarkdownFolderCacheId(null, null)
-    store.setLocalMarkdownSelectedFolderPath('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs')
+    store.setLocalMarkdownSelectedFolderPath(KG_HUIJOOHWEE_DOCS_ROOT)
     store.setSourceFiles([
       {
         id: 'sf-relative-docs',
@@ -1098,11 +1105,11 @@ export async function testRuntimeSourceFilesReflectWorkspaceSeedFileContentChang
   const previousFetch = globalThis.fetch
   let root: ReturnType<typeof createRoot> | null = null
   const { restore } = initJsdomHarness()
-  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
   let docsText = '# seed v1\n\nruntime reflection baseline'
   ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
     const url = String(typeof input === 'string' ? input : (input as URL).toString())
-    if (url.includes('/@fs/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')) {
+    if (url.includes(`${KG_HUIJOOHWEE_DOCS_FS_PREFIX}/knowgrph-video-demo.md`)) {
       return new Response(docsText, { status: 200 })
     }
     return new Response('', { status: 404 })

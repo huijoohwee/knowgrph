@@ -67,11 +67,11 @@ flowchart TD
 
 ## Code References
 
-- Workspace export entrypoint: [exportHtmlCanvasFromWorkspace](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown-workspace/main/exports/exportHtmlCanvas.ts)
-- SVG snapshot + DOM overlay capture: [svgSnapshot.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/svgSnapshot.ts)
-- Offscreen 2D SVG renderer: [renderGraphCanvasSvgForHtmlExport](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/htmlCanvasSvgExport.ts)
-- 2D style parity applicator: [useGraphCanvasStyles.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/useGraphCanvasStyles.ts)
-- Markdown block SVG overlay injector: [markdownDesignSvgOverlay.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/htmlViewer/markdownDesignSvgOverlay.ts)
-- Standalone SVG rewrite: [rewriteSvgMarkupForStandaloneHtmlExport.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport.ts)
-- HTML viewer builder: [graphHtmlViewer.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/graphHtmlViewer.ts)
-- Sandbox exporter: [export-canvas-html.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/sandbox/export-canvas-html.ts)
+- Workspace export entrypoint: [exportHtmlCanvasFromWorkspace](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/features/markdown-workspace/main/exports/exportHtmlCanvas.ts)
+- SVG snapshot + DOM overlay capture: [svgSnapshot.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/svgSnapshot.ts)
+- Offscreen 2D SVG renderer: [renderGraphCanvasSvgForHtmlExport](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/htmlCanvasSvgExport.ts)
+- 2D style parity applicator: [useGraphCanvasStyles.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/components/GraphCanvas/useGraphCanvasStyles.ts)
+- Markdown block SVG overlay injector: [markdownDesignSvgOverlay.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/htmlViewer/markdownDesignSvgOverlay.ts)
+- Standalone SVG rewrite: [rewriteSvgMarkupForStandaloneHtmlExport.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport.ts)
+- HTML viewer builder: [graphHtmlViewer.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/src/lib/graph/graphHtmlViewer.ts)
+- Sandbox exporter: [export-canvas-html.ts](file://${KG_GITHUB_ROOT}/knowgrph/canvas/sandbox/export-canvas-html.ts)

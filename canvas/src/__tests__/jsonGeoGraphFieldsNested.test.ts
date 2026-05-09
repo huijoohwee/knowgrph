@@ -55,7 +55,7 @@ export function testGraphDataTableNestedPropertyColumnsReadNestedValues() {
 }
 
 export function testSingapolyJsonGeoParsingAndGraphFields() {
-  const fixturePath = path.resolve('/Users/huijoohwee/Documents/GitHub/sandbox/test-data/singapoly.json')
+  const fixturePath = path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'singapoly.json')
   let text = ''
   try {
     text = readFileSync(fixturePath, 'utf8')

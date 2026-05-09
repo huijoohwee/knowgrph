@@ -19,6 +19,7 @@ import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -95,7 +96,7 @@ export function resolveFlowEditorVisibleViewport(args: {
   viewportW: number
   viewportH: number
 }) {
-  return {
+  const fallback = {
     left: 0,
     top: 0,
     right: args.viewportW,
@@ -104,6 +105,29 @@ export function resolveFlowEditorVisibleViewport(args: {
     height: args.viewportH,
     centerX: args.viewportW / 2,
     centerY: args.viewportH / 2,
+  }
+  if (typeof document === 'undefined') return fallback
+  const surfaceId = String(args.flowEditorSurfaceId || '').trim()
+  if (!surfaceId) return fallback
+  const surfaceRoot = document.querySelector<HTMLElement>(
+    `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(surfaceId)}"]`,
+  )
+  if (!(surfaceRoot instanceof HTMLElement)) return fallback
+  const rect = surfaceRoot.getBoundingClientRect()
+  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.right) || !Number.isFinite(rect.bottom)) return fallback
+  const left = Math.max(0, Math.min(args.viewportW, rect.left))
+  const right = Math.max(left + 1, Math.min(args.viewportW, rect.right))
+  const top = Math.max(0, Math.min(args.viewportH, rect.top))
+  const bottom = Math.max(top + 1, Math.min(args.viewportH, rect.bottom))
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top),
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2,
   }
 }
 
@@ -231,6 +255,7 @@ export const applyZoomRequestNative = (args: {
     }
   }
   const state = useGraphStore.getState()
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(state)
   const schema = state.schema
   if (!schema) {
     clear()
@@ -255,12 +280,13 @@ export const applyZoomRequestNative = (args: {
       args.zoomRequest.type === 'reset'
       || args.zoomRequest.type === 'fit'
     )
+  const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest
   const isFlowEditorGraphFitRequest =
     isFlowEditorFitLikeRequest
     && !!args.graphData
     && Array.isArray(args.graphData.nodes)
     && args.graphData.nodes.length > 0
-  const flowEditorOverlayFitResolved = isFlowEditorFitLikeRequest
+  const flowEditorOverlayFitResolved = isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen
     ? (() => {
         const bounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
         if (!bounds) return null
@@ -291,33 +317,42 @@ export const applyZoomRequestNative = (args: {
           args.zoomRequest.type === 'fit' && args.zoomRequest.intent === 'fitToScreen'
             ? 'fitToScreen'
             : 'fitToView'
-        const fit = fitFlowEditorPinnedWidgets({
-          nodes: args.graphData?.nodes || [],
-          fitW: viewportW,
-          viewportW,
-          viewportH,
-          openWidgetNodeIds: Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : [],
-          pinnedById: state.flowWidgetPinnedByNodeId || {},
-          worldPosById: state.flowWidgetWorldPosByNodeId || {},
-          portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
-          graphData: args.graphData,
-          frontmatterOverlayFitProxyScales: {
-            phone: state.frontmatterFlowOverlayFitProxyScalePhone,
-            tablet: state.frontmatterFlowOverlayFitProxyScaleTablet,
-            laptop: state.frontmatterFlowOverlayFitProxyScaleLaptop,
-            desktop: state.frontmatterFlowOverlayFitProxyScaleDesktop,
-          },
-          fitOpts: buildFlowFitOptions({
-            schema,
-            intent,
-            frontmatterModeEnabled: state.frontmatterModeEnabled === true,
-            multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
-            documentSemanticMode: String(state.documentSemanticMode || 'document'),
-            documentStructureBaselineLock: state.documentStructureBaselineLock === true,
-            enableDocumentStructureBounds: intent !== 'fitToScreen',
-            frontmatterFlowInitialFitFillRatio: state.frontmatterFlowInitialFitFillRatio,
-          }),
+        const fitOpts = buildFlowFitOptions({
+          schema,
+          intent,
+          frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+          multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
+          documentSemanticMode: String(state.documentSemanticMode || 'document'),
+          documentStructureBaselineLock: state.documentStructureBaselineLock === true,
+          enableDocumentStructureBounds: intent !== 'fitToScreen',
+          frontmatterFlowInitialFitFillRatio: state.frontmatterFlowInitialFitFillRatio,
         })
+        const useWorkspaceOverlayGraphFallbackFit = workspaceEditorOverlayOpen
+        const fit = useWorkspaceOverlayGraphFallbackFit
+          ? fitAllTransform(
+              args.graphData?.nodes || [],
+              Math.max(1, visibleViewport.width),
+              Math.max(1, visibleViewport.height),
+              { ...fitOpts, graphData: args.graphData || undefined },
+            )
+          : fitFlowEditorPinnedWidgets({
+              nodes: args.graphData?.nodes || [],
+              fitW: viewportW,
+              viewportW,
+              viewportH,
+              openWidgetNodeIds: Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : [],
+              pinnedById: state.flowWidgetPinnedByNodeId || {},
+              worldPosById: state.flowWidgetWorldPosByNodeId || {},
+              portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
+              graphData: args.graphData,
+              frontmatterOverlayFitProxyScales: {
+                phone: state.frontmatterFlowOverlayFitProxyScalePhone,
+                tablet: state.frontmatterFlowOverlayFitProxyScaleTablet,
+                laptop: state.frontmatterFlowOverlayFitProxyScaleLaptop,
+                desktop: state.frontmatterFlowOverlayFitProxyScaleDesktop,
+              },
+              fitOpts,
+            })
         return {
           nextTransform: fit,
           durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
@@ -357,12 +392,14 @@ export const applyZoomRequestNative = (args: {
     setFlowAutoMinScale(args.runtime, combined)
   }
   clear()
-  const durationMs = Math.max(0, Math.floor(resolved.durationMs))
+  const durationMs = forceImmediateWorkspaceOverlayFit
+    ? 0
+    : Math.max(0, Math.floor(resolved.durationMs))
   if (durationMs === 0) {
     cancelFlowZoomRequestAnim(args.runtime)
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
-    if (isFlowEditorFitLikeRequest) {
+    if (isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime: args.runtime,
         viewportW,
@@ -392,7 +429,7 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
-      if (isFlowEditorFitLikeRequest) {
+      if (isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen) {
         recenterVisibleFlowEditorOverlayCentroid({
           runtime: args.runtime,
           viewportW,

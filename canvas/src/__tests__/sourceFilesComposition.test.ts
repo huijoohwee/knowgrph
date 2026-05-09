@@ -1,4 +1,8 @@
 import type { GraphData } from '@/lib/graph/types'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { buildSourceLayerKeys, composeGraphFromSourceLayers, resolveSourceLayerKeyChange } from '@/lib/graph/sourceLayers'
 import {
@@ -439,9 +443,9 @@ export function testComposedApplyDeferralHelperCentralizesRaceSuppression() {
       composedGraphData: previousNodeBearingGraph,
       layers: [{ enabled: true, status: 'parsed', text: '# parsed text', parsedGraphData: previousNodeBearingGraph }],
       workspaceEditorOverlayOpen: true,
-    }) !== 'workspace-editor-overlay-open'
+    }) !== null
   ) {
-    throw new Error('expected composed apply deferral helper to preserve graph layout while the workspace/indexing overlay is open')
+    throw new Error('expected composed apply deferral helper to avoid blocking semantic source-file graph/preset updates while Workspace overlay is open')
   }
 
   if (
@@ -502,6 +506,96 @@ export function testComposedApplyEmptyStateHelperCentralizesClearingRule() {
     })
   ) {
     throw new Error('expected composed apply empty-state helper to leave non-composed graphs untouched')
+  }
+}
+
+export async function testComposedUnchangedLayersReapplyActiveSourceFrontmatterPreset() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  const previousActivePath = useMarkdownExplorerStore.getState().activePath
+  try {
+    const state = useGraphStore.getState()
+    state.resetAll()
+    state.clearSourceFiles()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    const mapsPath = 'workspace:/docs/knowgrph-maps-places.md'
+    const videoPath = 'workspace:/docs/knowgrph-video-demo.md'
+    const mapsText = [
+      '---',
+      'title: "Maps"',
+      'kgCanvasSurfaceMode: "geospatial"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "d3"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      '---',
+      '# Maps',
+    ].join('\n')
+    const videoText = [
+      '---',
+      'title: "Video Demo"',
+      'kgCanvasSurfaceMode: "2d"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "flowEditor"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      '---',
+      '# Video Demo',
+    ].join('\n')
+
+    state.addSourceFile({
+      id: 'sf-maps',
+      name: 'knowgrph-maps-places.md',
+      text: mapsText,
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'maps-node', label: 'Maps', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
+      parsedTextHash: 'maps-h1',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: mapsPath },
+    })
+    state.addSourceFile({
+      id: 'sf-video',
+      name: 'knowgrph-video-demo.md',
+      text: videoText,
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'video-node', label: 'Video', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
+      parsedTextHash: 'video-h1',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: videoPath },
+    })
+
+    useMarkdownExplorerStore.getState().setActivePath(mapsPath)
+    state.setMarkdownDocument(mapsPath, mapsText)
+    applyComposedGraphFromSourceFiles()
+    useGraphStore.getState().setCanvas2dRenderer('d3')
+
+    useMarkdownExplorerStore.getState().setActivePath(videoPath)
+    state.setMarkdownDocument(videoPath, videoText)
+    applyComposedGraphFromSourceFiles()
+
+    const after = useGraphStore.getState()
+    if (after.canvasRenderMode !== '2d') {
+      throw new Error(`expected unchanged-layer active source switch to keep render mode in 2d, got ${String(after.canvasRenderMode)}`)
+    }
+    if (after.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected unchanged-layer active source switch to reapply video frontmatter renderer preset, got ${String(after.canvas2dRenderer)}`)
+    }
+  } finally {
+    useMarkdownExplorerStore.getState().setActivePath(previousActivePath)
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
   }
 }
 

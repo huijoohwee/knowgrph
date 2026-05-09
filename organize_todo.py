@@ -1,4 +1,5 @@
 
+import os
 import re
 import sys
 from collections import defaultdict
@@ -23,7 +24,8 @@ def parse_row(line):
     return [clean_cell(p) for p in parts]
 
 def main():
-    file_path = '/Users/huijoohwee/Documents/GitHub/knowgrph/todo-log.md'
+    repo_root = os.path.abspath(os.path.dirname(__file__))
+    file_path = os.path.join(repo_root, 'todo-log.md')
     
     with open(file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()

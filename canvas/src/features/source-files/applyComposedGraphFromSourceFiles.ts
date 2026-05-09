@@ -156,7 +156,17 @@ export function applyComposedGraphFromSourceFiles() {
     contentKey,
     orderKey,
   })
-  if (change === 'unchanged') return
+  if (change === 'unchanged') {
+    const graphData = store.graphData
+    const metadata =
+      graphData?.metadata && typeof graphData.metadata === 'object'
+        ? (graphData.metadata as Record<string, unknown>)
+        : null
+    if (graphData && String(metadata?.sourceLayerComposition || '') === 'compose') {
+      applyComposedSourceImportModes(graphData)
+    }
+    return
+  }
   if (String((store.graphData?.metadata as Record<string, unknown> | null)?.sourceLayerComposition || '') !== 'compose') {
     lastAppliedComposedImportModesSignature = ''
   }

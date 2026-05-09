@@ -33,6 +33,8 @@ function readCanonicalGraphIdentity(raw: unknown): string {
 }
 
 function readGraphSourceIdentity(graph: GraphData | null | undefined): string {
+  const semanticGraphKey = buildGraphMetaKeyIgnoringPending(graph)
+  if (semanticGraphKey) return semanticGraphKey
   const meta = ((graph || null)?.metadata || {}) as Record<string, unknown>
   const kind = String(meta.kind || '').trim()
   const source = String(meta.source || '').trim()
@@ -222,6 +224,8 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
     const currentPosByNodeId = get().flowWidgetPosByNodeId || {}
     const carryForwardBalancedFloatingCollectiveState =
       stableSameSourceTopology &&
+      !!currentSourceIdentity &&
+      currentSourceIdentity === nextSourceIdentity &&
       shouldPreserveFrontmatterAutoManagedBalancedCollective({
         graphData: currentGraph,
         posByNodeId: currentPosByNodeId,
@@ -460,6 +464,8 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
     const currentPosByNodeId = get().flowWidgetPosByNodeId || {}
     const carryForwardBalancedFloatingCollectiveState =
       stableSameSourceTopology &&
+      !!currentSourceIdentity &&
+      currentSourceIdentity === nextSourceIdentity &&
       shouldPreserveFrontmatterAutoManagedBalancedCollective({
         graphData: currentGraph,
         posByNodeId: currentPosByNodeId,

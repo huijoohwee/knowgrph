@@ -33,7 +33,7 @@
   - Link `canvas/public/settings-flow.json`, `test-data/*` and `data/outputs/*` as `Artifact` nodes.
 
 ## Output & Location
-- Write JSON to `/Users/huijoohwee/Documents/GitHub/knowgrph/test-data/knowgrph-workflow.json`.
+- Write JSON to `${KG_GITHUB_ROOT}/knowgrph/test-data/knowgrph-workflow.json`.
 - Format aligns with `rawToGraphData` (`canvas/src/lib/graph/rawToGraph.ts:3`).
 
 ## Implementation Steps

@@ -16,7 +16,7 @@ import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
-import { CHAT_PROVIDER_BYTEPLUS, getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
+import { getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/flow-editor-manager/registryTemplates'
 import {
@@ -273,10 +273,10 @@ export function useFlowEditorWorkflowActions(args: {
             registry: args.widgetRegistry,
           })
           const normalizedProvider = normalizeChatProviderId(store.chatProvider)
-          const runProvider = CHAT_PROVIDER_BYTEPLUS
+          const runProvider = normalizedProvider || store.chatProvider
           const runAuthMode = store.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'
           const runApiKey = runAuthMode === 'byok' ? store.chatApiKey : ''
-          const runEndpointUrl = normalizedProvider === CHAT_PROVIDER_BYTEPLUS ? store.chatEndpointUrl : getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS)
+          const runEndpointUrl = String(store.chatEndpointUrl || '').trim() || getChatDefaultEndpointUrlForProvider(runProvider)
           const richMediaResult = await runRichMediaWidgetGeneration({
             node,
             connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),

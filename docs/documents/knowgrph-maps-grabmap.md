@@ -2,8 +2,8 @@
 
 ## Context
 
-- Dev repo: `/Users/huijoohwee/Documents/GitHub/knowgrph` (**MainPanel Maps**)
-- Prod repo: `/Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph`
+- Dev repo: `${KG_GITHUB_ROOT}/knowgrph` (**MainPanel Maps**)
+- Prod repo: `${KG_GITHUB_ROOT}/huijoohwee/knowgrph`
 - Deployment: Cloudflare (`airvio.co/knowgrph`)
 - Reference docs: https://maps.grab.com/developer/documentation
 - Constraint: **FORBID update code** (this document is recommendation only)

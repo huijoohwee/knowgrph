@@ -10,4 +10,7 @@ export function testGraphDataCommitCarriesOverlayStateOnlyAcrossSameSourceIdenti
   if (!text.includes('currentSourceIdentity === nextSourceIdentity')) {
     throw new Error('expected graph commit actions to require matching source identity before carrying same-source overlay UI state')
   }
+  if (!text.includes('const semanticGraphKey = buildGraphMetaKeyIgnoringPending(graph)')) {
+    throw new Error('expected graph commit source identity to reuse shared semantic graph key helper')
+  }
 }

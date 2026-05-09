@@ -3,13 +3,13 @@
 ## Source
 
 - Graph ID: `md:knowgrph-mermaid-frontmatter-document`
-- Markdown: `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-mermaid-frontmatter-document.md`
+- Markdown: `${KG_GITHUB_ROOT}/knowgrph/docs/documents/knowgrph-mermaid-frontmatter-document.md`
 
 ## Outputs
 
-- Graph JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-mermaid-frontmatter-document-graph-data.jsonld`
-- Schema JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-mermaid-frontmatter-document-schema-config.jsonld`
-- Orchestrator YAML: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-mermaid-frontmatter-document-orchestrator-config.yaml`
+- Graph JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-mermaid-frontmatter-document-graph-data.jsonld`
+- Schema JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-mermaid-frontmatter-document-schema-config.jsonld`
+- Orchestrator YAML: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-mermaid-frontmatter-document-orchestrator-config.yaml`
 
 ## Outline
 

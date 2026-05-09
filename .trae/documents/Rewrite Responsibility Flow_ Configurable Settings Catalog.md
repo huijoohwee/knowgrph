@@ -56,4 +56,4 @@
 
 * Backend pipeline configuration relies on environment variables; surface them in docs as reference, not in the frontend Settings Panel.
 
-If approved, I will replace `/Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph-codebase-responsibility-flow.md` with the table above and wire any new keys into the Settings Panel UI (read‑only for build/backend configs, writable for store settings).
+If approved, I will replace `${KG_GITHUB_ROOT}/knowgrph/knowgrph-codebase-responsibility-flow.md` with the table above and wire any new keys into the Settings Panel UI (read‑only for build/backend configs, writable for store settings).

@@ -120,7 +120,7 @@
 - `chatModel` accepts custom provider model ids via text input with shared suggestions; Settings can refresh `/v1/models` from the configured endpoint without forcing a static option list.
 - `chatContextScope` selects selection-only, workspace-wide (default), or hybrid context; hybrid adds workspace-wide file context to selection-derived graph and markdown snippets while keeping behavior bounded and schema-neutral.
 - `chatStorageTarget` selects primary persistence target: `chatKnowgrph` (default) or `chatHistory`.
-- `chatLocalStorageRootPath` defaults to `/Users/huijoohwee/Documents/GitHub/sandbox/chat-log` and is used as the root folder for auto-created local markdown files.
+- `chatLocalStorageRootPath` defaults to `${KG_GITHUB_ROOT}/sandbox/chat-log` and is used as the root folder for auto-created local markdown files.
 - `chatKnowgrphStorageMode` + `chatKnowgrphWorkspacePath` + `chatKnowgrphCloudUrl` configure Knowledge Graph Canvas storage (`kgc_yyyymmddhhmmss.md`, local/cloud).
 - In Chat UI with `chatStorageTarget=chatKnowgrph`, `New Chat` creates a fresh `kgc_yyyymmddhhmmss.md`, opens it in Workspace Editor (markdown pane), clears the active chat thread, and routes the next request/response into that new file.
 - `chatHistoryStorageMode` + `chatHistoryWorkspacePath` + `chatHistoryCloudUrl` configure Chat History storage (`chh_yyyymmddhhmmss.md`, local/cloud).

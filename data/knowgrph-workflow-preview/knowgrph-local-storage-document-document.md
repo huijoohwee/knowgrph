@@ -3,13 +3,13 @@
 ## Source
 
 - Graph ID: `md:knowgrph-local-storage-document`
-- Markdown: `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-local-storage-document.md`
+- Markdown: `${KG_GITHUB_ROOT}/knowgrph/docs/documents/knowgrph-local-storage-document.md`
 
 ## Outputs
 
-- Graph JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-local-storage-document-graph-data.jsonld`
-- Schema JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-local-storage-document-schema-config.jsonld`
-- Orchestrator YAML: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-local-storage-document-orchestrator-config.yaml`
+- Graph JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-local-storage-document-graph-data.jsonld`
+- Schema JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-local-storage-document-schema-config.jsonld`
+- Orchestrator YAML: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-local-storage-document-orchestrator-config.yaml`
 
 ## Outline
 
