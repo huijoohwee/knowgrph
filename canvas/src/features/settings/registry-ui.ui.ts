@@ -17,6 +17,8 @@ import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
   CHAT_DEFAULT_PROVIDER,
+  CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
+  CHAT_GEMINI_VIDEO_MODEL_OPTIONS,
   CHAT_PROVIDER_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_LOCAL_MODEL_OPTIONS,
@@ -647,6 +649,71 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     docKey: 'byteplusVideoImageUrlUrl',
     default: () => 'base64',
     options: ['base64', 'url'],
+  },
+  {
+    key: 'geminiVideoModel',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.geminiVideoModel, CHAT_GEMINI_VIDEO_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const normalized = String(v || '').trim() || CHAT_GEMINI_VIDEO_MODEL_DEFAULT
+      lsSetJson(LS_KEYS.geminiVideoModel, normalized)
+    },
+    docKey: 'geminiVideoModel',
+    default: () => CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
+    options: [...CHAT_GEMINI_VIDEO_MODEL_OPTIONS],
+  },
+  {
+    key: 'geminiVideoAspectRatio',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.geminiVideoAspectRatio, '16:9', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      lsSetJson(LS_KEYS.geminiVideoAspectRatio, raw === '9:16' ? '9:16' : '16:9')
+    },
+    docKey: 'geminiVideoAspectRatio',
+    default: () => '16:9',
+    options: ['16:9', '9:16'],
+  },
+  {
+    key: 'geminiVideoResolution',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.geminiVideoResolution, '720p', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      lsSetJson(LS_KEYS.geminiVideoResolution, (raw === '1080p' || raw === '4k') ? raw : '720p')
+    },
+    docKey: 'geminiVideoResolution',
+    default: () => '720p',
+    options: ['720p', '1080p', '4k'],
+  },
+  {
+    key: 'geminiVideoDurationSeconds',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.geminiVideoDurationSeconds, '8', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim()
+      lsSetJson(LS_KEYS.geminiVideoDurationSeconds, (raw === '4' || raw === '6') ? raw : '8')
+    },
+    docKey: 'geminiVideoDurationSeconds',
+    default: () => '8',
+    options: ['4', '6', '8'],
+  },
+  {
+    key: 'geminiVideoPersonGeneration',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.geminiVideoPersonGeneration, 'allow_all', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      lsSetJson(LS_KEYS.geminiVideoPersonGeneration, (raw === 'allow_adult' || raw === 'dont_allow') ? raw : 'allow_all')
+    },
+    docKey: 'geminiVideoPersonGeneration',
+    default: () => 'allow_all',
+    options: ['allow_all', 'allow_adult', 'dont_allow'],
   },
   {
     key: 'chatModel',

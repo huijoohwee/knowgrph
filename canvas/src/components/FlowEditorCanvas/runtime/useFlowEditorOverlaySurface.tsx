@@ -23,6 +23,7 @@ import {
   normalizeStringArrayForSignature,
 } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
 import {
   buildRichMediaConnectedValueTargetNodeIdSet,
@@ -130,11 +131,13 @@ export function useFlowEditorOverlaySurface(args: {
   } = args
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
+  const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')
   const frontmatterOverlayOnlyCoverageRef = React.useRef<{ key: string; untilMs: number } | null>(null)
 
   React.useEffect(() => {
     if (!flowEditorViewActive) {
       lastStableOverlayEditorNodeIdsRef.current = []
+      lastStableOverlayEditorNodeIdsGraphKeyRef.current = ''
       frontmatterOverlayOnlyCoverageRef.current = null
     }
   }, [flowEditorViewActive])
@@ -189,17 +192,26 @@ export function useFlowEditorOverlaySurface(args: {
   const overlayEditorNodeIds = React.useMemo(() => {
     if (!flowEditorViewActive) return []
     const isFrontmatterFlow = renderGraphPlacementContext?.isFrontmatterFlow === true
+    const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     const nodes = renderGraphNodes
     const nodeById = renderGraphNodeById
-    if (isFrontmatterFlow && nodes.length > 0) {
+    if (isFrontmatterFlow) {
       const sorted = renderGraphPlacementContext?.frontmatterOverlayNodeIds || []
       if (sorted.length > 0) {
         lastStableOverlayEditorNodeIdsRef.current = sorted
+        lastStableOverlayEditorNodeIdsGraphKeyRef.current = renderGraphSemanticKey
         return sorted
       }
-      return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []
+      const lastStable = lastStableOverlayEditorNodeIdsRef.current
+      const sameGraphAsLastStable = lastStableOverlayEditorNodeIdsGraphKeyRef.current === renderGraphSemanticKey
+      if (lastStable.length > 0 && (sameGraphAsLastStable || workspaceMutationBlocked || nodes.length === 0)) return lastStable
+      return []
     }
-    if (flowEditorFrontmatterGraphAvailable) return []
+    if (flowEditorFrontmatterGraphAvailable) {
+      const lastStable = lastStableOverlayEditorNodeIdsRef.current
+      if (workspaceMutationBlocked && lastStable.length > 0) return lastStable
+      return []
+    }
     const next = deriveOpenWidgetOverlayNodeIds({
       graphData: renderGraphDataOverride,
       openWidgetNodeIds: openWidgetNodeIdsSnapshot,
@@ -219,6 +231,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphEligibleNodeIds,
     renderGraphNodeById,
     renderGraphNodes,
+    renderGraphSemanticKey,
   ])
 
   React.useEffect(() => {
@@ -256,8 +269,11 @@ export function useFlowEditorOverlaySurface(args: {
   ])
 
   const renderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)
+  const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)
   React.useEffect(() => {
     renderGraphDataOverrideRef.current = renderGraphDataOverride
+    const nodeCount = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0
+    if (renderGraphDataOverride && nodeCount > 0) lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride
   }, [renderGraphDataOverride])
 
   const overlayEditorNodeIdsKey = React.useMemo(
@@ -426,6 +442,10 @@ export function useFlowEditorOverlaySurface(args: {
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
       if (found) return found
+      const canonicalMatch = resolveGraphNodeByCanonicalId(renderGraphDataOverride, id)
+      if (canonicalMatch) return canonicalMatch
+      const stableCanonicalMatch = resolveGraphNodeByCanonicalId(lastStableRenderGraphDataOverrideRef.current, id)
+      if (stableCanonicalMatch) return stableCanonicalMatch
       const pending = pendingOverlayNodeIdRef.current
       if (pending && pending === id) return pendingOverlayNode
       return null
@@ -556,6 +576,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphIncidentEdgesByNodeId,
     renderGraphMetaKind,
     renderGraphNodeById,
+    renderGraphDataOverride,
   ])
 
   const hasOverlayEditors = overlayEditorElements.length > 0
@@ -608,8 +629,11 @@ export function useFlowEditorOverlaySurface(args: {
 
   const flowCanvasGraphDataOverride = React.useMemo(() => {
     if (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow') return renderGraphDataOverride
-    const excludedNodeIds =
+    const useVisibleCoverageExclusion =
       renderGraphPlacementContext?.isFrontmatterFlow === true
+      && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
+    const excludedNodeIds =
+      useVisibleCoverageExclusion
         ? frontmatterOverlayHideSafety.visibleNodeIds
         : overlayEditorNodeIdsSnapshot
     return filterGraphByExcludedNodeIds({
@@ -618,6 +642,7 @@ export function useFlowEditorOverlaySurface(args: {
     })
   }, [
     frontmatterOverlayHideSafety.kind,
+    frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes,
     frontmatterOverlayHideSafety.visibleNodeIds,
     overlayEditorNodeIdsSnapshot,
     renderGraphDataOverride,

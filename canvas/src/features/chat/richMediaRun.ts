@@ -12,9 +12,19 @@ import type {
   RunGenerationConfig,
 } from './byteplusRunGeneration'
 import {
+  CHAT_PROVIDER_DEERFLOW,
+  CHAT_PROVIDER_GEMINI,
+  normalizeChatProviderId,
+} from '@/lib/chatEndpoint'
+import {
   generateRunImageWithBytePlus,
   generateRunVideoWithBytePlus,
 } from './byteplusRunGeneration'
+import {
+  generateRunImageWithDeerFlow,
+  generateRunVideoWithDeerFlow,
+} from './deerflowRunGeneration'
+import { generateRunVideoWithGemini } from './geminiRunGeneration'
 import {
   resolveWorkspaceSiblingArtifactPath,
   writeWorkspaceBlobArtifactAtPath,
@@ -45,6 +55,8 @@ export type RichMediaWidgetRunRequest = {
   imageUrlUrl?: string
   watermark?: boolean
   referenceImageUrl?: string
+  durationSeconds?: string
+  personGeneration?: string
 }
 
 export type RichMediaWidgetRunResult = {
@@ -338,8 +350,29 @@ export const runRichMediaWidgetGeneration = async (args: {
 }): Promise<RichMediaWidgetRunResult | null> => {
   const request = buildRichMediaWidgetRunRequest(args)
   if (!request) return null
-  const asset = request.kind === 'image'
-    ? await generateRunImageWithBytePlus({
+  const normalizedProvider = normalizeChatProviderId(args.generationConfig.provider)
+  const asset = (() => {
+    if (request.kind === 'image') {
+      if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) {
+        return generateRunImageWithDeerFlow({
+          config: args.generationConfig,
+          prompt: request.prompt,
+          options: {
+            model: request.model,
+            size: request.size,
+            outputFormat: request.outputFormat,
+            responseFormat: request.responseFormat,
+            optimizePromptOptions: request.optimizePromptOptions,
+            aspectRatio: request.aspectRatio,
+            stream: request.stream,
+            watermark: request.watermark,
+            seed: request.seed,
+            guidanceScale: request.guidanceScale,
+            referenceImageUrl: request.referenceImageUrl,
+          },
+        })
+      }
+      return generateRunImageWithBytePlus({
         config: args.generationConfig,
         prompt: request.prompt,
         options: {
@@ -356,7 +389,9 @@ export const runRichMediaWidgetGeneration = async (args: {
           referenceImageUrl: request.referenceImageUrl,
         },
       })
-    : await generateRunVideoWithBytePlus({
+    }
+    if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) {
+      return generateRunVideoWithDeerFlow({
         config: args.generationConfig,
         prompt: request.prompt,
         options: {
@@ -371,17 +406,48 @@ export const runRichMediaWidgetGeneration = async (args: {
           referenceImageUrl: request.referenceImageUrl,
         },
       })
-  if (!asset) return null
+    }
+    if (normalizedProvider === CHAT_PROVIDER_GEMINI) {
+      return generateRunVideoWithGemini({
+        config: args.generationConfig,
+        prompt: request.prompt,
+        options: {
+          model: request.model,
+          ratio: request.aspectRatio,
+          resolution: request.resolution,
+          duration: request.durationSeconds,
+          personGeneration: request.personGeneration,
+        },
+      })
+    }
+    return generateRunVideoWithBytePlus({
+      config: args.generationConfig,
+      prompt: request.prompt,
+      options: {
+        model: request.model,
+        ratio: request.ratio,
+        resolution: request.resolution,
+        duration: request.duration,
+        generateAudio: request.generateAudio,
+        draft: request.draft,
+        cameraFixed: request.cameraFixed,
+        imageUrlUrl: request.imageUrlUrl,
+        referenceImageUrl: request.referenceImageUrl,
+      },
+    })
+  })()
+  const resolvedAsset = await asset
+  if (!resolvedAsset) return null
   const outputPath = await persistGeneratedAsset({
     workspacePath: args.workspacePath,
     node: args.node,
     kind: request.kind,
     extension: request.kind === 'video' ? 'mp4' : 'png',
-    asset,
+    asset: resolvedAsset,
   })
   return {
     kind: request.kind,
-    asset,
+    asset: resolvedAsset,
     outputPath,
   }
 }

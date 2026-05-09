@@ -108,6 +108,12 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'openaiApi.input',
       'openaiApi.text',
       'openaiApi.tool_choice',
+      'OpenAI Images API',
+      'Open FloatingPanel Props Panel OpenAI Image Widget',
+      'openaiImageApi.model',
+      'openaiImageApi.prompt',
+      'openaiImageApi.size',
+      'openaiImageApi.output_format',
       'DeerFlow Gateway API',
       'Open FloatingPanel Props Panel DeerFlow Text Widget',
       'deerflowApi.provider',
@@ -184,6 +190,7 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel Chat UI')
     await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Text Widget')
+    await clickButton('Open FloatingPanel Props Panel OpenAI Image Widget')
     await clickButton('Open FloatingPanel Props Panel DeerFlow Text Widget')
     await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel BytePlus Image Widget')
@@ -191,8 +198,8 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     if (sidePanelEvents.filter(value => value === 'chat').length !== 1) {
       throw new Error(`expected chat section link to open floating chat once, got ${JSON.stringify(sidePanelEvents)}`)
     }
-    if (propsPanelEvents.length !== 5) {
-      throw new Error(`expected text/openai/deerflow/video/image section links to open floating props panel five times, got ${JSON.stringify(propsPanelEvents)}`)
+    if (propsPanelEvents.length !== 6) {
+      throw new Error(`expected text/openai-chat/openai-images/deerflow/video/image section links to open floating props panel six times, got ${JSON.stringify(propsPanelEvents)}`)
     }
     eventWindow.dispatchEvent = originalDispatchEvent
   } finally {
@@ -1268,6 +1275,61 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiApiRows
     const jsonEditors = Array.from(container.querySelectorAll('textarea'))
     if (jsonEditors.length === 0) {
       throw new Error('expected OpenAI input row to reuse the shared multiline JSON editor')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiImagesApiRows() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'openaiImageApi',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;[
+      'OpenAI Images API',
+      'openaiImageApi.prompt',
+      'openaiImageApi.model',
+      'openaiImageApi.output_format',
+      'Open FloatingPanel Props Panel OpenAI Image Widget',
+      'Open OpenAI Images API Docs',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected OpenAI Images integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    const textEditors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="text"]'))
+    if (textEditors.length === 0) {
+      throw new Error('expected OpenAI Images prompt row to render a configurable text input')
     }
   } finally {
     try {

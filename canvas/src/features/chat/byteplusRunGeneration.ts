@@ -78,11 +78,13 @@ export type RunVideoGenerationOptions = {
   ratio?: unknown
   resolution?: unknown
   duration?: unknown
+  durationSeconds?: unknown
   generateAudio?: unknown
   draft?: unknown
   cameraFixed?: unknown
   imageUrlUrl?: unknown
   referenceImageUrl?: unknown
+  personGeneration?: unknown
 }
 
 export type GeneratedBinaryAsset = {

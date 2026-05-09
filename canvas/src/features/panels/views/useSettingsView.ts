@@ -9,6 +9,7 @@ import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
 import {
+  CHAT_DEERFLOW_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_BYTEPLUS,
@@ -17,6 +18,24 @@ import {
   normalizeChatProviderId,
   resolveChatEndpointForHealth,
 } from '@/lib/chatEndpoint'
+
+const INTEGRATION_REASONING_EFFORT_OPTIONS = ['minimal', 'low', 'medium', 'high'] as const
+const INTEGRATION_THINKING_TYPE_OPTIONS = ['disabled', 'enabled'] as const
+const INTEGRATION_BYTEPLUS_IMAGE_MODEL_OPTIONS = ['seedream-4-0-250828', 'seedream-4-5-251128', 'seedream-5-0-260128'] as const
+const INTEGRATION_BYTEPLUS_IMAGE_OPTIMIZE_OPTIONS = ['fast', 'standard'] as const
+const INTEGRATION_BYTEPLUS_VIDEO_IMAGE_URL_KIND_OPTIONS = ['base64', 'url'] as const
+const INTEGRATION_RESPONSE_FORMAT_TYPE_OPTIONS = ['text', 'json_object', 'json_schema'] as const
+const INTEGRATION_BYTEPLUS_IMAGE_OUTPUT_FORMAT_OPTIONS = ['jpeg', 'png'] as const
+const INTEGRATION_BYTEPLUS_IMAGE_RESPONSE_FORMAT_OPTIONS = ['b64_json', 'url'] as const
+const INTEGRATION_BYTEPLUS_VIDEO_RATIO_OPTIONS = ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'] as const
+const INTEGRATION_BYTEPLUS_VIDEO_RESOLUTION_OPTIONS = ['480p', '720p', '1080p'] as const
+const INTEGRATION_GRABMAPS_AUTH_MODE_OPTIONS = ['byok', 'serverManaged'] as const
+const INTEGRATION_GRABMAPS_NEARBY_RANK_BY_OPTIONS = ['distance', 'popularity'] as const
+const INTEGRATION_GEMINI_VIDEO_MODEL_OPTIONS = ['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview', 'veo-3.1-lite-generate-preview', 'veo-3.0-generate-001', 'veo-2.0-generate-001'] as const
+const INTEGRATION_GEMINI_VIDEO_ASPECT_RATIO_OPTIONS = ['16:9', '9:16'] as const
+const INTEGRATION_GEMINI_VIDEO_RESOLUTION_OPTIONS = ['720p', '1080p', '4k'] as const
+const INTEGRATION_GEMINI_VIDEO_DURATION_OPTIONS = ['4', '6', '8'] as const
+const INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS = ['allow_all', 'allow_adult', 'dont_allow'] as const
 import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
 import {
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
@@ -28,6 +47,11 @@ import {
   OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
   getOpenAiChatApiRowAnchorId,
 } from './openaiChatApiDocs'
+import {
+  OPENAI_IMAGES_API_DOC_AREA,
+  OPENAI_IMAGES_API_REQUEST_DOC_ENTRIES,
+  getOpenAiImagesApiRowAnchorId,
+} from './openaiImagesApiDocs'
 import {
   DEERFLOW_API_DOC_AREA,
   DEERFLOW_API_REQUEST_DOC_ENTRIES,
@@ -50,6 +74,12 @@ import {
   BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   getBytePlusVideoGenerationApiRowAnchorId,
 } from './byteplusVideoGenerationApiDocs'
+import {
+  GEMINI_VIDEO_GENERATION_API_DOC_AREA,
+  GEMINI_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
+  GEMINI_VIDEO_GENERATION_API_DOC_ENTRIES,
+  getGeminiVideoGenerationApiRowAnchorId,
+} from './geminiVideoGenerationApiDocs'
 import {
   MAPS_API_DOC_ENTRIES,
   MAPS_GRABMAPS_DOC_AREA,
@@ -87,7 +117,9 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
+  GEMINI_VIDEO_GENERATION_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
+  OPENAI_IMAGES_API_DOC_AREA,
   DEERFLOW_API_DOC_AREA,
 ]
 
@@ -120,7 +152,9 @@ function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
     || area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
     || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
+    || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
+    || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA
   ) {
     return true
@@ -216,7 +250,9 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
+  ...GEMINI_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
+  ...OPENAI_IMAGES_API_REQUEST_DOC_ENTRIES,
   ...DEERFLOW_API_REQUEST_DOC_ENTRIES,
 ] as const
 
@@ -271,7 +307,115 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
     if (rowKey === 'deerflowApi.model') {
       return {
         ...mappedMeta,
-        options: undefined,
+        options: [...CHAT_DEERFLOW_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiApi.reasoning_effort' || rowKey === 'deerflowApi.reasoning_effort') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_REASONING_EFFORT_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusApi.reasoning_effort') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_REASONING_EFFORT_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusApi.thinking.type') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_THINKING_TYPE_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusImageApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_IMAGE_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusImageApi.optimize_prompt_options') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_IMAGE_OPTIMIZE_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusVideoApi.content.image_url.url') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_VIDEO_IMAGE_URL_KIND_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusApi.response_format.type') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_RESPONSE_FORMAT_TYPE_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusImageApi.output_format') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_IMAGE_OUTPUT_FORMAT_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusImageApi.response_format') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_IMAGE_RESPONSE_FORMAT_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusVideoApi.ratio') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_VIDEO_RATIO_OPTIONS],
+      }
+    }
+    if (rowKey === 'byteplusVideoApi.resolution') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_BYTEPLUS_VIDEO_RESOLUTION_OPTIONS],
+      }
+    }
+    if (rowKey === 'grabmaps.auth_mode') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GRABMAPS_AUTH_MODE_OPTIONS],
+      }
+    }
+    if (rowKey === 'grabmaps.mcp.nearby_search.rank_by') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GRABMAPS_NEARBY_RANK_BY_OPTIONS],
+      }
+    }
+    if (rowKey === 'geminiVideoApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GEMINI_VIDEO_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'geminiVideoApi.aspectRatio') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GEMINI_VIDEO_ASPECT_RATIO_OPTIONS],
+      }
+    }
+    if (rowKey === 'geminiVideoApi.resolution') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GEMINI_VIDEO_RESOLUTION_OPTIONS],
+      }
+    }
+    if (rowKey === 'geminiVideoApi.durationSeconds') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GEMINI_VIDEO_DURATION_OPTIONS],
+      }
+    }
+    if (rowKey === 'geminiVideoApi.personGeneration') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS],
       }
     }
     if (mappedMeta.type !== 'json') return mappedMeta
@@ -795,8 +939,12 @@ export function useSettingsView({
             ? getBytePlusImageGenerationApiRowAnchorId(entry.meta.key)
           : area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
             ? getBytePlusVideoGenerationApiRowAnchorId(entry.meta.key)
+          : area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
+            ? getGeminiVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
+            : area === OPENAI_IMAGES_API_DOC_AREA
+              ? getOpenAiImagesApiRowAnchorId(entry.meta.key)
             : area === DEERFLOW_API_DOC_AREA
               ? getDeerFlowApiRowAnchorId(entry.meta.key)
             : undefined
@@ -968,6 +1116,7 @@ export function useSettingsView({
           ...SHARED_BYTEPLUS_CREDENTIAL_VALUE_KEYS,
           ...BYTEPLUS_IMAGE_GENERATION_MAPPED_VALUE_KEYS,
           ...BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
+          ...GEMINI_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
         ])
       : null
     const hiddenConcreteMapsKeys = new Set<string>(
@@ -1059,14 +1208,24 @@ export function useSettingsView({
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
         },
         {
+          title: OPENAI_IMAGES_API_DOC_AREA,
+          searchIndex: normalizeText('OpenAI Images API FloatingPanel Props Panel OpenAI Image Widget image generation'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_IMAGES_API_DOC_AREA,
+        },
+        {
           title: DEERFLOW_API_DOC_AREA,
-          searchIndex: normalizeText('DeerFlow Gateway API OpenAI-compatible gateway local llm proxy floatingpanel props panel text widget'),
+          searchIndex: normalizeText('DeerFlow Gateway API OpenAI-compatible gateway local llm proxy cloudflare tunnel dev prod floatingpanel props panel text widget'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === DEERFLOW_API_DOC_AREA,
         },
         {
           title: BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
           searchIndex: normalizeText('BytePlus Video Generation API ModelArk FloatingPanel BytePlus Video Widget byteplusVideoApi.model byteplusVideoModel'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
+        },
+        {
+          title: GEMINI_VIDEO_GENERATION_API_DOC_AREA,
+          searchIndex: normalizeText('Gemini Veo Video Generation API Google FloatingPanel Gemini Video Widget geminiVideoApi.model geminiVideoModel'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === GEMINI_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
           title: BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,

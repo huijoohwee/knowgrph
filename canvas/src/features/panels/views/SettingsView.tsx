@@ -59,6 +59,7 @@ import {
 } from '@/features/integrations/config'
 import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusSharedTextApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
+import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
@@ -100,6 +101,12 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsUrl: 'https://developers.openai.com/api/reference/resources/responses',
     docsLabel: 'Open OpenAI Chat API Docs',
     panelLabel: 'Open FloatingPanel Props Panel OpenAI Text Widget',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+  [OPENAI_IMAGES_API_DOC_AREA]: {
+    docsUrl: 'https://developers.openai.com/api/reference/resources/images',
+    docsLabel: 'Open OpenAI Images API Docs',
+    panelLabel: 'Open FloatingPanel Props Panel OpenAI Image Widget',
     openPanel: () => emitPropsPanelOpen(),
   },
   [DEERFLOW_API_DOC_AREA]: {

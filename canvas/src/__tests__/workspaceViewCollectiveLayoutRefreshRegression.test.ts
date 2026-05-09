@@ -52,7 +52,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlocked && !collectiveOutsideViewport && !hasMissingWorldSeeds) return')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlocked && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates) return')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
   const worldSeedWriteIndex = runtimeText.indexOf('st.setFlowWidgetWorldPosByNodeId(nextWorld)')
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
@@ -64,23 +64,94 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('const hasMissingWorldSeeds = pendingRaw.length > 0')) {
     throw new Error('expected pinned widget auto-seed guard to treat missing world seeds as a first-frame recovery exception')
   }
+  if (!runtimeText.includes('const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed')) {
+    throw new Error('expected pinned widget auto-seed guard to classify overlap/scene-empty recovery as drift reseed candidates')
+  }
   if (!runtimeText.includes('if (workspaceMutationBlocked) {')) {
     throw new Error('expected pinned widget auto-seed to route workspace-blocked writes through an explicit in-memory branch')
   }
-  if (!runtimeText.includes('return { flowWidgetWorldPosByNodeId: nextWorld }')) {
+  if (!runtimeText.includes('flowWidgetWorldPosByNodeId: nextWorld')) {
     throw new Error('expected pinned widget auto-seed workspace-blocked branch to apply non-persistent in-memory world positions')
+  }
+  if (!runtimeText.includes('buildGraphMetaKeyIgnoringPending(prevState.graphData || null)')) {
+    throw new Error('expected pinned widget auto-seed workspace-blocked branch to resolve active graph meta key for in-memory world SSOT sync')
+  }
+  if (!runtimeText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey')) {
+    throw new Error('expected pinned widget auto-seed workspace-blocked branch to update graph-keyed world SSOT in memory')
   }
   if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
     throw new Error('expected pinned widget auto-seed to avoid reseeding already-placed world positions on layout-signature churn')
   }
-  if (!runtimeText.includes('const pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))')) {
+  if (!runtimeText.includes('let pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))')) {
     throw new Error('expected pinned widget auto-seed to only seed missing or overlapping world positions')
+  }
+  if (!runtimeText.includes("graphMetaKind === 'frontmatter-flow'\n            ? Object.keys(worldById)")) {
+    throw new Error('expected pinned widget auto-seed to fallback to world-key ids when frontmatter effective-open ids are empty')
+  }
+  if (!runtimeText.includes('if (pending.length === 0 && isFrontmatterFlow && pinnedOpenIds.length > 0) {')) {
+    throw new Error('expected pinned widget auto-seed to force frontmatter offscreen pinned recovery when overlap/missing detection yields no pending ids')
   }
   if (!runtimeText.includes('const allowPersistedViewportOffsetSeed = !isWorkspaceGraphMutationBlocked(st)')) {
     throw new Error('expected pinned widget auto-seed to disable persisted zoom-offset fallback while Workspace overlay/indexing mutation guard is active')
   }
   if (!runtimeText.includes('(allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)')) {
     throw new Error('expected pinned widget auto-seed zoom source to gate persisted viewport-offset seed by workspace mutation guard')
+  }
+  if (!runtimeText.includes('const shouldUseNeutralSeedZoom = runtimeSceneNodeCount <= 0')) {
+    throw new Error('expected pinned widget auto-seed to neutralize stale zoom offset when flow runtime scene is empty')
+  }
+  if (!runtimeText.includes('(shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)')) {
+    throw new Error('expected pinned widget auto-seed zoom source to prioritize neutral zoom for empty-scene overlay recovery')
+  }
+  if (!runtimeText.includes("const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow'")) {
+    throw new Error('expected pinned widget auto-seed to force full frontmatter pinned reseed when runtime scene is empty')
+  }
+  if (!runtimeText.includes('if (forceSceneEmptyReseed) return true')) {
+    throw new Error('expected pinned widget auto-seed pending selection to include all pinned widgets during empty-scene reseed')
+  }
+  if (!runtimeText.includes('if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !collectiveOutsideViewport && !forceSceneEmptyReseed) return')) {
+    throw new Error('expected pinned widget auto-seed key guard to allow forced scene-empty reseed despite matching seed key')
+  }
+  if (!runtimeText.includes("const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'")) {
+    throw new Error('expected runtime source instrumentation to expose deterministic transform-authority trace entries for Flow Editor overlay drift diagnostics')
+  }
+  if (!runtimeText.includes('const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)')) {
+    throw new Error('expected runtime transform authority to persist last usable transform so empty-scene recomposition does not flash widgets offscreen')
+  }
+  if (!runtimeText.includes("reason: 'scene-empty-using-last-usable-transform'")) {
+    throw new Error('expected runtime trace to report scene-empty fallback that reuses last usable transform instead of dropping overlays')
+  }
+  if (!runtimeText.includes("reason: 'scene-empty-using-persisted-transform'")) {
+    throw new Error('expected runtime transform authority to fallback to persisted effective zoom before neutral identity during transient empty-scene frames')
+  }
+  if (!runtimeText.includes('persistedLooksSafeForWorkspaceBlocked')) {
+    throw new Error('expected runtime transform authority to gate persisted empty-scene transform reuse by workspace-blocked viewport safety bounds')
+  }
+  if (!runtimeText.includes("reason: 'scene-empty-persisted-transform-rejected-workspace-blocked'")) {
+    throw new Error('expected runtime trace to record rejected stale persisted transforms during workspace-blocked empty-scene windows')
+  }
+  if (!runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-reusing-last-usable'")) {
+    throw new Error('expected workspace-blocked offscreen transform guard to reuse last usable transform before neutral fallback')
+  }
+  if (!runtimeText.includes('lastUsableZoomTransformRef.current = next')) {
+    throw new Error('expected runtime transform authority to refresh last usable transform from visible live transform frames')
+  }
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const collisionText = readFileSync(collisionPath, 'utf8')
+  if (!collisionText.includes("|| { k: 1, x: 0, y: 0 }")) {
+    throw new Error('expected overlay collision node obstacle projection to avoid null transform fallthrough by using numeric identity fallback')
+  }
+  if (collisionText.includes('zoomStateByKey: st.zoomStateByKey }) || null')) {
+    throw new Error('expected overlay collision node obstacle projection to forbid null transform fallback that can trigger number-null runtime warnings')
+  }
+  if (!runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0')) {
+    throw new Error('expected runtime transform authority to add workspace-mutation-blocked offscreen guards before reusing live transform for overlay seeding')
+  }
+  if (!runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-neutralized'")) {
+    throw new Error('expected runtime transform trace to record when offscreen workspace-blocked transforms are neutralized to prevent flash-right drift')
+  }
+  if (!runtimeText.includes('return { k: 1, x: 0, y: 0 }')) {
+    throw new Error('expected runtime transform guard to fall back to neutral transform when workspace-blocked live transform is offscreen')
   }
   if (!runtimeText.includes('isCanonicalFrontmatterBuiltInWidgetNode')) {
     throw new Error('expected pinned widget auto-seed overlap detection to include canonical frontmatter widget identity')
@@ -482,6 +553,24 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
 
   const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
+  if (!flowEditorSurfaceText.includes("import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected Flow Editor overlay surface node resolution to reuse shared canonical node-id helper')
+  }
+  if (!flowEditorSurfaceText.includes('const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)')) {
+    throw new Error('expected Flow Editor overlay surface to cache the last stable non-empty render graph for transient workspace recomposition windows')
+  }
+  if (!flowEditorSurfaceText.includes('if (renderGraphDataOverride && nodeCount > 0) lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride')) {
+    throw new Error('expected Flow Editor overlay surface to refresh last stable render graph cache only from non-empty graph frames')
+  }
+  if (!flowEditorSurfaceText.includes('const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())')) {
+    throw new Error('expected Flow Editor overlay id selection to derive workspace mutation-blocked state via shared guard')
+  }
+  if (!flowEditorSurfaceText.includes('if (lastStable.length > 0 && (sameGraphAsLastStable || workspaceMutationBlocked || nodes.length === 0)) return lastStable')) {
+    throw new Error('expected frontmatter overlay ids to reuse last stable ids during workspace mutation or transient empty-node frames to prevent flash-missing')
+  }
+  if (!flowEditorSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
+    throw new Error('expected frontmatter graph-available fallback to reuse last stable overlay ids while workspace mutation is blocked')
+  }
   if (!flowEditorSurfaceText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected Flow Editor overlay surface initialization to reuse the shared workspace/indexing mutation guard')
   }
@@ -490,6 +579,27 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   }
   if (!flowEditorSurfaceText.includes('const connectedValuesGraphRevision = args.flowEditorViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision')) {
     throw new Error('expected Flow Editor overlay connected-values cache to use the active draft/render graph revision')
+  }
+  if (!flowEditorSurfaceText.includes('const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>(\'\')')) {
+    throw new Error('expected Flow Editor overlay id stability to track the semantic graph key of last stable frontmatter overlay ids')
+  }
+  if (!flowEditorSurfaceText.includes('const sameGraphAsLastStable = lastStableOverlayEditorNodeIdsGraphKeyRef.current === renderGraphSemanticKey')) {
+    throw new Error('expected frontmatter overlay id fallback to only reuse last stable ids when semantic graph key remains unchanged')
+  }
+  if (!flowEditorSurfaceText.includes('if (sameGraphAsLastStable && lastStable.length > 0) return lastStable')) {
+    throw new Error('expected frontmatter overlay id fallback to avoid transient empty-id unmount flicker without cross-graph stale reuse')
+  }
+  if (!flowEditorSurfaceText.includes('const canonicalMatch = resolveGraphNodeByCanonicalId(renderGraphDataOverride, id)')) {
+    throw new Error('expected Flow Editor overlay node resolver to recover transient composed/canonical id mismatches without close-reopen')
+  }
+  if (!flowEditorSurfaceText.includes('const stableCanonicalMatch = resolveGraphNodeByCanonicalId(lastStableRenderGraphDataOverrideRef.current, id)')) {
+    throw new Error('expected Flow Editor overlay node resolver to reuse last stable render graph canonical lookup during transient live-graph gaps')
+  }
+  if (!flowEditorSurfaceText.includes('frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes')) {
+    throw new Error('expected Flow Editor frontmatter graph exclusion to require full visible-node overlay coverage before hiding base graph nodes')
+  }
+  if (!flowEditorSurfaceText.includes('const useVisibleCoverageExclusion =')) {
+    throw new Error('expected Flow Editor frontmatter graph exclusion to centralize coverage-gated exclusion selection')
   }
 
   const flowCanvasMediaPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')

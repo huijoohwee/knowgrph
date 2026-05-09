@@ -54,9 +54,15 @@ export const DEERFLOW_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntr
         return 'Orchestrator -> pin DeerFlow Gateway provider routing -> keep MainPanel Integrations, Flow Manager, and Text Widget provider semantics aligned.'
       }
       if (row.key === 'endpoint_url') {
-        return 'Transport -> route requests to DeerFlow Gateway OpenAI-compatible endpoint -> keep local gateway defaults and run dispatch on one endpoint SSOT.'
+        return 'Transport -> route requests to DeerFlow Gateway OpenAI-compatible endpoint -> keep Dev localhost and Prod Cloudflare Tunnel routing on one endpoint SSOT.'
       }
       return row.responsibility
+    })()
+    const notes = (() => {
+      if (row.key === 'endpoint_url') {
+        return 'DeerFlow runs on your local machine in both Dev and Prod; Prod exposure uses Cloudflare Tunnel URL ending with /api/llm/chat/completions.'
+      }
+      return row.notes || ''
     })()
     return {
       meta: {
@@ -93,11 +99,10 @@ export const DEERFLOW_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntr
       details: {
         area: DEERFLOW_API_DOC_AREA,
         responsibility,
-        notes: row.notes || '',
+        notes,
         modules: row.modules || ['POST /api/llm/chat/completions'],
         classes: row.classes || ['Request body'],
         functions: row.functions || ['DeerFlow Gateway LLM proxy'],
       },
     }
   })
-

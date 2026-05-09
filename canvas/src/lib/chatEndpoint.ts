@@ -12,10 +12,14 @@ export const CHAT_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 export const CHAT_OPENAI_HOST = 'api.openai.com'
 export const CHAT_DEERFLOW_LOCAL_HOST = 'localhost'
+export const CHAT_GEMINI_HOST = 'generativelanguage.googleapis.com'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_BASE = `https://${CHAT_BYTEPLUS_AP_SOUTHEAST_HOST}`
 export const CHAT_BYTEPLUS_EU_WEST_BASE = `https://${CHAT_BYTEPLUS_EU_WEST_HOST}`
 export const CHAT_OPENAI_BASE = `https://${CHAT_OPENAI_HOST}`
 export const CHAT_DEERFLOW_LOCAL_BASE = 'http://localhost:8001'
+export const CHAT_GEMINI_BASE = `https://${CHAT_GEMINI_HOST}`
+export const CHAT_GEMINI_VIDEOS_PATH = '/v1beta/models/{model}:predictLongRunning'
+export const CHAT_GEMINI_OPENAI_CHAT_PATH = '/v1beta/openai/chat/completions'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL = `${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL = `${CHAT_BYTEPLUS_EU_WEST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_RESPONSES_PATH}`
@@ -24,7 +28,8 @@ export const CHAT_PROVIDER_OPENAI = 'openai'
 export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_DEERFLOW = 'deerflow'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
-export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO] as const
+export const CHAT_PROVIDER_GEMINI = 'gemini'
+export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_GEMINI] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
 export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-mini-260215'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
@@ -54,6 +59,25 @@ export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5'] as const
 export const CHAT_DEERFLOW_MODEL_OPTIONS = CHAT_OPENAI_MODEL_OPTIONS
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
+export const CHAT_GEMINI_VIDEO_MODEL_DEFAULT = 'veo-3.1-generate-preview'
+export const CHAT_GEMINI_VIDEO_MODEL_OPTIONS = [
+  CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
+  'veo-3.1-fast-generate-preview',
+  'veo-3.1-lite-generate-preview',
+  'veo-3.0-generate-001',
+  'veo-2.0-generate-001',
+] as const
+export const CHAT_GEMINI_TEXT_MODEL_DEFAULT = 'gemini-3-flash-preview'
+export const CHAT_GEMINI_TEXT_MODEL_OPTIONS = [
+  CHAT_GEMINI_TEXT_MODEL_DEFAULT,
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite-preview',
+  'gemini-2.5-flash',
+] as const
+export const CHAT_GEMINI_MODEL_OPTIONS = [
+  ...CHAT_GEMINI_TEXT_MODEL_OPTIONS,
+  ...CHAT_GEMINI_VIDEO_MODEL_OPTIONS,
+] as const
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
 export const CHAT_DEFAULT_MODEL = CHAT_OPENAI_MODEL_OPTIONS[0]
 export const CHAT_DEFAULT_ENDPOINT_URL = CHAT_OPENAI_ENDPOINT_URL
@@ -73,6 +97,7 @@ const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_DEERFLOW]: 'DeerFlow Gateway',
   [CHAT_PROVIDER_OPENAI]: 'OpenAI',
   [CHAT_PROVIDER_LM_STUDIO]: 'Local Gateway',
+  [CHAT_PROVIDER_GEMINI]: 'Google Gemini',
 }
 
 const toCleanInput = (value: unknown): string => {
@@ -95,11 +120,17 @@ const isTrustedBytePlusHost = (hostname: string): boolean => {
   return host === CHAT_BYTEPLUS_AP_SOUTHEAST_HOST || host === CHAT_BYTEPLUS_EU_WEST_HOST
 }
 
+const isTrustedGeminiHost = (hostname: string): boolean => {
+  const host = String(hostname || '').toLowerCase()
+  return host === CHAT_GEMINI_HOST
+}
+
 const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_AP_SOUTHEAST_BASE
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_LOCAL_BASE
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_BASE
+  if (normalizedProvider === CHAT_PROVIDER_GEMINI) return CHAT_GEMINI_BASE
   return null
 }
 
@@ -108,6 +139,7 @@ const getProviderDefaultEndpointUrl = (provider: unknown): string => {
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_ENDPOINT_URL
+  if (normalizedProvider === CHAT_PROVIDER_GEMINI) return `${CHAT_GEMINI_BASE}${CHAT_GEMINI_OPENAI_CHAT_PATH}`
   return `${CHAT_PROXY_PATH_PREFIX}${CHAT_COMPLETIONS_PATH}`
 }
 
@@ -181,6 +213,7 @@ export function normalizeChatProviderId(value: unknown): ChatProviderId {
   if (raw === CHAT_PROVIDER_DEERFLOW || raw === 'deer-flow' || raw === 'deerflow-gateway') return CHAT_PROVIDER_DEERFLOW
   if (raw === CHAT_PROVIDER_OPENAI) return CHAT_PROVIDER_OPENAI
   if (raw === CHAT_PROVIDER_LM_STUDIO) return CHAT_PROVIDER_LM_STUDIO
+  if (raw === CHAT_PROVIDER_GEMINI || raw === 'google-gemini' || raw === 'google') return CHAT_PROVIDER_GEMINI
   return CHAT_DEFAULT_PROVIDER
 }
 
@@ -189,6 +222,7 @@ export function getChatModelOptions(provider: unknown): readonly string[] {
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return CHAT_LOCAL_MODEL_OPTIONS
+  if (normalizedProvider === CHAT_PROVIDER_GEMINI) return CHAT_GEMINI_MODEL_OPTIONS
   return CHAT_OPENAI_MODEL_OPTIONS
 }
 
@@ -201,6 +235,7 @@ export function getChatProviderRegionLabel(provider: unknown, endpointUrl?: unkn
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return 'Global'
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return 'Local'
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return 'Local'
+  if (normalizedProvider === CHAT_PROVIDER_GEMINI) return 'Global'
   const upstream = resolveChatUpstreamBaseForProxy(endpointUrl, normalizedProvider)
   const host = (() => {
     if (!upstream) return ''
@@ -227,6 +262,10 @@ export function getDefaultGenerationModelForProvider(provider: unknown, kind: Ch
     if (kind === 'image') return CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
     if (kind === 'video') return CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
     return CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT
+  }
+  if (normalizedProvider === CHAT_PROVIDER_GEMINI) {
+    if (kind === 'video') return CHAT_GEMINI_VIDEO_MODEL_DEFAULT
+    return CHAT_GEMINI_TEXT_MODEL_DEFAULT
   }
   return getDefaultChatModelForProvider(normalizedProvider)
 }
@@ -286,7 +325,7 @@ export function normalizeChatEndpointUrlInput(value: unknown, provider?: unknown
   if (!absolute) return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
       return parsed.toString()
     }
   } catch {
@@ -306,7 +345,7 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   if (!absolute) return null
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
       return toProxyPathFromLocalUrl(parsed)
     }
     return null
@@ -362,6 +401,9 @@ export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknow
     if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
       return isTrustedBytePlusHost(parsed.hostname) ? parsed.origin : null
     }
+    if (normalizedProvider === CHAT_PROVIDER_GEMINI) {
+      return isTrustedGeminiHost(parsed.hostname) ? parsed.origin : null
+    }
     return null
   } catch {
     return null
@@ -402,6 +444,9 @@ export function getChatRecommendedModelHint(provider: unknown): string {
   }
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
     return 'Use an OpenAI model id and keep API keys server-routed through the proxy.'
+  }
+  if (normalizedProvider === CHAT_PROVIDER_GEMINI) {
+    return `Default text: ${CHAT_GEMINI_TEXT_MODEL_DEFAULT}. Video Run uses ${CHAT_GEMINI_VIDEO_MODEL_DEFAULT}. API key is sent via x-goog-api-key header.`
   }
   return 'Use a locally served OpenAI-compatible model id.'
 }

@@ -5,16 +5,12 @@ import {
   OPENAI_RESPONSES_API_DOC_ROWS,
   OPENAI_VALUE_TOOLTIP_BY_ROW_KEY,
 } from '@/features/integrations/openaiResponsesSsot'
+import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 
 export const OPENAI_CHAT_API_DOC_AREA = 'OpenAI Chat API'
 
 export function getOpenAiChatApiRowAnchorId(rowKey: string): string {
-  const normalized = String(rowKey || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `openai-chat-api-row-${normalized || 'entry'}`
+  return buildSettingsRowAnchorId('openai-chat-api-row', rowKey)
 }
 
 const OPENAI_TOOLTIP_ROLE = 'OpenAI Chat API'

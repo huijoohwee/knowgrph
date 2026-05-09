@@ -159,6 +159,24 @@ function isSameFlowWidgetScreenPosByNodeId(
   return true
 }
 
+function isSameFlowWidgetWorldPosByNodeId(
+  a: Record<string, { x: number; y: number }>,
+  b: Record<string, { x: number; y: number }>,
+): boolean {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (let i = 0; i < aKeys.length; i += 1) {
+    const key = aKeys[i]
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false
+    const av = a[key]
+    const bv = b[key]
+    if (!av || !bv) return false
+    if (av.x !== bv.x || av.y !== bv.y) return false
+  }
+  return true
+}
+
 function resolveCommittedFlowWidgetScreenPositions(args: {
   graphData: GraphData
   posByNodeId: Record<string, { top: number; left: number }>
@@ -284,7 +302,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         preserveStableSameSourceOverlayState: carryForwardSameSourceWidgetOverlayState,
       })
       const nextWorld =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextCollapsedByKey =
@@ -312,7 +330,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
           ? { ...posByKey, [collapsedKey]: nextPos }
           : posByKey
       const nextWorldByKey =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
+        collapsedKey && (worldKeyMissing || !isSameFlowWidgetWorldPosByNodeId(worldByKey[collapsedKey] || {}, nextWorld || {}))
           ? { ...worldByKey, [collapsedKey]: nextWorld }
           : worldByKey
       return {
@@ -521,8 +539,8 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         preserveStableSameSourceOverlayState: carryForwardSameSourceWidgetOverlayState,
       })
       const nextWorld =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
-          ? { ...(s.flowWidgetWorldPosByNodeId || {}) }
+        collapsedKey && carryForwardSameSourceWidgetOverlayState
+          ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextCollapsedByKey =
         collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
@@ -549,7 +567,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
           ? { ...posByKey, [collapsedKey]: nextPos }
           : posByKey
       const nextWorldByKey =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
+        collapsedKey && (worldKeyMissing || !isSameFlowWidgetWorldPosByNodeId(worldByKey[collapsedKey] || {}, nextWorld || {}))
           ? { ...worldByKey, [collapsedKey]: nextWorld }
           : worldByKey
       return {

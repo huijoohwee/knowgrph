@@ -642,7 +642,9 @@ export function useFlowEditorOverlayCollision(args: {
       const overlayNodeIdSet = new Set<string>(overlayNodeIds)
       const allowNodeObstacleCollision = !overlayOnlyModeEnabled
       if (allowNodeObstacleCollision && schema && rawNodes.length > 0) {
-        const t = getLiveZoomTransform() || getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }) || null
+        const t = getLiveZoomTransform()
+          || getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey })
+          || { k: 1, x: 0, y: 0 }
         const k = typeof t?.k === 'number' && Number.isFinite(t.k) ? t.k : 1
         const rankdir: 'LR' | 'TB' = frontmatterFlowRenderSettings?.rankdir === 'LR' ? 'LR' : 'TB'
         const knobs = readFlowLayoutKnobs({ schema: schema, rankdir })

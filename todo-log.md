@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-05-09
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| DeerFlow super-agent harness integration for Canvas rich media pipeline | Enable DeerFlow as first-class optional provider for text/image/video generation on Canvas Flow Editor, with Dev+Prod support and Cloudflare Tunnel for prod gateway | Remove BytePlus hard-force in runtime dispatch, add DeerFlow API reference index, create setup guide (v4.0) with Dev/Prod/Cloudflare Tunnel instructions, add `dev:all` script, eliminate repo-wide hardcoded paths, build-sync prod artifacts | `knowgrph/{canvas/src/{components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions.ts,features/panels/views/deerflowApiDocs.ts,lib/chatEndpoint.ts,features/flow-editor-manager/registryTemplates.ts,features/chat/richMediaRun.ts,hooks/store/uiSliceChat.ts},scripts/dev-all.sh,docs/documents/{knowgrph-deerflow/knowgrph-deerflow-setup-guide.md,knowgrph-api-reference/api-reference-codebase-index_202604261230/knowgrph-deerflow-gateway-api-reference-codebase-index.md},knowgrph-api-reference/api-reference-codebase-index_202604261230/knowgrph-byteplus-modelark-chat-api-reference-codebase-index.md},package.json,todo-log.md}` | Runtime dispatch + DeerFlow API docs + setup guide + dev:all script | `normalizeChatProviderId`, `buildChatProxyHeaders`, `DEERFLOW_API_REQUEST_DOC_ENTRIES`, `dev:all` npm script | Active provider from store, proxy headers, DeerFlow SSOT rows | Provider-normalized dispatch, no BytePlus hard-force, 15-row DeerFlow API index, v4.0 setup guide | Dispatcher derives provider from `normalizeChatProviderId(store.chatProvider)` with provider-scoped endpoint fallback; DeerFlow is optional first-class provider; default experience is OpenAI-powered; no DeerFlow = no impact on any feature | Run `npm run pages:check-sync` after future source changes; update setup guide if DeerFlow image/video adapter is implemented (PRD-E003-S001). | 2026-05-09 |
+
 ## 2026-05-08
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

@@ -1,6 +1,6 @@
 # Knowgrph DeerFlow Setup Guide — From 0 to 1
 
-**Document Version**: 3.0.0
+**Document Version**: 4.0.0
 **Date**: 2026-05-09
 **Status**: Active
 **Companion To**: `knowgrph-deerflow-prd-tad.md`, `knowgrph-deerflow-prd-tad-integration-contracts-and-patterns.md`, `knowgrph-deerflow-prd-tad-delivery-validation.md`
@@ -15,16 +15,38 @@
 
 ---
 
+## DeerFlow Is Optional
+
+DeerFlow is a **first-class optional provider**, not a required dependency. Knowgrph works fully without DeerFlow installed or running.
+
+| Feature | Without DeerFlow | With DeerFlow |
+|---------|-----------------|---------------|
+| Canvas Flow Editor | Full | Full |
+| Text generation (OpenAI) | Full (default provider) | Full |
+| Text generation (BytePlus) | Full | Full |
+| Image generation | Full (BytePlus) | Full |
+| Video generation | Full (BytePlus) | Full |
+| MainPanel Integrations | Full (all sections visible) | Full |
+| Side panel chat | Full | Full |
+| Text generation (DeerFlow agent) | N/A | Full |
+| `npm run dev` | Full | Full |
+| `npm run dev:all` | Full (prints warning, skips DeerFlow) | Full |
+| Prod (`airvio.co`) | Full | Full |
+
+Knowgrph's default experience is **OpenAI-powered**. DeerFlow only activates when explicitly selected as `chatProvider = 'deerflow'` in Integrations settings. No DeerFlow gateway running = no impact on any other feature. The `dev:all` script gracefully skips DeerFlow startup if the repo is not found.
+
+---
+
 ## Prerequisites
 
-| Requirement | Minimum | Verified |
-|-------------|---------|----------|
-| Node.js | >= 18 | |
-| Knowgrph dev server | `npm -C canvas run dev` | |
-| DeerFlow gateway | Running at `http://localhost:8001` (default) | |
-| DeerFlow skills installed | `deep-research`, `image-generation`, `video-generation` | |
-| Workspace docs root | Env var `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT` pointing to docs folder containing `knowgrph-video-demo.md` | |
-| Cloudflare Pages project | `airvio.co/knowgrph` with env vars configured (see Step 1.5) | |
+| Requirement | Minimum | Required? |
+|-------------|---------|-----------|
+| Node.js | >= 18 | Yes |
+| Knowgrph dev server | `npm -C canvas run dev` | Yes |
+| DeerFlow gateway | Running at `http://localhost:8001` (default) | Only for DeerFlow provider |
+| DeerFlow skills installed | `deep-research`, `image-generation`, `video-generation` | Only for DeerFlow provider |
+| Workspace docs root | Env var `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT` pointing to docs folder containing `knowgrph-video-demo.md` | Only for demo fixture |
+| Cloudflare Pages project | `airvio.co/knowgrph` with env vars configured (see Step 1.5) | Only for prod deployment |
 
 ---
 
@@ -454,11 +476,15 @@ PROD MODE (Cloudflare Tunnel):
 
 When you click **Run** on the Image Widget (`w-img-scene`):
 
-1. **Dispatcher** resolves the active provider (currently BytePlus-gated for image generation)
+1. **Dispatcher** resolves the active provider (`deerflow` or `byteplus-modelark`) for image generation
 2. **Request builder** (`buildRichMediaWidgetRunRequest`) assembles the prompt from node properties, connected values, and workspace context
-3. **BytePlus adapter** calls the image generation API with the assembled prompt
-4. **Proxy** injects `Authorization: Bearer <env-byteplus-key>` (from `KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY` or `BYTEPLUS_API_KEY`)
-5. **Response** is written as `imageUrl` to the node properties
+3. **Adapter routing**:
+   - DeerFlow provider -> DeerFlow runs endpoint (`/api/runs/stream`) with artifact normalization
+   - BytePlus provider -> BytePlus image generation endpoint
+4. **Proxy auth behavior**:
+   - DeerFlow provider: no Authorization header injected (gateway handles upstream auth)
+   - BytePlus provider: injects `Authorization: Bearer <env-byteplus-key>`
+5. **Response** is normalized and written as `imageUrl` to the node properties
 6. **Rich Media Panel** (`p-img-scene`) renders the generated image
 
 ### 4.2 User Action
@@ -474,17 +500,13 @@ Canvas Run -> useFlowEditorWorkflowActions.ts
   -> resolveRichMediaWidgetKind(node) = 'image'
   -> runRichMediaWidgetGeneration(node, connectedValues, markdownText, config)
   -> buildRichMediaWidgetRunRequest(node, connectedValues, markdownText)
-  -> generateRunImageWithBytePlus(config, prompt, options)
-  -> POST /__chat_proxy/api/v3/image/generation
-     Headers: X-KG-Chat-Provider: byteplus-modelark
-     Proxy injects: Authorization: Bearer <KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY>
-  -> BytePlus API -> image URL
+  -> runGenerationWithProvider(kind='image')
+  -> deerflow: POST /__chat_proxy/api/runs/stream -> artifact URL -> GET /__chat_proxy/api/threads/{id}/artifacts/*
+     or byteplus-modelark: POST /__chat_proxy/api/v3/image/generation
+  -> proxy auth per provider policy
+  -> normalized image URL
   -> Write node.properties.imageUrl
 ```
-
-### 4.4 Current Limitation
-
-Image and video generation adapters are currently BytePlus-gated. When the active provider is `deerflow`, these calls will fail closed. The DeerFlow adapter for image/video is a planned enhancement (see PRD-E003-S001).
 
 ---
 
@@ -494,11 +516,13 @@ Image and video generation adapters are currently BytePlus-gated. When the activ
 
 When you click **Run** on the Video Widget (`w-video-scene`):
 
-1. **Dispatcher** resolves the active provider
+1. **Dispatcher** resolves the active provider (`deerflow` or `byteplus-modelark`)
 2. **Request builder** assembles the video prompt, including the reference image from `w-img-scene` via the connected edge
-3. **BytePlus adapter** calls the video generation API
-4. **Proxy** injects `Authorization: Bearer <env-byteplus-key>`
-5. **Response** is written as `videoUrl` to the node properties
+3. **Adapter routing**:
+   - DeerFlow provider -> DeerFlow runs endpoint (`/api/runs/stream`) with artifact normalization
+   - BytePlus provider -> BytePlus video task create/poll endpoints
+4. **Proxy auth behavior** follows provider policy (DeerFlow no injected auth; BytePlus server-managed injects key)
+5. **Response** is normalized and written as `videoUrl` to the node properties
 6. **Rich Media Panel** (`p-video-scene`) renders the generated video
 
 ### 5.2 User Action
@@ -515,11 +539,11 @@ Canvas Run -> useFlowEditorWorkflowActions.ts
   -> resolveRichMediaWidgetKind(node) = 'video'
   -> runRichMediaWidgetGeneration(node, connectedValues, markdownText, config)
   -> buildRichMediaWidgetRunRequest(node, connectedValues, markdownText)
-  -> generateRunVideoWithBytePlus(config, prompt, options)
-  -> POST /__chat_proxy/api/v3/video/generation
-     Headers: X-KG-Chat-Provider: byteplus-modelark
-     Proxy injects: Authorization: Bearer <KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY>
-  -> BytePlus API -> video URL
+  -> runGenerationWithProvider(kind='video')
+  -> deerflow: POST /__chat_proxy/api/runs/stream -> artifact URL -> GET /__chat_proxy/api/threads/{id}/artifacts/*
+     or byteplus-modelark: POST /__chat_proxy/api/v3/contents/generations/tasks -> poll task status
+  -> proxy auth per provider policy
+  -> normalized video URL
   -> Write node.properties.videoUrl
 ```
 
@@ -622,9 +646,8 @@ node --import tsx src/__tests__/flowWidgetOutputRichMediaReuse.test.ts
 ### Image/Video Generation Fails with DeerFlow Provider
 
 **Symptom**: Image or video run returns error when provider is `deerflow`
-**Reason**: Image/video adapters are currently BytePlus-gated (fail closed for non-BytePlus)
-**Workaround**: Use `byteplus-modelark` as provider for image/video generation
-**Planned**: DeerFlow image/video adapter (PRD-E003-S001)
+**Check**: DeerFlow gateway exposes `/api/runs/stream` and returns artifact references resolvable from the active upstream
+**Fix**: Validate DeerFlow runtime config for image/video skills and ensure artifact URLs are reachable through the proxy path
 
 ### API Key Not Working in Prod
 
@@ -707,6 +730,7 @@ PROD MODE (Cloudflare Pages + Tunnel):
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 4.0.0 | 2026-05-09 | joohwee | Added "DeerFlow Is Optional" section with feature matrix, updated prerequisites with Required? column |
 | 3.0.0 | 2026-05-09 | joohwee | Added Prod Mode DeerFlow via Cloudflare Tunnel (free, local machine), named tunnel for stable URL, LaunchAgent/systemd persistence, updated data flow diagrams |
 | 2.0.0 | 2026-05-09 | joohwee | Added Dev/Prod proxy architecture, API key management, production proxy everywhere strategy, proxy key resolution matrix |
 | 1.0.0 | 2026-05-09 | joohwee | Initial from-0-to-1 setup guide with user journey, workflow, and data flow |

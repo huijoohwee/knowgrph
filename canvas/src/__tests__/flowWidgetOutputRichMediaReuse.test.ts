@@ -24,6 +24,20 @@ export function testTextWidgetOutputPatchBuildsRichMediaIframeSpec() {
   if (spec) throw new Error('expected text widget output patch to stay off the direct media overlay path and render through Rich Media Panel instead')
 }
 
+export function testRichMediaRunDispatchSupportsDeerFlowAdapters() {
+  const richMediaRunPath = resolve(process.cwd(), 'src', 'features', 'chat', 'richMediaRun.ts')
+  const text = readFileSync(richMediaRunPath, 'utf8')
+  if (!text.includes('generateRunImageWithDeerFlow')) {
+    throw new Error('expected rich media run dispatcher to import DeerFlow image adapter helper')
+  }
+  if (!text.includes('generateRunVideoWithDeerFlow')) {
+    throw new Error('expected rich media run dispatcher to import DeerFlow video adapter helper')
+  }
+  if (!text.includes('if (normalizedProvider === CHAT_PROVIDER_DEERFLOW)')) {
+    throw new Error('expected rich media run dispatcher to branch DeerFlow image/video execution by normalized provider')
+  }
+}
+
 export function testFlowEditorCanvasTextRunUsesSharedRichMediaOutputPatch() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
