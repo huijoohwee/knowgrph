@@ -101,6 +101,9 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!flowCanvasText.includes('allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === \'flowEditor\'')) {
     throw new Error('expected FlowCanvas commit path to allow Flow Editor layout commits while workspace view is open')
   }
+  if (!flowCanvasText.includes('width={canvasPixelW}') || !flowCanvasText.includes('height={canvasPixelH}')) {
+    throw new Error('expected FlowCanvas to bind backing-store dimensions to viewport*dpr so first frame is sharp in workspace-open Flow Editor')
+  }
   const flowCommitPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowRequestCommit.ts')
   const flowCommitText = readFileSync(flowCommitPath, 'utf8')
   if (!flowCommitText.includes('const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true')) {
@@ -456,6 +459,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const lateFlowEditorInitAfterSceneBuild =')) {
     throw new Error('expected Flow runtime to name the late Flow Editor init guard explicitly')
   }
+  if (!runtimeText.includes('const initialW = Math.max(1, Math.floor(viewportW * dpr))')
+    || !runtimeText.includes('const initialH = Math.max(1, Math.floor(viewportH * dpr))')) {
+    throw new Error('expected Flow runtime to prime canvas backing-store size before first draw for workspace-open sharpness')
+  }
   if (!runtimeText.includes('lastBuiltGraphKeyRef.current.length > 0')) {
     throw new Error('expected Flow runtime late init guard to detect scene builds that raced ahead of zoom-key initialization')
   }
@@ -491,6 +498,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes('if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true) return')) {
     throw new Error('expected Flow runtime initialization to re-evaluate fit while Workspace overlay is open instead of short-circuiting after first init key hit')
+  }
+  if (!runtimeText.includes('&& (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
+    throw new Error('expected Flow runtime workspace-open init-fit freeze to activate only after transform authority is stabilized or user-controlled')
   }
   if (!runtimeText.includes('const useD3StyleInitFit = isFlowEditor && workspaceEditorOverlayOpen === true')) {
     throw new Error('expected Flow runtime init fit to switch to D3-style centered fit while Workspace overlay is open')
@@ -588,11 +598,34 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (interactionInProgress || flowWidgetDragging) return')) {
     throw new Error('expected Flow runtime offscreen recovery to defer corrective fit while user pan/zoom/drag interaction is active, including workspace-open mode')
   }
-  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && graphVisible) {')) {
-    throw new Error('expected Flow runtime workspace-open recovery to preserve already-visible transforms and avoid flash/jump refits')
+  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && graphVisible && graphBalanced) {')) {
+    throw new Error('expected Flow runtime workspace-open recovery to preserve only already-balanced visible transforms')
   }
-  if (!runtimeText.includes("reason = 'workspace-open-visible-preserve-current'") && !runtimeText.includes("lastRecoveryReason = 'workspace-open-visible-preserve-current'")) {
-    throw new Error('expected Flow runtime workspace-open visible-transform preservation to emit deterministic debug reason')
+  if (!runtimeText.includes('const workspaceOverlayStabilizedRef = React.useRef(false)')) {
+    throw new Error('expected Flow runtime workspace-open recovery to track stabilized transform authority after THEN-layout convergence')
+  }
+  if (!runtimeText.includes('const workspaceOverlayZoomViewKeyRef = React.useRef<string | null>(null)')) {
+    throw new Error('expected Flow runtime workspace-open recovery to track active zoom view key for transform-authority resets')
+  }
+  if (!runtimeText.includes('if (prev != null && prev !== zoomViewKey) {')) {
+    throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
+  }
+  if (!runtimeText.includes('workspace-open-stabilized-preserve-current')) {
+    throw new Error('expected Flow runtime workspace-open recovery to preserve stabilized transform and forbid late fly-off refits')
+  }
+  if (!runtimeText.includes("reason = 'workspace-open-visible-balanced-preserve-current'") && !runtimeText.includes("lastRecoveryReason = 'workspace-open-visible-balanced-preserve-current'")) {
+    throw new Error('expected Flow runtime workspace-open balanced-visible preservation to emit deterministic debug reason')
+  }
+  if (!runtimeText.includes("const userInteractionAfterWorkspaceOpen =")
+    || !runtimeText.includes("workspace-open-user-controlled-preserve-current")) {
+    throw new Error('expected Flow runtime workspace-open recovery to preserve user-controlled transforms after zoom/pan to avoid fly-off refits')
+  }
+  if (!runtimeText.includes('const workspaceOverlayOffscreenSinceMsRef = React.useRef(0)')) {
+    throw new Error('expected Flow runtime workspace-open recovery to track continuous offscreen duration for debounce-safe refits')
+  }
+  if (!runtimeText.includes('const workspaceOffscreenDebounced =')
+    || !runtimeText.includes('workspace-open-offscreen-debounce-pending')) {
+    throw new Error('expected Flow runtime workspace-open offscreen recovery to debounce transient visibility misses before corrective refit')
   }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')

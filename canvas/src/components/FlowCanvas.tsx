@@ -119,6 +119,8 @@ export default function FlowCanvas({
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
   } = useFlowCanvasStoreState({ active, containerRef })
+  const canvasPixelW = Math.max(1, Math.floor(viewportW * dpr))
+  const canvasPixelH = Math.max(1, Math.floor(viewportH * dpr))
 
   useFlowCanvasSnapshots({
     active,
@@ -453,6 +455,8 @@ export default function FlowCanvas({
         aria-label="Flow renderer"
         data-kg-canvas-interactive="1"
         className={CANVAS_INTERACTIVE_CLASS}
+        width={canvasPixelW}
+        height={canvasPixelH}
         draggable={false}
       />
       <FlowCanvasMediaOverlays
