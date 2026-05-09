@@ -654,31 +654,35 @@ export function useFlowEditorOverlaySurface(args: {
     })()
 
   const flowCanvasGraphDataOverride = React.useMemo(() => {
-    if (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow') return renderGraphDataOverride
-    const useVisibleCoverageExclusion =
-      renderGraphPlacementContext?.isFrontmatterFlow === true
-      && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
-    const excludedNodeIds =
-      useVisibleCoverageExclusion
-        ? frontmatterOverlayHideSafety.visibleNodeIds
-        : overlayEditorNodeIdsSnapshot
+    if (!renderGraphDataOverride) return null
+    const isFrontmatterFlow = frontmatterOverlayHideSafety.kind === 'frontmatter-flow'
+    if (isFrontmatterFlow) {
+      const useVisibleCoverageExclusion =
+        renderGraphPlacementContext?.isFrontmatterFlow === true
+        && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
+      const excludedNodeIds =
+        useVisibleCoverageExclusion
+          ? frontmatterOverlayHideSafety.visibleNodeIds
+          : overlayEditorNodeIdsSnapshot
+      return filterGraphByExcludedNodeIds({
+        graphData: renderGraphDataOverride,
+        excludedNodeIds,
+      })
+    }
+    const overlayExcludedNodeIds = overlayOnlyActive ? overlayEditorNodeIdsSnapshot : []
     return filterGraphByExcludedNodeIds({
       graphData: renderGraphDataOverride,
-      excludedNodeIds,
+      excludedNodeIds: overlayExcludedNodeIds,
     })
   }, [
     frontmatterOverlayHideSafety.kind,
     frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes,
     frontmatterOverlayHideSafety.visibleNodeIds,
     overlayEditorNodeIdsSnapshot,
+    overlayOnlyActive,
     renderGraphDataOverride,
     renderGraphPlacementContext,
   ])
-
-  const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
-    if (!overlayOnlyActive) return undefined
-    return renderGraphNodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
-  }, [overlayOnlyActive, renderGraphNodes])
 
   return {
     hasOverlayEditors,
@@ -686,7 +690,6 @@ export function useFlowEditorOverlaySurface(args: {
     overlayEditorElements,
     overlayEditorNodeIds,
     overlayOnlyActive,
-    overlayOnlyHidePortHandleNodeIds,
     flowCanvasGraphDataOverride,
   }
 }

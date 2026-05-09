@@ -291,8 +291,22 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!overlayCanvasSurfaceText.includes('renderNodes={true}')) {
     throw new Error('expected Flow Editor canvas surface to keep runtime scene nodes active for collective drag/pan/zoom while overlay-only mode is enabled')
   }
-  if (!overlayCanvasSurfaceText.includes('hideNodeIds={props.overlayOnlyActive ? props.overlayEditorNodeIds : undefined}')) {
-    throw new Error('expected Flow Editor canvas surface to hide overlay-managed base nodes in draw layer to forbid FlowCanvas seepage while preserving collective interaction hit targets')
+  if (overlayCanvasSurfaceText.includes('hideNodeIds=')) {
+    throw new Error('expected Flow Editor canvas surface to forbid hideNodeIds masking and keep FlowCanvas visibility neutral')
+  }
+  if (overlayCanvasSurfaceText.includes('hidePortHandleNodeIds=')) {
+    throw new Error('expected Flow Editor canvas surface to forbid hidePortHandleNodeIds masking and keep FlowCanvas interaction contracts upstream')
+  }
+  if (!overlaySurfaceText.includes('const overlayExcludedNodeIds = overlayOnlyActive ? overlayEditorNodeIdsSnapshot : []')) {
+    throw new Error('expected Flow Editor overlay surface to neutralize seepage via upstream filtered graph exclusions instead of FlowCanvas hide props')
+  }
+  if (!overlaySurfaceText.includes('return filterGraphByExcludedNodeIds({')) {
+    throw new Error('expected Flow Editor overlay surface to centralize overlay/base isolation in shared graph exclusion helper')
+  }
+  const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const flowEditorCanvasRuntimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
+  if (!flowEditorCanvasRuntimeText.includes('renderGraphDataOverride={flowCanvasGraphDataOverride}')) {
+    throw new Error('expected Flow Editor runtime to pass the upstream-filtered graph override into FlowCanvas')
   }
   if (!renderStateText.includes('prev.topologyLayoutSignature === nextTopologyLayoutSignature')) {
     throw new Error('expected Flow Editor render state to preserve the stable overlay graph only when semantic overlay topology still matches')
@@ -573,6 +587,12 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes('if (interactionInProgress || flowWidgetDragging) return')) {
     throw new Error('expected Flow runtime offscreen recovery to defer corrective fit while user pan/zoom/drag interaction is active, including workspace-open mode')
+  }
+  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && graphVisible) {')) {
+    throw new Error('expected Flow runtime workspace-open recovery to preserve already-visible transforms and avoid flash/jump refits')
+  }
+  if (!runtimeText.includes("reason = 'workspace-open-visible-preserve-current'") && !runtimeText.includes("lastRecoveryReason = 'workspace-open-visible-preserve-current'")) {
+    throw new Error('expected Flow runtime workspace-open visible-transform preservation to emit deterministic debug reason')
   }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')

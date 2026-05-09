@@ -550,7 +550,6 @@ export default function FlowEditorCanvasRuntime(
     overlayEditorElements,
     overlayEditorNodeIds,
     overlayOnlyActive,
-    overlayOnlyHidePortHandleNodeIds,
     flowCanvasGraphDataOverride,
   } = useFlowEditorOverlaySurface({
     flowEditorSurfaceId,
@@ -631,8 +630,6 @@ export default function FlowEditorCanvasRuntime(
       hasOverlayEditors={hasOverlayEditors}
       emitFlowEditorInteractionFrame={emitFlowEditorInteractionFrame}
       overlayOnlyActive={overlayOnlyActive}
-      overlayOnlyHidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
-      overlayEditorNodeIds={overlayEditorNodeIds}
       overlayEdgesSvgRef={overlayEdgesSvgRef}
       overlayEditorElements={overlayEditorElements as unknown as React.ReactNode}
       noGraphLoaded={noGraphLoaded}

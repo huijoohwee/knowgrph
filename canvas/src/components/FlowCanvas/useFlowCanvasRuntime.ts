@@ -708,6 +708,14 @@ export function useFlowCanvasRuntime(args: {
       || Math.abs(Math.log(Math.max(0.001, current.k) / Math.max(0.001, expectedFit.k))) > 0.16
     __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
     __flowCanvasDebug.lastExpectedFit = `${Math.round(expectedScreenX)},${Math.round(expectedScreenY)},${Math.round(expectedFit.k * 1000) / 1000}`
+    if (workspaceEditorOverlayOpen && graphVisible) {
+      // In workspace-open mode, preserve the first usable visible transform.
+      // Avoid balance/fit enforcement that can flash then jump the scene sideways.
+      __flowCanvasDebug.lastRecoveryReason = 'workspace-open-visible-preserve-current'
+      syncFlowCanvasDebugToast({ enabled: true })
+      lastOffscreenOverlayRecoveryKeyRef.current = null
+      return
+    }
     if (graphVisible && graphBalanced && !transformDriftedFromFit) {
       __flowCanvasDebug.lastRecoveryReason = 'stable-visible-balanced'
       syncFlowCanvasDebugToast({ enabled: true })

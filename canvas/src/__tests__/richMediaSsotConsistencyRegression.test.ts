@@ -229,11 +229,11 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasGraphStateText.includes('excludeAllRichMediaPanelNodes,')) {
     throw new Error('expected FlowCanvas Flow Editor exclusion to pass blanket panel suppression through the shared Rich Media exclusion helper')
   }
-  if (
-    !flowEditorCanvasText.includes('overlayEditorNodeIds')
-    || !flowEditorCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={props.overlayEditorNodeIds}')
-  ) {
-    throw new Error('expected FlowEditorCanvas runtime to pass overlay editor node ids through the surface into FlowCanvas Rich Media duplicate exclusion')
+  if (!flowEditorCanvasText.includes('flowCanvasGraphDataOverride')) {
+    throw new Error('expected FlowEditorCanvas runtime to pass an upstream-filtered graph override into FlowCanvas to prevent overlay seepage')
+  }
+  if (flowEditorCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds=')) {
+    throw new Error('expected FlowEditorCanvas surface to forbid downstream Rich Media hide/exclude masking props')
   }
   if (!flowEditorOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
     throw new Error('expected FlowEditor overlay surface to reuse the upstream Rich Media connected-value target helper')
