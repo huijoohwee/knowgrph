@@ -73,7 +73,9 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
 
   const graphDataRevision = typeof graphDataRevisionOverride === 'number' ? graphDataRevisionOverride : baseGraphDataRevision
   const renderGraphData = graphDataOverride !== undefined ? graphDataOverride : storeGraphData
-  const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true
+  // Interaction/mutation in Flow Editor runtime must remain available in Workspace-open mode.
+  // Structural baseline lock should not freeze pan/zoom/drag interaction pathways.
+  const allowMutations = allowNodeDragOverride !== false
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true,

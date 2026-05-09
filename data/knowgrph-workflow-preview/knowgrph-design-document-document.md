@@ -3,13 +3,13 @@
 ## Source
 
 - Graph ID: `md:knowgrph-design-document`
-- Markdown: `${KG_GITHUB_ROOT}/knowgrph/docs/documents/knowgrph-design-document.md`
+- Markdown: `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-design-document.md`
 
 ## Outputs
 
-- Graph JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-design-document-graph-data.jsonld`
-- Schema JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-design-document-schema-config.jsonld`
-- Orchestrator YAML: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-design-document-orchestrator-config.yaml`
+- Graph JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-design-document-graph-data.jsonld`
+- Schema JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-design-document-schema-config.jsonld`
+- Orchestrator YAML: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-design-document-orchestrator-config.yaml`
 
 ## Outline
 

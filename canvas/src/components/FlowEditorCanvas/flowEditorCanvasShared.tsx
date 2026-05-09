@@ -257,6 +257,7 @@ export function deriveOpenWidgetOverlayNodeIds(args: {
 type FlowEditorWidgetOverlayProps = {
   visible?: boolean
   active: boolean
+  interactionPassthrough?: boolean
   flowEditorSurfaceId?: string
   node: GraphNode
   graphMetaKind?: string | null
@@ -298,6 +299,7 @@ export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverl
     <NodeOverlayEditor
       visible={args.visible}
       active={args.active}
+      interactionPassthrough={args.interactionPassthrough}
       flowEditorSurfaceId={args.flowEditorSurfaceId}
       node={args.node}
       graphMetaKind={args.graphMetaKind}

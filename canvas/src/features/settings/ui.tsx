@@ -377,7 +377,7 @@ export const renderSettingInput = (
     )
   }
 
-  if (key === 'chatModel') {
+  if (key === 'chatModel' && !Array.isArray(options)) {
     const str = String(v ?? '')
     return (
       <PlainTextInputEditor

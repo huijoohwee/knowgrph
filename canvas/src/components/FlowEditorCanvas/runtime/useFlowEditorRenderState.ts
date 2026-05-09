@@ -9,6 +9,7 @@ export function useFlowEditorRenderState(args: {
   active: boolean
   editorRuntimeActive: boolean
   flowEditorViewActive: boolean
+  workspaceMutationBlocked: boolean
   baseGraphData: GraphData | null
   baseGraphDataRevision: number
   flowEditorBaseGraphData: GraphData | null
@@ -70,8 +71,13 @@ export function useFlowEditorRenderState(args: {
     const nextGraph = rawRenderGraphDataOverride
     const nextTopologyLayoutSignature = rawRenderGraphTopologyLayoutSignature
     const nextHasNodes = Array.isArray(nextGraph?.nodes) && nextGraph.nodes.length > 0
+    const shouldPreserveStableDuringWorkspaceMutation =
+      args.workspaceMutationBlocked
+      && args.flowEditorViewActive
+      && !nextHasNodes
     if (nextHasNodes || !args.frontmatterOnlyPolicyActive) {
       setStableRenderGraphOverride(prev => {
+        if (shouldPreserveStableDuringWorkspaceMutation && prev?.documentKey === args.activeDocumentKey) return prev
         const preserveStableGraphAcrossFlowViewClose =
           args.flowEditorViewActive !== true
           && prev?.documentKey === args.activeDocumentKey
@@ -101,6 +107,7 @@ export function useFlowEditorRenderState(args: {
     args.activeDocumentKey,
     args.flowEditorViewActive,
     args.frontmatterOnlyPolicyActive,
+    args.workspaceMutationBlocked,
     rawRenderGraphDataOverride,
     rawRenderGraphTopologyLayoutSignature,
   ])
@@ -110,6 +117,13 @@ export function useFlowEditorRenderState(args: {
     const nextHasNodes = Array.isArray(nextGraph?.nodes) && nextGraph.nodes.length > 0
     const stableGraph = stableRenderGraphOverride?.graphData || null
     const stableHasNodes = Array.isArray(stableGraph?.nodes) && stableGraph.nodes.length > 0
+    const preserveStableGraphDuringWorkspaceMutation =
+      args.workspaceMutationBlocked
+      && args.flowEditorViewActive
+      && !nextHasNodes
+      && stableRenderGraphOverride?.documentKey === args.activeDocumentKey
+      && stableHasNodes
+    if (preserveStableGraphDuringWorkspaceMutation) return stableGraph
     const preserveStableGraphAcrossFlowViewClose =
       args.flowEditorViewActive !== true
       && stableRenderGraphOverride?.documentKey === args.activeDocumentKey
@@ -125,6 +139,7 @@ export function useFlowEditorRenderState(args: {
     args.activeDocumentKey,
     args.flowEditorViewActive,
     args.frontmatterOnlyPolicyActive,
+    args.workspaceMutationBlocked,
     rawRenderGraphDataOverride,
     rawRenderGraphTopologyLayoutSignature,
     stableRenderGraphOverride,

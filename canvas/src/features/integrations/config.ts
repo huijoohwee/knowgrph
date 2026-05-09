@@ -49,10 +49,8 @@ const parsePlatform = (value: unknown, fallback: IntegrationSimulationCommandsCo
 
 export const normalizeIntegrationConfigs = (value: unknown): IntegrationConfigs => {
   const root = toObject(value)
-  const legacyAiChatKey = ['aiChat', 'Deer', 'flow'].join('')
-  const legacySimulationKey = ['miro', 'fish', 'Simulations'].join('')
-  const aiChatRaw = toObject(root.aiChat || root[legacyAiChatKey])
-  const simulationCommandsRaw = toObject(root.simulationCommands || root[legacySimulationKey])
+  const aiChatRaw = toObject(root.aiChat)
+  const simulationCommandsRaw = toObject(root.simulationCommands)
   const aiChat: IntegrationAiChatConfig = {
     enabled: parseBool(aiChatRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.aiChat.enabled),
     provider: 'native',

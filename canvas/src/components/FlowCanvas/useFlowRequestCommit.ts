@@ -30,6 +30,7 @@ export function useFlowRequestCommit(args: {
   positionsDirtySinceCommitRef: React.MutableRefObject<boolean>
   lastCommittedPositionsRef: React.MutableRefObject<Record<string, { x: number; y: number }> | null>
   buildDrawArgs: () => FlowNativeDrawArgs
+  allowLayoutCommitWhenWorkspaceBlocked?: boolean
 }) {
   const pendingCommitRef = React.useRef(false)
 
@@ -51,6 +52,7 @@ export function useFlowRequestCommit(args: {
     positionsDirtySinceCommitRef,
     lastCommittedPositionsRef,
     buildDrawArgs,
+    allowLayoutCommitWhenWorkspaceBlocked,
   } = args
 
   return React.useCallback(() => {
@@ -63,7 +65,6 @@ export function useFlowRequestCommit(args: {
       const t = runtime.transform || d3.zoomIdentity
       const current = useGraphStore.getState()
       const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(current)
-      if (workspaceMutationBlocked) return
       commitZoomTransformToStore({
         state: {
           viewPinned: current.viewPinned,
@@ -78,6 +79,8 @@ export function useFlowRequestCommit(args: {
         viewportH,
         graphDataRevision,
       })
+      const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true
+      if (!allowLayoutCommit) return
       if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
       if (!positionsDirtySinceCommitRef.current) return
       const scene = runtime.scene
@@ -146,6 +149,7 @@ export function useFlowRequestCommit(args: {
   }, [
     buildDrawArgs,
     cacheKey,
+    allowLayoutCommitWhenWorkspaceBlocked,
     disableRelaxOnCommit,
     flowConfig.node.heightPx,
     flowConfig.node.widthPx,

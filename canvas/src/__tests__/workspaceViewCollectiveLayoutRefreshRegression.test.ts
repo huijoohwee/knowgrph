@@ -34,19 +34,80 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected Flow Editor collective collision refresh subscription to use openWidgetNodeIds')
   }
   const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
-  const editorText = readFileSync(editorPath, 'utf8')
+  const editorInnerPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
+  const editorPlacementPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
+  const editorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
+  const editorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
+  const editorWrapperText = readFileSync(editorPath, 'utf8')
+  const editorText = [
+    editorWrapperText,
+    editorWrapperText.includes("from '@/components/FlowEditor/NodeOverlayEditorInner'") ? readFileSync(editorInnerPath, 'utf8') : '',
+    readFileSync(editorPlacementPath, 'utf8'),
+    readFileSync(editorViewPath, 'utf8'),
+    readFileSync(editorSharedPath, 'utf8'),
+  ].join('\n')
   if (!editorText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected direct Flow Editor widget persistence to reuse the shared workspace/indexing mutation guard')
   }
-  const directScreenGuardIndex = editorText.indexOf('if (isWorkspaceGraphMutationBlocked(state)) return')
-  const directScreenWritebackIndex = editorText.indexOf('state.setFlowWidgetPosByNodeId(next)')
-  if (directScreenGuardIndex < 0 || directScreenWritebackIndex < 0 || directScreenGuardIndex > directScreenWritebackIndex) {
-    throw new Error('expected Workspace/Indexing mutation guard before direct Flow Editor screen-position writeback')
+  if (!editorText.includes("import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'")) {
+    throw new Error('expected direct Flow Editor widget persistence to reuse shared graph semantic key helper for workspace-blocked in-memory updates')
   }
-  const directWorldGuardIndex = editorText.indexOf('markdownWorkspaceIndexingInFlight?: boolean\n        flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>\n      }\n      if (isWorkspaceGraphMutationBlocked(state)) return')
-  const directWorldWritebackIndex = editorText.indexOf('setFlowWidgetWorldPosByNodeId(next)')
-  if (directWorldGuardIndex < 0 || directWorldWritebackIndex < 0 || directWorldGuardIndex > directWorldWritebackIndex) {
-    throw new Error('expected Workspace/Indexing mutation guard before direct Flow Editor world-position writeback')
+  if (!editorText.includes('if (isWorkspaceGraphMutationBlocked(state)) {')) {
+    throw new Error('expected direct Flow Editor widget persistence to branch workspace-blocked updates through an explicit in-memory path')
+  }
+  if (!editorText.includes('interactionPassthrough?: boolean')) {
+    throw new Error('expected NodeOverlayEditor to expose explicit interaction passthrough mode for workspace-open Flow Editor gesture routing')
+  }
+  if (!editorText.includes("data-kg-canvas-wheel-ignore={interactionPassthrough ? 'false' : 'true'}")) {
+    throw new Error('expected NodeOverlayEditor workspace passthrough mode to stop marking overlay panels as canvas wheel-ignore surfaces')
+  }
+  if (!editorText.includes("className={interactionPassthrough ? 'fixed pointer-events-none' : 'fixed'}")) {
+    throw new Error('expected NodeOverlayEditor workspace passthrough mode to forward pointer gestures to Flow canvas for collective drag/pan/zoom')
+  }
+  if (!editorText.includes("const passthroughPointerEventsClass = interactionPassthrough ? 'pointer-events-none' : 'pointer-events-auto'")) {
+    throw new Error('expected NodeOverlayEditor workspace passthrough mode to centralize overlay panel/toolbar pointer-event routing')
+  }
+  if (!editorText.includes('className={passthroughPointerEventsClass}')) {
+    throw new Error('expected NodeOverlayEditor workspace passthrough mode to disable panel pointer interactions so collective canvas gestures remain available')
+  }
+  if (!editorText.includes('if (interactionPassthrough) return')) {
+    throw new Error('expected NodeOverlayEditor pointer capture handler to no-op in workspace passthrough mode')
+  }
+  const overlaySharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+  const overlaySharedText = readFileSync(overlaySharedPath, 'utf8')
+  if (!overlaySharedText.includes('interactionPassthrough?: boolean')) {
+    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to thread interaction passthrough contract into NodeOverlayEditor')
+  }
+  if (!overlaySharedText.includes('interactionPassthrough={args.interactionPassthrough}')) {
+    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to pass interaction passthrough into NodeOverlayEditor')
+  }
+  if (!editorText.includes('useGraphStore.setState(prev => {')) {
+    throw new Error('expected direct Flow Editor widget persistence to update in-memory widget positions while workspace mutation is blocked')
+  }
+  if (!editorText.includes('flowWidgetPosByNodeIdByGraphMetaKey')) {
+    throw new Error('expected direct Flow Editor screen-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
+  }
+  if (!editorText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey')) {
+    throw new Error('expected direct Flow Editor world-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
+  }
+  if (!editorText.includes('state.setFlowWidgetPosByNodeId(next)')) {
+    throw new Error('expected direct Flow Editor screen-position persistence path to remain available when workspace mutation is not blocked')
+  }
+  if (!editorText.includes('setFlowWidgetWorldPosByNodeId(next)')) {
+    throw new Error('expected direct Flow Editor world-position persistence path to remain available when workspace mutation is not blocked')
+  }
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
+  if (!flowCanvasText.includes('allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === \'flowEditor\'')) {
+    throw new Error('expected FlowCanvas commit path to allow Flow Editor layout commits while workspace view is open')
+  }
+  const flowCommitPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowRequestCommit.ts')
+  const flowCommitText = readFileSync(flowCommitPath, 'utf8')
+  if (!flowCommitText.includes('const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true')) {
+    throw new Error('expected FlowCanvas requestCommit to decouple workspace mutation guard from Flow Editor collective interaction commits')
+  }
+  if (!flowCommitText.includes('commitZoomTransformToStore({')) {
+    throw new Error('expected FlowCanvas requestCommit to keep viewport zoom-state commit active during workspace-open interaction')
   }
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const runtimeText = readFileSync(runtimePath, 'utf8')
@@ -147,6 +208,21 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0')) {
     throw new Error('expected runtime transform authority to add workspace-mutation-blocked offscreen guards before reusing live transform for overlay seeding')
   }
+  if (!runtimeText.includes('const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620')) {
+    throw new Error('expected runtime transform authority to detect active flow-editor interaction frames before applying workspace-blocked offscreen transform guard')
+  }
+  if (!runtimeText.includes('const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || \'\').trim()')) {
+    throw new Error('expected runtime transform authority to detect active widget dragging before applying workspace-blocked offscreen transform guard')
+  }
+  if (!runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging')) {
+    throw new Error('expected runtime transform authority to defer workspace-blocked offscreen transform neutralization/reuse while user pan/zoom/drag interaction is in progress')
+  }
+  if (!runtimeText.includes('const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging')) {
+    throw new Error('expected runtime scene-empty persisted-transform branch to allow active interaction to keep current transform in workspace mutation windows')
+  }
+  if (!runtimeText.includes('|| allowPersistedDuringActiveInteraction')) {
+    throw new Error('expected runtime scene-empty persisted-transform reuse gate to include active interaction override')
+  }
   if (!runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-neutralized'")) {
     throw new Error('expected runtime transform trace to record when offscreen workspace-blocked transforms are neutralized to prevent flash-right drift')
   }
@@ -165,8 +241,58 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
 
   const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
   const renderStateText = readFileSync(renderStatePath, 'utf8')
+  const graphStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
+  const graphStateText = readFileSync(graphStatePath, 'utf8')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const runtimeCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const runtimeCanvasText = readFileSync(runtimeCanvasPath, 'utf8')
+  if (!runtimeCanvasText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
+    throw new Error('expected Flow Editor canvas runtime to pass shared workspace mutation-blocked state into render graph stabilization path')
+  }
+  if (!runtimeCanvasText.includes('workspaceMutationBlocked,')) {
+    throw new Error('expected Flow Editor render state hook invocation to include workspace mutation-blocked input')
+  }
+  if (!renderStateText.includes('workspaceMutationBlocked: boolean')) {
+    throw new Error('expected Flow Editor render state to accept shared workspace mutation-blocked state for transient render graph stability')
+  }
+  if (!renderStateText.includes('const shouldPreserveStableDuringWorkspaceMutation =')) {
+    throw new Error('expected Flow Editor render state to centralize workspace-mutation transient empty-graph preservation guard')
+  }
+  if (!renderStateText.includes('if (shouldPreserveStableDuringWorkspaceMutation && prev?.documentKey === args.activeDocumentKey) return prev')) {
+    throw new Error('expected Flow Editor render state stable graph cache writes to avoid replacing stable graph with transient empty graph during workspace mutation windows')
+  }
+  if (!renderStateText.includes('const preserveStableGraphDuringWorkspaceMutation =')) {
+    throw new Error('expected Flow Editor render state graph selection to prefer stable graph during workspace-mutation transient empty-graph frames')
+  }
+  if (!renderStateText.includes('if (preserveStableGraphDuringWorkspaceMutation) return stableGraph')) {
+    throw new Error('expected Flow Editor render state graph selection to keep overlays mounted without close/reopen when workspace mutation emits empty render graph frames')
+  }
   if (!renderStateText.includes('const preserveStableGraphAcrossFlowViewClose =')) {
     throw new Error('expected Flow Editor render state to name the stable graph reuse contract for workspace close explicitly')
+  }
+  if (!graphStateText.includes('const allowMutations = allowNodeDragOverride !== false')) {
+    throw new Error('expected FlowCanvas graph state to keep interaction mutation pathways enabled in Workspace-open Flow Editor mode')
+  }
+  if (graphStateText.includes('allowNodeDragOverride !== false && documentStructureBaselineLock !== true')) {
+    throw new Error('expected FlowCanvas interaction mutation gate to avoid baseline-lock coupling that freezes workspace-open drag/pan/zoom')
+  }
+  if (!overlaySurfaceText.includes('if (workspaceMutationBlocked) {')) {
+    throw new Error('expected Flow Editor overlay-only mode to keep base FlowCanvas visible while workspace mutation/view is active')
+  }
+  if (!overlaySurfaceText.includes('return false')) {
+    throw new Error('expected workspace-mutation overlay-only guard to explicitly preserve base canvas interaction and edge visibility')
+  }
+  if (overlaySurfaceText.includes('preferCanvasCollectiveInteraction')) {
+    throw new Error('expected Flow Editor overlay surface to avoid base FlowCanvas collective fallback authority that can cause renderer seepage/interference')
+  }
+  const overlayCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+  const overlayCanvasSurfaceText = readFileSync(overlayCanvasSurfacePath, 'utf8')
+  if (!overlayCanvasSurfaceText.includes('renderNodes={true}')) {
+    throw new Error('expected Flow Editor canvas surface to keep runtime scene nodes active for collective drag/pan/zoom while overlay-only mode is enabled')
+  }
+  if (!overlayCanvasSurfaceText.includes('hideNodeIds={props.overlayOnlyActive ? props.overlayEditorNodeIds : undefined}')) {
+    throw new Error('expected Flow Editor canvas surface to hide overlay-managed base nodes in draw layer to forbid FlowCanvas seepage while preserving collective interaction hit targets')
   }
   if (!renderStateText.includes('prev.topologyLayoutSignature === nextTopologyLayoutSignature')) {
     throw new Error('expected Flow Editor render state to preserve the stable overlay graph only when semantic overlay topology still matches')
@@ -305,10 +431,13 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('flowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlay loop dependencies to include frontmatter document mode')
   }
-  const flowZoomCommitGuardIndex = commitText.indexOf('if (workspaceMutationBlocked) return')
   const flowZoomCommitWriteIndex = commitText.indexOf('commitZoomTransformToStore({')
-  if (flowZoomCommitGuardIndex < 0 || flowZoomCommitWriteIndex < 0 || flowZoomCommitGuardIndex > flowZoomCommitWriteIndex) {
-    throw new Error('expected Flow request commit to block zoom persistence while Workspace/Indexing mutation guard is active')
+  const flowLayoutCommitGuardIndex = commitText.indexOf('if (!allowLayoutCommit) return')
+  if (flowZoomCommitWriteIndex < 0) {
+    throw new Error('expected Flow request commit to keep viewport zoom persistence active')
+  }
+  if (flowLayoutCommitGuardIndex < 0 || flowZoomCommitWriteIndex > flowLayoutCommitGuardIndex) {
+    throw new Error('expected Flow request commit to gate layout persistence separately from zoom persistence while Workspace/Indexing mutation guard is active')
   }
   if (!runtimeText.includes('const lateFlowEditorInitAfterSceneBuild =')) {
     throw new Error('expected Flow runtime to name the late Flow Editor init guard explicitly')
@@ -456,10 +585,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!computedPositionsText.includes('const graphKey = `graph:${semanticGraphKey}:')) {
     throw new Error('expected Flow computed positions graph key to be based on semantic graph identity')
   }
-  const flowCommitGuardIndex = commitText.indexOf('if (workspaceMutationBlocked) return')
+  const flowCommitGuardIndex = commitText.indexOf('const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true')
   const flowCommitWriteIndex = commitText.indexOf('if (changed) setLayoutPositionsForMode(cacheKey, nextPositions)')
   if (flowCommitGuardIndex < 0 || flowCommitWriteIndex < 0 || flowCommitGuardIndex > flowCommitWriteIndex) {
-    throw new Error('expected Flow request commit to block layout persistence while Workspace/Indexing mutation guard is active')
+    throw new Error('expected Flow request commit to gate layout persistence through an explicit workspace-guard override contract')
   }
   const computedGuardIndex = computedText.indexOf('!isWorkspaceGraphMutationBlocked(workspaceState)')
   const computedWriteIndex = computedText.indexOf('setLayoutPositionsForMode(cacheKey, packed)')
@@ -497,6 +626,18 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!text.includes('if (!active || mediaLayoutItems.length === 0 || workspaceOverlayOpenRef.current)')) {
     throw new Error('expected Rich Media layout loop to stay stopped while workspace overlay is open')
+  }
+  if (!text.includes('const overlayInteractionEnabled = flowEditorOverlayInteractionMode && !workspaceOverlayOpen')) {
+    throw new Error('expected Rich Media overlay interactions to disable while workspace overlay is open so collective canvas gestures stay available')
+  }
+  if (!text.includes("const overlayPanelPointerEventsClass = workspaceOverlayOpen ? 'pointer-events-none' : 'pointer-events-auto'")) {
+    throw new Error('expected Rich Media overlays to centralize pointer-event passthrough under workspace-open state')
+  }
+  if (!text.includes('className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}')) {
+    throw new Error('expected Rich Media overlays to forward pointer gestures to FlowCanvas when workspace overlay is open')
+  }
+  if (!text.includes('onWheelCapture={workspaceOverlayOpen ? undefined : stopEvent}')) {
+    throw new Error('expected Rich Media overlay wheel capture to disable while workspace overlay is open')
   }
   if (!text.includes('const cancelMediaOverlayInteractionState = React.useCallback(() => {')) {
     throw new Error('expected FlowCanvas media overlays to centralize cancellation of delayed interaction writes')
@@ -565,8 +706,14 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (!flowEditorSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
     throw new Error('expected Flow Editor overlay ids to reuse last stable ids when flowEditorViewActive is transiently false during workspace mutation windows')
   }
-  if (!flowEditorSurfaceText.includes('visible={flowEditorViewActive || (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)}')) {
-    throw new Error('expected Flow Editor widget overlays to remain visible during workspace-mutation transient view deactivation frames')
+  if (!flowEditorSurfaceText.includes('visible={flowEditorViewActive || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)}')) {
+    throw new Error('expected Flow Editor widget overlays to remain visible during workspace-open passthrough and transient workspace-mutation frames')
+  }
+  if (!flowEditorSurfaceText.includes('const workspaceInteractionPassthrough = workspaceEditorOverlayOpen || workspaceMutationBlocked')) {
+    throw new Error('expected Flow Editor overlay surface to derive interaction passthrough from explicit workspace overlay-open OR shared mutation-blocked state')
+  }
+  if (!flowEditorSurfaceText.includes('interactionPassthrough={workspaceInteractionPassthrough}')) {
+    throw new Error('expected Flow Editor overlay surface to enable overlay interaction passthrough while workspace view is open')
   }
   if (!flowEditorSurfaceText.includes('|| (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)')) {
     throw new Error('expected Flow Editor overlay surface hasOverlayEditors guard to keep overlay layers mounted during transient workspace mutation frames')

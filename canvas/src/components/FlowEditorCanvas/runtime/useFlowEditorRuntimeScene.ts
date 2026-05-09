@@ -10,7 +10,10 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
-import { emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent } from '@/lib/canvas/flow-editor-overlay-proxy'
+import {
+  emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent,
+  FLOW_EDITOR_INTERACTION_FRAME_EVENT,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   computeBalancedSpreadViewportMargins,
   computeBalancedSpreadSpacingPx,
@@ -93,6 +96,26 @@ export function useFlowEditorRuntimeScene(args: {
   const flowRuntimeRefRef = React.useRef<React.MutableRefObject<FlowNativeRuntime | null> | null>(null)
   const latestAutoSeedWorldPosByNodeIdRef = React.useRef<Record<string, { x: number; y: number }>>({})
   const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
+  const lastInteractionFrameAtMsRef = React.useRef<number>(0)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const markInteraction = () => {
+      lastInteractionFrameAtMsRef.current = Date.now()
+    }
+    try {
+      window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, markInteraction as EventListener)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, markInteraction as EventListener)
+      } catch {
+        void 0
+      }
+    }
+  }, [])
 
   const getLiveNodeWorldPos = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
@@ -113,6 +136,9 @@ export function useFlowEditorRuntimeScene(args: {
     const sceneNodeCount = Array.isArray(sceneNodes) ? sceneNodes.length : 0
     const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     const positionsReady = runtime?.positionsReady === true
+    const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620
+    const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || '').trim()
+    const flowWidgetDragging = flowWidgetDraggingNodeId.length > 0
     if (Array.isArray(sceneNodes) && sceneNodes.length <= 0) {
       const lastUsable = lastUsableZoomTransformRef.current
       if (lastUsable) {
@@ -126,6 +152,18 @@ export function useFlowEditorRuntimeScene(args: {
           transform: lastUsable,
         })
         return lastUsable
+      }
+      if (workspaceMutationBlocked) {
+        pushFlowEditorRuntimeSceneTrace({
+          reason: 'scene-empty-workspace-blocked-awaiting-live-transform',
+          sceneNodeCount,
+          positionsReady,
+          workspaceMutationBlocked,
+          viewportW: args.viewportW,
+          viewportH: args.viewportH,
+          transform: null,
+        })
+        return null
       }
       const st = useGraphStore.getState()
       const persisted = getEffectiveZoomStateForKey({
@@ -142,7 +180,17 @@ export function useFlowEditorRuntimeScene(args: {
         && persistedY != null
         && Math.abs(persistedX) <= args.viewportW * 0.6
         && Math.abs(persistedY) <= args.viewportH * 0.6
-      if (persistedK != null && persistedX != null && persistedY != null && (!workspaceMutationBlocked || persistedLooksSafeForWorkspaceBlocked)) {
+      const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging
+      if (
+        persistedK != null
+        && persistedX != null
+        && persistedY != null
+        && (
+          !workspaceMutationBlocked
+          || persistedLooksSafeForWorkspaceBlocked
+          || allowPersistedDuringActiveInteraction
+        )
+      ) {
         const persistedTransform = { k: persistedK, x: persistedX, y: persistedY }
         pushFlowEditorRuntimeSceneTrace({
           reason: 'scene-empty-using-persisted-transform',
@@ -196,7 +244,7 @@ export function useFlowEditorRuntimeScene(args: {
       return null
     }
     const next = { k, x, y }
-    if (workspaceMutationBlocked && sceneNodeCount > 0) {
+    if (workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging) {
       const visible = isFlowTransformShowingGraph(next, {
         nodes: sceneNodes as Array<{ x?: unknown; y?: unknown }>,
         viewportW: args.viewportW,

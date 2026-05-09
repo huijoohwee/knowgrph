@@ -82,7 +82,6 @@ export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
 export const CHAT_DEFAULT_MODEL = CHAT_OPENAI_MODEL_OPTIONS[0]
 export const CHAT_DEFAULT_ENDPOINT_URL = CHAT_OPENAI_ENDPOINT_URL
 export const CHAT_LOCAL_DEFAULT_MODEL = CHAT_LOCAL_MODEL_OPTIONS[0]
-export const CHAT_LEGACY_DEFAULT_MODEL = 'lmstudio-community/Qwen3.5-9B-Q4_K_M.gguf'
 const CHAT_MODEL_ALIASES: Record<string, string> = {
   'gpt-5.4 nano': 'gpt-5.4-nano',
   'gpt-5.4 mini': 'gpt-5.4-mini',
@@ -310,7 +309,6 @@ export function normalizeChatModelIdForProvider(value: unknown, provider: unknow
   const normalizedProvider = normalizeChatProviderId(provider)
   const raw = typeof value === 'string' ? value.trim() : ''
   if (!raw) return getDefaultChatModelForProvider(normalizedProvider)
-  if (raw === CHAT_LEGACY_DEFAULT_MODEL) return CHAT_LOCAL_DEFAULT_MODEL
   const alias = CHAT_MODEL_ALIASES[raw.toLowerCase()]
   return alias || raw
 }
@@ -325,7 +323,7 @@ export function normalizeChatEndpointUrlInput(value: unknown, provider?: unknown
   if (!absolute) return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
       return parsed.toString()
     }
   } catch {
@@ -345,7 +343,7 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   if (!absolute) return null
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
       return toProxyPathFromLocalUrl(parsed)
     }
     return null
@@ -444,9 +442,6 @@ export function getChatRecommendedModelHint(provider: unknown): string {
   }
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
     return 'Use an OpenAI model id and keep API keys server-routed through the proxy.'
-  }
-  if (normalizedProvider === CHAT_PROVIDER_GEMINI) {
-    return `Default text: ${CHAT_GEMINI_TEXT_MODEL_DEFAULT}. Video Run uses ${CHAT_GEMINI_VIDEO_MODEL_DEFAULT}. API key is sent via x-goog-api-key header.`
   }
   return 'Use a locally served OpenAI-compatible model id.'
 }

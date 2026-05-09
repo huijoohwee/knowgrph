@@ -36,6 +36,14 @@ const INTEGRATION_GEMINI_VIDEO_ASPECT_RATIO_OPTIONS = ['16:9', '9:16'] as const
 const INTEGRATION_GEMINI_VIDEO_RESOLUTION_OPTIONS = ['720p', '1080p', '4k'] as const
 const INTEGRATION_GEMINI_VIDEO_DURATION_OPTIONS = ['4', '6', '8'] as const
 const INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS = ['allow_all', 'allow_adult', 'dont_allow'] as const
+const INTEGRATION_OPENAI_IMAGES_MODEL_OPTIONS = ['gpt-image-1.5', 'gpt-image-1', 'gpt-image-1-mini', 'dall-e-3', 'dall-e-2'] as const
+const INTEGRATION_OPENAI_IMAGES_SIZE_OPTIONS = ['auto', '1024x1024', '1536x1024', '1024x1536', '256x256', '512x512', '1792x1024', '1024x1792'] as const
+const INTEGRATION_OPENAI_IMAGES_QUALITY_OPTIONS = ['auto', 'low', 'medium', 'high', 'standard', 'hd'] as const
+const INTEGRATION_OPENAI_IMAGES_BACKGROUND_OPTIONS = ['auto', 'transparent', 'opaque'] as const
+const INTEGRATION_OPENAI_IMAGES_OUTPUT_FORMAT_OPTIONS = ['png', 'jpeg', 'webp'] as const
+const INTEGRATION_OPENAI_IMAGES_RESPONSE_FORMAT_OPTIONS = ['url', 'b64_json'] as const
+const INTEGRATION_OPENAI_IMAGES_MODERATION_OPTIONS = ['auto', 'low'] as const
+const INTEGRATION_OPENAI_IMAGES_STYLE_OPTIONS = ['vivid', 'natural'] as const
 import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
 import {
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
@@ -416,6 +424,54 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       return {
         ...mappedMeta,
         options: [...INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.size') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_SIZE_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.quality') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_QUALITY_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.background') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_BACKGROUND_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.output_format') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_OUTPUT_FORMAT_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.response_format') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_RESPONSE_FORMAT_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.moderation') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_MODERATION_OPTIONS],
+      }
+    }
+    if (rowKey === 'openaiImagesApi.style') {
+      return {
+        ...mappedMeta,
+        options: [...INTEGRATION_OPENAI_IMAGES_STYLE_OPTIONS],
       }
     }
     if (mappedMeta.type !== 'json') return mappedMeta

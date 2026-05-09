@@ -605,6 +605,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [resetMediaOverlayInteractionState])
 
   if (!(active && mediaNodes.length > 0)) return null
+  const workspaceOverlayOpen = workspaceOverlayOpenRef.current
   return (
     <section
       aria-label="Flow media overlay"
@@ -613,7 +614,10 @@ export default function FlowCanvasMediaOverlays(args: {
     >
       {mediaNodes.map((node, index) => {
         const isSelected = canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)
-        const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested
+        const overlayInteractionEnabled = flowEditorOverlayInteractionMode && !workspaceOverlayOpen
+        const resizeInteractionActive =
+          overlayInteractionEnabled && flowEditorFrontmatterDocumentModeRequested
+        const overlayPanelPointerEventsClass = workspaceOverlayOpen ? 'pointer-events-none' : 'pointer-events-auto'
         const overlayZIndex = isSelected
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED
           : Math.max(1, Z_INDEX_GRAPH_MEDIA_LAYER - Math.max(0, index))
@@ -632,7 +636,7 @@ export default function FlowCanvasMediaOverlays(args: {
               }
               mediaOverlayElsRef.current.set(node.id, el)
             }}
-            className="absolute left-0 top-0 pointer-events-auto"
+            className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}
             title={node.title}
             url={node.url}
             srcDoc={node.srcDoc}
@@ -652,15 +656,15 @@ export default function FlowCanvasMediaOverlays(args: {
               commitRichMediaPanelChange({ nodeId: node.id, next, updateNode })
             }}
             forwardWheelTo={() => canvasRef.current}
-            onOverlayPanStart={flowEditorOverlayInteractionMode ? payload => beginMediaOverlayPan(payload) : undefined}
-            onOverlayPan={flowEditorOverlayInteractionMode ? payload => {
+            onOverlayPanStart={overlayInteractionEnabled ? payload => beginMediaOverlayPan(payload) : undefined}
+            onOverlayPan={overlayInteractionEnabled ? payload => {
               mediaOverlayPanMoveLatestRef.current = payload
               if (!mediaOverlayPanMoveSchedulerRef.current) {
                 mediaOverlayPanMoveSchedulerRef.current = createRafLatestScheduler(applyMediaOverlayPanMove)
               }
               mediaOverlayPanMoveSchedulerRef.current.schedule(payload)
             } : undefined}
-            onOverlayPanEnd={flowEditorOverlayInteractionMode ? payload => {
+            onOverlayPanEnd={overlayInteractionEnabled ? payload => {
               const drag = mediaOverlayPanRef.current
               if (!drag || drag.pointerId !== payload.pointerId) return
               mediaOverlayPanMoveSchedulerRef.current?.cancel()
@@ -671,8 +675,8 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayPanRef.current = null
               if (!workspaceOverlayOpenRef.current) requestCommit()
             } : undefined}
-            onHeaderDragStart={flowEditorOverlayInteractionMode ? ({ pointerId }) => beginMediaOverlayHeaderDrag(node.id, pointerId) : undefined}
-            onHeaderDrag={flowEditorOverlayInteractionMode ? ({ dx, dy, pointerId }) => {
+            onHeaderDragStart={overlayInteractionEnabled ? ({ pointerId }) => beginMediaOverlayHeaderDrag(node.id, pointerId) : undefined}
+            onHeaderDrag={overlayInteractionEnabled ? ({ dx, dy, pointerId }) => {
               const queued = { id: node.id, pointerId, dx, dy }
               mediaOverlayHeaderMoveLatestRef.current = queued
               if (!mediaOverlayHeaderMoveSchedulerRef.current) {
@@ -680,7 +684,7 @@ export default function FlowCanvasMediaOverlays(args: {
               }
               mediaOverlayHeaderMoveSchedulerRef.current.schedule(queued)
             } : undefined}
-            onHeaderDragEnd={flowEditorOverlayInteractionMode ? ({ pointerId }) => {
+            onHeaderDragEnd={overlayInteractionEnabled ? ({ pointerId }) => {
               const drag = mediaOverlayHeaderDragRef.current
               if (!drag || drag.id !== node.id || drag.pointerId !== pointerId) return
               mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
@@ -691,7 +695,7 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayHeaderDragRef.current = null
               if (!workspaceOverlayOpenRef.current) requestCommit()
             } : undefined}
-            resizable={flowEditorOverlayInteractionMode && isSelected}
+            resizable={overlayInteractionEnabled && isSelected}
             onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(node.id, pointerId) : undefined}
             onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => {
               const queued = { id: node.id, pointerId, dx, dy }
@@ -727,10 +731,10 @@ export default function FlowCanvasMediaOverlays(args: {
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
             flowEditorSurfaceId={flowEditorOverlaySurfaceId}
             style={{ transform: 'translate(-99999px, -99999px)', width: 1, height: 1, zIndex: overlayZIndex }}
-            onWheelCapture={stopEvent}
-            onClickCapture={stopEvent}
-            onDoubleClickCapture={stopEvent}
-            onContextMenuCapture={stopEvent}
+            onWheelCapture={workspaceOverlayOpen ? undefined : stopEvent}
+            onClickCapture={workspaceOverlayOpen ? undefined : stopEvent}
+            onDoubleClickCapture={workspaceOverlayOpen ? undefined : stopEvent}
+            onContextMenuCapture={workspaceOverlayOpen ? undefined : stopEvent}
           />
         )
       })}

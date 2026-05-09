@@ -3,13 +3,13 @@
 ## Source
 
 - Graph ID: `md:knowgrph-llm-prompt-contract`
-- Markdown: `${KG_GITHUB_ROOT}/knowgrph/docs/documents/knowgrph-llm-prompt-contract.md`
+- Markdown: `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-llm-prompt-contract.md`
 
 ## Outputs
 
-- Graph JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-llm-prompt-contract-graph-data.jsonld`
-- Schema JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-llm-prompt-contract-schema-config.jsonld`
-- Orchestrator YAML: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-llm-prompt-contract-orchestrator-config.yaml`
+- Graph JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-llm-prompt-contract-graph-data.jsonld`
+- Schema JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-llm-prompt-contract-schema-config.jsonld`
+- Orchestrator YAML: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-llm-prompt-contract-orchestrator-config.yaml`
 
 ## Outline
 

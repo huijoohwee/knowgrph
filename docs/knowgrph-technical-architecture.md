@@ -68,6 +68,11 @@ This root document exists as the auto-generated settings registry table surface 
 | `byteplusVideoDraft` | boolean | localStorage | `kg:integrations:byteplusVideo:draft` |  |
 | `byteplusVideoCameraFixed` | boolean | localStorage | `kg:integrations:byteplusVideo:cameraFixed` |  |
 | `byteplusVideoImageUrlUrl` | string | localStorage | `kg:integrations:byteplusVideo:contentImageUrlUrlMode` |  |
+| `geminiVideoModel` | string | localStorage | `kg:integrations:geminiVideo:model` |  |
+| `geminiVideoAspectRatio` | string | localStorage | `kg:integrations:geminiVideo:aspectRatio` |  |
+| `geminiVideoResolution` | string | localStorage | `kg:integrations:geminiVideo:resolution` |  |
+| `geminiVideoDurationSeconds` | string | localStorage | `kg:integrations:geminiVideo:durationSeconds` |  |
+| `geminiVideoPersonGeneration` | string | localStorage | `kg:integrations:geminiVideo:personGeneration` |  |
 | `chatModel` | string | localStorage | `kg:chat:model` | `ui.chat` |
 | `chatTemperature` | number | localStorage | `kg:chat:temperature` | `ui.chat` |
 | `chatMaxCompletionTokens` | number | localStorage | `kg:chat:maxCompletionTokens` | `ui.chat` |
@@ -114,8 +119,8 @@ This root document exists as the auto-generated settings registry table surface 
 | `canvasGridVariant` | string | store |  |  |
 | `canvasGridMajorEvery` | number | store |  |  |
 | `canvasGridDotRadiusPx` | number | store |  |  |
-| `markdownWordWrap` | boolean | localStorage | `kg:ui:markdown:wordWrap` | `ui.markdownWorkspace` |
-| `markdownTextHighlight` | boolean | localStorage | `kg:ui:markdown:textHighlight` | `ui.markdownWorkspace` |
+| `markdownWordWrap` | boolean | localStorage | `kg:ui:markdown:wordWrap` | `ui.bottomSurface` |
+| `markdownTextHighlight` | boolean | localStorage | `kg:ui:markdown:textHighlight` | `ui.bottomSurface` |
 | `autoEnableGeospatialOnGeoImport` | boolean | store |  |  |
 | `maps.grabmaps.authMode` | string | store |  |  |
 | `maps.grabmaps.apiKey` | string | store |  |  |
@@ -248,6 +253,39 @@ This root document exists as the auto-generated settings registry table surface 
 | `monacoHorizontalScrollbarSizeEnabled` | boolean | store |  |  |
 | `monacoVerticalScrollbarSizeEnabled` | boolean | store |  |  |
 | `monacoMouseWheelScrollSensitivityEnabled` | boolean | store |  |  |
+| `workspace.surface.padding.top` | number | localStorage |  |  |
+| `workspace.surface.padding.right` | number | localStorage |  |  |
+| `workspace.surface.padding.bottom` | number | localStorage |  |  |
+| `workspace.surface.padding.left` | number | localStorage |  |  |
+| `workspace.surface.margin.top` | number | localStorage |  |  |
+| `workspace.surface.margin.right` | number | localStorage |  |  |
+| `workspace.surface.margin.bottom` | number | localStorage |  |  |
+| `workspace.surface.margin.left` | number | localStorage |  |  |
+| `workspace.surface.gap` | number | localStorage |  |  |
+| `workspace.split.divider.gap` | number | localStorage |  |  |
+| `print.portrait.pageMargin.top` | number | localStorage |  |  |
+| `print.portrait.pageMargin.right` | number | localStorage |  |  |
+| `print.portrait.pageMargin.bottom` | number | localStorage |  |  |
+| `print.portrait.pageMargin.left` | number | localStorage |  |  |
+| `print.portrait.rootPadding.top` | number | localStorage |  |  |
+| `print.portrait.rootPadding.right` | number | localStorage |  |  |
+| `print.portrait.rootPadding.bottom` | number | localStorage |  |  |
+| `print.portrait.rootPadding.left` | number | localStorage |  |  |
+| `print.landscape.pageMargin.top` | number | localStorage |  |  |
+| `print.landscape.pageMargin.right` | number | localStorage |  |  |
+| `print.landscape.pageMargin.bottom` | number | localStorage |  |  |
+| `print.landscape.pageMargin.left` | number | localStorage |  |  |
+| `print.landscape.rootPadding.top` | number | localStorage |  |  |
+| `print.landscape.rootPadding.right` | number | localStorage |  |  |
+| `print.landscape.rootPadding.bottom` | number | localStorage |  |  |
+| `print.landscape.rootPadding.left` | number | localStorage |  |  |
+| `workspace.sync.seed.enabled` | boolean | localStorage |  |  |
+| `workspace.sync.seed.pollMs` | number | localStorage |  |  |
+| `workspace.sync.seed.idleMaxMs` | number | localStorage |  |  |
+| `workspace.sync.autoRefresh.enabled` | boolean | localStorage |  |  |
+| `workspace.sync.sourceFiles.docsOnly` | boolean | localStorage |  |  |
+| `workspace.sync.sourceFiles.debounceMs` | number | localStorage |  |  |
+| `workspace.import.defaultSourceUrl` | string | localStorage |  |  |
 | `pdfImportIncludeImages` | boolean | store | `kg:import:pdf:includeImages` | `import.pdf` |
 | `pdfImportMaxPages` | number | store | `kg:import:pdf:maxPages` | `import.pdf` |
 | `pdfImportMaxPdfBytes` | number | store | `kg:import:pdf:maxPdfBytes` | `import.pdf` |

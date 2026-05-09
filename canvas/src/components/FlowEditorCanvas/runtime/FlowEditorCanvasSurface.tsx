@@ -13,6 +13,7 @@ export default function FlowEditorCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
   flowEditorSurfaceId: string
   active: boolean
+  canInteract: boolean
   canEdit: boolean
   geospatialWidgetPanelMode?: boolean
   renderGraphDataOverride: GraphData | null
@@ -101,7 +102,7 @@ export default function FlowEditorCanvasSurface(props: {
       <FlowCanvas
         active={props.active}
         flowEditorSurfaceId={props.flowEditorSurfaceId}
-        allowNodeDragOverride={props.canEdit}
+        allowNodeDragOverride={props.canInteract}
         graphDataOverride={props.renderGraphDataOverride}
         graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
         exposeRuntimeRef={ref => {
@@ -110,7 +111,8 @@ export default function FlowEditorCanvasSurface(props: {
         onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
         renderEdges={!props.overlayOnlyActive}
         renderGroups={!props.geospatialWidgetPanelMode}
-        renderNodes={!props.overlayOnlyActive}
+        renderNodes={true}
+        hideNodeIds={props.overlayOnlyActive ? props.overlayEditorNodeIds : undefined}
         hidePortHandleNodeIds={props.overlayOnlyHidePortHandleNodeIds}
         excludeRichMediaOverlayNodeIds={props.overlayOnlyActive ? props.overlayEditorNodeIds : []}
       />

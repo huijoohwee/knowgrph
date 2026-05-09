@@ -16,7 +16,7 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
   hashScopedStringArraySignature,
   hashSignatureParts,
@@ -41,6 +41,7 @@ const EMPTY_GRAPH_ELIGIBLE_NODE_IDS = new Set<string>()
 
 export function useFlowEditorOverlaySurface(args: {
   flowEditorSurfaceId: string
+  canInteract: boolean
   canEdit: boolean
   flowEditorViewActive: boolean
   flowEditorFrontmatterGraphAvailable: boolean
@@ -86,6 +87,7 @@ export function useFlowEditorOverlaySurface(args: {
 }) {
   const {
     flowEditorSurfaceId,
+    canInteract,
     canEdit,
     flowEditorViewActive,
     flowEditorFrontmatterGraphAvailable,
@@ -130,6 +132,8 @@ export function useFlowEditorOverlaySurface(args: {
     flowWidgetPinnedByNodeId,
   } = args
   const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
+  const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
+  const workspaceInteractionPassthrough = workspaceEditorOverlayOpen || workspaceMutationBlocked
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')
@@ -237,7 +241,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphNodeById,
     renderGraphNodes,
     renderGraphSemanticKey,
-    workspaceMutationBlocked,
+    workspaceInteractionPassthrough,
   ])
 
   React.useEffect(() => {
@@ -467,8 +471,9 @@ export function useFlowEditorOverlaySurface(args: {
         return (
           <FlowEditorWidgetOverlay
             key={`qe-${id}`}
-            visible={flowEditorViewActive || (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)}
-            active={canEdit}
+            visible={flowEditorViewActive || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)}
+            active={canInteract}
+            interactionPassthrough={workspaceInteractionPassthrough}
             flowEditorSurfaceId={flowEditorSurfaceId}
             node={node}
             graphMetaKind={graphMetaKind}
@@ -576,7 +581,7 @@ export function useFlowEditorOverlaySurface(args: {
     viewportW,
     widgetRegistry,
     zoomViewKey,
-    workspaceMutationBlocked,
+    workspaceInteractionPassthrough,
     connectedValuesByNodeId,
     handlePinnedInCanvasChange,
     overlayEditorNodeIds,
@@ -588,7 +593,7 @@ export function useFlowEditorOverlaySurface(args: {
 
   const hasOverlayEditors =
     overlayEditorElements.length > 0
-    || (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)
+    || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)
   const frontmatterOverlayHideSafety = React.useMemo(() => {
     const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
     if (kind !== 'frontmatter-flow') {
@@ -628,6 +633,18 @@ export function useFlowEditorOverlaySurface(args: {
         return false
       }
       if (Boolean(geospatialWidgetPanelMode)) return true
+      if (workspaceMutationBlocked) {
+        // Keep base FlowCanvas interactive/visible while Workspace view mutations are active.
+        // This avoids overlay-only interaction lock and preserves edge visibility.
+        frontmatterOverlayOnlyCoverageRef.current = null
+        return false
+      }
+      if (workspaceEditorOverlayOpen) {
+        // Keep collective pan/zoom/edge interaction on base FlowCanvas whenever Workspace view is open.
+        // Overlay panels remain visible but should not become authoritative for canvas gestures.
+        frontmatterOverlayOnlyCoverageRef.current = null
+        return false
+      }
       if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {
         // Keep the base FlowCanvas graph visible in document frontmatter mode; overlays augment it.
         frontmatterOverlayOnlyCoverageRef.current = null

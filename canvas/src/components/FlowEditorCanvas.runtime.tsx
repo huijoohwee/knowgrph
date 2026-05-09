@@ -23,6 +23,7 @@ import { useFlowEditorWorkflowActions } from '@/components/FlowEditorCanvas/runt
 import FlowEditorCanvasSurface from '@/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -144,6 +145,8 @@ export default function FlowEditorCanvasRuntime(
     return `${name}::${sourceUrl}`
   }, [markdownDocumentName, markdownDocumentSourceUrl])
   const flowEditorViewActive = editorRuntimeActive
+  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
+  const canInteract = editorRuntimeActive
   const canEdit = editorRuntimeActive && !documentStructureBaselineLock
   const { canvasWindowOffset, canvasWindowOffsetRef, inspectorPortalHost, setCanvasWindowOffsetFromRect } = useFlowEditorSurfaceAnchors({
     active,
@@ -253,6 +256,7 @@ export default function FlowEditorCanvasRuntime(
     active,
     editorRuntimeActive,
     flowEditorViewActive,
+    workspaceMutationBlocked,
     baseGraphData: (baseGraphData || null) as GraphData | null,
     baseGraphDataRevision,
     flowEditorBaseGraphData,
@@ -550,6 +554,7 @@ export default function FlowEditorCanvasRuntime(
     flowCanvasGraphDataOverride,
   } = useFlowEditorOverlaySurface({
     flowEditorSurfaceId,
+    canInteract,
     canEdit,
     flowEditorViewActive,
     flowEditorFrontmatterGraphAvailable,
@@ -615,6 +620,7 @@ export default function FlowEditorCanvasRuntime(
       rootRef={rootRef}
       flowEditorSurfaceId={flowEditorSurfaceId}
       active={active}
+      canInteract={canInteract}
       canEdit={canEdit}
       geospatialWidgetPanelMode={geospatialWidgetPanelMode}
       renderGraphDataOverride={flowCanvasGraphDataOverride}

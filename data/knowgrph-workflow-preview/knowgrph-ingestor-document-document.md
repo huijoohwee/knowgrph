@@ -3,13 +3,13 @@
 ## Source
 
 - Graph ID: `md:knowgrph-ingestor-document`
-- Markdown: `${KG_GITHUB_ROOT}/knowgrph/docs/documents/knowgrph-ingestor-document.md`
+- Markdown: `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-ingestor-document.md`
 
 ## Outputs
 
-- Graph JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-ingestor-document-graph-data.jsonld`
-- Schema JSON-LD: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-ingestor-document-schema-config.jsonld`
-- Orchestrator YAML: `${KG_GITHUB_ROOT}/knowgrph/data/knowgrph-workflow-preview/knowgrph-ingestor-document-orchestrator-config.yaml`
+- Graph JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-ingestor-document-graph-data.jsonld`
+- Schema JSON-LD: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-ingestor-document-schema-config.jsonld`
+- Orchestrator YAML: `/Users/huijoohwee/Documents/GitHub/knowgrph/data/knowgrph-workflow-preview/knowgrph-ingestor-document-orchestrator-config.yaml`
 
 ## Outline
 

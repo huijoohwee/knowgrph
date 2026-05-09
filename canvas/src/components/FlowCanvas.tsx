@@ -363,6 +363,7 @@ export default function FlowCanvas({
     positionsDirtySinceCommitRef,
     lastCommittedPositionsRef,
     buildDrawArgs,
+    allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === 'flowEditor',
   })
 
   useFlowCanvasRuntime({
