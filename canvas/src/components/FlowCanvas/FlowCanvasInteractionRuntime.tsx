@@ -30,6 +30,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
     viewportH,
     flowEditorReservedW,
   } = props
+  void flowEditorReservedW
 
   const {
     selectedNodeId,
@@ -196,10 +197,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       return
     }
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
-    const widthEffective =
-      isFlowEditor && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')
-        ? Math.max(1, viewportW - flowEditorReservedW)
-        : viewportW
+    const widthEffective = viewportW
     applyZoomRequestNative({
       zoomRequest,
       runtime,

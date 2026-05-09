@@ -528,7 +528,7 @@ export function useFlowEditorRuntimeScene(args: {
       lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
       return
     }
-    if (isWorkspaceGraphMutationBlocked(st)) return
+    if (isWorkspaceGraphMutationBlocked(st) && !collectiveOutsideViewport) return
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
     st.setFlowWidgetWorldPosByNodeId(nextWorld)

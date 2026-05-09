@@ -481,7 +481,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       enableDocumentStructureBounds: true,
       frontmatterFlowInitialFitFillRatio,
     })
-    const fitW = Math.max(1, viewportW - (isFlowEditor ? flowEditorReservedW : 0))
+    const fitW = Math.max(1, viewportW)
     const fit = isFlowEditor
       ? (() => {
           return fitFlowEditorPinnedWidgets({

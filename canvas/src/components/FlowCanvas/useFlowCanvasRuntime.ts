@@ -149,11 +149,13 @@ export function useFlowCanvasRuntime(args: {
     zoomToSelectionMode,
     viewPinned,
   } = args
+  void flowEditorReservedW
   const frontmatterFlowInitialFitFillRatio = useGraphStore(s => s.frontmatterFlowInitialFitFillRatio)
   const frontmatterFlowOverlayFitProxyScalePhone = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScalePhone)
   const frontmatterFlowOverlayFitProxyScaleTablet = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleTablet)
   const frontmatterFlowOverlayFitProxyScaleLaptop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleLaptop)
   const frontmatterFlowOverlayFitProxyScaleDesktop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleDesktop)
+  const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
   const frontmatterOverlayFitProxyScales = React.useMemo(() => ({
     phone: frontmatterFlowOverlayFitProxyScalePhone,
     tablet: frontmatterFlowOverlayFitProxyScaleTablet,
@@ -166,6 +168,31 @@ export function useFlowCanvasRuntime(args: {
     frontmatterFlowOverlayFitProxyScaleTablet,
   ])
   const lastOffscreenOverlayRecoveryKeyRef = React.useRef<string | null>(null)
+  const buildSceneViewportRecoverySignature = React.useCallback((scene: FlowNativeRuntime['scene'] | null): string => {
+    if (!scene || !Array.isArray(scene.nodes) || scene.nodes.length === 0) return 'scene:none'
+    let minX = Number.POSITIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+    let measured = 0
+    for (let i = 0; i < scene.nodes.length; i += 1) {
+      const node = scene.nodes[i]
+      if (!node) continue
+      const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
+      const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
+      if (x == null || y == null) continue
+      measured += 1
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      maxX = Math.max(maxX, x)
+      maxY = Math.max(maxY, y)
+    }
+    if (measured <= 0 || !Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return `scene:count=${scene.nodes.length}:unmeasured`
+    }
+    const q = (v: number) => Math.round(v)
+    return `scene:count=${scene.nodes.length}:${q(minX)}:${q(minY)}:${q(maxX)}:${q(maxY)}`
+  }, [])
   const resolveVisibleFlowViewportWidth = React.useCallback(() => {
     if (String(canvas2dRenderer || '') !== 'flowEditor') return viewportW
     const visibleViewport = resolveFlowEditorVisibleViewport({
@@ -210,7 +237,7 @@ export function useFlowCanvasRuntime(args: {
     const visibleViewportW = resolveVisibleFlowViewportWidth()
     const fit = fitFlowEditorPinnedWidgets({
       nodes,
-      fitW: Math.max(1, visibleViewportW - flowEditorReservedW),
+      fitW: Math.max(1, visibleViewportW),
       viewportH,
       viewportW: visibleViewportW,
       openWidgetNodeIds,
@@ -358,7 +385,7 @@ export function useFlowCanvasRuntime(args: {
     const nodesForFit = Array.isArray(graphDataForZoomRequests?.nodes) ? graphDataForZoomRequests.nodes : []
     if (isFlowEditor && nodesForFit.length === 0) return
     const visibleViewportW = resolveVisibleFlowViewportWidth()
-    const fitW = Math.max(1, visibleViewportW - (isFlowEditor ? flowEditorReservedW : 0))
+    const fitW = Math.max(1, visibleViewportW)
     const fit = isFlowEditor
       ? fitFlowEditorPinnedWidgets({
           nodes: nodesForFit,
@@ -433,11 +460,7 @@ export function useFlowCanvasRuntime(args: {
   React.useEffect(() => {
     if (!active) return
     if (String(canvas2dRenderer || '') !== 'flowEditor') return
-    const st = useGraphStore.getState()
-    const overlayOpen = isWorkspaceEditorOverlayOpen({
-      workspaceViewMode: st.workspaceViewMode,
-      workspaceCanvasPaneOpen: st.workspaceCanvasPaneOpen === true,
-    })
+    const overlayOpen = workspaceEditorOverlayOpen === true
     const runtime = runtimeRef.current
     const scene = runtime?.scene
     if (!runtime) return
@@ -467,11 +490,14 @@ export function useFlowCanvasRuntime(args: {
         }
       }
     }
-    if (!overlayOpen) return
+    if (!overlayOpen) {
+      lastOffscreenOverlayRecoveryKeyRef.current = null
+      return
+    }
     if (!scene || scene.nodes.length === 0) return
 
     const visibleViewportW = resolveVisibleFlowViewportWidth()
-    const fitW = Math.max(1, visibleViewportW - flowEditorReservedW)
+    const fitW = Math.max(1, visibleViewportW)
     const current = runtime.transform || d3.zoomIdentity
     const graphVisible = isFlowTransformShowingGraph(
       { k: current.k, x: current.x, y: current.y },
@@ -490,7 +516,8 @@ export function useFlowCanvasRuntime(args: {
     if (Date.now() - lastUserInteractionAtMsRef.current < 500) return
 
     const graphKey = buildGraphMetaKeyIgnoringPending(sceneGraphData)
-    const recoveryKey = `${graphKey}:${fitW}:${viewportH}:${scene.nodes.length}`
+    const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)
+    const recoveryKey = `${graphKey}:${fitW}:${viewportH}:${sceneViewportSignature}`
     if (lastOffscreenOverlayRecoveryKeyRef.current === recoveryKey) return
 
     const fitOpts = buildFlowFitOptions({
@@ -551,6 +578,8 @@ export function useFlowCanvasRuntime(args: {
     viewportW,
     zoomToSelectionMode,
     resolveVisibleFlowViewportWidth,
+    buildSceneViewportRecoverySignature,
+    workspaceEditorOverlayOpen,
   ])
 
   React.useEffect(() => {

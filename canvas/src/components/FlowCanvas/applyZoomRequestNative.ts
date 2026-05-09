@@ -19,9 +19,17 @@ import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
-
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
-const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane="1"]'
+
+const escapeCssAttrValue = (value: string): string => {
+  try {
+    const cssApi = (globalThis as { CSS?: { escape?: (input: string) => string } }).CSS
+    if (cssApi && typeof cssApi.escape === 'function') return cssApi.escape(value)
+  } catch {
+    void 0
+  }
+  return value.replace(/["\\\]]/g, '\\$&')
+}
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
@@ -31,7 +39,7 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   const hasSurfaceId = normalizedSurfaceId.length > 0
   const surfaceRoot = hasSurfaceId
     ? document.querySelector<HTMLElement>(
-      `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(normalizedSurfaceId)}"]`,
+      `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(normalizedSurfaceId)}"]`,
     )
     : null
   const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
@@ -87,7 +95,7 @@ export function resolveFlowEditorVisibleViewport(args: {
   viewportW: number
   viewportH: number
 }) {
-  const fallback = {
+  return {
     left: 0,
     top: 0,
     right: args.viewportW,
@@ -95,38 +103,6 @@ export function resolveFlowEditorVisibleViewport(args: {
     width: args.viewportW,
     height: args.viewportH,
     centerX: args.viewportW / 2,
-    centerY: args.viewportH / 2,
-  }
-  if (typeof document === 'undefined') return fallback
-  const normalizedSurfaceId = String(args.flowEditorSurfaceId || '').trim()
-  if (!normalizedSurfaceId) return fallback
-  const surfaceRoot = document.querySelector<HTMLElement>(
-    `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(normalizedSurfaceId)}"]`,
-  )
-  const paneEl = document.querySelector<HTMLElement>(WORKSPACE_LEFT_PANE_SELECTOR)
-  const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
-  const paneRect = paneEl?.getBoundingClientRect() || null
-  if (!surfaceRect || !paneRect) return fallback
-  const overlapLeft = Math.max(surfaceRect.left, paneRect.left)
-  const overlapRight = Math.min(surfaceRect.right, paneRect.right)
-  const overlapTop = Math.max(surfaceRect.top, paneRect.top)
-  const overlapBottom = Math.min(surfaceRect.bottom, paneRect.bottom)
-  const overlapW = Math.max(0, overlapRight - overlapLeft)
-  const overlapH = Math.max(0, overlapBottom - overlapTop)
-  const paneOccludesFromLeft = overlapW > 0 && overlapH > 0 && paneRect.left <= surfaceRect.left + 1
-  if (!paneOccludesFromLeft) return fallback
-  const leftInset = Math.max(0, Math.min(args.viewportW - 1, overlapW))
-  const left = leftInset
-  const right = args.viewportW
-  const width = Math.max(1, right - left)
-  return {
-    left,
-    top: 0,
-    right,
-    bottom: args.viewportH,
-    width,
-    height: args.viewportH,
-    centerX: left + width / 2,
     centerY: args.viewportH / 2,
   }
 }

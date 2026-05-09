@@ -52,11 +52,11 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceGraphMutationBlocked(st)) return')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceGraphMutationBlocked(st) && !collectiveOutsideViewport) return')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
   const worldSeedWriteIndex = runtimeText.indexOf('st.setFlowWidgetWorldPosByNodeId(nextWorld)')
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
-    throw new Error('expected pinned widget auto-seed world-position persistence to be blocked while Workspace/Indexing mutation guard is active')
+    throw new Error('expected pinned widget auto-seed world-position persistence to stay blocked unless collective overlays are fully offscreen')
   }
   if (worldSeedKeyWriteIndex < 0 || worldSeedGuardIndex > worldSeedKeyWriteIndex || worldSeedKeyWriteIndex > worldSeedWriteIndex) {
     throw new Error('expected pinned widget auto-seed key to be committed only after Workspace/Indexing mutation guard')
@@ -248,11 +248,23 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const lastOffscreenOverlayRecoveryKeyRef = React.useRef<string | null>(null)')) {
     throw new Error('expected Flow runtime to track one-shot offscreen recovery while Workspace overlay is open')
   }
-  if (!runtimeText.includes('const overlayOpen = isWorkspaceEditorOverlayOpen({')) {
-    throw new Error('expected Flow runtime to gate offscreen recovery by shared Workspace overlay-open SSOT')
+  if (!runtimeText.includes('const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))')) {
+    throw new Error('expected Flow runtime to subscribe to shared Workspace overlay-open SSOT for deterministic open/close recovery passes')
   }
   if (!runtimeText.includes('const graphVisible = isFlowTransformShowingGraph(')) {
     throw new Error('expected Flow runtime to detect stale offscreen transforms before enforcing overlay recovery fit')
+  }
+  if (!runtimeText.includes('const buildSceneViewportRecoverySignature = React.useCallback((scene: FlowNativeRuntime[\'scene\'] | null): string => {')) {
+    throw new Error('expected Flow runtime offscreen recovery to derive a semantic scene viewport signature from live scene coordinates')
+  }
+  if (!runtimeText.includes('if (!overlayOpen) {\n      lastOffscreenOverlayRecoveryKeyRef.current = null\n      return\n    }')) {
+    throw new Error('expected Flow runtime to clear stale offscreen recovery latches when Workspace overlay closes')
+  }
+  if (!runtimeText.includes('const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)')) {
+    throw new Error('expected Flow runtime offscreen recovery key to include live scene viewport signature')
+  }
+  if (!runtimeText.includes('const recoveryKey = `${graphKey}:${fitW}:${viewportH}:${sceneViewportSignature}`')) {
+    throw new Error('expected Flow runtime offscreen recovery key to avoid coarse graph-only keying')
   }
   const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
@@ -489,11 +501,11 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   if (!text.includes('readCanvasOverlayNodeId,')) {
     throw new Error('expected Flow Editor fit recentering to reuse shared overlay node-id resolution when translating world positions')
   }
-  if (!text.includes("const WORKSPACE_LEFT_PANE_SELECTOR = '[data-kg-workspace-left-pane=\"1\"]'")) {
-    throw new Error('expected Flow Editor zoom fit to read workspace occlusion from the canonical workspace-left-pane marker')
-  }
   if (!text.includes('function resolveFlowEditorVisibleViewport(args: {')) {
-    throw new Error('expected Flow Editor zoom fit to centralize visible viewport resolution for workspace-occluded layouts')
+    throw new Error('expected Flow Editor zoom fit to centralize visible viewport resolution')
+  }
+  if (text.includes('WORKSPACE_LEFT_PANE_SELECTOR')) {
+    throw new Error('expected Flow Editor zoom fit to NOT query workspace left pane DOM (overlay is CSS-layer, never shrinks logical viewport)')
   }
   if (!text.includes('const surfaceRect = surfaceRoot?.getBoundingClientRect() || null')) {
     throw new Error('expected Flow Editor overlay fit bounds to resolve the active surface root window rect')

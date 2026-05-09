@@ -51,8 +51,10 @@ export default function FlowEditorCanvasRuntime(
     flowEditorSurfaceIdRef.current = `kgfe-${Math.random().toString(36).slice(2, 10)}`
   }
   const flowEditorSurfaceId = flowEditorSurfaceIdRef.current
-  const editorRuntimeActive = active || geospatialWidgetPanelMode
-  const widgetDropBridgeOnly = widgetDropCaptureEnabled && !active && !geospatialWidgetPanelMode
+  const editorRuntimeActive = active
+  // In geospatial/widget-drop bridge mode, keep only drop capture and forbid
+  // Flow Editor runtime layout/edge/collision effects from mutating canvas state.
+  const widgetDropBridgeOnly = widgetDropCaptureEnabled && !active
   const rootRef = React.useRef<HTMLElement | null>(null)
   const resolveViewportMeasureElement = React.useCallback((self: HTMLElement | null): HTMLElement | null => {
     if (!self) return null
