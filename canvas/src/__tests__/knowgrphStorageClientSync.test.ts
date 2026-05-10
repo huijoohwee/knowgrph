@@ -441,6 +441,72 @@ export async function testKnowgrphStorageClientSyncSanitizesLegacyOutboxPayloads
   await __resetKnowgrphStorageDbForTests()
 }
 
+export async function testKnowgrphStorageClientSyncRepairsLegacyTopLevelNullNumericOutboxFieldsBeforeSync() {
+  await __resetKnowgrphStorageDbForTests()
+  const dbState = await getKnowgrphStorageDb()
+  const workspaceId = 'wk_legacy_top_level_numeric_null'
+  const deviceId = 'dev_legacy_top_level_numeric_null'
+  const mutationId = 'mut_legacy_top_level_numeric_null'
+  const legacyMutation = {
+    mutationId,
+    workspaceId,
+    entity: 'document',
+    op: 'upsert',
+    recordId: 'doc_legacy_top_level_numeric_null',
+    baseRevision: null,
+    record: {
+      id: 'doc_legacy_top_level_numeric_null',
+      workspaceId,
+      canonicalPath: 'docs/legacy-top-level-null.md',
+      title: null,
+      docType: 'note',
+      lang: 'en-US',
+      graphId: null,
+      sourceKind: 'markdown',
+      contentMd: '# Legacy',
+      contentHash: 'sha256:legacy-top-level-null',
+      parserVersion: '1.0.0',
+      revision: 1,
+      updatedAtMs: 1,
+      deleted: false,
+    },
+  } as const
+  await dbState.collections.syncOutbox.incrementalUpsert({
+    id: mutationId,
+    workspaceId,
+    deviceId,
+    entity: 'document',
+    op: 'upsert',
+    recordId: legacyMutation.recordId,
+    baseRevision: null,
+    payload: legacyMutation as unknown as Record<string, unknown>,
+    payloadHash: 'legacy-top-level-null',
+    attemptCount: null as unknown as number,
+    lastAckStatus: '',
+    lastAckMessage: null,
+    createdAtMs: null as unknown as number,
+    updatedAtMs: null as unknown as number,
+  })
+
+  await syncKnowgrphStorageNow({
+    workspaceId,
+    deviceId,
+    baseUrl: 'http://127.0.0.1:5174',
+    fetchImpl: async () => {
+      throw new TypeError('Load failed')
+    },
+    dbState,
+  })
+
+  const repairedRow = await dbState.collections.syncOutbox.findOne(mutationId).exec()
+  if (!repairedRow) throw new Error('expected legacy outbox row to remain after route-unavailable sync skip')
+  if (Number(repairedRow.get('attemptCount')) !== 0) throw new Error('expected top-level attemptCount null to repair to 0')
+  if (Number(repairedRow.get('createdAtMs')) !== 0) throw new Error('expected top-level createdAtMs null to repair to 0')
+  if (Number(repairedRow.get('updatedAtMs')) !== 0) throw new Error('expected top-level updatedAtMs null to repair to 0')
+
+  await __resetKnowgrphStorageDbForTests()
+}
+
 export async function testKnowgrphStorageClientSyncRetainsConflictingOutboxMutationsForResolution() {
   await __resetKnowgrphStorageDbForTests()
   const env = createFakeKnowgrphStorageWorkerEnv()

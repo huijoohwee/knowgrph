@@ -27,6 +27,11 @@ const ensureRxdbPlugins = () => {
   addRxPlugin(RxDBQueryBuilderPlugin)
   rxdbPluginsInitialized = true
 }
+const normalizeNonNegativeInt = (value: unknown, fallback = 0): number => {
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0) return Math.max(0, Math.floor(fallback))
+  return Math.floor(n)
+}
 
 type SourceFileRowV1 = {
   id: string
@@ -149,6 +154,14 @@ const getDb = async () => {
 export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
   const { collections } = await getDb()
   const rows = await collections.sourceFiles.find().sort({ orderIndex: 'asc' }).exec()
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i]!
+    const orderIndex = normalizeNonNegativeInt(row.get('orderIndex'), 0)
+    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
+    if (Number(row.get('orderIndex')) !== orderIndex || Number(row.get('updatedAtMs')) !== updatedAtMs) {
+      await row.incrementalPatch({ orderIndex, updatedAtMs })
+    }
+  }
   const loaded = rows
     .map(r => {
       try {
@@ -166,7 +179,7 @@ export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
 
 export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => {
   const list = Array.isArray(files) ? files : []
-  const now = Date.now()
+  const now = normalizeNonNegativeInt(Date.now(), Date.now())
   const rows = list
     .map((payload, orderIndex) => {
       const normalized = readPersistedSourceFileRecord(payload)
@@ -199,7 +212,7 @@ export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => 
         areSourceFileSourcesEqual(existingPayload.source, row.payload.source)
       ) continue
     }
-    await collections.sourceFiles.incrementalUpsert({ ...row, updatedAtMs: now })
+    await collections.sourceFiles.incrementalUpsert({ ...row, orderIndex: normalizeNonNegativeInt(row.orderIndex, 0), updatedAtMs: now })
   }
 }
 
@@ -207,12 +220,16 @@ export const loadPersistedSourceFilesWorkspace = async (): Promise<SourceFilesWo
   const { collections } = await getDb()
   const row = await collections.workspace.findOne('workspace').exec()
   if (!row) return EMPTY_SOURCE_FILES_WORKSPACE_STATE
+  const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
+  if (Number(row.get('updatedAtMs')) !== updatedAtMs) {
+    await row.incrementalPatch({ updatedAtMs })
+  }
   return normalizeSourceFilesWorkspaceState(row.get('payload'))
 }
 
 export const persistSourceFilesWorkspace = async (state: SourceFilesWorkspaceState): Promise<void> => {
   const { collections } = await getDb()
-  const now = Date.now()
+  const now = normalizeNonNegativeInt(Date.now(), Date.now())
   const payload = normalizeSourceFilesWorkspaceState(state)
   const existing = await collections.workspace.findOne('workspace').exec()
   if (existing) {

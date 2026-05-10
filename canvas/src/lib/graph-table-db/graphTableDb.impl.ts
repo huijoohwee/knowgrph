@@ -73,8 +73,13 @@ export type GraphTableDb = {
 export const GRAPH_TABLE_DB_NAME = 'kg:graph-table'
 
 const GRAPH_TABLE_COLUMN_ORDER_STEP = 1024
+const normalizeNonNegativeInt = (value: unknown, fallback: number): number => {
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : Math.max(0, Math.floor(fallback))
+}
 
 let graphTableDbWriteQueue: Promise<void> = Promise.resolve()
+let graphTableNumericRepairDone = false
 
 const withGraphTableDbWrite = async <T>(fn: () => Promise<T>): Promise<T> => {
   const prev = graphTableDbWriteQueue
@@ -246,6 +251,7 @@ export const __resetGraphTableDbForTests = async (): Promise<void> => {
   graphTableDbSingleton = null
   graphTableWarmupInFlight = null
   graphTableDbWriteQueue = Promise.resolve()
+  graphTableNumericRepairDone = false
   let dbState: GraphTableDb | null = null
   if (current) {
     try {
@@ -284,6 +290,64 @@ const pkOfRow = (tableId: GraphTableId, rowId: string): string => `${tableId}:${
 
 const ensureGraphTableSeedUnlocked = async (): Promise<void> => {
   const { collections } = await getGraphTableDb()
+  if (!graphTableNumericRepairDone) {
+    const now = Date.now()
+    const tableRows = await collections.tables.find().exec()
+    for (let i = 0; i < tableRows.length; i += 1) {
+      const doc = tableRows[i]!
+      const nextOrder = normalizeNonNegativeInt(doc.get('order'), 0)
+      const nextCreatedAtMs = normalizeNonNegativeInt(doc.get('createdAtMs'), now)
+      const nextUpdatedAtMs = normalizeNonNegativeInt(doc.get('updatedAtMs'), nextCreatedAtMs)
+      const patch: Partial<GraphTableDoc> = {}
+      if (Number(doc.get('order')) !== nextOrder) patch.order = nextOrder
+      if (Number(doc.get('createdAtMs')) !== nextCreatedAtMs) patch.createdAtMs = nextCreatedAtMs
+      if (Number(doc.get('updatedAtMs')) !== nextUpdatedAtMs) patch.updatedAtMs = nextUpdatedAtMs
+      if (Object.keys(patch).length > 0) await doc.incrementalPatch(patch)
+    }
+    const columnRows = await collections.columns.find().exec()
+    for (let i = 0; i < columnRows.length; i += 1) {
+      const doc = columnRows[i]!
+      const nextOrder = normalizeNonNegativeInt(doc.get('order'), 0)
+      const nextCreatedAtMs = normalizeNonNegativeInt(doc.get('createdAtMs'), now)
+      const nextUpdatedAtMs = normalizeNonNegativeInt(doc.get('updatedAtMs'), nextCreatedAtMs)
+      const patch: Partial<GraphColumnDoc> = {}
+      if (Number(doc.get('order')) !== nextOrder) patch.order = nextOrder
+      if (Number(doc.get('createdAtMs')) !== nextCreatedAtMs) patch.createdAtMs = nextCreatedAtMs
+      if (Number(doc.get('updatedAtMs')) !== nextUpdatedAtMs) patch.updatedAtMs = nextUpdatedAtMs
+      if (Object.keys(patch).length > 0) await doc.incrementalPatch(patch)
+    }
+    const graphRows = await collections.rows.find().exec()
+    for (let i = 0; i < graphRows.length; i += 1) {
+      const doc = graphRows[i]!
+      const nextOrder = normalizeNonNegativeInt(doc.get('order'), 0)
+      const nextCreatedAtMs = normalizeNonNegativeInt(doc.get('createdAtMs'), now)
+      const nextUpdatedAtMs = normalizeNonNegativeInt(doc.get('updatedAtMs'), nextCreatedAtMs)
+      const patch: Partial<GraphRowDoc> = {}
+      if (Number(doc.get('order')) !== nextOrder) patch.order = nextOrder
+      if (Number(doc.get('createdAtMs')) !== nextCreatedAtMs) patch.createdAtMs = nextCreatedAtMs
+      if (Number(doc.get('updatedAtMs')) !== nextUpdatedAtMs) patch.updatedAtMs = nextUpdatedAtMs
+      if (Object.keys(patch).length > 0) await doc.incrementalPatch(patch)
+    }
+    const viewRows = await collections.views.find().exec()
+    for (let i = 0; i < viewRows.length; i += 1) {
+      const doc = viewRows[i]!
+      const nextCreatedAtMs = normalizeNonNegativeInt(doc.get('createdAtMs'), now)
+      const nextUpdatedAtMs = normalizeNonNegativeInt(doc.get('updatedAtMs'), nextCreatedAtMs)
+      const patch: Partial<GraphViewDoc> = {}
+      if (Number(doc.get('createdAtMs')) !== nextCreatedAtMs) patch.createdAtMs = nextCreatedAtMs
+      if (Number(doc.get('updatedAtMs')) !== nextUpdatedAtMs) patch.updatedAtMs = nextUpdatedAtMs
+      if (Object.keys(patch).length > 0) await doc.incrementalPatch(patch)
+    }
+    const metaRows = await collections.meta.find().exec()
+    for (let i = 0; i < metaRows.length; i += 1) {
+      const doc = metaRows[i]!
+      const nextUpdatedAtMs = normalizeNonNegativeInt(doc.get('updatedAtMs'), now)
+      if (Number(doc.get('updatedAtMs')) !== nextUpdatedAtMs) {
+        await doc.incrementalPatch({ updatedAtMs: nextUpdatedAtMs })
+      }
+    }
+    graphTableNumericRepairDone = true
+  }
   const now = Date.now()
   const seeds: GraphTableDoc[] = [
     { id: 'nodes', name: 'Nodes', order: 1, createdAtMs: now, updatedAtMs: now },

@@ -58,6 +58,11 @@ const entrySchema: RxJsonSchema<MarkdownFsEntryRow> = {
 }
 
 let dbSingleton: Promise<{ db: RxDatabase<MarkdownFsCollections>; collections: MarkdownFsCollections }> | null = null
+const normalizeNonNegativeInt = (value: unknown, fallback = 0): number => {
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0) return Math.max(0, Math.floor(fallback))
+  return Math.floor(n)
+}
 
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
@@ -124,8 +129,17 @@ export async function cacheMarkdownFolderFromFileInput(args: {
   }))
 
   const { collections } = await getDb()
-  await collections.folders.incrementalUpsert(folderRow)
-  for (const row of rows) await collections.entries.incrementalUpsert(row)
+  await collections.folders.incrementalUpsert({
+    ...folderRow,
+    updatedAtMs: normalizeNonNegativeInt(folderRow.updatedAtMs, now),
+  })
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i]!
+    await collections.entries.incrementalUpsert({
+      ...row,
+      updatedAtMs: normalizeNonNegativeInt(row.updatedAtMs, now),
+    })
+  }
   return { folderId }
 }
 
@@ -134,6 +148,13 @@ export async function listCachedMarkdownPaths(folderId: string): Promise<string[
   if (!id) return []
   const { collections } = await getDb()
   const rows = await collections.entries.find({ selector: { folderId: id } }).exec()
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i]!
+    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
+    if (Number(row.get('updatedAtMs')) !== updatedAtMs) {
+      await row.incrementalPatch({ updatedAtMs })
+    }
+  }
   return rows
     .map(r => String(r.get('path') || '').trim())
     .filter(Boolean)
@@ -158,8 +179,14 @@ export async function writeCachedMarkdownText(folderId: string, path: string, te
   const key = entryId(id, p)
   const { collections } = await getDb()
   const folder = await collections.folders.findOne(id).exec()
-  if (folder) await folder.incrementalPatch({ updatedAtMs: now })
-  await collections.entries.incrementalUpsert({ id: key, folderId: id, path: p, text: nextText, updatedAtMs: now })
+  if (folder) await folder.incrementalPatch({ updatedAtMs: normalizeNonNegativeInt(now, now) })
+  await collections.entries.incrementalUpsert({
+    id: key,
+    folderId: id,
+    path: p,
+    text: nextText,
+    updatedAtMs: normalizeNonNegativeInt(now, now),
+  })
 }
 
 export async function getCachedMarkdownFolderMetadata(folderId: string): Promise<MarkdownFsFolderRow | null> {
@@ -167,11 +194,23 @@ export async function getCachedMarkdownFolderMetadata(folderId: string): Promise
   if (!id) return null
   const { collections } = await getDb()
   const row = await collections.folders.findOne(id).exec()
+  if (row) {
+    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
+    if (Number(row.get('updatedAtMs')) !== updatedAtMs) {
+      await row.incrementalPatch({ updatedAtMs })
+    }
+  }
   return row ? row.toJSON() : null
 }
 
 export async function getMostRecentCachedMarkdownFolderId(): Promise<string | null> {
   const { collections } = await getDb()
   const row = await collections.folders.find().sort({ updatedAtMs: 'desc' }).limit(1).exec()
+  if (row[0]) {
+    const updatedAtMs = normalizeNonNegativeInt(row[0].get('updatedAtMs'), Date.now())
+    if (Number(row[0].get('updatedAtMs')) !== updatedAtMs) {
+      await row[0].incrementalPatch({ updatedAtMs })
+    }
+  }
   return row[0]?.get('id') ?? null
 }

@@ -119,6 +119,7 @@ type SyncPushOutcome = {
 const inFlightSyncByWorkspace = new Map<string, Promise<KnowgrphStorageSyncRunResult>>()
 const pollTimerByWorkspace = new Map<string, number>()
 const routeUnavailableUntilByApiOrigin = new Map<string, number>()
+const repairedKnowgrphStorageDbs = new WeakSet<object>()
 
 class KnowgrphStorageRouteUnavailableError extends Error {
   apiOrigin: string
@@ -195,6 +196,78 @@ const sanitizeCursorRecord = (cursor: KnowgrphStorageCursorRecord): KnowgrphStor
   updatedAtMs: normalizeNonNegativeInt(cursor.updatedAtMs, 0),
 })
 
+const ensureKnowgrphStorageNumericRepair = async (dbState: KnowgrphStorageDb): Promise<void> => {
+  const dbRef = dbState.db as unknown as object
+  if (repairedKnowgrphStorageDbs.has(dbRef)) return
+  const { collections } = dbState
+  const documentRows = await collections.documents.find().exec()
+  for (let i = 0; i < documentRows.length; i += 1) {
+    const row = documentRows[i]!
+    const documentRevision = normalizeNonNegativeInt(row.get('documentRevision'), 0)
+    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
+    if (Number(row.get('documentRevision')) !== documentRevision || Number(row.get('updatedAtMs')) !== updatedAtMs) {
+      await row.incrementalPatch({ documentRevision, updatedAtMs })
+    }
+  }
+  const chunkRows = await collections.documentChunks.find().exec()
+  for (let i = 0; i < chunkRows.length; i += 1) {
+    const row = chunkRows[i]!
+    const chunkOrder = normalizeNonNegativeInt(row.get('chunkOrder'), 0)
+    const tokenEstimate = normalizeNonNegativeInt(row.get('tokenEstimate'), 0)
+    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
+    if (
+      Number(row.get('chunkOrder')) !== chunkOrder
+      || Number(row.get('tokenEstimate')) !== tokenEstimate
+      || Number(row.get('updatedAtMs')) !== updatedAtMs
+    ) {
+      await row.incrementalPatch({ chunkOrder, tokenEstimate, updatedAtMs })
+    }
+  }
+  const graphRows = await collections.graphSnapshots.find().exec()
+  for (let i = 0; i < graphRows.length; i += 1) {
+    const row = graphRows[i]!
+    const graphRevision = normalizeNonNegativeInt(row.get('graphRevision'), 0)
+    const derivedFromDocumentRevision = normalizeNonNegativeInt(row.get('derivedFromDocumentRevision'), 0)
+    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
+    await row.incrementalPatch({
+      graphRevision,
+      derivedFromDocumentRevision,
+      updatedAtMs,
+      graphJson: toCloneSafeObject(row.get('graphJson'), {}),
+      layoutJson: toCloneSafeObjectOrNull(row.get('layoutJson')),
+    })
+  }
+  const outboxRows = await collections.syncOutbox.find().exec()
+  for (let i = 0; i < outboxRows.length; i += 1) {
+    const row = outboxRows[i]!
+    const raw = row.toJSON() as KnowgrphStorageOutboxRecord
+    const sanitized = sanitizeOutboxRecord(raw)
+    if (JSON.stringify(raw) !== JSON.stringify(sanitized)) {
+      await row.incrementalPatch({
+        baseRevision: sanitized.baseRevision,
+        payload: sanitized.payload,
+        payloadHash: sanitized.payloadHash,
+        attemptCount: sanitized.attemptCount,
+        createdAtMs: sanitized.createdAtMs,
+        updatedAtMs: sanitized.updatedAtMs,
+      })
+    }
+  }
+  const cursorRows = await collections.syncCursor.find().exec()
+  for (let i = 0; i < cursorRows.length; i += 1) {
+    const row = cursorRows[i]!
+    const raw = row.toJSON() as KnowgrphStorageCursorRecord
+    const sanitized = sanitizeCursorRecord(raw)
+    if (JSON.stringify(raw) !== JSON.stringify(sanitized)) {
+      await row.incrementalPatch({
+        serverClockMs: sanitized.serverClockMs,
+        updatedAtMs: sanitized.updatedAtMs,
+      })
+    }
+  }
+  repairedKnowgrphStorageDbs.add(dbRef)
+}
+
 const getClientFetch = (value?: KnowgrphStorageFetchLike): KnowgrphStorageFetchLike => {
   if (value) return value
   if (typeof fetch !== 'function') throw new Error('fetch is not available for knowgrph storage sync')
@@ -211,8 +284,12 @@ const buildApiOriginKey = (baseUrl?: string | null): string => {
 
 const markRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): void => {
   if (!apiOrigin) return
+  const existingUntilMs = Number(routeUnavailableUntilByApiOrigin.get(apiOrigin) || 0)
+  const shouldLog = !Number.isFinite(existingUntilMs) || existingUntilMs <= nowMs
   routeUnavailableUntilByApiOrigin.set(apiOrigin, nowMs + KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS)
-  console.warn(`[knowgrph-storage] route unavailable for ${apiOrigin} — retry in ${KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS}ms`)
+  if (shouldLog) {
+    console.warn(`[knowgrph-storage] route unavailable for ${apiOrigin} — retry in ${KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS}ms`)
+  }
 }
 
 const isRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): boolean => {
@@ -627,6 +704,7 @@ export const queueKnowgrphStorageMutation = async (
   const workspaceId = normalizeString(args.workspaceId)
   if (!workspaceId) throw new Error('workspaceId is required to queue a storage mutation')
   const dbState = await getDbState(args.dbState)
+  await ensureKnowgrphStorageNumericRepair(dbState)
   const deviceId = normalizeString(args.deviceId) || getKnowgrphStorageDeviceId()
   const mutationId = buildKnowgrphStorageOutboxId('mut')
   const recordId = normalizeString(args.recordId) || normalizeString(args.record.id)
@@ -856,6 +934,7 @@ export const syncKnowgrphStorageNow = async (
   if (existingInFlight) return existingInFlight
   const run = (async (): Promise<KnowgrphStorageSyncRunResult> => {
     const dbState = await getDbState(args.dbState)
+    await ensureKnowgrphStorageNumericRepair(dbState)
     const { collections } = dbState
     const currentCursor = await readCursorRow(collections, workspaceId, deviceId)
     const unresolvedConflictCount = await readUnresolvedConflictCount(collections, workspaceId)
