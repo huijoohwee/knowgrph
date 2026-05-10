@@ -112,18 +112,43 @@ const isRxConflictError = (err: unknown): boolean => {
   return false
 }
 
+const waitConflictRetryTick = async (attemptIndex: number): Promise<void> => {
+  const delayMs = Math.min(40, 8 * Math.max(1, attemptIndex))
+  await new Promise<void>(resolve => {
+    setTimeout(resolve, delayMs)
+  })
+}
+
+const MAX_RX_CONFLICT_RETRIES = 3
+
 export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
   const run = async <T>(op: keyof WorkspaceFs, fn: (fs: WorkspaceFs) => Promise<T>): Promise<T> => {
     try {
       return await fn(inner)
     } catch (e: unknown) {
       if (isRxConflictError(e)) {
-        console.warn(`[workspace-fs] RxDB CONFLICT on ${String(op)} — retrying once after re-read`)
+        let conflictError: unknown = e
+        for (let attempt = 0; attempt < MAX_RX_CONFLICT_RETRIES; attempt += 1) {
+          try {
+            await waitConflictRetryTick(attempt + 1)
+            return await fn(inner)
+          } catch (retryError) {
+            if (!isRxConflictError(retryError)) throw retryError
+            conflictError = retryError
+          }
+        }
+        // Persistent conflict: fall back to in-memory shadow for continuity, but avoid degraded toast noise.
+        console.warn(`[workspace-fs] RxDB CONFLICT persisted on ${String(op)} after retries — falling back to shadow memory fs`)
+        const { createMemoryWorkspaceFs } = (await import('./workspaceFsMemory.ts')) as typeof import('./workspaceFsMemory.ts')
+        const memory = createMemoryWorkspaceFs({ initialEntries: snapshotShadowEntries() })
+        fsSingleton = memory
         try {
-          return await fn(inner)
+          await memory.ensureSeed()
         } catch {
           void 0
         }
+        void conflictError
+        return await fn(memory)
       }
       const { createMemoryWorkspaceFs } = (await import('./workspaceFsMemory.ts')) as typeof import('./workspaceFsMemory.ts')
       const memory = createMemoryWorkspaceFs({ initialEntries: snapshotShadowEntries() })

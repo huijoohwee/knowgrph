@@ -175,6 +175,272 @@ export async function testKnowgrphStorageClientSyncPullsRemoteChangesIntoRxdb() 
   await __resetKnowgrphStorageDbForTests()
 }
 
+export async function testKnowgrphStorageClientSyncSanitizesNullNumericFieldsFromPullPayloads() {
+  await __resetKnowgrphStorageDbForTests()
+  const dbState = await getKnowgrphStorageDb()
+  const workspaceId = 'wk_client_pull_null_numeric'
+  const deviceId = 'dev_pull_null_numeric'
+  const fetchImpl: typeof fetch = async (input: RequestInfo | URL) => {
+    const url = String(input instanceof Request ? input.url : input)
+    if (url.endsWith('/api/storage/push')) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+          workspaceId,
+          ackCursor: 'ack:null-numeric',
+          serverTimeMs: 1_777_300_000_000,
+          acknowledgements: [],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
+    if (url.endsWith('/api/storage/pull')) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+          workspaceId,
+          nextCursor: 'pull:null-numeric',
+          serverTimeMs: 1_777_300_000_100,
+          changes: {
+            documents: [
+              {
+                id: 'doc_null_numeric',
+                workspaceId,
+                canonicalPath: 'docs/null-numeric.md',
+                title: 'Null Numeric',
+                docType: 'note',
+                lang: 'en-US',
+                graphId: 'graph_null_numeric',
+                sourceKind: 'markdown',
+                contentMd: '# Null Numeric',
+                contentHash: 'sha256:null-numeric',
+                parserVersion: '1.0.0',
+                revision: null,
+                updatedAtMs: null,
+                deleted: false,
+              },
+            ],
+            documentChunks: [
+              {
+                id: 'chunk_null_numeric',
+                documentId: 'doc_null_numeric',
+                workspaceId,
+                chunkKey: 'body',
+                chunkOrder: null,
+                heading: null,
+                markdown: 'Body',
+                tokenEstimate: null,
+                contentHash: 'sha256:null-chunk',
+                updatedAtMs: null,
+              },
+            ],
+            graphSnapshots: [
+              {
+                id: 'graph_null_numeric',
+                documentId: 'doc_null_numeric',
+                workspaceId,
+                graphRevision: null,
+                graphHash: 'sha256:null-graph',
+                graphJson: null,
+                layoutJson: [],
+                derivedFromDocumentRevision: null,
+                updatedAtMs: null,
+              },
+            ],
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
+    return new Response('not found', { status: 404 })
+  }
+
+  const result = await syncKnowgrphStorageNow({
+    workspaceId,
+    deviceId,
+    baseUrl: 'https://example.com',
+    fetchImpl,
+    dbState,
+  })
+  if (result.pulledDocumentCount !== 1 || result.pulledChunkCount !== 1 || result.pulledGraphSnapshotCount !== 1) {
+    throw new Error('expected one pulled document/chunk/graph snapshot in null-numeric sanitization regression test')
+  }
+  const docRow = await dbState.collections.documents.findOne('doc_null_numeric').exec()
+  if (!docRow) throw new Error('expected sanitized pulled document row')
+  if (Number(docRow.get('documentRevision')) !== 0) throw new Error('expected null document revision to sanitize to 0')
+  if (Number(docRow.get('updatedAtMs')) !== 0) throw new Error('expected null document updatedAtMs to sanitize to 0')
+
+  const chunkRow = await dbState.collections.documentChunks.findOne('chunk_null_numeric').exec()
+  if (!chunkRow) throw new Error('expected sanitized pulled document chunk row')
+  if (Number(chunkRow.get('chunkOrder')) !== 0) throw new Error('expected null chunkOrder to sanitize to deterministic index fallback')
+  if (Number(chunkRow.get('tokenEstimate')) !== 0) throw new Error('expected null tokenEstimate to sanitize to 0')
+  if (Number(chunkRow.get('updatedAtMs')) !== 0) throw new Error('expected null chunk updatedAtMs to sanitize to 0')
+
+  const graphRow = await dbState.collections.graphSnapshots.findOne('graph_null_numeric').exec()
+  if (!graphRow) throw new Error('expected sanitized pulled graph snapshot row')
+  if (Number(graphRow.get('graphRevision')) !== 0) throw new Error('expected null graphRevision to sanitize to 0')
+  if (Number(graphRow.get('derivedFromDocumentRevision')) !== 0) throw new Error('expected null derivedFromDocumentRevision to sanitize to 0')
+  if (Number(graphRow.get('updatedAtMs')) !== 0) throw new Error('expected null graph updatedAtMs to sanitize to 0')
+  const graphJson = graphRow.get('graphJson') as unknown
+  if (!graphJson || typeof graphJson !== 'object' || Array.isArray(graphJson)) {
+    throw new Error('expected invalid non-object graphJson to sanitize to object')
+  }
+  if (graphRow.get('layoutJson') !== null) throw new Error('expected invalid array layoutJson to sanitize to null')
+
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testQueueKnowgrphStorageMutationSanitizesNullNumericFieldsInOutboundRecords() {
+  await __resetKnowgrphStorageDbForTests()
+  const dbState = await getKnowgrphStorageDb()
+  const badGraphJson: Record<string, unknown> = { label: 'bad' }
+  badGraphJson.fn = () => void 0
+  badGraphJson.self = badGraphJson
+  const mutationId = await queueKnowgrphStorageMutation({
+    workspaceId: 'wk_outbound_null_numeric',
+    deviceId: 'dev_outbound_null_numeric',
+    entity: 'graphSnapshot',
+    op: 'upsert',
+    record: {
+      id: 'graph_outbound_null_numeric',
+      documentId: 'doc_outbound_null_numeric',
+      workspaceId: 'wk_outbound_null_numeric',
+      graphRevision: null as unknown as number,
+      graphHash: 'sha256:outbound-null-graph',
+      graphJson: badGraphJson as unknown as Record<string, unknown>,
+      layoutJson: [] as unknown as Record<string, unknown>,
+      derivedFromDocumentRevision: null as unknown as number,
+      updatedAtMs: null as unknown as number,
+    },
+    dbState,
+  })
+  const row = await dbState.collections.syncOutbox.findOne(mutationId).exec()
+  if (!row) throw new Error('expected queued outbox mutation for outbound null-numeric sanitization test')
+  const payload = row.get('payload') as unknown as { record?: Record<string, unknown> }
+  const record = (payload?.record || {}) as Record<string, unknown>
+  if (Number(record.graphRevision) !== 0) throw new Error('expected outbound graphRevision to sanitize to 0')
+  if (Number(record.derivedFromDocumentRevision) !== 0) throw new Error('expected outbound derivedFromDocumentRevision to sanitize to 0')
+  if (Number(record.updatedAtMs) !== 0) throw new Error('expected outbound updatedAtMs to sanitize to 0')
+  if (!record.graphJson || typeof record.graphJson !== 'object' || Array.isArray(record.graphJson)) {
+    throw new Error('expected outbound invalid graphJson to sanitize to object')
+  }
+  const graphJson = record.graphJson as Record<string, unknown>
+  if (typeof graphJson.fn !== 'undefined') throw new Error('expected outbound graphJson function field to be removed for clone safety')
+  if (graphJson.self !== null) throw new Error('expected outbound circular graphJson reference to sanitize to null')
+  if (record.layoutJson !== null) throw new Error('expected outbound invalid array layoutJson to sanitize to null')
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testKnowgrphStorageClientSyncSanitizesLegacyOutboxPayloadsBeforePush() {
+  await __resetKnowgrphStorageDbForTests()
+  const dbState = await getKnowgrphStorageDb()
+  const workspaceId = 'wk_legacy_outbox_sanitize'
+  const deviceId = 'dev_legacy_outbox_sanitize'
+  const mutationId = 'mut_legacy_outbox_sanitize'
+  const legacyMutation = {
+    mutationId,
+    workspaceId,
+    entity: 'graphSnapshot',
+    op: 'upsert',
+    recordId: 'graph_legacy_null_numeric',
+    baseRevision: null,
+    record: {
+      id: 'graph_legacy_null_numeric',
+      documentId: 'doc_legacy_null_numeric',
+      workspaceId,
+      graphRevision: null,
+      graphHash: 'sha256:legacy-null-graph',
+      graphJson: null,
+      layoutJson: [],
+      derivedFromDocumentRevision: null,
+      updatedAtMs: null,
+    },
+  } as const
+  await dbState.collections.syncOutbox.incrementalUpsert({
+    id: mutationId,
+    workspaceId,
+    deviceId,
+    entity: 'graphSnapshot',
+    op: 'upsert',
+    recordId: legacyMutation.recordId,
+    baseRevision: null,
+    payload: legacyMutation as unknown as Record<string, unknown>,
+    payloadHash: 'legacy',
+    attemptCount: 0,
+    lastAckStatus: '',
+    lastAckMessage: null,
+    createdAtMs: 1,
+    updatedAtMs: 1,
+  })
+
+  let pushedMutation: Record<string, unknown> | null = null
+  const fetchImpl: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input)
+    if (url.endsWith('/api/storage/push')) {
+      const bodyText = String(init?.body || '')
+      const body = JSON.parse(bodyText) as { mutations?: Array<Record<string, unknown>> }
+      pushedMutation = (body.mutations || [])[0] || null
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+          workspaceId,
+          ackCursor: 'ack:legacy-outbox',
+          serverTimeMs: 1_777_310_000_000,
+          acknowledgements: [
+            {
+              mutationId,
+              recordId: legacyMutation.recordId,
+              entity: 'graphSnapshot',
+              status: 'applied',
+              serverRevision: 1,
+              message: null,
+            },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
+    if (url.endsWith('/api/storage/pull')) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+          workspaceId,
+          nextCursor: 'pull:legacy-outbox',
+          serverTimeMs: 1_777_310_000_100,
+          changes: { documents: [], documentChunks: [], graphSnapshots: [] },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
+    return new Response('not found', { status: 404 })
+  }
+
+  const result = await syncKnowgrphStorageNow({
+    workspaceId,
+    deviceId,
+    baseUrl: 'https://example.com',
+    fetchImpl,
+    dbState,
+  })
+  if (result.pushedCount !== 1 || result.appliedCount !== 1) {
+    throw new Error('expected legacy outbox payload sync to push and apply one mutation')
+  }
+  const pushedRecord = ((pushedMutation?.record || {}) as Record<string, unknown>)
+  if (Number(pushedRecord.graphRevision) !== 0) throw new Error('expected legacy pushed graphRevision to sanitize to 0')
+  if (Number(pushedRecord.derivedFromDocumentRevision) !== 0) throw new Error('expected legacy pushed derivedFromDocumentRevision to sanitize to 0')
+  if (Number(pushedRecord.updatedAtMs) !== 0) throw new Error('expected legacy pushed updatedAtMs to sanitize to 0')
+  if (!pushedRecord.graphJson || typeof pushedRecord.graphJson !== 'object' || Array.isArray(pushedRecord.graphJson)) {
+    throw new Error('expected legacy pushed invalid graphJson to sanitize to object')
+  }
+  if (pushedRecord.layoutJson !== null) throw new Error('expected legacy pushed invalid array layoutJson to sanitize to null')
+
+  await __resetKnowgrphStorageDbForTests()
+}
+
 export async function testKnowgrphStorageClientSyncRetainsConflictingOutboxMutationsForResolution() {
   await __resetKnowgrphStorageDbForTests()
   const env = createFakeKnowgrphStorageWorkerEnv()
@@ -517,6 +783,44 @@ export async function testKnowgrphStorageClientSyncSkipsUnavailableRoutesWithout
   }
   if (requestCount !== 1) {
     throw new Error(`expected unavailable route backoff to suppress repeated fetch attempts, got ${requestCount}`)
+  }
+
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testKnowgrphStorageClientSyncSkipsNetworkLoadFailuresWithoutThrowing() {
+  await __resetKnowgrphStorageDbForTests()
+  const dbState = await getKnowgrphStorageDb()
+  let requestCount = 0
+  const fetchImpl = async (): Promise<Response> => {
+    requestCount += 1
+    const error = new TypeError('Load failed')
+    throw error
+  }
+
+  const first = await syncKnowgrphStorageNow({
+    workspaceId: 'wk_client_load_failed',
+    deviceId: 'dev_load_failed',
+    baseUrl: 'http://127.0.0.1:5174',
+    fetchImpl,
+    dbState,
+  })
+  const second = await syncKnowgrphStorageNow({
+    workspaceId: 'wk_client_load_failed',
+    deviceId: 'dev_load_failed',
+    baseUrl: 'http://127.0.0.1:5174',
+    fetchImpl,
+    dbState,
+  })
+
+  if (first.pushedCount !== 0 || first.pulledDocumentCount !== 0 || first.pulledChunkCount !== 0 || first.pulledGraphSnapshotCount !== 0) {
+    throw new Error('expected network load failure to skip sync cleanly without reporting pushed or pulled records')
+  }
+  if (second.pushedCount !== 0 || second.pulledDocumentCount !== 0 || second.pulledChunkCount !== 0 || second.pulledGraphSnapshotCount !== 0) {
+    throw new Error('expected repeated sync attempts during load failure backoff to remain skipped')
+  }
+  if (requestCount !== 1) {
+    throw new Error(`expected network load failure backoff to suppress repeated fetch attempts, got ${requestCount}`)
   }
 
   await __resetKnowgrphStorageDbForTests()

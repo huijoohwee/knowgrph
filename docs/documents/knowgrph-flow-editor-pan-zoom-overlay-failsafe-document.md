@@ -35,6 +35,11 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - Flow Editor must not apply persisted camera transforms until graph bounds are computable (e.g., at least one finite node position); otherwise initial transforms may land offscreen and appear as a "blank" canvas.
 - If the current camera transform does not show the graph (bounds guard fails), Flow Editor must treat the view as not-initialized yet (invalidate the init gate) and re-apply an initial fit even when the init key matches.
 - Viewport settle retry: after workspace-open overlay transitions, the Flow canvas must retry centroid-centered fit if the initial viewport settle produces an offscreen or degenerate transform. The retry uses the same D3 fit SSOT (`fitAllTransform`) and preserves centroid-centered layouts across overlay open/close cycles.
+- Interaction-in-progress guard: offscreen overlay recovery and force-fit must not fire while the user is actively panning, zooming, or dragging widgets in Workspace mode; recovery runs only after interaction settles.
+- Widget placement authority: frontmatter-flow auto-managed widget nodes (text/image/video generation, rich media panel, video transcriber) use a centralized placement authority (`widgetPlacementAuthority.ts`) that decides auto-placement, pinned-in-canvas defaults, and balanced collective layout preservation.
+- Screen authority for floating widgets: frontmatter-flow floating widgets bypass viewport clamping and use raw screen coordinates (`floatingUsesScreenAuthority`); world position stamping is skipped when screen authority is active, and a guard prevents stamping far-offscreen world coordinates during pre-init.
+- Per-graph-key widget world positions: widget world positions are stored per graph meta key (`flowWidgetWorldPosByNodeIdByGraphMetaKey`) so positions persist correctly when switching between frontmatter-flow graphs; transient placement authorities are reset on workspace reopen to prevent far-right jumps.
+- Frontmatter flow import mode clearing: importing a frontmatter-flow graph clears both the global `flowWidgetWorldPosByNodeId` and the per-graph-key variant to ensure a clean slate.
 
 ## References
 
@@ -53,5 +58,7 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - `knowgrph/canvas/src/lib/canvas/flow-editor-init-key.ts`
 - `knowgrph/canvas/src/lib/canvas/schema-layout-engine-json.ts`
 - `knowgrph/canvas/src/lib/canvas/interaction-user-select.ts`
+- `knowgrph/canvas/src/lib/flowEditor/widgetPlacementAuthority.ts` (widget auto-placement + screen authority + balanced collective)
+- `knowgrph/canvas/src/features/parsers/frontmatterFlowImportMode.ts` (import mode clearing)
 - `knowgrph/canvas/src/hooks/store/canvasSlice.ts`
 - `knowgrph/canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts`

@@ -1,6 +1,7 @@
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { getLocalStorage } from '@/lib/persistence'
+import { toCloneSafeObject, toCloneSafeObjectOrNull } from '@/lib/storage/cloneSafe'
 import {
   buildKnowgrphStoragePullRequest,
   buildKnowgrphStorageCursorId,
@@ -12,8 +13,8 @@ import {
   type KgDocumentRecord,
   type KgGraphSnapshotRecord,
   type KnowgrphStorageCursorRecord,
+  type KnowgrphStorageOutboxRecord,
   type KnowgrphStorageMutation,
-  type KnowgrphStoragePullResponse,
   type KnowgrphStoragePushResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import {
@@ -134,6 +135,65 @@ const normalizePositiveInt = (value: unknown, fallback: number): number => {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback
 }
+const normalizeNonNegativeInt = (value: unknown, fallback: number): number => {
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback
+}
+const sanitizeDocumentRecord = (record: KgDocumentRecord): KgDocumentRecord => ({
+  ...record,
+  revision: normalizeNonNegativeInt(record.revision, 0),
+  updatedAtMs: normalizeNonNegativeInt(record.updatedAtMs, 0),
+  deleted: record.deleted === true,
+})
+const sanitizeDocumentChunkRecord = (record: KgDocumentChunkRecord): KgDocumentChunkRecord => ({
+  ...record,
+  chunkOrder: normalizeNonNegativeInt(record.chunkOrder, 0),
+  tokenEstimate: normalizeNonNegativeInt(record.tokenEstimate, 0),
+  updatedAtMs: normalizeNonNegativeInt(record.updatedAtMs, 0),
+})
+const sanitizeGraphSnapshotRecord = (record: KgGraphSnapshotRecord): KgGraphSnapshotRecord => ({
+  ...record,
+  graphRevision: normalizeNonNegativeInt(record.graphRevision, 0),
+  derivedFromDocumentRevision: normalizeNonNegativeInt(record.derivedFromDocumentRevision, 0),
+  updatedAtMs: normalizeNonNegativeInt(record.updatedAtMs, 0),
+  graphJson: toCloneSafeObject(record.graphJson, {}),
+  layoutJson: toCloneSafeObjectOrNull(record.layoutJson),
+})
+const sanitizeMutationRecord = (
+  entity: KnowgrphStorageMutation['entity'],
+  record: KnowgrphStorageMutation['record'],
+): KnowgrphStorageMutation['record'] => {
+  if (entity === 'document') return sanitizeDocumentRecord(record as KgDocumentRecord)
+  if (entity === 'documentChunk') return sanitizeDocumentChunkRecord(record as KgDocumentChunkRecord)
+  return sanitizeGraphSnapshotRecord(record as KgGraphSnapshotRecord)
+}
+const sanitizeMutationPayload = (mutation: KnowgrphStorageMutation): KnowgrphStorageMutation => ({
+  ...mutation,
+  baseRevision:
+    mutation.baseRevision == null
+      ? null
+      : normalizeNonNegativeInt(mutation.baseRevision, 0),
+  record: sanitizeMutationRecord(mutation.entity, mutation.record) as never,
+})
+const sanitizeOutboxRecord = (record: KnowgrphStorageOutboxRecord): KnowgrphStorageOutboxRecord => ({
+  ...(() => {
+    const payload = sanitizeMutationPayload(record.payload as unknown as KnowgrphStorageMutation)
+    return {
+      ...record,
+      baseRevision: record.baseRevision == null ? null : normalizeNonNegativeInt(record.baseRevision, 0),
+      attemptCount: normalizeNonNegativeInt(record.attemptCount, 0),
+      createdAtMs: normalizeNonNegativeInt(record.createdAtMs, 0),
+      updatedAtMs: normalizeNonNegativeInt(record.updatedAtMs, 0),
+      payload: payload as unknown as Record<string, unknown>,
+      payloadHash: hashStringToHex(JSON.stringify(payload)),
+    }
+  })(),
+})
+const sanitizeCursorRecord = (cursor: KnowgrphStorageCursorRecord): KnowgrphStorageCursorRecord => ({
+  ...cursor,
+  serverClockMs: cursor.serverClockMs == null ? null : normalizeNonNegativeInt(cursor.serverClockMs, 0),
+  updatedAtMs: normalizeNonNegativeInt(cursor.updatedAtMs, 0),
+})
 
 const getClientFetch = (value?: KnowgrphStorageFetchLike): KnowgrphStorageFetchLike => {
   if (value) return value
@@ -168,6 +228,21 @@ const isRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): 
 const isLikelyHtmlDocument = (value: string): boolean => {
   const text = String(value || '').trim().toLowerCase()
   return text.startsWith('<!doctype html') || text.startsWith('<html')
+}
+
+const isNetworkLoadFailure = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false
+  const rec = error as { name?: unknown; message?: unknown }
+  const name = String(rec.name || '').trim().toLowerCase()
+  const message = String(rec.message || '').trim().toLowerCase()
+  return (
+    name === 'typeerror'
+    && (
+      message.includes('load failed')
+      || message.includes('failed to fetch')
+      || message.includes('networkerror')
+    )
+  )
 }
 
 const parseStorageResponseJson = async <T>(
@@ -266,7 +341,7 @@ const upsertCursorRow = async (
   collections: KnowgrphStorageCollections,
   cursor: KnowgrphStorageCursorRecord,
 ): Promise<void> => {
-  await collections.syncCursor.incrementalUpsert(cursor)
+  await collections.syncCursor.incrementalUpsert(sanitizeCursorRecord(cursor))
 }
 
 const readPendingOutboxDocs = async (
@@ -320,10 +395,11 @@ const patchOutboxForAutoRebaseRetry = async (args: {
 }): Promise<void> => {
   const existing = await args.collections.syncOutbox.findOne(args.mutationId).exec()
   if (!existing) return
+  const sanitizedRecord = sanitizeMutationRecord(args.mutation.entity, args.nextRecord)
   const nextMutation: KnowgrphStorageMutation = {
     ...args.mutation,
     baseRevision: args.nextBaseRevision,
-    record: args.nextRecord as never,
+    record: sanitizedRecord as never,
   }
   await existing.incrementalPatch({
     baseRevision: args.nextBaseRevision,
@@ -379,11 +455,12 @@ const autoRebaseMutationForRetry = async (args: {
     const remoteRevision = Number.isFinite(args.serverRevisionHint) && Number(args.serverRevisionHint) >= 0
       ? Math.floor(Number(args.serverRevisionHint))
       : remoteRevisionFromDb
-    const nextRecord: KgGraphSnapshotRecord = {
+    const nextRecord = sanitizeGraphSnapshotRecord({
       ...currentRecord,
       graphRevision: Math.max(remoteRevision + 1, Number(currentRecord.graphRevision || 0) || 1),
+      derivedFromDocumentRevision: normalizeNonNegativeInt(currentRecord.derivedFromDocumentRevision, 0),
       updatedAtMs: args.nowMs,
-    }
+    })
     await args.collections.graphSnapshots.incrementalUpsert(nextRecord)
     await patchOutboxForAutoRebaseRetry({
       collections: args.collections,
@@ -512,11 +589,12 @@ const autoRebaseRetainedOutboxConflicts = async (
 
 const applyPulledDocuments = async (collections: KnowgrphStorageCollections, documents: KgDocumentRecord[]): Promise<void> => {
   for (let i = 0; i < documents.length; i += 1) {
-    const document = documents[i]!
+    const document = sanitizeDocumentRecord(documents[i]!)
     const { revision, deleted, ...rest } = document
     const localRecord: KgDocumentLocalRecord = {
       ...rest,
       documentRevision: revision,
+      updatedAtMs: document.updatedAtMs,
       isDeleted: deleted,
     }
     await collections.documents.incrementalUpsert(localRecord)
@@ -528,7 +606,8 @@ const applyPulledDocumentChunks = async (
   chunks: KgDocumentChunkRecord[],
 ): Promise<void> => {
   for (let i = 0; i < chunks.length; i += 1) {
-    await collections.documentChunks.incrementalUpsert(chunks[i]!)
+    const chunk = sanitizeDocumentChunkRecord(chunks[i]!)
+    await collections.documentChunks.incrementalUpsert(chunk)
   }
 }
 
@@ -537,7 +616,8 @@ const applyPulledGraphSnapshots = async (
   snapshots: KgGraphSnapshotRecord[],
 ): Promise<void> => {
   for (let i = 0; i < snapshots.length; i += 1) {
-    await collections.graphSnapshots.incrementalUpsert(snapshots[i]!)
+    const snapshot = sanitizeGraphSnapshotRecord(snapshots[i]!)
+    await collections.graphSnapshots.incrementalUpsert(snapshot)
   }
 }
 
@@ -551,6 +631,7 @@ export const queueKnowgrphStorageMutation = async (
   const mutationId = buildKnowgrphStorageOutboxId('mut')
   const recordId = normalizeString(args.recordId) || normalizeString(args.record.id)
   if (!recordId) throw new Error('recordId is required to queue a storage mutation')
+  const sanitizedRecord = sanitizeMutationRecord(args.entity, args.record as KnowgrphStorageMutation['record'])
   const payload: KnowgrphStorageMutation = {
     mutationId,
     workspaceId,
@@ -558,11 +639,11 @@ export const queueKnowgrphStorageMutation = async (
     op: args.op,
     recordId,
     baseRevision: args.baseRevision ?? null,
-    record: args.record as never,
+    record: sanitizedRecord as never,
   }
   const payloadText = JSON.stringify(payload)
   const nowMs = Date.now()
-  await dbState.collections.syncOutbox.incrementalUpsert({
+  await dbState.collections.syncOutbox.incrementalUpsert(sanitizeOutboxRecord({
     id: mutationId,
     workspaceId,
     deviceId,
@@ -577,7 +658,7 @@ export const queueKnowgrphStorageMutation = async (
     lastAckMessage: null,
     createdAtMs: nowMs,
     updatedAtMs: nowMs,
-  })
+  }))
   return mutationId
 }
 
@@ -606,7 +687,27 @@ const pushKnowgrphStorageOutbox = async (
   }
   const fetchImpl = getClientFetch(args.fetchImpl)
   const apiOrigin = buildApiOriginKey(args.baseUrl)
-  const mutations = outboxDocs.map(doc => doc.get('payload') as unknown as KnowgrphStorageMutation)
+  const mutations: KnowgrphStorageMutation[] = []
+  for (let i = 0; i < outboxDocs.length; i += 1) {
+    const doc = outboxDocs[i]!
+    const rawOutbox = doc.toJSON() as KnowgrphStorageOutboxRecord
+    const sanitizedOutbox = sanitizeOutboxRecord(rawOutbox)
+    const originalOutboxJson = JSON.stringify(rawOutbox)
+    const sanitizedOutboxJson = JSON.stringify(sanitizedOutbox)
+    if (sanitizedOutboxJson !== originalOutboxJson) {
+      const nowMs = Date.now()
+      await doc.incrementalPatch({
+        baseRevision: sanitizedOutbox.baseRevision,
+        payload: sanitizedOutbox.payload,
+        payloadHash: sanitizedOutbox.payloadHash,
+        attemptCount: sanitizedOutbox.attemptCount,
+        createdAtMs: sanitizedOutbox.createdAtMs,
+        updatedAtMs: nowMs,
+      })
+    }
+    const sanitizedMutation = sanitizedOutbox.payload as unknown as KnowgrphStorageMutation
+    mutations.push(sanitizedMutation)
+  }
   const response = await fetchImpl(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, args.baseUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -843,6 +944,16 @@ export const syncKnowgrphStorageNow = async (
     } catch (error) {
       if (error instanceof KnowgrphStorageRouteUnavailableError) {
         markRouteUnavailableForApiOrigin(error.apiOrigin)
+        return buildSkippedSyncResult({
+          workspaceId,
+          deviceId,
+          currentCursor,
+          unresolvedConflictCount,
+        })
+      }
+      if (isNetworkLoadFailure(error)) {
+        const apiOrigin = buildApiOriginKey(args.baseUrl)
+        markRouteUnavailableForApiOrigin(apiOrigin)
         return buildSkippedSyncResult({
           workspaceId,
           deviceId,

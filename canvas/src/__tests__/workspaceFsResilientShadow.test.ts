@@ -33,3 +33,30 @@ export async function testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfte
     throw new Error('expected listEntries to include created file from shadow fallback')
   }
 }
+
+export async function testWorkspaceFsResilientRetriesRxConflictBeforeFallback() {
+  let attempts = 0
+  const inner: WorkspaceFs = {
+    ensureSeed: async () => {
+      attempts += 1
+      if (attempts < 3) {
+        const err = new Error('RxDB Error-Code: CONFLICT') as Error & { code?: string; name?: string }
+        err.code = 'CONFLICT'
+        err.name = 'RxError'
+        throw err
+      }
+      return true
+    },
+    listEntries: async () => [{ path: '/' as WorkspacePath, parentPath: null, kind: 'folder' as const, name: '', updatedAtMs: 1 }],
+    readFileText: async () => null,
+    writeFileText: async () => void 0,
+    createFile: async (args: { parentPath: WorkspacePath; name: string }) => `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` as WorkspacePath,
+    createFolder: async (args: { parentPath: WorkspacePath; name: string }) => `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` as WorkspacePath,
+    deleteEntry: async () => void 0,
+  }
+
+  const fs = createResilientWorkspaceFs(inner)
+  const ok = await fs.ensureSeed()
+  if (ok !== true) throw new Error('expected ensureSeed to succeed after transient RxDB conflicts')
+  if (attempts !== 3) throw new Error(`expected three attempts (2 conflicts + 1 success), got ${attempts}`)
+}

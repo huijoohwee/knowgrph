@@ -158,7 +158,26 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
       ;(timeoutIdObj as unknown as { unref?: () => void }).unref?.()
       const timeoutId = timeoutIdObj as unknown as number
       state.pending.set(id, { resolve: finish, timeoutId })
-      args.postMessage(worker, id)
+      try {
+        args.postMessage(worker, id)
+      } catch (err) {
+        state.pending.delete(id)
+        try {
+          clearTimeout(timeoutId)
+        } catch {
+          void 0
+        }
+        const message =
+          err && typeof err === 'object' && 'name' in err
+            ? String((err as { name?: unknown }).name || 'postMessage failed')
+            : 'postMessage failed'
+        try {
+          args.onWorkerErrorMessage?.(`Worker postMessage failed: ${message}`)
+        } catch {
+          void 0
+        }
+        finish(null as unknown as T)
+      }
     })
   } catch {
     try {

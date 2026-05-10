@@ -13,6 +13,7 @@ import {
   scheduleKnowgrphStorageSync,
   type KnowgrphStorageSyncRunResult,
 } from '@/lib/storage/knowgrphStorageClientSync'
+import { toCloneSafeObject, toCloneSafeObjectOrNull } from '@/lib/storage/cloneSafe'
 import type {
   KgDocumentRecord,
   KgGraphSnapshotRecord,
@@ -22,6 +23,24 @@ import type {
 const STORAGE_CONFLICT_ACTION_PREFIX = 'kg-storage-conflict-action'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+const normalizeNonNegativeInt = (value: unknown, fallback: number): number => {
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback
+}
+const sanitizeDocumentRecord = (record: KgDocumentRecord): KgDocumentRecord => ({
+  ...record,
+  revision: normalizeNonNegativeInt(record.revision, 0),
+  updatedAtMs: normalizeNonNegativeInt(record.updatedAtMs, Date.now()),
+  deleted: record.deleted === true,
+})
+const sanitizeGraphSnapshotRecord = (record: KgGraphSnapshotRecord): KgGraphSnapshotRecord => ({
+  ...record,
+  graphRevision: normalizeNonNegativeInt(record.graphRevision, 0),
+  derivedFromDocumentRevision: normalizeNonNegativeInt(record.derivedFromDocumentRevision, 0),
+  updatedAtMs: normalizeNonNegativeInt(record.updatedAtMs, Date.now()),
+  graphJson: toCloneSafeObject(record.graphJson, {}),
+  layoutJson: toCloneSafeObjectOrNull(record.layoutJson),
+})
 const encodeToken = (value: string): string => encodeURIComponent(normalizeString(value))
 const decodeToken = (value: string): string => {
   try {
@@ -200,11 +219,11 @@ const resolveKeepLocal = async (workspaceId: string, mutationId: string): Promis
     const remoteRevision = Number(remoteDoc?.get('documentRevision') || 0)
     const currentRecord = mutation.record
     const nextRevision = Math.max(remoteRevision + 1, Number(currentRecord.revision || 0) || 1)
-    const nextRecord: KgDocumentRecord = {
+    const nextRecord = sanitizeDocumentRecord({
       ...currentRecord,
       revision: nextRevision,
       updatedAtMs: Date.now(),
-    }
+    })
     await storage.collections.documents.incrementalUpsert({
       ...nextRecord,
       documentRevision: nextRecord.revision,
@@ -227,11 +246,12 @@ const resolveKeepLocal = async (workspaceId: string, mutationId: string): Promis
     const remoteGraph = await storage.collections.graphSnapshots.findOne(mutation.recordId).exec()
     const remoteRevision = Number(remoteGraph?.get('graphRevision') || 0)
     const currentRecord = mutation.record
-    const nextRecord: KgGraphSnapshotRecord = {
+    const nextRecord = sanitizeGraphSnapshotRecord({
       ...currentRecord,
       graphRevision: Math.max(remoteRevision + 1, Number(currentRecord.graphRevision || 0) || 1),
+      derivedFromDocumentRevision: normalizeNonNegativeInt(currentRecord.derivedFromDocumentRevision, 0),
       updatedAtMs: Date.now(),
-    }
+    })
     await storage.collections.graphSnapshots.incrementalUpsert(nextRecord)
     await patchOutboxForRetry({
       storage,

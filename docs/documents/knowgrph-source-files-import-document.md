@@ -284,6 +284,7 @@ Note: The current website-import artifact set is `raw.html`, `page.md`, `convers
 - Remote URL fetching is bounded and uses the Step 3 **Dataset fetch limits** (timeout/max-bytes) so large URL sources do not fail against the shared default limit.
 - Local file import is also bounded by the same max-bytes limit to keep local and URL ingest behavior consistent.
 - Composed source-files apply guards (`composedApplyGuards.ts`) prevent stale or conflicting graph mutations when multiple source files are composed into a single active graph: guards check text hash consistency, frontmatter mode compatibility, and overlay state before applying a composed graph update.
+- Frontmatter-flow import mode clearing: importing a frontmatter-flow graph clears both the global `flowWidgetWorldPosByNodeId` and the per-graph-key variant `flowWidgetWorldPosByNodeIdByGraphMetaKey[graphKey]` to ensure a clean slate when switching between frontmatter-flow graphs.
 
 ---
 

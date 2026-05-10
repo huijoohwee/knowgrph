@@ -61,6 +61,11 @@ const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
   [GEOSPATIAL_WORKSPACE_SEED_PATH, GEOSPATIAL_WORKSPACE_SEED_BASENAME],
 ])
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
+const normalizeUpdatedAtMs = (value: unknown, fallback = Date.now()): number => {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return Math.max(0, Math.floor(fallback))
+  return Math.floor(n)
+}
 
 const readWorkspaceSeedBasenameForPath = (path: WorkspacePath): string | null => {
   return WORKSPACE_SEED_BASENAME_BY_PATH.get(path) || null
@@ -135,7 +140,7 @@ const syncWorkspaceDocsMirrorEntries = async (
         kind: desired.kind,
         name: desired.name,
         text: nextText,
-        updatedAtMs: desired.updatedAtMs,
+        updatedAtMs: normalizeUpdatedAtMs(desired.updatedAtMs),
       })
       changed = true
     }
@@ -150,7 +155,7 @@ const syncWorkspaceDocsMirrorEntries = async (
       kind: entry.kind,
       name: entry.name,
       text: entry.kind === 'file' ? String(entry.text || '') : '',
-      updatedAtMs: entry.updatedAtMs,
+      updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
     })
     changed = true
   }
@@ -195,13 +200,23 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
   const ensureRoot = async () => {
     const { collections } = await getDb()
     const existing = await collections.entries.findOne(WORKSPACE_ROOT_PATH).exec()
-    if (existing) return
+    if (existing) {
+      const updatedAtMs = normalizeUpdatedAtMs(existing.get('updatedAtMs'))
+      const parentPath = String(existing.get('parentPath') || '')
+      if (Number(existing.get('updatedAtMs')) !== updatedAtMs || parentPath !== '') {
+        await existing.incrementalPatch({
+          parentPath: '',
+          updatedAtMs,
+        })
+      }
+      return
+    }
     await collections.entries.insert({
       path: WORKSPACE_ROOT_PATH,
       parentPath: '',
       kind: 'folder',
       name: '',
-      updatedAtMs: Date.now(),
+      updatedAtMs: normalizeUpdatedAtMs(Date.now()),
     })
   }
 
@@ -266,7 +281,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
             kind: entry.kind,
             name: entry.name,
             text: entry.kind === 'file' ? String(entry.text ?? '') : '',
-            updatedAtMs: entry.updatedAtMs,
+            updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
           })
           changed = true
         }
@@ -292,7 +307,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
             parentPath: entry.parentPath || '',
             name: entry.name,
             text: String(entry.text ?? ''),
-            updatedAtMs: entry.updatedAtMs,
+            updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
           })
           seededTextChanged = true
         }
@@ -316,7 +331,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
             kind: entry.kind,
             name: entry.name,
             text: entry.kind === 'file' ? String(entry.text ?? '') : '',
-            updatedAtMs: entry.updatedAtMs,
+            updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
           })
           changed = true
         }
@@ -335,9 +350,14 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     return rows
       .map(r => {
         const row = r.toJSON()
+        const updatedAtMs = normalizeUpdatedAtMs((row as { updatedAtMs?: unknown }).updatedAtMs)
+        if (Number((row as { updatedAtMs?: unknown }).updatedAtMs) !== updatedAtMs) {
+          void r.incrementalPatch({ updatedAtMs })
+        }
         return {
           ...row,
           parentPath: row.parentPath ? row.parentPath : null,
+          updatedAtMs,
         }
       })
       .sort((a, b) => a.path.localeCompare(b.path))

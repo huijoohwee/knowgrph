@@ -1,5 +1,6 @@
 import type { SourceFile } from '@/hooks/store/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { toCloneSafeObject } from '@/lib/storage/cloneSafe'
 import {
   getKnowgrphStorageDb,
   type KgDocumentLocalRecord,
@@ -148,9 +149,7 @@ const buildGraphSnapshotRecordForSourceFile = (
   workspaceId,
   graphRevision: Math.max(1, Number(file.parsedGraphRevision || documentRevision || 1)),
   graphHash: buildSourceFileGraphHash(file),
-  graphJson: (file.parsedGraphData && typeof file.parsedGraphData === 'object'
-    ? (file.parsedGraphData as unknown as Record<string, unknown>)
-    : {}) as Record<string, unknown>,
+  graphJson: toCloneSafeObject(file.parsedGraphData, {}),
   layoutJson: null,
   derivedFromDocumentRevision: Math.max(1, documentRevision),
   updatedAtMs: Date.now(),

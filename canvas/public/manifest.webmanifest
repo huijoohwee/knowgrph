@@ -1,0 +1,54 @@
+{
+  "id": "/",
+  "name": "knowgrph",
+  "short_name": "knowgrph",
+  "description": "Local-first knowledge graph canvas.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "categories": ["productivity", "utilities", "developer"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Open Canvas",
+      "short_name": "Canvas",
+      "description": "Open the knowledge graph canvas.",
+      "url": "."
+    },
+    {
+      "name": "Open Editor",
+      "short_name": "Editor",
+      "description": "Open the editor workspace directly.",
+      "url": "./?openEditorWorkspace=1"
+    }
+  ],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "share_target": {
+    "action": "./?share=1",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}
