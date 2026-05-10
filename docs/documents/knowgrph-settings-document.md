@@ -134,6 +134,68 @@
 
 ---
 
+## Video Generation Settings: Gemini Veo
+
+**Scope**: MainPanel → Settings → Video Generation
+
+**Intent**: Let users configure Gemini Veo video generation parameters (model, aspect ratio, resolution, duration, person generation) with safe defaults and localStorage persistence.
+
+**Keys**
+
+- `geminiVideoModel` — Gemini Veo model identifier; defaults to `CHAT_GEMINI_VIDEO_MODEL_DEFAULT` from `chatEndpoint.ts`.
+- `geminiVideoAspectRatio` — Output aspect ratio; valid values: `16:9` (default), `9:16`.
+- `geminiVideoResolution` — Output resolution; valid values: `720p` (default), `1080p`, `4k`.
+- `geminiVideoDurationSeconds` — Video duration in seconds; valid values: `4`, `6`, `8` (default).
+- `geminiVideoPersonGeneration` — Person generation policy; valid values: `allow_all` (default), `allow_adult`, `dont_allow`.
+
+**SSOT**: `canvas/src/features/integrations/geminiVideoGenerationSsot.ts` defines the API doc rows and widget fields; `canvas/src/features/integrations/geminiVideoGenerationDefaults.ts` reads/normalizes defaults from localStorage.
+
+**Runtime**: `canvas/src/features/chat/geminiRunGeneration.ts` uses long-running operation pattern (create task, poll up to 36 times at 10s intervals, ~6 min max). Provider-guarded to `CHAT_PROVIDER_GEMINI`.
+
+---
+
+## Video Generation Settings: BytePlus ModelArk
+
+**Scope**: MainPanel → Settings → Video Generation
+
+**Intent**: Let users configure BytePlus ModelArk video generation parameters.
+
+**Keys**
+
+- `byteplusVideoModel`, `byteplusVideoContentJson`, `byteplusVideoResolution`, `byteplusVideoRatio`, `byteplusVideoDuration`, `byteplusVideoGenerateAudio`, `byteplusVideoDraft`, `byteplusVideoCameraFixed`, `byteplusVideoImageUrlUrl`
+
+**SSOT**: `canvas/src/features/integrations/byteplusVideoGenerationSsot.ts`
+
+---
+
+## Image Generation Settings: BytePlus ModelArk
+
+**Scope**: MainPanel → Settings → Image Generation
+
+**Intent**: Let users configure BytePlus ModelArk image generation parameters.
+
+**Keys**
+
+- `byteplusImageModel`, `byteplusImageSize`, `byteplusImageOutputFormat`, `byteplusImageResponseFormat`, `byteplusImageOptimizePromptOptions`, `byteplusImageAspectRatio`, `byteplusImageStream`, `byteplusImageWatermark`, `byteplusImageSeed`, `byteplusImageGuidanceScale`
+
+**SSOT**: `canvas/src/features/integrations/byteplusImageGenerationSsot.ts`
+
+---
+
+## Image Generation Settings: OpenAI Images
+
+**Scope**: MainPanel → Settings → Image Generation
+
+**Intent**: Let users configure OpenAI Images API generation parameters.
+
+**Keys**
+
+- `provider` (OpenAI), `auth_mode`, `api_key`, `endpoint`, `model`, `prompt`, `size`, `quality`, `background`, `output_format`, `response_format`, `n`, `moderation`, `stream`, `partial_images`, `output_compression`, `style`, `user`
+
+**SSOT**: `canvas/src/features/integrations/openaiImagesSsot.ts` — 18 API doc rows covering all OpenAI Images parameters.
+
+---
+
 ## Settings UI Tooltip Semantics
 
 **Scope**: MainPanel → Settings → key/value rows (hover tooltips)

@@ -203,9 +203,30 @@ export function useNodeOverlayPlacementRuntime(args: {
       const state = useGraphStore.getState() as {
         flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
         flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
+        zoomState?: { k?: number; x?: number; y?: number } | null
+        zoomStateByKey?: Record<string, { k?: number; x?: number; y?: number }> | null
         graphData?: unknown
       }
       if (isWorkspaceGraphMutationBlocked(state)) {
+        const effectiveZoom = getEffectiveZoomStateForKey({
+          zoomViewKey,
+          zoomStateByKey: state.zoomStateByKey || undefined,
+          zoomState: state.zoomState || null,
+        })
+        const zoomK = Number.isFinite(effectiveZoom?.k) ? Number(effectiveZoom?.k) : 1
+        const zoomX = Number.isFinite(effectiveZoom?.x) ? Number(effectiveZoom?.x) : 0
+        const zoomY = Number.isFinite(effectiveZoom?.y) ? Number(effectiveZoom?.y) : 0
+        const zoomLooksUninitialized =
+          Math.abs(zoomK - 1) <= 1e-3
+          && Math.abs(zoomX) <= 0.5
+          && Math.abs(zoomY) <= 0.5
+        const userDraggingWorld = !!worldDragOverrideRef.current || !!pinnedDragOverrideRef.current
+        const worldLooksFarOffscreen =
+          Math.abs(pos.x) > Math.max(1, viewportW) * 1.2
+          || Math.abs(pos.y) > Math.max(1, viewportH) * 1.2
+        // During workspace-blocked pre-init, avoid stamping far-offscreen world coords
+        // from transient identity zoom before init-fit establishes transform authority.
+        if (zoomLooksUninitialized && !userDraggingWorld && worldLooksFarOffscreen) return
         useGraphStore.setState(prev => {
           const prevState = prev as unknown as {
             graphData?: unknown
@@ -232,7 +253,7 @@ export function useNodeOverlayPlacementRuntime(args: {
       const next = { ...current, [nodeId]: { x: pos.x, y: pos.y } }
       setFlowWidgetWorldPosByNodeId(next)
     },
-    [nodeId, setFlowWidgetWorldPosByNodeId],
+    [nodeId, setFlowWidgetWorldPosByNodeId, viewportH, viewportW, zoomViewKey],
   )
 
   const readCurrentTransform = React.useCallback(() => {

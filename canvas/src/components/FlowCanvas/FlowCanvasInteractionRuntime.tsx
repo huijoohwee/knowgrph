@@ -210,7 +210,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       selectedNodeIds: (selectedNodeIds || []).map(v => String(v)),
       selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
       onFrame: () => {
-        scheduleFlowDraw()
+        scheduleFlowDraw({ force: true })
         requestCommit()
         handleInteractionFrame()
       },

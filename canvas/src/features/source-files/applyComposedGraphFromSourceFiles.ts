@@ -88,6 +88,15 @@ function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGrap
   }
 }
 
+function requestWorkspaceOpenFlowEditorFit(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
+  const kind = String(((graphData?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  if (kind !== 'frontmatter-flow') return
+  const st = useGraphStore.getState()
+  if (!isWorkspaceEditorOverlayOpen(st)) return
+  if (st.canvasRenderMode !== '2d' || st.canvas2dRenderer !== 'flowEditor') return
+  st.requestZoom('fit', { intent: 'fitToView' })
+}
+
 export function scheduleApplyComposedGraphFromSourceFiles() {
   ensureWorkspaceOverlayComposeRetrySubscription()
   if (pendingComposeRaf != null) return
@@ -189,8 +198,10 @@ export function applyComposedGraphFromSourceFiles() {
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)
     applyComposedSourceImportModes(graphData)
+    requestWorkspaceOpenFlowEditorFit(graphData)
     return
   }
   store.setGraphData(graphData)
   applyComposedSourceImportModes(graphData)
+  requestWorkspaceOpenFlowEditorFit(graphData)
 }

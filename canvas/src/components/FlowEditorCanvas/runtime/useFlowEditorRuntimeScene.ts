@@ -96,6 +96,10 @@ export function useFlowEditorRuntimeScene(args: {
   const flowRuntimeRefRef = React.useRef<React.MutableRefObject<FlowNativeRuntime | null> | null>(null)
   const latestAutoSeedWorldPosByNodeIdRef = React.useRef<Record<string, { x: number; y: number }>>({})
   const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
+  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
+  const flowWidgetWorldPosCount = useGraphStore(s => Object.keys(s.flowWidgetWorldPosByNodeId || {}).length)
+  const flowWidgetPinnedCount = useGraphStore(s => Object.keys(s.flowWidgetPinnedByNodeId || {}).length)
+  const workspaceMutationBlockedPrevRef = React.useRef<boolean>(workspaceMutationBlocked)
   const lastInteractionFrameAtMsRef = React.useRef<number>(0)
 
   React.useEffect(() => {
@@ -374,6 +378,17 @@ export function useFlowEditorRuntimeScene(args: {
 
   const seededPinnedWidgetWorldPosKeyRef = React.useRef<string>('')
   const lastAutoSeedLayoutSignatureRef = React.useRef<string>('')
+  React.useEffect(() => {
+    const prev = workspaceMutationBlockedPrevRef.current
+    workspaceMutationBlockedPrevRef.current = workspaceMutationBlocked
+    if (workspaceMutationBlocked !== true || prev === true) return
+    // Reset transient transform/seed authorities when Workspace overlay re-opens
+    // so reopen cannot reuse stale far-right pre-init placement state.
+    lastUsableZoomTransformRef.current = null
+    latestAutoSeedWorldPosByNodeIdRef.current = {}
+    seededPinnedWidgetWorldPosKeyRef.current = ''
+    lastAutoSeedLayoutSignatureRef.current = ''
+  }, [workspaceMutationBlocked])
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
     const st = useGraphStore.getState()
@@ -452,7 +467,13 @@ export function useFlowEditorRuntimeScene(args: {
         || Math.abs(Number.isFinite(persistedZoom.x) ? persistedZoom.x : 0) > 0.5
         || Math.abs(Number.isFinite(persistedZoom.y) ? persistedZoom.y : 0) > 0.5
       )
-    const shouldUseNeutralSeedZoom = runtimeSceneNodeCount <= 0
+    const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
+    const isFirstFrontmatterInitSeed = isFrontmatterFlow && seededPinnedWidgetWorldPosKeyRef.current.length === 0
+    const shouldUseNeutralSeedZoomForFrontmatterInit =
+      isFirstFrontmatterInitSeed
+    const shouldUseNeutralSeedZoom =
+      runtimeSceneNodeCount <= 0
+      || shouldUseNeutralSeedZoomForFrontmatterInit
     const allowPersistedViewportOffsetSeed = !isWorkspaceGraphMutationBlocked(st)
     const z =
       (shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)
@@ -461,7 +482,6 @@ export function useFlowEditorRuntimeScene(args: {
       || persistedZoom
       || { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
-    const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
     const spreadMargins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
@@ -471,13 +491,20 @@ export function useFlowEditorRuntimeScene(args: {
       12,
       Math.min(40, Math.round(Math.max(1, args.viewportW - spreadMargins.left - spreadMargins.right) * 0.012)),
     )
-    const pinnedOpenIds = effectiveOrFallbackOpenIds
-      .map(id => String(id || '').trim())
-      .filter(Boolean)
-      .filter(id => {
-        const v = pinnedById[id]
-        return typeof v === 'boolean' ? v : defaultPinnedInCanvas
-      })
+    const pinnedOpenIds = (
+      isFrontmatterFlow
+        ? effectiveOrFallbackOpenIds
+            .map(id => String(id || '').trim())
+            .filter(Boolean)
+        : effectiveOrFallbackOpenIds
+            .map(id => String(id || '').trim())
+            .filter(Boolean)
+            .filter(id => {
+              const v = pinnedById[id]
+              return typeof v === 'boolean' ? v : defaultPinnedInCanvas
+            })
+    )
+      .filter((id, index, arr) => arr.indexOf(id) === index)
       .sort((a, b) => a.localeCompare(b))
     const useViewportOnlyBucket = isFrontmatterFlow || pinnedOpenIds.length >= 12
     let panelScale = computeCollectiveFollowPinnedScale({
@@ -665,7 +692,7 @@ export function useFlowEditorRuntimeScene(args: {
       return Array.from(overlappingIds)
     })()
     let pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
-    if (pending.length === 0 && isFrontmatterFlow && pinnedOpenIds.length > 0) {
+    if (pending.length === 0 && pinnedOpenIds.length > 0) {
       const offscreenPinned = pinnedOpenIds
         .filter(id => {
           const world = worldById[id]
@@ -858,7 +885,19 @@ export function useFlowEditorRuntimeScene(args: {
       return
     }
     st.setFlowWidgetWorldPosByNodeId(nextWorld)
-  }, [args.active, args.openWidgetNodeIds, args.overlayTopologyLayoutSignature, args.schema, args.viewportH, args.viewportW, args.zoomViewKeyRef, getLiveContainmentGroupAabbForNode, getLiveZoomTransform])
+  }, [
+    args.active,
+    args.openWidgetNodeIds,
+    args.overlayTopologyLayoutSignature,
+    args.schema,
+    args.viewportH,
+    args.viewportW,
+    args.zoomViewKeyRef,
+    flowWidgetPinnedCount,
+    flowWidgetWorldPosCount,
+    getLiveContainmentGroupAabbForNode,
+    getLiveZoomTransform,
+  ])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {
     emitFlowEditorInteractionFrameEvent()

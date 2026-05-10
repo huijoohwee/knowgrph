@@ -144,3 +144,24 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
   }
   return changed ? next : args.posByNodeId
 }
+
+export function stripFrontmatterAutoManagedWidgetWorldPositions(args: {
+  graphData: GraphData | null | undefined
+  worldPosByNodeId: Record<string, { x: number; y: number }>
+}): Record<string, { x: number; y: number }> {
+  const graphData = args.graphData
+  const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  if (kind !== 'frontmatter-flow') return args.worldPosByNodeId
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const next = { ...(args.worldPosByNodeId || {}) }
+  let changed = false
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    const id = String(node?.id || '').trim()
+    if (!id || !next[id]) continue
+    delete next[id]
+    changed = true
+  }
+  return changed ? next : args.worldPosByNodeId
+}

@@ -98,8 +98,24 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
+  const flowCanvasInteractionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
+  const flowCanvasInteractionRuntimeText = readFileSync(flowCanvasInteractionRuntimePath, 'utf8')
   if (!flowCanvasText.includes('allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === \'flowEditor\'')) {
     throw new Error('expected FlowCanvas commit path to allow Flow Editor layout commits while workspace view is open')
+  }
+  if (!flowCanvasText.includes('const WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS = 1200')) {
+    throw new Error('expected FlowCanvas pre-init draw suppression to include a bounded user-interaction bypass window for zoom/minimap responsiveness')
+  }
+  if (!flowCanvasText.includes('const interactedRecently = Date.now() - lastUserInteractionAtMsRef.current <= WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS')
+    || !flowCanvasText.includes('if (interactedRecently) return false')) {
+    throw new Error('expected FlowCanvas pre-init draw suppression to bypass gating after recent user interaction so toolbar/minimap zoom requests are not dropped')
+  }
+  if (!flowCanvasText.includes('const scheduleFlowDraw = React.useCallback((opts?: { force?: boolean }) => {')
+    || !flowCanvasText.includes('if (!force && shouldSuppressWorkspacePreInitCanvasDraw())')) {
+    throw new Error('expected FlowCanvas draw scheduler to expose a force bypass path for interaction-driven zoom/minimap frames under pre-init suppression')
+  }
+  if (!flowCanvasInteractionRuntimeText.includes('scheduleFlowDraw({ force: true })')) {
+    throw new Error('expected FlowCanvas interaction runtime zoom callback to force draw flush so toolbar/minimap zoom remains responsive during pre-init suppression')
   }
   if (!flowCanvasText.includes('width={canvasPixelW}') || !flowCanvasText.includes('height={canvasPixelH}')) {
     throw new Error('expected FlowCanvas to bind backing-store dimensions to viewport*dpr so first frame is sharp in workspace-open Flow Editor')
@@ -161,11 +177,24 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('(allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)')) {
     throw new Error('expected pinned widget auto-seed zoom source to gate persisted viewport-offset seed by workspace mutation guard')
   }
-  if (!runtimeText.includes('const shouldUseNeutralSeedZoom = runtimeSceneNodeCount <= 0')) {
+  if (!runtimeText.includes('const shouldUseNeutralSeedZoom =')
+    || !runtimeText.includes('runtimeSceneNodeCount <= 0')
+    || !runtimeText.includes('|| shouldUseNeutralSeedZoomForFrontmatterInit')) {
     throw new Error('expected pinned widget auto-seed to neutralize stale zoom offset when flow runtime scene is empty')
   }
   if (!runtimeText.includes('(shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)')) {
     throw new Error('expected pinned widget auto-seed zoom source to prioritize neutral zoom for empty-scene overlay recovery')
+  }
+  if (!runtimeText.includes('const shouldUseNeutralSeedZoomForFrontmatterInit =')
+    || !runtimeText.includes('const isFirstFrontmatterInitSeed = isFrontmatterFlow && seededPinnedWidgetWorldPosKeyRef.current.length === 0')
+    || !runtimeText.includes('&& pendingRaw.length > 0')) {
+    throw new Error('expected frontmatter-flow init seeding to force neutral zoom on first seed pass when pending widget seeds exist, independent of stale live default checks')
+  }
+  if (!runtimeText.includes('const deferWorkspaceBlockedPreInitFrontmatterSeed =')) {
+    throw new Error('expected pinned widget auto-seed to gate workspace-blocked empty-scene frontmatter placement until post-init layout')
+  }
+  if (!runtimeText.includes("reason: 'scene-empty-workspace-blocked-awaiting-post-init-layout'")) {
+    throw new Error('expected runtime trace to report deferred workspace-blocked empty-scene seeding while waiting for post-init layout')
   }
   if (!runtimeText.includes("const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && graphMetaKind === 'frontmatter-flow'")) {
     throw new Error('expected pinned widget auto-seed to force full frontmatter pinned reseed when runtime scene is empty')
@@ -181,6 +210,21 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   if (!runtimeText.includes('const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)')) {
     throw new Error('expected runtime transform authority to persist last usable transform so empty-scene recomposition does not flash widgets offscreen')
+  }
+  if (!runtimeText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
+    throw new Error('expected Flow Editor runtime scene to subscribe to shared workspace mutation guard for open/close transition resets')
+  }
+  if (!runtimeText.includes('const workspaceMutationBlockedPrevRef = React.useRef<boolean>(workspaceMutationBlocked)')) {
+    throw new Error('expected Flow Editor runtime scene to track workspace mutation transition edges for reopen reset logic')
+  }
+  if (!runtimeText.includes('if (workspaceMutationBlocked !== true || prev === true) return')) {
+    throw new Error('expected Flow Editor runtime scene to run transition reset only on workspace reopen edges')
+  }
+  if (!runtimeText.includes("lastUsableZoomTransformRef.current = null")) {
+    throw new Error('expected Flow Editor runtime scene to clear stale last-usable transform on workspace reopen to prevent far-right jump')
+  }
+  if (!runtimeText.includes("seededPinnedWidgetWorldPosKeyRef.current = ''") || !runtimeText.includes("lastAutoSeedLayoutSignatureRef.current = ''")) {
+    throw new Error('expected Flow Editor runtime scene to clear transient auto-seed keys on workspace reopen so post-init layout reseed is authoritative')
   }
   if (!runtimeText.includes("reason: 'scene-empty-using-last-usable-transform'")) {
     throw new Error('expected runtime trace to report scene-empty fallback that reuses last usable transform instead of dropping overlays')
@@ -506,8 +550,11 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('&& (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
     throw new Error('expected Flow runtime workspace-open init-fit freeze to activate only after transform authority is stabilized or user-controlled')
   }
-  if (!runtimeText.includes('const useD3StyleInitFit = isFlowEditor && workspaceEditorOverlayOpen === true')) {
-    throw new Error('expected Flow runtime init fit to switch to D3-style centered fit while Workspace overlay is open')
+  if (!runtimeText.includes('const hasCollectiveFlowWidgets = isFlowEditor && Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0')) {
+    throw new Error('expected Flow runtime init fit strategy to detect collective Flow Editor widget overlays before selecting centered-fit mode')
+  }
+  if (!runtimeText.includes('const useD3StyleInitFit = isFlowEditor && workspaceEditorOverlayOpen === true && !hasCollectiveFlowWidgets')) {
+    throw new Error('expected Flow runtime init fit to avoid D3-only centered fit when workspace-open collective widgets exist')
   }
   if (!runtimeText.includes('x: fit.x + (useD3StyleInitFit ? 0 : visibleViewportFit.left),')) {
     throw new Error('expected Flow Editor fit seed to avoid x viewport offset when Workspace overlay D3-style init fit is active')
@@ -656,6 +703,24 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes('if (prev != null && prev !== zoomViewKey) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
+  }
+  if (!runtimeText.includes('if (open && !prev) {')
+    || !runtimeText.includes('lastInitTransformZoomViewKeyRef.current = null')
+    || !runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = null')) {
+    throw new Error('expected Flow runtime workspace reopen edge to clear init/recovery memoization so stale offscreen transforms cannot persist across open->close->reopen')
+  }
+  if (!runtimeText.includes('if (!open) {')
+    || !runtimeText.includes('Drop init/recovery memoization on close')) {
+    throw new Error('expected Flow runtime workspace close edge to clear init/recovery memoization before next reopen')
+  }
+  if (!runtimeText.includes('const currentTransformUsable = isUsableFlowTransform(current)')) {
+    throw new Error('expected Flow runtime init guard to compute current transform usability before preserving already-initialized state')
+  }
+  if (!runtimeText.includes('workspaceEditorOverlayOpen !== true && currentTransformUsable')) {
+    throw new Error('expected Flow runtime non-workspace init-preserve guard to require usable current transform, preventing far-right offscreen preservation')
+  }
+  if (!runtimeText.includes('&& currentTransformUsable\n      && (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
+    throw new Error('expected Flow runtime workspace-open init-preserve guard to require usable current transform before skipping re-fit')
   }
   if (!runtimeText.includes('workspace-open-stabilized-preserve-current')) {
     throw new Error('expected Flow runtime workspace-open recovery to preserve stabilized transform and forbid late fly-off refits')

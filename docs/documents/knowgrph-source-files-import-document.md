@@ -283,6 +283,7 @@ Note: The current website-import artifact set is `raw.html`, `page.md`, `convers
 - Legacy tool-menu ingest actions are removed to avoid duplicated/conflicting ingest surfaces.
 - Remote URL fetching is bounded and uses the Step 3 **Dataset fetch limits** (timeout/max-bytes) so large URL sources do not fail against the shared default limit.
 - Local file import is also bounded by the same max-bytes limit to keep local and URL ingest behavior consistent.
+- Composed source-files apply guards (`composedApplyGuards.ts`) prevent stale or conflicting graph mutations when multiple source files are composed into a single active graph: guards check text hash consistency, frontmatter mode compatibility, and overlay state before applying a composed graph update.
 
 ---
 

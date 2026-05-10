@@ -176,6 +176,9 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Editor Workspace must surface Node Quick Editor **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second quick editor panel.
 - Switching workspace view modes must preserve the open list unless the underlying nodes are removed from `GraphData`.
 - In Flow Editor, pinned quick editors adjust anchor offsets on header drag; dragging a pinned editor moves all pinned overlays together, while unpinned overlays drag freely and clamp in the viewport.
+- NodeOverlayEditor is decomposed into focused modules: `NodeOverlayEditorInner` (orchestrator), `NodeOverlayEditorView` (pure view), `nodeOverlayEditorShared` (types/constants), `useNodeOverlayPlacementRuntime` (position/scale), `useNodeOverlayDragHandlers` (pointer drag), `useNodeOverlayRichMediaToolbar` (rich-media toolbar). See `knowgrph-flow-editor-node-quick-editor-document.md`.
+- Flow Editor overlay collision resolution is scheduled on overlay set changes and quantized zoom changes (not every interaction tick). See `knowgrph-flow-editor-pan-zoom-overlay-failsafe-document.md`.
+- Graph data commits preserve overlay-carryover state: when a commit modifies graph data, overlay-managed node positions and connected edges are carried over to the new revision so pinned overlays do not drift.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)
 

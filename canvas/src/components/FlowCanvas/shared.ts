@@ -64,7 +64,7 @@ export type FlowCanvasInteractionRuntimeProps = {
   selectedNodeIdsRef: React.MutableRefObject<string[]>
   selectedEdgeIdsRef: React.MutableRefObject<string[]>
   drawArgsRef: React.MutableRefObject<FlowNativeDrawArgs>
-  scheduleFlowDraw: () => void
+  scheduleFlowDraw: (opts?: { force?: boolean }) => void
   requestCommit: () => void
   handleInteractionFrame: () => void
   canvas2dRenderer: string

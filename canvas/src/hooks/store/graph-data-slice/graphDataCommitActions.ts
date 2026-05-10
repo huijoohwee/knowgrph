@@ -8,6 +8,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import {
   shouldPreserveFrontmatterAutoManagedBalancedCollective,
+  stripFrontmatterAutoManagedWidgetWorldPositions,
   stripFrontmatterAutoManagedWidgetScreenPositions,
 } from '@/lib/flowEditor/widgetPlacementAuthority'
 import { buildCanonicalNodeLookup, parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
@@ -25,6 +26,7 @@ import {
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import { resetComposedPositionWrites } from './graphDataComposedSource'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 function readCanonicalGraphIdentity(raw: unknown): string {
   const id = String(raw || '').trim()
@@ -249,9 +251,16 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         posByNodeId: currentPosByNodeId,
         pinnedByNodeId: currentPinnedByNodeId,
       })
+    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(get())
+    const forceResetFrontmatterWorldCarry =
+      workspaceEditorOverlayOpen
+      && String((((nextGraphDataBase || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim() === 'frontmatter-flow'
     const carryForwardSameSourceWidgetOverlayState =
-      (carryForwardSameSourceUiState && hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase))
-      || carryForwardBalancedFloatingCollectiveState
+      !forceResetFrontmatterWorldCarry
+      && (
+        (carryForwardSameSourceUiState && hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase))
+        || carryForwardBalancedFloatingCollectiveState
+      )
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
@@ -301,10 +310,19 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         pinnedByNodeId: nextPinned || {},
         preserveStableSameSourceOverlayState: carryForwardSameSourceWidgetOverlayState,
       })
-      const nextWorld =
+      const nextWorldRaw =
         collapsedKey && carryForwardSameSourceWidgetOverlayState
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
+      const nextWorld =
+        forceResetFrontmatterWorldCarry
+          ? {}
+          : carryForwardSameSourceWidgetOverlayState
+            ? nextWorldRaw
+            : stripFrontmatterAutoManagedWidgetWorldPositions({
+                graphData: nextGraphData,
+                worldPosByNodeId: nextWorldRaw || {},
+              })
       const nextCollapsedByKey =
         collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
           ? { ...byKey, [collapsedKey]: nextCollapsed }
@@ -489,9 +507,16 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         posByNodeId: currentPosByNodeId,
         pinnedByNodeId: currentPinnedByNodeId,
       })
+    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(get())
+    const forceResetFrontmatterWorldCarry =
+      workspaceEditorOverlayOpen
+      && String((((nextGraphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim() === 'frontmatter-flow'
     const carryForwardSameSourceWidgetOverlayState =
-      (carryForwardSameSourceUiState && hasStableSameSourceNodeLayout(currentGraph, nextGraphData))
-      || carryForwardBalancedFloatingCollectiveState
+      !forceResetFrontmatterWorldCarry
+      && (
+        (carryForwardSameSourceUiState && hasStableSameSourceNodeLayout(currentGraph, nextGraphData))
+        || carryForwardBalancedFloatingCollectiveState
+      )
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
@@ -538,10 +563,19 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         pinnedByNodeId: nextPinned || {},
         preserveStableSameSourceOverlayState: carryForwardSameSourceWidgetOverlayState,
       })
-      const nextWorld =
+      const nextWorldRaw =
         collapsedKey && carryForwardSameSourceWidgetOverlayState
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
+      const nextWorld =
+        forceResetFrontmatterWorldCarry
+          ? {}
+          : carryForwardSameSourceWidgetOverlayState
+            ? nextWorldRaw
+            : stripFrontmatterAutoManagedWidgetWorldPositions({
+                graphData: nextGraphData,
+                worldPosByNodeId: nextWorldRaw || {},
+              })
       const nextCollapsedByKey =
         collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
           ? { ...byKey, [collapsedKey]: nextCollapsed }

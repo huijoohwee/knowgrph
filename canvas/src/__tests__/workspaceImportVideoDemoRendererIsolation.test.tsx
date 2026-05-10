@@ -3,12 +3,14 @@ import { createRoot } from 'react-dom/client'
 
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
 import { importWorkspaceLocalFiles } from '@/features/markdown-workspace/workspaceImport'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { LS_KEYS } from '@/lib/config'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
@@ -491,6 +493,8 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
         const state = useGraphStore.getState() as unknown as {
           flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
           zoomState?: { k?: number; x?: number; y?: number }
+          zoomStateByKey?: Record<string, { k?: number; x?: number; y?: number }>
+          graphData?: { nodes?: Array<{ x?: number; y?: number }> }
         }
         const worldById = state.flowWidgetWorldPosByNodeId || {}
         const seededIds = eligibleWidgetIds.filter(id => {
@@ -500,6 +504,28 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
         const zoomK = Number.isFinite(state.zoomState?.k) ? Math.max(0.001, Number(state.zoomState?.k)) : 1
         const zoomX = Number.isFinite(state.zoomState?.x) ? Number(state.zoomState?.x) : 0
         const zoomY = Number.isFinite(state.zoomState?.y) ? Number(state.zoomState?.y) : 0
+        const keyedZoomValues = Object.values(state.zoomStateByKey || {})
+        const keyedZoom = keyedZoomValues[0] || {}
+        const keyedZoomX = Number.isFinite(keyedZoom.x) ? Number(keyedZoom.x) : 0
+        const keyedZoomY = Number.isFinite(keyedZoom.y) ? Number(keyedZoom.y) : 0
+        const keyedZoomK = Number.isFinite(keyedZoom.k) ? Math.max(0.001, Number(keyedZoom.k)) : 1
+        const graphNodes = Array.isArray(state.graphData?.nodes) ? state.graphData.nodes : []
+        let graphMinX = Number.POSITIVE_INFINITY
+        let graphMaxX = Number.NEGATIVE_INFINITY
+        let graphMinY = Number.POSITIVE_INFINITY
+        let graphMaxY = Number.NEGATIVE_INFINITY
+        let graphMeasured = 0
+        for (let i = 0; i < graphNodes.length; i += 1) {
+          const node = graphNodes[i]
+          const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
+          const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
+          if (x == null || y == null) continue
+          graphMeasured += 1
+          graphMinX = Math.min(graphMinX, x)
+          graphMaxX = Math.max(graphMaxX, x)
+          graphMinY = Math.min(graphMinY, y)
+          graphMaxY = Math.max(graphMaxY, y)
+        }
         if (seededIds.length > 0) {
           const panelScale = computeCollectiveFollowPinnedScale({
             zoomK,
@@ -545,6 +571,8 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
           lastSnapshot = JSON.stringify({
             seededCount: seededIds.length,
             zoomK,
+            zoomX,
+            zoomY,
             bounds: { minLeft, minTop, maxRight, maxBottom },
             centroid: { x: centroidX, y: centroidY },
           })
@@ -558,6 +586,655 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     }
 
     await waitForBalancedFit()
+  } finally {
+    try {
+      restoreElementRect?.()
+    } catch {
+      void 0
+    }
+    try {
+      await act(async () => {
+        root?.unmount()
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+      })
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1080Viewport() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  const targetViewport = { width: 1920, height: 1080 }
+  let restoreElementRect: (() => void) | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+      dispatchEvent?: (event: Event) => boolean
+    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    const elementProto = dom.window.HTMLElement.prototype
+    const originalElementRect = elementProto.getBoundingClientRect
+    elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
+      const shouldForceViewportRect =
+        this.matches('[data-kg-canvas-viewport-root="1"]')
+        || this.matches('[data-kg-flow-editor-surface-root]')
+      if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        width: targetViewport.width,
+        height: targetViewport.height,
+        right: targetViewport.width,
+        bottom: targetViewport.height,
+        toJSON: () => ({}),
+      } as DOMRect
+    }
+    restoreElementRect = () => {
+      elementProto.getBoundingClientRect = originalElementRect
+    }
+
+    const store = useGraphStore.getState()
+    const explorer = useMarkdownExplorerStore.getState()
+    store.resetAll()
+    store.setDocumentStructureBaselineLock(false)
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+
+    const sourcePath = '/docs/knowgrph-video-demo.md'
+    const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const parsed = await loadGraphDataFromTextViaParser(sourcePath, sourceText, { applyToStore: false, syncMarkdownDocument: false })
+    const parsedGraphData = parsed?.graphData
+    if (!parsedGraphData) {
+      throw new Error('expected source-files knowgrph-video-demo parse to produce graph data')
+    }
+
+    store.setSourceFiles([{
+      id: 'sf-video',
+      name: KNOWGRPH_VIDEO_DEMO_BASENAME,
+      text: sourceText,
+      enabled: true,
+      status: 'parsed',
+      parsedTextHash: 'video-demo-source-files-h1',
+      parsedGraphRevision: 1,
+      parsedGraphData,
+      source: { kind: 'local', path: sourcePath },
+    }])
+    explorer.setActivePath(sourcePath)
+    store.setMarkdownDocument(sourcePath, sourceText)
+    applyComposedGraphFromSourceFiles()
+
+    const postCompose = useGraphStore.getState()
+    if (postCompose.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected source-files video-demo landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    }
+    if (postCompose.documentSemanticMode !== 'document') {
+      throw new Error(`expected source-files video-demo landing to force document semantic mode, got ${String(postCompose.documentSemanticMode || '')}`)
+    }
+    if (postCompose.frontmatterModeEnabled !== true) {
+      throw new Error('expected source-files video-demo landing to enable frontmatter mode')
+    }
+
+    const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
+    const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(graphNodes as never))
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+    if (eligibleWidgetIds.length < 4) {
+      throw new Error(`expected source-files video-demo collective fit validation to include at least 4 widget-eligible nodes, got ${eligibleWidgetIds.length}`)
+    }
+    store.setOpenWidgetNodeIds(eligibleWidgetIds)
+    store.setFlowWidgetWorldPosByNodeId({})
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.setAttribute('data-kg-canvas-viewport-root', '1')
+    container.id = 'runtime-root-source-files-balanced-1920x1080'
+    doc.body.appendChild(container)
+
+    await act(async () => {
+      root = createRoot(container as unknown as HTMLElement)
+      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
+    ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
+    await act(async () => {
+      dom.window.dispatchEvent(new dom.window.Event('resize'))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    const waitForBalancedFit = async () => {
+      const deadline = Date.now() + 2500
+      let lastSnapshot = ''
+      while (Date.now() < deadline) {
+        const state = useGraphStore.getState() as unknown as {
+          flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+          zoomState?: { k?: number; x?: number; y?: number }
+          zoomStateByKey?: Record<string, { k?: number; x?: number; y?: number }>
+        }
+        const worldById = state.flowWidgetWorldPosByNodeId || {}
+        const seededIds = eligibleWidgetIds.filter(id => {
+          const pos = worldById[id]
+          return !!pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
+        })
+        const zoomK = Number.isFinite(state.zoomState?.k) ? Math.max(0.001, Number(state.zoomState?.k)) : 1
+        const zoomX = Number.isFinite(state.zoomState?.x) ? Number(state.zoomState?.x) : 0
+        const zoomY = Number.isFinite(state.zoomState?.y) ? Number(state.zoomState?.y) : 0
+        const keyedZoomValues = Object.values(state.zoomStateByKey || {})
+        const keyedZoom = keyedZoomValues[0] || {}
+        const keyedZoomX = Number.isFinite(keyedZoom.x) ? Number(keyedZoom.x) : 0
+        const keyedZoomY = Number.isFinite(keyedZoom.y) ? Number(keyedZoom.y) : 0
+        const keyedZoomK = Number.isFinite(keyedZoom.k) ? Math.max(0.001, Number(keyedZoom.k)) : 1
+        if (seededIds.length > 0) {
+          const panelScale = computeCollectiveFollowPinnedScale({
+            zoomK,
+            viewportW: targetViewport.width,
+            viewportH: targetViewport.height,
+            count: seededIds.length,
+            baseWidth: WIDGET_BASE_SIZE.width,
+            baseHeight: WIDGET_BASE_SIZE.height,
+          })
+          const panelScreen = computeWidgetScaledSize(panelScale)
+          const panelWorldW = panelScreen.width / zoomK
+          const panelWorldH = panelScreen.height / zoomK
+          let minLeft = Number.POSITIVE_INFINITY
+          let minTop = Number.POSITIVE_INFINITY
+          let maxRight = Number.NEGATIVE_INFINITY
+          let maxBottom = Number.NEGATIVE_INFINITY
+          let centroidX = 0
+          let centroidY = 0
+          for (let i = 0; i < seededIds.length; i += 1) {
+            const id = seededIds[i]!
+            const world = worldById[id]!
+            const left = world.x * zoomK + zoomX
+            const top = world.y * zoomK + zoomY
+            const right = (world.x + panelWorldW) * zoomK + zoomX
+            const bottom = (world.y + panelWorldH) * zoomK + zoomY
+            minLeft = Math.min(minLeft, left)
+            minTop = Math.min(minTop, top)
+            maxRight = Math.max(maxRight, right)
+            maxBottom = Math.max(maxBottom, bottom)
+            centroidX += left + panelScreen.width / 2
+            centroidY += top + panelScreen.height / 2
+          }
+          centroidX /= seededIds.length
+          centroidY /= seededIds.length
+          const fitsViewport =
+            minLeft >= -1 &&
+            minTop >= -1 &&
+            maxRight <= targetViewport.width + 1 &&
+            maxBottom <= targetViewport.height + 1
+          const centroidNearViewportCenter =
+            Math.abs(centroidX - targetViewport.width / 2) <= 6 &&
+            Math.abs(centroidY - targetViewport.height / 2) <= 6
+          lastSnapshot = JSON.stringify({
+            seededCount: seededIds.length,
+            zoomK,
+            zoomX,
+            zoomY,
+            bounds: { minLeft, minTop, maxRight, maxBottom },
+            centroid: { x: centroidX, y: centroidY },
+          })
+          if (fitsViewport && centroidNearViewportCenter) return
+        }
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
+      }
+      throw new Error(
+        `expected source-files Flow Editor collective widget layout to fit 1920x1080 viewport with centroid centered; snapshot=${lastSnapshot}`,
+      )
+    }
+
+    await waitForBalancedFit()
+  } finally {
+    try {
+      restoreElementRect?.()
+    } catch {
+      void 0
+    }
+    try {
+      await act(async () => {
+        root?.unmount()
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+      })
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1920x1080Viewport() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  const targetViewport = { width: 1920, height: 1080 }
+  let restoreElementRect: (() => void) | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+      dispatchEvent?: (event: Event) => boolean
+    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    const elementProto = dom.window.HTMLElement.prototype
+    const originalElementRect = elementProto.getBoundingClientRect
+    elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
+      const shouldForceViewportRect =
+        this.matches('[data-kg-canvas-viewport-root="1"]')
+        || this.matches('[data-kg-flow-editor-surface-root]')
+      if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        width: targetViewport.width,
+        height: targetViewport.height,
+        right: targetViewport.width,
+        bottom: targetViewport.height,
+        toJSON: () => ({}),
+      } as DOMRect
+    }
+    restoreElementRect = () => {
+      elementProto.getBoundingClientRect = originalElementRect
+    }
+
+    const store = useGraphStore.getState()
+    const explorer = useMarkdownExplorerStore.getState()
+    store.resetAll()
+    store.setDocumentStructureBaselineLock(false)
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+
+    const sourcePath = '/docs/knowgrph-video-demo.md'
+    const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const parsed = await loadGraphDataFromTextViaParser(sourcePath, sourceText, { applyToStore: false, syncMarkdownDocument: false })
+    const parsedGraphData = parsed?.graphData
+    if (!parsedGraphData) {
+      throw new Error('expected source-files knowgrph-video-demo parse to produce graph data')
+    }
+
+    store.setSourceFiles([{
+      id: 'sf-video-open-close-reopen',
+      name: KNOWGRPH_VIDEO_DEMO_BASENAME,
+      text: sourceText,
+      enabled: true,
+      status: 'parsed',
+      parsedTextHash: 'video-demo-source-files-open-close-reopen-h1',
+      parsedGraphRevision: 1,
+      parsedGraphData,
+      source: { kind: 'local', path: sourcePath },
+    }])
+    explorer.setActivePath(sourcePath)
+    store.setMarkdownDocument(sourcePath, sourceText)
+    applyComposedGraphFromSourceFiles()
+
+    const postCompose = useGraphStore.getState()
+    if (postCompose.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected source-files video-demo landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    }
+
+    const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
+    const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(graphNodes as never))
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+    if (eligibleWidgetIds.length < 4) {
+      throw new Error(`expected source-files video-demo open-close-reopen validation to include at least 4 widget-eligible nodes, got ${eligibleWidgetIds.length}`)
+    }
+    store.setOpenWidgetNodeIds(eligibleWidgetIds)
+    store.setFlowWidgetWorldPosByNodeId({})
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.setAttribute('data-kg-canvas-viewport-root', '1')
+    container.id = 'runtime-root-source-files-open-close-reopen-1920x1080'
+    doc.body.appendChild(container)
+
+    await act(async () => {
+      root = createRoot(container as unknown as HTMLElement)
+      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
+    ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
+    await act(async () => {
+      dom.window.dispatchEvent(new dom.window.Event('resize'))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    const waitForInViewCollective = async (phase: string) => {
+      const deadline = Date.now() + 3000
+      let lastSnapshot = ''
+      while (Date.now() < deadline) {
+        const state = useGraphStore.getState() as unknown as {
+          flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+          zoomState?: { k?: number; x?: number; y?: number }
+          zoomStateByKey?: Record<string, { k?: number; x?: number; y?: number }>
+        }
+        const worldById = state.flowWidgetWorldPosByNodeId || {}
+        const seededIds = eligibleWidgetIds.filter(id => {
+          const pos = worldById[id]
+          return !!pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
+        })
+        const zoomK = Number.isFinite(state.zoomState?.k) ? Math.max(0.001, Number(state.zoomState?.k)) : 1
+        const zoomX = Number.isFinite(state.zoomState?.x) ? Number(state.zoomState?.x) : 0
+        const zoomY = Number.isFinite(state.zoomState?.y) ? Number(state.zoomState?.y) : 0
+        const keyedZoomValues = Object.values(state.zoomStateByKey || {})
+        const keyedZoom = keyedZoomValues[0] || {}
+        const keyedZoomX = Number.isFinite(keyedZoom.x) ? Number(keyedZoom.x) : 0
+        const keyedZoomY = Number.isFinite(keyedZoom.y) ? Number(keyedZoom.y) : 0
+        const keyedZoomK = Number.isFinite(keyedZoom.k) ? Math.max(0.001, Number(keyedZoom.k)) : 1
+        if (seededIds.length > 0) {
+          const panelScale = computeCollectiveFollowPinnedScale({
+            zoomK,
+            viewportW: targetViewport.width,
+            viewportH: targetViewport.height,
+            count: seededIds.length,
+            baseWidth: WIDGET_BASE_SIZE.width,
+            baseHeight: WIDGET_BASE_SIZE.height,
+          })
+          const panelScreen = computeWidgetScaledSize(panelScale)
+          const panelWorldW = panelScreen.width / zoomK
+          const panelWorldH = panelScreen.height / zoomK
+          let minLeft = Number.POSITIVE_INFINITY
+          let minTop = Number.POSITIVE_INFINITY
+          let maxRight = Number.NEGATIVE_INFINITY
+          let maxBottom = Number.NEGATIVE_INFINITY
+          let centroidX = 0
+          let centroidY = 0
+          for (let i = 0; i < seededIds.length; i += 1) {
+            const id = seededIds[i]!
+            const world = worldById[id]!
+            const left = world.x * zoomK + zoomX
+            const top = world.y * zoomK + zoomY
+            const right = (world.x + panelWorldW) * zoomK + zoomX
+            const bottom = (world.y + panelWorldH) * zoomK + zoomY
+            minLeft = Math.min(minLeft, left)
+            minTop = Math.min(minTop, top)
+            maxRight = Math.max(maxRight, right)
+            maxBottom = Math.max(maxBottom, bottom)
+            centroidX += left + panelScreen.width / 2
+            centroidY += top + panelScreen.height / 2
+          }
+          centroidX /= seededIds.length
+          centroidY /= seededIds.length
+          const fitsViewport =
+            minLeft >= -1 &&
+            minTop >= -1 &&
+            maxRight <= targetViewport.width + 1 &&
+            maxBottom <= targetViewport.height + 1
+          const centroidNearViewportCenter =
+            Math.abs(centroidX - targetViewport.width / 2) <= 6 &&
+            Math.abs(centroidY - targetViewport.height / 2) <= 6
+          lastSnapshot = JSON.stringify({
+            phase,
+            seededCount: seededIds.length,
+            zoomK,
+            bounds: { minLeft, minTop, maxRight, maxBottom },
+            centroid: { x: centroidX, y: centroidY },
+          })
+          if (fitsViewport && centroidNearViewportCenter) return
+        }
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
+      }
+      throw new Error(`expected source-files Flow Editor collective layout to remain in-view after ${phase}; snapshot=${lastSnapshot}`)
+    }
+
+    await waitForInViewCollective('initial-canvas')
+
+    await act(async () => {
+      store.setWorkspaceViewMode('editor')
+      store.setWorkspaceCanvasPaneOpen(true)
+      dom.window.dispatchEvent(new dom.window.Event('resize'))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    await waitForInViewCollective('opened')
+
+    await act(async () => {
+      store.setWorkspaceCanvasPaneOpen(false)
+      store.setWorkspaceViewMode('canvas')
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    await act(async () => {
+      store.setWorkspaceViewMode('editor')
+      store.setWorkspaceCanvasPaneOpen(true)
+      dom.window.dispatchEvent(new dom.window.Event('resize'))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    await waitForInViewCollective('reopen')
+  } finally {
+    try {
+      restoreElementRect?.()
+    } catch {
+      void 0
+    }
+    try {
+      await act(async () => {
+        root?.unmount()
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+      })
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysInView1920x1080Viewport() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  const targetViewport = { width: 1920, height: 1080 }
+  let restoreElementRect: (() => void) | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+      dispatchEvent?: (event: Event) => boolean
+    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    const elementProto = dom.window.HTMLElement.prototype
+    const originalElementRect = elementProto.getBoundingClientRect
+    elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
+      const shouldForceViewportRect =
+        this.matches('[data-kg-canvas-viewport-root="1"]')
+        || this.matches('[data-kg-flow-editor-surface-root]')
+      if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        width: targetViewport.width,
+        height: targetViewport.height,
+        right: targetViewport.width,
+        bottom: targetViewport.height,
+        toJSON: () => ({}),
+      } as DOMRect
+    }
+    restoreElementRect = () => {
+      elementProto.getBoundingClientRect = originalElementRect
+    }
+
+    const store = useGraphStore.getState()
+    const explorer = useMarkdownExplorerStore.getState()
+    store.resetAll()
+    store.setDocumentStructureBaselineLock(false)
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+    store.setWorkspaceViewMode('editor')
+    store.setWorkspaceCanvasPaneOpen(true)
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.setAttribute('data-kg-canvas-viewport-root', '1')
+    container.id = 'runtime-root-source-files-initial-workspace-open-1920x1080'
+    doc.body.appendChild(container)
+
+    await act(async () => {
+      root = createRoot(container as unknown as HTMLElement)
+      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
+    ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
+    await act(async () => {
+      dom.window.dispatchEvent(new dom.window.Event('resize'))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    const sourcePath = '/docs/knowgrph-video-demo.md'
+    const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const parsed = await loadGraphDataFromTextViaParser(sourcePath, sourceText, { applyToStore: false, syncMarkdownDocument: false })
+    const parsedGraphData = parsed?.graphData
+    if (!parsedGraphData) {
+      throw new Error('expected source-files knowgrph-video-demo parse to produce graph data')
+    }
+    store.setSourceFiles([{
+      id: 'sf-video-initial-open',
+      name: KNOWGRPH_VIDEO_DEMO_BASENAME,
+      text: sourceText,
+      enabled: true,
+      status: 'parsed',
+      parsedTextHash: 'video-demo-source-files-initial-open-h1',
+      parsedGraphRevision: 1,
+      parsedGraphData,
+      source: { kind: 'local', path: sourcePath },
+    }])
+    explorer.setActivePath(sourcePath)
+    store.setMarkdownDocument(sourcePath, sourceText)
+    applyComposedGraphFromSourceFiles()
+
+    const postCompose = useGraphStore.getState()
+    if (postCompose.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected source-files initial workspace-open landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    }
+    const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
+    const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(graphNodes as never))
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+    if (eligibleWidgetIds.length < 4) {
+      throw new Error(`expected source-files initial workspace-open validation to include at least 4 widget-eligible nodes, got ${eligibleWidgetIds.length}`)
+    }
+    store.setOpenWidgetNodeIds(eligibleWidgetIds)
+    store.setFlowWidgetWorldPosByNodeId({})
+    await act(async () => {
+      dom.window.dispatchEvent(new dom.window.Event('resize'))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
+
+    const waitForInViewCollective = async () => {
+      const deadline = Date.now() + 3200
+      let lastSnapshot = ''
+      while (Date.now() < deadline) {
+        const state = useGraphStore.getState() as unknown as {
+          flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+          zoomState?: { k?: number; x?: number; y?: number }
+          zoomStateByKey?: Record<string, { k?: number; x?: number; y?: number }>
+        }
+        const worldById = state.flowWidgetWorldPosByNodeId || {}
+        const seededIds = eligibleWidgetIds.filter(id => {
+          const pos = worldById[id]
+          return !!pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
+        })
+        const zoomK = Number.isFinite(state.zoomState?.k) ? Math.max(0.001, Number(state.zoomState?.k)) : 1
+        const zoomX = Number.isFinite(state.zoomState?.x) ? Number(state.zoomState?.x) : 0
+        const zoomY = Number.isFinite(state.zoomState?.y) ? Number(state.zoomState?.y) : 0
+        const keyedZoomValues = Object.values(state.zoomStateByKey || {})
+        const keyedZoom = keyedZoomValues[0] || {}
+        const keyedZoomX = Number.isFinite(keyedZoom.x) ? Number(keyedZoom.x) : 0
+        const keyedZoomY = Number.isFinite(keyedZoom.y) ? Number(keyedZoom.y) : 0
+        const keyedZoomK = Number.isFinite(keyedZoom.k) ? Math.max(0.001, Number(keyedZoom.k)) : 1
+        if (seededIds.length > 0) {
+          const panelScale = computeCollectiveFollowPinnedScale({
+            zoomK,
+            viewportW: targetViewport.width,
+            viewportH: targetViewport.height,
+            count: seededIds.length,
+            baseWidth: WIDGET_BASE_SIZE.width,
+            baseHeight: WIDGET_BASE_SIZE.height,
+          })
+          const panelScreen = computeWidgetScaledSize(panelScale)
+          const panelWorldW = panelScreen.width / zoomK
+          const panelWorldH = panelScreen.height / zoomK
+          let minLeft = Number.POSITIVE_INFINITY
+          let minTop = Number.POSITIVE_INFINITY
+          let maxRight = Number.NEGATIVE_INFINITY
+          let maxBottom = Number.NEGATIVE_INFINITY
+          let centroidX = 0
+          let centroidY = 0
+          for (let i = 0; i < seededIds.length; i += 1) {
+            const id = seededIds[i]!
+            const world = worldById[id]!
+            const left = world.x * zoomK + zoomX
+            const top = world.y * zoomK + zoomY
+            const right = (world.x + panelWorldW) * zoomK + zoomX
+            const bottom = (world.y + panelWorldH) * zoomK + zoomY
+            minLeft = Math.min(minLeft, left)
+            minTop = Math.min(minTop, top)
+            maxRight = Math.max(maxRight, right)
+            maxBottom = Math.max(maxBottom, bottom)
+            centroidX += left + panelScreen.width / 2
+            centroidY += top + panelScreen.height / 2
+          }
+          centroidX /= seededIds.length
+          centroidY /= seededIds.length
+          const fitsViewport =
+            minLeft >= -1 &&
+            minTop >= -1 &&
+            maxRight <= targetViewport.width + 1 &&
+            maxBottom <= targetViewport.height + 1
+          const centroidNearViewportCenter =
+            Math.abs(centroidX - targetViewport.width / 2) <= 6 &&
+            Math.abs(centroidY - targetViewport.height / 2) <= 6
+          lastSnapshot = JSON.stringify({
+            seededCount: seededIds.length,
+            zoomK,
+            zoomX,
+            zoomY,
+            keyedZoomK,
+            keyedZoomX,
+            keyedZoomY,
+            bounds: { minLeft, minTop, maxRight, maxBottom },
+            centroid: { x: centroidX, y: centroidY },
+          })
+          if (fitsViewport && centroidNearViewportCenter) return
+        }
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
+      }
+      throw new Error(
+        `expected source-files initial workspace-open Flow Editor collective layout to stay in-view; snapshot=${lastSnapshot}`,
+      )
+    }
+
+    await waitForInViewCollective()
   } finally {
     try {
       restoreElementRect?.()

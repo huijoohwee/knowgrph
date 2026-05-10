@@ -269,8 +269,14 @@
 
 ## Code Locations
 
-- Panel controller (positioning + persistence + toolbar/menu):
-  - `canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
+- Panel controller (orchestrator: placement + drag + toolbar + view):
+  - `canvas/src/components/FlowEditor/NodeOverlayEditor.tsx` (thin barrel → `NodeOverlayEditorInner`)
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorInner.tsx` (orchestrator)
+  - `canvas/src/components/FlowEditor/NodeOverlayEditorView.tsx` (pure presentational view)
+  - `canvas/src/components/FlowEditor/nodeOverlayEditorShared.ts` (types + constants SSOT)
+  - `canvas/src/components/FlowEditor/useNodeOverlayPlacementRuntime.ts` (position/scale/clamp)
+  - `canvas/src/components/FlowEditor/useNodeOverlayDragHandlers.ts` (pointer-drag interaction)
+  - `canvas/src/components/FlowEditor/useNodeOverlayRichMediaToolbar.ts` (rich-media toolbar state)
 - Panel shell (FloatingPanel body + actions):
   - `canvas/src/components/FlowEditor/NodeOverlayEditorPanel.tsx`
 - Form surface (fields mapped to `node.properties`):

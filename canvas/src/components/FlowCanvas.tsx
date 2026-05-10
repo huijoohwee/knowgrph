@@ -27,6 +27,7 @@ import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 export { pickGraphDataForFlowRenderer }
+const WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS = 1200
 
 export default function FlowCanvas({
   active = true,
@@ -256,10 +257,13 @@ export default function FlowCanvas({
   const shouldSuppressWorkspacePreInitCanvasDraw = React.useCallback((): boolean => {
     if (canvas2dRenderer !== 'flowEditor') return false
     if (workspaceEditorOverlayOpen !== true) return false
+    const interactedRecently = Date.now() - lastUserInteractionAtMsRef.current <= WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS
+    if (interactedRecently) return false
     return lastInitTransformZoomViewKeyRef.current !== zoomViewKey
   }, [canvas2dRenderer, workspaceEditorOverlayOpen, zoomViewKey])
-  const scheduleFlowDraw = React.useCallback(() => {
-    if (shouldSuppressWorkspacePreInitCanvasDraw()) {
+  const scheduleFlowDraw = React.useCallback((opts?: { force?: boolean }) => {
+    const force = opts?.force === true
+    if (!force && shouldSuppressWorkspacePreInitCanvasDraw()) {
       workspacePreInitDeferredDrawRef.current = true
       return
     }

@@ -1,6 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { withGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import type { GraphData } from '@/lib/graph/types'
 import { applyCanvasFrontmatterPreset } from './canvasFrontmatterPreset'
@@ -31,6 +32,22 @@ export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | un
     disableMultiDimTableMode: true,
   })
   syncFrontmatterFlowSchemaEdgeType(graphData)
+  const graphKey = buildGraphMetaKeyIgnoringPending(graphData)
+  useGraphStore.setState(prev => {
+    const prevState = prev as unknown as {
+      flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+      flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
+    }
+    const currentWorld = prevState.flowWidgetWorldPosByNodeId || {}
+    const currentByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
+    const hasGlobalWorld = Object.keys(currentWorld).length > 0
+    const hasKeyedWorld = graphKey ? Object.keys(currentByKey[graphKey] || {}).length > 0 : false
+    if (!hasGlobalWorld && !hasKeyedWorld) return {}
+    const nextByKey = graphKey ? { ...currentByKey, [graphKey]: {} } : currentByKey
+    return graphKey
+      ? { flowWidgetWorldPosByNodeId: {}, flowWidgetWorldPosByNodeIdByGraphMetaKey: nextByKey }
+      : { flowWidgetWorldPosByNodeId: {} }
+  })
   // A frontmatter-flow graph always owns the import landing contract. Returning
   // true here avoids downstream fallback preset replays when the effective
   // state is already aligned and nothing had to mutate this frame.

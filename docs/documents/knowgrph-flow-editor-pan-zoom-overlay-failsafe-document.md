@@ -32,14 +32,22 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - Overlay pan proxy must clear its pointer id on `pointerup`, `pointercancel`, and `lostpointercapture` so subsequent interactions cannot be blocked.
 - Window capture handlers must be able to end an active canvas drag if the canvas listeners are temporarily unmounted during 2D renderer switches.
 - Wheel handling must recover from stale drag state (e.g. capture lost) instead of blocking zoom/pan indefinitely.
-- Flow Editor must not apply persisted camera transforms until graph bounds are computable (e.g., at least one finite node position); otherwise initial transforms may land offscreen and appear as a “blank” canvas.
+- Flow Editor must not apply persisted camera transforms until graph bounds are computable (e.g., at least one finite node position); otherwise initial transforms may land offscreen and appear as a "blank" canvas.
 - If the current camera transform does not show the graph (bounds guard fails), Flow Editor must treat the view as not-initialized yet (invalidate the init gate) and re-apply an initial fit even when the init key matches.
+- Viewport settle retry: after workspace-open overlay transitions, the Flow canvas must retry centroid-centered fit if the initial viewport settle produces an offscreen or degenerate transform. The retry uses the same D3 fit SSOT (`fitAllTransform`) and preserves centroid-centered layouts across overlay open/close cycles.
 
 ## References
 
 - `knowgrph/canvas/src/components/FlowCanvas/bindNativeInteractions.ts`
 - `knowgrph/canvas/src/components/FlowCanvas.tsx`
-- `knowgrph/canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
+- `knowgrph/canvas/src/components/FlowCanvas/useFlowCanvasRuntime.ts`
+- `knowgrph/canvas/src/components/FlowEditor/NodeOverlayEditor.tsx` (thin barrel → `NodeOverlayEditorInner`)
+- `knowgrph/canvas/src/components/FlowEditor/NodeOverlayEditorInner.tsx` (orchestrator: placement + drag + toolbar + view)
+- `knowgrph/canvas/src/components/FlowEditor/NodeOverlayEditorView.tsx` (pure presentational view)
+- `knowgrph/canvas/src/components/FlowEditor/nodeOverlayEditorShared.ts` (types + constants SSOT)
+- `knowgrph/canvas/src/components/FlowEditor/useNodeOverlayPlacementRuntime.ts` (position/scale/clamp)
+- `knowgrph/canvas/src/components/FlowEditor/useNodeOverlayDragHandlers.ts` (pointer-drag interaction)
+- `knowgrph/canvas/src/components/FlowEditor/useNodeOverlayRichMediaToolbar.ts` (rich-media toolbar state)
 - `knowgrph/canvas/src/lib/canvas/flow-editor-overlay-proxy.ts`
 - `knowgrph/canvas/src/lib/canvas/active-2d-zoom-view-key.ts`
 - `knowgrph/canvas/src/lib/canvas/flow-editor-init-key.ts`
