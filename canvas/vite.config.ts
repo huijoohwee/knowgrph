@@ -420,7 +420,7 @@ function resolveHackamapFlowchartFixturePath(): string | null {
   const candidates = [
     fromEnv,
     path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'hackamap', 'hackamap-flowchart-fixture.json'),
-    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-flowchart-fixture.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', 'hackamap-flowchart-fixture.json'),
   ].filter(Boolean)
 
   for (const p of candidates) {
@@ -440,7 +440,7 @@ function resolveHackamapGraphPath(): string | null {
   const candidates = [
     fromEnv,
     path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap-graph.json'),
-    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-graph.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', 'hackamap-graph.json'),
   ].filter(Boolean)
   for (const p of candidates) {
     try {
@@ -459,7 +459,7 @@ function resolveHackamapApiGraphPath(): string | null {
   const candidates = [
     fromEnv,
     path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap_api_graph.json'),
-    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', '_generated', 'api-graph', 'hackamap_api_graph.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', '_generated', 'api-graph', 'hackamap_api_graph.json'),
   ].filter(Boolean)
   for (const p of candidates) {
     try {
@@ -473,7 +473,7 @@ function resolveHackamapApiGraphPath(): string | null {
 
 function resolveHackamapPipelinePath(): string | null {
   const candidates = [
-    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-pipeline.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', 'hackamap-pipeline.json'),
     path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap_pipeline.json'),
   ]
   for (const p of candidates) {
@@ -488,7 +488,7 @@ function resolveHackamapPipelinePath(): string | null {
 
 function resolveHackamapQueryPresetsPath(): string | null {
   const candidates = [
-    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-query-presets.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', 'hackamap-query-presets.json'),
     path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap_query_presets.json'),
   ]
   for (const p of candidates) {
@@ -503,7 +503,7 @@ function resolveHackamapQueryPresetsPath(): string | null {
 
 function resolveHackamapQueryRunsManifestPath(): string | null {
   const candidates = [
-    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', '_generated', 'query-outputs', 'query-runs.manifest.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', '_generated', 'query-outputs', 'query-runs.manifest.json'),
     path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'query-outputs', 'query-runs.manifest.json'),
   ]
   for (const p of candidates) {
