@@ -296,6 +296,42 @@ export function useFlowCanvasRuntime(args: {
     if (items.length >= 5 && spanAspect < 0.42) return false
     return true
   }, [])
+  const isFlowTransformCentroidCentered = React.useCallback((args: {
+    t: { k: number; x: number; y: number }
+    nodes: Array<{ x?: unknown; y?: unknown }>
+    viewportW: number
+    viewportH: number
+    nodeW: number
+    nodeH: number
+  }): boolean => {
+    const viewportW = Math.max(1, args.viewportW)
+    const viewportH = Math.max(1, args.viewportH)
+    const nodeW = Math.max(1, args.nodeW)
+    const nodeH = Math.max(1, args.nodeH)
+    const k = Number.isFinite(args.t.k) ? Math.max(0.001, args.t.k) : 1
+    const tx = Number.isFinite(args.t.x) ? args.t.x : 0
+    const ty = Number.isFinite(args.t.y) ? args.t.y : 0
+    let measured = 0
+    let sumCenterX = 0
+    let sumCenterY = 0
+    for (let i = 0; i < args.nodes.length; i += 1) {
+      const node = args.nodes[i]
+      const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
+      const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
+      if (x == null || y == null) continue
+      measured += 1
+      sumCenterX += x * k + tx + (nodeW * k) / 2
+      sumCenterY += y * k + ty + (nodeH * k) / 2
+    }
+    if (measured <= 0) return false
+    const centroidX = sumCenterX / measured
+    const centroidY = sumCenterY / measured
+    const targetCenterX = viewportW / 2
+    const targetCenterY = viewportH / 2
+    if (Math.abs(centroidX - targetCenterX) > viewportW * 0.28) return false
+    if (Math.abs(centroidY - targetCenterY) > viewportH * 0.32) return false
+    return true
+  }, [])
   const [workspaceOverlayInteractionFrameTick, setWorkspaceOverlayInteractionFrameTick] = React.useState(0)
   const workspaceOverlayOpenPrevRef = React.useRef(false)
   const workspaceOverlayOpenedAtMsRef = React.useRef(0)
@@ -306,6 +342,22 @@ export function useFlowCanvasRuntime(args: {
   const workspaceVisibleViewportSignatureRef = React.useRef<string | null>(null)
   const workspaceVisibleViewportStableTicksRef = React.useRef(0)
   const workspaceDeferredDrawPendingRef = React.useRef(false)
+  const workspaceViewportSettleRetryTimeoutRef = React.useRef<number | null>(null)
+  const clearWorkspaceViewportSettleRetry = React.useCallback(() => {
+    const t = workspaceViewportSettleRetryTimeoutRef.current
+    if (t == null) return
+    workspaceViewportSettleRetryTimeoutRef.current = null
+    if (typeof window === 'undefined') return
+    window.clearTimeout(t)
+  }, [])
+  const scheduleWorkspaceViewportSettleRetry = React.useCallback(() => {
+    if (typeof window === 'undefined') return
+    if (workspaceViewportSettleRetryTimeoutRef.current != null) return
+    workspaceViewportSettleRetryTimeoutRef.current = window.setTimeout(() => {
+      workspaceViewportSettleRetryTimeoutRef.current = null
+      setWorkspaceOverlayInteractionFrameTick(prev => (prev + 1) % 1000000)
+    }, 80)
+  }, [])
 
   React.useEffect(() => {
     if (!active) return
@@ -319,6 +371,7 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportSignatureRef.current = null
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
+      clearWorkspaceViewportSettleRetry()
     }
     if (!open) {
       workspaceOverlayOpenedAtMsRef.current = 0
@@ -328,9 +381,10 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportSignatureRef.current = null
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
+      clearWorkspaceViewportSettleRetry()
     }
     workspaceOverlayOpenPrevRef.current = open
-  }, [active, canvas2dRenderer, workspaceEditorOverlayOpen])
+  }, [active, canvas2dRenderer, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen])
 
   React.useEffect(() => {
     if (!active) return
@@ -346,9 +400,10 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportSignatureRef.current = null
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
+      clearWorkspaceViewportSettleRetry()
     }
     workspaceOverlayZoomViewKeyRef.current = zoomViewKey
-  }, [active, canvas2dRenderer, workspaceEditorOverlayOpen, zoomViewKey])
+  }, [active, canvas2dRenderer, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen, zoomViewKey])
 
   const isWorkspaceVisibleViewportSettled = React.useCallback((visibleViewport: {
     left: number
@@ -401,6 +456,7 @@ export function useFlowCanvasRuntime(args: {
     if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return
     const visibleViewport = resolveVisibleFlowViewportWidth()
     if (!isWorkspaceVisibleViewportSettled(visibleViewport)) return
+    clearWorkspaceViewportSettleRetry()
     const runtime = runtimeRef.current
     if (!runtime) return
     workspaceDeferredDrawPendingRef.current = false
@@ -412,10 +468,17 @@ export function useFlowCanvasRuntime(args: {
     resolveVisibleFlowViewportWidth,
     runtimeRef,
     scheduleFlowDraw,
+    clearWorkspaceViewportSettleRetry,
     workspaceEditorOverlayOpen,
     workspaceOverlayInteractionFrameTick,
     zoomViewKey,
   ])
+
+  React.useEffect(() => {
+    return () => {
+      clearWorkspaceViewportSettleRetry()
+    }
+  }, [clearWorkspaceViewportSettleRetry])
 
   React.useEffect(() => {
     if (!active) return
@@ -642,7 +705,15 @@ export function useFlowCanvasRuntime(args: {
     const nodesForFit = Array.isArray(graphDataForZoomRequests?.nodes) ? graphDataForZoomRequests.nodes : []
     if (isFlowEditor && nodesForFit.length === 0) return
     const visibleViewportFit = resolveVisibleFlowViewportWidth()
-    if (!isWorkspaceVisibleViewportSettled(visibleViewportFit)) return
+    if (!isWorkspaceVisibleViewportSettled(visibleViewportFit)) {
+      if (workspaceEditorOverlayOpen === true) {
+        __flowCanvasDebug.lastRecoveryReason = 'workspace-open-init-viewport-settle-retry-pending'
+        syncFlowCanvasDebugToast({ enabled: true })
+        scheduleWorkspaceViewportSettleRetry()
+      }
+      return
+    }
+    clearWorkspaceViewportSettleRetry()
     const fitW = Math.max(1, visibleViewportFit.width)
     const fitH = Math.max(1, visibleViewportFit.height)
     const useD3StyleInitFit = isFlowEditor && workspaceEditorOverlayOpen === true
@@ -734,7 +805,10 @@ export function useFlowCanvasRuntime(args: {
     zoomViewKey,
     resolveVisibleFlowViewportWidth,
     isWorkspaceVisibleViewportSettled,
+    clearWorkspaceViewportSettleRetry,
+    scheduleWorkspaceViewportSettleRetry,
     workspaceEditorOverlayOpen,
+    workspaceOverlayInteractionFrameTick,
   ])
 
   React.useEffect(() => {
@@ -813,6 +887,14 @@ export function useFlowCanvasRuntime(args: {
       nodeW: flowConfigEffective.node.widthPx,
       nodeH: flowConfigEffective.node.heightPx,
     })
+    const graphCentered = isFlowTransformCentroidCentered({
+      t: normalizedCurrent,
+      nodes: scene.nodes as Array<{ x?: unknown; y?: unknown }>,
+      viewportW: fitW,
+      viewportH: fitH,
+      nodeW: flowConfigEffective.node.widthPx,
+      nodeH: flowConfigEffective.node.heightPx,
+    })
     const useD3StyleRecoveryFit = workspaceEditorOverlayOpen === true
     if (workspaceEditorOverlayOpen) {
       if (graphVisible) {
@@ -877,11 +959,13 @@ export function useFlowCanvasRuntime(args: {
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
-    if (workspaceEditorOverlayOpen && graphVisible && graphBalanced) {
-      // In workspace-open mode, preserve already-balanced visible transforms.
-      // If visible but unbalanced/stacked, continue into corrective fit to converge to spread layout.
+    if (workspaceEditorOverlayOpen && graphVisible && (graphBalanced || graphCentered)) {
+      // In workspace-open mode, preserve already-visible centroid-centered transforms.
+      // This avoids late corrective refits that can pull a centered first frame far right.
       workspaceOverlayStabilizedRef.current = true
-      __flowCanvasDebug.lastRecoveryReason = 'workspace-open-visible-balanced-preserve-current'
+      __flowCanvasDebug.lastRecoveryReason = graphBalanced
+        ? 'workspace-open-visible-balanced-preserve-current'
+        : 'workspace-open-visible-centered-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
@@ -979,6 +1063,7 @@ export function useFlowCanvasRuntime(args: {
     isWorkspaceVisibleViewportSettled,
     remapTransformToVisibleViewport,
     isFlowTransformBalancedCollective,
+    isFlowTransformCentroidCentered,
     buildSceneViewportRecoverySignature,
     workspaceOverlayInteractionFrameTick,
     workspaceEditorOverlayOpen,

@@ -627,6 +627,14 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || !runtimeText.includes('workspaceDeferredDrawPendingRef.current = true')) {
     throw new Error('expected Flow runtime workspace-open draw deferral to track pending draw flush state while viewport settles')
   }
+  if (!runtimeText.includes('const workspaceViewportSettleRetryTimeoutRef = React.useRef<number | null>(null)')
+    || !runtimeText.includes('const scheduleWorkspaceViewportSettleRetry = React.useCallback(() => {')) {
+    throw new Error('expected Flow runtime workspace-open init to keep a bounded viewport-settle retry scheduler so pre-init suppression does not stall until user interaction')
+  }
+  if (!runtimeText.includes('workspace-open-init-viewport-settle-retry-pending')
+    || !runtimeText.includes('scheduleWorkspaceViewportSettleRetry()')) {
+    throw new Error('expected Flow runtime workspace-open init path to emit deterministic retry reason and schedule a settle retry tick when viewport is not yet stable')
+  }
   if (!runtimeText.includes('if (!workspaceDeferredDrawPendingRef.current) return')
     || !runtimeText.includes('workspaceOverlayInteractionFrameTick')) {
     throw new Error('expected Flow runtime workspace-open deferred first draw to flush once viewport settles on subsequent interaction/frame ticks')
@@ -654,6 +662,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes("reason = 'workspace-open-visible-balanced-preserve-current'") && !runtimeText.includes("lastRecoveryReason = 'workspace-open-visible-balanced-preserve-current'")) {
     throw new Error('expected Flow runtime workspace-open balanced-visible preservation to emit deterministic debug reason')
+  }
+  if (!runtimeText.includes('const isFlowTransformCentroidCentered = React.useCallback((args: {')
+    || !runtimeText.includes('workspace-open-visible-centered-preserve-current')) {
+    throw new Error('expected Flow runtime workspace-open recovery to preserve already-visible centroid-centered layouts and emit deterministic centered-preserve reason')
   }
   if (!runtimeText.includes("const userInteractionAfterWorkspaceOpen =")
     || !runtimeText.includes("workspace-open-user-controlled-preserve-current")) {
