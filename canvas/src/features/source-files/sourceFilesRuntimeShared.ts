@@ -18,7 +18,6 @@ import {
   isInitializationWorkspacePath,
   resolveWorkspaceStartupActivePath,
 } from '@/features/workspace-fs/workspaceFs'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export function resolveMaterializedWorkspaceActivePath(args?: {
@@ -120,20 +119,11 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   })
   if (!activePath) return
   const fs = args?.fs || (await getWorkspaceFs())
-  await fs.ensureSeed()
   const workspaceEntries = await resolveWorkspaceMaterializationEntries({
     fs,
     workspaceEntries: args?.workspaceEntries,
   })
-  const activeWorkspaceEntry = workspaceEntries.find(
-    entry => entry.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath,
-  )
-  const activeWorkspaceText = (() => {
-    if (!activeWorkspaceEntry || activeWorkspaceEntry.kind !== 'file') return ''
-    return typeof activeWorkspaceEntry.text === 'string' ? activeWorkspaceEntry.text : ''
-  })()
-  const activePathHasCanvasWorkspacePreset = !!parseCanvasWorkspaceFrontmatterPreset(activeWorkspaceText)
-  const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath) || activePathHasCanvasWorkspacePreset
+  const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath)
   const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)
   const store = useGraphStore.getState()
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
@@ -149,7 +139,7 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   if (merged !== existing) {
     store.setSourceFiles(merged)
   }
-  const preserveFrontmatterDrivenLanding = shouldApplyToGraph && (isInitializationWorkspacePath(activePath) || activePathHasCanvasWorkspacePreset)
+  const preserveFrontmatterDrivenLanding = shouldApplyToGraph && isInitializationWorkspacePath(activePath)
   const materialized = await applyWorkspaceImportToCanvas({
     fs,
     createdPaths: [activePath],

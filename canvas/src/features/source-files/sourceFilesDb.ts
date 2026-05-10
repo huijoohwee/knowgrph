@@ -154,14 +154,6 @@ const getDb = async () => {
 export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
   const { collections } = await getDb()
   const rows = await collections.sourceFiles.find().sort({ orderIndex: 'asc' }).exec()
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i]!
-    const orderIndex = normalizeNonNegativeInt(row.get('orderIndex'), 0)
-    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
-    if (Number(row.get('orderIndex')) !== orderIndex || Number(row.get('updatedAtMs')) !== updatedAtMs) {
-      await row.incrementalPatch({ orderIndex, updatedAtMs })
-    }
-  }
   const loaded = rows
     .map(r => {
       try {
@@ -220,10 +212,6 @@ export const loadPersistedSourceFilesWorkspace = async (): Promise<SourceFilesWo
   const { collections } = await getDb()
   const row = await collections.workspace.findOne('workspace').exec()
   if (!row) return EMPTY_SOURCE_FILES_WORKSPACE_STATE
-  const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
-  if (Number(row.get('updatedAtMs')) !== updatedAtMs) {
-    await row.incrementalPatch({ updatedAtMs })
-  }
   return normalizeSourceFilesWorkspaceState(row.get('payload'))
 }
 

@@ -226,16 +226,28 @@ const ensureKnowgrphStorageNumericRepair = async (dbState: KnowgrphStorageDb): P
   const graphRows = await collections.graphSnapshots.find().exec()
   for (let i = 0; i < graphRows.length; i += 1) {
     const row = graphRows[i]!
+    const rawGraphJson = row.get('graphJson')
+    const rawLayoutJson = row.get('layoutJson')
     const graphRevision = normalizeNonNegativeInt(row.get('graphRevision'), 0)
     const derivedFromDocumentRevision = normalizeNonNegativeInt(row.get('derivedFromDocumentRevision'), 0)
     const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
-    await row.incrementalPatch({
-      graphRevision,
-      derivedFromDocumentRevision,
-      updatedAtMs,
-      graphJson: toCloneSafeObject(row.get('graphJson'), {}),
-      layoutJson: toCloneSafeObjectOrNull(row.get('layoutJson')),
-    })
+    const graphJson = toCloneSafeObject(rawGraphJson, {})
+    const layoutJson = toCloneSafeObjectOrNull(rawLayoutJson)
+    if (
+      Number(row.get('graphRevision')) !== graphRevision
+      || Number(row.get('derivedFromDocumentRevision')) !== derivedFromDocumentRevision
+      || Number(row.get('updatedAtMs')) !== updatedAtMs
+      || JSON.stringify(rawGraphJson ?? null) !== JSON.stringify(graphJson ?? null)
+      || JSON.stringify(rawLayoutJson ?? null) !== JSON.stringify(layoutJson ?? null)
+    ) {
+      await row.incrementalPatch({
+        graphRevision,
+        derivedFromDocumentRevision,
+        updatedAtMs,
+        graphJson,
+        layoutJson,
+      })
+    }
   }
   const outboxRows = await collections.syncOutbox.find().exec()
   for (let i = 0; i < outboxRows.length; i += 1) {

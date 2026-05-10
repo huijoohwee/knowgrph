@@ -419,8 +419,8 @@ function resolveHackamapFlowchartFixturePath(): string | null {
 
   const candidates = [
     fromEnv,
-    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'hackamap', 'hackamap-flowchart-fixture.json'),
-    path.resolve(repoRoot, '..', 'hackamap', 'site', 'hackamap-flowchart-fixture.json'),
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'hackamap', 'knowgrph-hackamap-flowchart-fixture.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', 'knowgrph-hackamap-flowchart-fixture.json'),
   ].filter(Boolean)
 
   for (const p of candidates) {
@@ -439,8 +439,9 @@ function resolveHackamapGraphPath(): string | null {
     String(process.env.VITE_KNOWGRPH_HACKAMAP_GRAPH_PATH || '').trim()
   const candidates = [
     fromEnv,
-    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap-graph.json'),
-    path.resolve(repoRoot, '..', 'hackamap', 'site', 'hackamap-graph.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'content', 'knowgrph-hackamap.json'),
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'knowgrph-hackamap.json'),
+    path.resolve(repoRoot, '..', 'hackamap', 'site', 'knowgrph-hackamap.json'),
   ].filter(Boolean)
   for (const p of candidates) {
     try {
@@ -785,7 +786,7 @@ async function readHackamapGraphAsBipartiteApiPayload(runId: string = ''): Promi
     edges,
     meta: {
       ...(meta?.content_signature ? { content_signature: String(meta.content_signature) } : {}),
-      source: 'hackamap-graph.json:fallback',
+      source: 'knowgrph-hackamap.json:fallback',
       total_problems: nodes.filter(n => n.type === 'problem').length,
       total_solutions: nodes.filter(n => n.type === 'solution').length,
     },

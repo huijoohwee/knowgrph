@@ -148,13 +148,6 @@ export async function listCachedMarkdownPaths(folderId: string): Promise<string[
   if (!id) return []
   const { collections } = await getDb()
   const rows = await collections.entries.find({ selector: { folderId: id } }).exec()
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i]!
-    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
-    if (Number(row.get('updatedAtMs')) !== updatedAtMs) {
-      await row.incrementalPatch({ updatedAtMs })
-    }
-  }
   return rows
     .map(r => String(r.get('path') || '').trim())
     .filter(Boolean)
@@ -194,23 +187,11 @@ export async function getCachedMarkdownFolderMetadata(folderId: string): Promise
   if (!id) return null
   const { collections } = await getDb()
   const row = await collections.folders.findOne(id).exec()
-  if (row) {
-    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), Date.now())
-    if (Number(row.get('updatedAtMs')) !== updatedAtMs) {
-      await row.incrementalPatch({ updatedAtMs })
-    }
-  }
   return row ? row.toJSON() : null
 }
 
 export async function getMostRecentCachedMarkdownFolderId(): Promise<string | null> {
   const { collections } = await getDb()
   const row = await collections.folders.find().sort({ updatedAtMs: 'desc' }).limit(1).exec()
-  if (row[0]) {
-    const updatedAtMs = normalizeNonNegativeInt(row[0].get('updatedAtMs'), Date.now())
-    if (Number(row[0].get('updatedAtMs')) !== updatedAtMs) {
-      await row[0].incrementalPatch({ updatedAtMs })
-    }
-  }
   return row[0]?.get('id') ?? null
 }

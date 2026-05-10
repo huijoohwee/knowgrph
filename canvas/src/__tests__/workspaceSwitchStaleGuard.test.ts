@@ -171,6 +171,12 @@ export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileS
   if (!text.includes('const lastFrontmatterSwitchApplySigRef = React.useRef<string>(\'\')')) {
     throw new Error('Expected markdown workspace selection to track per-document frontmatter switch signatures and avoid repeated preset replay churn')
   }
+  if (!text.includes("hashSignatureParts([\n      'markdown-workspace-frontmatter-switch-apply',")) {
+    throw new Error('Expected markdown workspace selection switch signature to use shared hash helpers instead of embedding full markdown text in signature refs')
+  }
+  if (text.includes('const hasGraphData =')) {
+    throw new Error('Expected markdown workspace selection frontmatter replay dedupe to avoid empty-graph retry loops that can churn and freeze on file switching')
+  }
   if (!text.includes('if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return')) {
     throw new Error('Expected markdown workspace selection to gate immediate switch-time view preset replay behind explicit YAML canvas frontmatter detection')
   }

@@ -159,6 +159,69 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       }
     }
 
+    const canReuseParsedSourceGraph = !!(
+      exactSourceFile &&
+      exactSourceFile.status === 'parsed' &&
+      String(exactSourceFile.text || '') === nextText &&
+      exactSourceFile.parsedGraphData
+    )
+    if (canReuseParsedSourceGraph) {
+      const reusedGraph = exactSourceFile.parsedGraphData as GraphData
+      const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
+      applyCanvasFrontmatterPreset({
+        graphData: reusedGraph,
+        rawText: nextText,
+      })
+      const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(nextText)
+      const strictFlowEditorPreset =
+        parsedTextPreset?.canvasSurfaceMode === '2d' &&
+        parsedTextPreset?.canvas2dRenderer === 'flowEditor' &&
+        parsedTextPreset?.documentSemanticMode === 'document' &&
+        parsedTextPreset?.frontmatterModeEnabled === true
+      if (strictFlowEditorPreset) {
+        const nextState = get()
+        if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)
+        nextState.setCanvasRenderMode('2d')
+        nextState.setCanvas2dRenderer('flowEditor')
+        void setGeospatialModeEnabled(false).catch(() => void 0)
+        nextState.setDocumentSemanticMode('document')
+        nextState.setFrontmatterModeEnabled(true)
+      }
+      get().setGraphData(reusedGraph)
+      const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
+      applyFrontmatterFlowImportModes(reusedGraph)
+      const afterApplyState = get()
+      const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
+        canvasRenderMode: afterApplyState.canvasRenderMode,
+        canvas2dRenderer: afterApplyState.canvas2dRenderer,
+      })
+      if (enforceFrontmatterOnly) {
+        const parsedNodes = Array.isArray(reusedGraph.nodes) ? reusedGraph.nodes : []
+        const eligibleFlowWidgetNodeIds = buildFlowWidgetEligibleNodeIdSet(parsedNodes as any)
+        const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
+          const normalized = String(id || '').trim()
+          return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
+        }
+        const activeWidgetIds = Array.isArray(afterApplyState.openWidgetNodeIds) ? afterApplyState.openWidgetNodeIds : []
+        const sanitizedWidgetIds = activeWidgetIds
+          .map(id => String(id || '').trim())
+          .filter(isEligibleFlowWidgetNodeId)
+        afterApplyState.setOpenWidgetNodeIds(sanitizedWidgetIds)
+        const currentPinnedByNodeId = afterApplyState.flowWidgetPinnedByNodeId || {}
+        const nextPinnedByNodeId = Object.fromEntries(
+          Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
+        ) as Record<string, boolean>
+        afterApplyState.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
+        const currentPosByNodeId = afterApplyState.flowWidgetPosByNodeId || {}
+        const nextPosByNodeId = Object.fromEntries(
+          Object.entries(currentPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
+        ) as Record<string, { top: number; left: number }>
+        afterApplyState.setFlowWidgetPosByNodeId(nextPosByNodeId)
+        afterApplyState.setFlowWidgetWorldPosByNodeId({})
+      }
+      return !!(((reusedGraph.nodes || []).length > 0) || ((reusedGraph.edges || []).length > 0))
+    }
+
     const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
     const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: false, syncMarkdownDocument: false })
     const parsedGraph = res?.graphData || null

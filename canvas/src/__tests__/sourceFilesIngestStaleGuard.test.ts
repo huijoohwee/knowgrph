@@ -577,8 +577,11 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles().catch(() => {')) {
     throw new Error('expected active-path rematerialization to delegate apply-to-graph policy to shared materialization logic')
   }
-  if (!runtimeSharedText.includes('const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath) || activePathHasCanvasWorkspacePreset')) {
-    throw new Error('expected shared materialization runtime to auto-apply graph updates for initialization or frontmatter-preset files')
+  if (!runtimeSharedText.includes('const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath)')) {
+    throw new Error('expected shared materialization runtime to avoid implicit frontmatter re-apply churn and only auto-apply graph for explicit calls or initialization path')
+  }
+  if (runtimeSharedText.includes('parseCanvasWorkspaceFrontmatterPreset(activeWorkspaceText)')) {
+    throw new Error('expected shared materialization runtime to avoid duplicate frontmatter preset parsing in source-files rematerialization path')
   }
 }
 
@@ -597,6 +600,15 @@ export function testMarkdownApplyUsesDirectParserPathForActiveText() {
   }
   if (!documentActionsText.includes('get().setGraphData(parsedGraph)')) {
     throw new Error('expected applyMarkdownDocumentToGraph to commit parsed graph data through the current store instance')
+  }
+  if (!documentActionsText.includes('const canReuseParsedSourceGraph = !!(') || !documentActionsText.includes('if (canReuseParsedSourceGraph) {')) {
+    throw new Error('expected applyMarkdownDocumentToGraph to fast-path reuse of already-parsed matching source-file graph snapshots and avoid duplicate reparsing churn')
+  }
+  if (!documentActionsText.includes('String(exactSourceFile.text || \'\') === nextText') || !documentActionsText.includes('exactSourceFile.parsedGraphData')) {
+    throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse guard to require exact source-text match and parsed graph availability')
+  }
+  if (!documentActionsText.includes('const reusedGraph = exactSourceFile.parsedGraphData as GraphData') || !documentActionsText.includes('get().setGraphData(reusedGraph)')) {
+    throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse path to commit the reused graph directly before parser fallback')
   }
 }
 
