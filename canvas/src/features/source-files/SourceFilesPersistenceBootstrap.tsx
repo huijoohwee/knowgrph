@@ -480,8 +480,12 @@ export function SourceFilesPersistenceBootstrap() {
       const op = String(detail?.op || '')
       if (!op) return
       if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return
+      const changedPath = String(detail?.path || '').trim()
+      const activePath = resolveMaterializedWorkspaceActivePath({
+        explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+      })
+      if (op === 'writeFileText' && !!changedPath && !!activePath && changedPath === activePath) return
       if (workspaceSourceFilesDocsOnly) {
-        const changedPath = String(detail?.path || '').trim()
         const hasPath = !!changedPath
         const isDocsPath = hasPath && changedPath.startsWith('/docs/')
         if (hasPath && !isDocsPath) return

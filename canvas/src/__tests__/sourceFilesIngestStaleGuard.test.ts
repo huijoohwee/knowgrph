@@ -173,6 +173,12 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceFsSeedChanges() {
   if (!text.includes("if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return")) {
     throw new Error('expected source files bootstrap to rematerialize workspace-backed source files only for canonical workspace-fs mutation operations')
   }
+  if (!text.includes("if (op === 'writeFileText' && !!changedPath && !!activePath && changedPath === activePath) return")) {
+    throw new Error('expected source files bootstrap workspace-fs handler to skip active-file write self-echo rematerialization loops')
+  }
+  if (!text.includes('const activePath = resolveMaterializedWorkspaceActivePath({')) {
+    throw new Error('expected source files bootstrap workspace-fs handler to normalize explorer active path before active write echo suppression')
+  }
   if (!text.includes('await materializeActiveWorkspaceEntryIntoSourceFiles()')) {
     if (!text.includes('await materializeActiveWorkspaceEntryIntoSourceFiles({')) {
       throw new Error('expected source files bootstrap workspace-fs event handler to rematerialize source files through the shared upstream materialization path')

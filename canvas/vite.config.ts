@@ -5345,7 +5345,7 @@ export default defineConfig(({ command }) => ({
     sourcemap: false,
   },
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs'],
+    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs', '@react-three/fiber'],
     exclude: ['gympgrph', 'grph-shared', 'entities'],
     esbuildOptions: {
       sourcemap: false,
