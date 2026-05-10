@@ -2,7 +2,7 @@ import React from 'react'
 import {
   colorForDataset,
   useMapLibreBasemap,
-} from 'gympgrph/map-preview'
+} from 'gympgrph'
 import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'

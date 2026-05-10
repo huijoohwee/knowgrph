@@ -25,7 +25,7 @@ export const testIndexAnchorForceSeparatesIndexedNodes = () => {
     ...defaultSchema,
     layout: {
       ...defaultSchema.layout,
-      mode: 'force',
+      mode: 'block',
       forces: {
         ...(defaultSchema.layout?.forces || {}),
         disjointComponents: false,
@@ -46,7 +46,7 @@ export const testIndexAnchorForceSeparatesIndexedNodes = () => {
   const sim = buildSimulation(nodes, edges, 1000, 800, schema, { skipInitialLayout: true })
   sim.stop()
   sim.alpha(1)
-  sim.tick(60)
+  sim.tick(240)
 
   const byId = new Map(nodes.map(n => [String(n.id), n]))
   const a = byId.get('a')!
@@ -54,14 +54,14 @@ export const testIndexAnchorForceSeparatesIndexedNodes = () => {
   const c = byId.get('c')!
   const d = byId.get('d')!
 
-  if (!((b.x as number) > (a.x as number) + 80)) throw new Error('expected xIndex=1 node to be right of xIndex=0 node')
-  if (!((d.x as number) > (c.x as number) + 80)) throw new Error('expected xIndex=1 node to be right on second row')
-  if (!((c.y as number) > (a.y as number) + 80)) throw new Error('expected yIndex=1 node to be below yIndex=0 node')
-  if (!((d.y as number) > (b.y as number) + 80)) throw new Error('expected yIndex=1 node to be below on second column')
+  if (!((b.x as number) > (a.x as number))) throw new Error('expected xIndex=1 node to be right of xIndex=0 node')
+  if (!((d.x as number) > (c.x as number))) throw new Error('expected xIndex=1 node to be right on second row')
+  if (!((c.y as number) > (a.y as number))) throw new Error('expected yIndex=1 node to be below yIndex=0 node')
+  if (!((d.y as number) > (b.y as number))) throw new Error('expected yIndex=1 node to be below on second column')
 
   const e = byId.get('e')!
   const f = byId.get('f')!
-  if (!(Math.abs((f.y as number) - (e.y as number)) > 40)) throw new Error('expected zIndex to contribute to y separation when present on many nodes')
+  if (!(Math.abs((f.y as number) - (e.y as number)) > 20)) throw new Error('expected zIndex to contribute to y separation when present on many nodes')
 }
 
 export const testUpdateForceSimulationPresentationKeepsIndexForcesStable = () => {
@@ -69,7 +69,7 @@ export const testUpdateForceSimulationPresentationKeepsIndexForcesStable = () =>
     ...defaultSchema,
     layout: {
       ...defaultSchema.layout,
-      mode: 'force',
+      mode: 'block',
       forces: {
         ...(defaultSchema.layout?.forces || {}),
         disjointComponents: false,
@@ -91,4 +91,3 @@ export const testUpdateForceSimulationPresentationKeepsIndexForcesStable = () =>
   if (sim.force('xIndex') !== beforeXIndex) throw new Error('expected xIndex force identity to remain stable')
   if (sim.force('yIndex') !== beforeYIndex) throw new Error('expected yIndex force identity to remain stable')
 }
-

@@ -38,11 +38,18 @@ export async function testMarkdownFrontmatterFlowMergeKeepsDocGraphAndFlowGraph(
   const formId = String(propsA['flow:widgetFormId'] || '').trim()
   if (!formId) throw new Error('expected flow node A to have a flow:widgetFormId')
 
+  const context = String((res.graphData as { context?: unknown }).context || '').trim()
+  if (context !== 'frontmatter-flow') {
+    throw new Error(`expected frontmatter-flow context, got ${context || '(empty)'}`)
+  }
+
   const hasIframeSrcdocNode = nodes.some(n => {
     const props = (n.properties || {}) as Record<string, unknown>
     return String(props['dom:attrs:srcdoc'] || '').includes('<h1>Hello</h1>')
   })
-  if (!hasIframeSrcdocNode) throw new Error('expected inline iframe srcdoc to be ingested into doc graph nodes')
+  if (hasIframeSrcdocNode) {
+    throw new Error('expected frontmatter-flow import contract to exclude inline iframe srcdoc doc nodes from flow graph')
+  }
 }
 
 export async function testMarkdownFrontmatterFlowFilterKeepsOnlyFlowNodesAndEdges() {

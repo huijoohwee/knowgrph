@@ -31,7 +31,7 @@ const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
 const resolvedD3Entry = nodeRequire.resolve('d3')
 const resolvedMaplibreEntry = nodeRequire.resolve('maplibre-gl')
-const resolvedZustandEntry = nodeRequire.resolve('zustand')
+const resolvedZustandCompatEntry = path.resolve(__dirname, 'src/lib/vendor/zustandCompat.ts')
 const resolvedGympgrphSrc = path.resolve(__dirname, '../gympgrph/src/index.ts')
 const resolvedGympgrphMapPreviewSrc = path.resolve(__dirname, '../gympgrph/src/mapPreview.ts')
 const resolvedGympgrphTestkitSrc = path.resolve(__dirname, '../gympgrph/src/testkit.ts')
@@ -5345,7 +5345,26 @@ export default defineConfig(({ command }) => ({
     sourcemap: false,
   },
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs', '@react-three/fiber'],
+    include: [
+      'highlight.js',
+      'highlight.js/lib/core',
+      'highlight.js/lib/languages/javascript',
+      'highlight.js/lib/languages/typescript',
+      'highlight.js/lib/languages/json',
+      'highlight.js/lib/languages/python',
+      'highlight.js/lib/languages/bash',
+      'highlight.js/lib/languages/markdown',
+      'highlight.js/lib/languages/yaml',
+      'highlight.js/lib/languages/xml',
+      'highlight.js/lib/languages/css',
+      'highlight.js/lib/languages/sql',
+      'dayjs',
+      'mermaid',
+      'maplibre-gl',
+      'dagre',
+      'elkjs',
+      '@react-three/fiber',
+    ],
     exclude: ['gympgrph', 'grph-shared', 'entities'],
     esbuildOptions: {
       sourcemap: false,
@@ -5625,7 +5644,7 @@ export default defineConfig(({ command }) => ({
       { find: /^three$/, replacement: resolvedThreeSrc },
       { find: /^d3$/, replacement: resolvedD3Entry },
       { find: /^maplibre-gl$/, replacement: resolvedMaplibreEntry },
-      { find: /^zustand$/, replacement: resolvedZustandEntry },
+      { find: /^zustand$/, replacement: resolvedZustandCompatEntry },
       { find: /^gympgrph$/, replacement: resolvedGympgrphSrc },
       { find: /^gympgrph\/map-preview$/, replacement: resolvedGympgrphMapPreviewSrc },
       { find: /^gympgrph\/testkit$/, replacement: resolvedGympgrphTestkitSrc },

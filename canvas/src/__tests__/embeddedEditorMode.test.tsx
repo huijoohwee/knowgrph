@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
@@ -208,17 +209,16 @@ export async function testEmbeddedEditorShellRendersMarkdownWorkspace() {
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    await act(async () => {
-      root.render(<EmbeddedEditorShell active={true} />)
-    })
-
-    const workspace = dom.window.document.querySelector('section[aria-label="Markdown Workspace"]') as HTMLElement | null
+    root.render(<EmbeddedEditorShell active={true} />)
+    let workspace: HTMLElement | null = null
+    for (let i = 0; i < 60; i += 1) {
+      await tick()
+      workspace = dom.window.document.querySelector('section[aria-label="Markdown Workspace"]') as HTMLElement | null
+      if (workspace) break
+    }
     if (!workspace) throw new Error('expected Markdown Workspace to render')
 
-    await act(async () => {
-      root.unmount()
-    })
-    await tick()
+    await unmountReactRoot(root, { tasks: 2 })
   } finally {
     restore()
     restoreWindow()

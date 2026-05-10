@@ -1,5 +1,5 @@
 import type { FeatureCollection, Geometry } from 'geojson'
-import type { computeBoundsFromCollections } from 'gympgrph/map-preview'
+import type { computeBoundsFromCollections } from 'gympgrph'
 import type { MarkdownGeoParseSnapshot } from './markdownGeoSnapshotContract'
 
 export type MarkdownGeoParsedFeatureCollection = FeatureCollection

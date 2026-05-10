@@ -57,3 +57,9 @@ export const testFlowGroupAabbExplicitExpandsWhenMemberOutside = () => {
     throw new Error('expected group bounds to expand to include out-of-bounds members')
   }
 }
+
+export const testFlowGroupAabbExplicitDoesNotExpandWhenMembersInside =
+  testFlowGroupAabbExplicitKeepsExplicitEnvelopeWhenMembersInside
+
+export const testFlowGroupAabbExplicitDoesNotExpandWhenMemberOutside =
+  testFlowGroupAabbExplicitExpandsWhenMemberOutside

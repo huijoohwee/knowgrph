@@ -383,9 +383,7 @@ export function ToolbarToolMenu({
 
   const handleSelectView = React.useCallback((view: RequestedFloatingPanelView) => {
     setFloatingPanelView(view)
-    if (view !== 'geo') return
-    void ensureGeospatialEnabled()
-  }, [ensureGeospatialEnabled, setFloatingPanelView])
+  }, [setFloatingPanelView])
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -560,10 +558,7 @@ export function ToolbarToolMenu({
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
     setFloatingPanelView(requestedFloatingPanelView)
-    if (requestedFloatingPanelView === 'geo') {
-      void ensureGeospatialEnabled()
-    }
-  }, [ensureGeospatialEnabled, requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
+  }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
 
   React.useEffect(() => {
     if (floatingPanelView === 'renderer') return

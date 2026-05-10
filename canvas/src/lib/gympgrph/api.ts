@@ -1,12 +1,16 @@
-export { LS_KEYS } from '../../../../gympgrph/src/lib/config'
-export { useGympgrphStore } from '../../../../gympgrph/src/store'
-export { addGeospatialDatasetUrl, loadDatasetFeatureCollection } from '../../../../gympgrph/src/datasets'
-export { parseGeoJsonFromText, coerceGeoJsonToFeatureCollection } from '../../../../gympgrph/src/geojson'
-export { ensureDatasetLayer } from '../../../../gympgrph/src/maplibreLayers'
-export { setGeospatialModeEnabled } from '../../../../gympgrph/src/hostBridge'
+export {
+  LS_KEYS,
+  useGympgrphStore,
+  addGeospatialDatasetUrl,
+  loadDatasetFeatureCollection,
+  parseGeoJsonFromText,
+  coerceGeoJsonToFeatureCollection,
+  ensureDatasetLayer,
+  setGeospatialModeEnabled,
+} from 'gympgrph'
 export { hashStringToIndex } from 'grph-shared/hash/stringHash'
 
-import { useGympgrphStore } from '../../../../gympgrph/src/store'
+import { useGympgrphStore } from 'gympgrph'
 
 export function isGeospatialModeEnabled(): boolean {
   return Boolean(useGympgrphStore.getState().geospatialModeEnabled)

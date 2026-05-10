@@ -3,13 +3,16 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { mountReactRoot, unmountReactRoot, waitForTasks } from '@/tests/lib/reactRootHarness'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export async function testMarkdownWorkspacePresentationResolvesRelativeAssetsAndRendersTables() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
+    useGraphStore.getState().resetAll()
     const doc = dom.window.document
     const container = doc.createElement('div')
     container.id = 'root'
@@ -29,7 +32,8 @@ export async function testMarkdownWorkspacePresentationResolvesRelativeAssetsAnd
 
     const presentationApiRef = { current: null } as React.MutableRefObject<{ prev: () => void; next: () => void } | null>
 
-    root.render(
+    await mountReactRoot(
+      root,
       React.createElement(MarkdownWorkspaceMain, {
         themeMode: 'light',
         uiPanelTextFontClass: 'font-sans text-xs',
@@ -59,12 +63,13 @@ export async function testMarkdownWorkspacePresentationResolvesRelativeAssetsAnd
         editorLanguage: 'markdown',
         editorRef: { current: null },
       } as never),
+      { window: dom.window as unknown as Window, frames: 2, tasks: 4 },
     )
 
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       const img = container.querySelector('img')
       if (img) break
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+      await waitForTasks(1)
     }
 
     const img = container.querySelector('img')
@@ -77,8 +82,13 @@ export async function testMarkdownWorkspacePresentationResolvesRelativeAssetsAnd
     const table = container.querySelector('table')
     if (!table) throw new Error('expected a <table> in presentation mode')
 
-    root.unmount()
+    await unmountReactRoot(root, { window: dom.window as unknown as Window, tasks: 2 })
   } finally {
+    try {
+      useGraphStore.getState().resetAll()
+    } catch {
+      void 0
+    }
     restoreDom()
     restoreWindow()
   }

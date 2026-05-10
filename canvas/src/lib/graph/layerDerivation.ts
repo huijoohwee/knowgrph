@@ -14,6 +14,13 @@ const isFrontmatterMermaidNode = (n: { properties?: unknown } | null | undefined
   return p.isMermaidFrontmatter === true || p.mermaidScope === 'frontmatter'
 }
 
+const isFrontmatterMermaidScopedNode = (n: GraphNode | null | undefined): boolean => {
+  if (!n) return false
+  if (isFrontmatterMermaidNode(n)) return true
+  const type = String((n as { type?: unknown }).type || '')
+  return type === 'MermaidDiagram' || type === 'MermaidNode' || type === 'MermaidSubgraph'
+}
+
 export const hasFrontmatterMermaidSeeds = (data: GraphData): boolean => {
   const nodes = Array.isArray(data.nodes) ? data.nodes : []
   for (let i = 0; i < nodes.length; i += 1) {
@@ -74,8 +81,14 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
       const src = readEdgeEndpointId(edge?.source)
       const tgt = readEdgeEndpointId(edge?.target)
       if (!src || !tgt) continue
-      if (src === currentId && addId(tgt)) reachableQueue.push(tgt)
-      if (tgt === currentId && addId(src)) reachableQueue.push(src)
+      if (src === currentId) {
+        const next = nodeById.get(tgt)
+        if (isFrontmatterMermaidScopedNode(next) && addId(tgt)) reachableQueue.push(tgt)
+      }
+      if (tgt === currentId) {
+        const prev = nodeById.get(src)
+        if (isFrontmatterMermaidScopedNode(prev) && addId(src)) reachableQueue.push(src)
+      }
     }
   }
 

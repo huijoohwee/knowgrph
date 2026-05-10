@@ -6,6 +6,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["policy.forbidHardcodedYouTubeUrlLiteral","@/__tests__/youtubeImportAction.test","testForbidHardcodedYouTubeUrlLiteral"],
   ["policy.forbidPenpotRepoLiteral","@/__tests__/forbidPenpotRepoLiteral.test","testForbidPenpotRepoLiteral"],
   ["policy.docsSsotFixture.forbidHardcodedDeerFlowEndpointLiterals","@/__tests__/docsSsotFixtureHardcodeGuard.test","testKnowgrphVideoDemoFixtureForbidsHardcodedEndpointLiterals"],
+  ["policy.docsSsotFixture.hackamap.forbidHardcodedVolatileLiterals","@/__tests__/hackamapFixturePolicyGuard.test","testHackamapDocsFixtureForbidsHardcodedVolatileLiterals"],
+  ["policy.docsSsotFixture.hackamap.painpointDemoProduct.semanticMapping","@/__tests__/hackamapFixturePolicyGuard.test","testHackamapDocsFixtureDeclaresPainPointDemoProductSemanticMapping"],
   ["policy.pdfPresentationScrollState.forbidHardcodedReset","@/__tests__/presentationPdfScrollFidelityRegression.test","testPresentationPdfScrollViewportPreservesWorkspaceState"],
   ["policy.pdfPresentationLandscapePagination.oneSlidePerA4","@/__tests__/presentationPdfLandscapePaginationFidelityRegression.test","testPresentationPdfLandscapePaginationEnforcesOneSlidePerA4Page"],
   ["ingest.youtube.importPopulatesMarkdownAndJsonEditors","@/__tests__/youtubeImportAction.test","testYouTubeImportPopulatesMarkdownAndJsonEditors"],

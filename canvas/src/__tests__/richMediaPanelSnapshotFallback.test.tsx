@@ -204,7 +204,7 @@ export async function testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenH
       }),
     { window: dom.window, frames: 4 })
 
-    const article = container.querySelector('article') as HTMLElement | null
+    const article = container.querySelector('[data-kg-rich-media-panel="1"]') as HTMLElement | null
     const video = container.querySelector('video') as HTMLVideoElement | null
     if (!article || !video) throw new Error('expected inline video panel shell to render')
     if (article.style.opacity !== '0') throw new Error(`expected video panel to stay hidden before readiness, got opacity=${article.style.opacity}`)
