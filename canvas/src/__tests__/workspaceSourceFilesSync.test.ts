@@ -90,6 +90,40 @@ export async function testWorkspaceSourceFilesSyncPreservesParsedGraphRevision()
   if (next[0]?.parsedGraphRevision !== 7) throw new Error('expected parsedGraphRevision to be preserved across workspace source sync')
 }
 
+export async function testWorkspaceSourceFilesSyncDoesNotOverwriteExistingTextWithBlankWorkspaceInlineText() {
+  const existing: SourceFile[] = [
+    {
+      id: 'ws-video-demo',
+      name: 'knowgrph-video-demo.md',
+      text: '# hydrated markdown',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'workspace:/docs/knowgrph-video-demo.md' },
+    },
+  ]
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing,
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: '/docs/knowgrph-video-demo.md',
+        parentPath: '/docs',
+        name: 'knowgrph-video-demo.md',
+        text: '',
+        updatedAtMs: 2,
+      },
+    ],
+    sourcesByPath: {
+      '/docs/knowgrph-video-demo.md': { kind: 'local', originalName: 'knowgrph-video-demo.md' },
+    },
+  })
+  const file = next.find(entry => String(entry.source?.path || '') === 'workspace:/docs/knowgrph-video-demo.md') || null
+  if (!file) throw new Error('expected docs workspace source file to stay present')
+  if (String(file.text || '').trim() !== '# hydrated markdown') {
+    throw new Error(`expected blank workspace inline text not to clobber existing hydrated source text, got "${String(file.text || '')}"`)
+  }
+}
+
 export async function testWorkspaceSourceFilesSyncForceIncludesActiveWorkspaceMarkdown() {
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
@@ -296,6 +330,18 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
   if (resolveWorkspaceSeedSourcePath('/docs/documents/knowgrph-storage-sync-document.md') !== 'workspace:/docs/documents/knowgrph-storage-sync-document.md') {
     throw new Error('expected docs-mirrored workspace paths to resolve into canonical workspace source-file paths')
   }
+  if (
+    resolveWorkspaceSeedSourcePath('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')
+    !== 'workspace:/docs/knowgrph-video-demo.md'
+  ) {
+    throw new Error('expected absolute docs file paths to resolve into canonical /docs workspace source-file paths')
+  }
+  if (
+    resolveWorkspaceSeedSourcePath('/docs/huijoohwee/docs/knowgrph-video-demo.md')
+    !== 'workspace:/docs/knowgrph-video-demo.md'
+  ) {
+    throw new Error('expected duplicated docs prefix paths to collapse into canonical /docs workspace source-file paths')
+  }
   if (resolveWorkspaceSeedSourcePath('/notes/custom.md') !== null) {
     throw new Error('expected non-seed workspace paths to stay outside canonical seed source-file remapping')
   }
@@ -304,11 +350,18 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
 export async function testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForSeedAliases() {
   const docsValidationAliasPath = '/docs/workspace-seeds/knowgrph-video-demo.md'
   const canonicalSeedPath = LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH
+  const absoluteDocsPath = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md'
   if (resolveWorkspaceSourcePathKey(docsValidationAliasPath) !== TEST_VALIDATION_SOURCE_PATH) {
     throw new Error('expected docs validation alias path to resolve onto canonical validation source-file key')
   }
   if (resolveWorkspaceSourcePathKey(canonicalSeedPath) !== TEST_VALIDATION_SOURCE_PATH) {
     throw new Error('expected legacy validation alias path to resolve onto canonical validation source-file key')
+  }
+  if (resolveWorkspaceSourcePathKey(absoluteDocsPath) !== 'workspace:/docs/knowgrph-video-demo.md') {
+    throw new Error('expected absolute docs path to resolve onto canonical docs workspace source-file key')
+  }
+  if (resolveWorkspaceSourcePathKey('/docs/huijoohwee/docs/knowgrph-video-demo.md') !== 'workspace:/docs/knowgrph-video-demo.md') {
+    throw new Error('expected duplicated docs workspace path to resolve onto canonical docs workspace source-file key')
   }
 }
 

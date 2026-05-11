@@ -583,8 +583,8 @@ export function testInitializationWorkspaceSelectionPromotesAtomicGraphAndPreset
   if (!indexingText.includes('const shouldApplyFrontmatterDrivenDocumentLanding =')) {
     throw new Error('expected workspace indexing to centralize frontmatter-driven landing behind an explicit switch contract')
   }
-  if (!indexingText.includes('isInitializationWorkspacePath(path) || hasCanvasWorkspaceFrontmatterPreset')) {
-    throw new Error('expected frontmatter-driven landing contract to target initialization seed paths and explicit canvas frontmatter presets')
+  if (!indexingText.includes('&& false')) {
+    throw new Error('expected source-file switching runtime to hard-disable frontmatter-driven graph landing applies to prevent switch-time freeze churn')
   }
   if (!indexingText.includes('applyViewPreset: true') || !indexingText.includes('applyToGraph: true') || !indexingText.includes('forceApplyToGraph: true')) {
     throw new Error('expected frontmatter-driven landing to atomically reapply both graph payload and canvas/document preset state')

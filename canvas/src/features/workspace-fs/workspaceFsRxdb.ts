@@ -72,11 +72,25 @@ const readWorkspaceSeedBasenameForPath = (path: WorkspacePath): string | null =>
 }
 
 const normalizeDocsMirrorRelPath = (value: string): string => {
-  return String(value || '')
+  const normalized = String(value || '')
     .trim()
     .replace(/\\/g, '/')
     .replace(/^\/+/, '')
     .replace(/\/+$/, '')
+  if (!normalized) return ''
+  const lowered = normalized.toLowerCase()
+  const docsRootMarker = 'huijoohwee/docs/'
+  if (lowered.startsWith(docsRootMarker)) {
+    return normalized.slice(docsRootMarker.length)
+  }
+  if (lowered.startsWith(`docs/${docsRootMarker}`)) {
+    return normalized.slice(`docs/${docsRootMarker}`.length)
+  }
+  const docsRootIndex = lowered.indexOf(`/${docsRootMarker}`)
+  if (docsRootIndex >= 0) {
+    return normalized.slice(docsRootIndex + docsRootMarker.length + 1)
+  }
+  return normalized
 }
 
 const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {

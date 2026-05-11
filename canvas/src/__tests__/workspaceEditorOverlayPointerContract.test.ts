@@ -94,6 +94,8 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const uiInitialStateText = readFileSync(uiInitialStatePath, 'utf8')
   const workspaceToolbarPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
   const workspaceToolbarText = readFileSync(workspaceToolbarPath, 'utf8')
+  const toolbarToolMenuPath = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const toolbarToolMenuText = readFileSync(toolbarToolMenuPath, 'utf8')
   if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('expected Canvas page to derive overlay-open state from canonical store state only')
   }
@@ -177,6 +179,12 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   }
   if (workspaceToolbarText.includes("setWorkspaceViewMode('canvas')")) {
     throw new Error('expected workspace close action to avoid manual canvas-mode fallback bypassing the shared close helper')
+  }
+  if (!toolbarToolMenuText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+    throw new Error('expected floating panel runtime to derive workspace editor overlay-open state from SSOT when deciding interactive layering')
+  }
+  if (!toolbarToolMenuText.includes("return { zIndex: Math.max(safeZ, workspaceEditorOverlayOpen ? 420 : 90) }")) {
+    throw new Error('expected floating panel runtime to elevate panel z-index above workspace editor overlay shell so widget controls remain interactive')
   }
 }
 

@@ -195,7 +195,16 @@ export async function applyWorkspaceImportToCanvas(args: {
       name: workspaceDocumentKey(path),
       text,
     })
-    if (current.parsedGraphData && String(current.parsedTextHash || '') === textHash) continue
+    if (current.parsedGraphData && String(current.parsedTextHash || '') === textHash) {
+      // Keep Source File text in sync even when parsed graph/hash are already up to date.
+      if (String(current.text || '') !== text) {
+        ensureNext()[idx] = {
+          ...current,
+          text: resolveWorkspaceSourceFileInlineText(text),
+        }
+      }
+      continue
+    }
 
     remainingFiles -= 1
     remainingChars -= text.length

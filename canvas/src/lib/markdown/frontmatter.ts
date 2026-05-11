@@ -181,7 +181,8 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
   if (frontmatterPresetCache.has(cacheKey)) {
     return frontmatterPresetCache.get(cacheKey) || null
   }
-  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(rawText))
+  // Parse only the YAML block so large markdown bodies do not incur full-document line splitting on file switches.
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(block.rawBlock))
   if (isPlainObject(parsed.meta)) {
     const preset = coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)
     frontmatterPresetCache.set(cacheKey, preset)

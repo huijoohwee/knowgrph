@@ -94,20 +94,19 @@ export function useMarkdownWorkspaceBootstrapState(args: {
     next => {
       setIndexingInFlightState(prev => {
         const resolved = typeof next === 'function' ? next(prev) : next
-        const normalized = resolved === true
-        setMarkdownWorkspaceIndexingInFlight(normalized)
-        return normalized
+        return resolved === true
       })
     },
-    [setMarkdownWorkspaceIndexingInFlight],
+    [],
   )
   const indexingInFlightRef = React.useRef(false)
   indexingInFlightRef.current = indexingInFlight
   React.useEffect(() => {
+    setMarkdownWorkspaceIndexingInFlight(indexingInFlight === true)
     return () => {
       setMarkdownWorkspaceIndexingInFlight(false)
     }
-  }, [setMarkdownWorkspaceIndexingInFlight])
+  }, [indexingInFlight, setMarkdownWorkspaceIndexingInFlight])
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const prevCollapsedRef = React.useRef<boolean>(args.effectiveBottomSurfaceCollapsed)
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)

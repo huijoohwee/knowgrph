@@ -173,8 +173,8 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceFsSeedChanges() {
   if (!text.includes("if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return")) {
     throw new Error('expected source files bootstrap to rematerialize workspace-backed source files only for canonical workspace-fs mutation operations')
   }
-  if (!text.includes("if (op === 'writeFileText' && !!changedPath && !!activePath && changedPath === activePath) return")) {
-    throw new Error('expected source files bootstrap workspace-fs handler to skip active-file write self-echo rematerialization loops')
+  if (!text.includes("if ((op === 'writeFileText' || op === 'batch') && !!changedPath && !!activePath && changedPath === activePath) return")) {
+    throw new Error('expected source files bootstrap workspace-fs handler to skip active-file write/batch self-echo rematerialization loops')
   }
   if (!text.includes('const activePath = resolveMaterializedWorkspaceActivePath({')) {
     throw new Error('expected source files bootstrap workspace-fs handler to normalize explorer active path before active write echo suppression')
@@ -456,6 +456,12 @@ export function testParsedGraphStateOwnershipIsCentralized() {
     throw new Error('expected composed apply callers to reuse the shared source-layer key change helper for unchanged vs order-only vs content branching')
   }
   if (
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('hasEnabledNonWorkspaceComposedSources(') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes("if (!hasEnabledNonWorkspaceComposedSources(currentSourceFiles)) {")
+  ) {
+    throw new Error('expected composed apply scheduling to hard-skip workspace-only source snapshots and avoid switch-time composed apply churn')
+  }
+  if (
     !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('resolveComposedApplyDeferralReason({') ||
     !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedApplyGuards.ts'), 'utf8').includes('export function resolveComposedApplyDeferralReason(args:')
   ) {
@@ -490,9 +496,6 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
   if (!text.includes('cachedHash === hash')) {
     throw new Error('expected markdown workspace runtime to guard workspace-source reuse on matching parsed text hash')
   }
-  if (!text.includes('await applyComposedFromSourceFiles()')) {
-    throw new Error('expected markdown workspace runtime reuse path to defer graph ownership back to composed source files')
-  }
   if (!text.includes('findWorkspaceSourceFileByPath(path)')) {
     throw new Error('expected markdown workspace runtime to resolve the canonical workspace-backed source file before reparsing')
   }
@@ -521,6 +524,43 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
   const geoCandidateIndex = text.indexOf('const isGeoCandidate = (() => {')
   if (fastPathIndex < 0 || geoCandidateIndex < 0 || fastPathIndex > geoCandidateIndex) {
     throw new Error('expected markdown workspace runtime to skip geo/index parse candidate work before the already-materialized fast path')
+  }
+  const materializedFastPathBlock = fastPathIndex >= 0 && geoCandidateIndex > fastPathIndex ? text.slice(fastPathIndex, geoCandidateIndex) : ''
+  if (materializedFastPathBlock.includes('applyComposedFromSourceFiles()')) {
+    throw new Error('expected already-materialized/reuse workspace source-file fast paths to avoid redundant composed-graph reschedule churn')
+  }
+  if (!text.includes('const applyComposedFromSourceFiles = async () => {')) {
+    throw new Error('expected markdown workspace runtime to keep composed apply helper for true parse/mutate branches')
+  }
+  if (!text.includes('const alreadyIndexedForTextHash = typeof previouslyIndexedHash === \'string\' && previouslyIndexedHash === textHash')) {
+    throw new Error('expected markdown workspace runtime to centralize frontmatter landing dedupe on indexed semantic text hash reuse')
+  }
+  if (!text.includes('if (!alreadyIndexedForTextHash) {')) {
+    throw new Error('expected markdown workspace runtime to skip redundant active markdown document push for already-indexed path/hash semantic no-op')
+  }
+  if (!text.includes('&& !alreadyIndexedForTextHash')) {
+    throw new Error('expected markdown workspace runtime to avoid repeat frontmatter graph-apply landing when active path hash is already indexed')
+  }
+  if (!text.includes('const workspaceSourceAlreadyIndexedForSameHash = !!(')) {
+    throw new Error('expected markdown workspace runtime indexing to centralize semantic no-op guard for already-indexed workspace source path/hash')
+  }
+  if (!text.includes('if (workspaceSourceAlreadyIndexedForSameHash) {')) {
+    throw new Error('expected markdown workspace runtime indexing to short-circuit before parse/update cycles when workspace source hash is unchanged')
+  }
+  if (!text.includes('String(existingWorkspaceSourceForPath?.parsedTextHash || \'\') === hash')) {
+    throw new Error('expected markdown workspace runtime semantic no-op guard to compare parsed workspace source hash against active text hash')
+  }
+  if (!text.includes('const shouldRunWorkspaceSourceParsing = (')) {
+    throw new Error('expected markdown workspace runtime indexing to centralize parse eligibility before expensive workspace source parse paths')
+  }
+  if (text.includes('|| isInitializationWorkspacePath(path)')) {
+    throw new Error('expected markdown workspace runtime parse eligibility to avoid markdown initialization-path graph parse ownership during source-file switching')
+  }
+  if (text.includes('|| !!parseCanvasWorkspaceFrontmatterPreset(nextText)')) {
+    throw new Error('expected markdown workspace runtime parse eligibility to avoid frontmatter-driven parse churn during regular source-file switching')
+  }
+  if (!text.includes('if (!shouldRunWorkspaceSourceParsing) {')) {
+    throw new Error('expected markdown workspace runtime indexing to skip expensive parse/index job path for plain markdown semantic no-op switches')
   }
 }
 
@@ -615,6 +655,15 @@ export function testMarkdownApplyUsesDirectParserPathForActiveText() {
   }
   if (!documentActionsText.includes('const reusedGraph = exactSourceFile.parsedGraphData as GraphData') || !documentActionsText.includes('get().setGraphData(reusedGraph)')) {
     throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse path to commit the reused graph directly before parser fallback')
+  }
+  if (!documentActionsText.includes('let markdownApplyInFlight = false') || !documentActionsText.includes('let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null')) {
+    throw new Error('expected applyMarkdownDocumentToGraph to enforce a single in-flight markdown apply with shared queued-request state')
+  }
+  if (!documentActionsText.includes('if (markdownApplyInFlight) {') || !documentActionsText.includes('queuedMarkdownApplyRequest = request')) {
+    throw new Error('expected overlapping markdown apply requests to coalesce into latest queued request instead of running concurrently')
+  }
+  if (!documentActionsText.includes('while (currentRequest) {') || !documentActionsText.includes('currentRequest = queuedMarkdownApplyRequest')) {
+    throw new Error('expected markdown apply execution to process only the latest queued request after the current in-flight apply finishes')
   }
 }
 
@@ -812,6 +861,15 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!indexingText.includes('await writeWorkspaceFileAndSync({')) {
     throw new Error('expected markdown workspace indexing sanitize writes to reuse the shared write-through owner')
   }
+  if (!indexingText.includes('const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000')) {
+    throw new Error('expected markdown workspace indexing to keep a shared heavy-parse cap for workspace switch flows')
+  }
+  if (!indexingText.includes('nextText.length <= WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS')) {
+    throw new Error('expected frontmatter-driven workspace landing apply to skip graph apply when active workspace text exceeds heavy-parse cap')
+  }
+  if (!indexingText.includes('const shouldSkipHeavyWorkspaceSourceParsing = nextText.length > WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS')) {
+    throw new Error('expected workspace indexing parse path to bypass heavy source parsing for oversized workspace text regardless of entry family')
+  }
   if (indexingText.includes('await fs.writeFileText(path, sanitized)')) {
     throw new Error('expected markdown workspace indexing not to keep a duplicate raw sanitize writeback path outside the shared write-through owner')
   }
@@ -886,6 +944,157 @@ export function testSourceFilesDbPersistsOnlyChangedRows() {
     !text.includes('if (areSourceFilesWorkspaceStatesEqual(existingPayload, payload)) return')
   ) {
     throw new Error('expected source files workspace persistence to skip writes when the normalized workspace snapshot is unchanged via the shared helper')
+  }
+}
+
+export function testSourceFilesStorageSyncDocumentHashDoesNotSelfDependOnParsedTextHash() {
+  const storageSyncPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesStorageSync.ts')
+  const inboundSyncPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesInboundStorageApply.ts')
+  const text = readFileSync(storageSyncPath, 'utf8')
+  const inboundText = readFileSync(inboundSyncPath, 'utf8')
+  const hashFnStart = text.indexOf('const buildSourceFileDocumentHash = (file: SourceFile): string =>')
+  if (hashFnStart < 0) {
+    throw new Error('expected source-files storage sync to centralize document hash construction in a dedicated helper')
+  }
+  const hashFnEnd = text.indexOf('const buildSourceFileGraphHash = (file: SourceFile): string =>', hashFnStart)
+  const hashFnSection = hashFnEnd > hashFnStart ? text.slice(hashFnStart, hashFnEnd) : text.slice(hashFnStart)
+  if (hashFnSection.includes('normalizeString(file.parsedTextHash)')) {
+    throw new Error('expected source-files storage document hash to avoid parsedTextHash self-dependency that causes sync hash cascades')
+  }
+  if (hashFnSection.includes('file.enabled')) {
+    throw new Error('expected source-files storage document hash to stay content-anchored and avoid enabled-flag selection churn')
+  }
+  if (!hashFnSection.includes('String(file.text || \'\')')) {
+    throw new Error('expected source-files storage document hash to stay anchored on canonical markdown content text')
+  }
+  const graphHashFnStart = text.indexOf('const buildSourceFileGraphHash = (file: SourceFile): string =>')
+  if (graphHashFnStart < 0) {
+    throw new Error('expected source-files storage sync to centralize graph snapshot hash construction in a dedicated helper')
+  }
+  if (!text.includes('const sourceFileGraphDataHashCache = new WeakMap<object, string>()')) {
+    throw new Error('expected source-files storage sync to cache graph payload semantic hashes and avoid repeated full JSON serialization churn')
+  }
+  if (!text.includes('const readSourceFileGraphDataSemanticHash = (value: unknown): string =>')) {
+    throw new Error('expected source-files storage sync to centralize cached graph payload semantic hashing in a helper')
+  }
+  const graphHashFnEnd = text.indexOf('const resolveWorkspaceIdentitySeed = (workspaceState: SourceFilesWorkspaceState): string =>', graphHashFnStart)
+  const graphHashSection = graphHashFnEnd > graphHashFnStart ? text.slice(graphHashFnStart, graphHashFnEnd) : text.slice(graphHashFnStart)
+  if (graphHashSection.includes('normalizeString(file.parsedTextHash)')) {
+    throw new Error('expected source-files storage graph hash to avoid parsedTextHash-dependent feedback churn across sync boundaries')
+  }
+  if (graphHashSection.includes('JSON.stringify(file.parsedGraphData || {})')) {
+    throw new Error('expected source-files storage graph hash to avoid repeated direct JSON stringify of graph payloads in sync hot paths')
+  }
+  if (!graphHashSection.includes('readSourceFileGraphDataSemanticHash(file.parsedGraphData)')) {
+    throw new Error('expected source-files storage graph hash to reuse cached graph payload semantic hash helper')
+  }
+  const didGraphChangeStart = text.indexOf('const didGraphChange =')
+  const didGraphChangeEnd = text.indexOf('if (didGraphChange) {', didGraphChangeStart)
+  const didGraphChangeSection = didGraphChangeEnd > didGraphChangeStart ? text.slice(didGraphChangeStart, didGraphChangeEnd) : ''
+  if (didGraphChangeSection.includes('existingGraphSnapshot.graphRevision')) {
+    throw new Error('expected source-files storage graph sync diffing to avoid graphRevision-only churn and rely on semantic hash and document linkage')
+  }
+  if (inboundText.includes('parsedTextHash: normalizeString(document.contentHash)')) {
+    throw new Error('expected inbound storage apply not to overwrite parsedTextHash from document content hash')
+  }
+  if (!inboundText.includes('parsedTextHash: existing?.parsedTextHash')) {
+    throw new Error('expected inbound storage apply to preserve local parsedTextHash ownership')
+  }
+}
+
+export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply() {
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const text = readFileSync(bootstrapPath, 'utf8')
+  if (!text.includes('const knowgrphInboundApplyInFlightRef = React.useRef(false)')) {
+    throw new Error('expected source files bootstrap to track inbound storage-apply windows for queue echo suppression')
+  }
+  if (!text.includes('knowgrphInboundApplyInFlightRef.current = true')) {
+    throw new Error('expected source files bootstrap storage pull apply path to mark inbound apply in-flight before mutating sourceFiles')
+  }
+  if (!text.includes('knowgrphInboundApplyInFlightRef.current = false')) {
+    throw new Error('expected source files bootstrap storage pull apply path to always clear inbound apply in-flight guard')
+  }
+  if (!text.includes('if (!knowgrphInboundApplyInFlightRef.current) {')) {
+    throw new Error('expected source files persistence subscription to skip queuing outbound storage sync during inbound pull apply windows')
+  }
+  if (!text.includes('if (!hasNonWorkspaceSourceFile(nextSourceFiles)) return')) {
+    throw new Error('expected source files storage queue scheduler to skip workspace-only source snapshots and avoid switch-time sync churn')
+  }
+  if (!text.includes('if (!hasEnabledNonWorkspaceSourceFile(next as never)) {')) {
+    throw new Error('expected source files persistence subscription to skip composed graph apply scheduling for workspace-only source switching')
+  }
+}
+
+export function testSourceFilesBootstrapGuardsSafariStorageSyncHotPath() {
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const bootstrapStartupPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesBootstrapStartup.ts')
+  const text = readFileSync(bootstrapPath, 'utf8')
+  const startupText = readFileSync(bootstrapStartupPath, 'utf8')
+  if (text.includes('isWebKitSafariBrowser')) {
+    throw new Error('expected source files bootstrap runtime path to stay browser-neutral and avoid Safari-specific forks')
+  }
+  if (text.includes('_SAFARI_GUARDED')) {
+    throw new Error('expected source files bootstrap runtime path to remove Safari-specific guard branches in favor of shared semantic no-op scheduling')
+  }
+  if (!text.includes('const reusableWorkspaceEntriesRef = React.useRef<ReturnType<typeof readReusableWorkspaceEntriesSnapshot>>(undefined)')) {
+    throw new Error('expected source files bootstrap to cache reusable workspace entry snapshots for active-path materialization hot paths')
+  }
+  if (!text.includes('reusableWorkspaceEntriesRef.current = readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries)')) {
+    throw new Error('expected source files rematerialization path to refresh reusable workspace entry snapshot cache')
+  }
+  if (!text.includes('fs: reusableWorkspaceFsRef.current || undefined')) {
+    throw new Error('expected active-path materialization to reuse cached workspace fs instance instead of refetching per switch')
+  }
+  if (!text.includes('workspaceEntries: reusableWorkspaceEntriesRef.current')) {
+    throw new Error('expected active-path materialization to reuse cached workspace entries instead of full listEntries hot-path reload')
+  }
+  if (!text.includes('sourcesByPath: reusableWorkspaceSourcesByPathRef.current || undefined')) {
+    throw new Error('expected active-path materialization to reuse cached workspace source index snapshot')
+  }
+  if (startupText.includes('isWebKitSafariBrowser') || startupText.includes('_SAFARI_GUARDED')) {
+    throw new Error('expected source files bootstrap startup path to avoid browser-specific guard branches and reuse shared runtime behavior')
+  }
+  if (!startupText.includes('const hydratedEntries = await hydrateWorkspaceEntriesInlineText({')) {
+    throw new Error('expected source files bootstrap startup to use a shared inline hydration path across browsers')
+  }
+}
+
+export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisabled() {
+  const runtimePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesRuntimeShared.ts')
+  const text = readFileSync(runtimePath, 'utf8')
+  if (text.includes('isWebKitSafariBrowser') || text.includes('RUNTIME_ACTIVE_MATERIALIZE_SAFARI_GUARDED')) {
+    throw new Error('expected runtime active materialization helper to stay browser-neutral and avoid Safari-specific short-circuit forks')
+  }
+  if (!text.includes('const activeSourcePath = resolveWorkspaceSourcePathKey(activePath)')) {
+    throw new Error('expected workspace active materialization to resolve active source path key for non-graph fast path reuse')
+  }
+  if (!text.includes('const activeIndex = existing.findIndex(file => String(file?.source?.path || \'\') === activeSourcePath)')) {
+    throw new Error('expected workspace active materialization to find active source file index before full workspace merge')
+  }
+  if (!text.includes('const next = pruneWorkspaceSourceFilesToActive({')) {
+    throw new Error('expected workspace active materialization fast path to reuse a shared workspace-source pruning helper')
+  }
+  if (!text.includes('const workspaceEntriesForMerge = !shouldApplyToGraph')) {
+    throw new Error('expected workspace active materialization non-graph path to limit merge workload to active workspace entry snapshots')
+  }
+  if (!text.includes('workspaceEntries.filter(entry => entry?.kind === \'file\' && entry.path === activePath)')) {
+    throw new Error('expected workspace active materialization non-graph path to avoid full workspace merge churn during file switching')
+  }
+  if (!text.includes('const normalizedMerged = !shouldApplyToGraph') || !text.includes('pruneWorkspaceSourceFilesToActive({')) {
+    throw new Error('expected workspace active materialization non-graph path to prune workspace-backed source files to active-only runtime state')
+  }
+  const marker = 'const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath)'
+  const markerIndex = text.indexOf(marker)
+  if (markerIndex < 0) {
+    throw new Error('expected workspace active materialization to centralize shouldApplyToGraph guard in runtime shared helper')
+  }
+  const applyCallIndex = text.indexOf('const materialized = await applyWorkspaceImportToCanvas({', markerIndex)
+  if (applyCallIndex < 0) {
+    throw new Error('expected workspace active materialization runtime helper to retain import-to-canvas call for graph-apply path')
+  }
+  const between = text.slice(markerIndex, applyCallIndex)
+  if (!between.includes('if (!shouldApplyToGraph) return')) {
+    throw new Error('expected workspace active materialization to skip import-to-canvas hot path when graph apply is disabled')
   }
 }
 

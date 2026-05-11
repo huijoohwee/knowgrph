@@ -15,12 +15,33 @@ import {
 import { resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
+import { buildSourceFilesCompositionSignature, getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
 
 let pendingComposeRaf: number | null = null
 let pendingComposeAfterWorkspaceOverlayClose = false
 let workspaceOverlayComposeRetryUnsubscribe: (() => void) | null = null
 let lastAppliedComposedImportModesSignature = ''
+let pendingComposedGraphSignature = ''
+let lastAppliedComposedGraphSignature = ''
+
+function hasEnabledNonWorkspaceComposedSources(
+  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles'],
+): boolean {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  return list.some(file => {
+    if (!file?.enabled) return false
+    const sourcePath = String(file.source?.path || '')
+    return !sourcePath.startsWith('workspace:')
+  })
+}
+
+function readCurrentComposedGraphSignature(): string {
+  try {
+    return buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles)
+  } catch {
+    return ''
+  }
+}
 
 function ensureWorkspaceOverlayComposeRetrySubscription() {
   if (workspaceOverlayComposeRetryUnsubscribe) return
@@ -99,6 +120,21 @@ function requestWorkspaceOpenFlowEditorFit(graphData: ReturnType<typeof composeG
 
 export function scheduleApplyComposedGraphFromSourceFiles() {
   ensureWorkspaceOverlayComposeRetrySubscription()
+  const currentSourceFiles = useGraphStore.getState().sourceFiles
+  if (!hasEnabledNonWorkspaceComposedSources(currentSourceFiles)) {
+    pendingComposedGraphSignature = ''
+    pendingComposeAfterWorkspaceOverlayClose = false
+    const w = typeof window !== 'undefined' ? window : null
+    if (pendingComposeRaf != null && w && typeof w.cancelAnimationFrame === 'function') {
+      w.cancelAnimationFrame(pendingComposeRaf)
+      pendingComposeRaf = null
+    }
+    return
+  }
+  const requestedSignature = readCurrentComposedGraphSignature()
+  if (requestedSignature && requestedSignature === lastAppliedComposedGraphSignature) return
+  if (pendingComposeRaf != null && requestedSignature && requestedSignature === pendingComposedGraphSignature) return
+  if (requestedSignature) pendingComposedGraphSignature = requestedSignature
   if (pendingComposeRaf != null) return
   const w = typeof window !== 'undefined' ? window : null
   if (!w || typeof w.requestAnimationFrame !== 'function') {
@@ -112,10 +148,18 @@ export function scheduleApplyComposedGraphFromSourceFiles() {
 }
 
 export function applyComposedGraphFromSourceFiles() {
+  const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature()
   const store = useGraphStore.getState()
+  if (!hasEnabledNonWorkspaceComposedSources(store.sourceFiles)) {
+    pendingComposedGraphSignature = ''
+    pendingComposeAfterWorkspaceOverlayClose = false
+    return
+  }
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(store)
   const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
+    if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
+    pendingComposedGraphSignature = ''
     lastAppliedComposedImportModesSignature = ''
     if (
       shouldClearComposedGraphForEmptyState({
@@ -146,6 +190,8 @@ export function applyComposedGraphFromSourceFiles() {
     return Boolean(String(layer.text || '').trim())
   })
   if (!hasEnabledContent) {
+    if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
+    pendingComposedGraphSignature = ''
     lastAppliedComposedImportModesSignature = ''
     if (
       shouldClearComposedGraphForEmptyState({
@@ -166,6 +212,8 @@ export function applyComposedGraphFromSourceFiles() {
     orderKey,
   })
   if (change === 'unchanged') {
+    if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
+    pendingComposedGraphSignature = ''
     const graphData = store.graphData
     const metadata =
       graphData?.metadata && typeof graphData.metadata === 'object'
@@ -194,6 +242,8 @@ export function applyComposedGraphFromSourceFiles() {
   }
 
   pendingComposeAfterWorkspaceOverlayClose = false
+  if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
+  pendingComposedGraphSignature = ''
 
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)

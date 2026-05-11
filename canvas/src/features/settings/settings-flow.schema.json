@@ -4504,7 +4504,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L55"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L57"
   },
   "workspace.sync.seed.pollMs": {
     "area": "Workspace Storage Sync",
@@ -4518,7 +4518,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L65"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L67"
   },
   "workspace.sync.seed.idleMaxMs": {
     "area": "Workspace Storage Sync",
@@ -4532,7 +4532,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L75"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L77"
   },
   "workspace.sync.autoRefresh.enabled": {
     "area": "Workspace Storage Sync",
@@ -4546,7 +4546,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L85"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L87"
   },
   "workspace.sync.sourceFiles.docsOnly": {
     "area": "Workspace Storage Sync",
@@ -4560,7 +4560,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L95"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L97"
   },
   "workspace.sync.sourceFiles.debounceMs": {
     "area": "Workspace Storage Sync",
@@ -4574,21 +4574,27 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L105"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L107"
   },
   "workspace.import.defaultSourceUrl": {
     "area": "—",
     "responsibility": "default source url",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.workspace.ts"
+      "canvas/src/features/settings/registry-ui.workspace.ts",
+      "canvas/src/hooks/store/canvasSlice.ts",
+      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
     ],
-    "classes": [],
-    "functions": [],
+    "classes": [
+      "useGraphStore"
+    ],
+    "functions": [
+      "setCanvasWorkspaceSyncMode"
+    ],
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L115"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L117; canvas/src/hooks/store/canvasSlice.ts:L692; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L188"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",

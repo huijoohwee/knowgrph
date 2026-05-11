@@ -18,3 +18,26 @@ export function testMarkdownExplorerStoreCanonicalizesKgcCompanionActivePath() {
     useMarkdownExplorerStore.getState().setActivePath(previous)
   }
 }
+
+export function testMarkdownExplorerStoreSkipsIdempotentActivePathSet() {
+  const previousActive = useMarkdownExplorerStore.getState().activePath
+  const previousLastSet = useMarkdownExplorerStore.getState().lastSetActivePath
+  const target = '/docs/knowgrph-video-demo.md' as const
+  try {
+    useMarkdownExplorerStore.getState().setActivePath(target)
+    const firstSet = useMarkdownExplorerStore.getState().lastSetActivePath
+    if (!firstSet || firstSet.path !== target) {
+      throw new Error('Expected markdown explorer store to stamp lastSetActivePath when setting a new active path')
+    }
+    useMarkdownExplorerStore.getState().setActivePath(target)
+    const secondSet = useMarkdownExplorerStore.getState().lastSetActivePath
+    if (!secondSet || secondSet.atMs !== firstSet.atMs) {
+      throw new Error('Expected markdown explorer store to skip idempotent active-path set updates and avoid redundant churn')
+    }
+  } finally {
+    useMarkdownExplorerStore.getState().setActivePath(previousActive)
+    if (previousActive == null && previousLastSet == null) {
+      useMarkdownExplorerStore.setState({ lastSetActivePath: null })
+    }
+  }
+}

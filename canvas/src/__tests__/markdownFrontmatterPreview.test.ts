@@ -72,6 +72,23 @@ export async function testMarkdownFrontmatterPreviewHelpersCentralizeReadViewDer
   if (!authorsRow || authorsRow.cells[1] !== '`["A. Author 1","B. Author 2"]`') {
     throw new Error(`expected authors fallback row to preserve backtick JSON array value, got ${JSON.stringify(authorsRow || null)}`)
   }
+  const cappedRows = buildMarkdownFrontmatterPreviewRows({
+    frontmatterMeta: Object.fromEntries(Array.from({ length: 180 }, (_, i) => [`k${i + 1}`, i + 1])),
+    variableSsotEntries: [],
+  })
+  if (cappedRows.length !== 120) {
+    throw new Error(`expected frontmatter preview rows to cap at 120, got ${cappedRows.length}`)
+  }
+  const largeArrayPreview = stringifyMarkdownFrontmatterPreviewValue(Array.from({ length: 80 }, (_, i) => i + 1))
+  if (largeArrayPreview !== '`[80 items]`') {
+    throw new Error(`expected large frontmatter array preview to collapse to summary, got ${largeArrayPreview}`)
+  }
+  const largeObjectPreview = stringifyMarkdownFrontmatterPreviewValue(
+    Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`k${i}`, i])),
+  )
+  if (largeObjectPreview !== '`{100 keys}`') {
+    throw new Error(`expected large frontmatter object preview to collapse to summary, got ${largeObjectPreview}`)
+  }
 
   const mermaidToken = buildMarkdownFrontmatterPreviewCodeToken({
     lang: 'mermaid',

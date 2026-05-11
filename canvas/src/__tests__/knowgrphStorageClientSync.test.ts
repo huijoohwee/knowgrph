@@ -269,20 +269,20 @@ export async function testKnowgrphStorageClientSyncSanitizesNullNumericFieldsFro
   }
   const docRow = await dbState.collections.documents.findOne('doc_null_numeric').exec()
   if (!docRow) throw new Error('expected sanitized pulled document row')
-  if (Number(docRow.get('documentRevision')) !== 0) throw new Error('expected null document revision to sanitize to 0')
-  if (Number(docRow.get('updatedAtMs')) !== 0) throw new Error('expected null document updatedAtMs to sanitize to 0')
+  if (docRow.get('documentRevision') !== 0) throw new Error('expected null document revision to sanitize to numeric 0')
+  if (docRow.get('updatedAtMs') !== 0) throw new Error('expected null document updatedAtMs to sanitize to numeric 0')
 
   const chunkRow = await dbState.collections.documentChunks.findOne('chunk_null_numeric').exec()
   if (!chunkRow) throw new Error('expected sanitized pulled document chunk row')
-  if (Number(chunkRow.get('chunkOrder')) !== 0) throw new Error('expected null chunkOrder to sanitize to deterministic index fallback')
-  if (Number(chunkRow.get('tokenEstimate')) !== 0) throw new Error('expected null tokenEstimate to sanitize to 0')
-  if (Number(chunkRow.get('updatedAtMs')) !== 0) throw new Error('expected null chunk updatedAtMs to sanitize to 0')
+  if (chunkRow.get('chunkOrder') !== 0) throw new Error('expected null chunkOrder to sanitize to numeric 0 fallback')
+  if (chunkRow.get('tokenEstimate') !== 0) throw new Error('expected null tokenEstimate to sanitize to numeric 0')
+  if (chunkRow.get('updatedAtMs') !== 0) throw new Error('expected null chunk updatedAtMs to sanitize to numeric 0')
 
   const graphRow = await dbState.collections.graphSnapshots.findOne('graph_null_numeric').exec()
   if (!graphRow) throw new Error('expected sanitized pulled graph snapshot row')
-  if (Number(graphRow.get('graphRevision')) !== 0) throw new Error('expected null graphRevision to sanitize to 0')
-  if (Number(graphRow.get('derivedFromDocumentRevision')) !== 0) throw new Error('expected null derivedFromDocumentRevision to sanitize to 0')
-  if (Number(graphRow.get('updatedAtMs')) !== 0) throw new Error('expected null graph updatedAtMs to sanitize to 0')
+  if (graphRow.get('graphRevision') !== 0) throw new Error('expected null graphRevision to sanitize to numeric 0')
+  if (graphRow.get('derivedFromDocumentRevision') !== 0) throw new Error('expected null derivedFromDocumentRevision to sanitize to numeric 0')
+  if (graphRow.get('updatedAtMs') !== 0) throw new Error('expected null graph updatedAtMs to sanitize to numeric 0')
   const graphJson = graphRow.get('graphJson') as unknown
   if (!graphJson || typeof graphJson !== 'object' || Array.isArray(graphJson)) {
     throw new Error('expected invalid non-object graphJson to sanitize to object')
@@ -500,9 +500,9 @@ export async function testKnowgrphStorageClientSyncRepairsLegacyTopLevelNullNume
 
   const repairedRow = await dbState.collections.syncOutbox.findOne(mutationId).exec()
   if (!repairedRow) throw new Error('expected legacy outbox row to remain after route-unavailable sync skip')
-  if (Number(repairedRow.get('attemptCount')) !== 0) throw new Error('expected top-level attemptCount null to repair to 0')
-  if (Number(repairedRow.get('createdAtMs')) !== 0) throw new Error('expected top-level createdAtMs null to repair to 0')
-  if (Number(repairedRow.get('updatedAtMs')) !== 0) throw new Error('expected top-level updatedAtMs null to repair to 0')
+  if (repairedRow.get('attemptCount') !== 0) throw new Error('expected top-level attemptCount null to repair to numeric 0')
+  if (repairedRow.get('createdAtMs') !== 0) throw new Error('expected top-level createdAtMs null to repair to numeric 0')
+  if (repairedRow.get('updatedAtMs') !== 0) throw new Error('expected top-level updatedAtMs null to repair to numeric 0')
 
   await __resetKnowgrphStorageDbForTests()
 }

@@ -10,6 +10,7 @@ const SEED_SYNC_IDLE_MAX_MS_MIN = 1000
 const SEED_SYNC_IDLE_MAX_MS_MAX = 300_000
 const SOURCE_FILES_SYNC_DEBOUNCE_MIN_MS = 100
 const SOURCE_FILES_SYNC_DEBOUNCE_MAX_MS = 10_000
+const WINDOWS_DRIVE_PREFIX_RE = /^[A-Za-z]:[\\/]/
 
 const parseEnvBoolean = (name: string, fallback: boolean): boolean => {
   const raw = String(readEnvString(name, fallback ? 'true' : 'false') || '')
@@ -126,11 +127,45 @@ export const readWorkspaceImportDefaultSourceUrlSetting = (): string => {
   }
 }
 
+const readKnowgrphStorageBaseUrlSetting = (): string =>
+  String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
+
+const isLocalFilesystemLikePath = (value: string): boolean => {
+  const text = String(value || '').trim()
+  if (!text) return false
+  if (text.startsWith('/')) return true
+  if (text.startsWith('./') || text.startsWith('../')) return true
+  if (WINDOWS_DRIVE_PREFIX_RE.test(text)) return true
+  return false
+}
+
+const isCloudflareDashboardD1Url = (value: string): boolean => {
+  const raw = String(value || '').trim()
+  if (!raw) return false
+  try {
+    const url = new URL(raw)
+    if (url.hostname !== 'dash.cloudflare.com') return false
+    return /\/workers\/d1(?:\/|$)/.test(url.pathname)
+  } catch {
+    return false
+  }
+}
+
+export const normalizeWorkspaceImportDefaultSourceUrlForSourceFiles = (next: string): string => {
+  const raw = String(next || '').trim()
+  const storageBaseUrl = readKnowgrphStorageBaseUrlSetting()
+  if (!raw) return storageBaseUrl || ''
+  if (isLocalFilesystemLikePath(raw) || isCloudflareDashboardD1Url(raw)) {
+    return storageBaseUrl || ''
+  }
+  return raw
+}
+
 export const writeWorkspaceImportDefaultSourceUrlSetting = (next: string): void => {
   const storage = getLocalStorage()
   if (!storage) return
   try {
-    const value = String(next || '').trim()
+    const value = normalizeWorkspaceImportDefaultSourceUrlForSourceFiles(next)
     if (value) {
       storage.setItem(LS_KEYS.workspaceImportDefaultSourceUrl, value)
     } else {

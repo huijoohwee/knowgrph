@@ -6,6 +6,9 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { clearRuntimeTimeout, scheduleRuntimeTimeout, WORKSPACE_TOC_PARSE_MAX_CHARS } from './markdownWorkspaceRuntime.shared'
 
+const WORKSPACE_TOC_FAST_MAX_CHARS = 120_000
+const WORKSPACE_BACKLINKS_FAST_MAX_ENTRIES = 800
+
 export type MarkdownWorkspaceExplorerDerivationsArgs = {
   active: boolean
   explorerOpen: boolean
@@ -32,7 +35,8 @@ function resolveTocCandidateText(args: {
 }): string {
   if (!args.active || !args.explorerOpen || args.tocCollapsed) return ''
   const text = String(args.text || '')
-  if (!text.trim() || text.length > WORKSPACE_TOC_PARSE_MAX_CHARS) return ''
+  const maxChars = Math.min(WORKSPACE_TOC_PARSE_MAX_CHARS, WORKSPACE_TOC_FAST_MAX_CHARS)
+  if (!text.trim() || text.length > maxChars) return ''
   if (!text.includes('#') && !/<h[1-6]\b/i.test(text)) return ''
   return text
 }
@@ -94,6 +98,10 @@ export function useMarkdownWorkspaceExplorerDerivations(args: MarkdownWorkspaceE
   const backlinksJobRef = React.useRef(0)
   React.useEffect(() => {
     if (!active || !explorerOpen || backlinksCollapsed || !activePath) {
+      setBacklinks([])
+      return
+    }
+    if (entries.length > WORKSPACE_BACKLINKS_FAST_MAX_ENTRIES) {
       setBacklinks([])
       return
     }

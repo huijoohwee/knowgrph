@@ -50,6 +50,21 @@ import {
   upsertWorkspaceEntryInlineText,
 } from '@/features/workspace-fs/workspaceInlineText'
 
+const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000
+
+export function shouldTrustEmptyWorkspaceSelectionCache(args: {
+  cachedText: string | null
+  path: WorkspacePath
+  lastLoaded: { path: WorkspacePath; text: string } | null
+}): boolean {
+  if (args.cachedText !== '') return false
+  const lastLoaded = args.lastLoaded
+  if (!lastLoaded || lastLoaded.path !== args.path || lastLoaded.text !== '') return false
+  // Initialization docs can be chunk-only in storage; never lock in blank cache for them.
+  if (isInitializationWorkspacePath(args.path)) return false
+  return true
+}
+
 export type MarkdownWorkspaceIndexingArgs = MarkdownWorkspaceRuntimeProgressStatusBindings & {
   active: boolean
   viewerInlineEditActive: boolean
@@ -70,6 +85,7 @@ export type MarkdownWorkspaceIndexingArgs = MarkdownWorkspaceRuntimeProgressStat
   repairedMissingWorkspaceFilesRef: React.MutableRefObject<Set<WorkspacePath>>
   lastIndexedByPathRef: React.MutableRefObject<Map<WorkspacePath, string>>
   indexJobRef: React.MutableRefObject<number>
+  indexingInFlight: boolean
   indexingInFlightRef: React.MutableRefObject<boolean>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   setIndexingInFlight: React.Dispatch<React.SetStateAction<boolean>>
@@ -104,6 +120,8 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     if (args.contentMode === 'widget' && args.widgetAvailable) return
     const path = args.activePath
     if (!path || !args.activeEntry || args.activeEntryKind === 'folder') return
+    // Prevent re-entrant indexing churn for the same active path while an index job is still running.
+    if (args.indexingInFlight && args.activePathRef.current === path) return
     if (
       resolveWorkspaceDirtyState({
         path,
@@ -117,14 +135,17 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
 
     const scheduledFor = path
     const cachedText = typeof args.activeEntryText === 'string' ? String(args.activeEntryText ?? '') : null
-    const source = args.sourcesByPath[path]
-    const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
+    const sourceUrl = String(args.activeDocumentSourceUrl || '').trim()
     const sourceFileName = workspaceBasename(path) || 'source.md'
     const pendingLocalImport = peekPendingWorkspaceLocalImport(path)
     const indexLabel = pendingLocalImport?.kind === 'pdf' ? 'Indexing PDF' : 'Indexing'
     const bytesTotalHint = pendingLocalImport ? Math.max(0, Number(pendingLocalImport.file?.size || 0)) : null
     const lastLoaded = args.lastLoadedRef.current
-    const canTrustEmptyCache = !!(cachedText === '' && lastLoaded && lastLoaded.path === path && lastLoaded.text === '')
+    const canTrustEmptyCache = shouldTrustEmptyWorkspaceSelectionCache({
+      cachedText,
+      path,
+      lastLoaded,
+    })
     const isPendingStub = cachedText != null && isPendingLocalImportStubText(cachedText)
     const canUseCachedText =
       cachedText != null &&
@@ -226,39 +247,34 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
               name: workspaceDocumentKey(path),
               text: nextText,
             })
-            const rememberIndexedForPath = (candidatePath: WorkspacePath, value: string): void => {
-              const map = args.lastIndexedByPathRef.current
-              if (map.has(candidatePath)) map.delete(candidatePath)
-              map.set(candidatePath, value)
-              while (map.size > 24) {
-                const oldest = map.keys().next().value as WorkspacePath | undefined
-                if (!oldest) break
-                map.delete(oldest)
-              }
-            }
-            const hasCanvasWorkspaceFrontmatterPreset = !!parseCanvasWorkspaceFrontmatterPreset(nextText)
+            const previouslyIndexedHash = args.lastIndexedByPathRef.current.get(path)
+            const alreadyIndexedForTextHash = typeof previouslyIndexedHash === 'string' && previouslyIndexedHash === textHash
             const shouldApplyFrontmatterDrivenDocumentLanding =
               !!args.activeDocumentKey
               && nextText.trim().length > 0
-              && (isInitializationWorkspacePath(path) || hasCanvasWorkspaceFrontmatterPreset)
-            if (shouldApplyFrontmatterDrivenDocumentLanding) {
-              pushWorkspaceTextToActiveMarkdownDocument({
-                activeDocumentKey: args.activeDocumentKey,
-                activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
-                setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-                text: nextText,
-                applyViewPreset: true,
-                applyToGraph: true,
-                forceApplyToGraph: true,
-              })
-            } else {
-              pushWorkspaceTextToActiveMarkdownDocument({
-                activeDocumentKey: args.activeDocumentKey,
-                activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
-                setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-                text: nextText,
-                applyViewPreset: false,
-              })
+              && false
+              && nextText.length <= WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS
+              && !alreadyIndexedForTextHash
+            if (!alreadyIndexedForTextHash) {
+              if (shouldApplyFrontmatterDrivenDocumentLanding) {
+                pushWorkspaceTextToActiveMarkdownDocument({
+                  activeDocumentKey: args.activeDocumentKey,
+                  activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+                  setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+                  text: nextText,
+                  applyViewPreset: true,
+                  applyToGraph: true,
+                  forceApplyToGraph: true,
+                })
+              } else {
+                pushWorkspaceTextToActiveMarkdownDocument({
+                  activeDocumentKey: args.activeDocumentKey,
+                  activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+                  setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+                  text: nextText,
+                  applyViewPreset: false,
+                })
+              }
             }
           }
 
@@ -283,8 +299,35 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
               name: workspaceDocumentKey(path),
               text: nextText,
             })
+            const existingWorkspaceSourceForPath = findWorkspaceSourceFileByPath(path)
+            const workspaceSourceAlreadyIndexedForSameHash = !!(
+              existingWorkspaceSourceForPath &&
+              String(existingWorkspaceSourceForPath?.status || '').toLowerCase() === 'parsed' &&
+              existingWorkspaceSourceForPath?.error == null &&
+              String(existingWorkspaceSourceForPath?.parsedTextHash || '') === hash &&
+              wasIndexedForPath(path, hash)
+            )
+            if (workspaceSourceAlreadyIndexedForSameHash) {
+              applyIndexedStatus()
+              return
+            }
             if (!wasIndexedForPath(path, hash)) {
               const ext = workspaceExtLower(path)
+              const shouldRunWorkspaceSourceParsing = (
+                ext === '.geojson'
+                || ext === '.json'
+              )
+              const shouldSkipHeavyWorkspaceSourceParsing = nextText.length > WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS
+              if (shouldSkipHeavyWorkspaceSourceParsing) {
+                rememberIndexedForPath(path, hash)
+                applyIndexedStatus()
+                return
+              }
+              if (!shouldRunWorkspaceSourceParsing) {
+                rememberIndexedForPath(path, hash)
+                applyIndexedStatus()
+                return
+              }
               const isCanvasHtmlExport = (() => {
                 if (ext !== '.html' && ext !== '.htm') return false
                 const sample = nextText.slice(0, 4096)
@@ -357,7 +400,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
               }
 
               if (workspaceSourceAlreadyMaterialized) {
-                await applyComposedFromSourceFiles()
                 if (!isStaleJob()) rememberIndexedForPath(path, hash)
                 return
               }
@@ -381,7 +423,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 } catch {
                   void 0
                 }
-                await applyComposedFromSourceFiles()
                 if (!isStaleJob()) rememberIndexedForPath(path, hash)
                 return
               }
@@ -544,17 +585,17 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
   }, [
     applyIndexedStatus,
     applyLoadFailedStatus,
-    args,
     args.active,
     args.activeDocumentKey,
+    args.activeDocumentSourceUrl,
     args.activeEntry,
     args.activeEntryKind,
     args.activeEntryText,
     args.activePath,
     args.contentMode,
     args.getFs,
+    args.indexingInFlight,
     args.indexingInFlightRef,
-    args.patchWorkspaceEntryInlineText,
     args.setActiveMarkdownDocument,
     args.setIndexingInFlight,
     args.setActiveTextProgrammatic,
@@ -562,7 +603,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     args.setStatusError,
     args.setStatusProgress,
     args.setStatusWithAutoClear,
-    args.sourcesByPath,
     args.userEditedActiveTextRef,
     args.viewerInlineEditActive,
     args.widgetAvailable,

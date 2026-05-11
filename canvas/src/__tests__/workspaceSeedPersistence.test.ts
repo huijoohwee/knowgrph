@@ -12,6 +12,7 @@ import {
   buildInitialWorkspaceStartupSnapshot,
   buildMaterializedWorkspaceActivePathKey,
   buildMaterializedWorkspaceForceIncludePaths,
+  hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
@@ -48,11 +49,14 @@ import {
   applyActiveMarkdownDocumentPayload,
   buildActiveMarkdownDocumentPayload,
 } from '@/features/markdown/activeMarkdownDocument'
+import { workspaceDocumentKey } from '@/features/workspace-fs/path'
+import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import {
   readWorkspaceInitializationDocsMirrorEntries,
   readWorkspaceInitializationSeedText,
   upsertWorkspaceInitializationSeedText,
 } from '@/features/workspace-fs/workspaceSeedProvider'
+import { shouldTrustEmptyWorkspaceSelectionCache } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceIndexing'
 
 const normalizeFsPath = (value: string): string => String(value || '').replace(/\\/g, '/')
 const KG_GITHUB_ROOT = normalizeFsPath(path.resolve(process.cwd(), '..', '..'))
@@ -721,8 +725,8 @@ export function testWorkspaceInlineTextHelpersCentralizeEntryAndSourceFileRules(
   if (resolveWorkspaceEntryInlineText('short', 5) !== 'short') {
     throw new Error('expected workspace entry inline-text helper to preserve bounded entry text')
   }
-  if (resolveWorkspaceSourceFileInlineText('012345', 5) !== '') {
-    throw new Error('expected workspace source-file inline-text helper to convert oversized text into an empty source-file payload')
+  if (resolveWorkspaceSourceFileInlineText('012345', 5) !== '012345') {
+    throw new Error('expected workspace source-file inline-text helper to preserve oversized source text when inline snapshot is capped')
   }
 
   const entries = [
@@ -1025,7 +1029,10 @@ export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesSta
   }
 }
 
+
 export async function testWorkspaceSeedProviderCollapsesRedundantDocsPrefixFromSourceFilesState() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
   const { restore } = initJsdomHarness()
   const store = useGraphStore.getState()
   const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
@@ -1033,6 +1040,8 @@ export async function testWorkspaceSeedProviderCollapsesRedundantDocsPrefixFromS
   const previousCacheId = store.localMarkdownFolderCacheId
   const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
   try {
+    delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
     store.setLocalMarkdownFolderHandle(null)
     store.setLocalMarkdownFolderCacheId(null, null)
     store.setLocalMarkdownSelectedFolderPath(null)
@@ -1058,6 +1067,10 @@ export async function testWorkspaceSeedProviderCollapsesRedundantDocsPrefixFromS
     store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
     store.setLocalMarkdownFolderCacheId(previousCacheId, null)
     store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
     restore()
   }
 }
@@ -1097,6 +1110,259 @@ export async function testWorkspaceSeedProviderResolvesRelativeDocsPathForAbsolu
     store.setLocalMarkdownFolderCacheId(previousCacheId, null)
     store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
     restore()
+  }
+}
+
+export async function testWorkspaceSeedProviderTreatsSelectedFilePathAsSelectedFolder() {
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath(`${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-maps-places.md`)
+    store.setSourceFiles([
+      {
+        id: 'sf-selected-file-path',
+        name: 'docs/knowgrph-video-demo.md',
+        text: '# selected file path should still include sibling docs',
+        enabled: true,
+        source: {
+          kind: 'local',
+          path: 'docs/knowgrph-video-demo.md',
+        },
+        updatedAtMs: 1710000004000,
+      },
+    ])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    const target = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (!target || !String(target.text || '').includes('selected file path should still include sibling docs')) {
+      throw new Error(`expected selected markdown file path to normalize to selected folder for docs mirror filtering, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+  }
+}
+
+
+export async function testWorkspaceSeedProviderPrefersKnowgrphStorageExportWhenConfigured() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (!url.includes('/api/storage/export/')) return new Response('', { status: 404 })
+    return new Response(JSON.stringify({
+      ok: true,
+      apiVersion: '2026-05-04',
+      workspaceId: 'kgws:test',
+      exportedAtMs: 1710000005000,
+      documents: [
+        {
+          id: 'sf:video',
+          workspaceId: 'kgws:test',
+          canonicalPath: '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md',
+          title: 'knowgrph-video-demo.md',
+          docType: 'markdown',
+          lang: null,
+          graphId: null,
+          sourceKind: 'markdown',
+          contentMd: '# from knowgrph storage export',
+          contentHash: 'x',
+          parserVersion: 'source-files',
+          revision: 1,
+          updatedAtMs: 1710000005000,
+          deleted: false,
+        },
+      ],
+      documentChunks: [],
+      graphSnapshots: [],
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath('docs')
+    store.setSourceFiles([])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    const target = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (!target || !String(target.text || '').includes('from knowgrph storage export')) {
+      throw new Error(`expected docs mirror to prefer knowgrph storage export when configured, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+    ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  }
+}
+
+export async function testWorkspaceSeedProviderStorageExportRebuildsMarkdownFromChunksWhenContentMdBlank() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (!url.includes('/api/storage/export/')) return new Response('', { status: 404 })
+    return new Response(JSON.stringify({
+      ok: true,
+      apiVersion: '2026-05-04',
+      workspaceId: 'kgws:test',
+      exportedAtMs: 1710000006000,
+      documents: [
+        {
+          id: 'docs:video_demo',
+          workspaceId: 'kgws:test',
+          canonicalPath: '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md',
+          title: 'knowgrph-video-demo.md',
+          docType: 'markdown',
+          lang: null,
+          graphId: null,
+          sourceKind: 'markdown',
+          contentMd: '',
+          contentHash: 'sha256:video-demo',
+          parserVersion: 'source-files',
+          revision: 1,
+          updatedAtMs: 1710000006000,
+          deleted: false,
+        },
+      ],
+      documentChunks: [
+        {
+          id: 'chunk:video_demo:1',
+          documentId: 'docs:video_demo',
+          workspaceId: 'kgws:test',
+          chunkKey: 'second',
+          chunkOrder: 1,
+          heading: null,
+          markdown: 'from chunk 2',
+          tokenEstimate: 2,
+          contentHash: 'sha256:c2',
+          updatedAtMs: 1710000006002,
+        },
+        {
+          id: 'chunk:video_demo:0',
+          documentId: 'docs:video_demo',
+          workspaceId: 'kgws:test',
+          chunkKey: 'first',
+          chunkOrder: 0,
+          heading: null,
+          markdown: '# from chunk 1',
+          tokenEstimate: 3,
+          contentHash: 'sha256:c1',
+          updatedAtMs: 1710000006001,
+        },
+      ],
+      graphSnapshots: [],
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath('docs')
+    store.setSourceFiles([])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
+    const target = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (!target || String(target.text || '').trim() !== '# from chunk 1\n\nfrom chunk 2') {
+      throw new Error(`expected docs mirror to reconstruct markdown from export chunks when contentMd is blank, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+    ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  }
+}
+
+export async function testWorkspaceSeedProviderUsesSameOriginStoragePathOnLocalhostDev() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  const capturedRequestUrls: string[] = []
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    capturedRequestUrls.push(String(typeof input === 'string' ? input : (input as URL).toString()))
+    return new Response(JSON.stringify({
+      ok: true,
+      apiVersion: '2026-05-04',
+      workspaceId: 'kgws:test',
+      exportedAtMs: 1710000005000,
+      documents: [],
+      documentChunks: [],
+      graphSnapshots: [],
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath('docs')
+    store.setSourceFiles([])
+    await readWorkspaceInitializationDocsMirrorEntries()
+    if (!capturedRequestUrls.some(url => url.startsWith('/api/storage/export/'))) {
+      throw new Error(`expected localhost dev storage export call to use same-origin proxy path, got ${JSON.stringify(capturedRequestUrls)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+    ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   }
 }
 
@@ -1189,5 +1455,284 @@ export async function testRuntimeSourceFilesReflectWorkspaceSeedFileContentChang
     } else {
       delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
     }
+  }
+}
+
+export async function testMaterializeActiveWorkspaceEntryHydratesBlankExistingSourceFileText() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    useMarkdownExplorerStore.getState().setActivePath('/docs/knowgrph-maps-readme.md')
+    useGraphStore.getState().setSourceFiles([
+      {
+        id: 'ws:maps-readme',
+        name: 'knowgrph-maps-readme.md',
+        text: '',
+        enabled: true,
+        status: 'idle',
+        source: { kind: 'local', path: 'workspace:/docs/knowgrph-maps-readme.md' },
+      },
+    ])
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [
+        {
+          path: '/docs/knowgrph-maps-readme.md',
+          parentPath: '/docs',
+          kind: 'file',
+          name: 'knowgrph-maps-readme.md',
+          updatedAtMs: 1,
+        },
+      ],
+      readFileText: async (path: string) =>
+        String(path || '').trim() === '/docs/knowgrph-maps-readme.md' ? '# Maps Readme' : null,
+      writeFileText: async () => void 0,
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: '/docs/knowgrph-maps-readme.md',
+      fs,
+      applyToGraph: false,
+    })
+    const active = useGraphStore
+      .getState()
+      .sourceFiles
+      .find(file => String(file.source?.path || '') === 'workspace:/docs/knowgrph-maps-readme.md') || null
+    if (!active) throw new Error('expected active workspace source file to stay present after materialization')
+    if (String(active.text || '').trim() !== '# Maps Readme') {
+      throw new Error(`expected blank active workspace source file text to hydrate from workspace fs, got "${String(active.text || '')}"`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testHydrateWorkspaceEntriesInlineTextHydratesEmptyInlineFileTextFromFs() {
+  const fs: WorkspaceFs = {
+    ensureSeed: async () => false,
+    listEntries: async () => [],
+    readFileText: async (path: string) => (String(path || '').trim() === '/docs/knowgrph-video-demo.md' ? '# hydrated from fs' : null),
+    writeFileText: async () => void 0,
+    createFile: async () => '/docs/tmp.md',
+    createFolder: async () => '/docs',
+    deleteEntry: async () => void 0,
+  }
+  const entries = [
+    {
+      path: '/docs/knowgrph-video-demo.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'knowgrph-video-demo.md',
+      text: '',
+      updatedAtMs: 1,
+    },
+  ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+  const hydrated = await hydrateWorkspaceEntriesInlineText({ fs, workspaceEntries: entries })
+  if (hydrated === entries) throw new Error('expected empty inline file text to trigger hydration from workspace fs')
+  if (String(hydrated[0]?.text || '').trim() !== '# hydrated from fs') {
+    throw new Error(`expected hydrated workspace entry text from fs, got ${String(hydrated[0]?.text || '')}`)
+  }
+}
+
+export async function testHydrateWorkspaceEntriesInlineTextFallsBackToKnowgrphStorageDocWhenFsTextIsBlank() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  const previousFetch = globalThis.fetch
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = 'kgws:test-fallback'
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (!url.includes('/api/storage/doc/')) return new Response('', { status: 404 })
+    const hasCanonicalDocsPath =
+      url.includes(encodeURIComponent('huijoohwee/docs/knowgrph-video-demo.md'))
+      || url.includes(encodeURIComponent('docs/knowgrph-video-demo.md'))
+    if (!hasCanonicalDocsPath) return new Response('', { status: 404 })
+    return new Response('# hydrated from storage fallback', { status: 200 })
+  }) as typeof fetch
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async () => void 0,
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const entries = [
+      {
+        path: '/docs/knowgrph-video-demo.md',
+        parentPath: '/docs',
+        kind: 'file',
+        name: 'knowgrph-video-demo.md',
+        text: '',
+        updatedAtMs: 1,
+      },
+    ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+    const hydrated = await hydrateWorkspaceEntriesInlineText({ fs, workspaceEntries: entries })
+    if (hydrated === entries) throw new Error('expected blank docs workspace entry text to fallback-hydrate from knowgrph storage doc endpoint')
+    if (String(hydrated[0]?.text || '').trim() !== '# hydrated from storage fallback') {
+      throw new Error(`expected docs entry fallback hydration from knowgrph storage doc endpoint, got ${String(hydrated[0]?.text || '')}`)
+    }
+  } finally {
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+  }
+}
+
+export function testWorkspaceSelectionCacheDoesNotTrustBlankForInitializationDocs() {
+  const trusted = shouldTrustEmptyWorkspaceSelectionCache({
+    cachedText: '',
+    path: '/docs/knowgrph-maps-readme.md',
+    lastLoaded: { path: '/docs/knowgrph-maps-readme.md', text: '' },
+  })
+  if (trusted) {
+    throw new Error('expected initialization docs to bypass blank cache trust and rehydrate from source')
+  }
+}
+
+export async function testHydrateWorkspaceEntriesInlineTextStorageFallbackCanonicalizesDuplicatedDocsPrefixPath() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  const previousFetch = globalThis.fetch
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = 'kgws:test-fallback-canonical'
+  const capturedUrls: string[] = []
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    capturedUrls.push(url)
+    if (!url.includes('/api/storage/doc/')) return new Response('', { status: 404 })
+    const hasCanonicalDocsPath =
+      url.includes(encodeURIComponent('huijoohwee/docs/knowgrph-video-demo.md'))
+      || url.includes(encodeURIComponent('docs/knowgrph-video-demo.md'))
+    if (!hasCanonicalDocsPath) return new Response('', { status: 404 })
+    return new Response('# hydrated from canonicalized docs path', { status: 200 })
+  }) as typeof fetch
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async () => void 0,
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const entries = [
+      {
+        path: '/docs/huijoohwee/docs/knowgrph-video-demo.md',
+        parentPath: '/docs/huijoohwee/docs',
+        kind: 'file',
+        name: 'knowgrph-video-demo.md',
+        text: '',
+        updatedAtMs: 1,
+      },
+    ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+    const hydrated = await hydrateWorkspaceEntriesInlineText({ fs, workspaceEntries: entries })
+    if (hydrated === entries) throw new Error('expected storage fallback to hydrate duplicated docs-prefix workspace entry path')
+    if (String(hydrated[0]?.text || '').trim() !== '# hydrated from canonicalized docs path') {
+      throw new Error(`expected duplicated docs-prefix path to resolve to canonical storage doc fallback, got ${String(hydrated[0]?.text || '')}`)
+    }
+    if (capturedUrls.some(url => url.includes(encodeURIComponent('docs/huijoohwee/docs/knowgrph-video-demo.md')))) {
+      throw new Error(`expected duplicated docs-prefix canonical path not to be requested during storage fallback, got ${JSON.stringify(capturedUrls)}`)
+    }
+  } finally {
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+  }
+}
+
+export async function testMaterializeActiveWorkspaceEntryHydratesBlankTextWhenParsedHashAlreadyMatches() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    const activePath = '/docs/knowgrph-maps-readme.md'
+    const activeSourcePath = 'workspace:/docs/knowgrph-maps-readme.md'
+    const fileText = '# Maps Readme'
+    const textHash = buildSourceFileParseIdentityHash({
+      cacheNamespace: `workspace-import:${activePath}`,
+      name: workspaceDocumentKey(activePath),
+      text: fileText,
+    })
+    useMarkdownExplorerStore.getState().setActivePath(activePath)
+    useGraphStore.getState().setSourceFiles([
+      {
+        id: 'ws:maps-readme',
+        name: 'knowgrph-maps-readme.md',
+        text: '',
+        enabled: true,
+        status: 'parsed',
+        parsedParserId: 'markdown-frontmatter',
+        parsedTextHash: textHash,
+        parsedGraphRevision: 1,
+        parsedGraphData: {
+          type: 'Graph',
+          nodes: [{ id: 'n1', label: 'Maps', type: 'Thing', properties: {} }],
+          edges: [],
+          metadata: {},
+        },
+        source: { kind: 'local', path: activeSourcePath },
+      },
+    ])
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [
+        {
+          path: activePath,
+          parentPath: '/docs',
+          kind: 'file',
+          name: 'knowgrph-maps-readme.md',
+          updatedAtMs: 1,
+        },
+      ],
+      readFileText: async (path: string) => (String(path || '').trim() === activePath ? fileText : null),
+      writeFileText: async () => void 0,
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: activePath,
+      fs,
+      applyToGraph: true,
+      workspaceEntries: [
+        {
+          path: activePath,
+          parentPath: '/docs',
+          kind: 'file',
+          name: 'knowgrph-maps-readme.md',
+          updatedAtMs: 1,
+        },
+      ],
+      sourcesByPath: {
+        [activePath]: { kind: 'local', originalName: 'knowgrph-maps-readme.md' },
+      },
+    })
+    const active = useGraphStore
+      .getState()
+      .sourceFiles
+      .find(file => String(file.source?.path || '') === activeSourcePath) || null
+    if (!active) throw new Error('expected active workspace source file to stay present after graph-mode materialization')
+    if (String(active.text || '').trim() !== fileText) {
+      throw new Error(`expected parsed-hash cache-hit path to still hydrate blank source-file text, got "${String(active.text || '')}"`)
+    }
+  } finally {
+    restore()
   }
 }

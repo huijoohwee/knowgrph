@@ -59,4 +59,5 @@ export type RenderOpts = InlineRenderOpts & {
   webpageLayoutWireframeAscii?: string | null
   markdownSourceLines?: string[]
   forbidCopy?: boolean
+  deferMermaidRender?: boolean
 }

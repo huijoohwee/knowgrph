@@ -36,8 +36,11 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   if (!bootstrapText.includes("const setMarkdownWorkspaceIndexingInFlight = useGraphStore(s => s.setMarkdownWorkspaceIndexingInFlight)")) {
     throw new Error('Expected markdown workspace bootstrap state to publish indexing status into the shared graph store')
   }
-  if (!bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(normalized)')) {
-    throw new Error('Expected markdown workspace indexing setter wrapper to mirror local in-flight state into the shared graph store')
+  if (!bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(indexingInFlight === true)')) {
+    throw new Error('Expected markdown workspace bootstrap state to mirror local in-flight status into the shared graph store via effect sync')
+  }
+  if (bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(normalized)')) {
+    throw new Error('Expected markdown workspace indexing setter wrapper to stay side-effect free and avoid graph-store updates during render-phase state updates')
   }
   if (!bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(false)')) {
     throw new Error('Expected markdown workspace bootstrap cleanup to clear shared indexing status on unmount')
@@ -164,6 +167,15 @@ export const testMarkdownWorkspaceSelectionClearsStaleEditorTextBeforeSsotDocume
   if (!clearEffectSection.includes('args.setHighlightedLineRange(null)') || !clearEffectSection.includes('args.clearStatus()')) {
     throw new Error('Expected markdown workspace selection to clear transient line focus and status when switching files with stale editor text')
   }
+  if (!clearEffectSection.includes('const switchedActivePathRef = React.useRef<{ prev: WorkspacePath; next: WorkspacePath } | null>(null)')) {
+    throw new Error('Expected markdown workspace selection to track explicit switched active path pair for deterministic same-tick switch hydration')
+  }
+  if (!clearEffectSection.includes('args.lastLoadedRef.current = { path: nextPath, text: nextText }')) {
+    throw new Error('Expected markdown workspace selection to update last-loaded snapshot when immediate switched-path text hydration is applied')
+  }
+  if (!clearEffectSection.includes('args.setActiveTextProgrammatic(nextText)')) {
+    throw new Error('Expected markdown workspace selection to hydrate switched-file text immediately when inline active entry text is available')
+  }
 }
 
 export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileSwitch = () => {
@@ -227,6 +239,9 @@ export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = 
   }
   if (!interactionsText.includes("if (!workspaceApplyEffectsEnabled || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return")) {
     throw new Error('Expected realtime editor->graph sync to explicitly gate by workspace apply effect state, realtime mode, and widget mode')
+  }
+  if (!interactionsText.includes('if (!userEditedActiveTextRef.current) return')) {
+    throw new Error('Expected realtime editor->graph sync to skip programmatic text hydration and only apply after user edits')
   }
   if (!interactionsText.includes("const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''")) {
     throw new Error('Expected realtime editor->graph sync to compare against current graph-backed markdown document text')

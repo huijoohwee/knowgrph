@@ -8,6 +8,7 @@ import {
   writeWorkspaceLayoutToken,
 } from '@/lib/workspace/workspaceLayoutSettings'
 import {
+  normalizeWorkspaceImportDefaultSourceUrlForSourceFiles,
   readWorkspaceAutoRefreshEnabledSetting,
   readWorkspaceImportDefaultSourceUrlSetting,
   readWorkspaceSeedSyncEnabledSetting,
@@ -23,6 +24,7 @@ import {
   writeWorkspaceSourceFilesDocsOnlySetting,
   writeWorkspaceSourceFilesSyncDebounceMsSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 const workspaceSettings: SettingMeta[] = WORKSPACE_LAYOUT_TOKENS.map(token => ({
   key: token.key,
@@ -117,7 +119,11 @@ export const uiWorkspaceSettingsRegistry: SettingMeta[] = [
     source: 'localStorage',
     read: () => readWorkspaceImportDefaultSourceUrlSetting(),
     write: value => {
-      writeWorkspaceImportDefaultSourceUrlSetting(String(value ?? ''))
+      const normalized = normalizeWorkspaceImportDefaultSourceUrlForSourceFiles(String(value ?? ''))
+      writeWorkspaceImportDefaultSourceUrlSetting(normalized)
+      if (normalized) {
+        useGraphStore.getState().setCanvasWorkspaceSyncMode('realtime')
+      }
     },
     default: () => '',
   },

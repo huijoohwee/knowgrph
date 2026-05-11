@@ -31,6 +31,11 @@ import {
 } from '@/features/markdown/ui/markdownFrontmatterPreview'
 import { MarkdownFrontmatterPreviewBlocks } from '@/features/markdown/ui/MarkdownFrontmatterPreviewBlocks'
 
+const MARKDOWN_INLINE_EMBED_MAX_CHARS = 120_000
+const MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS = 120_000
+const MARKDOWN_MERMAID_DEFER_DOC_CHARS = 90_000
+const MARKDOWN_MERMAID_DEFER_IDLE_MS = 180
+
 export type MarkdownPreviewViewerProps = {
   rootRef: (el: HTMLDivElement | null) => void
   tokens: TokenWithLines[]
@@ -177,18 +182,23 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   const embeddedMarkdownBase64 = React.useMemo(() => {
     const src = typeof sourceMarkdownText === 'string' ? sourceMarkdownText : ''
     if (!src) return ''
+    if (src.length > MARKDOWN_INLINE_EMBED_MAX_CHARS) return ''
     try {
       return encodeUtf8ToBase64(src)
     } catch {
       return ''
     }
   }, [sourceMarkdownText])
+  const viewerInlineEditingEnabled =
+    !!onTocReorder || !!onInsertLineAfter || !!onReorderLineBlock || !!onReplaceLineRange
   const markdownSourceLines = React.useMemo(() => {
+    if (!viewerInlineEditingEnabled) return []
     if (typeof sourceMarkdownText !== 'string' || !sourceMarkdownText) return []
     return sourceMarkdownText.split(/\r?\n/)
-  }, [sourceMarkdownText])
+  }, [sourceMarkdownText, viewerInlineEditingEnabled])
   const variableSsotEntries = React.useMemo(() => {
     if (typeof sourceMarkdownText !== 'string' || !sourceMarkdownText) return []
+    if (sourceMarkdownText.length > MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS) return []
     return collectMarkdownVariableSsotEntries(sourceMarkdownText)
   }, [sourceMarkdownText])
   const frontmatterMeta = React.useMemo(() => {
@@ -197,6 +207,53 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     }
     return frontmatterMetaProp
   }, [frontmatterMetaProp])
+  const shouldDeferMermaidRender = React.useMemo(() => {
+    const sourceLength = typeof sourceMarkdownText === 'string' ? sourceMarkdownText.length : 0
+    return sourceLength > MARKDOWN_MERMAID_DEFER_DOC_CHARS
+  }, [sourceMarkdownText])
+  const [deferMermaidRender, setDeferMermaidRender] = React.useState<boolean>(shouldDeferMermaidRender)
+  React.useEffect(() => {
+    if (!shouldDeferMermaidRender) {
+      setDeferMermaidRender(false)
+      return
+    }
+    setDeferMermaidRender(true)
+    let cancelled = false
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    const idleHandle = typeof idleWindow.requestIdleCallback === 'function'
+      ? idleWindow.requestIdleCallback(
+          () => {
+            if (!cancelled) setDeferMermaidRender(false)
+          },
+          { timeout: MARKDOWN_MERMAID_DEFER_IDLE_MS },
+        )
+      : null
+    const timerHandle = idleHandle == null
+      ? window.setTimeout(() => {
+          if (!cancelled) setDeferMermaidRender(false)
+        }, MARKDOWN_MERMAID_DEFER_IDLE_MS)
+      : null
+    return () => {
+      cancelled = true
+      if (idleHandle != null && typeof idleWindow.cancelIdleCallback === 'function') {
+        try {
+          idleWindow.cancelIdleCallback(idleHandle)
+        } catch {
+          void 0
+        }
+      }
+      if (timerHandle != null) {
+        try {
+          window.clearTimeout(timerHandle)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [shouldDeferMermaidRender])
   const variableSsotByKey = React.useMemo(() => {
     const out = new Map<string, { line: number; source: 'frontmatter' | 'inline'; key: string }>()
     for (let i = 0; i < variableSsotEntries.length; i += 1) {
@@ -494,7 +551,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         highlightUnderlineColor={effectiveHighlightUnderlineColor}
         collapsedIds={explorerControls.collapsedHeadingIds}
         onToggleCollapse={explorerControls.onToggleCollapse}
-        viewerBlockEditingEnabled={!!onTocReorder || !!onInsertLineAfter || !!onReorderLineBlock || !!onReplaceLineRange}
+        viewerBlockEditingEnabled={viewerInlineEditingEnabled}
         onMoveHeadingSection={handleMoveHeadingSection}
         onReorderHeadingSection={handleReorderHeadingSection}
         onInsertLineAfter={onInsertLineAfter}
@@ -506,6 +563,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         markdownSourceLines={markdownSourceLines}
         forbidCopy={forbidCopy}
         onInlineEditStateChange={onInlineEditStateChange}
+        deferMermaidRender={deferMermaidRender}
       />
     ),
     [
@@ -535,13 +593,14 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       onInsertLineAfter,
       onReorderLineBlock,
       onReplaceLineRange,
-      onTocReorder,
+      viewerInlineEditingEnabled,
       markdownForcePlainTables,
       flashLine,
       markdownSourceLines,
       webpageLayoutWireframeAscii,
       forbidCopy,
       onInlineEditStateChange,
+      deferMermaidRender,
     ],
   )
 
@@ -564,6 +623,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       onToggleCollapse: explorerControls.onToggleCollapse,
       geoDatasetIntegration,
       forbidCopy,
+      deferMermaidRender,
     })
   }, [
     activeDocumentPath,
@@ -583,6 +643,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     stickyHeadingTopClass,
     uiPanelMonospaceTextClass,
     uiPanelTextFontClass,
+    deferMermaidRender,
   ])
 
   return (

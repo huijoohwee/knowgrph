@@ -28,6 +28,19 @@ export function testMarkdownResolveHrefCoercesAbsoluteSandboxDocumentPath() {
   }
 }
 
+export function testMarkdownResolveHrefAvoidsDuplicatedDocsPrefixesInWorkspaceDocs() {
+  const active = 'huijoohwee/docs/knowgrph-maps-readme.md'
+  const expected = '/__codebase_asset?path=huijoohwee%2Fdocs%2Fknowgrph-maps-places.md'
+  const fromDocsRelative = resolveHref('docs/knowgrph-maps-places.md', active)
+  if (fromDocsRelative !== expected) {
+    throw new Error(`Expected docs-relative href to resolve to ${expected}, got ${fromDocsRelative}`)
+  }
+  const fromRepoRelative = resolveHref('huijoohwee/docs/knowgrph-maps-places.md', active)
+  if (fromRepoRelative !== expected) {
+    throw new Error(`Expected repo-relative docs href to resolve to ${expected}, got ${fromRepoRelative}`)
+  }
+}
+
 export function testMarkdownLargeDocFastModeParsesHtmlTables() {
   const filler = 'x'.repeat(200_010)
   const table = [

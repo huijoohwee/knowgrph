@@ -148,6 +148,27 @@ export class FakeKnowgrphStorageD1Database {
   }
 
   private readRows(sql: string, values: unknown[]): FakeRow[] {
+    if (sql.includes('SELECT id, content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0')) {
+      const [workspaceId, canonicalPath] = values
+      const rows = Array.from(this.documents.values()).filter(
+        row =>
+          row.workspace_id === workspaceId
+          && row.canonical_path === canonicalPath
+          && Number(row.deleted || 0) === 0,
+      )
+      return rows.slice(0, 1).map(row => ({ id: row.id, content_md: row.content_md }))
+    }
+    if (sql.includes('SELECT id, chunk_order, markdown') && sql.includes('FROM document_chunks')) {
+      const [workspaceId, documentId] = values
+      return Array.from(this.documentChunks.values())
+        .filter(row => row.workspace_id === workspaceId && row.document_id === documentId)
+        .sort((a, b) => {
+          const orderDelta = Number(a.chunk_order || 0) - Number(b.chunk_order || 0)
+          if (orderDelta !== 0) return orderDelta
+          return String(a.id || '').localeCompare(String(b.id || ''))
+        })
+        .map(row => ({ id: row.id, chunk_order: row.chunk_order, markdown: row.markdown }))
+    }
     if (sql.includes('SELECT revision FROM documents')) {
       const [id, workspaceId] = values
       const row = this.documents.get(String(id))

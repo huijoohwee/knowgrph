@@ -345,6 +345,31 @@ export function testSourceFilesPersistenceSignatureHashesContentNotLengthOnly() 
   }
 }
 
+export function testWorkspaceSourceFileEnabledToggleStaysTransientForPersistence() {
+  const workspaceDisabled = [
+    {
+      id: 'ws-1',
+      name: 'knowgrph-video-demo.md',
+      text: '# Demo',
+      enabled: false,
+      parsedTextHash: 'parsed-demo',
+      source: { kind: 'local', path: 'workspace:/docs/knowgrph-video-demo.md' },
+    },
+  ]
+  const workspaceEnabled = [
+    {
+      ...workspaceDisabled[0],
+      enabled: true,
+    },
+  ]
+  if (buildSourceFilesPersistenceSignature(workspaceDisabled) !== buildSourceFilesPersistenceSignature(workspaceEnabled)) {
+    throw new Error('expected workspace source-file enabled toggles to stay transient for persistence signature')
+  }
+  if (!areSourceFilesEqualByIdAndHash(workspaceDisabled, workspaceEnabled)) {
+    throw new Error('expected workspace source-file enabled toggles to be ignored by persistence equality guards')
+  }
+}
+
 export function testSourceLayerKeyChangeHelperCentralizesApplyBranching() {
   const previous: GraphData = {
     type: 'Graph',

@@ -61,6 +61,7 @@ export type MarkdownTokenRendererProps = {
   markdownSourceLines?: string[]
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
+  deferMermaidRender?: boolean
 }
 
 const CODEBLOCK_BOX_DRAWING_RE = /[┌┐└┘┬┴┼│─╔╗╚╝╦╩╬║═]/
@@ -121,6 +122,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     markdownSourceLines,
     forbidCopy,
     onInlineEditStateChange,
+    deferMermaidRender,
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
@@ -167,6 +169,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownSourceLines,
       forbidCopy: !!forbidCopy,
       onInlineEditStateChange,
+      deferMermaidRender: !!deferMermaidRender,
     }),
     [
       activeDocumentPath,
@@ -181,6 +184,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownWordWrap,
       forbidCopy,
       onInlineEditStateChange,
+      deferMermaidRender,
       mermaidFrontmatterConfig,
       onInsertLineAfter,
       onMoveHeadingSection,

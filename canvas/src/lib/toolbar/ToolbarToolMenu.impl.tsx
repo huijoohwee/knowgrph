@@ -35,6 +35,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 type FloatingPanelView = 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 type RequestedFloatingPanelView = FloatingPanelView
@@ -270,6 +271,7 @@ export function ToolbarToolMenu({
     uiIconScale,
     uiIconStrokeWidth,
     workspaceViewMode,
+    workspaceCanvasPaneOpen,
     canvasRenderMode,
     canvas2dRenderer,
     designRendererWebpageLayoutKey,
@@ -281,11 +283,13 @@ export function ToolbarToolMenu({
       uiIconScale: state.uiIconScale,
       uiIconStrokeWidth: state.uiIconStrokeWidth,
       workspaceViewMode: state.workspaceViewMode,
+      workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
       canvasRenderMode: state.canvasRenderMode,
       canvas2dRenderer: state.canvas2dRenderer,
       designRendererWebpageLayoutKey: state.designRendererWebpageLayoutKey,
     })),
   )
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
 
   const activeGraphRenderData = useActiveGraphRenderData(true)
   const devStatusMetrics = React.useMemo(() => {
@@ -417,8 +421,9 @@ export function ToolbarToolMenu({
 
   const floatingPanelRootStyle = React.useMemo(() => {
     const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : Z_INDEX_FLOATING_PANEL_DEFAULT
-    return { zIndex: floatingPanelPinned ? Math.max(safeZ, 1000) : 90 }
-  }, [floatingPanelPinned, floatingPanelZIndex])
+    if (floatingPanelPinned) return { zIndex: Math.max(safeZ, 1000) }
+    return { zIndex: Math.max(safeZ, workspaceEditorOverlayOpen ? 420 : 90) }
+  }, [floatingPanelPinned, floatingPanelZIndex, workspaceEditorOverlayOpen])
 
   const floatingPanelSizeStyle = React.useMemo(() => {
     const widthRatio = Number.isFinite(floatingPanelWidthRatio) ? floatingPanelWidthRatio : 0.25

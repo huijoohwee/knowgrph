@@ -140,6 +140,11 @@ const normalizeNonNegativeInt = (value: unknown, fallback: number): number => {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback
 }
+const isNonNegativeInteger = (value: unknown): value is number =>
+  typeof value === 'number'
+  && Number.isFinite(value)
+  && value >= 0
+  && Math.floor(value) === value
 const sanitizeDocumentRecord = (record: KgDocumentRecord): KgDocumentRecord => ({
   ...record,
   revision: normalizeNonNegativeInt(record.revision, 0),
@@ -203,22 +208,35 @@ const ensureKnowgrphStorageNumericRepair = async (dbState: KnowgrphStorageDb): P
   const documentRows = await collections.documents.find().exec()
   for (let i = 0; i < documentRows.length; i += 1) {
     const row = documentRows[i]!
-    const documentRevision = normalizeNonNegativeInt(row.get('documentRevision'), 0)
-    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
-    if (Number(row.get('documentRevision')) !== documentRevision || Number(row.get('updatedAtMs')) !== updatedAtMs) {
+    const rawDocumentRevision = row.get('documentRevision')
+    const rawUpdatedAtMs = row.get('updatedAtMs')
+    const documentRevision = normalizeNonNegativeInt(rawDocumentRevision, 0)
+    const updatedAtMs = normalizeNonNegativeInt(rawUpdatedAtMs, 0)
+    if (
+      !isNonNegativeInteger(rawDocumentRevision)
+      || !isNonNegativeInteger(rawUpdatedAtMs)
+      || rawDocumentRevision !== documentRevision
+      || rawUpdatedAtMs !== updatedAtMs
+    ) {
       await row.incrementalPatch({ documentRevision, updatedAtMs })
     }
   }
   const chunkRows = await collections.documentChunks.find().exec()
   for (let i = 0; i < chunkRows.length; i += 1) {
     const row = chunkRows[i]!
-    const chunkOrder = normalizeNonNegativeInt(row.get('chunkOrder'), 0)
-    const tokenEstimate = normalizeNonNegativeInt(row.get('tokenEstimate'), 0)
-    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
+    const rawChunkOrder = row.get('chunkOrder')
+    const rawTokenEstimate = row.get('tokenEstimate')
+    const rawUpdatedAtMs = row.get('updatedAtMs')
+    const chunkOrder = normalizeNonNegativeInt(rawChunkOrder, 0)
+    const tokenEstimate = normalizeNonNegativeInt(rawTokenEstimate, 0)
+    const updatedAtMs = normalizeNonNegativeInt(rawUpdatedAtMs, 0)
     if (
-      Number(row.get('chunkOrder')) !== chunkOrder
-      || Number(row.get('tokenEstimate')) !== tokenEstimate
-      || Number(row.get('updatedAtMs')) !== updatedAtMs
+      !isNonNegativeInteger(rawChunkOrder)
+      || !isNonNegativeInteger(rawTokenEstimate)
+      || !isNonNegativeInteger(rawUpdatedAtMs)
+      || rawChunkOrder !== chunkOrder
+      || rawTokenEstimate !== tokenEstimate
+      || rawUpdatedAtMs !== updatedAtMs
     ) {
       await row.incrementalPatch({ chunkOrder, tokenEstimate, updatedAtMs })
     }
@@ -228,15 +246,21 @@ const ensureKnowgrphStorageNumericRepair = async (dbState: KnowgrphStorageDb): P
     const row = graphRows[i]!
     const rawGraphJson = row.get('graphJson')
     const rawLayoutJson = row.get('layoutJson')
-    const graphRevision = normalizeNonNegativeInt(row.get('graphRevision'), 0)
-    const derivedFromDocumentRevision = normalizeNonNegativeInt(row.get('derivedFromDocumentRevision'), 0)
-    const updatedAtMs = normalizeNonNegativeInt(row.get('updatedAtMs'), 0)
+    const rawGraphRevision = row.get('graphRevision')
+    const rawDerivedFromDocumentRevision = row.get('derivedFromDocumentRevision')
+    const rawUpdatedAtMs = row.get('updatedAtMs')
+    const graphRevision = normalizeNonNegativeInt(rawGraphRevision, 0)
+    const derivedFromDocumentRevision = normalizeNonNegativeInt(rawDerivedFromDocumentRevision, 0)
+    const updatedAtMs = normalizeNonNegativeInt(rawUpdatedAtMs, 0)
     const graphJson = toCloneSafeObject(rawGraphJson, {})
     const layoutJson = toCloneSafeObjectOrNull(rawLayoutJson)
     if (
-      Number(row.get('graphRevision')) !== graphRevision
-      || Number(row.get('derivedFromDocumentRevision')) !== derivedFromDocumentRevision
-      || Number(row.get('updatedAtMs')) !== updatedAtMs
+      !isNonNegativeInteger(rawGraphRevision)
+      || !isNonNegativeInteger(rawDerivedFromDocumentRevision)
+      || !isNonNegativeInteger(rawUpdatedAtMs)
+      || rawGraphRevision !== graphRevision
+      || rawDerivedFromDocumentRevision !== derivedFromDocumentRevision
+      || rawUpdatedAtMs !== updatedAtMs
       || JSON.stringify(rawGraphJson ?? null) !== JSON.stringify(graphJson ?? null)
       || JSON.stringify(rawLayoutJson ?? null) !== JSON.stringify(layoutJson ?? null)
     ) {
@@ -393,6 +417,15 @@ const resolveApiUrl = (path: string, baseUrl?: string | null): string => {
   const safePath = normalizeString(path)
   const explicitBase = normalizeString(baseUrl)
   if (/^https?:\/\//i.test(safePath)) return safePath
+  if (typeof window !== 'undefined') {
+    const host = normalizeString(window.location?.hostname).toLowerCase()
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+    const isStoragePath = safePath.startsWith('/api/storage/')
+    if (isLocalhost && isStoragePath) {
+      // Use same-origin dev proxy to avoid browser CORS/TLS policy failures.
+      return safePath
+    }
+  }
   if (explicitBase) return new URL(safePath, explicitBase.endsWith('/') ? explicitBase : `${explicitBase}/`).toString()
   if (typeof window !== 'undefined' && window.location?.origin) {
     return new URL(safePath, window.location.origin).toString()

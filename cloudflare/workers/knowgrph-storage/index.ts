@@ -34,13 +34,24 @@ import {
   writeSyncEvent,
 } from './db'
 
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-headers': 'content-type,authorization',
+  'access-control-max-age': '86400',
+}
+
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
+  ...CORS_HEADERS,
 }
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders })
+
+const noContent = (): Response =>
+  new Response(null, { status: 204, headers: CORS_HEADERS })
 
 const errorResponse = (
   status: number,
@@ -450,7 +461,7 @@ const handleExport = async (request: Request, env: KnowgrphStorageWorkerEnv, db:
 const DOC_VIEW_HEADERS = {
   'content-type': 'text/markdown; charset=utf-8',
   'cache-control': 'public, max-age=60, must-revalidate',
-  'access-control-allow-origin': '*',
+  ...CORS_HEADERS,
 }
 
 const handleDocView = async (request: Request, _env: KnowgrphStorageWorkerEnv, db: D1DatabaseLike): Promise<Response> => {
@@ -463,18 +474,39 @@ const handleDocView = async (request: Request, _env: KnowgrphStorageWorkerEnv, d
   const workspaceId = normalizeString(decodeURIComponent(suffix.slice(0, firstSlash)))
   const canonicalPath = normalizeString(decodeURIComponent(suffix.slice(firstSlash + 1)))
   if (!workspaceId || !canonicalPath) return errorResponse(400, 'bad_request', 'workspaceId and canonicalPath are required')
-  const row = await queryFirst<{ content_md: string }>(
+  const row = await queryFirst<{ id: string; content_md: string }>(
     db,
-    'SELECT content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0',
+    'SELECT id, content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0',
     [workspaceId, canonicalPath],
   )
   if (!row) return errorResponse(404, 'not_found', 'document not found')
-  const contentMd = typeof row.content_md === 'string' ? row.content_md : ''
+  let contentMd = typeof row.content_md === 'string' ? row.content_md : ''
+  if (!contentMd.trim()) {
+    const documentId = normalizeString(row.id)
+    if (documentId) {
+      const chunks = await queryAll<Pick<DocumentChunkRow, 'id' | 'chunk_order' | 'markdown'>>(
+        db,
+        `SELECT id, chunk_order, markdown
+         FROM document_chunks
+         WHERE workspace_id = ? AND document_id = ?
+         ORDER BY chunk_order ASC, id ASC`,
+        [workspaceId, documentId],
+      )
+      const rebuilt = chunks
+        .map(chunk => normalizeString(chunk.markdown) ? String(chunk.markdown) : '')
+        .filter(Boolean)
+        .join('\n\n')
+      if (rebuilt.trim()) contentMd = rebuilt
+    }
+  }
   return new Response(contentMd, { status: 200, headers: DOC_VIEW_HEADERS })
 }
 
 export const createKnowgrphStorageWorker = () => ({
   async fetch(request: Request, env: KnowgrphStorageWorkerEnv): Promise<Response> {
+    if (request.method === 'OPTIONS') {
+      return noContent()
+    }
     const db = readDb(env)
     if (!db) return errorResponse(500, 'server_error', 'missing Cloudflare D1 binding DB')
     const url = new URL(request.url)

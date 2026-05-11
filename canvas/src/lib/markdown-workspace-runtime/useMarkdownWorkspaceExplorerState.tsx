@@ -46,6 +46,15 @@ import {
 import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
 
+const hasNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  return list.some(file => {
+    if (!file) return false
+    const sourcePath = String(file.source?.path || '')
+    return !sourcePath.startsWith('workspace:')
+  })
+}
+
 export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntimeInteractionStatusBindings & {
   active: boolean
   activePathRef: React.MutableRefObject<WorkspacePath | null>
@@ -146,15 +155,13 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
         })
       }
       workspaceRefreshSemanticKeyRef.current = semanticKey
-      workspaceSeedSyncSignatureRef.current = buildWorkspaceEntriesSemanticKey({
-        entries: pruned,
-        docsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
-      })
+      workspaceSeedSyncSignatureRef.current = semanticKey
       runtime.setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))
       const sources = resolveWorkspaceSourceIndexSnapshot(undefined)
       runtime.setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))
       try {
         const store = useGraphStore.getState()
+        const hasNonWorkspace = hasNonWorkspaceSourceFile(store.sourceFiles)
         const merged = mergeWorkspaceEntriesIntoSourceFiles({
           existing: store.sourceFiles,
           workspaceEntries: pruned,
@@ -166,7 +173,9 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
         })
         if (merged !== store.sourceFiles) {
           store.setSourceFiles(merged)
-          await scheduleApplyComposedFromSourceFiles()
+          if (hasNonWorkspace) {
+            await scheduleApplyComposedFromSourceFiles()
+          }
         }
       } catch {
         void 0
@@ -270,9 +279,10 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
             fs,
             workspaceEntries: list,
           })
+          const pruned = pruneWorkspaceEntriesForInlineSnapshot(hydratedList)
           const docsOnly = readWorkspaceSourceFilesDocsOnlySetting()
           const signature = buildWorkspaceEntriesSemanticKey({
-            entries: hydratedList,
+            entries: pruned,
             docsOnly,
           })
           if (signature !== workspaceSeedSyncSignatureRef.current) {

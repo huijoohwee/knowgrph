@@ -1,9 +1,10 @@
 import React from 'react'
 import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMarkdownEditorSsotSync'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { extractYamlFrontmatterBlock, parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
 import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
@@ -20,6 +21,15 @@ import {
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from './markdownWorkspaceSelectionSync'
 import { hashSignatureParts } from '@/lib/hash/signature'
+
+const hasNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  return list.some(file => {
+    if (!file) return false
+    const sourcePath = String(file.source?.path || '')
+    return !sourcePath.startsWith('workspace:')
+  })
+}
 
 export type MarkdownWorkspaceSelectionArgs = {
   activePath: WorkspacePath | null
@@ -108,10 +118,15 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   )
 
   const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)
+  const switchedActivePathRef = React.useRef<{ prev: WorkspacePath; next: WorkspacePath } | null>(null)
   React.useEffect(() => {
     const nextPath = args.activePath
     const prevPath = previousActivePathRef.current
     previousActivePathRef.current = nextPath
+    switchedActivePathRef.current =
+      nextPath && prevPath && prevPath !== nextPath
+        ? { prev: prevPath, next: nextPath }
+        : null
     if (!nextPath || !prevPath || prevPath === nextPath || activeEntryKind === 'folder' || !args.activeRef.current) return
     const currentText = String(args.activeTextRef.current || '')
     if (!currentText) return
@@ -131,20 +146,44 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     args.setHighlightedLineRange,
   ])
 
+  React.useEffect(() => {
+    const switched = switchedActivePathRef.current
+    if (!switched) return
+    const nextPath = switched.next
+    if (activeEntryKind === 'folder') return
+    const nextText = typeof activeEntryText === 'string' ? String(activeEntryText) : ''
+    if (!nextText.trim()) return
+    const currentText = String(args.activeTextRef.current || '')
+    if (currentText === nextText) return
+    args.setActiveTextProgrammatic(nextText)
+    args.lastLoadedRef.current = { path: nextPath, text: nextText }
+  }, [
+    activeEntryKind,
+    activeEntryText,
+    args.activePath,
+    args.activeTextRef,
+    args.lastLoadedRef,
+    args.setActiveTextProgrammatic,
+  ])
+
   const lastFrontmatterSwitchApplySigRef = React.useRef<string>('')
   const frontmatterSwitchApplyInFlightSigRef = React.useRef<string>('')
   const lastFrontmatterSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
   React.useEffect(() => {
     if (activeEntryKind === 'folder') return
     if (!activeDocumentKey) return
+    if (!hasNonWorkspaceSourceFile(useGraphStore.getState().sourceFiles)) return
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
     if (!nextText.trim()) return
+    const frontmatterBlock = extractYamlFrontmatterBlock(nextText)
+    if (!frontmatterBlock) return
     if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return
 
     const nextSig = hashSignatureParts([
       'markdown-workspace-frontmatter-switch-apply',
       activeDocumentKey,
-      nextText,
+      frontmatterBlock.rawBlock,
+      activeEntry?.updatedAtMs ?? 0,
     ])
     const nowMs = Date.now()
     const lastAttempt = lastFrontmatterSwitchApplyAttemptRef.current
@@ -180,6 +219,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   }, [
     activeDocumentKey,
     activeDocumentSourceUrl,
+    activeEntry,
     activeEntryKind,
     activeEntryText,
     args.setActiveMarkdownDocument,

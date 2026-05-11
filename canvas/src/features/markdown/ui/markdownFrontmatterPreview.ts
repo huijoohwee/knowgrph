@@ -3,20 +3,41 @@ import type { RenderOpts } from './MarkdownRendererTypes'
 import type { MarkdownVariableSsotEntry } from './markdownVariableReferences'
 import type { TokenWithLines } from './markdownPreviewLex'
 
+const FRONTMATTER_PREVIEW_MAX_ROWS = 120
+const FRONTMATTER_PREVIEW_MAX_JSON_CHARS = 800
+const FRONTMATTER_PREVIEW_MAX_ARRAY_ITEMS = 48
+const FRONTMATTER_PREVIEW_MAX_OBJECT_KEYS = 64
+
+const truncateFrontmatterPreview = (text: string): string => {
+  if (text.length <= FRONTMATTER_PREVIEW_MAX_JSON_CHARS) return text
+  return `${text.slice(0, FRONTMATTER_PREVIEW_MAX_JSON_CHARS)}…`
+}
+
+const formatFrontmatterCollectionSummary = (kind: 'array' | 'object', size: number): string => {
+  return kind === 'array' ? `[${size} items]` : `{${size} keys}`
+}
+
 export function stringifyMarkdownFrontmatterPreviewValue(value: unknown): string {
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   if (Array.isArray(value)) {
+    if (value.length > FRONTMATTER_PREVIEW_MAX_ARRAY_ITEMS) {
+      return `\`${formatFrontmatterCollectionSummary('array', value.length)}\``
+    }
     try {
-      return `\`${JSON.stringify(value)}\``
+      return `\`${truncateFrontmatterPreview(JSON.stringify(value))}\``
     } catch {
       return ''
     }
   }
   if (value == null) return '—'
   if (typeof value === 'object') {
+    const keys = Object.keys(value as Record<string, unknown>)
+    if (keys.length > FRONTMATTER_PREVIEW_MAX_OBJECT_KEYS) {
+      return `\`${formatFrontmatterCollectionSummary('object', keys.length)}\``
+    }
     try {
-      return `\`${JSON.stringify(value)}\``
+      return `\`${truncateFrontmatterPreview(JSON.stringify(value))}\``
     } catch {
       return ''
     }
@@ -31,7 +52,7 @@ export function buildMarkdownFrontmatterPreviewRows(args: {
   const fromSsot = args.variableSsotEntries.filter(entry => entry.source === 'frontmatter')
   const filteredSsot = fromSsot.filter(entry => String(entry.key || '').trim().toLowerCase() !== 'mermaid')
   if (filteredSsot.length > 0) {
-    return filteredSsot.map(entry => ({
+    return filteredSsot.slice(0, FRONTMATTER_PREVIEW_MAX_ROWS).map(entry => ({
       key: entry.key,
       line: entry.line,
       source: 'frontmatter',
@@ -39,6 +60,7 @@ export function buildMarkdownFrontmatterPreviewRows(args: {
   }
   return Object.keys(args.frontmatterMeta)
     .filter(key => String(key || '').trim().toLowerCase() !== 'mermaid')
+    .slice(0, FRONTMATTER_PREVIEW_MAX_ROWS)
     .map(key => ({
       key,
       line: 1,
@@ -113,6 +135,7 @@ export function buildMarkdownFrontmatterPreviewRenderOpts(args: {
   onToggleCollapse?: RenderOpts['onToggleCollapse']
   geoDatasetIntegration?: RenderOpts['geoDatasetIntegration']
   forbidCopy?: boolean
+  deferMermaidRender?: boolean
 }): RenderOpts {
   return {
     activeDocumentPath: args.activeDocumentPath,
@@ -132,5 +155,6 @@ export function buildMarkdownFrontmatterPreviewRenderOpts(args: {
     onToggleCollapse: args.onToggleCollapse,
     geoDatasetIntegration: args.geoDatasetIntegration,
     forbidCopy: args.forbidCopy,
+    deferMermaidRender: args.deferMermaidRender,
   }
 }

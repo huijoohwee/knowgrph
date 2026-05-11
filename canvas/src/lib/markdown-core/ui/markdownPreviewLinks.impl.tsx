@@ -164,6 +164,52 @@ const dirnameRel = (path: string): string => {
   return normalized.slice(0, idx)
 }
 
+const collapseDuplicatePrefix = (path: string, prefix: string): string => {
+  const normalizedPath = normalizeRelPath(path)
+  const normalizedPrefix = normalizeRelPath(prefix)
+  if (!normalizedPath || !normalizedPrefix) return normalizedPath
+  const doubled = `${normalizedPrefix}/${normalizedPrefix}/`
+  if (normalizedPath.startsWith(doubled)) {
+    return `${normalizedPrefix}/${normalizedPath.slice(doubled.length)}`
+  }
+  return normalizedPath
+}
+
+const resolveDocsRootPrefix = (path: string): string => {
+  const normalized = normalizeRelPath(path)
+  if (!normalized) return ''
+  const lowered = normalized.toLowerCase()
+  if (lowered === 'docs' || lowered.startsWith('docs/')) return 'docs'
+  if (lowered.endsWith('/docs')) return normalized
+  const marker = '/docs/'
+  const markerIndex = lowered.indexOf(marker)
+  if (markerIndex < 0) return ''
+  return normalizeRelPath(normalized.slice(0, markerIndex + marker.length - 1))
+}
+
+const resolveDocsAwareJoinedPath = (activeRelPath: string, rawHref: string): string => {
+  const activeRel = normalizeRelPath(activeRelPath)
+  const rawRel = normalizeRelPath(rawHref)
+  if (!rawRel) return ''
+  const baseDir = dirnameRel(activeRel)
+  const docsRootPrefix = resolveDocsRootPrefix(activeRel || baseDir)
+  if (!docsRootPrefix) {
+    return normalizeRelPath(baseDir ? `${baseDir}/${rawHref}` : rawHref)
+  }
+  if (rawRel === docsRootPrefix || rawRel.startsWith(`${docsRootPrefix}/`)) {
+    return rawRel
+  }
+  if (rawRel.startsWith('docs/')) {
+    const docsRootParent = dirnameRel(docsRootPrefix)
+    return normalizeRelPath(docsRootParent ? `${docsRootParent}/${rawRel}` : rawRel)
+  }
+  if (rawRel.includes(`/${docsRootPrefix}/`)) {
+    const repeatedIndex = rawRel.indexOf(`${docsRootPrefix}/`)
+    if (repeatedIndex >= 0) return rawRel.slice(repeatedIndex)
+  }
+  return collapseDuplicatePrefix(normalizeRelPath(baseDir ? `${baseDir}/${rawHref}` : rawHref), docsRootPrefix)
+}
+
 export const resolveHref = (href: string, activeDocumentPath: string): string => {
   const raw = String(href || '').trim()
   if (!raw) return ''
@@ -183,8 +229,7 @@ export const resolveHref = (href: string, activeDocumentPath: string): string =>
     }
     return activeRaw.replace(/^\/+/, '')
   })()
-  const baseDir = dirnameRel(activeRel)
-  const joined = normalizeRelPath(baseDir ? `${baseDir}/${raw}` : raw)
+  const joined = resolveDocsAwareJoinedPath(activeRel, raw)
   if (!joined) return ''
   return `/__codebase_asset?path=${encodeURIComponent(joined)}`
 }

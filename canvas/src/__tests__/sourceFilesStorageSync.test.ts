@@ -7,6 +7,7 @@ import {
 } from '@/lib/storage/knowgrphStorageRxdb'
 import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
+  buildSourceFilesStorageSyncSignature,
   syncSourceFilesToKnowgrphStorage,
 } from '@/features/source-files/sourceFilesStorageSync'
 
@@ -27,11 +28,13 @@ const sourceFileFixture: SourceFile = {
   },
   source: {
     kind: 'local',
-    path: 'workspace:/demo.md',
+    path: '/imports/demo.md',
   },
 }
 
 export function testKnowgrphWorkspaceIdBuildsStableScopedIdentity() {
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
   const a = buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({
     folderName: 'notes',
     accessMode: 'opfs',
@@ -52,6 +55,26 @@ export function testKnowgrphWorkspaceIdBuildsStableScopedIdentity() {
   })
   if (a !== b) throw new Error('expected workspace identity builder to be deterministic for the same workspace state')
   if (a === c) throw new Error('expected workspace identity builder to change when the workspace cache id changes')
+  if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+}
+
+export function testKnowgrphWorkspaceIdUsesStorageWorkspaceIdOverrideWhenConfigured() {
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = 'kgws:canonical-docs'
+  try {
+    const workspaceId = buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({
+      folderName: 'notes',
+      accessMode: 'opfs',
+      folderCacheId: 'cache_a',
+      selectedFolderPath: 'notes/demo',
+    })
+    if (workspaceId !== 'kgws:canonical-docs') {
+      throw new Error(`expected storage workspace id override to win, got ${workspaceId}`)
+    }
+  } finally {
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  }
 }
 
 export async function testSourceFilesStorageSyncQueuesDocumentAndGraphMutationsFromRealSourceFiles() {
@@ -111,6 +134,43 @@ export async function testSourceFilesStorageSyncQueuesDeletesFromPreviousLocalSn
     throw new Error('expected deleted source-file document mirror row to remain as a tombstone')
   }
   await __resetKnowgrphStorageDbForTests()
+}
+
+export function testSourceFilesStorageSyncSignatureIgnoresUiOnlySelectionState() {
+  const base: SourceFile = {
+    ...sourceFileFixture,
+    parsedGraphData: {
+      type: 'Graph',
+      nodes: [{ id: 'n1', label: 'Demo', type: 'Thing', properties: {} }],
+      edges: [],
+      metadata: {},
+    },
+  }
+  const signatureA = buildSourceFilesStorageSyncSignature([base])
+  const signatureB = buildSourceFilesStorageSyncSignature([{
+    ...base,
+    enabled: !base.enabled,
+    status: 'loading',
+    parsedTextHash: 'different-ui-owned-hash',
+  }])
+  if (signatureA !== signatureB) {
+    throw new Error('expected storage sync signature to ignore UI-only source-file selection/churn fields')
+  }
+}
+
+export function testSourceFilesStorageSyncSkipsWorkspaceBackedSourceFiles() {
+  const workspaceOnly: SourceFile = {
+    ...sourceFileFixture,
+    id: 'workspace-only',
+    source: {
+      kind: 'local',
+      path: 'workspace:/docs/knowgrph-video-demo.md',
+    },
+  }
+  const signature = buildSourceFilesStorageSyncSignature([workspaceOnly])
+  if (signature !== '[]') {
+    throw new Error('expected storage sync signature to skip workspace-backed source files and avoid switch-time churn')
+  }
 }
 
 export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQueueIntegration() {

@@ -71,6 +71,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
   markdownDocumentText: string
   workspaceCanvasPaneOpen: boolean
   indexingInFlight: boolean
+  userEditedActiveTextRef: React.MutableRefObject<boolean>
   canvasWorkspaceSyncMode: string
   contentMode: 'document' | 'widget'
   widgetEditorText: string
@@ -108,6 +109,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     markdownDocumentText,
     workspaceCanvasPaneOpen,
     indexingInFlight,
+    userEditedActiveTextRef,
     canvasWorkspaceSyncMode,
     contentMode,
     widgetEditorText,
@@ -351,6 +353,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
 
   React.useEffect(() => {
     if (!workspaceApplyEffectsEnabled || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return
+    if (!userEditedActiveTextRef.current) return
     const name = String(activeDocumentKey || '').trim()
     const text = String(activeText || '')
     if (!name || !text.trim()) return
@@ -363,7 +366,17 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
       void handleApply()
     }, WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS)
     return () => clearRuntimeTimeout(timer)
-  }, [activeDocumentKey, activeText, canvasWorkspaceSyncMode, contentMode, handleApply, markdownDocumentName, markdownDocumentText, workspaceApplyEffectsEnabled])
+  }, [
+    activeDocumentKey,
+    activeText,
+    canvasWorkspaceSyncMode,
+    contentMode,
+    handleApply,
+    markdownDocumentName,
+    markdownDocumentText,
+    userEditedActiveTextRef,
+    workspaceApplyEffectsEnabled,
+  ])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {

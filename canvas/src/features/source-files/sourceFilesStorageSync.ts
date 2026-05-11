@@ -1,5 +1,6 @@
 import type { SourceFile } from '@/hooks/store/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { readEnvString } from '@/lib/config.env'
 import { toCloneSafeObject } from '@/lib/storage/cloneSafe'
 import {
   getKnowgrphStorageDb,
@@ -18,8 +19,11 @@ import {
 
 const KNOWGRPH_SOURCE_FILE_DOCUMENT_ID_PREFIX = 'sf:'
 const KNOWGRPH_SOURCE_FILE_GRAPH_SNAPSHOT_ID_PREFIX = 'sf-graph:'
+const sourceFileGraphDataHashCache = new WeakMap<object, string>()
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+const readKnowgrphStorageWorkspaceIdOverride = (): string =>
+  normalizeString(readEnvString('VITE_KNOWGRPH_STORAGE_WORKSPACE_ID', ''))
 
 const normalizeSourceFileCanonicalPath = (file: SourceFile): string => {
   const sourcePath = normalizeString(file.source?.path)
@@ -51,20 +55,35 @@ const buildSourceFileDocumentHash = (file: SourceFile): string =>
       normalizeSourceFileCanonicalPath(file),
       normalizeString(file.name),
       String(file.text || ''),
-      normalizeString(file.parsedTextHash),
-      String(file.enabled ? '1' : '0'),
     ].join('|'),
   )
+
+const readSourceFileGraphDataSemanticHash = (value: unknown): string => {
+  if (!value || typeof value !== 'object') return hashStringToHex('{}')
+  const objectValue = value as object
+  const cached = sourceFileGraphDataHashCache.get(objectValue)
+  if (cached) return cached
+  const next = hashStringToHex(JSON.stringify(value))
+  sourceFileGraphDataHashCache.set(objectValue, next)
+  return next
+}
 
 const buildSourceFileGraphHash = (file: SourceFile): string =>
   hashStringToHex(
     [
       normalizeString(file.id),
       normalizeString(file.parsedParserId),
-      normalizeString(file.parsedTextHash),
-      JSON.stringify(file.parsedGraphData || {}),
+      readSourceFileGraphDataSemanticHash(file.parsedGraphData),
     ].join('|'),
   )
+
+const buildSourceFileStorageSyncToken = (file: SourceFile): string => {
+  const id = normalizeString(file.id)
+  const documentHash = buildSourceFileDocumentHash(file)
+  const hasGraphData = !!(file.parsedGraphData && typeof file.parsedGraphData === 'object')
+  const graphHash = hasGraphData ? buildSourceFileGraphHash(file) : 'nog'
+  return `${id}:${documentHash}:${graphHash}`
+}
 
 const resolveWorkspaceIdentitySeed = (workspaceState: SourceFilesWorkspaceState): string => {
   const normalized = normalizeSourceFilesWorkspaceState(workspaceState)
@@ -79,6 +98,8 @@ const resolveWorkspaceIdentitySeed = (workspaceState: SourceFilesWorkspaceState)
 export const buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState = (
   workspaceState: SourceFilesWorkspaceState,
 ): string => {
+  const workspaceIdOverride = readKnowgrphStorageWorkspaceIdOverride()
+  if (workspaceIdOverride) return workspaceIdOverride
   const normalized = normalizeSourceFilesWorkspaceState(workspaceState)
   const seed = [
     resolveWorkspaceIdentitySeed(normalized),
@@ -159,9 +180,24 @@ const shouldSyncSourceFile = (file: SourceFile | null | undefined): file is Sour
   if (!file) return false
   const id = normalizeString(file.id)
   if (!id) return false
+  const sourcePath = normalizeString(file.source?.path)
+  if (sourcePath.startsWith('workspace:')) return false
   const text = String(file.text || '')
   const canonicalPath = normalizeSourceFileCanonicalPath(file)
   return !!canonicalPath || !!text.trim()
+}
+
+export const buildSourceFilesStorageSyncSignature = (sourceFiles: SourceFile[]): string => {
+  const nextFiles = Array.isArray(sourceFiles) ? sourceFiles : []
+  const tokens: string[] = []
+  for (let i = 0; i < nextFiles.length; i += 1) {
+    const file = nextFiles[i]
+    if (!shouldSyncSourceFile(file)) continue
+    tokens.push(buildSourceFileStorageSyncToken(file))
+  }
+  if (tokens.length === 0) return '[]'
+  tokens.sort()
+  return tokens.join('|')
 }
 
 export const syncSourceFilesToKnowgrphStorage = async (args: {
@@ -221,7 +257,6 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
       const didGraphChange =
         !existingGraphSnapshot
         || normalizeString(existingGraphSnapshot.graphHash) !== nextGraphSnapshot.graphHash
-        || Number(existingGraphSnapshot.graphRevision || 0) !== nextGraphSnapshot.graphRevision
         || Number(existingGraphSnapshot.derivedFromDocumentRevision || 0) !== nextGraphSnapshot.derivedFromDocumentRevision
       if (didGraphChange) {
         await collections.graphSnapshots.incrementalUpsert(nextGraphSnapshot)

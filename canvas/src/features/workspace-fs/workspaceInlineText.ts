@@ -13,7 +13,9 @@ export function resolveWorkspaceSourceFileInlineText(
   text: string,
   maxInlineChars: number = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS,
 ): string {
-  return resolveWorkspaceEntryInlineText(text, maxInlineChars) ?? ''
+  // Source Files must remain readable even when workspace-entry inline snapshots are capped.
+  // Keep the full text when inline-cap truncation would otherwise produce a blank payload.
+  return resolveWorkspaceEntryInlineText(text, maxInlineChars) ?? String(text || '')
 }
 
 export function upsertWorkspaceEntryInlineText(args: {

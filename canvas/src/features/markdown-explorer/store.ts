@@ -34,10 +34,13 @@ export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
   lastSetActivePath: null,
   setActivePath: (path: WorkspacePath | null) => {
     const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
-    lsSetJson(LS_KEYS.markdownExplorerActivePath, normalized)
-    set({
-      activePath: normalized,
-      lastSetActivePath: normalized ? { path: normalized, atMs: Date.now() } : null,
+    set(prev => {
+      if (prev.activePath === normalized) return prev
+      lsSetJson(LS_KEYS.markdownExplorerActivePath, normalized)
+      return {
+        activePath: normalized,
+        lastSetActivePath: normalized ? { path: normalized, atMs: Date.now() } : null,
+      }
     })
   },
   requestRevealLine: (line: number | null) =>

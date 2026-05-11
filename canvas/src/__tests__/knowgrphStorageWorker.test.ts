@@ -204,3 +204,124 @@ export async function testKnowgrphStorageWorkerReturnsConflictForStaleDocumentRe
     throw new Error('expected stale document push to return a conflict acknowledgement')
   }
 }
+
+export async function testKnowgrphStorageWorkerHandlesCorsPreflightAndHeaders() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const preflightResponse = await worker.fetch(
+    new Request('https://example.com/api/storage/pull', {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'http://localhost:5174',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    }),
+    env as never,
+  )
+  if (preflightResponse.status !== 204) {
+    throw new Error(`expected OPTIONS preflight status 204, received ${preflightResponse.status}`)
+  }
+  if (preflightResponse.headers.get('access-control-allow-origin') !== '*') {
+    throw new Error('expected preflight response to expose access-control-allow-origin header')
+  }
+  const exportResponse = await worker.fetch(
+    new Request('https://example.com/api/storage/export/wk_1'),
+    env as never,
+  )
+  if (exportResponse.headers.get('access-control-allow-origin') !== '*') {
+    throw new Error('expected export response to include CORS headers')
+  }
+}
+
+export async function testKnowgrphStorageWorkerDocViewRebuildsChunkOnlyMarkdown() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const pushResponse = await worker.fetch(
+    new Request('https://example.com/api/storage/push', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'wk_doc_view_chunks',
+        deviceId: 'dev_doc_view_chunks',
+        mutations: [
+          {
+            mutationId: 'mut_doc_chunk_only',
+            workspaceId: 'wk_doc_view_chunks',
+            entity: 'document',
+            op: 'upsert',
+            recordId: 'doc_chunk_only',
+            baseRevision: null,
+            record: {
+              id: 'doc_chunk_only',
+              workspaceId: 'wk_doc_view_chunks',
+              canonicalPath: 'huijoohwee/docs/knowgrph-video-demo.md',
+              title: 'knowgrph-video-demo.md',
+              docType: 'markdown',
+              lang: null,
+              graphId: null,
+              sourceKind: 'markdown',
+              contentMd: '',
+              contentHash: 'sha256:doc-chunk-only',
+              parserVersion: 'seed-storage-docs-to-cloudflare:v1',
+              revision: 1,
+              updatedAtMs: 1_777_300_400_000,
+              deleted: false,
+            },
+          },
+          {
+            mutationId: 'mut_doc_chunk_only_0',
+            workspaceId: 'wk_doc_view_chunks',
+            entity: 'documentChunk',
+            op: 'upsert',
+            recordId: 'chunk_doc_view_0',
+            baseRevision: null,
+            record: {
+              id: 'chunk_doc_view_0',
+              documentId: 'doc_chunk_only',
+              workspaceId: 'wk_doc_view_chunks',
+              chunkKey: 'title',
+              chunkOrder: 0,
+              heading: null,
+              markdown: '# Chunk Title',
+              tokenEstimate: 4,
+              contentHash: 'sha256:chunk-doc-view-0',
+              updatedAtMs: 1_777_300_400_001,
+            },
+          },
+          {
+            mutationId: 'mut_doc_chunk_only_1',
+            workspaceId: 'wk_doc_view_chunks',
+            entity: 'documentChunk',
+            op: 'upsert',
+            recordId: 'chunk_doc_view_1',
+            baseRevision: null,
+            record: {
+              id: 'chunk_doc_view_1',
+              documentId: 'doc_chunk_only',
+              workspaceId: 'wk_doc_view_chunks',
+              chunkKey: 'body',
+              chunkOrder: 1,
+              heading: null,
+              markdown: 'Chunk body',
+              tokenEstimate: 3,
+              contentHash: 'sha256:chunk-doc-view-1',
+              updatedAtMs: 1_777_300_400_002,
+            },
+          },
+        ],
+      }),
+    }),
+    env as never,
+  )
+  if (!pushResponse.ok) throw new Error(`expected push ok before doc view read, received ${pushResponse.status}`)
+
+  const docViewResponse = await worker.fetch(
+    new Request('https://example.com/api/storage/doc/wk_doc_view_chunks/huijoohwee%2Fdocs%2Fknowgrph-video-demo.md'),
+    env as never,
+  )
+  if (!docViewResponse.ok) throw new Error(`expected doc view response ok, received ${docViewResponse.status}`)
+  const markdown = await docViewResponse.text()
+  if (markdown.trim() !== '# Chunk Title\n\nChunk body') {
+    throw new Error(`expected doc view to rebuild chunk-only markdown, got "${markdown}"`)
+  }
+}

@@ -879,13 +879,13 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     throw new Error('expected Flow Editor overlay ids to reuse last stable ids when flowEditorViewActive is transiently false during workspace mutation windows')
   }
   if (!flowEditorSurfaceText.includes('visible={flowEditorViewActive || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)}')) {
-    throw new Error('expected Flow Editor widget overlays to remain visible during workspace-open passthrough and transient workspace-mutation frames')
+    throw new Error('expected Flow Editor widget overlays to remain visible during transient workspace-mutation passthrough frames')
   }
-  if (!flowEditorSurfaceText.includes('const workspaceInteractionPassthrough = workspaceEditorOverlayOpen || workspaceMutationBlocked')) {
-    throw new Error('expected Flow Editor overlay surface to derive interaction passthrough from explicit workspace overlay-open OR shared mutation-blocked state')
+  if (!flowEditorSurfaceText.includes('const workspaceInteractionPassthrough = workspaceMutationBlocked')) {
+    throw new Error('expected Flow Editor overlay surface to derive interaction passthrough strictly from shared mutation-blocked state so workspace-open does not disable widget controls')
   }
   if (!flowEditorSurfaceText.includes('interactionPassthrough={workspaceInteractionPassthrough}')) {
-    throw new Error('expected Flow Editor overlay surface to enable overlay interaction passthrough while workspace view is open')
+    throw new Error('expected Flow Editor overlay surface to wire interaction passthrough into overlay editors')
   }
   if (!flowEditorSurfaceText.includes('|| (workspaceMutationBlocked && overlayEditorNodeIds.length > 0)')) {
     throw new Error('expected Flow Editor overlay surface hasOverlayEditors guard to keep overlay layers mounted during transient workspace mutation frames')

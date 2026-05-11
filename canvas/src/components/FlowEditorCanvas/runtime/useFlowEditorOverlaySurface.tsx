@@ -133,7 +133,7 @@ export function useFlowEditorOverlaySurface(args: {
   } = args
   const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
-  const workspaceInteractionPassthrough = workspaceEditorOverlayOpen || workspaceMutationBlocked
+  const workspaceInteractionPassthrough = workspaceMutationBlocked
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')

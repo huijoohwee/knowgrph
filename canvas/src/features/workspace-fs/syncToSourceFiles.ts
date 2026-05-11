@@ -91,7 +91,9 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
         : { kind: 'local', path: srcPath }
 
     const inlineText = typeof e.text === 'string' ? e.text : null
-    const text = inlineText != null ? inlineText : (prev?.text ?? '')
+    const text = inlineText && inlineText.trim().length > 0
+      ? inlineText
+      : (prev?.text ?? '')
 
     const enabled = forceInclude.has(path)
       ? true

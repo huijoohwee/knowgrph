@@ -46,6 +46,31 @@ const buildSeedWorkspacePathAliases = (...paths: Array<unknown>): string[] => {
   return [...out]
 }
 
+const canonicalizeWorkspaceDocsPath = (path: string): string => {
+  const normalized = normalizeWorkspacePath(path)
+  const collapseDocsDuplicatePrefix = (value: string): string => {
+    let next = normalizeWorkspacePath(value)
+    if (!next || next === '/') return next
+    const lower = next.toLowerCase()
+    const duplicatedDocsPrefix = '/docs/huijoohwee/docs/'
+    if (lower.startsWith(duplicatedDocsPrefix)) {
+      next = `/docs/${next.slice(duplicatedDocsPrefix.length)}`
+    }
+    const docsMarker = '/huijoohwee/docs/'
+    const markerIndex = next.toLowerCase().indexOf(docsMarker)
+    if (markerIndex >= 0) {
+      next = `/docs/${next.slice(markerIndex + docsMarker.length)}`
+    }
+    return normalizeWorkspacePath(next)
+  }
+  const collapsed = collapseDocsDuplicatePrefix(normalized)
+  const docsSegment = '/docs/'
+  if (collapsed.startsWith(docsSegment)) return collapsed
+  const docsIndex = collapsed.lastIndexOf(docsSegment)
+  if (docsIndex < 0) return collapsed
+  return normalizeWorkspacePath(collapsed.slice(docsIndex))
+}
+
 const WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH = new Map<string, string>([
   ...buildSeedWorkspacePathAliases(
     LEGACY_WORKSPACE_README_PATH,
@@ -94,13 +119,16 @@ export function resolveWorkspaceSeedSourcePath(path: unknown): string | null {
     }
     return normalizeWorkspacePath(normalized)
   })()
-  if (normalizedWorkspacePath.startsWith('/docs/')) {
-    return `workspace:${normalizedWorkspacePath}`
+  const canonicalDocsWorkspacePath = canonicalizeWorkspaceDocsPath(normalizedWorkspacePath)
+  if (canonicalDocsWorkspacePath.startsWith('/docs/')) {
+    return `workspace:${canonicalDocsWorkspacePath}`
   }
   if (normalized.startsWith('workspace:')) {
     const workspacePath = normalizeWorkspacePath(normalized.slice('workspace:'.length))
     if (workspacePath) {
-      return WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(workspacePath) || null
+      return WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(workspacePath)
+        || WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(canonicalizeWorkspaceDocsPath(workspacePath))
+        || null
     }
   }
   return null

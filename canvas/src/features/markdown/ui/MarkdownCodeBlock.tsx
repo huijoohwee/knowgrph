@@ -213,7 +213,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   }, [baseWordWrapEnabled, localWordWrapEnabled, wordWrapOverride])
 
   const effectiveViewMode = localMode
-  const isRender = effectiveViewMode === 'render'
+  const isRender = effectiveViewMode === 'render' && !(isMermaidLang && opts.deferMermaidRender)
   const isBeside = effectiveViewMode === 'beside'
   const canToggleWordWrap = !isAsciiDiagram && !isRender
   const effectiveWrapClass = canToggleWordWrap && effectiveWordWrap ? 'whitespace-pre-wrap break-words' : ''

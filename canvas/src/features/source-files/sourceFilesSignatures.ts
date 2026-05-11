@@ -23,6 +23,13 @@ type SourceFileLike = {
 
 const sourceFileTextHashCache = new WeakMap<object, string>()
 
+const shouldPersistEnabledForSourceFile = (entry: SourceFileLike): boolean => {
+  const sourcePath = String(entry?.source?.path || '').trim()
+  // Workspace-backed file selection is runtime UI state and should not churn persistence/sync pipelines.
+  if (sourcePath.startsWith('workspace:')) return false
+  return true
+}
+
 export const getSourceFileTextHash = (entry: unknown): string => {
   if (!entry || typeof entry !== 'object') return hashStringToHex('')
   const cached = sourceFileTextHashCache.get(entry as object)
@@ -44,7 +51,8 @@ export const areSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean 
     const yParsed = readSourceFileParsedState(y)
     if (String(x?.id || '') !== String(y?.id || '')) return false
     if (String(xParsed.parsedTextHash || '') !== String(yParsed.parsedTextHash || '')) return false
-    if (String(x?.enabled || '') !== String(y?.enabled || '')) return false
+    const compareEnabled = shouldPersistEnabledForSourceFile(x) || shouldPersistEnabledForSourceFile(y)
+    if (compareEnabled && String(x?.enabled || '') !== String(y?.enabled || '')) return false
     if (getSourceFileTextHash(x) !== getSourceFileTextHash(y)) return false
   }
   return true
@@ -59,7 +67,9 @@ export const buildSourceFilesPersistenceSignature = (value: unknown): string => 
       const parsed = readSourceFileParsedState(item)
       const id = String(item?.id || '')
       const parsedTextHash = String(parsed.parsedTextHash || '')
-      const enabled = String(item?.enabled || '')
+      const enabled = shouldPersistEnabledForSourceFile(item)
+        ? String(item?.enabled || '')
+        : 'transient'
       const textHash = getSourceFileTextHash(item)
       return `${id}:${parsedTextHash}:${enabled}:${textHash}`
     })

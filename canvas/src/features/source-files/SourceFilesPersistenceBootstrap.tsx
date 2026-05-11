@@ -45,6 +45,7 @@ import {
 } from '@/features/source-files/sourceFilesWorkspaceState'
 import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
+  buildSourceFilesStorageSyncSignature,
   syncSourceFilesToKnowgrphStorage,
 } from '@/features/source-files/sourceFilesStorageSync'
 import { applyPulledKnowgrphStorageChangesToSourceFiles } from '@/features/source-files/sourceFilesInboundStorageApply'
@@ -58,7 +59,7 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { readEnvString } from '@/lib/config.env'
 import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
-import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
 import {
   readWorkspaceSeedSyncEnabledSetting,
@@ -71,6 +72,7 @@ import {
 import { computeWorkspaceSeedSyncNextDelayMs } from '@/lib/workspace/workspaceSeedSyncBackoff'
 
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
+const ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS = 800
 const KNOWGRPH_STORAGE_BASE_URL = (() => {
   const raw = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
   return raw || null
@@ -146,6 +148,47 @@ const readCurrentSourceFilesWorkspaceState = (): SourceFilesWorkspaceState =>
     selectedFolderPath: useGraphStore.getState().localMarkdownSelectedFolderPath,
   })
 
+const hasEnabledNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  return list.some(file => {
+    if (!file?.enabled) return false
+    const sourcePath = String(file.source?.path || '')
+    return !sourcePath.startsWith('workspace:')
+  })
+}
+
+const hasNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  return list.some(file => {
+    if (!file) return false
+    const sourcePath = String(file.source?.path || '')
+    return !sourcePath.startsWith('workspace:')
+  })
+}
+
+const hasWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  return list.some(file => {
+    if (!file) return false
+    const sourcePath = String(file.source?.path || '')
+    return sourcePath.startsWith('workspace:')
+  })
+}
+
+const pruneWorkspaceSourceFilesToActive = (args: {
+  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
+  activePath: string | null
+}): ReturnType<typeof useGraphStore.getState>['sourceFiles'] => {
+  const list = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
+  const activeSourcePath = args.activePath ? resolveWorkspaceSourcePathKey(args.activePath) : ''
+  return list.filter(file => {
+    if (!file) return false
+    const sourcePath = String(file.source?.path || '')
+    if (!sourcePath.startsWith('workspace:')) return true
+    return !!activeSourcePath && sourcePath === activeSourcePath
+  })
+}
+
 export function SourceFilesPersistenceBootstrap() {
   const runtimePersistenceScopeKey = WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE
   const knowgrphStorageScopeKey = WORKSPACE_SYNC_SCOPE_KNOWGRPH_STORAGE_RUNTIME_PERSISTENCE
@@ -159,10 +202,17 @@ export function SourceFilesPersistenceBootstrap() {
   const lastQueuedKnowgrphStorageSourceFilesRef = React.useRef<ReturnType<typeof useGraphStore.getState>['sourceFiles']>([])
   const activeKnowgrphWorkspaceIdRef = React.useRef('')
   const knowgrphStorageLoopCleanupRef = React.useRef<(() => void) | null>(null)
+  const knowgrphInboundApplyInFlightRef = React.useRef(false)
   const workspaceMaterializeInFlightRef = React.useRef(false)
   const workspaceMaterializeQueuedRef = React.useRef(false)
   const workspaceMaterializeTimerRef = React.useRef<number | null>(null)
+  const activePathMaterializeInFlightRef = React.useRef(false)
+  const queuedActivePathMaterializeRef = React.useRef<string | null>(null)
+  const suppressComposeUntilMsRef = React.useRef(0)
   const lastWorkspaceEntriesSignatureRef = React.useRef('')
+  const reusableWorkspaceFsRef = React.useRef<Awaited<ReturnType<typeof getWorkspaceFs>> | null>(null)
+  const reusableWorkspaceEntriesRef = React.useRef<ReturnType<typeof readReusableWorkspaceEntriesSnapshot>>(undefined)
+  const reusableWorkspaceSourcesByPathRef = React.useRef<ReturnType<typeof resolveWorkspaceSourceIndexSnapshot> | null>(null)
   const [workspaceSyncSettingsRev, setWorkspaceSyncSettingsRev] = React.useState(0)
 
   React.useEffect(() => {
@@ -192,7 +242,8 @@ export function SourceFilesPersistenceBootstrap() {
     if (!workspaceId) return
     const taskKey = WORKSPACE_SYNC_TASK_KNOWGRPH_STORAGE_QUEUE
     const nextSourceFiles = Array.isArray(sourceFiles) ? sourceFiles : useGraphStore.getState().sourceFiles
-    const signature = `${workspaceId}:${buildSourceFilesPersistenceSignature(nextSourceFiles)}`
+    if (!hasNonWorkspaceSourceFile(nextSourceFiles)) return
+    const signature = `${workspaceId}:${buildSourceFilesStorageSyncSignature(nextSourceFiles)}`
     scheduleWorkspaceSyncTask(
       taskKey,
       () => {
@@ -200,7 +251,7 @@ export function SourceFilesPersistenceBootstrap() {
           activeKnowgrphWorkspaceIdRef.current ||
           buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState(readCurrentSourceFilesWorkspaceState())
         const latestSourceFiles = useGraphStore.getState().sourceFiles
-        const latestSignature = `${latestWorkspaceId}:${buildSourceFilesPersistenceSignature(latestSourceFiles)}`
+        const latestSignature = `${latestWorkspaceId}:${buildSourceFilesStorageSyncSignature(latestSourceFiles)}`
         if (lastQueuedKnowgrphStorageSignatureRef.current === latestSignature) return
         void syncSourceFilesToKnowgrphStorage({
           workspaceId: latestWorkspaceId,
@@ -326,11 +377,16 @@ export function SourceFilesPersistenceBootstrap() {
         },
         onPulledChangesApplied: ({ workspaceId, changes }) => {
           if (activeKnowgrphWorkspaceIdRef.current !== workspaceId) return
-          const result = applyPulledKnowgrphStorageChangesToSourceFiles({ workspaceId, changes })
-          if (!result.applied) return
-          const nextSourceFiles = useGraphStore.getState().sourceFiles
-          lastQueuedKnowgrphStorageSourceFilesRef.current = nextSourceFiles
-          lastQueuedKnowgrphStorageSignatureRef.current = `${workspaceId}:${buildSourceFilesPersistenceSignature(nextSourceFiles)}`
+          knowgrphInboundApplyInFlightRef.current = true
+          try {
+            const result = applyPulledKnowgrphStorageChangesToSourceFiles({ workspaceId, changes })
+            if (!result.applied) return
+            const nextSourceFiles = useGraphStore.getState().sourceFiles
+            lastQueuedKnowgrphStorageSourceFilesRef.current = nextSourceFiles
+            lastQueuedKnowgrphStorageSignatureRef.current = `${workspaceId}:${buildSourceFilesStorageSyncSignature(nextSourceFiles)}`
+          } finally {
+            knowgrphInboundApplyInFlightRef.current = false
+          }
         },
       })
       scheduleKnowgrphStorageQueueSync(useGraphStore.getState().sourceFiles)
@@ -417,6 +473,7 @@ export function SourceFilesPersistenceBootstrap() {
         do {
           workspaceMaterializeQueuedRef.current = false
           const fs = await getWorkspaceFs()
+          reusableWorkspaceFsRef.current = fs
           const workspaceEntries = await fs.listEntries()
           const hydratedWorkspaceEntries = await hydrateWorkspaceEntriesInlineText({
             fs,
@@ -429,6 +486,8 @@ export function SourceFilesPersistenceBootstrap() {
           if (signature === lastWorkspaceEntriesSignatureRef.current) continue
           lastWorkspaceEntriesSignatureRef.current = signature
           const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
+          reusableWorkspaceEntriesRef.current = readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries)
+          reusableWorkspaceSourcesByPathRef.current = sourcesByPath
           const activePath = resolveMaterializedWorkspaceActivePath({
             explorerActivePath: useMarkdownExplorerStore.getState().activePath,
           })
@@ -443,15 +502,32 @@ export function SourceFilesPersistenceBootstrap() {
             }),
             workspaceDocsOnly: workspaceSourceFilesDocsOnly,
           })
-          if (merged !== existing) {
-            store.setSourceFiles(merged)
-          }
-          await materializeActiveWorkspaceEntryIntoSourceFiles({
-            activePathOverride: activePath,
-            fs,
-            workspaceEntries: readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries),
-            sourcesByPath,
+          const runtimeMerged = pruneWorkspaceSourceFilesToActive({
+            sourceFiles: merged,
+            activePath,
           })
+          if (runtimeMerged !== existing) {
+            store.setSourceFiles(runtimeMerged)
+          }
+          const canSkipActiveRematerialization = (() => {
+            if (!activePath) return true
+            const activeSourcePath = resolveWorkspaceSourcePathKey(activePath)
+            for (let i = 0; i < runtimeMerged.length; i += 1) {
+              const file = runtimeMerged[i]
+              if (!file) continue
+              if (String(file.source?.path || '') !== activeSourcePath) continue
+              return file.enabled === true && String(file.text || '').trim().length > 0
+            }
+            return false
+          })()
+          if (!canSkipActiveRematerialization) {
+            await materializeActiveWorkspaceEntryIntoSourceFiles({
+              activePathOverride: activePath,
+              fs,
+              workspaceEntries: readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries),
+              sourcesByPath,
+            })
+          }
         } while (workspaceMaterializeQueuedRef.current)
       } catch {
         void 0
@@ -460,6 +536,8 @@ export function SourceFilesPersistenceBootstrap() {
       }
     }
     const scheduleRematerialize = () => {
+      const sourceFiles = useGraphStore.getState().sourceFiles
+      if (!hasNonWorkspaceSourceFile(sourceFiles) && !hasWorkspaceSourceFile(sourceFiles)) return
       if (workspaceMaterializeTimerRef.current != null) {
         window.clearTimeout(workspaceMaterializeTimerRef.current)
         workspaceMaterializeTimerRef.current = null
@@ -477,6 +555,8 @@ export function SourceFilesPersistenceBootstrap() {
     lastWorkspaceEntriesSignatureRef.current = ''
     scheduleRematerialize()
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
+      const sourceFiles = useGraphStore.getState().sourceFiles
+      if (!hasNonWorkspaceSourceFile(sourceFiles) && !hasWorkspaceSourceFile(sourceFiles)) return
       const op = String(detail?.op || '')
       if (!op) return
       if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return
@@ -484,7 +564,7 @@ export function SourceFilesPersistenceBootstrap() {
       const activePath = resolveMaterializedWorkspaceActivePath({
         explorerActivePath: useMarkdownExplorerStore.getState().activePath,
       })
-      if (op === 'writeFileText' && !!changedPath && !!activePath && changedPath === activePath) return
+      if ((op === 'writeFileText' || op === 'batch') && !!changedPath && !!activePath && changedPath === activePath) return
       if (workspaceSourceFilesDocsOnly) {
         const hasPath = !!changedPath
         const isDocsPath = hasPath && changedPath.startsWith('/docs/')
@@ -511,16 +591,35 @@ export function SourceFilesPersistenceBootstrap() {
       })
       if (!activePath) {
         lastMaterializedActivePathRef.current = ''
+        queuedActivePathMaterializeRef.current = null
         return
       }
       const activePathKey = buildMaterializedWorkspaceActivePathKey({
         activePathOverride: activePath,
       })
+      if (activePathMaterializeInFlightRef.current) {
+        queuedActivePathMaterializeRef.current = activePath
+        return
+      }
       if (lastMaterializedActivePathRef.current === activePathKey) return
+      activePathMaterializeInFlightRef.current = true
+      suppressComposeUntilMsRef.current = Date.now() + ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS
       lastMaterializedActivePathRef.current = activePathKey
-      void materializeActiveWorkspaceEntryIntoSourceFiles().catch(() => {
+      void materializeActiveWorkspaceEntryIntoSourceFiles({
+        activePathOverride: activePath,
+        fs: reusableWorkspaceFsRef.current || undefined,
+        workspaceEntries: reusableWorkspaceEntriesRef.current,
+        sourcesByPath: reusableWorkspaceSourcesByPathRef.current || undefined,
+      }).catch(() => {
         if (lastMaterializedActivePathRef.current === activePathKey) {
           lastMaterializedActivePathRef.current = ''
+        }
+      }).finally(() => {
+        activePathMaterializeInFlightRef.current = false
+        const queuedActivePath = queuedActivePathMaterializeRef.current
+        queuedActivePathMaterializeRef.current = null
+        if (queuedActivePath && queuedActivePath !== activePath) {
+          syncNow(queuedActivePath)
         }
       })
     }
@@ -548,8 +647,18 @@ export function SourceFilesPersistenceBootstrap() {
       buildSignature: next => buildSourceFilesPersistenceSignature(next),
       persist: next => persistSourceFiles(next as never),
       onSnapshot: next => {
-        scheduleKnowgrphStorageQueueSync(next as never)
+        if (!knowgrphInboundApplyInFlightRef.current) {
+          scheduleKnowgrphStorageQueueSync(next as never)
+        }
+        if (!hasEnabledNonWorkspaceSourceFile(next as never)) {
+          // Source Files switching across workspace docs should not trigger composed graph apply churn.
+          return
+        }
         const compositionSignature = buildSourceFilesCompositionSignature(next)
+        if (Date.now() < suppressComposeUntilMsRef.current) {
+          lastComposeSignatureRef.current = compositionSignature
+          return
+        }
         if (compositionSignature !== lastComposeSignatureRef.current) {
           lastComposeSignatureRef.current = compositionSignature
           try {
