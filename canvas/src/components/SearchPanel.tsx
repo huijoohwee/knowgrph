@@ -3,13 +3,14 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { scheduleDebouncedSearch } from '@/features/toolbar/utils'
 import type { SearchResult } from '@/features/search/types'
 import { UI_ANCHORS } from '@/lib/config'
+import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 
 interface SearchPanelProps {
   onClose?: () => void
 }
 
 const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, ref) => {
-  const { graphData, graphDataRevision, selectNode, selectEdge, setSelectionSource, requestZoom, graphId, historyIndex } = useGraphStore()
+  const { graphData, graphDataRevision, selectNode, selectEdge, setSelectionSource, graphId, historyIndex } = useGraphStore()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
 
@@ -25,9 +26,9 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
     setSelectionSource('menu')
     if (result.kind === 'node') selectNode(result.id)
     else selectEdge(result.id)
-    requestZoom('selection')
+    dispatchRuntimeZoomActionSoon('selection')
     onClose?.()
-  }, [onClose, requestZoom, selectEdge, selectNode, setSelectionSource])
+  }, [onClose, selectEdge, selectNode, setSelectionSource])
 
   return (
     <div

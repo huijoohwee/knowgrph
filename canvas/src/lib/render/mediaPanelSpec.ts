@@ -11,6 +11,10 @@ export const MEDIA_PANEL_ASPECT_HEIGHT = 9
 export const MEDIA_PANEL_PADDING = 4
 export const MEDIA_PANEL_CORNER_AT_MAX_ZOOM = 8
 export const MEDIA_PANEL_BORDER_WIDTH_AT_MAX_ZOOM = 1
+export const MEDIA_PANEL_LAYOUT_FRAME_16X9 = {
+  width: 1920,
+  height: 1080,
+} as const
 
 export function computeMediaPanelWorldDims(density: MediaPanelDensity): {
   headerHeight: number

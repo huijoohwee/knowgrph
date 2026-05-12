@@ -155,7 +155,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       {isMainPanelOpen && (
         <div
-          className={`${effectiveMainPanelPinned ? 'fixed inset-0 z-[2000]' : 'fixed inset-0 z-[80]'} ${isNarrowViewport ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          className={`${effectiveMainPanelPinned ? 'fixed inset-0 z-[2000]' : 'fixed inset-0 z-[80]'} ${(isNarrowViewport || effectiveMainPanelPinned) ? 'pointer-events-auto' : 'pointer-events-none'}`}
         >
           {isNarrowViewport ? (
             <>

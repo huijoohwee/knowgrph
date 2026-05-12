@@ -6,6 +6,7 @@ import type { ZoomRequest } from '@/lib/zoom/requests'
 import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import { resolveScaleExtentForZoomRequest } from '@/lib/zoom/scaleExtentPolicy'
 import type { ToolbarZoomConfig } from '@/lib/zoom/toolbarZoom'
+import { resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 
 export type ZoomRequestResolve2dResult = {
   nextTransform: d3.ZoomTransform
@@ -22,6 +23,8 @@ export function resolveZoomRequest2d(args: {
   graphDataRevision: number
   viewportW: number
   viewportH: number
+  viewportFitReferenceWidth?: number
+  viewportFitReferenceHeight?: number
   fitFillRatio?: number
   viewPinned: boolean
   durations?: Partial<{ fitMs: number; selectionMs: number }>
@@ -44,13 +47,19 @@ export function resolveZoomRequest2d(args: {
     currentTransform: args.currentTransform,
     toolbarZoom: args.toolbarZoom,
   })
+  const fitReferenceFrame = resolveFitReferenceFrame({
+    viewportW: args.viewportW,
+    viewportH: args.viewportH,
+    referenceWidth: (args as { viewportFitReferenceWidth?: number }).viewportFitReferenceWidth,
+    referenceHeight: (args as { viewportFitReferenceHeight?: number }).viewportFitReferenceHeight,
+  })
   const res = computeZoomTransformFromRequest(args.zoomRequest, {
     graphData: args.graphData,
     schema: args.schema,
     documentSemanticMode: args.documentSemanticMode,
     graphDataRevision: args.graphDataRevision,
-    viewportW: args.viewportW,
-    viewportH: args.viewportH,
+    viewportW: fitReferenceFrame.width,
+    viewportH: fitReferenceFrame.height,
     fitFillRatio: args.fitFillRatio,
     pinned: args.viewPinned,
     durations: args.durations,

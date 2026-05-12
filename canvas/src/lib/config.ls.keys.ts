@@ -289,6 +289,8 @@ export const LS_KEYS = {
   viewportPinned: 'kg:ui:viewport:pinned',
   viewportFitToScreen: 'kg:ui:viewport:fitToScreen',
   viewportFitFillRatio: 'kg:ui:viewport:fitFillRatio',
+  viewportFitReferenceWidth: 'kg:ui:viewport:fitReferenceWidth',
+  viewportFitReferenceHeight: 'kg:ui:viewport:fitReferenceHeight',
   frontmatterFlowInitialFitFillRatio: 'kg:render:flow:frontmatter:initialFitFillRatio',
   frontmatterFlowOverlayFitProxyScalePhone: 'kg:render:flow:frontmatter:overlayFitProxyScalePhone',
   frontmatterFlowOverlayFitProxyScaleTablet: 'kg:render:flow:frontmatter:overlayFitProxyScaleTablet',

@@ -9,6 +9,7 @@ import {
   WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE,
 } from '@/lib/async/workspaceSyncKeys'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { dispatchRuntimeFitIntentSoon, dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { hashText } from '@/features/parsers/hash'
 import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
@@ -319,17 +320,17 @@ export function CanvasSyncRuntime(props: {
             ? (payload.zoomRequest as { type?: unknown; intent?: unknown; payload?: unknown })
             : null
           if (!zr) return
-          const store = useGraphStore.getState()
           const t = typeof zr.type === 'string' ? zr.type : ''
           if (t === 'in' || t === 'out' || t === 'reset' || t === 'selection') {
-            store.requestZoom(t)
+            dispatchRuntimeZoomActionSoon(t)
             return
           }
           if (t === 'fit') {
-            const intent = typeof zr.intent === 'string' ? (zr.intent as never) : 'fitToView'
-            store.requestZoom('fit', { intent })
+            const intent = zr.intent === 'fitToScreen' ? 'fitToScreen' : 'fitToView'
+            dispatchRuntimeFitIntentSoon(intent)
             return
           }
+          const store = useGraphStore.getState()
           if (t === 'bounds') {
             const p = (zr as { payload?: unknown }).payload as {
               bounds?: { x?: unknown; y?: unknown; w?: unknown; h?: unknown }

@@ -8,6 +8,7 @@ import { CanvasSyncRuntime } from '@/features/canvas/CanvasSyncRuntime'
 import { CanvasHotkeysRuntime } from '@/features/canvas/CanvasHotkeysRuntime'
 import { CanvasFrontmatterRuntime } from '@/features/canvas/CanvasFrontmatterRuntime'
 import { useCanvasWorkspacePaneRuntime } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
+import { dispatchRuntimeZoomAction } from '@/lib/canvas/runtimeZoomDispatch'
 import { useCanvasGeospatialRuntime } from '@/features/canvas/useCanvasGeospatialRuntime'
 import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'
 import { CanvasDocDeepLinkRuntime } from '@/features/canvas/CanvasDocDeepLinkRuntime'
@@ -103,17 +104,8 @@ export default function CanvasPage() {
   )
   const geospatialModeEnabled = useCanvasGeospatialRuntime()
 
-  const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
-    const store = useGraphStore.getState()
-    if (geospatialModeEnabled) {
-      store.requestZoom(type)
-      return
-    }
-    if (store.canvasRenderMode === '2d') {
-      store.requestZoom(type)
-    } else {
-      store.requestThreeCamera(type)
-    }
+  const makeZoomHandler = (type: 'in' | 'out' | 'reset' | 'selection') => () => {
+    void dispatchRuntimeZoomAction(type)
   }
 
   const handleZoomIn = makeZoomHandler('in')
@@ -151,6 +143,7 @@ export default function CanvasPage() {
             <CanvasViewport
               variant="embeddedPreview"
               geospatialModeEnabled={geospatialModeEnabled}
+              workspaceEditorOverlayOpen={false}
               canvasRenderMode={canvasRenderMode}
               canvas3dMode={canvas3dMode}
               canvas2dRenderer={canvas2dRenderer}
@@ -203,6 +196,7 @@ export default function CanvasPage() {
                       variant="workspace"
                       layout="full"
                       geospatialModeEnabled={geospatialModeEnabled}
+                      workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
                       canvasRenderMode={canvasRenderMode}
                       canvas3dMode={canvas3dMode}
                       canvas2dRenderer={canvas2dRenderer}
@@ -218,7 +212,7 @@ export default function CanvasPage() {
                     >
                       <section
                         className={`absolute inset-y-0 left-0 pointer-events-auto overflow-hidden bg-[var(--kg-panel-bg)] ${workspaceCanvasPaneVisible ? 'border-r border-[var(--kg-border)] shadow-2xl' : ''}`}
-                        style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}
+                        style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : 'min(100%, var(--kg-workspace-pane-width, 32rem))' }}
                         aria-label="Workspace left pane"
                         data-kg-workspace-left-pane="1"
                       >

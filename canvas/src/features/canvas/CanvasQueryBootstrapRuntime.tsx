@@ -1,7 +1,30 @@
 import React from 'react'
 import { emitMainPanelOpen, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
-import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_URL } from '@/lib/routing/queryParams'
+import { QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY, QUERY_PARAM_OPEN_EDITOR_WORKSPACE, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_URL } from '@/lib/routing/queryParams'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { applyGraphDataCanonicalBootstrap } from '@/features/parsers/applyGraphDataCanonicalBootstrap'
+
+const buildDevFlowEditorGeometryGraph = () => ({
+  type: 'Graph' as const,
+  nodes: [
+    { id: 'dev-widget-1', label: 'Dev Widget 1', type: 'Anchor', x: 0, y: 0, properties: {} },
+    { id: 'dev-widget-2', label: 'Dev Widget 2', type: 'Anchor', x: 0, y: 0, properties: {} },
+    {
+      id: 'dev-media-1',
+      label: 'Dev Media 1',
+      type: 'RichMediaPanel',
+      x: 0,
+      y: 0,
+      properties: {
+        imageUrl: 'https://example.com/dev-flow-editor-geometry.png',
+        'visual:width': 240,
+        'visual:height': 180,
+      },
+    },
+  ],
+  edges: [],
+  metadata: { kind: 'test', source: 'devFlowEditorGeometry' },
+})
 
 export const shouldOpenEditorWorkspaceFromSearch = (search: string): boolean => {
   const raw = String(search || '')
@@ -19,6 +42,41 @@ export function CanvasQueryBootstrapRuntime(props: {
 }) {
   const { search } = props
   const openedMainPanelFromQueryRef = React.useRef(false)
+  const appliedDevFlowEditorGeometryRef = React.useRef(false)
+  const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
+  const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
+  const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled)
+  const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
+  const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
+  const setOpenWidgetNodeIds = useGraphStore(s => s.setOpenWidgetNodeIds)
+
+  React.useEffect(() => {
+    if (appliedDevFlowEditorGeometryRef.current) return
+    const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+    if (!anyImportMeta.env?.DEV) return
+    const raw = String(search || '')
+    if (!raw) return
+    const params = new URLSearchParams(raw)
+    if (!String(params.get(QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY) || '').trim()) return
+    appliedDevFlowEditorGeometryRef.current = true
+    try {
+      applyGraphDataCanonicalBootstrap({ graphData: buildDevFlowEditorGeometryGraph() })
+      setOpenWidgetNodeIds(['dev-widget-1', 'dev-widget-2'])
+    } catch {
+      void 0
+    }
+    try {
+      params.delete(QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY)
+      const next = params.toString()
+      const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
+      window.history.replaceState(null, '', nextUrl)
+    } catch {
+      void 0
+    }
+  }, [
+    search,
+    setOpenWidgetNodeIds,
+  ])
 
   React.useEffect(() => {
     if (openedMainPanelFromQueryRef.current) return

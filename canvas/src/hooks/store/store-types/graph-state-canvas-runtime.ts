@@ -170,6 +170,8 @@ export interface GraphStateCanvasRuntime {
   zoomDurationSelectionMs: number;
   wheelZoomCtrlMetaBoostMultiplier: number;
   viewportFitFillRatio: number;
+  viewportFitReferenceWidth: number;
+  viewportFitReferenceHeight: number;
   frontmatterFlowInitialFitFillRatio: number;
   frontmatterFlowOverlayFitProxyScalePhone: number;
   frontmatterFlowOverlayFitProxyScaleTablet: number;
@@ -196,6 +198,8 @@ export interface GraphStateCanvasRuntime {
   setZoomDurationSelectionMs: (v: number) => void;
   setWheelZoomCtrlMetaBoostMultiplier: (v: number) => void;
   setViewportFitFillRatio: (v: number) => void;
+  setViewportFitReferenceWidth: (v: number) => void;
+  setViewportFitReferenceHeight: (v: number) => void;
   setFrontmatterFlowInitialFitFillRatio: (v: number) => void;
   setFrontmatterFlowOverlayFitProxyScalePhone: (v: number) => void;
   setFrontmatterFlowOverlayFitProxyScaleTablet: (v: number) => void;

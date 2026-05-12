@@ -17,8 +17,7 @@ import {
   buildNeo4jGraph,
 } from '@/lib/graph/db'
 import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
-import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
-import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { applyGraphDataCanonicalBootstrap } from '@/features/parsers/applyGraphDataCanonicalBootstrap'
 
 export type LoaderResult = {
   parserId?: string
@@ -182,9 +181,7 @@ export async function loadGraphDataFromBackendViaParser(url: string): Promise<Lo
   const fetched = await fetchBackendGraphData(url)
   if (!fetched) return null
   try {
-    useGraphStore.getState().setGraphData(fetched.data)
-    const appliedGraphPreset = applyFrontmatterFlowImportModes(fetched.data)
-    if (!appliedGraphPreset) applyCanvasFrontmatterPreset({ graphData: fetched.data })
+    applyGraphDataCanonicalBootstrap({ graphData: fetched.data })
   } catch {
     void 0
   }
@@ -293,14 +290,7 @@ export async function loadGraphDataFromTextViaParser(
       if (options?.applyToStore !== false) {
         notifyLoaderProgress(options, 'Applying graph')
         try {
-          useGraphStore.getState().setGraphData(graphData)
-          const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData)
-          if (!appliedGraphPreset) {
-            applyCanvasFrontmatterPreset({
-              graphData,
-              rawText: normalizedText,
-            })
-          }
+          applyGraphDataCanonicalBootstrap({ graphData, rawText: normalizedText })
         } catch {
           void 0
         }
@@ -331,14 +321,7 @@ export async function loadGraphDataFromTextViaParser(
   if (options?.applyToStore !== false) {
     notifyLoaderProgress(options, 'Applying graph')
     try {
-      useGraphStore.getState().setGraphData(graphData)
-      const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData)
-      if (!appliedGraphPreset) {
-        applyCanvasFrontmatterPreset({
-          graphData,
-          rawText: normalizedText,
-        })
-      }
+      applyGraphDataCanonicalBootstrap({ graphData, rawText: normalizedText })
     } catch {
       void 0
     }

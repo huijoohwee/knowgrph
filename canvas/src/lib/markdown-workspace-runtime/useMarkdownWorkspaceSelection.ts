@@ -1,6 +1,5 @@
 import React from 'react'
 import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMarkdownEditorSsotSync'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
@@ -21,15 +20,6 @@ import {
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from './markdownWorkspaceSelectionSync'
 import { hashSignatureParts } from '@/lib/hash/signature'
-
-const hasNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
-  const list = Array.isArray(sourceFiles) ? sourceFiles : []
-  return list.some(file => {
-    if (!file) return false
-    const sourcePath = String(file.source?.path || '')
-    return !sourcePath.startsWith('workspace:')
-  })
-}
 
 export type MarkdownWorkspaceSelectionArgs = {
   activePath: WorkspacePath | null
@@ -172,7 +162,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   React.useEffect(() => {
     if (activeEntryKind === 'folder') return
     if (!activeDocumentKey) return
-    if (!hasNonWorkspaceSourceFile(useGraphStore.getState().sourceFiles)) return
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
     if (!nextText.trim()) return
     const frontmatterBlock = extractYamlFrontmatterBlock(nextText)

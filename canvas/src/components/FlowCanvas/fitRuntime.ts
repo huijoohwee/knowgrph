@@ -5,9 +5,40 @@ import {
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { MEDIA_PANEL_LAYOUT_FRAME_16X9 } from '@/lib/render/mediaPanelSpec'
 
 type FlowFitIntent = 'fitToView' | 'fitToScreen' | 'initialFit'
 export { FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO } from '@/components/FlowCanvas/frontmatterLayoutConfig'
+
+export function resolveFitReferenceFrame(args: {
+  viewportW?: number
+  viewportH?: number
+  referenceWidth?: number
+  referenceHeight?: number
+}): { width: number; height: number } {
+  const width = Math.max(
+    320,
+    Math.floor(
+      Number.isFinite(args.referenceWidth)
+        ? Number(args.referenceWidth)
+        : MEDIA_PANEL_LAYOUT_FRAME_16X9.width,
+    ),
+  )
+  const height = Math.max(
+    180,
+    Math.floor(
+      Number.isFinite(args.referenceHeight)
+        ? Number(args.referenceHeight)
+        : MEDIA_PANEL_LAYOUT_FRAME_16X9.height,
+    ),
+  )
+  const viewportW = Math.max(1, Math.floor(Number(args.viewportW) || width))
+  const viewportH = Math.max(1, Math.floor(Number(args.viewportH) || height))
+  return {
+    width: Math.min(viewportW, width),
+    height: Math.min(viewportH, height),
+  }
+}
 
 export function readFlowEditorPortExtraPadScreenPx(schema: GraphSchema | null): number {
   const port = schema?.behavior?.portHandles || null

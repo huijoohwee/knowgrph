@@ -398,13 +398,14 @@ export type CanvasViewportProps = {
   variant: CanvasViewportVariant
   layout?: 'full' | 'pane'
   geospatialModeEnabled: boolean
+  workspaceEditorOverlayOpen?: boolean
   canvasRenderMode: '2d' | '3d'
   canvas3dMode: Canvas3dModeId
   canvas2dRenderer: Canvas2dRendererId
 }
 
 export function CanvasViewport(props: CanvasViewportProps) {
-  const { variant, layout = 'full', geospatialModeEnabled, canvasRenderMode, canvas3dMode, canvas2dRenderer } = props
+  const { variant, layout = 'full', geospatialModeEnabled, workspaceEditorOverlayOpen = false, canvasRenderMode, canvas3dMode, canvas2dRenderer } = props
   const activeGraphData = useActiveGraphRenderData(true)
   const active2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
   const d3SurfaceActive = active2dSurface === 'd3'
@@ -427,6 +428,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     schema,
   })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
+  const geospatialOverlayOwnsViewport = geospatialModeEnabled && !(workspaceEditorOverlayOpen && active2dSurface === 'flowEditor')
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
@@ -440,7 +442,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
       aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
-        {!geospatialModeEnabled && canvasRenderMode === '2d' && (
+        {!geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <div className="absolute inset-0 z-[10]">
             <div className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
               {d3SurfaceActive ? <GraphCanvasLazy active /> : null}
@@ -456,7 +458,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </div>
           </div>
         )}
-        {!geospatialModeEnabled && canvasRenderMode === '3d' ? (
+        {!geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </div>
@@ -468,7 +470,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </div>
         ) : null}
 
-        {geospatialModeEnabled ? (
+        {geospatialOverlayOwnsViewport ? (
           <CanvasViewportGeospatialOverlay
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
@@ -484,7 +486,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 <LaunchSpotlightLazy />
               </React.Suspense>
             ) : null}
-            {!geospatialModeEnabled && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
+            {!geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 z-[201] pointer-events-auto`}
                 style={layout === 'pane' ? { bottom: 'calc(var(--kg-safe-bottom) + 0.75rem)' } : { bottom: 'calc(40px + 12px)' }}

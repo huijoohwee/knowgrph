@@ -16,6 +16,7 @@ interface AnchorOverlayProps {
 export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right', className = '', children }: AnchorOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const portalRootRef = useRef<HTMLDivElement | null>(null)
+  const priorFocusedElementRef = useRef<HTMLElement | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
   useLayoutEffect(() => {
@@ -108,6 +109,36 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     }
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+    const activeElement = typeof document !== 'undefined' ? document.activeElement : null
+    priorFocusedElementRef.current = activeElement instanceof HTMLElement ? activeElement : null
+    const rafId = requestAnimationFrame(() => {
+      const containerEl = containerRef.current
+      if (!containerEl) return
+      const firstFocusable = containerEl.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )
+      const target = firstFocusable || containerEl
+      try {
+        target.focus({ preventScroll: true })
+      } catch {
+        target.focus()
+      }
+    })
+    return () => {
+      cancelAnimationFrame(rafId)
+      const target = priorFocusedElementRef.current
+      priorFocusedElementRef.current = null
+      if (!target) return
+      try {
+        target.focus({ preventScroll: true })
+      } catch {
+        target.focus()
+      }
+    }
+  }, [open])
+
   const style = useMemo<React.CSSProperties>(
     () => ({
       position: 'fixed',
@@ -131,7 +162,7 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
   if (!portalRoot) return null
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>
-      <div ref={containerRef} style={{ ...style, pointerEvents: 'auto' }} className={className}>
+      <div ref={containerRef} style={{ ...style, pointerEvents: 'auto' }} className={className} tabIndex={-1}>
         {children}
       </div>
     </div>,

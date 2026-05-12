@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
-import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
+import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import type { ZoomRequest } from '@/lib/zoom/requests'
@@ -292,6 +292,12 @@ export const applyZoomRequestNative = (args: {
   const autoMinK = getFlowAutoMinScale(args.runtime)
   const viewportW = Math.max(1, Math.floor(args.width))
   const viewportH = Math.max(1, Math.floor(args.height))
+  const fitReferenceFrame = resolveFitReferenceFrame({
+    viewportW,
+    viewportH,
+    referenceWidth: state.viewportFitReferenceWidth,
+    referenceHeight: state.viewportFitReferenceHeight,
+  })
   const visibleViewport = resolveFlowEditorVisibleViewport({
     flowEditorSurfaceId: args.flowEditorSurfaceId,
     viewportW,
@@ -355,15 +361,15 @@ export const applyZoomRequestNative = (args: {
         const fit = useWorkspaceOverlayGraphFallbackFit
           ? fitAllTransform(
               args.graphData?.nodes || [],
-              Math.max(1, visibleViewport.width),
-              Math.max(1, visibleViewport.height),
+              Math.max(1, fitReferenceFrame.width),
+              Math.max(1, fitReferenceFrame.height),
               { ...fitOpts, graphData: args.graphData || undefined },
             )
           : fitFlowEditorPinnedWidgets({
               nodes: args.graphData?.nodes || [],
-              fitW: viewportW,
-              viewportW,
-              viewportH,
+              fitW: fitReferenceFrame.width,
+              viewportW: fitReferenceFrame.width,
+              viewportH: fitReferenceFrame.height,
               openWidgetNodeIds: Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : [],
               pinnedById: state.flowWidgetPinnedByNodeId || {},
               worldPosById: state.flowWidgetWorldPosByNodeId || {},
@@ -391,6 +397,8 @@ export const applyZoomRequestNative = (args: {
         graphDataRevision: state.graphDataRevision || 0,
         viewportW,
         viewportH,
+        viewportFitReferenceWidth: state.viewportFitReferenceWidth,
+        viewportFitReferenceHeight: state.viewportFitReferenceHeight,
         viewPinned: state.viewPinned === true,
         durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },
         toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,

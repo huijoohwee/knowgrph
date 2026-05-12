@@ -11,6 +11,7 @@ import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/componen
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 
 export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 
@@ -111,6 +112,34 @@ export function fitFlowEditorPinnedWidgets(args: {
       : 1
     const panelWFit = panelW * fitProxyScale
     const panelHFit = panelH * fitProxyScale
+    const spacingPx = computeBalancedSpreadSpacingPx({
+      baseGapPx: 24,
+      zoomK: kGuess,
+      count: Math.max(1, pinned.length),
+    })
+    const margins = computeBalancedSpreadViewportMargins({
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      preset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
+      minLeftPx: 20,
+      minRightPx: 20,
+      minTopPx: isFrontmatterOverlayFit ? 64 : 96,
+      minBottomPx: 24,
+    })
+    const balanced = computeBalancedSpreadLayout({
+      count: Math.max(1, pinned.length),
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      cellW: panelWFit + spacingPx,
+      cellH: panelHFit + spacingPx,
+      gapPx: spacingPx,
+      zoomK: kGuess,
+      marginLeftPx: margins.left,
+      marginRightPx: margins.right,
+      marginTopPx: margins.top,
+      marginBottomPx: margins.bottom,
+      snapPx: 1,
+    })
     if (!(panelW > 1e-9) || !(panelH > 1e-9) || !(panelWFit > 1e-9) || !(panelHFit > 1e-9)) {
       return {
         extras: [] as GraphNode[],
@@ -123,11 +152,7 @@ export function fitFlowEditorPinnedWidgets(args: {
     for (let i = 0; i < pinned.length; i += 1) {
       const entry = pinned[i]!
       const id = entry.id
-      const idx = entry.stackIndex
-      const col = idx % 3
-      const row = Math.floor(idx / 3)
-      const stackTopPx = row * 54 + col * 8
-      const stackLeftPx = col * 54
+      const balancedCell = balanced.cells[Math.min(i, balanced.cells.length - 1)] || null
 
       const stored = worldById[id] as { x?: unknown; y?: unknown } | null
       const storedX = typeof stored?.x === 'number' && Number.isFinite(stored.x) ? (stored.x as number) : null
@@ -142,8 +167,14 @@ export function fitFlowEditorPinnedWidgets(args: {
         const x = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : null
         const y = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : null
         if (width == null || height == null || x == null || y == null) return null
-        const left = x - width / 2 + DEFAULT_FLOW_NODE_WIDTH_PX + portExtraPadWorld + (16 + stackLeftPx) / Math.max(1e-6, kGuess)
-        const top = y - height / 2 + (-12 + stackTopPx) / Math.max(1e-6, kGuess)
+        if (balancedCell) {
+          return {
+            left: balancedCell.left / Math.max(1e-6, kGuess),
+            top: balancedCell.top / Math.max(1e-6, kGuess),
+          }
+        }
+        const left = x - width / 2 + DEFAULT_FLOW_NODE_WIDTH_PX + portExtraPadWorld
+        const top = y - height / 2
         return { left, top }
       })()
 

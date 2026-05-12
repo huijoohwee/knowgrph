@@ -17,6 +17,23 @@ export const testFrontmatterFlowRenderSettingsReadsDirectionAndEdgeType = () => 
   if (settings.edgeType !== 'smoothstep') throw new Error(`expected smoothstep edge type, got ${settings.edgeType}`)
 }
 
+export const testFrontmatterFlowRenderSettingsReadsBalancedViewportPreset = () => {
+  const settings = readFrontmatterFlowRenderSettings({
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: {
+        direction: 'LR',
+        edgeType: 'bezier',
+        balancedViewportPreset: 'widgetFrontmatter',
+      },
+    },
+  } as never)
+  if (!settings) throw new Error('expected frontmatter flow render settings')
+  if (settings.balancedViewportPreset !== 'widgetFrontmatter') {
+    throw new Error(`expected balanced viewport preset to round-trip, got ${String(settings.balancedViewportPreset || '')}`)
+  }
+}
+
 export const testFrontmatterFlowRenderSettingsFallsBackOutsideFrontmatterFlow = () => {
   const settings = readFrontmatterFlowRenderSettings({
     metadata: {

@@ -26,8 +26,10 @@ import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEdi
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { DEFAULT_FLOW_NODE_HEIGHT_PX, DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
+import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 
 const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'
 
@@ -482,10 +484,14 @@ export function useFlowEditorRuntimeScene(args: {
       || persistedZoom
       || { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
+    const balancedViewportPreset = resolveBalancedViewportPreset({
+      graphData: graphDataForSeeding,
+      fallbackPreset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
+    })
     const spreadMargins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
-      preset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
+      preset: balancedViewportPreset,
     })
     const baseGapPx = Math.max(
       12,
@@ -834,6 +840,15 @@ export function useFlowEditorRuntimeScene(args: {
       }
     }
     latestAutoSeedWorldPosByNodeIdRef.current = nextAutoSeedPositions
+    const nextWidgetWorldRectById: Record<string, { left: number; top: number; width: number; height: number }> = {}
+    for (let i = 0; i < autoSeedIds.length; i += 1) {
+      const id = autoSeedIds[i]!
+      const world = nextWorld[id]
+      if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
+      nextWidgetWorldRectById[id] = { left: world.x, top: world.y, width: panelWorldW, height: panelWorldH }
+    }
+    __flowCanvasDebug.widgetWorldRectById = nextWidgetWorldRectById
+    syncFlowCanvasDebugWindow()
     if (!changed) {
       seededPinnedWidgetWorldPosKeyRef.current = seedKey
       lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature

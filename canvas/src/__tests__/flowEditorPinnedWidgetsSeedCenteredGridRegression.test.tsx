@@ -585,3 +585,258 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyVerticalStri
     restoreWindow()
   }
 }
+
+export async function testFlowEditorPinnedWidgetsReseedDenseMixedSetStaysCenteredAndAvoidsStripCollapse() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    const ids = ['n1', 'n2', 'n3', 'n4', 'n5', 'n6']
+    useGraphStore.setState(s => ({
+      ...s,
+      graphData: {
+        type: 'Graph',
+        nodes: ids.map(id => ({ id, label: id, type: 'Anchor', x: 0, y: 0, properties: {} })),
+        edges: [],
+        metadata: { kind: 'test', source: 'flowEditorPinnedWidgetsDenseMixedSet' },
+      },
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      documentStructureBaselineLock: false,
+    }))
+
+    api.setZoomState({ k: 1, x: 0, y: 0 })
+    api.setOpenWidgetNodeIds(ids)
+    api.setFlowWidgetPinnedByNodeId({})
+    api.setFlowWidgetWorldPosByNodeId({
+      n1: { x: 120, y: 300 },
+      n2: { x: 520, y: 300 },
+      n3: { x: 920, y: 300 },
+      n4: { x: 1320, y: 300 },
+      n5: { x: 1720, y: 300 },
+      n6: { x: 2120, y: 300 },
+    })
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+
+    const readWorld = () =>
+      ((useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
+
+    const worldById = await (async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const current = readWorld()
+        const uniqueRows = new Set(ids.map(id => Math.round((current[id]?.y || 0) * 1000)))
+        const uniqueCols = new Set(ids.map(id => Math.round((current[id]?.x || 0) * 1000)))
+        if (uniqueRows.size >= 2 && uniqueCols.size >= 2) return current
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected dense mixed-set widgets to reseed into a balanced multi-row, multi-column spread')
+    })()
+
+    const viewportW = 800
+    const viewportH = 600
+    const center = viewportCenterToWorld({ transform: { k: 1, x: 0, y: 0 }, viewportW, viewportH })
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: 1,
+      viewportW,
+      viewportH,
+      count: ids.length,
+      baseWidth: 360,
+      baseHeight: 520,
+    })
+    const panelScreen = computeWidgetScaledSize(panelScale)
+    const panelWorldW = panelScreen.width
+    const panelWorldH = panelScreen.height
+
+    const centers = ids.map(id => {
+      const p = worldById[id]!
+      return { x: p.x + panelWorldW / 2, y: p.y + panelWorldH / 2 }
+    })
+    const centroid = centers.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 })
+    centroid.x /= centers.length
+    centroid.y /= centers.length
+
+    if (Math.abs(centroid.x - center.x) > 2 || Math.abs(centroid.y - center.y) > 2) {
+      throw new Error(`expected dense reseed centroid ~${center.x},${center.y} got ${centroid.x},${centroid.y}`)
+    }
+
+    const uniqueRows = new Set(ids.map(id => Math.round((worldById[id]?.y || 0) * 1000)))
+    const uniqueCols = new Set(ids.map(id => Math.round((worldById[id]?.x || 0) * 1000)))
+    if (uniqueRows.size < 2 || uniqueCols.size < 2) {
+      throw new Error(`expected dense reseed to avoid strip collapse, got rows=${uniqueRows.size}, cols=${uniqueCols.size}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testFlowEditorPinnedWidgetsReseedAvoidsActiveSurfaceRichMediaObstacles() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    const ids = ['n1', 'n2', 'n3', 'n4']
+    useGraphStore.setState(s => ({
+      ...s,
+      graphData: {
+        type: 'Graph',
+        nodes: ids.map(id => ({ id, label: id, type: 'Anchor', x: 0, y: 0, properties: {} })),
+        edges: [],
+        metadata: { kind: 'test', source: 'flowEditorPinnedWidgetsRichMediaObstacle' },
+      },
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      documentStructureBaselineLock: false,
+    }))
+
+    api.setZoomState({ k: 1, x: 0, y: 0 })
+    api.setOpenWidgetNodeIds(ids)
+    api.setFlowWidgetPinnedByNodeId({})
+    api.setFlowWidgetWorldPosByNodeId({
+      n1: { x: 400, y: 280 },
+      n2: { x: 400, y: 280 },
+      n3: { x: 400, y: 280 },
+      n4: { x: 400, y: 280 },
+    })
+
+    const doc = dom.window.document
+    const surfaceRoot = doc.createElement('div')
+    surfaceRoot.setAttribute('data-kg-flow-editor-surface-root', 'surface-test')
+    doc.body.appendChild(surfaceRoot)
+
+    const activeRichMedia = doc.createElement('div')
+    activeRichMedia.setAttribute('data-kg-flow-editor-mode', '1')
+    activeRichMedia.setAttribute('data-kg-flow-editor-surface', 'surface-test')
+    activeRichMedia.setAttribute('data-kg-rich-media-overlay', '1')
+    activeRichMedia.setAttribute('data-node-id', 'rich-active')
+    ;(activeRichMedia as unknown as { dataset: DOMStringMap }).dataset.nodeId = 'rich-active'
+    ;(activeRichMedia as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
+      left: 320,
+      top: 180,
+      width: 220,
+      height: 180,
+      right: 540,
+      bottom: 360,
+      x: 320,
+      y: 180,
+      toJSON: () => ({}),
+    }) as DOMRect
+    surfaceRoot.appendChild(activeRichMedia)
+
+    const inactiveSurfaceRoot = doc.createElement('div')
+    inactiveSurfaceRoot.setAttribute('data-kg-flow-editor-surface-root', 'surface-other')
+    doc.body.appendChild(inactiveSurfaceRoot)
+
+    const inactiveRichMedia = doc.createElement('div')
+    inactiveRichMedia.setAttribute('data-kg-flow-editor-mode', '1')
+    inactiveRichMedia.setAttribute('data-kg-flow-editor-surface', 'surface-other')
+    inactiveRichMedia.setAttribute('data-kg-rich-media-overlay', '1')
+    inactiveRichMedia.setAttribute('data-node-id', 'rich-inactive')
+    ;(inactiveRichMedia as unknown as { dataset: DOMStringMap }).dataset.nodeId = 'rich-inactive'
+    ;(inactiveRichMedia as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
+      left: 40,
+      top: 40,
+      width: 240,
+      height: 180,
+      right: 280,
+      bottom: 220,
+      x: 40,
+      y: 40,
+      toJSON: () => ({}),
+    }) as DOMRect
+    inactiveSurfaceRoot.appendChild(inactiveRichMedia)
+
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(React.createElement(FlowEditorCanvas, { active: true, flowEditorSurfaceId: 'surface-test' } as never))
+
+    const readWorld = () =>
+      ((useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
+
+    const worldById = await (async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const current = readWorld()
+        const unique = new Set(ids.map(id => `${Math.round((current[id]?.x || 0) * 1000)}:${Math.round((current[id]?.y || 0) * 1000)}`))
+        if (unique.size >= 2) return current
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected widgets to reseed away from active-surface rich-media obstacle')
+    })()
+
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: 1,
+      viewportW: 800,
+      viewportH: 600,
+      count: ids.length,
+      baseWidth: 360,
+      baseHeight: 520,
+    })
+    const panelScreen = computeWidgetScaledSize(panelScale)
+    const activeObstacle = { left: 320, top: 180, right: 540, bottom: 360 }
+    const inactiveObstacle = { left: 40, top: 40, right: 280, bottom: 220 }
+
+    const rects = ids.map(id => {
+      const p = worldById[id]!
+      return { id, left: p.x, top: p.y, right: p.x + panelScreen.width, bottom: p.y + panelScreen.height }
+    })
+
+    const overlapsActive = rects.some(rect => rect.left < activeObstacle.right && activeObstacle.left < rect.right && rect.top < activeObstacle.bottom && activeObstacle.top < rect.bottom)
+    const overlapsInactive = rects.some(rect => rect.left < inactiveObstacle.right && inactiveObstacle.left < rect.right && rect.top < inactiveObstacle.bottom && inactiveObstacle.top < rect.bottom)
+
+    if (overlapsActive) {
+      throw new Error('expected widget reseed to avoid active-surface rich-media obstacle')
+    }
+    if (!overlapsInactive) {
+      throw new Error('expected non-active-surface rich-media obstacle to stay excluded from widget collision input')
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}

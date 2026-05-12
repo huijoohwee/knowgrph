@@ -4594,7 +4594,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L117; canvas/src/hooks/store/canvasSlice.ts:L692; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L188"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L117; canvas/src/hooks/store/canvasSlice.ts:L697; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",
@@ -5386,7 +5386,41 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L198; canvas/src/hooks/store/uiSliceInitialState.ts:L153"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L153"
+  },
+  "viewport.fitReferenceWidth": {
+    "area": "—",
+    "responsibility": "fit reference width",
+    "notes": "",
+    "modules": [
+      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts",
+      "canvas/src/hooks/store/uiSliceInitialState.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setViewportFitReferenceWidth"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L161"
+  },
+  "viewport.fitReferenceHeight": {
+    "area": "—",
+    "responsibility": "fit reference height",
+    "notes": "",
+    "modules": [
+      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts",
+      "canvas/src/hooks/store/uiSliceInitialState.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setViewportFitReferenceHeight"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L169"
   },
   "flow.frontmatter.initialFitFillRatio": {
     "area": "—",
@@ -5403,7 +5437,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L199; canvas/src/hooks/store/uiSliceInitialState.ts:L163"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L179"
   },
   "flow.frontmatter.overlayFitProxyScale.phone": {
     "area": "—",
@@ -5420,7 +5454,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L173"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L204; canvas/src/hooks/store/uiSliceInitialState.ts:L189"
   },
   "flow.frontmatter.overlayFitProxyScale.tablet": {
     "area": "—",
@@ -5437,7 +5471,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L183"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L205; canvas/src/hooks/store/uiSliceInitialState.ts:L199"
   },
   "flow.frontmatter.overlayFitProxyScale.laptop": {
     "area": "—",
@@ -5454,7 +5488,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L193"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L206; canvas/src/hooks/store/uiSliceInitialState.ts:L209"
   },
   "flow.frontmatter.overlayFitProxyScale.desktop": {
     "area": "—",
@@ -5471,7 +5505,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L203"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L207; canvas/src/hooks/store/uiSliceInitialState.ts:L219"
   },
   "schema.layout.forces.physics2dChargeScale": {
     "area": "Graph Physics 2D",
@@ -6490,7 +6524,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L194; canvas/src/hooks/store/canvasSlice.ts:L424; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L183"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L194; canvas/src/hooks/store/canvasSlice.ts:L429; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L185"
   },
   "canvas3dMode": {
     "area": "Canvas Rendering",
@@ -6508,7 +6542,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L208; canvas/src/hooks/store/canvasSlice.ts:L549; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L184"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L208; canvas/src/hooks/store/canvasSlice.ts:L554; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L186"
   },
   "viewportControlsPreset": {
     "area": "Canvas Interaction (Viewport Controls)",
@@ -6526,7 +6560,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L222; canvas/src/hooks/store/canvasSlice.ts:L674; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L186"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L222; canvas/src/hooks/store/canvasSlice.ts:L679; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L188"
   },
   "infiniteCanvasInteractionMode": {
     "area": "—",
@@ -6544,7 +6578,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L236; canvas/src/hooks/store/canvasSlice.ts:L681; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L187"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L236; canvas/src/hooks/store/canvasSlice.ts:L686; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L189"
   },
   "canvasWorkspaceSyncMode": {
     "area": "—",
@@ -6562,7 +6596,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L250; canvas/src/hooks/store/canvasSlice.ts:L692; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L188"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L250; canvas/src/hooks/store/canvasSlice.ts:L697; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
   },
   "flowEditorSelectionOnDrag": {
     "area": "Canvas Interaction (Flow Editor)",
@@ -6580,7 +6614,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L264; canvas/src/hooks/store/canvasSlice.ts:L703; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L189"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L264; canvas/src/hooks/store/canvasSlice.ts:L708; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L191"
   },
   "flowEditorOverlayWheelProxyEnabled": {
     "area": "Canvas Interaction (Flow Editor)",
@@ -6598,7 +6632,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L273; canvas/src/hooks/store/canvasSlice.ts:L710; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L273; canvas/src/hooks/store/canvasSlice.ts:L715; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L192"
   },
   "viewPinned": {
     "area": "Canvas Zoom Modes",
@@ -6634,7 +6668,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L291; canvas/src/hooks/store/canvasSlice.ts:L284; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L59"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L291; canvas/src/hooks/store/canvasSlice.ts:L287; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L59"
   },
   "zoomToSelectionMode": {
     "area": "Canvas Zoom Modes",
@@ -6652,7 +6686,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L300; canvas/src/hooks/store/canvasSlice.ts:L306; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L62"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L300; canvas/src/hooks/store/canvasSlice.ts:L310; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L62"
   },
   "zoomDurationFitMs": {
     "area": "Canvas Zoom Actions",
@@ -6670,7 +6704,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L309; canvas/src/hooks/store/canvasSlice.ts:L777; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L195"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L309; canvas/src/hooks/store/canvasSlice.ts:L782; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L197"
   },
   "zoomDurationSelectionMs": {
     "area": "Canvas Zoom Actions",
@@ -6688,7 +6722,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L318; canvas/src/hooks/store/canvasSlice.ts:L783; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L196"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L318; canvas/src/hooks/store/canvasSlice.ts:L788; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L198"
   },
   "wheelZoomCtrlMetaBoostMultiplier": {
     "area": "Canvas Interaction (Wheel Zoom)",
@@ -6706,7 +6740,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L327; canvas/src/hooks/store/canvasSlice.ts:L789; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L197"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L327; canvas/src/hooks/store/canvasSlice.ts:L794; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L199"
   },
   "canvasInteractionSpeedMultiplier": {
     "area": "—",
@@ -6724,7 +6758,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L336; canvas/src/hooks/store/canvasSlice.ts:L800; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L205"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L336; canvas/src/hooks/store/canvasSlice.ts:L805; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L209"
   },
   "canvasPanSpeedMultiplier": {
     "area": "—",
@@ -6742,7 +6776,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L345; canvas/src/hooks/store/canvasSlice.ts:L811; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L206"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L345; canvas/src/hooks/store/canvasSlice.ts:L816; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L210"
   },
   "flowWheelZoomSpeedMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -6759,7 +6793,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L717; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L191"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L722; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L193"
   },
   "flowWheelZoomIncrementMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -6776,7 +6810,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L728; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L192"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L733; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L194"
   },
   "flowWheelZoomSmoothMinDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -6793,7 +6827,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L739; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L193"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L744; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L195"
   },
   "flowWheelZoomSmoothMaxDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -6810,7 +6844,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L758; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L194"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L763; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L196"
   },
   "orchestratorTraversalDelayMs": {
     "area": "Orchestrator Traversal",
@@ -9393,7 +9427,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L424; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L183; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L110"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L429; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L185; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L110"
   },
   "CLICK_URL": {
     "area": "Config Constants",

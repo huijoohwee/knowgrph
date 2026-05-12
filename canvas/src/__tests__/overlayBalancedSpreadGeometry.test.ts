@@ -103,3 +103,148 @@ export function testBalancedSpreadLayoutAvoidsSingleAxisStripAndOverlapOn1920x10
     }
   }
 }
+
+export function testBalancedSpreadLayoutKeepsFinalFootprintWithinUsableViewportAndSpansCenter() {
+  const viewportW = 1920
+  const viewportH = 1080
+  const gapPx = 24
+  const cellW = 300 + gapPx
+  const cellH = 220 + gapPx
+  const margins = computeBalancedSpreadViewportMargins({
+    viewportW,
+    viewportH,
+    preset: 'widgetFrontmatter',
+  })
+  const layout = computeBalancedSpreadLayout({
+    count: 5,
+    viewportW,
+    viewportH,
+    cellW,
+    cellH,
+    gapPx,
+    zoomK: 1,
+    marginLeftPx: margins.left,
+    marginRightPx: margins.right,
+    marginTopPx: margins.top,
+    marginBottomPx: margins.bottom,
+    snapPx: 1,
+  })
+  const usableLeft = margins.left
+  const usableRight = viewportW - margins.right
+  const usableTop = margins.top
+  const usableBottom = viewportH - margins.bottom
+  const usableCenterX = usableLeft + (usableRight - usableLeft) / 2
+  const usableCenterY = usableTop + (usableBottom - usableTop) / 2
+  const minLeft = layout.startLeft
+  const maxRight = layout.startLeft + layout.gridW
+  const minTop = layout.startTop
+  const maxBottom = layout.startTop + layout.gridH
+
+  if (minLeft < usableLeft || maxRight > usableRight || minTop < usableTop || maxBottom > usableBottom) {
+    throw new Error(
+      `expected final balanced footprint within usable viewport, got bounds ${minLeft},${minTop} → ${maxRight},${maxBottom} inside ${usableLeft},${usableTop} → ${usableRight},${usableBottom}`,
+    )
+  }
+
+  if (!(minLeft < usableCenterX && maxRight > usableCenterX && minTop < usableCenterY && maxBottom > usableCenterY)) {
+    throw new Error(
+      `expected balanced footprint to span usable center ${usableCenterX},${usableCenterY}, got bounds ${minLeft},${minTop} → ${maxRight},${maxBottom}`,
+    )
+  }
+}
+
+export function testBalancedSpreadLayoutIsDeterministicForFinalBalancedOutputs() {
+  const viewportW = 1920
+  const viewportH = 1080
+  const gapPx = 24
+  const cellW = 300 + gapPx
+  const cellH = 220 + gapPx
+  const margins = computeBalancedSpreadViewportMargins({
+    viewportW,
+    viewportH,
+    preset: 'widgetFrontmatter',
+  })
+  const args = {
+    count: 5,
+    viewportW,
+    viewportH,
+    cellW,
+    cellH,
+    gapPx,
+    zoomK: 1,
+    marginLeftPx: margins.left,
+    marginRightPx: margins.right,
+    marginTopPx: margins.top,
+    marginBottomPx: margins.bottom,
+    snapPx: 1,
+  }
+  const first = computeBalancedSpreadLayout(args)
+  const second = computeBalancedSpreadLayout(args)
+
+  if (JSON.stringify(first) !== JSON.stringify(second)) {
+    throw new Error('expected final balanced layout outputs to stay deterministic for identical inputs')
+  }
+}
+
+export function testBalancedSpreadLayoutKeepsDenseMixedSetWithinBoundsWithoutStripOrTowerCollapse() {
+  const viewportW = 1920
+  const viewportH = 1080
+  const gapPx = 24
+  const cellW = 300 + gapPx
+  const cellH = 220 + gapPx
+  const margins = computeBalancedSpreadViewportMargins({
+    viewportW,
+    viewportH,
+    preset: 'widgetFrontmatter',
+  })
+  const layout = computeBalancedSpreadLayout({
+    count: 9,
+    viewportW,
+    viewportH,
+    cellW,
+    cellH,
+    gapPx,
+    zoomK: 1,
+    marginLeftPx: margins.left,
+    marginRightPx: margins.right,
+    marginTopPx: margins.top,
+    marginBottomPx: margins.bottom,
+    snapPx: 1,
+  })
+  const footprintW = cellW - gapPx
+  const footprintH = cellH - gapPx
+  const usableLeft = margins.left
+  const usableRight = viewportW - margins.right
+  const usableTop = margins.top
+  const usableBottom = viewportH - margins.bottom
+  const minLeft = layout.startLeft
+  const maxRight = layout.startLeft + layout.gridW
+  const minTop = layout.startTop
+  const maxBottom = layout.startTop + layout.gridH
+  const uniqueRows = new Set(layout.cells.map(cell => Math.round(cell.top)))
+  const uniqueCols = new Set(layout.cells.map(cell => Math.round(cell.left)))
+
+  if (minLeft < usableLeft || maxRight > usableRight || minTop < usableTop || maxBottom > usableBottom) {
+    throw new Error(
+      `expected dense balanced footprint within usable viewport, got bounds ${minLeft},${minTop} → ${maxRight},${maxBottom} inside ${usableLeft},${usableTop} → ${usableRight},${usableBottom}`,
+    )
+  }
+
+  if (uniqueRows.size < 2 || uniqueCols.size < 2) {
+    throw new Error(
+      `expected dense balanced spread to avoid strip or tower collapse, got rows=${uniqueRows.size}, cols=${uniqueCols.size}`,
+    )
+  }
+
+  for (let i = 0; i < layout.cells.length; i += 1) {
+    const a = layout.cells[i]!
+    for (let j = i + 1; j < layout.cells.length; j += 1) {
+      const b = layout.cells[j]!
+      const overlapX = a.left < b.left + footprintW && b.left < a.left + footprintW
+      const overlapY = a.top < b.top + footprintH && b.top < a.top + footprintH
+      if (overlapX && overlapY) {
+        throw new Error(`expected dense balanced spread to forbid overlap, got overlap between ${i} and ${j}`)
+      }
+    }
+  }
+}

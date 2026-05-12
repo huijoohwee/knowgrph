@@ -38,6 +38,7 @@ import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -79,7 +80,6 @@ function Minimap() {
     })),
   )
   const preview = useGraphStore(s => s.minimapPreview)
-  const requestZoom = useGraphStore(s => s.requestZoom)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const layoutPositionCacheByMode = useGraphStore(s => s.layoutPositionCacheByMode)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -618,9 +618,9 @@ function Minimap() {
     return Math.abs(lx - cx) <= centerThreshold && Math.abs(ly - cy) <= centerThreshold;
   }, [viewRect, centerThreshold]);
   const onRectMouseLeave = () => setHoverCenter(false);
-  const handleReset = React.useCallback(() => requestZoom('reset'), [requestZoom])
-  const handleZoomIn = React.useCallback(() => requestZoom('in'), [requestZoom])
-  const handleZoomOut = React.useCallback(() => requestZoom('out'), [requestZoom])
+  const handleReset = React.useCallback(() => dispatchRuntimeZoomActionSoon('reset'), [])
+  const handleZoomIn = React.useCallback(() => dispatchRuntimeZoomActionSoon('in'), [])
+  const handleZoomOut = React.useCallback(() => dispatchRuntimeZoomActionSoon('out'), [])
 
   if (minimapCollapsed) {
     return (

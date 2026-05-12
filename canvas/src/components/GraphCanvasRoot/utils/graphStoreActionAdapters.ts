@@ -3,6 +3,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
+import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 
 type SelectionSource = 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown'
 
@@ -36,7 +37,7 @@ export function buildGraphCanvasStoreActionAdapters(args: {
     addEdge: runWritable((store, edge: GraphEdge) => store.addEdge(edge)),
     updateEdge: runWritable((store, id: string, update: Partial<GraphEdge>) => store.updateEdge(id, update)),
     setLifecycleStageRendering: () => readStore().setLifecycleStage('rendering'),
-    requestZoomSelection: () => readStore().requestZoom('selection'),
+    requestZoomSelection: () => dispatchRuntimeZoomActionSoon('selection'),
     edgeScrollEnabled: () => readStore().viewPinned !== true,
     onCommitNodePosition: args.enableNodePositionCommit
       ? ({ id, x, y }: { id: string; x: number; y: number }) => {

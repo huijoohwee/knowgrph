@@ -4,6 +4,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { shouldAutoFitToScreen2d, shouldAutoZoomSelection2d } from '@/features/zoom/autoZoom2dPolicy'
 import type { GraphData } from '@/lib/graph/types'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
+import { resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
+import { dispatchRuntimeFitIntentSoon, dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 
 export function useAutoZoomModes2d(args: {
   viewportW: number
@@ -78,8 +80,12 @@ export function useAutoZoomModes2d(args: {
           return
         }
         const panelDims = {
-          width: Math.max(1, Math.floor(dimsRef.current.viewportW)),
-          height: Math.max(1, Math.floor(dimsRef.current.viewportH)),
+          ...resolveFitReferenceFrame({
+            viewportW: dimsRef.current.viewportW,
+            viewportH: dimsRef.current.viewportH,
+            referenceWidth: state.viewportFitReferenceWidth,
+            referenceHeight: state.viewportFitReferenceHeight,
+          }),
         }
         const schema = state.schema as GraphSchema | null
         const sig = buildAutoFitToScreenSignature({
@@ -93,7 +99,7 @@ export function useAutoZoomModes2d(args: {
         })
         if (lastFitSigRef.current === sig) return
         lastFitSigRef.current = sig
-        state.requestZoom('fit', { intent: 'fitToScreen' })
+        dispatchRuntimeFitIntentSoon('fitToScreen')
       })
     }
     scheduleFitRef.current = schedule
@@ -115,6 +121,8 @@ export function useAutoZoomModes2d(args: {
         zoomMaxScale: s.schema?.performance?.zoom?.maxScale,
         mediaPanelDensity: s.mediaPanelDensity,
         renderMediaAsNodes: s.renderMediaAsNodes,
+        viewportFitReferenceWidth: s.viewportFitReferenceWidth,
+        viewportFitReferenceHeight: s.viewportFitReferenceHeight,
       }),
       () => schedule(),
       {
@@ -134,6 +142,8 @@ export function useAutoZoomModes2d(args: {
           if (a.zoomMaxScale !== b.zoomMaxScale) return false
           if (a.mediaPanelDensity !== b.mediaPanelDensity) return false
           if (a.renderMediaAsNodes !== b.renderMediaAsNodes) return false
+          if (a.viewportFitReferenceWidth !== b.viewportFitReferenceWidth) return false
+          if (a.viewportFitReferenceHeight !== b.viewportFitReferenceHeight) return false
           return true
         },
       },
@@ -187,7 +197,7 @@ export function useAutoZoomModes2d(args: {
         if (!key) return
         if (lastAutoZoomSelRef.current === key) return
         lastAutoZoomSelRef.current = key
-        state.requestZoom('selection')
+        dispatchRuntimeZoomActionSoon('selection')
       })
     }
     const unsub = useGraphStore.subscribe(

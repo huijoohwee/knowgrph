@@ -157,6 +157,22 @@ export const createUiInitialState = (
         lsSetFloat(LS_KEYS.viewportFitFillRatio, next, { min: 0.2, max: 0.95 })
         return { viewportFitFillRatio: next } as Partial<GraphState>
       }),
+    viewportFitReferenceWidth: Math.max(320, Math.floor(lsFloat(LS_KEYS.viewportFitReferenceWidth, 1920, { min: 320, max: 7680 }))),
+    setViewportFitReferenceWidth: (v: number) =>
+      set(state => {
+        const next = Math.max(320, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 1920))
+        if (state.viewportFitReferenceWidth === next) return {}
+        lsSetFloat(LS_KEYS.viewportFitReferenceWidth, next, { min: 320, max: 7680 })
+        return { viewportFitReferenceWidth: next } as Partial<GraphState>
+      }),
+    viewportFitReferenceHeight: Math.max(180, Math.floor(lsFloat(LS_KEYS.viewportFitReferenceHeight, 1080, { min: 180, max: 4320 }))),
+    setViewportFitReferenceHeight: (v: number) =>
+      set(state => {
+        const next = Math.max(180, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 1080))
+        if (state.viewportFitReferenceHeight === next) return {}
+        lsSetFloat(LS_KEYS.viewportFitReferenceHeight, next, { min: 180, max: 4320 })
+        return { viewportFitReferenceHeight: next } as Partial<GraphState>
+      }),
     frontmatterFlowInitialFitFillRatio: clampFrontmatterInitialFitFillRatio(
       lsFloat(LS_KEYS.frontmatterFlowInitialFitFillRatio, FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO, { min: 0.6, max: 0.95 }),
     ),

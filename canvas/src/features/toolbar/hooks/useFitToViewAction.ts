@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
+import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 export function useFitToViewAction() {
   const {
@@ -48,7 +49,7 @@ export function useFitToViewAction() {
       }
     })()
 
-    const allowGeospatialFit = geospatialEnabled && canvasRenderMode !== '2d'
+    const allowGeospatialFit = geospatialEnabled
     if (allowGeospatialFit) {
       const hasSelection =
         (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ||
@@ -57,8 +58,16 @@ export function useFitToViewAction() {
         !!selectedNodeId ||
         !!selectedEdgeId ||
         !!selectedGroupId
-      void import('gympgrph')
+      void readGeospatialModeEnabled()
+        .then(enabled => {
+          if (!enabled) {
+            requestZoom('fit', { intent: 'fitToView' })
+            return null
+          }
+          return import('gympgrph')
+        })
         .then(m => {
+          if (!m) return
           if (hasSelection && typeof m.requestGeospatialFitToSelection === 'function') {
             m.requestGeospatialFitToSelection()
             return

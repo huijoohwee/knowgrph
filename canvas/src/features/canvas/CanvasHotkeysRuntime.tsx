@@ -2,12 +2,13 @@ import React from 'react'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { dispatchRuntimeZoomAction } from '@/lib/canvas/runtimeZoomDispatch'
 
 export function CanvasHotkeysRuntime(props: {
   geospatialModeEnabled: boolean
   launchSpotlightShortcutEnabled: boolean
 }) {
-  const { geospatialModeEnabled, launchSpotlightShortcutEnabled } = props
+  const { launchSpotlightShortcutEnabled } = props
   const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
 
   React.useEffect(() => {
@@ -36,28 +37,17 @@ export function CanvasHotkeysRuntime(props: {
       if (!isZoomIn && !isZoomOut && !isReset) return
 
       e.preventDefault()
-      const store = useGraphStore.getState()
       if (isReset) {
-        if (geospatialModeEnabled) {
-          store.requestZoom('reset')
-          return
-        }
-        if (store.canvasRenderMode === '2d') store.requestZoom('reset')
-        else store.requestThreeCamera('reset')
+        void dispatchRuntimeZoomAction('reset')
         return
       }
 
       const type = isZoomIn ? 'in' : 'out'
-      if (geospatialModeEnabled) {
-        store.requestZoom(type)
-        return
-      }
-      if (store.canvasRenderMode === '2d') store.requestZoom(type)
-      else store.requestThreeCamera(type)
+      void dispatchRuntimeZoomAction(type)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [geospatialModeEnabled, launchSpotlightShortcutEnabled, setSpotlightDismissed])
+  }, [launchSpotlightShortcutEnabled, setSpotlightDismissed])
 
   return null
 }

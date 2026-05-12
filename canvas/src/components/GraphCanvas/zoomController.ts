@@ -80,6 +80,8 @@ export const applyZoomRequest = (
     graphDataRevision: state.graphDataRevision || 0,
     viewportW: width,
     viewportH: height,
+    viewportFitReferenceWidth: state.viewportFitReferenceWidth,
+    viewportFitReferenceHeight: state.viewportFitReferenceHeight,
     fitFillRatio: state.viewportFitFillRatio,
     viewPinned: state.viewPinned === true,
     durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },

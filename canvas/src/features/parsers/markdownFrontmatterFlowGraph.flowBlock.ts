@@ -851,6 +851,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   const settings: Record<string, unknown> = {
     direction,
     edgeType,
+    balancedViewportPreset: 'widgetFrontmatter',
     ...(asBoolean(readFlowValue(flow.snapToGrid)) != null ? { snapToGrid: asBoolean(readFlowValue(flow.snapToGrid)) } : {}),
     ...(asFiniteNumber(readFlowValue(flow.gridSize)) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(readFlowValue(flow.gridSize)) as number)) } : {}),
     ...(asBoolean(readFlowValue(flow.computed)) != null ? { computed: asBoolean(readFlowValue(flow.computed)) } : {}),

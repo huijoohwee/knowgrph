@@ -15,6 +15,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
+import { resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 
 const LAYOUT_MODE_OPTIONS: Array<{ value: LayoutMode2d; label: string }> = [
   { value: 'radial', label: 'Radial (default)' },
@@ -34,6 +35,12 @@ export function LayoutModeRendererSettings(props: {
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
   const frontmatterFlowInitialFitFillRatio = useGraphStore(s => s.frontmatterFlowInitialFitFillRatio)
+  const viewportFitFillRatio = useGraphStore(s => s.viewportFitFillRatio)
+  const setViewportFitFillRatio = useGraphStore(s => s.setViewportFitFillRatio)
+  const viewportFitReferenceWidth = useGraphStore(s => s.viewportFitReferenceWidth)
+  const setViewportFitReferenceWidth = useGraphStore(s => s.setViewportFitReferenceWidth)
+  const viewportFitReferenceHeight = useGraphStore(s => s.viewportFitReferenceHeight)
+  const setViewportFitReferenceHeight = useGraphStore(s => s.setViewportFitReferenceHeight)
   const setFrontmatterFlowInitialFitFillRatio = useGraphStore(s => s.setFrontmatterFlowInitialFitFillRatio)
   const frontmatterFlowOverlayFitProxyScalePhone = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScalePhone)
   const setFrontmatterFlowOverlayFitProxyScalePhone = useGraphStore(s => s.setFrontmatterFlowOverlayFitProxyScalePhone)
@@ -47,6 +54,10 @@ export function LayoutModeRendererSettings(props: {
   const selectedLayoutMode = props.selectedLayoutMode ?? layoutMode
   const disabled = props.disabled === true
   const showFrontmatterFlowControls = canvas2dRenderer === 'flowEditor' || frontmatterModeEnabled
+  const fitReferenceFrame = React.useMemo(() => resolveFitReferenceFrame({
+    referenceWidth: viewportFitReferenceWidth,
+    referenceHeight: viewportFitReferenceHeight,
+  }), [viewportFitReferenceHeight, viewportFitReferenceWidth])
   const frontmatterProxyFields = React.useMemo(() => ([
     {
       key: 'phone',
@@ -133,6 +144,68 @@ export function LayoutModeRendererSettings(props: {
               </option>
             ))}
           </select>
+        </div>
+        <div className="pt-2 border-t border-[color:var(--kg-border)] space-y-2">
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            Shared fit frame for Pin, Fit to View, Fit to Screen, and Zoom to Selection. Frame is clamped upstream against the live viewport.
+          </div>
+          <div className="flex items-center gap-2">
+            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+              Fit fill
+            </label>
+            <input
+              type="number"
+              step={0.01}
+              min={0.2}
+              max={0.95}
+              value={viewportFitFillRatio}
+              disabled={disabled}
+              onChange={e => {
+                const next = Number.parseFloat(e.target.value)
+                if (Number.isFinite(next)) setViewportFitFillRatio(next)
+              }}
+              className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+              Fit width
+            </label>
+            <input
+              type="number"
+              step={1}
+              min={320}
+              max={7680}
+              value={viewportFitReferenceWidth}
+              disabled={disabled}
+              onChange={e => {
+                const next = Number.parseFloat(e.target.value)
+                if (Number.isFinite(next)) setViewportFitReferenceWidth(next)
+              }}
+              className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+              Fit height
+            </label>
+            <input
+              type="number"
+              step={1}
+              min={180}
+              max={4320}
+              value={viewportFitReferenceHeight}
+              disabled={disabled}
+              onChange={e => {
+                const next = Number.parseFloat(e.target.value)
+                if (Number.isFinite(next)) setViewportFitReferenceHeight(next)
+              }}
+              className={`w-[50%] h-6 px-2 text-right ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
+            />
+          </div>
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} leading-snug text-right`}>
+            Active fit frame {fitReferenceFrame.width}×{fitReferenceFrame.height}
+          </div>
         </div>
         {showFrontmatterFlowControls ? (
           <div className="pt-2 border-t border-[color:var(--kg-border)] space-y-2">

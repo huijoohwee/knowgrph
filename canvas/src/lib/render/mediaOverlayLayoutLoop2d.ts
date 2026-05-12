@@ -7,12 +7,12 @@ import { computeMediaOverlaySizing, type MediaOverlaySizingConfig, type MediaOve
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import {
+  type BalancedSpreadViewportPreset,
   computeBalancedSpreadLayout,
+  computeBalancedSpreadSpacingPx,
   computeBalancedSpreadViewportMargins,
-  isHorizontalOverlayStrip,
-  isVerticalOverlayCluster,
+  shouldForceBalancedSpreadReseed,
 } from '@/lib/ui/overlayBalancedSpread'
-
 export type MediaOverlayLayoutItem = { id: string }
 
 export type MediaOverlayLayoutLoop = {
@@ -28,6 +28,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   density: MediaPanelDensity
   viewportW: number
   viewportH: number
+  balancedViewportPreset?: BalancedSpreadViewportPreset
   schema?: GraphSchema | null
   collision?: {
     enabled?: boolean
@@ -87,8 +88,26 @@ export function startMediaOverlayLayoutLoop2d(args: {
       lastSizing = sizing
     }
     const useSizing = lastSizing || sizing
+    const clampMargin = args.clampToViewport ? Math.max(0, Number(args.clampToViewport.margin) || 0) : 0
+    const spreadMargins = computeBalancedSpreadViewportMargins({
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      preset: args.balancedViewportPreset || 'richMedia',
+      minLeftPx: clampMargin,
+      minRightPx: clampMargin,
+      minTopPx: clampMargin,
+      minBottomPx: clampMargin,
+    })
     const clamp = args.clampToViewport
-      ? { viewportW: args.viewportW, viewportH: args.viewportH, margin: args.clampToViewport.margin }
+      ? {
+          viewportW: args.viewportW,
+          viewportH: args.viewportH,
+          margin: 0,
+          marginLeft: spreadMargins.left,
+          marginRight: spreadMargins.right,
+          marginTop: spreadMargins.top,
+          marginBottom: spreadMargins.bottom,
+        }
       : undefined
 
     const keepIds = new Set<string>()
@@ -158,22 +177,23 @@ export function startMediaOverlayLayoutLoop2d(args: {
       return false
     }
 
-    const clampWithMargin = (pos: { left: number; top: number }, size: { w: number; h: number }, margin: number) => {
-      const m = Number.isFinite(margin) ? Math.max(0, margin) : 0
+    const clampWithMargin = (pos: { left: number; top: number }, size: { w: number; h: number }) => {
       const vw = Math.max(1, Number(args.viewportW) || 1)
       const vh = Math.max(1, Number(args.viewportH) || 1)
       const w = Math.max(1, Number(size.w) || 1)
       const h = Math.max(1, Number(size.h) || 1)
-      const left = Math.max(m, Math.min(vw - m - w, pos.left))
-      const top = Math.max(m, Math.min(vh - m - h, pos.top))
+      const leftMin = spreadMargins.left
+      const leftMax = Math.max(leftMin, vw - spreadMargins.right - w)
+      const topMin = spreadMargins.top
+      const topMax = Math.max(topMin, vh - spreadMargins.bottom - h)
+      const left = Math.max(leftMin, Math.min(leftMax, pos.left))
+      const top = Math.max(topMin, Math.min(topMax, pos.top))
       return { left, top }
     }
 
     const manualPlacement = args.manualPlacement === true
     const collisionEnabled = args.collision?.enabled !== false
     const schema = args.schema || null
-    const clampMargin = clamp ? Math.max(0, Number(clamp.margin) || 0) : 0
-
     const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; el: HTMLElement }>()
     for (let i = 0; i < preferred.length; i += 1) {
       const p = preferred[i]!
@@ -189,24 +209,24 @@ export function startMediaOverlayLayoutLoop2d(args: {
     }
 
     if (collisionEnabled && schema && preferred.length > 1) {
-      const derivedGap = Math.max(0, Math.round(Math.max(6, useSizing.metrics.padding + useSizing.metrics.borderW)))
+      const derivedGap = Math.max(
+        0,
+        Math.round(
+          computeBalancedSpreadSpacingPx({
+            baseGapPx: Math.max(6, useSizing.metrics.padding + useSizing.metrics.borderW),
+            zoomK: rawK,
+            count: preferred.length,
+          }),
+        ),
+      )
       const gapPx = typeof args.collision?.gapPx === 'number' && Number.isFinite(args.collision.gapPx) ? Math.max(0, Math.floor(args.collision.gapPx)) : derivedGap
       const externalObstacles = typeof args.getCollisionObstacles === 'function' ? args.getCollisionObstacles() : []
       const boxes = preferred.map(p => ({ left: p.left, top: p.top, w: p.w, h: p.h }))
-      const needsBalancedReseed =
-        hasOverlaps(boxes, gapPx)
-        || isVerticalOverlayCluster({
-          items: preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h })),
-          gapPx,
-        })
-        || isHorizontalOverlayStrip({
-          items: preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h })),
-          gapPx,
-        })
+      const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
+      const needsBalancedReseed = hasOverlaps(boxes, gapPx) || shouldForceBalancedSpreadReseed({ items: clusterItems, gapPx })
       if (needsBalancedReseed) {
         const verticalSeed = (() => {
-          const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
-          if (!isVerticalOverlayCluster({ items: clusterItems, gapPx }) && !isHorizontalOverlayStrip({ items: clusterItems, gapPx })) {
+          if (!shouldForceBalancedSpreadReseed({ items: clusterItems, gapPx })) {
             return null
           }
           let sumW = 0
@@ -218,15 +238,6 @@ export function startMediaOverlayLayoutLoop2d(args: {
           }
           const avgW = Math.max(1, sumW / Math.max(1, preferred.length))
           const avgH = Math.max(1, sumH / Math.max(1, preferred.length))
-          const spreadMargins = computeBalancedSpreadViewportMargins({
-            viewportW: args.viewportW,
-            viewportH: args.viewportH,
-            preset: 'richMedia',
-            minLeftPx: clampMargin,
-            minRightPx: clampMargin,
-            minTopPx: clampMargin,
-            minBottomPx: clampMargin,
-          })
           const layout = computeBalancedSpreadLayout({
             count: preferred.length,
             viewportW: args.viewportW,
@@ -286,7 +297,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
           const r = resolved[i]!
           const src = preferredById.get(r.id) || null
           if (!src) continue
-          const clamped = clampWithMargin({ left: r.left, top: r.top }, { w: src.w, h: src.h }, clampMargin)
+          const clamped = clampWithMargin({ left: r.left, top: r.top }, { w: src.w, h: src.h })
           nextById.set(r.id, { left: quantizePanelPos(clamped.left), top: quantizePanelPos(clamped.top) })
         }
       }

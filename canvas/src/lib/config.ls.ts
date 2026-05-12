@@ -305,6 +305,8 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   viewportPinned: 'ui.workspace',
   viewportFitToScreen: 'ui.workspace',
   viewportFitFillRatio: 'ui.workspace',
+  viewportFitReferenceWidth: 'ui.workspace',
+  viewportFitReferenceHeight: 'ui.workspace',
   frontmatterFlowInitialFitFillRatio: 'ui.workspace',
   frontmatterFlowOverlayFitProxyScalePhone: 'ui.workspace',
   frontmatterFlowOverlayFitProxyScaleTablet: 'ui.workspace',

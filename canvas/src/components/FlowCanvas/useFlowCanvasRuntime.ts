@@ -8,7 +8,7 @@ import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPol
 import { __flowCanvasDebug, syncFlowCanvasDebugToast } from '@/components/FlowCanvas/flowCanvasDebug'
 import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
-import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
+import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import {
   createFlowNativeRuntime,
@@ -157,6 +157,8 @@ export function useFlowCanvasRuntime(args: {
   const frontmatterFlowOverlayFitProxyScaleTablet = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleTablet)
   const frontmatterFlowOverlayFitProxyScaleLaptop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleLaptop)
   const frontmatterFlowOverlayFitProxyScaleDesktop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleDesktop)
+  const viewportFitReferenceWidth = useGraphStore(s => s.viewportFitReferenceWidth)
+  const viewportFitReferenceHeight = useGraphStore(s => s.viewportFitReferenceHeight)
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
   const frontmatterOverlayFitProxyScales = React.useMemo(() => ({
     phone: frontmatterFlowOverlayFitProxyScalePhone,
@@ -753,8 +755,14 @@ export function useFlowCanvasRuntime(args: {
       return
     }
     clearWorkspaceViewportSettleRetry()
-    const fitW = Math.max(1, visibleViewportFit.width)
-    const fitH = Math.max(1, visibleViewportFit.height)
+    const fitReferenceFrame = resolveFitReferenceFrame({
+      viewportW: visibleViewportFit.width,
+      viewportH: visibleViewportFit.height,
+      referenceWidth: viewportFitReferenceWidth,
+      referenceHeight: viewportFitReferenceHeight,
+    })
+    const fitW = Math.max(1, fitReferenceFrame.width)
+    const fitH = Math.max(1, fitReferenceFrame.height)
     const hasCollectiveFlowWidgets = isFlowEditor && Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
     const hasUsableCollectiveWidgetWorldPos = hasCollectiveFlowWidgets && openWidgetNodeIds.some(rawId => {
       const id = String(rawId || '').trim()
@@ -874,9 +882,14 @@ export function useFlowCanvasRuntime(args: {
       workspaceEditorOverlayOpen !== true &&
       hasNonIdentityTransform &&
       isUsableFlowTransform(current)
-    const initialTransformUsable = isUsableFlowTransform(initial)
-    const shouldUseInitialTransform = workspaceEditorOverlayOpen !== true && initialTransformUsable
-    const seed = (shouldUseInitialTransform ? initial : null) || (preserveCurrentTransform ? { k: current.k, x: current.x, y: current.y } : fitSeed)
+    const initialTransform = initial ? d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k) : null
+    const initialTransformUsable = isUsableFlowTransform(initialTransform)
+    const shouldUseInitialTransform = workspaceEditorOverlayOpen !== true && initialTransformUsable && !!initialTransform
+    const seed = shouldUseInitialTransform
+      ? (initialTransform as d3.ZoomTransform)
+      : preserveCurrentTransform
+        ? current
+        : d3.zoomIdentity.translate(fitSeed.x, fitSeed.y).scale(fitSeed.k)
     const next = d3.zoomIdentity.translate(seed.x, seed.y).scale(seed.k)
     lastInitTransformZoomViewKeyRef.current = initKey
     if (Math.abs(current.k - next.k) > 1e-9 || Math.abs(current.x - next.x) > 1e-6 || Math.abs(current.y - next.y) > 1e-6) {
@@ -896,6 +909,8 @@ export function useFlowCanvasRuntime(args: {
     flowConfigEffective.node.widthPx,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
+    viewportFitReferenceHeight,
+    viewportFitReferenceWidth,
     frontmatterModeEnabled,
     graphDataForZoom,
     graphDataForZoomRequests,
@@ -973,8 +988,14 @@ export function useFlowCanvasRuntime(args: {
       syncFlowCanvasDebugToast({ enabled: true })
       return
     }
-    const fitW = Math.max(1, visibleViewport.width)
-    const fitH = Math.max(1, visibleViewport.height)
+    const fitReferenceFrame = resolveFitReferenceFrame({
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
+      referenceWidth: viewportFitReferenceWidth,
+      referenceHeight: viewportFitReferenceHeight,
+    })
+    const fitW = Math.max(1, fitReferenceFrame.width)
+    const fitH = Math.max(1, fitReferenceFrame.height)
     const current = runtime.transform || d3.zoomIdentity
     const normalizedCurrent = remapTransformToVisibleViewport(
       { k: current.k, x: current.x, y: current.y },
@@ -1032,35 +1053,31 @@ export function useFlowCanvasRuntime(args: {
       if (expectedFitForRecovery) return expectedFitForRecovery
       const fitOpts = buildFlowFitOptions({
         schema: schema || null,
+        intent: fitToScreenMode ? 'fitToScreen' : 'fitToView',
         frontmatterModeEnabled,
         documentSemanticMode,
         multiDimTableModeEnabled,
         documentStructureBaselineLock,
-        graphData: graphDataForZoomRequests || graphDataForZoom || sceneGraphData,
-        isFlowEditor: true,
       })
       expectedFitForRecovery = useD3StyleRecoveryFit
         ? fitAllTransform(
-            scene.nodes,
+            scene.nodes as any,
             fitW,
             fitH,
             { ...fitOpts, graphData: graphDataForZoomRequests || graphDataForZoom || sceneGraphData },
           )
         : fitFlowEditorPinnedWidgets({
-            nodes: scene.nodes,
+            nodes: scene.nodes as any,
             graphData: graphDataForZoomRequests || graphDataForZoom || sceneGraphData,
             viewportW: fitW,
             viewportH: fitH,
-            nodeSize: { widthPx: flowConfigEffective.node.widthPx, heightPx: flowConfigEffective.node.heightPx },
-            fitOptions: fitOpts,
+            fitW,
+            fitOpts: fitOpts,
             openWidgetNodeIds,
-            pinnedByNodeId: effectivePinnedByIdForRecoveryFit,
-            worldPosByNodeId: fitWorldPosById,
+            pinnedById: effectivePinnedByIdForRecoveryFit,
+            worldPosById: fitWorldPosById,
             portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema || null),
-            graphRevision: graphDataRevision,
-            fitToScreenMode,
-            zoomToSelectionMode,
-            includeWidgetsForPinMode: viewPinned === true,
+            frontmatterOverlayFitProxyScales,
           })
       return expectedFitForRecovery
     }

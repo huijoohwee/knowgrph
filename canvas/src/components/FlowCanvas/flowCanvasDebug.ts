@@ -7,6 +7,8 @@ export const __flowCanvasDebug: {
   sceneNodeIds: string[]
   mediaNodeIds: string[]
   overlayNodeIds: string[]
+  widgetWorldRectById: Record<string, { left: number; top: number; width: number; height: number }>
+  richMediaRectById: Record<string, { left: number; top: number; width: number; height: number }>
   lastOverlayProxyPointerDown: string
   lastRichMediaResizeTrace: string
   lastRichMediaResizeTarget: string
@@ -20,6 +22,8 @@ export const __flowCanvasDebug: {
   sceneNodeIds: [],
   mediaNodeIds: [],
   overlayNodeIds: [],
+  widgetWorldRectById: {},
+  richMediaRectById: {},
   lastOverlayProxyPointerDown: '',
   lastRichMediaResizeTrace: '',
   lastRichMediaResizeTarget: '',
@@ -37,6 +41,24 @@ export function readFlowCanvasDebugStatusLine(): string {
   const transform = __flowCanvasDebug.lastRuntimeTransform || '-'
   const expected = __flowCanvasDebug.lastExpectedFit || '-'
   return `Flow status ${reason} | t ${transform} | e ${expected}`
+}
+
+export function readFlowCanvasDebugGeometrySnapshot(): string {
+  const widgetParts = Object.entries(__flowCanvasDebug.widgetWorldRectById || {})
+    .sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
+    .map(([id, rect]) => `${id}:${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(rect.width)}x${Math.round(rect.height)}`)
+  const richMediaParts = Object.entries(__flowCanvasDebug.richMediaRectById || {})
+    .sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
+    .map(([id, rect]) => `${id}:${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(rect.width)}x${Math.round(rect.height)}`)
+  return `widgets[${widgetParts.join('|')}] media[${richMediaParts.join('|')}]`
+}
+
+export function syncFlowCanvasDebugWindow(): void {
+  try {
+    ;(window as unknown as { __flowCanvasDebug?: unknown }).__flowCanvasDebug = __flowCanvasDebug
+  } catch {
+    void 0
+  }
 }
 
 export function syncFlowCanvasDebugToast(args: { enabled: boolean }) {

@@ -27,6 +27,7 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
     toggleFitToScreenMode,
     zoomToSelectionMode,
     setZoomToSelectionMode,
+    pushUiToast,
   } = useGraphStore(
     useShallow(s => ({
       viewPinned: s.viewPinned === true,
@@ -35,6 +36,7 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
       toggleFitToScreenMode: s.toggleFitToScreenMode,
       zoomToSelectionMode: s.zoomToSelectionMode === true,
       setZoomToSelectionMode: s.setZoomToSelectionMode,
+      pushUiToast: s.pushUiToast,
     })),
   )
 
@@ -114,6 +116,21 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
   const selectedOptionKey: ZoomOption['key'] =
     viewPinned ? 'pin' : fitToScreenMode ? 'fitToScreen' : zoomToSelectionMode ? 'zoomToSelection' : 'fitToView'
 
+  const handleSelectComplete = React.useCallback(
+    (key: ZoomOption['key']) => {
+      const message =
+        key === 'pin'
+          ? `Zoom: ${viewPinned ? 'Pin to View off' : 'Pin to View on'}`
+          : key === 'fitToView'
+          ? 'Zoom: Fit to View'
+          : key === 'fitToScreen'
+          ? `Zoom: ${fitToScreenMode ? 'Fit to Screen off' : 'Fit to Screen on'}`
+          : `Zoom: ${zoomToSelectionMode ? 'Zoom to Selection off' : 'Zoom to Selection on'}`
+      pushUiToast({ id: 'toolbar-zoom-mode', kind: 'neutral', message, ttlMs: 1400 })
+    },
+    [fitToScreenMode, pushUiToast, viewPinned, zoomToSelectionMode],
+  )
+
   return (
     <ToolbarDropdownSelect
       value={selectedOptionKey}
@@ -130,6 +147,7 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
       tooltipContent={UI_COPY.zoomMenuTooltip}
       isButtonActive={anyActive}
       onSelect={id => apply(id)}
+      onSelectComplete={id => handleSelectComplete(id)}
       renderButtonContent={() => <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
       renderOptionContent={option => (
         <>

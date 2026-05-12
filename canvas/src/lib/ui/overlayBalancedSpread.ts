@@ -278,9 +278,18 @@ export function isHorizontalOverlayStrip(args: {
   const spanY = Math.max(0, maxTop - minTop)
   const layoutAspect = (spanX + avgW) / Math.max(1, spanY + avgH)
   const singleRow = rowCount <= 1 && items.length >= 4 && spanX >= Math.max(avgW * 2.4, gapPx * 3)
-  const shallowDoubleRow = rowCount === 2 && items.length >= 6 && spanY <= avgH * 1.45 && spanX >= Math.max(avgW * 3.2, gapPx * 4)
-  const overWide = rowCount <= 2 && items.length >= 5 && layoutAspect >= BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 1.95
+  const shallowDoubleRow = rowCount === 2 && items.length >= 5 && spanY <= avgH * 1.75 && spanX >= Math.max(avgW * 2.9, gapPx * 4)
+  const overWide = rowCount <= 2 && items.length >= 4 && layoutAspect >= BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 1.75
   return singleRow || shallowDoubleRow || overWide
+}
+
+export function shouldForceBalancedSpreadReseed(args: {
+  items: Array<{ left: number; top: number; width: number; height: number }>
+  gapPx: number
+}): boolean {
+  const items = Array.isArray(args.items) ? args.items : []
+  if (items.length <= 1) return false
+  return isVerticalOverlayCluster({ items, gapPx: args.gapPx }) || isHorizontalOverlayStrip({ items, gapPx: args.gapPx })
 }
 
 export function computeBalancedSpreadSpacingPx(args: {

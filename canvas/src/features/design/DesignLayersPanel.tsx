@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Eye, EyeOff, Focus, Layers, Search, Target } fr
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { dispatchRuntimeFitToViewSoon, dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
@@ -134,9 +135,9 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
       if (!active) return
       setSelectionSource('canvas')
       selectNode(id)
-      requestZoom('selection')
+      dispatchRuntimeZoomActionSoon('selection')
     },
-    [active, requestZoom, selectNode, setSelectionSource],
+    [active, selectNode, setSelectionSource],
   )
 
   if (!active) {
@@ -162,7 +163,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
         <button
           type="button"
           className={cn('App-toolbar__btn ml-auto', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-          onClick={() => requestZoom('fit')}
+          onClick={() => dispatchRuntimeFitToViewSoon()}
           title={UI_LABELS.fitToView}
           aria-label={UI_LABELS.fitToView}
           disabled={!active}

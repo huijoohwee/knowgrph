@@ -3,10 +3,19 @@ import type { GlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { normalizeGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { isPlainObject } from '@/lib/graph/value'
+import type { BalancedSpreadViewportPreset } from '@/lib/ui/overlayBalancedSpread'
 
 export type FrontmatterFlowRenderSettings = {
   rankdir: 'LR' | 'TB'
   edgeType: GlobalEdgeType
+  balancedViewportPreset?: BalancedSpreadViewportPreset
+}
+
+export function resolveBalancedViewportPreset(args: {
+  graphData: Pick<GraphData, 'metadata'> | null | undefined
+  fallbackPreset: BalancedSpreadViewportPreset
+}): BalancedSpreadViewportPreset {
+  return readFrontmatterFlowRenderSettings(args.graphData)?.balancedViewportPreset || args.fallbackPreset
 }
 
 function readFrontmatterFlowSettingsRecord(graphData: Pick<GraphData, 'metadata'> | null | undefined): Record<string, unknown> | null {
@@ -25,7 +34,16 @@ export function readFrontmatterFlowRenderSettings(
   const directionRaw = String(settings.direction || '').trim().toUpperCase()
   const rankdir: 'LR' | 'TB' = directionRaw === 'TB' || directionRaw === 'BT' ? 'TB' : 'LR'
   const edgeType = normalizeGlobalEdgeType(settings.edgeType)
-  return { rankdir, edgeType }
+  const balancedViewportPresetRaw = String(settings.balancedViewportPreset || '').trim()
+  const balancedViewportPreset: BalancedSpreadViewportPreset | undefined =
+    balancedViewportPresetRaw === 'widgetFrontmatter'
+      ? 'widgetFrontmatter'
+      : balancedViewportPresetRaw === 'widgetCanvas'
+        ? 'widgetCanvas'
+        : balancedViewportPresetRaw === 'richMedia'
+          ? 'richMedia'
+          : undefined
+  return { rankdir, edgeType, balancedViewportPreset }
 }
 
 export function isFrontmatterFlowComputedEnabled(

@@ -157,6 +157,7 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
   if (settings) {
     appendFlowYamlEnvelopeFieldLines(lines, '  ', 'direction', settings.direction, 'string')
     appendFlowYamlEnvelopeFieldLines(lines, '  ', 'edgeType', settings.edgeType, 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '  ', 'balancedViewportPreset', settings.balancedViewportPreset, 'string')
     appendFlowYamlEnvelopeFieldLines(lines, '  ', 'computed', settings.computed, 'boolean')
     appendFlowYamlEnvelopeFieldLines(lines, '  ', 'snapToGrid', settings.snapToGrid, 'boolean')
     appendFlowYamlEnvelopeFieldLines(lines, '  ', 'gridSize', settings.gridSize, 'number')

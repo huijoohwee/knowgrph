@@ -35,6 +35,7 @@ import {
 } from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
+import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
@@ -46,6 +47,7 @@ import {
   getCachedFlowEditorOverlayEdgeGraph,
   readCanonicalFlowEditorOverlayIdentity,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
   for (const el of ref.current.values()) {
@@ -749,7 +751,16 @@ export function useFlowEditorOverlayEdges(args: {
         return map
       })()
 
-      const rootRect = root.getBoundingClientRect()
+        const rootRect = root.getBoundingClientRect()
+        const balancedViewportPreset = resolveBalancedViewportPreset({
+          graphData: args.renderGraphDataOverride,
+          fallbackPreset: 'widgetFrontmatter',
+        })
+        const balancedMargins = computeBalancedSpreadViewportMargins({
+          viewportW: Math.max(1, Math.round(rootRect.width)),
+          viewportH: Math.max(1, Math.round(rootRect.height)),
+          preset: balancedViewportPreset,
+        })
       const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
       const baseTop = Number.isFinite(rootRect.top) ? rootRect.top : null
       const svgWidth = Number.isFinite(rootRect.width) ? Math.max(1, Math.round(rootRect.width)) : 1
@@ -863,7 +874,11 @@ export function useFlowEditorOverlayEdges(args: {
         if (cached && Number.isFinite(cached.x) && Number.isFinite(cached.y)) return cached
         if (!(Number.isFinite(rect.top) && Number.isFinite(rect.left) && Number.isFinite(rect.right) && Number.isFinite(rect.height) && rect.height > 0)) return null
         const pct = Math.max(0, Math.min(100, anchorArgs.fallbackPct)) / 100
-        return { x: anchorArgs.dir === 'out' ? rect.right : rect.left, y: rect.top + pct * rect.height }
+        const baseX = anchorArgs.dir === 'out' ? rect.right : rect.left
+        const clampedX = anchorArgs.dir === 'out'
+          ? Math.min(Math.max(baseX, balancedMargins.left), Math.max(balancedMargins.left, rootRect.width - balancedMargins.right))
+          : Math.max(Math.min(baseX, Math.max(balancedMargins.left, rootRect.width - balancedMargins.right)), balancedMargins.left)
+        return { x: clampedX, y: rect.top + pct * rect.height }
       }
 
       const transientMissingEdgeAnchorParts: string[] = []

@@ -30,6 +30,7 @@ type ToolbarDropdownSelectProps<T extends ToolbarDropdownOptionBase> = {
   renderButtonContent: (activeOption: T) => React.ReactNode
   renderOptionContent?: (option: T) => React.ReactNode
   renderMenuAppend?: () => React.ReactNode
+  onSelectComplete?: (id: T['id']) => void
 }
 
 export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
@@ -46,12 +47,24 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   renderButtonContent,
   renderOptionContent,
   renderMenuAppend,
+  onSelectComplete,
 }: ToolbarDropdownSelectProps<T>) {
   const [open, setOpen] = React.useState(false)
   const [openSubmenuId, setOpenSubmenuId] = React.useState<string | null>(null)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
+  const optionButtonRefs = React.useRef<Array<HTMLButtonElement | null>>([])
   const dropdownIdRef = React.useRef(`toolbar-dropdown-${Math.random().toString(36).slice(2)}`)
   const activeOption = React.useMemo(() => options.find(option => option.id === value) || options[0], [options, value])
+  const enabledOptions = React.useMemo(() => options.filter(option => option.disabled !== true), [options])
+  const focusOptionAtIndex = React.useCallback((index: number) => {
+    const optionEl = optionButtonRefs.current[index]
+    if (!optionEl) return
+    try {
+      optionEl.focus({ preventScroll: true })
+    } catch {
+      optionEl.focus()
+    }
+  }, [])
   const closeMenuNow = React.useCallback(() => {
     setOpen(false)
     setOpenSubmenuId(null)
@@ -63,6 +76,19 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
       setOpenSubmenuId(null)
     })
   }, [])
+  React.useEffect(() => {
+    if (!open) {
+      optionButtonRefs.current = []
+      return
+    }
+    const preferredIndex = Math.max(0, options.findIndex(option => option.id === value && option.disabled !== true))
+    const rafId = requestAnimationFrame(() => {
+      focusOptionAtIndex(preferredIndex)
+    })
+    return () => {
+      cancelAnimationFrame(rafId)
+    }
+  }, [focusOptionAtIndex, open, options, value])
   if (!activeOption) return null
 
   return (
@@ -104,8 +130,33 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
         >
           <menu
             className={`p-1 flex flex-col gap-1 ${menuWidthClass} list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md`}
+            onKeyDown={e => {
+              if (!enabledOptions.length) return
+              const currentIndex = optionButtonRefs.current.findIndex(option => option === document.activeElement)
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % enabledOptions.length : 0
+                focusOptionAtIndex(nextIndex)
+                return
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                const nextIndex = currentIndex >= 0 ? (currentIndex - 1 + enabledOptions.length) % enabledOptions.length : enabledOptions.length - 1
+                focusOptionAtIndex(nextIndex)
+                return
+              }
+              if (e.key === 'Home') {
+                e.preventDefault()
+                focusOptionAtIndex(0)
+                return
+              }
+              if (e.key === 'End') {
+                e.preventDefault()
+                focusOptionAtIndex(enabledOptions.length - 1)
+              }
+            }}
           >
-            {options.map(option => {
+            {enabledOptions.map((option, index) => {
               const isActive = option.isActive === undefined ? option.id === value : option.isActive
               return (
                 <React.Fragment key={option.id}>
@@ -122,6 +173,9 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                     }}
                   >
                     <button
+                      ref={el => {
+                        optionButtonRefs.current[index] = el
+                      }}
                       type="button"
                       className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
                       disabled={option.disabled}
@@ -133,6 +187,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                         }
                         closeMenuNow()
                         onSelect(option.id)
+                        onSelectComplete?.(option.id)
                       }}
                       title={
                         option.disabled && (option.disabledReason || option.enableHint)

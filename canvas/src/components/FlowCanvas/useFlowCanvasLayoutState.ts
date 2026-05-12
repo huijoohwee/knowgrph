@@ -11,6 +11,7 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
+import { MEDIA_PANEL_LAYOUT_FRAME_16X9 } from '@/lib/render/mediaPanelSpec'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveRankdir, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
@@ -437,6 +438,8 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
 
   const flowEditorReservedW = React.useMemo(() => {
     if (canvas2dRenderer !== 'flowEditor') return 0
+    const effectiveViewportW = Math.max(1, Math.min(viewportW, MEDIA_PANEL_LAYOUT_FRAME_16X9.width))
+    const effectiveViewportH = Math.max(1, Math.min(viewportH, MEDIA_PANEL_LAYOUT_FRAME_16X9.height))
     let unpinnedCount = 0
     for (let i = 0; i < openWidgetNodeIds.length; i += 1) {
       const id = String(openWidgetNodeIds[i] || '').trim()
@@ -453,11 +456,11 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     const gapPx = Math.max(0, Math.min(40, Math.floor(typeof overlay?.collisionGapPx === 'number' ? overlay.collisionGapPx : 12)))
     const cellW = WIDGET_BASE_SIZE.width + gapPx + portExtraPadPx
     const cellH = WIDGET_BASE_SIZE.height + gapPx
-    const rowsMax = Math.max(1, Math.floor((viewportH - 96 - 24) / Math.max(1, cellH)))
+    const rowsMax = Math.max(1, Math.floor((effectiveViewportH - 96 - 24) / Math.max(1, cellH)))
     const colsNeeded = Math.max(1, Math.ceil(unpinnedCount / rowsMax))
-    const colsMax = Math.max(1, Math.min(3, Math.floor((viewportW - 20 - 20) / Math.max(1, cellW))))
+    const colsMax = Math.max(1, Math.min(3, Math.floor((effectiveViewportW - 20 - 20) / Math.max(1, cellW))))
     const dockWidth = Math.max(1, Math.min(colsNeeded, colsMax)) * cellW - gapPx
-    return Math.max(0, Math.min(Math.floor(viewportW * 0.72), Math.floor(dockWidth + 20 + 12)))
+    return Math.max(0, Math.min(Math.floor(effectiveViewportW * 0.72), Math.floor(dockWidth + 20 + 12)))
   }, [canvas2dRenderer, flowWidgetPinnedByNodeId, openWidgetNodeIds, schema?.behavior?.portHandles, schema?.layout?.flow, viewportH, viewportW])
 
   const graphDataForZoomRequests = React.useMemo(() => {

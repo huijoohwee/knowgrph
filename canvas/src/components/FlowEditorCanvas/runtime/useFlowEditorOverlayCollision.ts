@@ -8,6 +8,7 @@ import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArra
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
+import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
@@ -32,6 +33,7 @@ import {
   computeBalancedSpreadSpacingPx,
   isHorizontalOverlayStrip,
   isVerticalOverlayCluster,
+  shouldForceBalancedSpreadReseed,
 } from '@/lib/ui/overlayBalancedSpread'
 import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
@@ -370,10 +372,14 @@ export function useFlowEditorOverlayCollision(args: {
         width: Math.max(1, snapScreen(typicalSize.width + gapPx)),
         height: Math.max(1, snapScreen(typicalSize.height + gapPx)),
       }
+      const balancedViewportPreset = resolveBalancedViewportPreset({
+        graphData: graphDataForOverlayRuntime,
+        fallbackPreset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
+      })
       const spreadMargins = computeBalancedSpreadViewportMargins({
         viewportW: viewportW,
         viewportH: viewportH,
-        preset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
+        preset: balancedViewportPreset,
       })
       const horizontalMargin = Math.max(spreadMargins.left, spreadMargins.right)
       const verticalMargin = Math.max(spreadMargins.top, spreadMargins.bottom)
@@ -555,54 +561,68 @@ export function useFlowEditorOverlayCollision(args: {
           width: it.width ?? floatingScaled.width,
           height: it.height ?? floatingScaled.height,
         }))
-        return isVerticalOverlayCluster({ items: clusterItems, gapPx }) || isHorizontalOverlayStrip({ items: clusterItems, gapPx })
+        return shouldForceBalancedSpreadReseed({ items: clusterItems, gapPx })
       }
 
       const next = { ...posById }
       const seedGridAroundFixed = (worldIn: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) => {
-        const cols = Math.max(1, dockCols)
-        const rows = Math.max(1, Math.ceil(Math.max(worldIn.length, 1) / cols))
-        const maxRows = Math.max(rows, Math.ceil(Math.max(1, viewportH - dockTop - marginBottom) / Math.max(1, cellSize.height)))
+        const movable = worldIn.filter(it => it.movable)
+        if (movable.length <= 0) return worldIn
+        const balancedCells = balancedLayout.cells
+        if (balancedCells.length <= 0) return worldIn
         const fixed = worldIn.find(it => it.id === fixedId) || worldIn[0]
-        const fixedCol = Math.max(0, Math.min(cols - 1, Math.round(((fixed?.left ?? dockLeft) - dockLeft) / cellSize.width)))
-        const fixedRow = Math.max(0, Math.min(maxRows - 1, Math.round(((fixed?.top ?? dockTop) - dockTop) / cellSize.height)))
-        const cells: Array<{ idx: number; left: number; top: number; row: number; col: number }> = []
-        for (let idx = 0; idx < Math.max(worldIn.length + 8, cols * maxRows); idx += 1) {
-          const row = Math.floor(idx / cols)
-          const col = idx % cols
-          cells.push({ idx, row, col, left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height })
-        }
+        const centerOf = (item: { left: number; top: number; width: number; height: number }) => ({
+          x: item.left + item.width / 2,
+          y: item.top + item.height / 2,
+        })
+        const fixedCenter = fixed ? centerOf(fixed) : { x: viewportW / 2, y: viewportH / 2 }
+        const cells = balancedCells.map((cell, idx) => ({
+          idx,
+          left: cell.left,
+          top: cell.top,
+          row: cell.row,
+          col: cell.col,
+          cx: cell.left + (cellSize.width - gapPx) / 2,
+          cy: cell.top + (cellSize.height - gapPx) / 2,
+        }))
         const sortedCells = [...cells].sort((a, b) => {
-          const da = Math.abs(a.row - fixedRow) + Math.abs(a.col - fixedCol)
-          const db = Math.abs(b.row - fixedRow) + Math.abs(b.col - fixedCol)
+          const da = Math.abs(a.cx - fixedCenter.x) + Math.abs(a.cy - fixedCenter.y)
+          const db = Math.abs(b.cx - fixedCenter.x) + Math.abs(b.cy - fixedCenter.y)
           if (da !== db) return da - db
-          if (a.row !== b.row) return a.row - b.row
-          return a.col - b.col
+          const ra = Math.abs(a.row - (balancedLayout.rows - 1) / 2)
+          const rb = Math.abs(b.row - (balancedLayout.rows - 1) / 2)
+          if (ra !== rb) return ra - rb
+          return a.idx - b.idx
         })
         const used = new Set<number>()
-        const fixedCell = cells[Math.max(0, Math.min(cells.length - 1, fixedRow * cols + fixedCol))]
-        if (fixedCell) used.add(fixedCell.idx)
         for (let i = 0; i < worldIn.length; i += 1) {
           const it = worldIn[i]!
-          if (it.id === fixedId || it.movable) continue
-          const col = Math.max(0, Math.min(cols - 1, Math.round((it.left - dockLeft) / cellSize.width)))
-          const row = Math.max(0, Math.min(maxRows - 1, Math.round((it.top - dockTop) / cellSize.height)))
-          used.add(row * cols + col)
+          if (it.movable) continue
+          let bestIdx = -1
+          let bestScore = Number.POSITIVE_INFINITY
+          for (let j = 0; j < cells.length; j += 1) {
+            const cell = cells[j]!
+            const dx = cell.cx - (it.left + it.width / 2)
+            const dy = cell.cy - (it.top + it.height / 2)
+            const score = Math.abs(dx) + Math.abs(dy)
+            if (score < bestScore) {
+              bestScore = score
+              bestIdx = cell.idx
+            }
+          }
+          if (bestIdx >= 0) used.add(bestIdx)
         }
         const pickNextCell = () => {
           for (let i = 0; i < sortedCells.length; i += 1) {
-            const c = sortedCells[i]!
-            if (used.has(c.idx)) continue
-            used.add(c.idx)
-            return c
+            const cell = sortedCells[i]!
+            if (used.has(cell.idx)) continue
+            used.add(cell.idx)
+            return cell
           }
-          const idx = used.size
-          const row = Math.floor(idx / cols)
-          const col = idx % cols
-          return { idx, row, col, left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
+          return sortedCells[Math.min(sortedCells.length - 1, used.size % sortedCells.length)]!
         }
         return [...worldIn].sort((a, b) => a.id.localeCompare(b.id)).map(it => {
-          if (it.id === fixedId || !it.movable) return it
+          if (!it.movable) return it
           const cell = pickNextCell()
           return { ...it, left: cell.left, top: cell.top }
         })

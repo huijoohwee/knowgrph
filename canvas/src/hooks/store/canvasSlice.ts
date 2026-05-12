@@ -268,13 +268,16 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           viewPinned: true,
           fitToScreenMode: false,
           zoomToSelectionMode: false,
-          zoomRequest: null,
         }
       }
       lsSetBool(LS_KEYS.viewportPinned, false)
       const z = state.zoomState
       const nextZoomState = z ? { ...z, graphDataRevision: state.graphDataRevision } : z
-      return { viewPinned: false, zoomState: nextZoomState }
+      return {
+        viewPinned: false,
+        zoomState: nextZoomState,
+        zoomRequest: { type: 'fit', intent: 'fitToView', at: Date.now() },
+      }
     }),
   toggleViewPinned: () => {
     const current = get().viewPinned
@@ -296,6 +299,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         viewPinned: false,
         fitToScreenMode: true,
         zoomToSelectionMode: false,
+        zoomRequest: { type: 'fit', intent: 'fitToScreen', at: Date.now() },
       }
     }),
   toggleFitToScreenMode: () => {
@@ -318,6 +322,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         viewPinned: false,
         zoomToSelectionMode: true,
         fitToScreenMode: false,
+        zoomRequest: { type: 'selection', at: Date.now() },
       }
     }),
   toggleZoomToSelectionMode: () => {
