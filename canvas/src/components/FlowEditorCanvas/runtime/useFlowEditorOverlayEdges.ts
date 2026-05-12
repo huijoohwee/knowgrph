@@ -615,9 +615,11 @@ export function useFlowEditorOverlayEdges(args: {
         preferCurrentGraphDataRefs: true,
       })
       const graphSemanticKey = graphLookup?.graphSemanticKey || ''
+      const graphMetaKind = graphLookup?.graphMetaKind || null
       const nodeIds = graphLookup?.nodeIds || new Set<string>()
       const nodes = graphLookup?.nodes || []
       const defaultPortKeyByNodeId = graphLookup?.defaultPortKeyByNodeId || new Map<string, { in: string; out: string }>()
+      const edgeCurveById = graphLookup?.edgeCurveById || new Map<string, { bend: number; orbitShift: number; orbital: boolean; phase: -1 | 1 } | null>()
       const edges = (graphLookup?.edges || []).map(edge => {
         const style = edge.edgeType ? socketStyleByType.get(edge.edgeType) || null : null
         const rawEdge = graphLookup?.rawEdgeById.get(edge.id)
@@ -974,15 +976,25 @@ export function useFlowEditorOverlayEdges(args: {
         const sy = (sAnchor ? sAnchor.y : sRect.top + (Math.max(0, Math.min(100, sPct)) / 100) * sRect.height) - baseTop
         const ty = (tAnchor ? tAnchor.y : tRect.top + (Math.max(0, Math.min(100, tPct)) / 100) * tRect.height) - baseTop
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
+        const overlayCurve = edgeCurveById.get(edgeId) || null
+        const frontmatterShotEdgeCrowdingLift =
+          String(graphMetaKind || '').trim() === 'frontmatter-flow'
+          && /^db-shot-S0[1-5]-/.test(source)
+          && /^db-shot-S0[1-5]-/.test(target)
+          && Math.abs(ty - sy) > 280
+          ? Math.max(0, Math.min(26, (Math.abs(ty - sy) - 280) * 0.08))
+          : 0
+        const adjustedSy = frontmatterShotEdgeCrowdingLift > 0 ? sy - frontmatterShotEdgeCrowdingLift : sy
+        const adjustedTy = frontmatterShotEdgeCrowdingLift > 0 ? ty + frontmatterShotEdgeCrowdingLift * 0.25 : ty
 
         const d = buildEdgePathD({
           edgeType: globalEdgeType,
           sx,
-          sy,
+          sy: adjustedSy,
           tx,
-          ty,
+          ty: adjustedTy,
           rankdir,
-          curve: readEdgePathCurveOptions(e as unknown as GraphEdge, schema),
+          curve: overlayCurve || readEdgePathCurveOptions(e as unknown as GraphEdge, schema),
         })
         keep.add(edgeId)
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')

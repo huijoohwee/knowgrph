@@ -103,3 +103,63 @@ export function testFlowEditorWidgetSeedGroupSpreadAvoidsSingleRowWideStripAfter
     throw new Error(`expected wide-bounds reseed to avoid a single-row strip, got rows=${JSON.stringify(placed.map(entry => entry.y))}`)
   }
 }
+
+export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredFrontmatterHeroFirstRow() {
+  const ids = ['S01', 'S02', 'S03', 'S04', 'S05']
+  const placed = placeWidgetsCenteredInGroupBounds({
+    ids,
+    bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
+    cellW: 384,
+    cellH: 544,
+    gapWorld: 24,
+    snapWorld: v => v,
+    preferredFirstRowCount: 3,
+  })
+
+  const firstRowY = placed[0]?.y
+  const firstRow = placed.filter(entry => entry.y === firstRowY)
+  const secondRow = placed.filter(entry => entry.y !== firstRowY)
+  if (firstRow.length !== 3) {
+    throw new Error(`expected preferred hero first row to contain 3 widgets, got ${firstRow.length}`)
+  }
+  if (secondRow.length !== 2) {
+    throw new Error(`expected CTA second row to contain remaining 2 widgets, got ${secondRow.length}`)
+  }
+  if (!(placed[0]!.x < placed[1]!.x && placed[1]!.x < placed[2]!.x)) {
+    throw new Error('expected preferred hero first row to preserve left-to-right ordering')
+  }
+}
+
+export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredFrontmatterHeroRowGapScale() {
+  const ids = ['S01', 'S02', 'S03', 'S04', 'S05']
+  const regular = placeWidgetsCenteredInGroupBounds({
+    ids,
+    bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
+    cellW: 384,
+    cellH: 544,
+    gapWorld: 24,
+    snapWorld: v => v,
+    preferredFirstRowCount: 3,
+  })
+  const tightened = placeWidgetsCenteredInGroupBounds({
+    ids,
+    bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
+    cellW: 384,
+    cellH: 544,
+    gapWorld: 24,
+    snapWorld: v => v,
+    preferredFirstRowCount: 3,
+    preferredRowGapScale: 0.76,
+  })
+
+  const regularFirstRowY = regular[0]!.y
+  const regularSecondRowY = regular.find(entry => entry.y !== regularFirstRowY)!.y
+  const tightenedFirstRowY = tightened[0]!.y
+  const tightenedSecondRowY = tightened.find(entry => entry.y !== tightenedFirstRowY)!.y
+  const regularGap = regularSecondRowY - regularFirstRowY
+  const tightenedGap = tightenedSecondRowY - tightenedFirstRowY
+
+  if (!(tightenedGap < regularGap)) {
+    throw new Error(`expected preferred hero row gap scale to tighten second-row spacing, regular=${regularGap} tightened=${tightenedGap}`)
+  }
+}

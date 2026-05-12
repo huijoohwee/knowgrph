@@ -2361,6 +2361,9 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   if (!(Number(posPanel.y) - Number(posText.y) > 600)) {
     throw new Error('expected derived director_brief shot panel rows to clear the full widget height instead of overlapping the source widget')
   }
+  if (!(Number(posPanel.y) - Number(posText.y) < 680)) {
+    throw new Error(`expected derived director_brief shot panel rows to stay visually tight after 16:9 panel offset tuning, got ${Number(posPanel.y) - Number(posText.y)}`)
+  }
 
   const shotImagePanel = nodeById.get('db-shot-S01-image-panel') || null
   const shotVideoPanel = nodeById.get('db-shot-S01-video-panel') || null
@@ -2440,6 +2443,37 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   if (!(Number(pos4.y) > Number(posText.y))) {
     throw new Error('expected canvas reveal/CTA shots to start on the row after the three hero locales')
   }
+  const shot5 = nodeById.get('db-shot-S05-text') || null
+  if (!shot5) throw new Error('expected derived director_brief shot node db-shot-S05-text')
+  const pos5 = { x: (shot5 as unknown as { x?: unknown }).x, y: (shot5 as unknown as { y?: unknown }).y }
+  if (!(typeof pos5.x === 'number' && Number.isFinite(pos5.x))) throw new Error('expected shot S05 x position')
+  if (!(typeof pos5.y === 'number' && Number.isFinite(pos5.y))) throw new Error('expected shot S05 y position')
+  if (Math.abs(Number(pos5.y) - Number(pos4.y)) > 1) {
+    throw new Error('expected S04-S05 CTA shots to share the same tightened second row')
+  }
+  const heroToCtaRowGap = Number(pos4.y) - Number(posText.y)
+  if (!(heroToCtaRowGap > 0 && heroToCtaRowGap < 1100)) {
+    throw new Error(`expected hero-to-CTA row gap to stay visually tight for 16:9 composition, got ${heroToCtaRowGap}`)
+  }
+  const heroXs = [Number(posText.x), Number(pos2.x), Number(pos3.x)]
+  const heroCentroidX = heroXs.reduce((sum, value) => sum + value, 0) / heroXs.length
+  const ctaCentroidX = (Number(pos4.x) + Number(pos5.x)) / 2
+  if (Math.abs(heroCentroidX - ctaCentroidX) > 500) {
+    throw new Error(`expected hero and CTA rows to stay horizontally centered as a collective, hero=${heroCentroidX} cta=${ctaCentroidX}`)
+  }
+  const firstShotCentroidX = [
+    Number(posText.x),
+    Number((shotImagePanel as unknown as { x?: unknown }).x),
+    Number((shotVideoPanel as unknown as { x?: unknown }).x),
+  ].reduce((sum, value) => sum + value, 0) / 3
+  const firstShotPanelCentroidX = [
+    Number((shotTextPanel as unknown as { x?: unknown }).x),
+    Number((shotImagePanel as unknown as { x?: unknown }).x),
+    Number((shotVideoPanel as unknown as { x?: unknown }).x),
+  ].reduce((sum, value) => sum + value, 0) / 3
+  if (Math.abs(firstShotPanelCentroidX - firstShotCentroidX) > 220) {
+    throw new Error(`expected first-shot panel centroid to stay aligned with its own widget band, widget=${firstShotCentroidX} panels=${firstShotPanelCentroidX}`)
+  }
 
   const edgeUniqs = new Set(
     g.edges
@@ -2458,6 +2492,67 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   }
   if (!edgeUniqs.has('db-shot-S01-image.imageUrl->db-shot-S01-video.reference_image')) {
     throw new Error('expected derived shot imageUrl edge to video reference_image')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoFrontmatterFlow16x9CompositionContract() {
+  const samplePath = readKnowgrphVideoDemoPath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected knowgrph video demo frontmatter parse result')
+  const g = res.graphData
+  if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const settings = ((g.metadata || {}) as Record<string, unknown>).frontmatterFlowSettings as Record<string, unknown> | null
+  if (!settings) throw new Error('expected frontmatter flow settings metadata')
+  if (Number(settings.balancedHeroRowCount) !== 3) throw new Error('expected balancedHeroRowCount=3')
+  if (Math.abs(Number(settings.balancedHeroRowGapScale) - 0.76) > 0.0001) throw new Error('expected balancedHeroRowGapScale=0.76')
+  if (Math.abs(Number(settings.balancedPanelOffsetScale) - 0.96) > 0.0001) throw new Error('expected balancedPanelOffsetScale=0.96')
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const readPos = (id: string): { x: number; y: number } => {
+    const node = nodeById.get(id) || null
+    const x = Number((node as unknown as { x?: unknown } | null)?.x)
+    const y = Number((node as unknown as { y?: unknown } | null)?.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`expected finite position for ${id}`)
+    return { x, y }
+  }
+
+  const s01 = readPos('db-shot-S01-text')
+  const s02 = readPos('db-shot-S02-text')
+  const s03 = readPos('db-shot-S03-text')
+  const s04 = readPos('db-shot-S04-text')
+  const s05 = readPos('db-shot-S05-text')
+  const s01Panel = readPos('db-shot-S01-text-panel')
+  const s01ImagePanel = readPos('db-shot-S01-image-panel')
+  const s01VideoPanel = readPos('db-shot-S01-video-panel')
+
+  if (!(Math.abs(s01.y - s02.y) <= 1 && Math.abs(s02.y - s03.y) <= 1)) {
+    throw new Error('expected hero widgets S01-S03 on one row')
+  }
+  if (!(s01.x < s02.x && s02.x < s03.x)) {
+    throw new Error('expected hero widgets S01-S03 in left-to-right order')
+  }
+  if (!(Math.abs(s04.y - s05.y) <= 1 && s04.y > s01.y)) {
+    throw new Error('expected CTA widgets S04-S05 on a lower shared row')
+  }
+
+  const heroCentroidX = (s01.x + s02.x + s03.x) / 3
+  const ctaCentroidX = (s04.x + s05.x) / 2
+  if (Math.abs(heroCentroidX - ctaCentroidX) > 500) {
+    throw new Error(`expected hero and CTA widget centroids aligned, hero=${heroCentroidX} cta=${ctaCentroidX}`)
+  }
+
+  const panelGap = s01Panel.y - s01.y
+  if (!(panelGap > 600 && panelGap < 680)) {
+    throw new Error(`expected same-shot panel gap within tuned 16:9 band, got ${panelGap}`)
+  }
+
+  const firstShotPanelCentroidX = (s01Panel.x + s01ImagePanel.x + s01VideoPanel.x) / 3
+  const firstShotWidgetBandCentroidX = (s01.x + s01ImagePanel.x + s01VideoPanel.x) / 3
+  if (Math.abs(firstShotPanelCentroidX - firstShotWidgetBandCentroidX) > 220) {
+    throw new Error(`expected first-shot panel centroid aligned with first-shot band, widgets=${firstShotWidgetBandCentroidX} panels=${firstShotPanelCentroidX}`)
   }
 }
 

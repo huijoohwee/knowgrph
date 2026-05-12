@@ -6,6 +6,7 @@ import {
 } from '@/lib/graph/flowPorts'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
   hashArrayOfObjectsSignature,
@@ -260,6 +261,41 @@ export function computeFlowHandlesByNode(args: {
     return out
   }
 
+  const rebalanceRichMediaPanelHandles = (
+    node: Readonly<{ type?: unknown; properties?: unknown }>,
+    dir: 'in' | 'out',
+    handles: FlowPortHandle[],
+  ): FlowPortHandle[] => {
+    if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return handles
+    const props = node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+      ? (node.properties as Record<string, unknown>)
+      : null
+    const activeTab = String(props?.richMediaActiveTab || '').trim()
+    const preferredKeys =
+      activeTab === 'text'
+        ? ['output', 'outputSrcDoc', 'imageUrl', 'videoUrl']
+        : activeTab === 'image'
+          ? ['imageUrl', 'output', 'outputSrcDoc', 'videoUrl']
+          : activeTab === 'video'
+            ? ['videoUrl', 'imageUrl', 'outputSrcDoc', 'output']
+            : []
+    if (preferredKeys.length === 0 || handles.length <= 1) return handles
+    const handleById = new Map(handles.map(handle => [handle.id, handle] as const))
+    const ordered = preferredKeys
+      .map(key => handleById.get(buildFlowHandleId({ dir, edgeId: key })) || null)
+      .filter((handle): handle is FlowPortHandle => !!handle)
+    for (let i = 0; i < handles.length; i += 1) {
+      const handle = handles[i]
+      if (!handle || ordered.some(entry => entry.id === handle.id)) continue
+      ordered.push(handle)
+    }
+    if (ordered.length !== handles.length) return handles
+    return ordered.map((handle, index) => ({
+      id: handle.id,
+      topPct: ((index + 1) / (ordered.length + 1)) * 100,
+    }))
+  }
+
   const out: Record<string, FlowNodeHandles> = {}
   for (let i = 0; i < nodeIds.length; i += 1) {
     const nodeId = nodeIds[i]
@@ -320,9 +356,10 @@ export function computeFlowHandlesByNode(args: {
       return merged
     }
 
+    const node = nodes.find(candidate => String(candidate?.id ?? '').trim() === nodeId) || null
     out[nodeId] = {
-      in: mergeByPrecedence([registryHandles?.in, schemaHandles?.in, dyn.in]),
-      out: mergeByPrecedence([registryHandles?.out, schemaHandles?.out, dyn.out]),
+      in: rebalanceRichMediaPanelHandles(node || {}, 'in', mergeByPrecedence([registryHandles?.in, schemaHandles?.in, dyn.in])),
+      out: rebalanceRichMediaPanelHandles(node || {}, 'out', mergeByPrecedence([registryHandles?.out, schemaHandles?.out, dyn.out])),
     }
   }
   return writeCachedFlowHandlesByNode(cacheKey, out)

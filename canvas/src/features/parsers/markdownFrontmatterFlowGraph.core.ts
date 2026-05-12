@@ -10,6 +10,7 @@ import {
   tryParseFlowBlockFromFrontmatterLines,
   tryParseFlowBlockFromMarkdownBodyLines,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
+import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -198,35 +199,22 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
   const SHOT_WIDGET_COL_GAP_X = WIDGET_BASE_SIZE.width + 160
   const SHOT_PANEL_OFFSET_Y = WIDGET_BASE_SIZE.height + 140
   const SHOT_ROW_GAP_Y = SHOT_PANEL_OFFSET_Y + WIDGET_BASE_SIZE.height + 160
-  const GRID_COL_GAP_X = SHOT_WIDGET_COL_GAP_X
-  const GRID_ROW_GAP_Y = SHOT_ROW_GAP_Y
   const GRID_START_X = Math.max(bounds.maxX + 1400, 4200)
   const GRID_START_Y = bounds.minY
-  const PANEL_OFFSET_Y = SHOT_PANEL_OFFSET_Y
-  // 3 columns means 2 inter-column gaps plus the width of the final widget footprint,
-  // with extra separation so adjacent shot groups do not graze after viewport fit scaling.
-  const SHOT_CELL_WIDTH = GRID_COL_GAP_X * 2 + WIDGET_BASE_SIZE.width + 160
-  const SHOT_CELL_HEIGHT = GRID_ROW_GAP_Y
-
-  const chooseShotGridCols = (count: number): number => {
-    const n = Math.max(1, Math.floor(count))
-    const targetAspect = 16 / 9
-    const minCols = n >= 3 ? 3 : 1
-    const maxCols = Math.min(6, n)
-    let bestCols = minCols
-    let bestErr = Number.POSITIVE_INFINITY
-    for (let cols = minCols; cols <= maxCols; cols += 1) {
-      const rows = Math.ceil(n / cols)
-      const aspect = (cols * SHOT_CELL_WIDTH) / Math.max(1, rows * SHOT_CELL_HEIGHT)
-      const err = Math.abs(Math.log(aspect / targetAspect))
-      if (err < bestErr) {
-        bestErr = err
-        bestCols = cols
-      }
-    }
-    return bestCols
-  }
-  const shotGridCols = chooseShotGridCols(shots.length)
+  const frontmatterSettings = readFrontmatterFlowRenderSettings({ metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: meta.frontmatterFlowSettings } } as GraphData)
+  const shotLayout = buildDirectorBriefShotLayoutConfig({
+    shotCount: shots.length,
+    startX: GRID_START_X,
+    startY: GRID_START_Y,
+    widgetBaseWidth: WIDGET_BASE_SIZE.width,
+    widgetBaseHeight: WIDGET_BASE_SIZE.height,
+    widgetColGapX: SHOT_WIDGET_COL_GAP_X,
+    panelOffsetYBase: SHOT_PANEL_OFFSET_Y,
+    rowGapYBase: SHOT_ROW_GAP_Y,
+    balancedHeroRowCount: frontmatterSettings?.balancedHeroRowCount,
+    balancedHeroRowGapScale: frontmatterSettings?.balancedHeroRowGapScale,
+    balancedPanelOffsetScale: frontmatterSettings?.balancedPanelOffsetScale,
+  })
 
   const textDefaults = pickFirstNodeDefaults({
     rawNodes,
@@ -279,14 +267,13 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
     const videoNodeId = `db-shot-${shotKey}-video`
     const videoPanelId = `db-shot-${shotKey}-video-panel`
 
-    const gridCol = i % shotGridCols
-    const gridRow = Math.floor(i / shotGridCols)
-    const x0 = GRID_START_X + gridCol * SHOT_CELL_WIDTH
-    const y0 = GRID_START_Y + gridRow * SHOT_CELL_HEIGHT
+    const placement = readDirectorBriefShotPlacement({ index: i, layout: shotLayout })
+    const x0 = placement.x0
+    const y0 = placement.y0
     const colX = {
-      text: x0 + 0 * GRID_COL_GAP_X,
-      image: x0 + 1 * GRID_COL_GAP_X,
-      video: x0 + 2 * GRID_COL_GAP_X,
+      text: x0 + 0 * shotLayout.gridColGapX,
+      image: x0 + 1 * shotLayout.gridColGapX,
+      video: x0 + 2 * shotLayout.gridColGapX,
     } as const
 
     const fieldSpecs: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
@@ -329,7 +316,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       id: textPanelId,
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `Shot ${shotId} · Panel (Text)`,
-      pos: { x: colX.text, y: y0 + PANEL_OFFSET_Y },
+      pos: { x: colX.text, y: y0 + shotLayout.panelOffsetY },
       properties: {
         richMediaActiveTab: 'text',
         media_interactive: true,
@@ -354,7 +341,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       id: imagePanelId,
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `Shot ${shotId} · Panel (Image)`,
-      pos: { x: colX.image, y: y0 + PANEL_OFFSET_Y },
+      pos: { x: colX.image, y: y0 + shotLayout.panelOffsetY },
       properties: {
         richMediaActiveTab: 'image',
         media_interactive: true,
@@ -381,7 +368,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       id: videoPanelId,
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `Shot ${shotId} · Panel (Video)`,
-      pos: { x: colX.video, y: y0 + PANEL_OFFSET_Y },
+      pos: { x: colX.video, y: y0 + shotLayout.panelOffsetY },
       properties: {
         richMediaActiveTab: 'video',
         media_interactive: true,
@@ -398,6 +385,84 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
 
   meta.nodes = rawNodes
   meta.connections = connections
+}
+
+type DirectorBriefShotLayoutConfig = {
+  shotGridCols: number
+  shotCellWidth: number
+  shotCellHeight: number
+  gridStartX: number
+  gridStartY: number
+  gridColGapX: number
+  panelOffsetY: number
+  balancedHeroRowCount: number
+  balancedHeroRowGapScale: number
+}
+
+function buildDirectorBriefShotLayoutConfig(args: {
+  shotCount: number
+  startX: number
+  startY: number
+  widgetBaseWidth: number
+  widgetBaseHeight: number
+  widgetColGapX: number
+  panelOffsetYBase: number
+  rowGapYBase: number
+  balancedHeroRowCount?: number
+  balancedHeroRowGapScale?: number
+  balancedPanelOffsetScale?: number
+}): DirectorBriefShotLayoutConfig {
+  const shotCellWidth = args.widgetColGapX * 2 + args.widgetBaseWidth + 160
+  const shotCellHeight = args.rowGapYBase
+  const chooseShotGridCols = (count: number): number => {
+    const n = Math.max(1, Math.floor(count))
+    const targetAspect = 16 / 9
+    const minCols = n >= 3 ? 3 : 1
+    const maxCols = Math.min(6, n)
+    let bestCols = minCols
+    let bestErr = Number.POSITIVE_INFINITY
+    for (let cols = minCols; cols <= maxCols; cols += 1) {
+      const rows = Math.ceil(n / cols)
+      const aspect = (cols * shotCellWidth) / Math.max(1, rows * shotCellHeight)
+      const err = Math.abs(Math.log(aspect / targetAspect))
+      if (err < bestErr) {
+        bestErr = err
+        bestCols = cols
+      }
+    }
+    return bestCols
+  }
+
+  return {
+    shotGridCols: chooseShotGridCols(args.shotCount),
+    shotCellWidth,
+    shotCellHeight,
+    gridStartX: args.startX,
+    gridStartY: args.startY,
+    gridColGapX: args.widgetColGapX,
+    panelOffsetY: args.panelOffsetYBase * (args.balancedPanelOffsetScale || 1),
+    balancedHeroRowCount: args.balancedHeroRowCount || 0,
+    balancedHeroRowGapScale: args.balancedHeroRowGapScale || 1,
+  }
+}
+
+function readDirectorBriefShotPlacement(args: {
+  index: number
+  layout: DirectorBriefShotLayoutConfig
+}): { x0: number; y0: number } {
+  const { index, layout } = args
+  const heroRowCount = layout.balancedHeroRowCount
+  const useHeroRow = heroRowCount >= 2
+  const gridCol = useHeroRow && index >= heroRowCount ? index - heroRowCount : useHeroRow ? index : index % layout.shotGridCols
+  const gridRow = useHeroRow && index >= heroRowCount ? 1 + Math.floor((index - heroRowCount) / Math.max(1, heroRowCount)) : useHeroRow ? 0 : Math.floor(index / layout.shotGridCols)
+  const rowCount = useHeroRow
+    ? (gridRow === 0 ? heroRowCount : Math.min(heroRowCount, Math.max(1, args.index + 1 - heroRowCount)))
+    : Math.min(layout.shotGridCols, Math.max(1, args.index + 1 - gridRow * layout.shotGridCols))
+  const rowOffsetX = ((Math.max(1, layout.shotGridCols) - Math.max(1, rowCount)) * layout.shotCellWidth) / 2
+  return {
+    x0: layout.gridStartX + rowOffsetX + gridCol * layout.shotCellWidth,
+    y0: layout.gridStartY + (gridRow === 0 ? 0 : gridRow * layout.shotCellHeight * layout.balancedHeroRowGapScale),
+  }
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {

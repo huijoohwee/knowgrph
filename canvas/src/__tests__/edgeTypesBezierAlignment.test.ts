@@ -66,3 +66,23 @@ export function testBezierCanvasTracingReusesSharedControlPoints() {
     throw new Error('expected canvas bezier tracing to reuse shared bezier control points from svg path builder')
   }
 }
+
+export function testBezierPathSupportsOrbitalFrontmatterLiftCurve() {
+  const pathNumbers = readPathNumbers(buildEdgePathD({
+    edgeType: 'bezier',
+    sx: 120,
+    sy: 200,
+    tx: 320,
+    ty: 720,
+    rankdir: 'TB',
+    curve: { bend: 0.16, orbitShift: 0.1, orbital: true, phase: 1 },
+  }))
+  if (pathNumbers.length !== 8) throw new Error('expected cubic bezier path numbers for orbital frontmatter lift curve')
+  const [, , c1x, c1y, c2x, c2y] = pathNumbers
+  if (!(c1x < 120 && c2x < 320)) {
+    throw new Error(`expected orbital frontmatter lift curve to swing control points outward along the orbital side, got c1x=${c1x} c2x=${c2x}`)
+  }
+  if (!(c1y > 200 && c2y < 720)) {
+    throw new Error(`expected orbital frontmatter lift curve to preserve vertical progression, got c1y=${c1y} c2y=${c2y}`)
+  }
+}

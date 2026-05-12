@@ -11,6 +11,8 @@ export function placeWidgetsCenteredInGroupBounds(args: {
   cellH: number
   gapWorld: number
   snapWorld: (value: number) => number
+  preferredFirstRowCount?: number
+  preferredRowGapScale?: number
 }): Array<{ id: string; x: number; y: number }> {
   const ids = Array.isArray(args.ids) ? args.ids : []
   if (ids.length === 0) return []
@@ -40,6 +42,53 @@ export function placeWidgetsCenteredInGroupBounds(args: {
       marginBottomPx: 0,
     })
   let layout = computeLayout(boundW, boundH)
+  const preferredFirstRowCount = Number.isFinite(args.preferredFirstRowCount)
+    ? Math.max(2, Math.floor(args.preferredFirstRowCount as number))
+    : 0
+  const preferredRowGapScale = Number.isFinite(args.preferredRowGapScale)
+    ? Math.max(0.6, Math.min(1.5, Number(args.preferredRowGapScale)))
+    : 1
+  if (preferredFirstRowCount >= 2 && ids.length > preferredFirstRowCount) {
+    const firstRowCount = layout.cells.filter(cell => cell.row === 0).length
+    const targetRows = 1 + Math.ceil((ids.length - preferredFirstRowCount) / Math.max(1, preferredFirstRowCount))
+    if (firstRowCount !== preferredFirstRowCount || new Set(layout.cells.map(cell => cell.row)).size !== targetRows) {
+      const preferredLayout = computeBalancedSpreadLayout({
+        count: ids.length,
+        viewportW: boundW,
+        viewportH: Math.max(boundH, cellH * targetRows),
+        cellW,
+        cellH,
+        gapPx: gapWorld,
+        zoomK: 1,
+        marginLeftPx: 0,
+        marginRightPx: 0,
+        marginTopPx: 0,
+        marginBottomPx: 0,
+      })
+      const preferredFirstRow = preferredLayout.cells.filter(cell => cell.row === 0).length
+      if (preferredFirstRow === preferredFirstRowCount) layout = preferredLayout
+    }
+  }
+  if (preferredFirstRowCount >= 2 && preferredRowGapScale !== 1) {
+    const rowIndices = Array.from(new Set(layout.cells.map(cell => cell.row))).sort((a, b) => a - b)
+    if (rowIndices.length > 1) {
+      const firstRowCells = layout.cells.filter(cell => cell.row === rowIndices[0])
+      const laterRowCells = layout.cells.filter(cell => cell.row > rowIndices[0])
+      if (firstRowCells.length === preferredFirstRowCount && laterRowCells.length > 0) {
+        const firstRowMinY = Math.min(...firstRowCells.map(cell => cell.top))
+        const secondRowMinY = Math.min(...laterRowCells.map(cell => cell.top))
+        const currentGap = secondRowMinY - firstRowMinY
+        const targetGap = currentGap * preferredRowGapScale
+        const delta = targetGap - currentGap
+        if (Math.abs(delta) > 0.001) {
+          layout = {
+            ...layout,
+            cells: layout.cells.map(cell => (cell.row > rowIndices[0] ? { ...cell, top: cell.top + delta, y: cell.y + delta } : cell)),
+          }
+        }
+      }
+    }
+  }
   const seededRowCount = new Set(layout.cells.map(cell => cell.row)).size
   const shouldForceMultiRowReseed =
     ids.length >= 5

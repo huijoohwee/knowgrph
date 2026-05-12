@@ -34,6 +34,57 @@ export const testFrontmatterFlowRenderSettingsReadsBalancedViewportPreset = () =
   }
 }
 
+export const testFrontmatterFlowRenderSettingsReadsBalancedHeroRowCount = () => {
+  const settings = readFrontmatterFlowRenderSettings({
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: {
+        direction: 'LR',
+        edgeType: 'bezier',
+        balancedHeroRowCount: 3,
+      },
+    },
+  } as never)
+  if (!settings) throw new Error('expected frontmatter flow render settings')
+  if (settings.balancedHeroRowCount !== 3) {
+    throw new Error(`expected balanced hero row count to round-trip, got ${String(settings.balancedHeroRowCount || '')}`)
+  }
+}
+
+export const testFrontmatterFlowRenderSettingsReadsBalancedHeroRowGapScale = () => {
+  const settings = readFrontmatterFlowRenderSettings({
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: {
+        direction: 'LR',
+        edgeType: 'bezier',
+        balancedHeroRowGapScale: 0.76,
+      },
+    },
+  } as never)
+  if (!settings) throw new Error('expected frontmatter flow render settings')
+  if (Math.abs((settings.balancedHeroRowGapScale || 0) - 0.76) > 0.0001) {
+    throw new Error(`expected balanced hero row gap scale to round-trip, got ${String(settings.balancedHeroRowGapScale || '')}`)
+  }
+}
+
+export const testFrontmatterFlowRenderSettingsReadsBalancedPanelOffsetScale = () => {
+  const settings = readFrontmatterFlowRenderSettings({
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: {
+        direction: 'LR',
+        edgeType: 'bezier',
+        balancedPanelOffsetScale: 0.96,
+      },
+    },
+  } as never)
+  if (!settings) throw new Error('expected frontmatter flow render settings')
+  if (Math.abs((settings.balancedPanelOffsetScale || 0) - 0.96) > 0.0001) {
+    throw new Error(`expected balanced panel offset scale to round-trip, got ${String(settings.balancedPanelOffsetScale || '')}`)
+  }
+}
+
 export const testFrontmatterFlowRenderSettingsFallsBackOutsideFrontmatterFlow = () => {
   const settings = readFrontmatterFlowRenderSettings({
     metadata: {

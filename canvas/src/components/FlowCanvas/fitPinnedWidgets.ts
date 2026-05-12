@@ -9,6 +9,7 @@ import {
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
@@ -40,11 +41,6 @@ export function fitFlowEditorPinnedWidgets(args: {
     frontmatterOverlayIds.length > 0 ||
     String(graphMeta.kind || '').trim() === 'frontmatter-flow' ||
     graphContext === 'frontmatter-flow'
-  // Frontmatter-flow Flow Editor must share the same centroid/center fit basis as D3.
-  // Do not include overlay/pinned widget extents in the fit source for this mode.
-  if (isFrontmatterOverlayFit) {
-    return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
-  }
   if (openIds.length === 0) {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
@@ -120,7 +116,10 @@ export function fitFlowEditorPinnedWidgets(args: {
     const margins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
-      preset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
+      preset: resolveFlowLayoutBalancedViewportPreset({
+        graphData: args.graphData,
+        fallbackPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
+      }),
       minLeftPx: 20,
       minRightPx: 20,
       minTopPx: isFrontmatterOverlayFit ? 64 : 96,

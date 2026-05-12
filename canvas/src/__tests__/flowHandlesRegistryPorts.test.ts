@@ -1,4 +1,5 @@
 import { computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 export const testFlowHandlesIncludeRegistryPortsWithoutEdges = () => {
   const registry = [
@@ -75,4 +76,42 @@ export const testFlowHandlesPreferRegistryOrderingWhenPortsOverlapEdges = () => 
   const idxB = ids.indexOf('in:b')
   if (idxR < 0 || idxG < 0 || idxB < 0) throw new Error('expected in:r, in:g, in:b handles')
   if (!(idxR < idxG && idxG < idxB)) throw new Error('expected registry input ports ordered r, g, b')
+}
+
+export const testFlowHandlesRebalanceRichMediaPanelPortsByActiveTab = () => {
+  const registry = [
+    {
+      id: 'rich-media-panel',
+      isEnabled: true,
+      nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      widgetTypeId: 'kg-rich-media-panel',
+      formId: 'richMediaPanel',
+      fields: [],
+      ports: [
+        { portKey: 'output', direction: 'input' as const },
+        { portKey: 'imageUrl', direction: 'input' as const },
+        { portKey: 'videoUrl', direction: 'input' as const },
+        { portKey: 'outputSrcDoc', direction: 'input' as const },
+        { portKey: 'output', direction: 'output' as const },
+        { portKey: 'imageUrl', direction: 'output' as const },
+        { portKey: 'videoUrl', direction: 'output' as const },
+        { portKey: 'outputSrcDoc', direction: 'output' as const },
+      ],
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    },
+  ]
+
+  const byNode = computeFlowHandlesByNode({
+    nodes: [{ id: 'panel-1', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, properties: { richMediaActiveTab: 'video' } }],
+    edges: [],
+    widgetRegistry: registry,
+  })
+  const handles = byNode['panel-1']
+  if (!handles) throw new Error('expected handles for rich media panel')
+  if (handles.in[0]?.id !== 'in:videoUrl') {
+    throw new Error(`expected video tab input handles to prioritize in:videoUrl, got ${handles.in.map(h => h.id).join(',')}`)
+  }
+  if (handles.out[0]?.id !== 'out:videoUrl') {
+    throw new Error(`expected video tab output handles to prioritize out:videoUrl, got ${handles.out.map(h => h.id).join(',')}`)
+  }
 }

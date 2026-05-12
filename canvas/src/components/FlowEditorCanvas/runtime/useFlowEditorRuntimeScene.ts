@@ -26,7 +26,7 @@ import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEdi
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
+import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { DEFAULT_FLOW_NODE_HEIGHT_PX, DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
@@ -295,7 +295,7 @@ export function useFlowEditorRuntimeScene(args: {
       transform: next,
     })
     return next
-  }, [args.viewportH, args.viewportW])
+  }, [args.viewportH, args.viewportW, args.zoomViewKeyRef])
 
   const getLiveContainmentGroupAabbForNode = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
@@ -569,6 +569,14 @@ export function useFlowEditorRuntimeScene(args: {
       if (intersected.maxX - intersected.minX >= 1 && intersected.maxY - intersected.minY >= 1) return intersected
       return viewportBounds
     }
+    const balancedHeroRowCount = (() => {
+      if (!isFrontmatterFlow) return undefined
+      return readFrontmatterFlowRenderSettings(graphDataForSeeding)?.balancedHeroRowCount
+    })()
+    const balancedHeroRowGapScale = (() => {
+      if (!isFrontmatterFlow) return undefined
+      return readFrontmatterFlowRenderSettings(graphDataForSeeding)?.balancedHeroRowGapScale
+    })()
     const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
       placeWidgetsCenteredInGroupBounds({
         ids,
@@ -577,6 +585,8 @@ export function useFlowEditorRuntimeScene(args: {
         cellH,
         gapWorld,
         snapWorld,
+        preferredFirstRowCount: balancedHeroRowCount,
+        preferredRowGapScale: balancedHeroRowGapScale,
       })
 
     const viewportBucketId = '__viewport__'

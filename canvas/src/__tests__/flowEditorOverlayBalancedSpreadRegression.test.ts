@@ -233,6 +233,32 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!seedSpreadText.includes('computeBalancedSpreadGridForTargetAspect')) {
     throw new Error('expected pinned widget reseed path to reuse the shared balanced spread grid planner')
   }
+  if (!seedSpreadText.includes('preferredFirstRowCount')) {
+    throw new Error('expected pinned widget reseed path to support upstream preferred first-row composition for frontmatter hero layouts')
+  }
+  const handlesPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'handles.ts')
+  const handlesText = readUtf8(handlesPath)
+  if (!handlesText.includes('rebalanceRichMediaPanelHandles')) {
+    throw new Error('expected shared flow handle planner to own rich media panel handle rebalancing')
+  }
+  if (!handlesText.includes("activeTab === 'text'")) {
+    throw new Error('expected shared flow handle planner to rebalance panel handles by active rich media tab')
+  }
+  if (!handlesText.includes('FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID')) {
+    throw new Error('expected shared flow handle planner to scope panel rebalancing to rich media panel node types only')
+  }
+
+  const frontmatterCorePath = path.resolve(process.cwd(), 'src', 'features', 'parsers', 'markdownFrontmatterFlowGraph.core.ts')
+  const frontmatterCoreText = readUtf8(frontmatterCorePath)
+  if (!frontmatterCoreText.includes('balancedPanelOffsetScale')) {
+    throw new Error('expected frontmatter-flow director-brief derivation to consume shared balanced panel offset scale')
+  }
+  if (!frontmatterCoreText.includes('buildDirectorBriefShotLayoutConfig')) {
+    throw new Error('expected frontmatter-flow director-brief derivation to centralize layout math in a shared helper')
+  }
+  if (!frontmatterCoreText.includes('readDirectorBriefShotPlacement')) {
+    throw new Error('expected frontmatter-flow director-brief derivation to reuse a shared placement reader per shot')
+  }
 
   const overlayEdgesPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgeRenderGraphHelperPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
@@ -259,8 +285,17 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!overlayEdgesText.includes('const defaultPortKeyByNodeId = graphLookup?.defaultPortKeyByNodeId || new Map<string, { in: string; out: string }>()')) {
     throw new Error('expected Flow Editor overlay edge rendering to consume shared default port fallbacks from the overlay edge graph helper')
   }
+  if (!overlayEdgeRenderGraphHelperText.includes('edgeCurveById')) {
+    throw new Error('expected Flow Editor overlay edge graph helper to precompute shared edge-curve hints for frontmatter shot routing')
+  }
+  if (!overlayEdgesText.includes('const edgeCurveById = graphLookup?.edgeCurveById || new Map')) {
+    throw new Error('expected Flow Editor overlay edge rendering to consume shared edge-curve hints from the overlay edge graph helper')
+  }
   if (!overlayEdgesText.includes('e.sourcePortKey || FLOW_HANDLE_DEFAULT_EDGE_ID')) {
     throw new Error('expected Flow Editor overlay edge rendering to keep default handle fallback aligned with the shared overlay edge graph output')
+  }
+  if (!overlayEdgesText.includes('frontmatterShotEdgeCrowdingLift')) {
+    throw new Error('expected Flow Editor overlay edge rendering to apply a shared frontmatter shot crowding lift for hero/CTA routing')
   }
   if (overlayEdgesText.includes('firstSchemaPortKeyByNodeId')) {
     throw new Error('expected Flow Editor overlay edge rendering to avoid local first-schema-port fallback aliases')

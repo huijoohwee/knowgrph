@@ -32,9 +32,11 @@ export type FlowEditorRenderGraphLookup = {
 
 export type FlowEditorOverlayEdgeGraphLookup = {
   graphSemanticKey: string
+  graphMetaKind: string | null
   nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }>
   nodeIds: Set<string>
   defaultPortKeyByNodeId: Map<string, { in: string; out: string }>
+  edgeCurveById: Map<string, { bend: number; orbitShift: number; orbital: boolean; phase: -1 | 1 } | null>
   rawEdgeById: Map<string, GraphEdge>
   edges: Array<{
     id: string
@@ -331,6 +333,7 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
   }
 
   const rawEdgeById = new Map<string, GraphEdge>()
+  const edgeCurveById = new Map<string, { bend: number; orbitShift: number; orbital: boolean; phase: -1 | 1 } | null>()
   const edges: Array<{
     id: string
     source: string
@@ -358,6 +361,17 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
       || defaultPortKeyByNodeId.get(target)?.in
       || FLOW_HANDLE_DEFAULT_EDGE_ID
     rawEdgeById.set(id, edge)
+    const propsRecord = props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : null
+    const isFrontmatterFlow = String(baseGraph.graphMetaKind || '').trim() === 'frontmatter-flow'
+    const heroRowCurve = isFrontmatterFlow && source !== target && /^db-shot-S0[1-5]-/.test(source) && /^db-shot-S0[1-5]-/.test(target)
+      ? {
+          bend: propsRecord?.['visual:curveBend'] == null ? 0.16 : Number(propsRecord['visual:curveBend']),
+          orbitShift: propsRecord?.['visual:orbitShift'] == null ? 0.1 : Number(propsRecord['visual:orbitShift']),
+          orbital: propsRecord?.['visual:curveInterpolator'] == null ? true : String(propsRecord['visual:curveInterpolator']).trim().toLowerCase() === 'orbital',
+          phase: source.localeCompare(target) <= 0 ? 1 : -1,
+        }
+      : null
+    edgeCurveById.set(id, heroRowCurve)
     edges.push({
       id,
       source,
@@ -370,9 +384,11 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
 
   return writeCachedFlowEditorOverlayEdgeGraph(cacheKey, {
     graphSemanticKey,
+    graphMetaKind: baseGraph.graphMetaKind,
     nodes,
     nodeIds,
     defaultPortKeyByNodeId,
+    edgeCurveById,
     rawEdgeById,
     edges,
   })
