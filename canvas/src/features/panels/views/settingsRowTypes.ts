@@ -1,0 +1,70 @@
+import React from 'react'
+import type { SectionMeta } from './settingsView.constants'
+
+export type SettingsToastPayload = {
+  id: string
+  kind: 'neutral' | 'error' | 'success'
+  message: string
+  ttlMs?: number
+  dismissible?: boolean
+}
+
+export type SettingsRowStatusState = {
+  bytePlusHealthDetails: string | null
+  bytePlusHealthOk: boolean | null
+  chatHealthDetails: string | null
+  chatHealthOk: boolean | null
+  chatHistoryPathStatus: string | null
+  grabMapsHealthDetails: string | null
+  grabMapsHealthOk: boolean | null
+  isCheckingBytePlusHealth: boolean
+  isCheckingBytePlusVideoModelPreview: boolean
+  isCheckingGrabMapsHealth: boolean
+  isCheckingHealth: boolean
+  isGeneratingStripeCheckout: boolean
+  isUpdatingChatHistoryPath: boolean
+  isUpdatingKnowgrphPath: boolean
+  knowgrphPathStatus: string | null
+  normalizedChatProvider: string
+  stripeCheckoutStatus: string | null
+}
+
+export type SettingsRowRefs = {
+  dirtyRef: React.MutableRefObject<Set<string>>
+  kgcLocalImportInputRef: React.RefObject<HTMLInputElement | null>
+  localImportInputRef: React.RefObject<HTMLInputElement | null>
+}
+
+export type SettingsRowActions = {
+  applyActiveWorkspaceFileAsChatHistory: () => void
+  applyActiveWorkspaceFileAsKnowgrph: () => void
+  buildChatAssistNodes: (rowKey: string) => React.ReactNode[]
+  buildSectionMetaAssistNodes: (sectionMeta: SectionMeta | undefined, isFirstRowInArea: boolean, rowKey: string) => React.ReactNode[]
+  checkBytePlusHealth: () => void
+  checkBytePlusVideoModelPreview: () => void
+  checkChatHealth: () => void
+  checkGrabMapsHealth: () => Promise<unknown>
+  createAndSelectChatHistoryFile: () => Promise<unknown>
+  createAndSelectKnowgrphFile: () => Promise<unknown>
+  importCloudUrlForChatHistory: () => void
+  importCloudUrlForKnowgrph: () => void
+  openFilePicker: (el: HTMLInputElement | null) => void
+  openWorkspaceFile: (path: string) => void
+  pushUiToast: (toast: SettingsToastPayload) => void
+  renderInput: (key: string, type: string, writable: boolean, options?: string[], displayValueOverride?: string | number | boolean) => React.ReactNode
+  setChatHistoryPathStatus: React.Dispatch<React.SetStateAction<string | null>>
+  setIsGeneratingStripeCheckout: React.Dispatch<React.SetStateAction<boolean>>
+  setKnowgrphPathStatus: React.Dispatch<React.SetStateAction<string | null>>
+  setStripeCheckoutStatus: React.Dispatch<React.SetStateAction<string | null>>
+  setValues: React.Dispatch<React.SetStateAction<Record<string, string | number | boolean>>>
+}
+
+export type SettingsRowToggleActions = {
+  onToggleExpanded: () => void
+}
+
+export type SettingsRowUi = {
+  settingsTypeIconSizeClass: string
+  uiIconStrokeWidth: number
+  uiPanelKeyValueTextSizeClass: string
+}

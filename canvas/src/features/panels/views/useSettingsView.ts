@@ -66,7 +66,6 @@ import {
   getDeerFlowApiRowAnchorId,
 } from './deerflowApiDocs'
 import {
-  STRIPE_PAYMENT_API_DOC_AREA,
   STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
   getStripePaymentApiRowAnchorId,
 } from './stripePaymentApiDocs'
@@ -90,141 +89,27 @@ import {
 } from './geminiVideoGenerationApiDocs'
 import {
   MAPS_API_DOC_ENTRIES,
-  MAPS_GRABMAPS_DOC_AREA,
-  MAPS_GEO_DOC_AREA,
-  MAPS_MAPLIBRE_DOC_AREA,
   getMapsApiRowAnchorId,
 } from './mapsApiDocs'
-import { GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
-import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
+import { GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES } from './grabmapsDirectionsApiDocs'
+import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES } from './grabmapsMcpApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
 import { buildIntegrationVirtualSettingMeta } from '@/features/integrations/integrationVirtualSettings'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildGrabMapsProxyRequestHeadersFromAuth, normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
-
-const SETTINGS_AREA_ORDER: readonly string[] = [
-  'Chat',
-  'UI Density: Panels',
-  'UI Density: Icons',
-  MAPS_GRABMAPS_DOC_AREA,
-  MAPS_GRABMAPS_MCP_DOC_AREA,
-  MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA,
-  MAPS_GEO_DOC_AREA,
-  MAPS_MAPLIBRE_DOC_AREA,
-  'Workspace',
-  'Markdown',
-  'Flow Editor',
-  'Canvas',
-  'Rendering',
-  'Performance',
-  'Graph Data Table',
-  'Import / Export',
-  'Integrations',
-  BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
-  BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
-  BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
-  GEMINI_VIDEO_GENERATION_API_DOC_AREA,
-  OPENAI_CHAT_API_DOC_AREA,
-  OPENAI_IMAGES_API_DOC_AREA,
-  DEERFLOW_API_DOC_AREA,
-]
-
-const SETTINGS_AREA_CANONICAL: Readonly<Record<string, string>> = {
-  'ui density panels': 'UI Density: Panels',
-  'ui density panel': 'UI Density: Panels',
-  'ui density icons': 'UI Density: Icons',
-  'graph data table': 'Graph Data Table',
-  'import export': 'Import / Export',
-  integrations: 'Integrations',
-}
-
-function normalizeSettingsAreaLabel(areaRaw: string): string {
-  const area = String(areaRaw || '').trim()
-  if (!area) return '—'
-  const key = area.toLowerCase().replace(/[/:]+/g, ' ').replace(/\s+/g, ' ').trim()
-  return SETTINGS_AREA_CANONICAL[key] || area
-}
-
-function settingsAreaSortWeight(area: string): number {
-  const idx = SETTINGS_AREA_ORDER.indexOf(area)
-  return idx >= 0 ? idx : Number.MAX_SAFE_INTEGER
-}
-
-function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
-  const area = normalizeSettingsAreaLabel(areaRaw)
-  if (
-    area === 'Chat'
-    || area === 'Integrations'
-    || area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
-    || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
-    || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
-    || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
-    || area === OPENAI_CHAT_API_DOC_AREA
-    || area === OPENAI_IMAGES_API_DOC_AREA
-    || area === DEERFLOW_API_DOC_AREA
-  ) {
-    return true
-  }
-  return key.startsWith('chat') || key === 'integrationConfigsJson'
-}
-
-function isPaymentsOwnedSetting(key: string, areaRaw: string): boolean {
-  const area = normalizeSettingsAreaLabel(areaRaw)
-  if (area === STRIPE_PAYMENT_API_DOC_AREA) return true
-  return key.startsWith('payments.')
-}
-
-function isMapsOwnedSetting(key: string, areaRaw: string): boolean {
-  const area = normalizeSettingsAreaLabel(areaRaw)
-  if (
-    area === MAPS_GRABMAPS_DOC_AREA
-    || area === MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA
-    || area === MAPS_GEO_DOC_AREA
-    || area === MAPS_MAPLIBRE_DOC_AREA
-  ) return true
-  if (key === 'autoEnableGeospatialOnGeoImport') return true
-  if (key.includes('.mcp.')) return false
-  return key.startsWith('maps.')
-}
-
-function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
-  const area = normalizeSettingsAreaLabel(areaRaw)
-  if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
-  return key.includes('.mcp.')
-}
-
-type SettingsEntry = {
-  meta: {
-    key: string
-    type: string
-    source: string
-    read: () => string | number | boolean | null
-    write?: (value: string | number | boolean) => void
-    docKey?: string
-    default?: () => string | number | boolean | null
-    options?: string[]
-  }
-  details: FlowDetails
-  writable: boolean
-  index: string
-  anchorId?: string
-  typeLabel?: string
-  valueKey?: string
-  valueDisplayOverride?: string | number | boolean
-  valueType?: string
-  valueOptions?: string[]
-  tooltipRole?: string
-  tooltipActions?: string[]
-  tooltipDefaultValue?: string | number | boolean | null
-  tooltipMin?: string | number
-  tooltipMax?: string | number
-  tooltipInterval?: string | number
-  tooltipExpansionNote?: string
-  tooltipContractionNote?: string
-  tooltipImpact?: string
-}
+import {
+  buildDocMappedEntry,
+  isIntegrationsOwnedSetting,
+  isMapsOwnedSetting,
+  isMcpOwnedSetting,
+  isPaymentsOwnedSetting,
+  normalizeSettingsAreaLabel,
+  settingsAreaSortWeight,
+  SETTINGS_REGISTRY_BY_KEY,
+  type SettingsEntry,
+} from './useSettingsView.helpers'
 
 const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'chatContextScope') {
@@ -264,7 +149,6 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...DEERFLOW_API_REQUEST_DOC_ENTRIES,
 ] as const
 
-const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
 const INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY: Readonly<Record<string, ReadonlySet<string>>> = {
   chatMessagesJson: new Set(['byteplusApi.messages', 'openaiApi.input', 'deerflowApi.input']),
   chatThinkingJson: new Set(['byteplusApi.thinking']),
@@ -509,6 +393,7 @@ function resolveIntegrationEntryStateKey(entry: typeof INTEGRATION_API_DOC_ENTRI
   }
 }
 
+
 const PAYMENTS_API_DOC_ENTRIES = [
   ...STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
 ] as const
@@ -599,7 +484,7 @@ export function useSettingsView({
   const applyAll = React.useCallback(() => {
     const dirty = Array.from(dirtyRef.current)
     dirty.forEach((key) => {
-      const meta = settingsRegistry.find(s => s.key === key)
+      const meta = SETTINGS_REGISTRY_BY_KEY.get(key)
       const virtualMeta =
         (() => {
           const integrationEntry = INTEGRATION_API_DOC_ENTRIES.find(entry => {
@@ -1041,45 +926,9 @@ export function useSettingsView({
         anchorId,
       }
     })
-    const paymentsVirtualEntries: SettingsEntry[] = PAYMENTS_API_DOC_ENTRIES.map(entry => {
-      const mappedMeta = entry.valueKey
-        ? settingsRegistry.find(s => s.key === entry.valueKey)
-        : undefined
-      const anchorId = getStripePaymentApiRowAnchorId(entry.meta.key)
-      return {
-        meta: entry.meta,
-        details: entry.details,
-        writable: Boolean(mappedMeta?.write),
-        index: normalizeText(
-          [
-            entry.details.area,
-            entry.meta.key,
-            entry.typeLabel,
-            entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
-            entry.details.responsibility,
-            ...(entry.searchHints || []),
-          ].join(' '),
-        ),
-        typeLabel: entry.typeLabel,
-        valueKey: entry.valueKey,
-        valueDisplayOverride:
-          entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
-            ? (values[entry.valueKey] as string | number | boolean | undefined)
-            : undefined,
-        valueType: mappedMeta?.type,
-        valueOptions: mappedMeta?.options,
-        tooltipRole: entry.tooltipRole,
-        tooltipActions: entry.tooltipActions,
-        tooltipDefaultValue: entry.tooltipDefaultValue,
-        tooltipMin: entry.tooltipMin,
-        tooltipMax: entry.tooltipMax,
-        tooltipInterval: entry.tooltipInterval,
-        tooltipExpansionNote: entry.tooltipExpansionNote,
-        tooltipContractionNote: entry.tooltipContractionNote,
-        tooltipImpact: entry.tooltipImpact,
-        anchorId,
-      }
-    })
+    const paymentsVirtualEntries: SettingsEntry[] = PAYMENTS_API_DOC_ENTRIES.map(entry => (
+      buildDocMappedEntry(entry, values, getStripePaymentApiRowAnchorId(entry.meta.key))
+    ))
 
     const mapsDocEntries = [
       ...MAPS_API_DOC_ENTRIES,
@@ -1088,84 +937,12 @@ export function useSettingsView({
     const mcpDocEntries = [
       ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
     ]
-    const mapsVirtualEntries: SettingsEntry[] = mapsDocEntries.map(entry => {
-      const mappedMeta = entry.valueKey
-        ? settingsRegistry.find(s => s.key === entry.valueKey)
-        : undefined
-      const anchorId = getMapsApiRowAnchorId(entry.meta.key)
-      return {
-        meta: entry.meta,
-        details: entry.details,
-        writable: Boolean(mappedMeta?.write),
-        index: normalizeText(
-          [
-            entry.details.area,
-            entry.meta.key,
-            entry.typeLabel,
-            entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
-            entry.details.responsibility,
-            ...(entry.searchHints || []),
-          ].join(' '),
-        ),
-        typeLabel: entry.typeLabel,
-        valueKey: entry.valueKey,
-        valueDisplayOverride:
-          entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
-            ? (values[entry.valueKey] as string | number | boolean | undefined)
-            : undefined,
-        valueType: mappedMeta?.type,
-        valueOptions: mappedMeta?.options,
-        tooltipRole: entry.tooltipRole,
-        tooltipActions: entry.tooltipActions,
-        tooltipDefaultValue: entry.tooltipDefaultValue,
-        tooltipMin: entry.tooltipMin,
-        tooltipMax: entry.tooltipMax,
-        tooltipInterval: entry.tooltipInterval,
-        tooltipExpansionNote: entry.tooltipExpansionNote,
-        tooltipContractionNote: entry.tooltipContractionNote,
-        tooltipImpact: entry.tooltipImpact,
-        anchorId,
-      }
-    })
-    const mcpVirtualEntries: SettingsEntry[] = mcpDocEntries.map(entry => {
-      const mappedMeta = entry.valueKey
-        ? settingsRegistry.find(s => s.key === entry.valueKey)
-        : undefined
-      const anchorId = getMapsApiRowAnchorId(entry.meta.key)
-      return {
-        meta: entry.meta,
-        details: entry.details,
-        writable: Boolean(mappedMeta?.write),
-        index: normalizeText(
-          [
-            entry.details.area,
-            entry.meta.key,
-            entry.typeLabel,
-            entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
-            entry.details.responsibility,
-            ...(entry.searchHints || []),
-          ].join(' '),
-        ),
-        typeLabel: entry.typeLabel,
-        valueKey: entry.valueKey,
-        valueDisplayOverride:
-          entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
-            ? (values[entry.valueKey] as string | number | boolean | undefined)
-            : undefined,
-        valueType: mappedMeta?.type,
-        valueOptions: mappedMeta?.options,
-        tooltipRole: entry.tooltipRole,
-        tooltipActions: entry.tooltipActions,
-        tooltipDefaultValue: entry.tooltipDefaultValue,
-        tooltipMin: entry.tooltipMin,
-        tooltipMax: entry.tooltipMax,
-        tooltipInterval: entry.tooltipInterval,
-        tooltipExpansionNote: entry.tooltipExpansionNote,
-        tooltipContractionNote: entry.tooltipContractionNote,
-        tooltipImpact: entry.tooltipImpact,
-        anchorId,
-      }
-    })
+    const mapsVirtualEntries: SettingsEntry[] = mapsDocEntries.map(entry => (
+      buildDocMappedEntry(entry, values, getMapsApiRowAnchorId(entry.meta.key))
+    ))
+    const mcpVirtualEntries: SettingsEntry[] = mcpDocEntries.map(entry => (
+      buildDocMappedEntry(entry, values, getMapsApiRowAnchorId(entry.meta.key))
+    ))
 
     const hiddenConcreteIntegrationKeys = mode === 'integrations'
       ? new Set<string>([
