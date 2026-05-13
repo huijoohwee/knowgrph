@@ -556,6 +556,9 @@ export function useSettingsView({
   const [grabMapsHealthOk, setGrabMapsHealthOk] = React.useState<boolean | null>(null)
   const [grabMapsHealthDetails, setGrabMapsHealthDetails] = React.useState<string | null>(null)
   const [isCheckingGrabMapsHealth, setIsCheckingGrabMapsHealth] = React.useState(false)
+  const [deerFlowHealthOk, setDeerFlowHealthOk] = React.useState<boolean | null>(null)
+  const [deerFlowHealthDetails, setDeerFlowHealthDetails] = React.useState<string | null>(null)
+  const [isCheckingDeerFlowHealth, setIsCheckingDeerFlowHealth] = React.useState(false)
   const [bytePlusVideoModelPreviewText, setBytePlusVideoModelPreviewText] = React.useState<string | null>(null)
   const [isCheckingBytePlusVideoModelPreview, setIsCheckingBytePlusVideoModelPreview] = React.useState(false)
   const bytePlusVideoPreviewRequestRef = React.useRef(0)
@@ -697,6 +700,44 @@ export function useSettingsView({
     }
   }, [values])
 
+  const checkDeerFlowHealth = React.useCallback(async () => {
+    const baseUrl = getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_DEERFLOW)
+    const healthUrl = resolveChatEndpointForHealth(baseUrl)
+    if (!healthUrl) {
+      setDeerFlowHealthOk(false)
+      setDeerFlowHealthDetails('DeerFlow endpoint is not configured.')
+      return
+    }
+    setIsCheckingDeerFlowHealth(true)
+    setDeerFlowHealthOk(null)
+    setDeerFlowHealthDetails(null)
+    try {
+      const res = await fetch(healthUrl, {
+        method: 'GET',
+        headers: buildChatProxyHeaders({
+          provider: CHAT_PROVIDER_DEERFLOW,
+          apiKey: null,
+          endpointUrl: baseUrl,
+          clientRequestId: `kg-deerflow-health-${Date.now().toString(36)}`,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        setDeerFlowHealthOk(true)
+        const detail = data ? `OK: ${JSON.stringify(data)}` : 'OK'
+        setDeerFlowHealthDetails(detail)
+      } else {
+        setDeerFlowHealthOk(false)
+        setDeerFlowHealthDetails(`Error: ${res.status} ${res.statusText}`)
+      }
+    } catch (err: unknown) {
+      setDeerFlowHealthOk(false)
+      setDeerFlowHealthDetails(`Error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setIsCheckingDeerFlowHealth(false)
+    }
+  }, [])
+
   const checkBytePlusVideoModelPreview = React.useCallback(async () => {
     const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
     const apiKey = authMode === 'byok' ? String(values.chatApiKey || '').trim() : ''
@@ -760,8 +801,11 @@ export function useSettingsView({
     if (normalizedProvider !== CHAT_PROVIDER_BYTEPLUS) {
       void checkBytePlusHealth()
     }
+    if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) {
+      void checkDeerFlowHealth()
+    }
     void checkBytePlusVideoModelPreview()
-  }, [checkBytePlusVideoModelPreview, checkChatHealth, checkBytePlusHealth, mode, values.chatProvider])
+  }, [checkBytePlusVideoModelPreview, checkChatHealth, checkBytePlusHealth, checkDeerFlowHealth, mode, values.chatProvider])
 
   const didAutoCheckGrabMapsHealthRef = React.useRef(false)
   React.useEffect(() => {
@@ -1169,6 +1213,10 @@ export function useSettingsView({
     grabMapsHealthDetails,
     isCheckingGrabMapsHealth,
     checkGrabMapsHealth,
+    deerFlowHealthOk,
+    deerFlowHealthDetails,
+    isCheckingDeerFlowHealth,
+    checkDeerFlowHealth,
     bytePlusVideoModelPreviewText,
     isCheckingBytePlusVideoModelPreview,
     checkBytePlusVideoModelPreview,

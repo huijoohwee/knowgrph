@@ -53,7 +53,7 @@ export function SettingsSections({
         key={area}
         title={
           <Tooltip
-            content={buildSettingsAreaTooltip(area, entries.length)}
+            content={buildSettingsAreaTooltip(area, String(entries.length))}
             maxWidthPx={250}
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >

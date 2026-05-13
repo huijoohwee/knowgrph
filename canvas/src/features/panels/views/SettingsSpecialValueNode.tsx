@@ -2,7 +2,8 @@ import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripeCheckout'
-import { CHAT_PROVIDER_BYTEPLUS } from '@/lib/chatEndpoint'
+import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW } from '@/lib/chatEndpoint'
+import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
 
 type SettingsSpecialValueNodeProps = {
@@ -19,6 +20,7 @@ type SettingsSpecialValueNodeProps = {
     | 'checkBytePlusHealth'
     | 'checkBytePlusVideoModelPreview'
     | 'checkChatHealth'
+    | 'checkDeerFlowHealth'
     | 'checkGrabMapsHealth'
     | 'createAndSelectChatHistoryFile'
     | 'createAndSelectKnowgrphFile'
@@ -42,6 +44,7 @@ type SettingsSpecialValueNodeProps = {
 export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): React.ReactNode | null {
   const {
     actions,
+    area,
     inputNode,
     pillButtonClassName,
     refs,
@@ -75,6 +78,16 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             />
           </div>
         ) : null}
+        {status.normalizedChatProvider === CHAT_PROVIDER_DEERFLOW ? (
+          <div className="shrink-0" title={status.deerFlowHealthDetails || undefined}>
+            <StatusBadge
+              label="DeerFlow Gateway"
+              ok={status.isCheckingDeerFlowHealth ? null : (status.deerFlowHealthOk ?? null)}
+              msg={status.isCheckingDeerFlowHealth ? 'Checking...' : status.deerFlowHealthOk === true ? 'Success' : status.deerFlowHealthOk === false ? 'Failed' : 'Idle'}
+              details={status.deerFlowHealthDetails || undefined}
+            />
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={e => {
@@ -83,12 +96,42 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             if (status.normalizedChatProvider !== CHAT_PROVIDER_BYTEPLUS) {
               actions.checkBytePlusHealth()
             }
+            if (status.normalizedChatProvider === CHAT_PROVIDER_DEERFLOW) {
+              actions.checkDeerFlowHealth()
+            }
             actions.checkBytePlusVideoModelPreview()
           }}
-          disabled={status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingBytePlusVideoModelPreview}
+          disabled={status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingDeerFlowHealth || status.isCheckingBytePlusVideoModelPreview}
           className={pillButtonClassName}
         >
-          {status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingBytePlusVideoModelPreview ? 'Checking...' : 'Check Health'}
+          {status.isCheckingHealth || status.isCheckingBytePlusHealth || status.isCheckingDeerFlowHealth || status.isCheckingBytePlusVideoModelPreview ? 'Checking...' : 'Check Health'}
+        </button>
+      </div>
+    )
+  }
+
+  if (area === DEERFLOW_API_DOC_AREA && sKey === 'deerflowApi.provider') {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">{inputNode}</div>
+        <div className="shrink-0" title={status.deerFlowHealthDetails || undefined}>
+          <StatusBadge
+            label="DeerFlow Gateway"
+            ok={status.isCheckingDeerFlowHealth ? null : (status.deerFlowHealthOk ?? null)}
+            msg={status.isCheckingDeerFlowHealth ? 'Checking...' : status.deerFlowHealthOk === true ? 'Success' : status.deerFlowHealthOk === false ? 'Failed' : 'Idle'}
+            details={status.deerFlowHealthDetails || undefined}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation()
+            actions.checkDeerFlowHealth()
+          }}
+          disabled={status.isCheckingDeerFlowHealth}
+          className={pillButtonClassName}
+        >
+          {status.isCheckingDeerFlowHealth ? 'Checking...' : 'Check Health'}
         </button>
       </div>
     )

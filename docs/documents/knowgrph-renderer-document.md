@@ -263,6 +263,36 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.
 - Fit-to-screen operates on the full visible graph (after display filters) and must not be confused with selection zoom; selection zoom must not mutate layout caches.
 
+### Frontmatter-Flow Balanced Layout (16:9 Director-Brief Composition)
+
+- **Scope**: frontmatter-flow graphs with `metadata.kind='frontmatter-flow'` and `metadata.frontmatterFlowSettings` containing balanced layout keys.
+- **Shared settings contract** (`canvas/src/lib/graph/frontmatterFlowSettings.ts`):
+  - `balancedViewportPreset`: viewport margin preset consumed by overlay balanced spread and Flow Editor fit.
+  - `balancedHeroRowCount`: number of widgets on the first (hero) row; remaining widgets form subsequent rows.
+  - `balancedHeroRowGapScale`: multiplier for vertical gap between hero row and subsequent rows (clamped 0.6–1.5).
+  - `balancedPanelOffsetScale`: multiplier for same-shot widget-to-panel vertical offset (clamped 0.8–1.4).
+- **Canonical defaults** (`markdownFrontmatterFlowGraph.flowBlock.ts`):
+  - `balancedViewportPreset: 'widgetFrontmatter'`
+  - `balancedHeroRowCount: 3`
+  - `balancedHeroRowGapScale: 0.76`
+  - `balancedPanelOffsetScale: 0.96`
+- **Director-brief shot layout** (`markdownFrontmatterFlowGraph.core.ts`):
+  - `buildDirectorBriefShotLayoutConfig`: centralizes grid column selection, cell dimensions, and panel offset derivation from shared settings.
+  - `readDirectorBriefShotPlacement`: computes per-shot X/Y placement using hero-row contract and row-gap scaling.
+  - Row centering: each row is horizontally centered under the collective centroid; CTA rows align with hero-row centroid.
+- **Flow Editor seeding** (`useFlowEditorRuntimeScene.ts` + `seedGroupSpread.ts`):
+  - `preferredFirstRowCount` and `preferredFirstRowGapScale` are read from frontmatter-flow settings and passed to the shared centered spread helper.
+- **Overlay edge composition** (`useFlowEditorOverlayEdges.ts` + `flowEditorRenderGraph.ts`):
+  - `edgeCurveById` precomputed in the shared overlay graph; renderer consumes shared curve hints.
+  - Frontmatter shot hero/CTA edges apply `frontmatterShotEdgeCrowdingLift` for long vertical transitions.
+- **Rich media panel handle anchoring** (`handles.ts`):
+  - Panel input/output handles are reordered by `richMediaActiveTab` so the active medium gets the most central port slot.
+- **Invariants**:
+  - All balanced layout behavior must route through shared settings and helpers; forbid renderer-local hardcoding of hero count, row gap, or panel offset.
+  - Parser-level director-brief derivation and Flow Editor seeding must consume the same `readFrontmatterFlowRenderSettings` contract.
+  - Overlay edge routing must consume shared `edgeCurveById` hints before falling back to generic curve readers.
+  - End-to-end regression: `markdown.frontmatterFlowGraph.fidelity.knowgrphVideoDemo.16x9CompositionContract`.
+
 ### Mermaid Layout Mode
 - **Configuration**: `layout.mode = 'mermaid'`.
 - **Behavior**:

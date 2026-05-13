@@ -144,7 +144,7 @@ export function buildSettingsValueTooltip(params: {
 }
 
 export function buildSettingsAreaTooltip(area: string, responsibility?: string): string {
-  const normalizedResponsibility = responsibility ? responsibility.trim() : '';
+  const normalizedResponsibility = typeof responsibility === 'string' && responsibility ? responsibility.trim() : '';
   const base =
     normalizedResponsibility.length > 0
       ? `Settings area for ${normalizedResponsibility.toLowerCase()} keys. Expand to see modules, functions, and notes.`
