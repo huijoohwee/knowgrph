@@ -109,14 +109,12 @@ export const execute = async (db: D1DatabaseLike, sql: string, values: unknown[]
 }
 
 export const ensureWorkspaceRow = async (db: D1DatabaseLike, workspaceId: string, nowIso: string): Promise<void> => {
+  const existing = await queryFirst<{ id: string }>(db, 'SELECT id FROM workspaces WHERE id = ?', [workspaceId])
+  if (existing) return
   await execute(
     db,
     `INSERT INTO workspaces (id, slug, title, visibility, created_at, updated_at)
-     VALUES (?, ?, ?, 'private', ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       slug = excluded.slug,
-       title = excluded.title,
-       updated_at = excluded.updated_at`,
+     VALUES (?, ?, ?, 'private', ?, ?)`,
     [workspaceId, workspaceId, workspaceId, nowIso, nowIso],
   )
 }
@@ -127,16 +125,21 @@ export const ensureSyncDeviceRow = async (
   deviceId: string,
   nowIso: string,
 ): Promise<void> => {
+  const existing = await queryFirst<{ id: string }>(db, 'SELECT id FROM sync_devices WHERE id = ?', [deviceId])
+  if (existing) return
   await execute(
     db,
     `INSERT INTO sync_devices (id, workspace_id, device_label, last_pull_cursor, last_push_cursor, updated_at)
-     VALUES (?, ?, ?, NULL, NULL, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       workspace_id = excluded.workspace_id,
-       device_label = excluded.device_label,
-       updated_at = excluded.updated_at`,
+     VALUES (?, ?, ?, NULL, NULL, ?)`,
     [deviceId, workspaceId, deviceId, nowIso],
   )
+}
+
+const SYNC_EVENT_RETENTION_HOURS = 24
+
+export const pruneStaleSyncEvents = async (db: D1DatabaseLike, nowIso: string): Promise<void> => {
+  const cutoff = new Date(Date.parse(nowIso) - SYNC_EVENT_RETENTION_HOURS * 3600_000).toISOString()
+  await execute(db, 'DELETE FROM sync_events WHERE created_at < ?', [cutoff])
 }
 
 export const writeSyncEvent = async (

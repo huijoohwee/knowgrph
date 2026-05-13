@@ -6,9 +6,9 @@
 
 ---
 
-**Version**: 2.4.0
-**Date**: 2026-05-08
-**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view, deep link canvas rendering)
+**Version**: 2.5.0
+**Date**: 2026-05-13
+**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view, deep link canvas rendering, D1 write amplification neutralized)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -52,6 +52,7 @@ Supported URL types: Cloudflare D1 export endpoint, GitHub repo/folder/blob, any
 - RxDB matches the current canvas runtime and preserves refresh-safe, offline-first editing.
 - D1 keeps the first shared-store step operationally lean on Cloudflare.
 - Token savings come from chunk reuse, graph snapshot reuse, and bounded pull/push contracts.
+- D1 write cost stays lean: read-first ensure* guards, pull skips writes on no-change, sync_events capped at 24h TTL, 120s poll interval.
 - Conflict handling stays inside the existing toast/log/runtime path; no second UX system.
 - Auto-clear of stale outbox conflicts after pull eliminates manual resolution after re-seeds.
 
@@ -120,7 +121,7 @@ flowchart TB
 
     subgraph Browser["Browser (any device)"]
         brxdb["RxDB local-first"]
-        bsync["Client sync engine (30s poll)"]
+        bsync["Client sync engine (120s poll)"]
         bbridge["SF ↔ Storage bridge"]
         bconflict["Conflict UX (toast + log)"]
         bautoClear["Auto-clear stale conflicts"]
@@ -135,12 +136,13 @@ flowchart TB
 |---|---|---|
 | Cloudflare Worker not deployed to Edge | Client push/pull has no server endpoint | **Resolved** — Worker deployed at `airvio.co/api/storage/*` |
 | D1 database not provisioned | No shared remote store exists | **Resolved** — D1 provisioned (`633355bf-…152`) |
-| No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 30s polling loop |
+| No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 120s polling loop |
 | No seed write-back | Dev edits to seed docs don't flow back to `huijoohwee/docs/` | Deferred — filesystem export script planned |
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
 | No public document view URL | Cannot share a readable link to a specific D1 document | **Resolved** — `GET /api/storage/doc/:workspaceId/:canonicalPath` + deep link canvas rendering |
+| D1 write amplification on every request | Pull/export write rows even when idle; sync_events grows unboundedly | **Resolved** — read-first ensure*, pull skips writes on no-change, sync_events removed from pull/export, 24h TTL prune on push, poll interval 30s→120s |
 
 ---
 
@@ -152,7 +154,7 @@ flowchart TB
 1. Author edits .md files in huijoohwee/docs/
 2. npm run storage:d1:seed:docs
 3. D1 upserts documents with fresh revisions
-4. Browser pulls from D1 on next 30s poll cycle
+4. Browser pulls from D1 on next 120s poll cycle
 5. autoClearStaleOutboxConflicts removes any stale conflicts
 6. Workspace renders updated docs
 ```
@@ -272,7 +274,7 @@ flowchart TB
     subgraph Browser["Browser (any device)"]
         bfs["Workspace FS + Seed"]
         brxdb["RxDB local-first"]
-        bsync["Client sync engine (30s poll)"]
+        bsync["Client sync engine (120s poll)"]
         bbridge["SF ↔ Storage bridge"]
         bconflict["Conflict UX"]
     end

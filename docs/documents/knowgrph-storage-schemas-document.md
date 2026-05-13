@@ -6,8 +6,8 @@
 
 ---
 
-**Version**: 2.0.0
-**Date**: 2026-05-07
+**Version**: 2.1.0
+**Date**: 2026-05-13
 **Canonical index**: `knowgrph-storage-sync-document.md`
 **See also**: `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
 
@@ -290,7 +290,7 @@ CREATE INDEX IF NOT EXISTS idx_sync_events_workspace_created
 | `document_chunks` | Token-bounded document segments for search/RAG | `id` | `(document_id, chunk_key)` |
 | `graph_snapshots` | Parsed graph JSON per document revision | `id` | `(document_id, graph_revision)` |
 | `sync_devices` | Registered client devices per workspace | `id` | — |
-| `sync_events` | Ordered mutation log for cursor-based pull | `id` | — |
+| `sync_events` | Push-only audit log (24h TTL, pruned on each push) | `id` | — |
 
 ### D1 Role
 
@@ -370,7 +370,7 @@ Error handling: per-mutation conflicts are returned in `acknowledgements`; malfo
 - **Method**: `POST`
 - **Path**: `/api/storage/pull`
 - **Purpose**: Fetch changed records since the last cursor
-- **Behavior**: Return documents, chunks, graph snapshots, and the next cursor
+- **Behavior**: Return documents, chunks, graph snapshots, and the next cursor. Read-optimized: no D1 writes when no changes exist (ensure* are read-first guards; sync_devices cursor and sync_events are skipped on empty pull).
 
 Request:
 
@@ -407,7 +407,7 @@ Error handling: 400 on malformed request; 500 on worker/database failures.
 - **Method**: `GET`
 - **Path**: `/api/storage/export/:workspaceId`
 - **Purpose**: Export a workspace archive from the shared store
-- **Behavior**: Fail whole export on missing workspace; never silently drop records
+- **Behavior**: Fail whole export on missing workspace; never silently drop records. Pure read — no D1 writes (no sync_device or sync_events side effects).
 
 Error handling: 404 on unknown workspace; 500 on D1 failure.
 

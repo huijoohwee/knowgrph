@@ -28,6 +28,7 @@ import {
   normalizeNullableString,
   normalizeNumber,
   normalizeString,
+  pruneStaleSyncEvents,
   queryAll,
   queryFirst,
   readDb,
@@ -358,6 +359,7 @@ const handlePush = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D
     payload: { mutationCount: body.mutations.length, acknowledgements },
     nowIso,
   })
+  await pruneStaleSyncEvents(db, nowIso)
   return okPushResponse({
     workspaceId,
     ackCursor: nowIso,
@@ -402,23 +404,17 @@ const handlePull = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D
   await ensureWorkspaceRow(db, workspaceId, nowIso)
   await ensureSyncDeviceRow(db, workspaceId, deviceId, nowIso)
   const changes = await readPullChanges(db, workspaceId, pullRequest.since)
-  await execute(
-    db,
-    'UPDATE sync_devices SET last_pull_cursor = ?, updated_at = ? WHERE id = ? AND workspace_id = ?',
-    [nowIso, nowIso, deviceId, workspaceId],
-  )
-  await writeSyncEvent(db, {
-    workspaceId,
-    deviceId,
-    eventType: 'pull',
-    payload: {
-      since: pullRequest.since,
-      documentCount: changes.documents.length,
-      chunkCount: changes.documentChunks.length,
-      graphSnapshotCount: changes.graphSnapshots.length,
-    },
-    nowIso,
-  })
+  const hasChanges =
+    changes.documents.length > 0
+    || changes.documentChunks.length > 0
+    || changes.graphSnapshots.length > 0
+  if (hasChanges) {
+    await execute(
+      db,
+      'UPDATE sync_devices SET last_pull_cursor = ?, updated_at = ? WHERE id = ? AND workspace_id = ?',
+      [nowIso, nowIso, deviceId, workspaceId],
+    )
+  }
   return okPullResponse({
     workspaceId,
     nextCursor: nowIso,
@@ -434,21 +430,8 @@ const handleExport = async (request: Request, env: KnowgrphStorageWorkerEnv, db:
   const workspaceId = normalizeString(decodeURIComponent(encodedWorkspaceId || ''))
   if (!workspaceId) return errorResponse(400, 'bad_request', 'workspaceId is required')
   const nowIso = new Date().toISOString()
-  const exportDeviceId = `export:${workspaceId}`
   await ensureWorkspaceRow(db, workspaceId, nowIso)
-  await ensureSyncDeviceRow(db, workspaceId, exportDeviceId, nowIso)
   const changes = await readPullChanges(db, workspaceId, null)
-  await writeSyncEvent(db, {
-    workspaceId,
-    deviceId: exportDeviceId,
-    eventType: 'export',
-    payload: {
-      documentCount: changes.documents.length,
-      chunkCount: changes.documentChunks.length,
-      graphSnapshotCount: changes.graphSnapshots.length,
-    },
-    nowIso,
-  })
   return okExportResponse({
     workspaceId,
     exportedAtMs: Date.parse(nowIso),
