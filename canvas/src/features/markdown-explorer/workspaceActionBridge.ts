@@ -1,7 +1,13 @@
+import type { Canvas2dRendererId } from '@/lib/config.render'
+
+export type WorkspaceImportUrlOpts = {
+  canvas2dRenderer?: Canvas2dRendererId | null
+}
+
 export type MarkdownWorkspaceActionBridge = {
   importLocalFiles?: (files: FileList | null) => void
   importLocalFolder?: (files: FileList | null) => void
-  importUrl?: (url: string) => void
+  importUrl?: (url: string, opts?: WorkspaceImportUrlOpts) => void
   importWebsite?: (url: string) => void
   createNewFolder?: () => void
   save?: () => void

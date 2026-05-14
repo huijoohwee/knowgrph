@@ -203,8 +203,9 @@ export function useDesignCanvasGraphOrchestration(args: UseDesignCanvasGraphOrch
   }, [active, layersPanelNodes, setDesignRendererNodes])
 
   const positions = React.useMemo(() => {
-    const posOverrides = designFramePosById || {}
-    const sizeOverrides = designFrameSizeById || {}
+    const ignoreOverrides = !!documentUrl
+    const posOverrides = ignoreOverrides ? {} : (designFramePosById || {})
+    const sizeOverrides = ignoreOverrides ? {} : (designFrameSizeById || {})
     const out: Record<string, DesignCanvasFrameRect> = {}
 
     if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {

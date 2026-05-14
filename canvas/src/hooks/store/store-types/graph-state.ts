@@ -4,6 +4,7 @@ import type { GraphStateEditorUi } from './graph-state-editor-ui'
 import type { GraphStateChatImport } from './graph-state-chat-import'
 import type { GraphStatePanelsMarkdown } from './graph-state-panels-markdown'
 import type { GraphStateCanvasRuntime } from './graph-state-canvas-runtime'
+import type { GraphStateDesignHistory } from './graph-state-design-history'
 
 export interface GraphState extends
   GraphStateFiles,
@@ -11,4 +12,5 @@ export interface GraphState extends
   GraphStateEditorUi,
   GraphStateChatImport,
   GraphStatePanelsMarkdown,
-  GraphStateCanvasRuntime {}
+  GraphStateCanvasRuntime,
+  GraphStateDesignHistory {}

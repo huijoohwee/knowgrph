@@ -25,9 +25,9 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
     requestZoom,
     designLayerState,
     normalizeDesignLayerStateFromNodes,
-    setDesignLayerState,
-    toggleDesignLayerHidden: toggleLayerHidden,
-    moveDesignLayer: moveLayer,
+    commitDesignLayerStateHistory,
+    commitToggleDesignLayerHiddenHistory,
+    commitMoveDesignLayerHistory,
   } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
@@ -39,9 +39,9 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
       requestZoom: s.requestZoom,
       designLayerState: s.designLayerState,
       normalizeDesignLayerStateFromNodes: s.normalizeDesignLayerStateFromNodes,
-      setDesignLayerState: s.setDesignLayerState,
-      toggleDesignLayerHidden: s.toggleDesignLayerHidden,
-      moveDesignLayer: s.moveDesignLayer,
+      commitDesignLayerStateHistory: s.commitDesignLayerStateHistory,
+      commitToggleDesignLayerHiddenHistory: s.commitToggleDesignLayerHiddenHistory,
+      commitMoveDesignLayerHistory: s.commitMoveDesignLayerHistory,
     })),
   )
 
@@ -86,7 +86,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
     return ordered.filter(n => `${n.label} ${n.id} ${n.type || ''}`.toLowerCase().includes(normalizedQuery))
   }, [normalizedQuery, ordered])
 
-  const toggleHidden = React.useCallback((id: string) => toggleLayerHidden(id), [toggleLayerHidden])
+  const toggleHidden = React.useCallback((id: string) => commitToggleDesignLayerHiddenHistory(id), [commitToggleDesignLayerHiddenHistory])
 
   const applyBulkVisibility = React.useCallback(
     (hidden: boolean, opts?: { onlyFiltered?: boolean }) => {
@@ -101,9 +101,9 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
         if (!id) continue
         nextHiddenById[id] = hidden
       }
-      setDesignLayerState({ ...prev, hiddenById: nextHiddenById })
+      commitDesignLayerStateHistory({ label: 'Layer visibility', next: { ...prev, hiddenById: nextHiddenById } })
     },
-    [active, designLayerState, filtered, nodes, setDesignLayerState],
+    [active, commitDesignLayerStateHistory, designLayerState, filtered, nodes],
   )
 
   const handleShowAll = React.useCallback(() => {
@@ -125,10 +125,10 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
       if (!id) continue
       nextHiddenById[id] = id !== sel
     }
-    setDesignLayerState({ ...prev, hiddenById: nextHiddenById })
-  }, [active, designLayerState, nodes, selectedNodeId, setDesignLayerState])
+    commitDesignLayerStateHistory({ label: 'Layer visibility', next: { ...prev, hiddenById: nextHiddenById } })
+  }, [active, commitDesignLayerStateHistory, designLayerState, nodes, selectedNodeId])
 
-  const move = React.useCallback((id: string, dir: 'up' | 'down') => moveLayer(id, dir), [moveLayer])
+  const move = React.useCallback((id: string, dir: 'up' | 'down') => commitMoveDesignLayerHistory({ id, dir }), [commitMoveDesignLayerHistory])
 
   const handleSelect = React.useCallback(
     (id: string) => {

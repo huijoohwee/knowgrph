@@ -19,10 +19,13 @@ import { runInIdle } from '@/features/panels/utils/idle'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { htmlFallbackToMarkdownAllText, normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
 import { yamlQuote } from './yaml'
-import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
+import type { Canvas2dRendererId } from '@/lib/config.render'
+import { getWorkspaceUrlImportCanvasPreset, normalizeWorkspaceUrlImportCanvas2dRenderer } from './canvasPresets'
+import { buildWebpageWorkspaceEntryStubText, buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
 import { tryFetchApiNativeMarkdown } from './apiNative'
 import type { WorkspaceUrlContent } from './types'
 import { clearInflightWorkspaceUrlContent, getCachedWorkspaceUrlContent, getInflightWorkspaceUrlContent, setCachedWorkspaceUrlContent, setInflightWorkspaceUrlContent } from './urlContentCache'
+import { buildWorkspaceUrlContentCacheKey } from './urlContentKey'
 
 type WebpageViewMode = 'markdown' | 'json' | 'html'
 type FetchMode = 'import' | 'refresh'
@@ -31,6 +34,7 @@ type FetchWorkspaceUrlContentOpts = {
   mode?: FetchMode
   onProgress?: (percentage: number) => void
   viewHint?: WebpageViewMode
+  canvas2dRenderer?: Canvas2dRendererId | null
 }
 const WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS = 220_000
 
@@ -156,6 +160,8 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
   const normalizedUrl = normalizeGitHubBlobLikeUrl(cleaned) ?? cleaned
   const normalizedLower = normalizedUrl.toLowerCase()
+  const canvas2dRenderer = normalizeWorkspaceUrlImportCanvas2dRenderer(opts?.canvas2dRenderer)
+  const canvasPreset = getWorkspaceUrlImportCanvasPreset(canvas2dRenderer)
 
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
@@ -261,6 +267,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         url: apiNative.normalizedUrl,
         view: 'markdown',
         diag: apiNative.diagnostics,
+        canvasPreset,
       })
       return {
         normalizedUrl: apiNative.normalizedUrl,
@@ -292,21 +299,19 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           : 'Fetching content in background…'
         return [`[](${normalizedUrl})`, '', hint, ''].join('\n')
       })()
+      const hydrate = canvasPreset ? false : !shouldSkipHydration
       return {
         normalizedUrl,
         name,
-        text: [
-          '---',
-          `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
-          `kgWebpageView: ${yamlQuote(view)}`,
-          shouldSkipHydration ? `kgWebpageHydrate: ${yamlQuote('false')}` : null,
-          '---',
-          '',
-          body.trimEnd(),
-          '',
-        ]
-          .filter(Boolean)
-          .join('\n'),
+        text: buildWebpageWorkspaceEntryStubText({
+          url: normalizedUrl,
+          view,
+          body,
+          hydrate,
+          canvasPreset,
+          fidelityLevel: canvasPreset ? 4 : undefined,
+          includeImages: canvasPreset ? true : undefined,
+        }),
       }
     }
 
@@ -515,18 +520,33 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             diag: clipped.clipped ? [String(lastDomDiag || '').trim(), `clipped: ${WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS}`].filter(Boolean).join('\n') : lastDomDiag,
             fidelityLevel,
             includeImages,
+            canvasPreset,
           }),
         { timeoutMs: 120 },
       )
       opts?.onProgress?.(100)
       if (text && text.trim() && !isFrontmatterOnlyDoc(text)) return { normalizedUrl, name, text }
 
-      const minimal = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote(defaultView)}`, '---', '', String(upstreamMarkdown || '').trim(), ''].join('\n')
+      const minimal = buildWebpageWorkspaceEntryStubText({
+        url: normalizedUrl,
+        view: defaultView,
+        body: String(upstreamMarkdown || '').trim(),
+        canvasPreset,
+        fidelityLevel: canvasPreset ? 4 : undefined,
+        includeImages: canvasPreset ? true : undefined,
+      })
       if (minimal.trim() && !isFrontmatterOnlyDoc(minimal)) return { normalizedUrl, name, text: minimal }
     } catch {
       if (mode === 'refresh') {
         const recoveredBody = lastFetchedHtml && shouldFallbackToPlainText ? htmlFallbackToMarkdownAllText(lastFetchedHtml) : ''
-        const recovered = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote(defaultView)}`, '---', '', recoveredBody.trim(), ''].join('\n')
+        const recovered = buildWebpageWorkspaceEntryStubText({
+          url: normalizedUrl,
+          view: defaultView,
+          body: recoveredBody.trim(),
+          canvasPreset,
+          fidelityLevel: canvasPreset ? 4 : undefined,
+          includeImages: canvasPreset ? true : undefined,
+        })
         if (recovered.trim() && !isFrontmatterOnlyDoc(recovered)) return { normalizedUrl, name, text: recovered }
       }
     } finally {
@@ -538,7 +558,14 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       }
     }
 
-    const text = ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, `kgWebpageView: ${yamlQuote('html')}`, '---', ''].join('\n')
+    const text = buildWebpageWorkspaceEntryStubText({
+      url: normalizedUrl,
+      view: 'html',
+      body: '',
+      canvasPreset,
+      fidelityLevel: canvasPreset ? 4 : undefined,
+      includeImages: canvasPreset ? true : undefined,
+    })
     return { normalizedUrl, name, text }
   }
 
@@ -551,9 +578,15 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       const base = localRepoPath.split('/').pop() || 'webpage'
       const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
       const name = `${baseNoExt}.md`
-      const text = ['---', `kgWebpageUrl: ${yamlQuote(localRepoPath)}`, `kgWebpageView: ${yamlQuote('html')}`, localSiteRootRel ? `kgWebpageSiteRootRel: ${yamlQuote(localSiteRootRel)}` : null, '---', '']
-        .filter(Boolean)
-        .join('\n')
+      const text = buildWebpageWorkspaceEntryStubText({
+        url: localRepoPath,
+        view: 'html',
+        body: '',
+        siteRootRel: localSiteRootRel || '',
+        canvasPreset,
+        fidelityLevel: canvasPreset ? 4 : undefined,
+        includeImages: canvasPreset ? true : undefined,
+      })
       return { normalizedUrl: localSourceUrl, name, text }
     }
 
@@ -591,7 +624,15 @@ export async function fetchWorkspaceUrlContent(rawUrl: string, opts?: FetchWorks
   const normalizedUrl = normalizeGitHubBlobLikeUrl(cleaned) ?? cleaned
   const mode: FetchMode = opts?.mode === 'refresh' ? 'refresh' : 'import'
   const viewHint = opts?.viewHint === 'markdown' ? 'markdown' : opts?.viewHint === 'json' ? 'json' : opts?.viewHint === 'html' ? 'html' : ''
-  const key = `${mode}:${viewHint}:${normalizedUrl}`
+  const canvas2dRenderer = normalizeWorkspaceUrlImportCanvas2dRenderer(opts?.canvas2dRenderer)
+  const storeSnapshot = canvas2dRenderer === 'design' ? null : useGraphStore.getState()
+  const key = buildWorkspaceUrlContentCacheKey({
+    normalizedUrl,
+    mode,
+    viewHint,
+    canvas2dRenderer,
+    storeSnapshot,
+  })
 
   const cached = getCachedWorkspaceUrlContent(key)
   if (cached) return cached

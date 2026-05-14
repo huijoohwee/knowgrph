@@ -1,9 +1,65 @@
 import type { TextFragment } from './types'
 import type { ParsedIndirectObject, PdfDict, PdfStreamDecodeCache } from './pdfObjects'
-import { deref, getDictValue, isArray, isDict, isName, readStream } from './pdfObjects'
+import { deref, getDictValue, isArray, isDict, isName, isRef, readStream } from './pdfObjects'
 import { buildFontUnicodeMaps } from './pdfCmap'
 import { parseContentStreamText } from './pdfContentText'
 import { collectDoXObjectNames, resolveXObjectRef } from './pdfXObjects'
+
+function resolveBoldFontKeys(
+  objects: Map<number, ParsedIndirectObject>,
+  resources: PdfDict | null,
+  allowedFontKeys?: Set<string> | null,
+): Set<string> {
+  const boldKeys = new Set<string>()
+  if (!resources) return boldKeys
+  const fontVal = getDictValue(resources, 'Font')
+  const fontDict = (() => {
+    const v = deref(objects, fontVal)
+    return isDict(v) ? v : null
+  })()
+  if (!fontDict) return boldKeys
+  for (const [fontKey, fontEntry] of Object.entries(fontDict.map)) {
+    if (allowedFontKeys && !allowedFontKeys.has(fontKey)) continue
+    const ref = isRef(fontEntry) ? fontEntry : null
+    if (!ref) continue
+    const obj = objects.get(ref.obj)
+    const dict = obj?.dict || null
+    if (!dict) continue
+    const baseFont = getDictValue(dict, 'BaseFont')
+    const baseFontName = isName(baseFont) ? baseFont.name : ''
+    const fontDescriptorRef = (() => {
+      const v = getDictValue(dict, 'FontDescriptor')
+      return isRef(v) ? v : null
+    })()
+    const fontDescriptorDict = fontDescriptorRef
+      ? (() => {
+          const d = objects.get(fontDescriptorRef.obj)?.dict || null
+          return isDict(d) ? d : null
+        })()
+      : null
+    const fontWeight = fontDescriptorDict
+      ? (() => {
+          const v = getDictValue(fontDescriptorDict, 'FontWeight')
+          if (typeof v === 'number') return v
+          return null
+        })()
+      : null
+    const fontName = fontDescriptorDict
+      ? (() => {
+          const v = getDictValue(fontDescriptorDict, 'FontName')
+          return isName(v) ? v.name : ''
+        })()
+      : ''
+    const checkName = fontName || baseFontName
+    const isBold =
+      (fontWeight != null && fontWeight >= 700) ||
+      /Bold/i.test(checkName) ||
+      /Heavy/i.test(checkName) ||
+      /Black/i.test(checkName)
+    if (isBold) boldKeys.add(fontKey)
+  }
+  return boldKeys
+}
 
 export function extractTextFragmentsFromPage(args: {
   objects: Map<number, ParsedIndirectObject>
@@ -98,7 +154,11 @@ export function extractTextFragmentsFromPage(args: {
       maxToUnicodeStreamBytes: args.maxToUnicodeStreamBytes,
       toUnicodeMaxDecodeBytes: args.toUnicodeMaxDecodeBytes,
     })
+    const boldKeys = resolveBoldFontKeys(args.objects, resources, allowedFontKeys)
     const fragments = parseContentStreamText(contentBytes, fontMaps)
+    for (const f of fragments) {
+      if (boldKeys.has(f.fontKey)) f.bold = true
+    }
     if (debugTiming && depth === 0) process.stderr.write(`[pdf] textParse fragments=${fragments.length} depth=${depth} bytes=${contentBytes.length}\n`)
     if (depth >= maxDepth) return fragments
     const names = collectDoXObjectNames(contentBytes)

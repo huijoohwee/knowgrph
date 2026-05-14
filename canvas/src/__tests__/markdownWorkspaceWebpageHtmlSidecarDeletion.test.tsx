@@ -22,18 +22,18 @@ export async function testMarkdownWorkspaceWebpageHtmlSidecarDeletionDoesNotRecr
 
     const mdPath = await fs.createFile({
       parentPath: '/',
-      name: 'www.figma.md',
-      text: ['---', 'kgWebpageUrl: "https://www.figma.com/"', 'kgWebpageView: "html"', '---', '', '# Figma', ''].join('\n'),
+      name: 'www.example.md',
+      text: ['---', 'kgWebpageUrl: "https://example.com/"', 'kgWebpageView: "html"', '---', '', '# Example', ''].join('\n'),
     })
     const otherPath = await fs.createFile({ parentPath: '/', name: 'other.md', text: '# Other\n' })
 
     const sidecarPath = await fs.createFile({
       parentPath: '/',
-      name: 'www.figma.webpage.html',
+      name: 'www.example.webpage.html',
       text: '<!doctype html><html><body><h1>Cached</h1></body></html>',
     })
 
-    if (sidecarPath !== '/www.figma.webpage.html') {
+    if (sidecarPath !== '/www.example.webpage.html') {
       throw new Error(`unexpected sidecar path: ${sidecarPath}`)
     }
 
@@ -62,7 +62,7 @@ export async function testMarkdownWorkspaceWebpageHtmlSidecarDeletionDoesNotRecr
 
     for (let i = 0; i < 12; i += 1) await tick()
 
-    await fs.deleteEntry('/www.figma.webpage.html')
+    await fs.deleteEntry('/www.example.webpage.html')
     for (let i = 0; i < 6; i += 1) await tick()
 
     useMarkdownExplorerStore.getState().setActivePath(otherPath)
@@ -70,7 +70,7 @@ export async function testMarkdownWorkspaceWebpageHtmlSidecarDeletionDoesNotRecr
     useMarkdownExplorerStore.getState().setActivePath(mdPath)
     for (let i = 0; i < 16; i += 1) await tick()
 
-    const after = await fs.readFileText('/www.figma.webpage.html')
+    const after = await fs.readFileText('/www.example.webpage.html')
     if (after != null) {
       throw new Error('expected deleted .webpage.html sidecar not to be recreated')
     }
@@ -81,4 +81,3 @@ export async function testMarkdownWorkspaceWebpageHtmlSidecarDeletionDoesNotRecr
     restoreDom()
   }
 }
-

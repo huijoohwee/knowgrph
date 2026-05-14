@@ -1,0 +1,171 @@
+import React from 'react'
+import { FileCode, Hand, Layers, ListTree, MousePointer, Redo, Ruler, Undo } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
+
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
+import { getIconSizeClass } from '@/lib/ui'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { cn } from '@/lib/utils'
+
+import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
+import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
+import DesignInspectorPanel from '@/features/design/DesignInspectorPanel'
+import DesignLayersPanel from '@/features/design/DesignLayersPanel'
+
+type DesignFloatingPanelTab = 'layers' | 'inspector' | 'domTree' | 'domInspect'
+
+export function DesignFloatingPanelView({ active }: { active: boolean }) {
+  const panelTypography = usePanelTypography()
+  const {
+    uiIconScale,
+    uiIconStrokeWidth,
+    canvasPointerMode2d,
+    setCanvasPointerMode2d,
+    schema,
+    canUndo,
+    canRedo,
+    undoDesignHistory,
+    redoDesignHistory,
+    lastLabel,
+  } = useGraphStore(
+    useShallow(s => ({
+      uiIconScale: s.uiIconScale,
+      uiIconStrokeWidth: s.uiIconStrokeWidth,
+      canvasPointerMode2d: s.canvasPointerMode2d,
+      setCanvasPointerMode2d: s.setCanvasPointerMode2d,
+      schema: s.schema,
+      canUndo: s.canUndoDesignHistory(),
+      canRedo: s.canRedoDesignHistory(),
+      undoDesignHistory: s.undoDesignHistory,
+      redoDesignHistory: s.redoDesignHistory,
+      lastLabel: s.getDesignHistoryLastLabel(),
+    })),
+  )
+  const iconSizeClass = getIconSizeClass(uiIconScale)
+
+  const [tab, setTab] = React.useState<DesignFloatingPanelTab>('layers')
+  const snapGrid = React.useMemo(() => readSnapGridConfigFromSchema(schema), [schema])
+
+  const tabs = React.useMemo(
+    () =>
+      [
+        { id: 'layers' as const, title: 'Layers', icon: Layers },
+        { id: 'inspector' as const, title: 'Inspector', icon: Ruler },
+        { id: 'domTree' as const, title: 'DOM Tree', icon: ListTree },
+        { id: 'domInspect' as const, title: 'DOM Inspect', icon: FileCode },
+      ] satisfies Array<{ id: DesignFloatingPanelTab; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }>,
+    [],
+  )
+
+  return (
+    <section className="h-full flex flex-col" aria-label="Design panel">
+      <header className={cn('flex items-center justify-between gap-2 w-full select-none', UI_THEME_TOKENS.panel.divider)}>
+        <div className="flex min-w-0 items-center gap-2 px-1 py-1">
+          <div className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Design</div>
+          {lastLabel ? <div className={cn('min-w-0 truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{lastLabel}</div> : null}
+        </div>
+        <nav className="flex items-center gap-1" aria-label="Design panel controls">
+          <button
+            type="button"
+            className={cn(
+              'App-toolbar__btn flex items-center gap-1',
+              canvasPointerMode2d === 'select' ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
+              UI_THEME_TOKENS.button.hoverBg,
+              panelTypography.microLabelClass,
+            )}
+            onClick={() => {
+              if (!active) return
+              setCanvasPointerMode2d('select')
+            }}
+            title="Select tool (V)"
+            aria-label="Select tool"
+            disabled={!active}
+          >
+            <MousePointer className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+            <span className="hidden md:inline">Select</span>
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'App-toolbar__btn flex items-center gap-1',
+              canvasPointerMode2d === 'pan' ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
+              UI_THEME_TOKENS.button.hoverBg,
+              panelTypography.microLabelClass,
+            )}
+            onClick={() => {
+              if (!active) return
+              setCanvasPointerMode2d('pan')
+            }}
+            title="Pan tool (H)"
+            aria-label="Pan tool"
+            disabled={!active}
+          >
+            <Hand className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+            <span className="hidden md:inline">Pan</span>
+          </button>
+          <span className={cn('mx-1 h-4 w-px', UI_THEME_TOKENS.panel.border)} aria-hidden={true} />
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            onClick={() => {
+              if (!active) return
+              undoDesignHistory()
+            }}
+            title="Undo (Cmd/Ctrl+Z)"
+            aria-label="Undo"
+            disabled={!active || !canUndo}
+          >
+            <Undo className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+          </button>
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            onClick={() => {
+              if (!active) return
+              redoDesignHistory()
+            }}
+            title="Redo (Shift+Cmd/Ctrl+Z)"
+            aria-label="Redo"
+            disabled={!active || !canRedo}
+          >
+            <Redo className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+          </button>
+          <span className={cn('ml-1 text-[10px] font-mono', snapGrid.enabled ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.tertiary)}>
+            Snap:{snapGrid.enabled ? 'On' : 'Off'}
+          </span>
+        </nav>
+        <nav className="flex items-center gap-1" aria-label="Design panel tabs">
+          {tabs.map(t => {
+            const Icon = t.icon
+            const isActive = tab === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={cn(
+                  'App-toolbar__btn flex items-center gap-1',
+                  isActive ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
+                  UI_THEME_TOKENS.button.hoverBg,
+                  panelTypography.microLabelClass,
+                )}
+                onClick={() => setTab(t.id)}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <Icon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                <span className="hidden sm:inline">{t.title}</span>
+              </button>
+            )
+          })}
+        </nav>
+      </header>
+      <section className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTypography.panelTextClass)}>
+        {tab === 'layers' && <DesignLayersPanel active={active} />}
+        {tab === 'inspector' && <DesignInspectorPanel active={active} />}
+        {tab === 'domTree' && <DesignDomTreePanel active={active} />}
+        {tab === 'domInspect' && <DesignDomInspectPanel active={active} />}
+      </section>
+    </section>
+  )
+}

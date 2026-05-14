@@ -158,8 +158,8 @@ export interface GraphStateChatImport {
   clearUiLog: () => void;
   floatingPanelOpen: boolean;
   setFloatingPanelOpen: (open: boolean) => void;
-  floatingPanelView: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal';
-  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal') => void;
+  floatingPanelView: 'propsPanel' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal';
+  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal') => void;
   chatExchangeLogs: ChatExchangeLogEntry[];
   pushChatExchangeLog: (entry: ChatExchangeLogEntryInput) => void;
   clearChatExchangeLogs: () => void;

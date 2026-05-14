@@ -135,6 +135,12 @@ export function MarkdownWorkspaceToolbar({
     if (current[key] && enabledCount <= 1) return
     setSplitPaneVisibility({ ...current, [key]: !current[key] })
   }, [effectiveSplitPanes, setSplitPaneVisibility])
+  const ensureSplitPaneEnabled = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
+    if (!setSplitPaneVisibility) return
+    const current = effectiveSplitPanes
+    if (current[key]) return
+    setSplitPaneVisibility({ ...current, [key]: true })
+  }, [effectiveSplitPanes, setSplitPaneVisibility])
   const handleSplitPaneToggle = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
     if (!setSplitPaneVisibility) return
     if (layoutMode !== 'split') {
@@ -212,19 +218,6 @@ export function MarkdownWorkspaceToolbar({
           {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
             <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
             <li className="list-none">
-              <WorkspaceModeSelect<WebpageViewMode>
-                ariaLabel="Webpage view mode"
-                value={webpageControls.view}
-                isActive={true}
-                options={[
-                  { value: 'markdown', label: 'Markdown' },
-                  { value: 'html', label: 'HTML' },
-                  { value: 'json', label: 'JSON' },
-                ]}
-                onChange={next => onWebpageChangeView(next)}
-              />
-            </li>
-            <li className="list-none">
               <WorkspaceModeSelect<'inherit' | '1' | '2' | '3' | '4'>
                 ariaLabel="Webpage fidelity level"
                 value={webpageControls.fidelityMode}
@@ -265,7 +258,10 @@ export function MarkdownWorkspaceToolbar({
                 <input
                   type="checkbox"
                   checked={effectiveSplitPanes.json}
-                  onChange={() => handleSplitPaneToggle('json')}
+                  onChange={() => {
+                    if (!effectiveSplitPanes.json && webpageControls) onWebpageChangeView?.('json')
+                    handleSplitPaneToggle('json')
+                  }}
                 />
                 <span>JSON</span>
               </label>
@@ -273,10 +269,26 @@ export function MarkdownWorkspaceToolbar({
                 <input
                   type="checkbox"
                   checked={effectiveSplitPanes.markdown}
-                  onChange={() => handleSplitPaneToggle('markdown')}
+                  onChange={() => {
+                    if (!effectiveSplitPanes.markdown && webpageControls) onWebpageChangeView?.('markdown')
+                    handleSplitPaneToggle('markdown')
+                  }}
                 />
                 <span>Markdown</span>
               </label>
+              {webpageControls && onWebpageChangeView ? (
+                <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={webpageControls.view === 'html'}
+                    onChange={() => {
+                      onWebpageChangeView('html')
+                      if (layoutMode === 'split') ensureSplitPaneEnabled('viewer')
+                    }}
+                  />
+                  <span>HTML</span>
+                </label>
+              ) : null}
               <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input
                   type="checkbox"

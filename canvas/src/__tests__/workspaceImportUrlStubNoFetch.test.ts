@@ -22,7 +22,7 @@ async function assertStubFor(url: string) {
 }
 
 export async function testWorkspaceImportUrlStubDoesNotFetch(): Promise<void> {
-  await assertStubFor('https://www.figma.com/')
+  await assertStubFor('https://example.com/')
   await assertStubFor('https://vercel.com/')
 }
 

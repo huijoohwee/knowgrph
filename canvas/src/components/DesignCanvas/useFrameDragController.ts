@@ -46,7 +46,7 @@ type UseFrameDragControllerArgs = {
   explicitGroupRectByNodeId: Map<string, RectBounds>
   frameElByIdRef: React.MutableRefObject<Map<string, SVGGElement>>
   svgRef: React.MutableRefObject<SVGSVGElement | null>
-  setDesignFramePosMany: (updates: Record<string, { x: number; y: number }>) => void
+  commitDesignFramePosHistory: (args: { label: string; patch: Record<string, { x: number; y: number }> }) => void
   activeWebpageOverlayNodeCount: number
   frameDefaultWidth: number
   frameDefaultHeight: number
@@ -69,7 +69,7 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
     explicitGroupRectByNodeId,
     frameElByIdRef,
     svgRef,
-    setDesignFramePosMany,
+    commitDesignFramePosHistory,
     activeWebpageOverlayNodeCount,
     frameDefaultWidth,
     frameDefaultHeight,
@@ -122,7 +122,6 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
   const handleFramePointerDown = React.useCallback(
     (id: string, rect: { x: number; y: number; w: number; h: number }, event: React.PointerEvent<SVGGElement>) => {
       if (!active) return
-      if (documentStructureBaselineLock) return
       if (isSpacePanHeld()) return
       if (canvasPointerMode2d === 'pan') return
       event.stopPropagation()
@@ -130,11 +129,6 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
       if (!svgEl) return
       const world = pointerToWorld(event, svgEl)
       if (!world) return
-      try {
-        ;(event.currentTarget as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(event.pointerId)
-      } catch {
-        void 0
-      }
       const store = useGraphStore.getState()
       store.setSelectionSource('canvas')
       const mode = store.schema?.behavior?.selectMode || 'single'
@@ -149,6 +143,13 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
       }
       const selectedIds = (store.selectedNodeIds || []).map(value => String(value || '').trim()).filter(Boolean)
       const ids = clickedId && selectedIds.includes(clickedId) ? selectedIds : clickedId ? [clickedId] : []
+      if (documentStructureBaselineLock) return
+      if (activeWebpageOverlayNodeCount > 0) return
+      try {
+        ;(event.currentTarget as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(event.pointerId)
+      } catch {
+        void 0
+      }
       const startPosById: Record<string, { x: number; y: number }> = {}
       for (let i = 0; i < ids.length; i += 1) {
         const nextId = ids[i]!
@@ -171,7 +172,7 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
           : null
       dragRef.current = { id, startWorld: world, startPos: { x: rect.x, y: rect.y }, ids, startPosById, deltaClamp }
     },
-    [active, canvasPointerMode2d, documentStructureBaselineLock, explicitGroupRectByNodeId, positions, svgRef],
+    [active, activeWebpageOverlayNodeCount, canvasPointerMode2d, documentStructureBaselineLock, explicitGroupRectByNodeId, positions, svgRef],
   )
 
   const handleFramePointerMove = React.useCallback(
@@ -241,14 +242,7 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
         if (id && pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) updates[id] = { x: pos.x, y: pos.y }
       }
     }
-    if (activeWebpageOverlayNodeCount > 0) {
-      if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
-      return
-    }
-    if (!schema) {
-      if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
-      return
-    }
+    const allowRelax = activeWebpageOverlayNodeCount <= 0 && !!schema
     const workPos: Record<string, { x: number; y: number; w: number; h: number }> = {}
     for (let i = 0; i < visibleNodes.length; i += 1) {
       const node = visibleNodes[i]
@@ -265,7 +259,7 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
       }
     }
     const allIds = Object.keys(workPos)
-    if (allIds.length >= 3) {
+    if (allowRelax && allIds.length >= 3 && schema) {
       let cell = 0
       for (let i = 0; i < allIds.length; i += 1) {
         const p = workPos[allIds[i]!]!
@@ -334,15 +328,15 @@ export function useFrameDragController(args: UseFrameDragControllerArgs) {
         }
       }
     }
-    if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+    if (Object.keys(updates).length > 0) commitDesignFramePosHistory({ label: 'Move', patch: updates })
   }, [
     active,
     activeWebpageOverlayNodeCount,
+    commitDesignFramePosHistory,
     frameDefaultHeight,
     frameDefaultWidth,
     positions,
     schema,
-    setDesignFramePosMany,
     visibleNodes,
   ])
 

@@ -163,6 +163,7 @@ export function useGroupResizeController(args: UseGroupResizeControllerArgs) {
     if (documentStructureBaselineLock) return
     if (!allowGroupResize) return
     if (isSpacePanHeld()) return
+    if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
     event.stopPropagation()
     try {
       event.preventDefault()

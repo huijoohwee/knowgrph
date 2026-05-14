@@ -10,6 +10,7 @@ import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/pa
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY } from '@/lib/render/effectiveMediaNode'
+import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 
 export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'iframe'] as const
 export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
@@ -443,7 +444,14 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       if (/<\s*script\b/i.test(domSrcDoc)) return null
       if (/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(domSrcDoc)) return null
       if (/\bjavascript\s*:/i.test(domSrcDoc)) return null
-      return { kind: 'iframe', url: '', srcDoc: domSrcDoc, interactive: true }
+      const baseHref = (() => {
+        const meta = (node.metadata || {}) as Record<string, unknown>
+        const raw = typeof meta.documentUrl === 'string' ? meta.documentUrl.trim() : ''
+        if (/^https?:\/\//i.test(raw)) return raw
+        return 'https://example.invalid/'
+      })()
+      const srcDoc = buildWebpageHtmlSrcdoc({ html: domSrcDoc, baseHref, scriptPolicy: 'strip' })
+      return { kind: 'iframe', url: '', srcDoc, interactive: true }
     }
     return null
   }

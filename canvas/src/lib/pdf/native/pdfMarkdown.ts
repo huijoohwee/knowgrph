@@ -6,6 +6,7 @@ type PdfLine = {
   text: string
   maxFont: number
   parts: TextFragment[]
+  hasBold: boolean
 }
 
 type PdfCell = { x: number; text: string }
@@ -205,7 +206,8 @@ export function buildMarkdownForPage(args: {
       }
       line = line.replace(/\s+/g, ' ').trim()
       const maxFont = parts.reduce((m, p) => Math.max(m, p.fontSize || 0), 0)
-      return { y: g.y, x: parts[0]?.x ?? 0, text: line, maxFont, parts }
+      const hasBold = parts.some(p => p.bold)
+      return { y: g.y, x: parts[0]?.x ?? 0, text: line, maxFont, parts, hasBold }
     })
     .filter(l => l.text)
     .sort((a, b) => (b.y - a.y) || (a.x - b.x))
@@ -240,6 +242,54 @@ export function buildMarkdownForPage(args: {
       ? Math.max(5, Math.min(200, Math.floor(args.tableMaxRows)))
       : 60
 
+    const typicalLineGap = (() => {
+      if (filteredLines.length < 3) return medianFont * 1.4
+      const gaps: number[] = []
+      for (let i = 1; i < filteredLines.length; i += 1) {
+        gaps.push(Math.abs(filteredLines[i - 1].y - filteredLines[i].y))
+      }
+      gaps.sort((a, b) => a - b)
+      return gaps[Math.floor(gaps.length / 2)] || medianFont * 1.4
+    })()
+    const paragraphGapThreshold = typicalLineGap * 1.6
+
+    const BULLET_CHARS = /^[•●◦▪▸►–—-]\s*/
+    const isBulletLine = (text: string): boolean => BULLET_CHARS.test(text)
+
+    const formatBoldInLine = (line: PdfLine): string => {
+      if (!line.hasBold) return line.text
+      const parts = line.parts.slice().sort((a, b) => a.x - b.x)
+      let result = ''
+      let cursorEndX = 0
+      let inBold = false
+      for (const p of parts) {
+        const charW = Math.max(1, p.fontSize * 0.5)
+        const isBold = !!p.bold
+        if (!result) {
+          if (isBold) result += '**'
+          result += p.text
+          cursorEndX = p.x + p.text.length * charW
+          inBold = isBold
+          continue
+        }
+        const gap = p.x - cursorEndX
+        const needsSpace = gap > Math.max(2, p.fontSize * 0.2) && !result.endsWith('-') && !result.endsWith(' ')
+        if (needsSpace) {
+          result += ' '
+          cursorEndX += charW
+        }
+        if (isBold !== inBold) {
+          if (inBold) result += '**'
+          else result += '**'
+          inBold = isBold
+        }
+        result += p.text
+        cursorEndX = p.x + p.text.length * charW
+      }
+      if (inBold) result += '**'
+      return result.replace(/\s+/g, ' ').trim()
+    }
+
     const out: string[] = []
     for (let i = 0; i < filteredLines.length; i += 1) {
       const l = filteredLines[i]
@@ -259,8 +309,32 @@ export function buildMarkdownForPage(args: {
           continue
         }
       }
-      const level = l.maxFont >= medianFont * 1.9 ? 3 : l.maxFont >= medianFont * 1.5 ? 4 : 0
-      out.push(level > 0 ? `${'#'.repeat(level)} ${l.text}` : l.text)
+
+      const prevLine = i > 0 ? filteredLines[i - 1] : null
+      const yGap = prevLine ? Math.abs(prevLine.y - l.y) : 0
+      const isParagraphBreak = yGap > paragraphGapThreshold && prevLine != null
+
+      if (isParagraphBreak && out.length > 0 && out[out.length - 1] !== '') {
+        out.push('')
+      }
+
+      const fontRatio = medianFont > 0 ? l.maxFont / medianFont : 1
+      let level = 0
+      if (fontRatio >= 2.2) level = 1
+      else if (fontRatio >= 1.7) level = 2
+      else if (fontRatio >= 1.4) level = 3
+      else if (fontRatio >= 1.2) level = 4
+
+      if (level > 0) {
+        out.push(`${'#'.repeat(level)} ${l.text}`)
+      } else if (isBulletLine(l.text)) {
+        const cleaned = l.text.replace(BULLET_CHARS, '').trim()
+        out.push(`- ${cleaned}`)
+      } else if (l.hasBold) {
+        out.push(formatBoldInLine(l))
+      } else {
+        out.push(l.text)
+      }
     }
     return out
   })()

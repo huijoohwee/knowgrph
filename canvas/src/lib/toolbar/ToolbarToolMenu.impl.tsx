@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ChevronDown, FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, GitBranch, Hand, Map, MessageCircle, MonitorPlay, Palette, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -24,8 +24,7 @@ import {
 import { lsBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
-import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
-import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
+import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelView'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun, setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
@@ -37,7 +36,7 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
-type FloatingPanelView = 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 type RequestedFloatingPanelView = FloatingPanelView
 type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
@@ -274,7 +273,6 @@ export function ToolbarToolMenu({
     workspaceCanvasPaneOpen,
     canvasRenderMode,
     canvas2dRenderer,
-    designRendererWebpageLayoutKey,
   } = useGraphStore(
     useShallow(state => ({
       floatingPanelWidthRatio: state.floatingPanelWidthRatio,
@@ -286,7 +284,6 @@ export function ToolbarToolMenu({
       workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
       canvasRenderMode: state.canvasRenderMode,
       canvas2dRenderer: state.canvas2dRenderer,
-      designRendererWebpageLayoutKey: state.designRendererWebpageLayoutKey,
     })),
   )
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
@@ -439,9 +436,8 @@ export function ToolbarToolMenu({
   void toolMenuCardRef
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
-  const domPanelsAvailable =
+  const designPanelsAvailable =
     !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
-  const domLayoutReady = domPanelsAvailable && !!designRendererWebpageLayoutKey
   const managedHeaderActionsView: FloatingManagedHeaderActionsView | null =
     floatingPanelView === 'renderer'
       ? floatingPanelView
@@ -460,6 +456,7 @@ export function ToolbarToolMenu({
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: SlidersHorizontal },
       { view: 'interaction', title: 'Interaction', icon: Hand },
+      { view: 'design', title: 'Design', icon: Palette },
       { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
       { view: 'geo', title: UI_LABELS.geo, icon: Map },
       { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
@@ -469,30 +466,20 @@ export function ToolbarToolMenu({
   const floatingPanelOverflowOptions = React.useMemo<FloatingPanelOverflowOption[]>(
     () => [
       {
-        id: 'domTree',
-        title: domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree',
-        icon: ListTree,
-      },
-      {
-        id: 'domInspect',
-        title: domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)',
-        icon: FileCode,
-      },
-      {
         id: 'graphTraversal',
         title: UI_LABELS.graphTraversal,
         icon: GitBranch,
       },
     ],
-    [domLayoutReady, domPanelsAvailable],
+    [],
   )
   const visibleOverflowOptions = React.useMemo(
     () => floatingPanelOverflowOptions.filter(option => !option.hidden),
     [floatingPanelOverflowOptions],
   )
-  const isOverflowViewActive = floatingPanelView === 'domTree' || floatingPanelView === 'domInspect' || floatingPanelView === 'graphTraversal'
+  const isOverflowViewActive = floatingPanelView === 'graphTraversal'
   const overflowValue = React.useMemo(() => {
-    if (floatingPanelView === 'domTree' || floatingPanelView === 'domInspect' || floatingPanelView === 'graphTraversal') {
+    if (floatingPanelView === 'graphTraversal') {
       return floatingPanelView
     }
     const fallback = visibleOverflowOptions.find(option => !option.disabled)?.id ?? visibleOverflowOptions[0]?.id
@@ -671,8 +658,7 @@ export function ToolbarToolMenu({
                 </section>
               </section>
             )}
-            {floatingPanelView === 'domTree' && <DesignDomTreePanel active={domPanelsAvailable} />}
-            {floatingPanelView === 'domInspect' && <DesignDomInspectPanel active={domPanelsAvailable} />}
+            {floatingPanelView === 'design' && <DesignFloatingPanelView active={designPanelsAvailable} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>
                 <SidePanelChatLazy />

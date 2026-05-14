@@ -18,6 +18,20 @@ type SharedWebpageSnapshotSurfaceProps = {
   thumbnailInteractive?: boolean
 }
 
+const truncateText = (value: string, maxChars: number): string => {
+  const t = String(value || '')
+  if (maxChars <= 0) return ''
+  if (t.length <= maxChars) return t
+  if (maxChars <= 1) return '…'
+  return `${t.slice(0, Math.max(0, maxChars - 1))}…`
+}
+
+const estimateMaxChars = (widthPx: number, fontSizePx: number): number => {
+  const w = Math.max(0, Number.isFinite(widthPx) ? widthPx : 0)
+  const fs = Math.max(8, Number.isFinite(fontSizePx) ? fontSizePx : 12)
+  return Math.max(0, Math.floor(w / (fs * 0.62)))
+}
+
 export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurfaceProps) {
   const viewportW = typeof props.snap?.meta?.viewport?.w === 'number' ? props.snap.meta.viewport.w : 1100
   const viewportH = typeof props.snap?.meta?.viewport?.h === 'number' ? props.snap.meta.viewport.h : 720
@@ -92,7 +106,7 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
                     fill="rgba(0,0,0,0.55)"
                     fontFamily="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
                   >
-                    {r.text.length > 46 ? `${r.text.slice(0, 45)}…` : r.text}
+                    {truncateText(r.text, estimateMaxChars(r.rect.w - 16, 14))}
                   </text>
                 ) : null}
               </g>

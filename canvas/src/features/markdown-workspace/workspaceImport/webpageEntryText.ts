@@ -1,7 +1,69 @@
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
 import { yamlBlockScalar, yamlQuote } from './yaml'
+
+function buildCanvasPresetLines(preset: CanvasWorkspaceFrontmatterPreset | null | undefined): string[] {
+  if (!preset) return []
+  const lines: string[] = []
+  if (preset.canvasSurfaceMode) lines.push(`kgCanvasSurfaceMode: ${yamlQuote(preset.canvasSurfaceMode)}`)
+  if (preset.canvasRenderMode) lines.push(`kgCanvasRenderMode: ${yamlQuote(preset.canvasRenderMode)}`)
+  if (preset.canvas3dMode) lines.push(`kgCanvas3dMode: ${yamlQuote(preset.canvas3dMode)}`)
+  if (preset.canvas2dRenderer) lines.push(`kgCanvas2dRenderer: ${yamlQuote(preset.canvas2dRenderer)}`)
+  if (preset.documentSemanticMode) lines.push(`kgDocumentSemanticMode: ${yamlQuote(preset.documentSemanticMode)}`)
+  if (preset.frontmatterModeEnabled != null) lines.push(`kgFrontmatterModeEnabled: ${yamlQuote(preset.frontmatterModeEnabled ? 'true' : 'false')}`)
+  if (preset.multiDimTableModeEnabled != null) {
+    lines.push(`kgMultiDimTableModeEnabled: ${yamlQuote(preset.multiDimTableModeEnabled ? 'true' : 'false')}`)
+  }
+  if (preset.documentStructureBaselineLock != null) {
+    lines.push(`kgDocumentStructureBaselineLock: ${yamlQuote(preset.documentStructureBaselineLock ? 'true' : 'false')}`)
+  }
+  return lines
+}
+
+export function buildWebpageWorkspaceEntryStubText(args: {
+  url: string
+  view: 'markdown' | 'json' | 'html'
+  body: string
+  hydrate?: boolean
+  siteRootRel?: string
+  scriptPolicy?: 'strip' | 'allow'
+  fidelityLevel?: 1 | 2 | 3 | 4
+  includeImages?: boolean
+  canvasPreset?: CanvasWorkspaceFrontmatterPreset | null
+}): string {
+  const url = String(args.url || '').trim()
+  const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
+  const body = String(args.body || '').trimEnd()
+  const siteRootRel = String(args.siteRootRel || '').trim()
+  const canvasPresetLines = buildCanvasPresetLines(args.canvasPreset)
+  const hydrateLine = args.hydrate === false ? `kgWebpageHydrate: ${yamlQuote('false')}` : null
+  const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : args.scriptPolicy === 'strip' ? 'strip' : ''
+  const fidelityLevel =
+    args.fidelityLevel === 1 || args.fidelityLevel === 2 || args.fidelityLevel === 3 || args.fidelityLevel === 4
+      ? args.fidelityLevel
+      : 0
+  const includeImages = args.includeImages === true ? true : args.includeImages === false ? false : null
+  const fmLines = [
+    '---',
+    ...canvasPresetLines,
+    `kgWebpageUrl: ${yamlQuote(url)}`,
+    `kgWebpageView: ${yamlQuote(view)}`,
+    scriptPolicy ? `kgWebpageScriptPolicy: ${yamlQuote(scriptPolicy)}` : null,
+    fidelityLevel ? `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}` : null,
+    includeImages != null ? `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}` : null,
+    siteRootRel ? `kgWebpageSiteRootRel: ${yamlQuote(siteRootRel)}` : null,
+    hydrateLine,
+    '---',
+    '',
+    body,
+    '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+  return fmLines.trimEnd() + '\n'
+}
 
 export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   upstreamMarkdown: string
@@ -13,6 +75,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   fidelityLevel?: 1 | 2 | 3 | 4
   includeImages?: boolean
   websiteImportMeta?: { importId: string; nodeId: string; outputDirRel?: string } | null
+  canvasPreset?: CanvasWorkspaceFrontmatterPreset | null
 }): string {
   const url = String(args.url || '').trim()
   const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
@@ -33,7 +96,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
 
   const urlLine = `kgWebpageUrl: ${yamlQuote(url)}`
   const viewLine = `kgWebpageView: ${yamlQuote(view)}`
-  const fmLines = ['---', urlLine, viewLine]
+  const fmLines = ['---', ...buildCanvasPresetLines(args.canvasPreset), urlLine, viewLine]
   if (scriptPolicy) fmLines.push(`kgWebpageScriptPolicy: ${yamlQuote(scriptPolicy)}`)
   if (fidelityLevel) fmLines.push(`kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`)
   if (includeImages != null) fmLines.push(`kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`)
@@ -150,4 +213,3 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
   const normalizedBody = normalizeWebpageCardAndListBlocks(body)
   return [...fmLines, String(normalizedBody || '').trim()].join('\n').trimEnd() + '\n'
 }
-

@@ -328,7 +328,11 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
     let loadedCandidate: { src: string; sandbox: string } | null = null
     const loaded = await (async () => {
       document.body.appendChild(iframe)
-      const perAttemptTimeout = Math.max(1500, Math.min(7000, Math.floor(timeoutMs / 2)))
+      const perAttemptTimeout = (() => {
+        if (args.mode === 'layout') return Math.max(5000, Math.min(30_000, Math.floor(timeoutMs * 0.85)))
+        if (args.mode === 'text') return Math.max(4500, Math.min(20_000, Math.floor(timeoutMs * 0.75)))
+        return Math.max(1500, Math.min(7000, Math.floor(timeoutMs / 2)))
+      })()
       for (const cand of candidates) {
         const ok = await new Promise<boolean>((resolve) => {
           let settled = false

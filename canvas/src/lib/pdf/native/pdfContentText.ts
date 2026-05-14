@@ -12,6 +12,33 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
   let leading = 0
   let x = 0
   let y = 0
+  let ctmA = 1
+  let ctmB = 0
+  let ctmC = 0
+  let ctmD = 1
+  let ctmE = 0
+  let ctmF = 0
+  let tmA = 1
+  let tmB = 0
+  let tmC = 0
+  let tmD = 1
+  let tmE = 0
+  let tmF = 0
+  let tmEffectiveScale = 0
+
+  const applyCtm = () => {
+    const newX = ctmA * tmE + ctmC * tmF + ctmE
+    const newY = ctmB * tmE + ctmD * tmF + ctmF
+    x = newX
+    y = newY
+    const scaleX = Math.sqrt(ctmA * ctmA + ctmB * ctmB)
+    const tmScale = Math.sqrt(tmA * tmA + tmB * tmB)
+    const effectiveScale = scaleX * tmScale
+    if (effectiveScale > 0.5) {
+      tmEffectiveScale = effectiveScale
+      fontSize = Math.max(fontSize, Math.round(effectiveScale * 10) / 10)
+    }
+  }
 
   const pop = () => stack.pop()
 
@@ -114,12 +141,37 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
       if (op === 'BT') {
         inText = true
         stack.length = 0
-        x = 0
-        y = 0
+        tmA = 1; tmB = 0; tmC = 0; tmD = 1; tmE = 0; tmF = 0
+        x = ctmE
+        y = ctmF
         continue
       }
       if (op === 'ET') {
         inText = false
+        stack.length = 0
+        continue
+      }
+      if (op === 'cm') {
+        const f = pop()
+        const e = pop()
+        const d = pop()
+        const c = pop()
+        const b = pop()
+        const a = pop()
+        if (typeof a === 'number') ctmA = a
+        if (typeof b === 'number') ctmB = b
+        if (typeof c === 'number') ctmC = c
+        if (typeof d === 'number') ctmD = d
+        if (typeof e === 'number') ctmE = e
+        if (typeof f === 'number') ctmF = f
+        stack.length = 0
+        continue
+      }
+      if (op === 'q') {
+        stack.length = 0
+        continue
+      }
+      if (op === 'Q') {
         stack.length = 0
         continue
       }
@@ -130,7 +182,9 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
       if (op === 'Tf') {
         const size = pop()
         const name = pop()
-        if (typeof size === 'number') fontSize = size
+        if (typeof size === 'number' && (tmEffectiveScale < 1 || size >= tmEffectiveScale * 0.5)) {
+          fontSize = size
+        }
         if (isPdfNameToken(name)) fontKey = String(name.name || '')
         stack.length = 0
         continue
@@ -161,12 +215,17 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
       if (op === 'Tm') {
         const f = pop()
         const e = pop()
-        pop()
-        pop()
-        pop()
-        pop()
-        if (typeof e === 'number') x = e
-        if (typeof f === 'number') y = f
+        const d = pop()
+        const c = pop()
+        const b = pop()
+        const a = pop()
+        if (typeof a === 'number') tmA = a
+        if (typeof b === 'number') tmB = b
+        if (typeof c === 'number') tmC = c
+        if (typeof d === 'number') tmD = d
+        if (typeof e === 'number') tmE = e
+        if (typeof f === 'number') tmF = f
+        applyCtm()
         stack.length = 0
         continue
       }

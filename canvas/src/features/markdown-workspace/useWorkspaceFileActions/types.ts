@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import type { Canvas2dRendererId } from '@/lib/config.render'
 
 export type WorkspaceRefreshSnapshot = {
   entries: WorkspaceEntry[]
@@ -67,7 +68,7 @@ export type WorkspaceFileActions = {
   createNewFolder: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
   handleImportLocalFiles: (files: FileList | null) => Promise<void>
   handleImportLocalFolder: (files: FileList | null) => Promise<void>
-  handleImportUrl: (urlRaw: string) => Promise<void>
+  handleImportUrl: (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null }) => Promise<void>
   handleImportWebsite: (urlRaw: string) => Promise<void>
   onDeleteEntry: (path: WorkspacePath) => void
   onRenameEntry: (path: WorkspacePath, nextName: string) => void

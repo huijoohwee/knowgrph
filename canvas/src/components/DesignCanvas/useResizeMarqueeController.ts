@@ -51,8 +51,11 @@ type UseResizeMarqueeControllerArgs = {
   frameRectElByIdRef: React.MutableRefObject<Map<string, SVGRectElement>>
   frameStatusElByIdRef: React.MutableRefObject<Map<string, SVGPathElement>>
   resizeOverlayElRef: React.MutableRefObject<SVGGElement | null>
-  setDesignFramePosMany: (updates: Record<string, { x: number; y: number }>) => void
-  setDesignFrameSizeMany: (updates: Record<string, { w: number; h: number }>) => void
+  commitDesignFrameRectHistory: (args: {
+    label: string
+    framePosPatch?: Record<string, { x: number; y: number }>
+    frameSizePatch?: Record<string, { w: number; h: number }>
+  }) => void
 }
 
 export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs) {
@@ -71,8 +74,7 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
     frameRectElByIdRef,
     frameStatusElByIdRef,
     resizeOverlayElRef,
-    setDesignFramePosMany,
-    setDesignFrameSizeMany,
+    commitDesignFrameRectHistory,
   } = args
 
   const resizeRef = React.useRef<ResizeState | null>(null)
@@ -337,8 +339,9 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
       if (!interactionActive || !pending) return true
       const id = String(pending.id || '').trim()
       if (!id) return true
-      if (Number.isFinite(pending.x) && Number.isFinite(pending.y)) setDesignFramePosMany({ [id]: { x: pending.x, y: pending.y } })
-      if (Number.isFinite(pending.w) && Number.isFinite(pending.h)) setDesignFrameSizeMany({ [id]: { w: pending.w, h: pending.h } })
+      const framePosPatch = Number.isFinite(pending.x) && Number.isFinite(pending.y) ? { [id]: { x: pending.x, y: pending.y } } : undefined
+      const frameSizePatch = Number.isFinite(pending.w) && Number.isFinite(pending.h) ? { [id]: { w: pending.w, h: pending.h } } : undefined
+      if (framePosPatch || frameSizePatch) commitDesignFrameRectHistory({ label: 'Resize', framePosPatch, frameSizePatch })
       return true
     }
 
@@ -369,7 +372,7 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
     const nodeIds = Array.from(new Set<string>([...prev, ...hits]))
     store.selectNodesExpanded({ nodeIds, activeNodeId: nodeIds.length > 0 ? nodeIds[nodeIds.length - 1] : null })
     return true
-  }, [active, interactionActive, positions, setDesignFramePosMany, setDesignFrameSizeMany, visibleNodes])
+  }, [active, commitDesignFrameRectHistory, interactionActive, positions, visibleNodes])
 
   const handleSvgPointerCancel = React.useCallback(() => {
     const resize = resizeRef.current

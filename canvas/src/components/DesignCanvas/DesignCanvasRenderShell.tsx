@@ -11,6 +11,7 @@ import { DesignCanvasSelectionOverlay } from '@/components/DesignCanvas/Selectio
 import { DesignCanvasWebpageStatusPanel } from '@/components/DesignCanvas/webpageStatusPanel'
 import { DesignCanvasWireframePreviewLayer } from '@/components/DesignCanvas/WireframePreviewLayer'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type {
   DesignCanvasFrameNodeRef,
@@ -216,6 +217,16 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
         onRetry={onRetry}
       />
       <DesignCanvasArrangeActionBar active={arrangeActionsActive} selectedCount={selectedCount} onAction={onArrangeAction} />
+      {active ? (
+        <div
+          className={`pointer-events-none absolute left-2 top-2 z-20 flex items-center gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.tertiary}`}
+          aria-label="Design status"
+        >
+          <span className={`text-[10px] font-semibold ${UI_THEME_TOKENS.text.primary}`}>Design</span>
+          <span className="text-[10px] font-mono">{selectedCount} selected</span>
+          <span className="hidden md:inline text-[10px]">Open Design panel for Layers/DOM</span>
+        </div>
+      ) : null}
       <InfiniteGridCanvasOverlay
         enabled={canvasGrid?.enabled === true}
         gridSize={canvasGrid?.size || 10}
@@ -288,6 +299,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
                       onPointerDown={event => {
                         if (!interactionActive) return
                         if (isSpacePanHeld()) return
+                        if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
                         event.stopPropagation()
                         const store = useGraphStore.getState()
                         store.setSelectionSource('canvas')

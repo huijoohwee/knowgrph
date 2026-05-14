@@ -145,8 +145,13 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
     setDesignRendererWebpageGraph: (args: { key: string | null; nodesById: Record<string, GraphNode> }) => {
       const nextKey = typeof args.key === 'string' && args.key.trim() ? args.key.trim() : null
       const state = get()
-      if (state.designRendererWebpageLayoutKey === nextKey) return
       const nodesById = args.nodesById && typeof args.nodesById === 'object' ? args.nodesById : {}
+      if (state.designRendererWebpageLayoutKey === nextKey) {
+        if (!nextKey && Object.keys(state.designRendererGraphNodesById || {}).length > 0) {
+          set({ designRendererWebpageLayoutKey: null, designRendererGraphNodesById: {} })
+        }
+        return
+      }
       set({ designRendererWebpageLayoutKey: nextKey, designRendererGraphNodesById: nodesById })
     },
 

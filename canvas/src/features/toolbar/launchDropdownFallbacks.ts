@@ -145,12 +145,14 @@ export async function importLocalFolderFallback(args: {
 
 export async function importUrlFallback(args: {
   urlRaw: string
+  canvas2dRenderer?: 'design' | null
   pushUiToast: PushUiToast
 }): Promise<void> {
   const url = String(args.urlRaw || '').trim()
   if (!url) return
+  const canvas2dRenderer = args.canvas2dRenderer === 'design' ? 'design' : null
   const toastId = 'launch:import:url'
-  args.pushUiToast({ id: toastId, kind: 'neutral', message: 'Importing URL…', ttlMs: null, dismissible: false })
+  args.pushUiToast({ id: toastId, kind: 'neutral', message: canvas2dRenderer === 'design' ? 'Importing URL (Design)…' : 'Importing URL…', ttlMs: null, dismissible: false })
   try {
     const [
       { getWorkspaceFs },
@@ -179,6 +181,8 @@ export async function importUrlFallback(args: {
         fs,
         urlRaw: url,
         parentPath: WORKSPACE_ROOT_PATH,
+        canvas2dRenderer,
+        viewHint: canvas2dRenderer === 'design' ? 'html' : undefined,
         onProgress: p => {
           const label = String((p as { label?: unknown }).label || '').trim() || 'Importing URL…'
           args.pushUiToast({ id: toastId, kind: 'neutral', message: label, ttlMs: null, dismissible: false })

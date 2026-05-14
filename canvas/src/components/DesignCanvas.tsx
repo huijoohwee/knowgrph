@@ -21,6 +21,7 @@ import { useContainerDims } from '@/hooks/useContainerDims'
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
+import { isEditableTarget } from '@/lib/canvas/arrangeShortcuts'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -98,6 +99,22 @@ export default function DesignCanvas({
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     mediaOverlayPanRef.current = { pointerId: args.pointerId, startTransform: d3.zoomTransform(svgEl) }
   }, [interactionActive])
+
+  const commitDesignFramePosHistory = React.useCallback(
+    (args: { label: string; patch: Record<string, { x: number; y: number }> }) => {
+      if (!interactionActive) return
+      snapshot.commitDesignFramePosHistory(args)
+    },
+    [interactionActive, snapshot],
+  )
+
+  const commitDesignFrameRectHistory = React.useCallback(
+    (args: { label: string; framePosPatch?: Record<string, { x: number; y: number }>; frameSizePatch?: Record<string, { w: number; h: number }> }) => {
+      if (!interactionActive) return
+      snapshot.commitDesignFrameRectHistory(args)
+    },
+    [interactionActive, snapshot],
+  )
   const {
     documentUrl,
     webpageFrontmatter,
@@ -278,11 +295,12 @@ export default function DesignCanvas({
     schema: snapshot.schema,
     selectedNodeId: snapshot.selectedNodeId,
     selectedNodeIds: Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : EMPTY_STRING_ARRAY,
-    setDesignFramePosMany,
+    setDesignFramePosMany: updates => commitDesignFramePosHistory({ label: 'Arrange', patch: updates }),
   })
 
   const canvasGrid = React.useMemo(() => readCanvasGridRenderConfigFromSchema(snapshot.schema), [snapshot.schema])
   const hasWebpageOverlay = !!(activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0)
+  const baselineLock = snapshot.documentStructureBaselineLock === true || hasWebpageOverlay
   const {
     wireframeEdges,
     wireframeEdgeStroke,
@@ -316,14 +334,14 @@ export default function DesignCanvas({
   } = useFrameDragController({
     active: interactionActive,
     canvasPointerMode2d: String(snapshot.canvasPointerMode2d || ''),
-    documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
+    documentStructureBaselineLock: baselineLock,
     schema: snapshot.schema,
     positions,
     visibleNodes,
     explicitGroupRectByNodeId,
     frameElByIdRef,
     svgRef,
-    setDesignFramePosMany,
+    commitDesignFramePosHistory,
     activeWebpageOverlayNodeCount: activeWebpageLayoutGraphData?.nodes?.length || 0,
     frameDefaultWidth: FRAME_W,
     frameDefaultHeight: FRAME_H,
@@ -342,7 +360,7 @@ export default function DesignCanvas({
     active,
     interactionActive,
     canvasPointerMode2d: String(snapshot.canvasPointerMode2d || ''),
-    documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
+    documentStructureBaselineLock: baselineLock,
     viewportControlsPreset: snapshot.viewportControlsPreset,
     schema: snapshot.schema,
     svgRef,
@@ -353,8 +371,7 @@ export default function DesignCanvas({
     frameRectElByIdRef,
     frameStatusElByIdRef,
     resizeOverlayElRef,
-    setDesignFramePosMany,
-    setDesignFrameSizeMany,
+    commitDesignFrameRectHistory,
   })
   const {
     groupResizeRef,
@@ -366,7 +383,7 @@ export default function DesignCanvas({
   } = useGroupResizeController({
     active,
     interactionActive,
-    documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
+    documentStructureBaselineLock: baselineLock,
     allowGroupResize,
     schema: snapshot.schema,
     svgRef,
@@ -377,6 +394,35 @@ export default function DesignCanvas({
     designGroupBoundsById,
     minBoundsSizePx: groupHandleCfg.minBoundsSizePx,
   })
+
+  React.useEffect(() => {
+    if (!interactionActive) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return
+      if ((event.metaKey || event.ctrlKey) && String(event.key || '').toLowerCase() === 'z') {
+        event.preventDefault()
+        const store = useGraphStore.getState()
+        if (event.shiftKey) store.redoDesignHistory()
+        else store.undoDesignHistory()
+        return
+      }
+      const k = String(event.key || '').toLowerCase()
+      if (k === 'v') {
+        event.preventDefault()
+        useGraphStore.getState().setCanvasPointerMode2d('select')
+        return
+      }
+      if (k === 'h') {
+        event.preventDefault()
+        useGraphStore.getState().setCanvasPointerMode2d('pan')
+        return
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
+    }
+  }, [interactionActive])
   useGlobalInteractionCleanup({
     interactionActive,
     svgRef,

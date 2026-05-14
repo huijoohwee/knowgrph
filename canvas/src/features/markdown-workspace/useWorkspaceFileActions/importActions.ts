@@ -14,6 +14,7 @@ import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatt
 import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
+import { isCanvas2dRendererId, type Canvas2dRendererId } from '@/lib/config.render'
 import {
   fetchWorkspaceUrlContent,
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -398,11 +399,13 @@ export function useWorkspaceImportActions(args: {
   )
 
   const handleImportUrl = React.useCallback(
-    async (urlRaw: string) => {
+    async (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null }) => {
       const url = String(urlRaw || '').trim()
       if (!url) return
+      const selectedCanvas2dRenderer = isCanvas2dRendererId(opts?.canvas2dRenderer) ? opts?.canvas2dRenderer : null
+      const importKindLabel = selectedCanvas2dRenderer === 'design' ? 'Importing URL (Design)' : 'Importing URL'
       const jobId = (importJobRef.current += 1)
-      status.setStatusProgress('Importing URL')
+      status.setStatusProgress(importKindLabel)
       useGraphStore.getState().pushUiLog({ kind: 'neutral', message: `Import URL started: ${url}`, source: 'workspace:importUrl' })
       try {
         const fs = await getFs()
@@ -416,6 +419,8 @@ export function useWorkspaceImportActions(args: {
             fs,
             urlRaw: url,
             parentPath: WORKSPACE_ROOT_PATH,
+            canvas2dRenderer: selectedCanvas2dRenderer,
+            viewHint: selectedCanvas2dRenderer === 'design' ? 'html' : undefined,
             onProgress: p => {
               if (importJobRef.current !== jobId) return
               const label = p.label ? String(p.label) : p.phase
@@ -468,6 +473,7 @@ export function useWorkspaceImportActions(args: {
           if (!createdPath) return
           if (!sourceUrl) return
           if (importJobRef.current !== jobId) return
+          if (selectedCanvas2dRenderer === 'design') return
           try {
             const current = await (await getFs()).readFileText(createdPath)
             if (!current) return

@@ -14,6 +14,7 @@ import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
+import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -1262,34 +1263,18 @@ const kgFsListDevPlugin = {
 const webpageProxyDevPlugin = {
   name: 'knowgrph-webpage-proxy-dev',
   configureServer(server: import('vite').ViteDevServer) {
+    const metaHandler = createWebpageMetaHandler()
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
     server.middlewares.use('/__webpage_asset_path', createWebpageAssetPathProxyHandler())
-    server.middlewares.use('/__webpage_meta', async (req, res, next) => {
-      try {
-        const mod = await import('./src/lib/websites/webpageMetaServer')
-        return mod.createWebpageMetaHandler()(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.end(JSON.stringify({ ok: false, error: 'webpage meta handler failed' }))
-      }
-    })
+    server.middlewares.use('/__webpage_meta', metaHandler)
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
+    const metaHandler = createWebpageMetaHandler()
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
     server.middlewares.use('/__webpage_asset_path', createWebpageAssetPathProxyHandler())
-    server.middlewares.use('/__webpage_meta', async (req, res, next) => {
-      try {
-        const mod = await import('./src/lib/websites/webpageMetaServer')
-        return mod.createWebpageMetaHandler()(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.end(JSON.stringify({ ok: false, error: 'webpage meta handler failed' }))
-      }
-    })
+    server.middlewares.use('/__webpage_meta', metaHandler)
   },
 }
 
@@ -2185,12 +2170,14 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
 
     let controller: AbortController | null = null
     let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let timedOut = false
+    let clientAborted = false
     try {
       const timeoutMs = (() => {
         const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_TIMEOUT_MS || '').trim()
         const parsed = raw ? Number(raw) : NaN
-        if (!Number.isFinite(parsed)) return 30_000
-        return Math.max(1_000, Math.min(60_000, Math.floor(parsed)))
+        if (!Number.isFinite(parsed)) return 60_000
+        return Math.max(1_000, Math.min(120_000, Math.floor(parsed)))
       })()
       const maxBytes = (() => {
         const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_MAX_BYTES || '').trim()
@@ -2209,6 +2196,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       let finished = false
       const abort = () => {
         if (finished) return
+        clientAborted = true
         try {
           ctrl.abort()
         } catch {
@@ -2217,7 +2205,10 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       }
       req.on('aborted', abort)
 
-      timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      timeoutId = setTimeout(() => {
+        timedOut = true
+        ctrl.abort()
+      }, timeoutMs)
       const upstream = await fetch(urlParam, {
         method: req.method,
         redirect: 'follow',
@@ -2238,8 +2229,9 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         finished = true
         if (!res.writableEnded) {
           try {
-            res.statusCode = 499
-            res.end()
+            res.statusCode = timedOut ? 504 : 499
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.end(timedOut ? 'Timeout' : '')
           } catch {
             void 0
           }
@@ -2312,7 +2304,13 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
           ? String((error as { message?: unknown }).message || '')
           : 'Upstream fetch failed'
       const message = msg || 'Upstream fetch failed'
-      if (controller?.signal.aborted || /aborted/i.test(message)) {
+      if (timedOut) {
+        res.statusCode = 504
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Timeout')
+        return
+      }
+      if (clientAborted || controller?.signal.aborted || /aborted/i.test(message)) {
         try {
           res.statusCode = 499
           res.end()
@@ -4202,11 +4200,13 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
 
     let controller: AbortController | null = null
     let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let timedOut = false
+    let clientAborted = false
     try {
       const timeoutMs = (() => {
         const raw = String(process.env.KNOWGRPH_WEBPAGE_PROXY_TIMEOUT_MS || '').trim()
         const parsed = raw ? Number(raw) : NaN
-        if (!Number.isFinite(parsed)) return 30_000
+        if (!Number.isFinite(parsed)) return 60_000
         return Math.max(1_000, Math.min(120_000, Math.floor(parsed)))
       })()
       const maxBytes = (() => {
@@ -4220,6 +4220,7 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       let finished = false
       const abort = () => {
         if (finished) return
+        clientAborted = true
         try {
           ctrl.abort()
         } catch {
@@ -4228,7 +4229,10 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       }
       req.on('aborted', abort)
 
-      timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      timeoutId = setTimeout(() => {
+        timedOut = true
+        ctrl.abort()
+      }, timeoutMs)
       const upstreamUrl = (() => {
         try {
           return new URL(urlParam)
@@ -4360,7 +4364,13 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
           ? String((error as { message?: unknown }).message || '')
           : 'Upstream fetch failed'
       const message = msg || 'Upstream fetch failed'
-      if (controller?.signal.aborted || /aborted/i.test(message)) {
+      if (timedOut) {
+        res.statusCode = 504
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Timeout')
+        return
+      }
+      if (clientAborted || controller?.signal.aborted || /aborted/i.test(message)) {
         try {
           res.statusCode = 499
           res.end()

@@ -10,6 +10,19 @@ const CACHE = new Map<string, { html: string; atMs: number }>()
 const INFLIGHT = new Map<string, Promise<string>>()
 
 const CACHE_MAX = 24
+const CACHE_TTL_MS_PROXY = 2 * 60_000
+const CACHE_TTL_MS_REPO = 10 * 60_000
+const CACHE_TTL_MS_CONVERT = 8 * 60_000
+const CACHE_TTL_MS_ARTIFACT = 60 * 60_000
+const CACHE_TTL_MS_DEFAULT = 4 * 60_000
+
+const cacheTtlMsForKey = (key: string): number => {
+  if (key.startsWith('proxy:')) return CACHE_TTL_MS_PROXY
+  if (key.startsWith('repo:')) return CACHE_TTL_MS_REPO
+  if (key.startsWith('convert-json-client:')) return CACHE_TTL_MS_CONVERT
+  if (key.startsWith('artifact:')) return CACHE_TTL_MS_ARTIFACT
+  return CACHE_TTL_MS_DEFAULT
+}
 
 export function clearWebpageIframeSrcdocCaches(): void {
   CACHE.clear()
@@ -154,19 +167,26 @@ const fetchCached = (
         throw e
       })
       .finally(() => {
-      try {
-        if (timeoutId) clearTimeoutFn(timeoutId)
-      } catch {
-        void 0
-      }
-    })
+        try {
+          if (timeoutId) clearTimeoutFn(timeoutId)
+        } catch {
+          void 0
+        }
+      })
     return withAbort(p, signal)
   }
 
   const cached = CACHE.get(key)
   if (cached) {
-    if (signal?.aborted) return Promise.reject(createAbortError())
-    return Promise.resolve(cached.html)
+    const ttlMs = cacheTtlMsForKey(key)
+    if (ttlMs > 0 && Date.now() - cached.atMs > ttlMs) {
+      CACHE.delete(key)
+    } else {
+      CACHE.delete(key)
+      CACHE.set(key, cached)
+      if (signal?.aborted) return Promise.reject(createAbortError())
+      return Promise.resolve(cached.html)
+    }
   }
 
   const inflight = INFLIGHT.get(key)

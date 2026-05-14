@@ -7,6 +7,20 @@ import type {
   DesignCanvasInlineMediaPreview,
 } from '@/components/DesignCanvas/types'
 
+const truncateText = (value: string, maxChars: number): string => {
+  const t = String(value || '')
+  if (maxChars <= 0) return ''
+  if (t.length <= maxChars) return t
+  if (maxChars <= 1) return '…'
+  return `${t.slice(0, Math.max(0, maxChars - 1))}…`
+}
+
+const estimateMaxChars = (widthPx: number, fontSizePx: number): number => {
+  const w = Math.max(0, Number.isFinite(widthPx) ? widthPx : 0)
+  const fs = Math.max(8, Number.isFinite(fontSizePx) ? fontSizePx : 12)
+  return Math.max(0, Math.floor(w / (fs * 0.62)))
+}
+
 export function DesignCanvasFrameShellLayer(props: {
   renderNodes: DesignCanvasFrameNodeRef[]
   positions: Record<string, DesignCanvasFrameRect>
@@ -55,6 +69,10 @@ export function DesignCanvasFrameShellLayer(props: {
         const visual = frameVisualById.get(node.id)
         if (!visual) return null
         const preview = !renderMediaAsNodes ? inlineMediaPreviewById.get(node.id) || null : null
+        const labelWidth = Math.max(0, rect.w - 24) * 0.66
+        const typeWidth = Math.max(0, rect.w - 24) * 0.34
+        const labelText = truncateText(node.label, estimateMaxChars(labelWidth, 12))
+        const typeText = truncateText(String(node.type || node.id), estimateMaxChars(typeWidth, 10))
 
         return (
           <g
@@ -119,10 +137,10 @@ export function DesignCanvasFrameShellLayer(props: {
             {!visual.showDecor ? (
               <>
                 <text x={12} y={22} fill="var(--kg-text-primary)" fontSize={12} fontWeight={600} style={{ pointerEvents: 'none' }}>
-                  {node.label}
+                  {labelText}
                 </text>
                 <text x={rect.w - 12} y={22} textAnchor="end" fill="var(--kg-text-tertiary)" fontSize={10} style={{ pointerEvents: 'none' }}>
-                  {node.type || node.id}
+                  {typeText}
                 </text>
               </>
             ) : null}

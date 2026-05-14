@@ -52,6 +52,7 @@ export function LaunchDropdown({
   const urlInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
+  const [importUrlRenderer, setImportUrlRenderer] = React.useState<'default' | 'design'>('default')
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = React.useState(false)
   const exportCloseTimeoutRef = React.useRef<number | null>(null)
@@ -67,6 +68,7 @@ export function LaunchDropdown({
   React.useEffect(() => {
     if (!open) return
     setUrlInputOpen(false)
+    setImportUrlRenderer('default')
     setExportMenuOpen(false)
     setPdfMenuOpen(false)
     if (exportCloseTimeoutRef.current != null) {
@@ -164,11 +166,26 @@ export function LaunchDropdown({
   )
 
   const importUrlFallback = React.useCallback(
-    async (urlRaw: string) => {
+    async (urlRaw: string, opts?: { canvas2dRenderer?: 'design' | null }) => {
       const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlFallback({ urlRaw, pushUiToast })
+      await mod.importUrlFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, pushUiToast })
     },
     [pushUiToast],
+  )
+
+  const runImportUrl = React.useCallback(
+    (nextUrlRaw: string) => {
+      const nextUrl = String(nextUrlRaw || '').trim()
+      if (!nextUrl) return
+      onClose()
+      const launchBridge = getMarkdownWorkspaceActionBridge()
+      const canvas2dRenderer: 'design' | null = importUrlRenderer === 'design' ? 'design' : null
+      const opts = canvas2dRenderer ? { canvas2dRenderer } : undefined
+      if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
+      else void importUrlFallback(nextUrl, opts)
+      setUrlInputOpen(false)
+    },
+    [importUrlFallback, importUrlRenderer, onClose],
   )
 
   const createNewFolderFallback = React.useCallback(async () => {
@@ -402,11 +419,7 @@ export function LaunchDropdown({
                     setUrlInputOpen(false)
                     return
                   }
-                  onClose()
-                  const launchBridge = getMarkdownWorkspaceActionBridge()
-                  if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(draft)
-                  else void importUrlFallback(draft)
-                  setUrlInputOpen(false)
+                  runImportUrl(draft)
                   return
                 }
                 if (!draft) {
@@ -431,35 +444,50 @@ export function LaunchDropdown({
                   autoFocus
                   confirmLabel="Import"
                   onConfirm={(next) => {
-                    onClose()
-                    const launchBridge = getMarkdownWorkspaceActionBridge()
-                    if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(next)
-                    else void importUrlFallback(next)
-                    setUrlInputOpen(false)
+                    runImportUrl(next)
                   }}
-                  rightAddon={typeof bridge.importWebsite === 'function' ? (
-                    <button
-                      type="button"
-                      className={cn(
-                        'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
-                        UI_THEME_TOKENS.input.border,
-                        UI_THEME_TOKENS.button.text,
-                        UI_THEME_TOKENS.button.hoverBg,
-                      )}
-                      title="Import website (sitemap)"
-                      aria-label="Import website"
-                      onClick={() => {
-                        const next = String(urlDraft || '').trim()
-                        if (!next) return
-                        onClose()
-                        const launchBridge = getMarkdownWorkspaceActionBridge()
-                        launchBridge.importWebsite?.(next)
-                        setUrlInputOpen(false)
-                      }}
-                    >
-                      <Globe className={menuIconClass} strokeWidth={1.6} />
-                    </button>
-                  ) : null}
+                  rightAddon={
+                    <section className="flex items-stretch gap-1">
+                      <select
+                        className={cn(
+                          'h-[var(--kg-control-height,28px)] px-2 rounded border text-xs',
+                          UI_THEME_TOKENS.input.border,
+                          UI_THEME_TOKENS.input.bg,
+                          UI_THEME_TOKENS.input.text,
+                        )}
+                        value={importUrlRenderer}
+                        onChange={e => setImportUrlRenderer(String(e.target.value || '').trim() === 'design' ? 'design' : 'default')}
+                        aria-label="Import URL renderer"
+                        title="2D renderer"
+                      >
+                        <option value="default">Default</option>
+                        <option value="design">Design</option>
+                      </select>
+                      {typeof bridge.importWebsite === 'function' ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
+                            UI_THEME_TOKENS.input.border,
+                            UI_THEME_TOKENS.button.text,
+                            UI_THEME_TOKENS.button.hoverBg,
+                          )}
+                          title="Import website (sitemap)"
+                          aria-label="Import website"
+                          onClick={() => {
+                            const next = String(urlDraft || '').trim()
+                            if (!next) return
+                            onClose()
+                            const launchBridge = getMarkdownWorkspaceActionBridge()
+                            launchBridge.importWebsite?.(next)
+                            setUrlInputOpen(false)
+                          }}
+                        >
+                          <Globe className={menuIconClass} strokeWidth={1.6} />
+                        </button>
+                      ) : null}
+                    </section>
+                  }
                 />
               </section>
             ) : null}

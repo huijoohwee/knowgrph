@@ -4,12 +4,15 @@ import { parseGitHubRepoUrl } from '../githubRepoApi'
 import { importGitHubFolder } from '../githubRepoImport'
 import type { WorkspaceImportProgress, WorkspaceImportResult } from './types'
 import { fetchWorkspaceUrlContent } from './urlContent'
+import type { Canvas2dRendererId } from '@/lib/config.render'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
   urlRaw: string
   parentPath?: WorkspacePath
   onProgress?: (p: WorkspaceImportProgress) => void
+  canvas2dRenderer?: Canvas2dRendererId | null
+  viewHint?: 'markdown' | 'json' | 'html'
 }): Promise<WorkspaceImportResult> {
   const rawUrl = String(args.urlRaw || '').trim()
   if (!rawUrl) return { createdPaths: [], sources: [], skipped: [], failed: [] }
@@ -27,7 +30,8 @@ export async function importWorkspaceUrl(args: {
   }
   const fetched = await fetchWorkspaceUrlContent(rawUrl, {
     mode: 'import',
-    viewHint: 'markdown',
+    viewHint: args.viewHint === 'json' ? 'json' : args.viewHint === 'html' ? 'html' : 'markdown',
+    canvas2dRenderer: args.canvas2dRenderer,
     onProgress: p => {
       try {
         args.onProgress?.({ phase: 'fetching', current: p, total: 100, label: 'Fetching' })

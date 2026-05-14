@@ -168,6 +168,7 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
   }, [])
   const lastWebpageLayoutUrlRef = React.useRef<string>('')
   const lastWebpageLayoutReqRef = React.useRef<number>(0)
+  const abortRetryRef = React.useRef<{ url: string; count: number }>({ url: '', count: 0 })
   const webpageLayoutGraphCacheRef = React.useRef<Map<string, GraphData>>(new Map())
   const webpageLayoutGraphCacheOrderRef = React.useRef<string[]>([])
 
@@ -226,6 +227,7 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
     }
     const prevUrl = lastWebpageLayoutUrlRef.current
     lastWebpageLayoutUrlRef.current = url
+    if (abortRetryRef.current.url !== url) abortRetryRef.current = { url, count: 0 }
     const requestId = (lastWebpageLayoutReqRef.current += 1)
     const allowCache = webpageLayoutRetryNonce <= 0
     const fidelity = readFidelityLevel(webpageFrontmatter)
@@ -278,6 +280,16 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
           signal,
         })
         if (isStale()) return
+        if (load.ok === false && load.stage === 'abort') {
+          const retryCount = abortRetryRef.current.url === url ? abortRetryRef.current.count : 0
+          if (retryCount < 1) {
+            abortRetryRef.current = { url, count: retryCount + 1 }
+            window.setTimeout(() => {
+              setWebpageLayoutRetryNonce(n => n + 1)
+            }, 250)
+            return
+          }
+        }
         const outcome = resolveWebpageLayoutExportOutcome({
           consumer: 'wireframe',
           loadResult: load,
@@ -295,6 +307,7 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
           progressSession.stop()
           return
         }
+        abortRetryRef.current = { url, count: 0 }
         progressSession.finish(100)
       },
     })
