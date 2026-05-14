@@ -37,6 +37,7 @@ import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/work
 import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { coerceHttpUrl } from '@/lib/url'
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -78,6 +79,7 @@ export default function SidePanelChat() {
   const chatContextScope = useGraphStore(s => s.chatContextScope || 'workspace')
   const setChatModel = useGraphStore(s => s.setChatModel)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
 
   const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
   const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
@@ -483,6 +485,56 @@ export default function SidePanelChat() {
     persistChatExchangeLog,
   })
 
+  const parseDeerFlowIngestCommand = React.useCallback((raw: string): { url: string } | null => {
+    const text = String(raw || '').trim()
+    if (!text) return null
+    const match = text.match(/^(?:\/)?(?:deerflow|deerflow-import|ingest|ingest-url)\s+(.+)$/i)
+    if (!match || !match[1]) return null
+    const urlRaw = String(match[1] || '').trim()
+    if (!urlRaw) return null
+    const url = coerceHttpUrl(urlRaw) || urlRaw
+    if (!/^https?:\/\//i.test(url)) return null
+    return { url }
+  }, [])
+
+  const handleSubmitWithCommands = React.useCallback<React.FormEventHandler<HTMLFormElement>>((e) => {
+    const cmd = parseDeerFlowIngestCommand(input)
+    if (!cmd) {
+      handleSubmit(e)
+      return
+    }
+    e.preventDefault()
+    if (isLoading) return
+    const userText = String(input || '').trim()
+    if (!userText) return
+    setErrorText(null)
+    setInput('')
+    setMessages(prev => [...prev, { id: `cmd-user-${Date.now().toString(36)}`, role: 'user', content: userText }])
+    void (async () => {
+      try {
+        const { importUrlViaDeerFlowAndApply } = (await import(
+          '@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction'
+        )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction')
+        const result = await importUrlViaDeerFlowAndApply({ urlRaw: cmd.url, pushUiToast })
+        const created = result?.createdPaths || []
+        const links = created
+          .map(path => {
+            const name = String(path || '').split('/').filter(Boolean).slice(-1)[0] || String(path || '')
+            return name ? `- [${name}](${path})` : ''
+          })
+          .filter(Boolean)
+          .join('\n')
+        const assistantText = created.length
+          ? `Imported ${created.length} file(s):\n${links}`
+          : 'Import finished (no files reported).'
+        setMessages(prev => [...prev, { id: `cmd-assistant-${Date.now().toString(36)}`, role: 'assistant', content: assistantText }])
+      } catch (err) {
+        const message = err && typeof err === 'object' && 'message' in err ? String(err.message || '') : ''
+        setMessages(prev => [...prev, { id: `cmd-error-${Date.now().toString(36)}`, role: 'assistant', content: message || 'Import failed.' }])
+      }
+    })()
+  }, [handleSubmit, input, isLoading, parseDeerFlowIngestCommand, pushUiToast])
+
   return (
     <div className="h-full flex flex-col">
       <div ref={scrollRef} className={`${FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
@@ -520,7 +572,7 @@ export default function SidePanelChat() {
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModelSelect.modelId}
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmitWithCommands}
         onStop={handleStop}
         showNewChatButton={chatStorageTarget === 'chatKnowgrph'}
         isNewChatDisabled={isLoading}

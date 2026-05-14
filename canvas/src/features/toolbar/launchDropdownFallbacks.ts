@@ -214,6 +214,31 @@ export async function importUrlFallback(args: {
   }
 }
 
+export async function importUrlDeerFlowFallback(args: {
+  urlRaw: string
+  canvas2dRenderer?: 'design' | null
+  pushUiToast: PushUiToast
+}): Promise<void> {
+  const url = String(args.urlRaw || '').trim()
+  if (!url) return
+  const toastId = 'launch:import:url:deerflow'
+  args.pushUiToast({ id: toastId, kind: 'neutral', message: 'Importing URL (DeerFlow)…', ttlMs: null, dismissible: false })
+  try {
+    const { importUrlViaDeerFlowAndApply } = (await import(
+      '@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction'
+    )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction')
+    await importUrlViaDeerFlowAndApply({ urlRaw: url, canvas2dRenderer: args.canvas2dRenderer, pushUiToast: args.pushUiToast })
+  } catch (e) {
+    args.pushUiToast({
+      id: toastId,
+      kind: 'error',
+      message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`,
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
+      dismissible: true,
+    })
+  }
+}
+
 export async function createNewFolderFallback(args: {
   pushUiToast: PushUiToast
 }): Promise<void> {

@@ -173,6 +173,14 @@ export function LaunchDropdown({
     [pushUiToast],
   )
 
+  const importUrlDeerFlowFallback = React.useCallback(
+    async (urlRaw: string, opts?: { canvas2dRenderer?: 'design' | null }) => {
+      const mod = await loadLaunchDropdownFallbackModule()
+      await mod.importUrlDeerFlowFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, pushUiToast })
+    },
+    [pushUiToast],
+  )
+
   const runImportUrl = React.useCallback(
     (nextUrlRaw: string) => {
       const nextUrl = String(nextUrlRaw || '').trim()
@@ -186,6 +194,19 @@ export function LaunchDropdown({
       setUrlInputOpen(false)
     },
     [importUrlFallback, importUrlRenderer, onClose],
+  )
+
+  const runImportUrlDeerFlow = React.useCallback(
+    (nextUrlRaw: string) => {
+      const nextUrl = String(nextUrlRaw || '').trim()
+      if (!nextUrl) return
+      onClose()
+      const canvas2dRenderer: 'design' | null = importUrlRenderer === 'design' ? 'design' : null
+      const opts = canvas2dRenderer ? { canvas2dRenderer } : undefined
+      void importUrlDeerFlowFallback(nextUrl, opts)
+      setUrlInputOpen(false)
+    },
+    [importUrlDeerFlowFallback, importUrlRenderer, onClose],
   )
 
   const createNewFolderFallback = React.useCallback(async () => {
@@ -486,6 +507,24 @@ export function LaunchDropdown({
                           <Globe className={menuIconClass} strokeWidth={1.6} />
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        className={cn(
+                          'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
+                          UI_THEME_TOKENS.input.border,
+                          UI_THEME_TOKENS.button.text,
+                          UI_THEME_TOKENS.button.hoverBg,
+                        )}
+                        title="Import URL (DeerFlow)"
+                        aria-label="Import URL (DeerFlow)"
+                        onClick={() => {
+                          const next = String(urlDraft || '').trim()
+                          if (!next) return
+                          runImportUrlDeerFlow(next)
+                        }}
+                      >
+                        <Sparkles className={menuIconClass} strokeWidth={1.6} />
+                      </button>
                     </section>
                   }
                 />

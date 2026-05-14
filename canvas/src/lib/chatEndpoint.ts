@@ -382,6 +382,8 @@ export function resolveBinaryDownloadProxyUrl(value: unknown): string {
 export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknown): string | null {
   const raw = toCleanInput(value)
   if (!raw || raw.startsWith('/')) {
+    const normalizedProvider = normalizeChatProviderId(provider)
+    if (normalizedProvider === CHAT_PROVIDER_DEERFLOW && raw.startsWith('/')) return null
     return getProviderDefaultUpstreamBase(provider)
   }
   const absolute = coerceHttpUrl(raw)

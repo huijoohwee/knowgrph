@@ -19,3 +19,4 @@ export {
 
 export { importWorkspaceUrl } from './workspaceImport/urlImport'
 
+export { importWorkspaceUrlViaDeerFlow } from './workspaceImport/deerflowUrlImport'
