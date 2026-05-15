@@ -1,7 +1,7 @@
 import type { UiToastInput } from '@/hooks/store/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
-import { CHAT_DEERFLOW_ENDPOINT_URL, CHAT_PROVIDER_DEERFLOW, normalizeChatProviderId } from '@/lib/chatEndpoint'
+import { CHAT_DEERFLOW_ENDPOINT_URL, CHAT_PROVIDER_DEERFLOW, normalizeChatProviderId, resolveChatEndpointForRequest } from '@/lib/chatEndpoint'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 type PushUiToast = (toast: UiToastInput) => void
@@ -10,6 +10,15 @@ function isDeerFlowChatEndpoint(value: unknown): boolean {
   const raw = typeof value === 'string' ? value.trim() : ''
   if (!raw) return false
   return /\/api\/llm\/chat\/completions\/?(\?|$)/i.test(raw) || /\/__chat_proxy\/api\/llm\/chat\/completions\/?(\?|$)/i.test(raw)
+}
+
+function isLocalUiHost(): boolean {
+  try {
+    const host = String(globalThis.location?.hostname || '').trim().toLowerCase()
+    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+  } catch {
+    return false
+  }
 }
 
 export async function importUrlViaDeerFlowAndApply(args: {
@@ -22,9 +31,12 @@ export async function importUrlViaDeerFlowAndApply(args: {
 
   const store = useGraphStore.getState()
   const hasDeerflowProvider = normalizeChatProviderId(store.chatProvider) === CHAT_PROVIDER_DEERFLOW
+  const defaultDeerflowEndpointUrl = isLocalUiHost()
+    ? CHAT_DEERFLOW_ENDPOINT_URL
+    : resolveChatEndpointForRequest(CHAT_DEERFLOW_ENDPOINT_URL) || CHAT_DEERFLOW_ENDPOINT_URL
   const deerflowEndpointUrl = hasDeerflowProvider && isDeerFlowChatEndpoint(store.chatEndpointUrl)
     ? store.chatEndpointUrl
-    : CHAT_DEERFLOW_ENDPOINT_URL
+    : defaultDeerflowEndpointUrl
   const deerflowApiKey = hasDeerflowProvider && store.chatAuthMode === 'byok' ? store.chatApiKey : ''
   const deerflowModel = hasDeerflowProvider ? store.chatModel : null
   const pushUiToast = typeof args.pushUiToast === 'function' ? args.pushUiToast : null
@@ -74,6 +86,13 @@ export async function importUrlViaDeerFlowAndApply(args: {
         },
       }),
     ))
+    if (res.failed.length > 0) {
+      const message = String(res.failed[0]?.error || '').trim() || 'DeerFlow import failed'
+      throw new Error(message)
+    }
+    if (res.createdPaths.length === 0) {
+      throw new Error('DeerFlow import produced no files')
+    }
 
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
@@ -102,4 +121,3 @@ export async function importUrlViaDeerFlowAndApply(args: {
     return null
   }
 }
-

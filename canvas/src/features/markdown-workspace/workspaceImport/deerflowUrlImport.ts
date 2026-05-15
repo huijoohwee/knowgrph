@@ -32,6 +32,16 @@ const cleanString = (value: unknown): string => {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+const readGatewayErrorFromPayload = (payload: unknown): string => {
+  if (!payload || typeof payload !== 'object') return ''
+  const rec = payload as Record<string, unknown>
+  const err = cleanString(rec.error)
+  if (err) return err
+  const message = cleanString(rec.message)
+  if (message) return message
+  return ''
+}
+
 const resolveDeerFlowRunsWaitEndpoint = (endpointUrl: unknown): string | null => {
   const requestEndpoint = resolveChatEndpointForRequest(endpointUrl || CHAT_DEERFLOW_ENDPOINT_URL)
   if (!requestEndpoint) return null
@@ -243,8 +253,14 @@ export async function importWorkspaceUrlViaDeerFlow(args: {
 
   const json = (await res.json().catch(() => null)) as unknown
   if (!res.ok || !json || typeof json !== 'object') {
+    const message = json ? readGatewayErrorFromPayload(json) : ''
     const status = `HTTP ${res.status}`
-    return { createdPaths, sources, skipped, failed: [{ name: normalizedUrl, error: status }] }
+    const error = message ? `${status}: ${message}` : status
+    return { createdPaths, sources, skipped, failed: [{ name: normalizedUrl, error }] }
+  }
+  const upstreamError = readGatewayErrorFromPayload(json)
+  if (upstreamError && upstreamError !== 'ok') {
+    return { createdPaths, sources, skipped, failed: [{ name: normalizedUrl, error: upstreamError }] }
   }
 
   const manifest = findFirstJsonManifest(json)
@@ -276,4 +292,3 @@ export async function importWorkspaceUrlViaDeerFlow(args: {
 
   return { createdPaths, sources, skipped, failed }
 }
-
