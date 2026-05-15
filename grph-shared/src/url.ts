@@ -264,9 +264,7 @@ export function inferIframeScriptPolicyFromHtml(html: string): 'strip' | 'allow'
     /requires\s+java\s*script/i.test(h) ||
     /failed\s+to\s+load\s+posts/i.test(h) ||
     /substackcdn\.com/i.test(h) ||
-    /<noscript\b[\s\S]*?(enable\s+javascript|requires\s+javascript|turn\s+on\s+javascript)/i.test(h) ||
-    /__NEXT_DATA__|webpackChunk|__NUXT__|data-reactroot|__APOLLO_STATE__/i.test(h) ||
-    (h.match(/<script\b/gi) || []).length >= 6
+    /<noscript\b[\s\S]*?(enable\s+javascript|requires\s+javascript|turn\s+on\s+javascript)/i.test(h)
   return needsJs ? 'allow' : 'strip'
 }
 

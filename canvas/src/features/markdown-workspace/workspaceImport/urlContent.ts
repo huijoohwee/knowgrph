@@ -351,6 +351,15 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       shouldFallbackToPlainText = forceConvertToMarkdown
 
       const upstreamMarkdown = await (async () => {
+        try {
+          if (shouldConvertToMarkdown) {
+            const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
+            if (converted && converted.ok === true && typeof converted.markdown === 'string') return String(converted.markdown || '')
+          }
+        } catch {
+          void 0
+        }
+
         if (mode !== 'refresh' && !looksLikeSubstackUrl) {
           try {
             const [textDom, htmlDom] = await Promise.all([
@@ -429,15 +438,6 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           } catch {
             void 0
           }
-        }
-
-        try {
-          if (shouldConvertToMarkdown) {
-            const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
-            if (converted && converted.ok === true && typeof converted.markdown === 'string') return String(converted.markdown || '')
-          }
-        } catch {
-          void 0
         }
 
         const fetchImpl = (globalThis as unknown as { fetch?: unknown }).fetch

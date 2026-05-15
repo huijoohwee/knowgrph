@@ -483,7 +483,12 @@ export function useWorkspaceImportActions(args: {
             if (meta.hydrate === false) return
 
             const body = String(current || '').replace(/^---[\s\S]*?\n---\n?/m, '').trim()
-            const needsHydration = (isFrontmatterOnlyDoc(current) || looksLikeJsShellText(body) || body.length < 220) && meta.view === 'markdown'
+            const bodyHasHydrationStubHint =
+              /fetching\s+content\s+in\s+background/i.test(body) ||
+              /import\s+runs\s+without\s+your\s+browser\s+cookies/i.test(body)
+            const needsHydration =
+              meta.view === 'markdown' &&
+              (isFrontmatterOnlyDoc(current) || looksLikeJsShellText(body) || bodyHasHydrationStubHint || body.length < 220)
             if (!needsHydration) return
 
             status.setStatusProgress('Fetching')
@@ -524,8 +529,13 @@ export function useWorkspaceImportActions(args: {
             })
 
             status.setStatusInfo('Webpage content loaded', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
-          } catch {
-            void 0
+          } catch (e) {
+            if (importJobRef.current !== jobId) return
+            const msgRaw = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
+            const msg = msgRaw.trim().slice(0, 220)
+            const label = msg ? `Webpage content unavailable: ${msg}` : 'Webpage content unavailable'
+            status.setStatusWarning(label, { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
+            useGraphStore.getState().pushUiLog({ kind: 'warning', message: `Import URL hydration failed: ${label}`, source: 'workspace:importUrl' })
           }
         }
 
