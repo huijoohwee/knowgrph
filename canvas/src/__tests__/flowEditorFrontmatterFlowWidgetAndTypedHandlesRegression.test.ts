@@ -6,9 +6,11 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   const flowEditorRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'resolveWidgetRegistry.ts')
   const runtimeText = readFileSync(flowEditorRuntimePath, 'utf8')
   const sharedText = readFileSync(flowEditorSharedPath, 'utf8')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const registryHelperText = readFileSync(registryHelperPath, 'utf8')
 
   if (!sharedText.includes('filterGraphToFlowWidgetEligible')) {
     throw new Error('expected FlowEditorCanvas shared graph derivation to filter view graph using flow widget eligibility filtering')
@@ -19,11 +21,20 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!sharedText.includes('isFrontmatterFlowGraph')) {
     throw new Error('expected shared flow editor helpers to use frontmatter-flow graph detection')
   }
-  if (!overlaySurfaceText.includes('if (isFrontmatterFlow && nodes.length > 0)')) {
-    throw new Error('expected overlay node derivation to always include all frontmatter-flow nodes')
+  if (!overlaySurfaceText.includes('if (isFrontmatterFlow) {')) {
+    throw new Error('expected overlay node derivation to branch explicitly for frontmatter-flow overlay ownership')
   }
   if (!sharedText.includes('readWidgetRegistryMetadataEntries')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to reuse the shared widget-registry metadata reader SSOT')
+  }
+  if (!sharedText.includes('const canonicalBuiltInNodeIds = new Set<string>()')) {
+    throw new Error('expected frontmatter-flow overlay derivation to track canonical built-in widget/media ids before fallback')
+  }
+  if (!sharedText.includes('if (!node || !isCanonicalFrontmatterBuiltInWidgetNode(node)) continue')) {
+    throw new Error('expected registry-backed frontmatter overlay ids to stay constrained to canonical built-in widget/media nodes')
+  }
+  if (!sharedText.includes('isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: entry })')) {
+    throw new Error('expected registry-backed frontmatter overlay ids to require exact node-owned form identity')
   }
   if (!sharedText.includes('if (allowedFlowNodeIds.size === 0) return []')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to avoid synthetic fallback when registry ids are missing')
@@ -34,14 +45,20 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!sharedText.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
     throw new Error('expected shared frontmatter-flow overlay derivation to exclude non-flow ids from overlay editors')
   }
-  if (!overlaySurfaceText.includes('if (flowEditorFrontmatterGraphAvailable) return []')) {
-    throw new Error('expected frontmatter-flow availability to suppress non-frontmatter widget fallback ids')
+  if (!registryHelperText.includes('export function isNodeOwnedFrontmatterWidgetRegistryEntry(')) {
+    throw new Error('expected shared widget registry helpers to expose node-owned frontmatter form identity checks')
   }
-  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) return []')) {
-    throw new Error('expected flow editor widget id derivation to avoid fallback ids whenever flow editor view is inactive')
+  if (!overlaySurfaceText.includes('const sorted = renderGraphPlacementContext?.frontmatterOverlayNodeIds || []')) {
+    throw new Error('expected frontmatter-flow overlay surface to reuse the shared overlay-id set from the placement context')
   }
-  if (!overlaySurfaceText.includes('return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []')) {
-    throw new Error('expected frontmatter-flow widget overlay fallback ids to clear when the graph is transiently empty instead of replaying stale ids')
+  if (!overlaySurfaceText.includes('if (flowEditorFrontmatterGraphAvailable) {')) {
+    throw new Error('expected frontmatter-flow availability to suppress non-frontmatter widget fallback ids through the dedicated branch')
+  }
+  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {')) {
+    throw new Error('expected flow editor widget id derivation to avoid live overlay ids whenever flow editor view is inactive')
+  }
+  if (!overlaySurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
+    throw new Error('expected overlay surface to reuse the last stable frontmatter overlay ids during transient workspace-blocked frames')
   }
   if (!runtimeText.includes('forceFrontmatterFlow: frontmatterOnlyPolicyActive')) {
     throw new Error('expected Flow Editor runtime to force flow-only graph-family derivation under frontmatter-only policy')
@@ -74,7 +91,9 @@ export function testFrontmatterFlowTypedNodesForcePortHandleDefaultsInFlowScene(
 
 export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCoverage() {
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const text = readFileSync(overlaySurfacePath, 'utf8')
+  const sharedText = readFileSync(sharedPath, 'utf8')
 
   if (!text.includes('frontmatterOverlayHideSafety')) {
     throw new Error('expected FlowEditor overlay mode to compute frontmatter visibility safety state')
@@ -100,14 +119,29 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
   if (!text.includes('const visibleFlowNodeIds = visibleNodeIds.filter')) {
     throw new Error('expected frontmatter overlay safety to limit coverage checks to visible flow-widget nodes')
   }
+  if (text.includes('const frontmatterExcludedNodeIds = normalizeStringArrayForSignature([')) {
+    throw new Error('expected frontmatter FlowCanvas graph exclusion to avoid folding rich-media overlay source nodes into the widget-only graph filter')
+  }
+  if (!text.includes('excludedNodeIds,\n      })')) {
+    throw new Error('expected frontmatter FlowCanvas graph exclusion to hide only the Flow Editor widget-owned nodes while leaving rich-media overlay source nodes available')
+  }
+  if (!sharedText.includes('normalizeGraphFilterNodeIdSet')) {
+    throw new Error('expected shared FlowCanvas graph filtering to normalize canonical overlay ids before exclusion')
+  }
+  if (!sharedText.includes('resolveGraphNodeIdByCanonicalId(graphData, id)')) {
+    throw new Error('expected shared FlowCanvas graph filtering to resolve canonical overlay ids to concrete graph ids before exclusion')
+  }
   if (!text.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
     throw new Error('expected frontmatter-flow overlay guard to branch explicitly before overlay-only canvas suppression')
   }
-  if (!text.includes('return false')) {
-    throw new Error('expected frontmatter-flow overlay guard to keep the base FlowCanvas graph visible beneath widget overlays')
+  if (!text.includes('const frontmatterOverlayCoverageReady =')) {
+    throw new Error('expected frontmatter-flow overlay guard to centralize visible overlay coverage readiness before workspace/view gating')
   }
-  if (!text.includes('Keep the base FlowCanvas graph visible in document frontmatter mode; overlays augment it.')) {
-    throw new Error('expected frontmatter-flow overlay guard to document why frontmatter widget overlays no longer blank the base graph')
+  if (!text.includes('if (frontmatterOverlayCoverageReady) return true')) {
+    throw new Error('expected frontmatter-flow overlay guard to keep overlay-only authority when visible nodes are already fully covered by widget and rich-media overlays')
+  }
+  if (!text.includes('disabling overlay-only mode here strands edges')) {
+    throw new Error('expected frontmatter-flow overlay guard to document why workspace-open frontmatter scenes must keep overlay-edge authority')
   }
 }
 
@@ -334,6 +368,11 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!text.includes('overlayEdgePartialNodeSetRetryRef')) {
     throw new Error('expected overlay edge renderer to bound retries for partial overlay node-set churn')
   }
+  if (!text.includes('if (workspaceOverlayOpen) {')
+    || !text.includes('removeAllPaths(overlayEdgePathByIdRef)')
+    || !text.includes('if (workspaceOverlayOpen) return set')) {
+    throw new Error('expected workspace-open overlay edge churn to clear stale stable-node edge paths instead of reusing them when the live overlay set shrinks or disappears')
+  }
   const runtimeText = readFileSync(runtimePath, 'utf8')
   if (!runtimeText.includes('[overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate]')) {
     throw new Error('expected Flow Editor overlay edge scheduling to resync on semantic topology/layout signature changes, not only overlay node id churn')
@@ -516,6 +555,12 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!text.includes('const stroke = e.stroke') || !text.includes('const strokeWidth = e.strokeWidth')) {
     throw new Error('expected overlay edge renderer to apply pre-resolved socket/theme edge styling when drawing paths')
   }
+  if (!text.includes("const FLOW_EDITOR_OVERLAY_EDGE_OPACITY = '0.82'")) {
+    throw new Error('expected overlay edge renderer to centralize default overlay-edge opacity for dense frontmatter scenes')
+  }
+  if (!text.includes("pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)")) {
+    throw new Error('expected overlay edge renderer to apply shared default overlay-edge opacity when drawing paths')
+  }
   if (!text.includes('${e.sourcePortKey}|${e.targetPortKey}:${e.stroke}:${e.strokeWidth}')) {
     throw new Error('expected overlay edge layout signature to include pre-resolved socket/theme edge styling')
   }
@@ -575,6 +620,12 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
   }
   if (!renderGraphHelperText.includes('const source = readCanonicalFlowEditorOverlayIdentity(sourceRaw)') || !renderGraphHelperText.includes('const target = readCanonicalFlowEditorOverlayIdentity(targetRaw)')) {
     throw new Error('expected shared overlay edge graph helper to canonicalize shared edge endpoints before filtering workspace-composed overlay edges')
+  }
+  if (
+    !renderGraphHelperText.includes("const overlayEdgeGraphData = graphMetaKind === 'frontmatter-flow'")
+    || !renderGraphHelperText.includes("deriveSceneDisplayGraph({ graphData: graph })?.displayGraphData || graph")
+  ) {
+    throw new Error('expected shared overlay edge graph helper to derive frontmatter overlay edges from the visible scene display graph before filtering overlay identities')
   }
   if (!text.includes('Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0')) {
     throw new Error('expected overlay edge renderer to prefer canonical overlay editor ids over open widget ids')

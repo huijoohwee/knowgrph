@@ -63,6 +63,12 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!authorityText.includes('export function shouldPreserveFrontmatterAutoManagedBalancedCollective')) {
     throw new Error('expected widget placement authority SSOT to expose a pure helper for preserving only balanced floating frontmatter collectives')
   }
+  if (!authorityText.includes('export function shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit')) {
+    throw new Error('expected widget placement authority SSOT to expose one graph-commit helper for widget overlay carry-forward policy')
+  }
+  if (!authorityText.includes("if (kind === 'frontmatter-flow') return false")) {
+    throw new Error('expected graph-commit widget carry-forward helper to forbid stable same-source overlay carry for frontmatter-flow outside balanced collective preservation')
+  }
   if (!graphDataCommitActionsText.includes('stripFrontmatterAutoManagedWidgetScreenPositions')) {
     throw new Error('expected graph commit path to strip stale frontmatter built-in screen positions via the shared authority helper')
   }
@@ -71,5 +77,8 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   }
   if (!graphDataCommitActionsText.includes('preserveBalancedCollective: args.preserveStableSameSourceOverlayState')) {
     throw new Error('expected graph commit path to preserve only balanced same-source frontmatter collective screen layouts')
+  }
+  if (!graphDataCommitActionsText.includes('shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit')) {
+    throw new Error('expected graph commit path to reuse the shared widget overlay carry-forward helper instead of duplicating frontmatter same-source carry policy')
   }
 }

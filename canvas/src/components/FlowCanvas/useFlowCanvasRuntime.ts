@@ -1,7 +1,12 @@
 import React from 'react'
 import * as d3 from 'd3'
 
-import { cancelFlowZoomRequestAnim, collectFlowEditorOverlayBounds, resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
+import {
+  cancelFlowZoomRequestAnim,
+  collectFlowEditorOverlayBounds,
+  recenterVisibleFlowEditorOverlayCentroid,
+  resolveFlowEditorVisibleViewport,
+} from '@/components/FlowCanvas/applyZoomRequestNative'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
@@ -30,6 +35,7 @@ import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 
@@ -344,6 +350,36 @@ export function useFlowCanvasRuntime(args: {
     if (Math.abs(centroidY - targetCenterY) > viewportH * 0.32) return false
     return true
   }, [])
+  const deriveFlowOverlayCollectiveViewportState = React.useCallback((args: {
+    bounds: { minX: number; maxX: number; minY: number; maxY: number; width: number; height: number } | null
+    visibleViewport: { left: number; top: number; right: number; bottom: number; width: number; height: number; centerX: number; centerY: number }
+  }): { visible: boolean; centered: boolean; balanced: boolean; offscreen: boolean } | null => {
+    const bounds = args.bounds
+    if (!bounds) return null
+    const visibleViewport = args.visibleViewport
+    const marginX = Math.max(24, visibleViewport.width * 0.08)
+    const marginY = Math.max(24, visibleViewport.height * 0.08)
+    const offscreen =
+      bounds.maxX <= visibleViewport.left - marginX
+      || bounds.maxY <= visibleViewport.top - marginY
+      || bounds.minX >= visibleViewport.right + marginX
+      || bounds.minY >= visibleViewport.bottom + marginY
+    const visible =
+      bounds.maxX > visibleViewport.left
+      && bounds.maxY > visibleViewport.top
+      && bounds.minX < visibleViewport.right
+      && bounds.minY < visibleViewport.bottom
+    const centroidX = (bounds.minX + bounds.maxX) / 2
+    const centroidY = (bounds.minY + bounds.maxY) / 2
+    const centered =
+      Math.abs(centroidX - visibleViewport.centerX) <= visibleViewport.width * 0.2
+      && Math.abs(centroidY - visibleViewport.centerY) <= visibleViewport.height * 0.24
+    const spanW = Math.max(1, bounds.width)
+    const spanH = Math.max(1, bounds.height)
+    const spanAspect = spanW / spanH
+    const balanced = centered && spanAspect >= 0.18 && spanAspect <= 6
+    return { visible, centered, balanced, offscreen }
+  }, [])
   const [workspaceOverlayInteractionFrameTick, setWorkspaceOverlayInteractionFrameTick] = React.useState(0)
   const workspaceOverlayOpenPrevRef = React.useRef(false)
   const workspaceOverlayOpenedAtMsRef = React.useRef(0)
@@ -355,6 +391,7 @@ export function useFlowCanvasRuntime(args: {
   const workspaceVisibleViewportStableTicksRef = React.useRef(0)
   const workspaceDeferredDrawPendingRef = React.useRef(false)
   const workspaceViewportSettleRetryTimeoutRef = React.useRef<number | null>(null)
+  const workspaceOffscreenRecoveryRetryTimeoutRef = React.useRef<number | null>(null)
   const clearWorkspaceViewportSettleRetry = React.useCallback(() => {
     const t = workspaceViewportSettleRetryTimeoutRef.current
     if (t == null) return
@@ -369,6 +406,22 @@ export function useFlowCanvasRuntime(args: {
       workspaceViewportSettleRetryTimeoutRef.current = null
       setWorkspaceOverlayInteractionFrameTick(prev => (prev + 1) % 1000000)
     }, 80)
+  }, [])
+  const clearWorkspaceOffscreenRecoveryRetry = React.useCallback(() => {
+    const t = workspaceOffscreenRecoveryRetryTimeoutRef.current
+    if (t == null) return
+    workspaceOffscreenRecoveryRetryTimeoutRef.current = null
+    if (typeof window === 'undefined') return
+    window.clearTimeout(t)
+  }, [])
+  const scheduleWorkspaceOffscreenRecoveryRetry = React.useCallback((delayMs: number) => {
+    if (typeof window === 'undefined') return
+    if (workspaceOffscreenRecoveryRetryTimeoutRef.current != null) return
+    const timeoutMs = Math.max(24, Math.min(1000, Math.floor(delayMs)))
+    workspaceOffscreenRecoveryRetryTimeoutRef.current = window.setTimeout(() => {
+      workspaceOffscreenRecoveryRetryTimeoutRef.current = null
+      setWorkspaceOverlayInteractionFrameTick(prev => (prev + 1) % 1000000)
+    }, timeoutMs)
   }, [])
 
   React.useEffect(() => {
@@ -388,6 +441,7 @@ export function useFlowCanvasRuntime(args: {
       lastInitTransformZoomViewKeyRef.current = null
       lastOffscreenOverlayRecoveryKeyRef.current = null
       clearWorkspaceViewportSettleRetry()
+      clearWorkspaceOffscreenRecoveryRetry()
     }
     if (!open) {
       workspaceOverlayOpenedAtMsRef.current = 0
@@ -401,9 +455,10 @@ export function useFlowCanvasRuntime(args: {
       lastInitTransformZoomViewKeyRef.current = null
       lastOffscreenOverlayRecoveryKeyRef.current = null
       clearWorkspaceViewportSettleRetry()
+      clearWorkspaceOffscreenRecoveryRetry()
     }
     workspaceOverlayOpenPrevRef.current = open
-  }, [active, canvas2dRenderer, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen])
+  }, [active, canvas2dRenderer, clearWorkspaceOffscreenRecoveryRetry, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen])
 
   React.useEffect(() => {
     if (!active) return
@@ -420,9 +475,10 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
       clearWorkspaceViewportSettleRetry()
+      clearWorkspaceOffscreenRecoveryRetry()
     }
     workspaceOverlayZoomViewKeyRef.current = zoomViewKey
-  }, [active, canvas2dRenderer, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen, zoomViewKey])
+  }, [active, canvas2dRenderer, clearWorkspaceOffscreenRecoveryRetry, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen, zoomViewKey])
 
   const isWorkspaceVisibleViewportSettled = React.useCallback((visibleViewport: {
     left: number
@@ -465,13 +521,26 @@ export function useFlowCanvasRuntime(args: {
     const hasRenderableGraphNodes =
       Array.isArray(graphDataForZoomRequests?.nodes)
       && graphDataForZoomRequests.nodes.length > 0
+    const frontmatterDocumentModeRequested = isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer,
+      frontmatterModeEnabled,
+      documentSemanticMode,
+    })
     // Avoid deadlocking first-frame draw in initial workspace-open source-files paths.
     // If graph nodes are already present, allow draw while init-fit is still pending.
-    if (hasRenderableGraphNodes) return false
+    if (hasRenderableGraphNodes && !frontmatterDocumentModeRequested) return false
     __flowCanvasDebug.lastRecoveryReason = 'workspace-open-preinit-draw-suppressed'
     syncFlowCanvasDebugToast({ enabled: true })
     return true
-  }, [canvas2dRenderer, graphDataForZoomRequests, workspaceEditorOverlayOpen, zoomViewKey, lastInitTransformZoomViewKeyRef])
+  }, [
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    graphDataForZoomRequests,
+    workspaceEditorOverlayOpen,
+    zoomViewKey,
+    lastInitTransformZoomViewKeyRef,
+  ])
 
   React.useEffect(() => {
     if (!active) return
@@ -732,13 +801,68 @@ export function useFlowCanvasRuntime(args: {
           // Apply one provisional fit from current viewport metrics; settled retry can refine later.
           const provisionalFitW = Math.max(1, Number(visibleViewportFit.width) > 0 ? visibleViewportFit.width : viewportW)
           const provisionalFitH = Math.max(1, Number(visibleViewportFit.height) > 0 ? visibleViewportFit.height : viewportH)
-          const provisionalFit = fitAllTransform(
-            nodesForFit,
-            provisionalFitW,
-            provisionalFitH,
-            { ...opts, graphData: graphDataForFit || undefined },
-          )
-          const next = d3.zoomIdentity.translate(provisionalFit.x, provisionalFit.y).scale(provisionalFit.k)
+          const provisionalFitGraphMeta = ((graphDataForFit?.metadata || {}) as Record<string, unknown>)
+          const provisionalFitGraphContext = String(graphDataForFit?.context || '').trim()
+          const provisionalCanUseFrontmatterCollectiveInitFit =
+            String(provisionalFitGraphMeta.kind || '').trim() === 'frontmatter-flow'
+            || provisionalFitGraphContext === 'frontmatter-flow'
+          const provisionalHasCollectiveFlowWidgets =
+            Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
+          const provisionalHasUsableCollectiveWidgetWorldPos =
+            provisionalHasCollectiveFlowWidgets
+            && openWidgetNodeIds.some(rawId => {
+              const id = String(rawId || '').trim()
+              if (!id) return false
+              const world = fitWorldPosById[id]
+              return !!world && Number.isFinite(world.x) && Number.isFinite(world.y)
+            })
+          const provisionalCanUseCollectiveInitFit =
+            provisionalHasCollectiveFlowWidgets || provisionalCanUseFrontmatterCollectiveInitFit
+          const provisionalPinnedById =
+            provisionalHasCollectiveFlowWidgets
+              ? openWidgetNodeIds.reduce<Record<string, boolean>>((acc, rawId) => {
+                  const id = String(rawId || '').trim()
+                  if (!id) return acc
+                  acc[id] = true
+                  return acc
+                }, { ...(flowWidgetPinnedByNodeId || {}) })
+              : (flowWidgetPinnedByNodeId || {})
+          const provisionalUseD3StyleInitFit =
+            workspaceEditorOverlayOpen === true
+            && (
+              !provisionalCanUseCollectiveInitFit
+              || (
+                !provisionalCanUseFrontmatterCollectiveInitFit
+                && provisionalHasCollectiveFlowWidgets
+                && !provisionalHasUsableCollectiveWidgetWorldPos
+              )
+            )
+          const provisionalFit = provisionalUseD3StyleInitFit
+            ? fitAllTransform(
+                nodesForFit,
+                provisionalFitW,
+                provisionalFitH,
+                { ...opts, graphData: graphDataForFit || undefined },
+              )
+            : fitFlowEditorPinnedWidgets({
+                nodes: nodesForFit,
+                fitW: provisionalFitW,
+                viewportH: provisionalFitH,
+                viewportW: provisionalFitW,
+                openWidgetNodeIds,
+                pinnedById: provisionalPinnedById,
+                worldPosById: fitWorldPosById,
+                portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(state.schema),
+                graphData: graphDataForFit,
+                fitOpts: opts,
+                frontmatterOverlayFitProxyScales,
+              })
+          const next = d3.zoomIdentity
+            .translate(
+              provisionalFit.x + (provisionalUseD3StyleInitFit ? 0 : visibleViewportFit.left),
+              provisionalFit.y + (provisionalUseD3StyleInitFit ? 0 : visibleViewportFit.top),
+            )
+            .scale(provisionalFit.k)
           lastInitTransformZoomViewKeyRef.current = initKey
           if (
             Math.abs(current.k - next.k) > 1e-9
@@ -763,7 +887,29 @@ export function useFlowCanvasRuntime(args: {
     })
     const fitW = Math.max(1, fitReferenceFrame.width)
     const fitH = Math.max(1, fitReferenceFrame.height)
+    const initFitGraphMeta = ((graphDataForFit?.metadata || {}) as Record<string, unknown>)
+    const initFitGraphContext = String(graphDataForFit?.context || '').trim()
+    const initVisibleViewport = {
+      left: visibleViewportFit.left,
+      top: visibleViewportFit.top,
+      right: visibleViewportFit.left + visibleViewportFit.width,
+      bottom: visibleViewportFit.top + visibleViewportFit.height,
+      width: visibleViewportFit.width,
+      height: visibleViewportFit.height,
+      centerX: visibleViewportFit.left + visibleViewportFit.width / 2,
+      centerY: visibleViewportFit.top + visibleViewportFit.height / 2,
+    }
+    const initOverlayCollectiveState = isFlowEditor
+      ? deriveFlowOverlayCollectiveViewportState({
+          bounds: collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || '')),
+          visibleViewport: initVisibleViewport,
+        })
+      : null
+    const canUseFrontmatterCollectiveInitFit =
+      String(initFitGraphMeta.kind || '').trim() === 'frontmatter-flow'
+      || initFitGraphContext === 'frontmatter-flow'
     const hasCollectiveFlowWidgets = isFlowEditor && Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
+    const canUseCollectiveInitFit = hasCollectiveFlowWidgets || canUseFrontmatterCollectiveInitFit
     const hasUsableCollectiveWidgetWorldPos = hasCollectiveFlowWidgets && openWidgetNodeIds.some(rawId => {
       const id = String(rawId || '').trim()
       if (!id) return false
@@ -783,8 +929,12 @@ export function useFlowCanvasRuntime(args: {
       isFlowEditor
       && workspaceEditorOverlayOpen === true
       && (
-        !hasCollectiveFlowWidgets
-        || !hasUsableCollectiveWidgetWorldPos
+        !canUseCollectiveInitFit
+        || (
+          !canUseFrontmatterCollectiveInitFit
+          && hasCollectiveFlowWidgets
+          && !hasUsableCollectiveWidgetWorldPos
+        )
       )
     const fit = isFlowEditor
       ? (
@@ -801,6 +951,7 @@ export function useFlowCanvasRuntime(args: {
               portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(state.schema),
               graphData: graphDataForFit,
               fitOpts: opts,
+              frontmatterOverlayFitProxyScales,
             })
       )
       : fitAllTransform(nodesForFit, fitW, fitH, { ...opts, graphData: graphDataForFit || undefined })
@@ -813,6 +964,14 @@ export function useFlowCanvasRuntime(args: {
       : fit
     const isUsableFlowTransform = (t: d3.ZoomTransform | null | undefined): boolean => {
       if (!isFlowEditor || !t) return true
+      if (
+        workspaceEditorOverlayOpen === true
+        && t === current
+        && initOverlayCollectiveState
+        && (initOverlayCollectiveState.visible !== true || initOverlayCollectiveState.offscreen === true)
+      ) {
+        return false
+      }
       const normalizedTransform = remapTransformToVisibleViewport(
         { k: t.k, x: t.x, y: t.y },
         visibleViewportFit,
@@ -945,13 +1104,22 @@ export function useFlowCanvasRuntime(args: {
     const scene = runtime?.scene
     if (!runtime) return
 
-    const allowOverlayCentroidRecovery = !overlayOpen && (!scene || scene.nodes.length === 0)
     const surfaceViewport = resolveFlowEditorVisibleViewport({
       flowEditorSurfaceId: args.flowEditorSurfaceId,
       viewportW,
       viewportH,
     })
     const overlayBounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
+    const overlayCollectiveState = deriveFlowOverlayCollectiveViewportState({
+      bounds: overlayBounds,
+      visibleViewport: surfaceViewport,
+    })
+    const allowOverlayCentroidRecovery =
+      !overlayOpen
+      && (
+        (!scene || scene.nodes.length === 0)
+        || overlayCollectiveState?.offscreen === true
+      )
     if (overlayBounds && allowOverlayCentroidRecovery) {
       const overlayCentroidX = (overlayBounds.minX + overlayBounds.maxX) / 2
       const overlayCentroidY = (overlayBounds.minY + overlayBounds.maxY) / 2
@@ -1027,7 +1195,20 @@ export function useFlowCanvasRuntime(args: {
       nodeW: flowConfigEffective.node.widthPx,
       nodeH: flowConfigEffective.node.heightPx,
     })
-    const useD3StyleRecoveryFit = workspaceEditorOverlayOpen === true
+    const collectiveVisible = overlayCollectiveState?.visible ?? graphVisible
+    const collectiveBalanced = overlayCollectiveState?.balanced ?? graphBalanced
+    const collectiveCentered = overlayCollectiveState?.centered ?? graphCentered
+    const recoveryGraphData = graphDataForZoomRequests || graphDataForZoom || sceneGraphData || null
+    const recoveryGraphMeta = (recoveryGraphData?.metadata || {}) as Record<string, unknown>
+    const recoveryGraphContext = String(recoveryGraphData?.context || '').trim()
+    const recoveryHasCollectiveFlowWidgets = Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
+    const recoveryCanUseCollectiveOverlayFit =
+      recoveryHasCollectiveFlowWidgets
+      || String(recoveryGraphMeta.kind || '').trim() === 'frontmatter-flow'
+      || recoveryGraphContext === 'frontmatter-flow'
+    const useD3StyleRecoveryFit =
+      workspaceEditorOverlayOpen === true
+      && !recoveryCanUseCollectiveOverlayFit
     const effectivePinnedByIdForRecoveryFit =
       workspaceEditorOverlayOpen === true && Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
         ? openWidgetNodeIds.reduce<Record<string, boolean>>((acc, rawId) => {
@@ -1038,13 +1219,15 @@ export function useFlowCanvasRuntime(args: {
           }, { ...(flowWidgetPinnedByNodeId || {}) })
         : (flowWidgetPinnedByNodeId || {})
     if (workspaceEditorOverlayOpen) {
-      if (graphVisible) {
+      if (collectiveVisible) {
         workspaceOverlayOffscreenSinceMsRef.current = 0
+        clearWorkspaceOffscreenRecoveryRetry()
       } else if (workspaceOverlayOffscreenSinceMsRef.current <= 0) {
         workspaceOverlayOffscreenSinceMsRef.current = Date.now()
       }
     } else {
       workspaceOverlayOffscreenSinceMsRef.current = 0
+      clearWorkspaceOffscreenRecoveryRetry()
     }
     const fitOffsetX = useD3StyleRecoveryFit ? 0 : visibleViewport.left
     const fitOffsetY = useD3StyleRecoveryFit ? 0 : visibleViewport.top
@@ -1064,11 +1247,11 @@ export function useFlowCanvasRuntime(args: {
             scene.nodes as any,
             fitW,
             fitH,
-            { ...fitOpts, graphData: graphDataForZoomRequests || graphDataForZoom || sceneGraphData },
+            { ...fitOpts, graphData: recoveryGraphData || undefined },
           )
         : fitFlowEditorPinnedWidgets({
             nodes: scene.nodes as any,
-            graphData: graphDataForZoomRequests || graphDataForZoom || sceneGraphData,
+            graphData: recoveryGraphData,
             viewportW: fitW,
             viewportH: fitH,
             fitW,
@@ -1090,24 +1273,24 @@ export function useFlowCanvasRuntime(args: {
       || Math.abs(Math.log(Math.max(0.001, current.k) / Math.max(0.001, expectedFit.k))) > 0.16
     __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
     __flowCanvasDebug.lastExpectedFit = `${Math.round(expectedScreenX)},${Math.round(expectedScreenY)},${Math.round(expectedFit.k * 1000) / 1000}`
-    if (workspaceEditorOverlayOpen && graphVisible && workspaceOverlayStabilizedRef.current) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && workspaceOverlayStabilizedRef.current) {
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-stabilized-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
-    if (workspaceEditorOverlayOpen && graphVisible && (graphBalanced || graphCentered)) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && (collectiveBalanced || collectiveCentered)) {
       // In workspace-open mode, preserve already-visible centroid-centered transforms.
       // This avoids late corrective refits that can pull a centered first frame far right.
       workspaceOverlayStabilizedRef.current = true
-      __flowCanvasDebug.lastRecoveryReason = graphBalanced
+      __flowCanvasDebug.lastRecoveryReason = collectiveBalanced
         ? 'workspace-open-visible-balanced-preserve-current'
         : 'workspace-open-visible-centered-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
-    if (graphVisible && graphBalanced && !transformDriftedFromFit) {
+    if (collectiveVisible && collectiveBalanced && !transformDriftedFromFit) {
       __flowCanvasDebug.lastRecoveryReason = 'stable-visible-balanced'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
@@ -1115,27 +1298,36 @@ export function useFlowCanvasRuntime(args: {
     }
     const interactionRecentMs = Date.now() - lastUserInteractionAtMsRef.current
     const interactionInProgress = interactionRecentMs < 520
+    const pointerInteractionAfterWorkspaceOpen =
+      workspaceEditorOverlayOpen
+      && workspaceOverlayOpenedAtMsRef.current > 0
+      && (lastPointerInCanvasRef.current?.ts || 0) > workspaceOverlayOpenedAtMsRef.current + 24
     const userInteractionAfterWorkspaceOpen =
       workspaceEditorOverlayOpen
       && workspaceOverlayOpenedAtMsRef.current > 0
       && lastUserInteractionAtMsRef.current > workspaceOverlayOpenedAtMsRef.current + 24
+      && pointerInteractionAfterWorkspaceOpen
     if (userInteractionAfterWorkspaceOpen) workspaceOverlayUserControlledRef.current = true
     const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || '').trim()
     const flowWidgetDragging = flowWidgetDraggingNodeId.length > 0
-    if (workspaceEditorOverlayOpen && graphVisible && workspaceOverlayUserControlledRef.current) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && workspaceOverlayUserControlledRef.current) {
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-user-controlled-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
+    const shouldBypassWorkspaceOffscreenDebounce = overlayCollectiveState?.offscreen === true
     const workspaceOffscreenDebounced =
       !workspaceEditorOverlayOpen
-      || graphVisible
+      || collectiveVisible
+      || shouldBypassWorkspaceOffscreenDebounce
       || (
         workspaceOverlayOffscreenSinceMsRef.current > 0
         && (Date.now() - workspaceOverlayOffscreenSinceMsRef.current) >= 360
       )
-    if (workspaceEditorOverlayOpen && !graphVisible && !workspaceOffscreenDebounced) {
+    if (workspaceEditorOverlayOpen && !collectiveVisible && !workspaceOffscreenDebounced) {
+      const remainingMs = Math.max(24, 360 - Math.max(0, Date.now() - workspaceOverlayOffscreenSinceMsRef.current))
+      scheduleWorkspaceOffscreenRecoveryRetry(remainingMs)
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-offscreen-debounce-pending'
       syncFlowCanvasDebugToast({ enabled: true })
       return
@@ -1148,11 +1340,12 @@ export function useFlowCanvasRuntime(args: {
     const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)
     const currentTransformSignature = `${Math.round(current.x)}:${Math.round(current.y)}:${Math.round(current.k * 1000)}`
     const recoveryKey = `${graphKey}:${fitW}:${fitH}:${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${sceneViewportSignature}:${currentTransformSignature}`
-    if (lastOffscreenOverlayRecoveryKeyRef.current === recoveryKey) return
+    const shouldLatchRecoveryKey = collectiveVisible
+    if (shouldLatchRecoveryKey && lastOffscreenOverlayRecoveryKeyRef.current === recoveryKey) return
 
     const fit = expectedFitForRecovery || getExpectedFitForRecovery()
-    __flowCanvasDebug.lastRecoveryReason = graphVisible
-      ? (graphBalanced ? 'drifted-from-fit' : 'visible-unbalanced-shape')
+    __flowCanvasDebug.lastRecoveryReason = collectiveVisible
+      ? (collectiveBalanced ? 'drifted-from-fit' : 'visible-unbalanced-shape')
       : 'offscreen'
     syncFlowCanvasDebugToast({ enabled: true })
     cancelFlowZoomRequestAnim(runtime)
@@ -1162,10 +1355,23 @@ export function useFlowCanvasRuntime(args: {
         .translate(fit.x + fitOffsetX, fit.y + fitOffsetY)
         .scale(fit.k),
     )
-    if (workspaceEditorOverlayOpen && graphVisible) workspaceOverlayStabilizedRef.current = true
+    if (!collectiveVisible || overlayCollectiveState?.offscreen === true) {
+      recenterVisibleFlowEditorOverlayCentroid({
+        runtime,
+        viewportW,
+        viewportH,
+        flowEditorSurfaceId: args.flowEditorSurfaceId,
+        graphData: recoveryGraphData,
+        onFrame: () => {
+          requestFlowNativeDraw(runtime, buildDrawArgs())
+          requestCommit()
+        },
+      })
+    }
+    if (workspaceEditorOverlayOpen && collectiveVisible) workspaceOverlayStabilizedRef.current = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
     requestCommit()
-    lastOffscreenOverlayRecoveryKeyRef.current = recoveryKey
+    lastOffscreenOverlayRecoveryKeyRef.current = shouldLatchRecoveryKey ? recoveryKey : null
   }, [
     active,
     args.flowEditorSurfaceId,
@@ -1199,11 +1405,14 @@ export function useFlowCanvasRuntime(args: {
     resolveVisibleFlowViewportWidth,
     isWorkspaceVisibleViewportSettled,
     remapTransformToVisibleViewport,
+    deriveFlowOverlayCollectiveViewportState,
     isFlowTransformBalancedCollective,
     isFlowTransformCentroidCentered,
     buildSceneViewportRecoverySignature,
     workspaceOverlayInteractionFrameTick,
     workspaceEditorOverlayOpen,
+    clearWorkspaceOffscreenRecoveryRetry,
+    scheduleWorkspaceOffscreenRecoveryRetry,
   ])
 
   React.useEffect(() => {

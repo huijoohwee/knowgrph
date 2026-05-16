@@ -2,6 +2,7 @@ import React from 'react'
 
 import FlowCanvas from '@/components/FlowCanvas'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
 import { readFlowWidgetDragPayloadFromDataTransfer } from '@/lib/flowEditor/widgetDrag'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
@@ -108,15 +109,21 @@ export default function FlowEditorCanvasSurface(props: {
         }}
         onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
         renderEdges={!props.overlayOnlyActive}
-        renderGroups={!props.geospatialWidgetPanelMode}
-        renderNodes={true}
+        renderGroups={!props.overlayOnlyActive && !props.geospatialWidgetPanelMode}
+        renderNodes={!props.overlayOnlyActive}
       />
 
-      {props.hasOverlayEditors && (
+      {props.overlayOnlyActive && (
         <svg
           ref={props.overlayEdgesSvgRef}
           className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: 120, color: 'var(--kg-canvas-edge-stroke, #9ca3af)', overflow: 'visible', opacity: 1, visibility: 'visible' }}
+          style={{
+            zIndex: Z_INDEX_GRAPH_OVERLAY_EDGES,
+            color: 'var(--kg-canvas-edge-stroke, #9ca3af)',
+            overflow: 'visible',
+            opacity: 1,
+            visibility: 'visible',
+          }}
           aria-hidden={true}
         />
       )}

@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
+import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 
 export function useFlowEditorSurfaceAnchors(args: {
   active: boolean
@@ -15,30 +16,30 @@ export function useFlowEditorSurfaceAnchors(args: {
     canvasWindowOffsetRef.current = canvasWindowOffset
   }, [canvasWindowOffset])
 
+  const resolveCanvasWindowAnchorElement = React.useCallback((): HTMLElement | null => {
+    return resolveCanvasViewportMeasureElement(args.rootRef.current)
+  }, [args.rootRef])
+
+  const resolveCanonicalCanvasWindowOffset = React.useCallback((fallbackRect?: Pick<DOMRect, 'left' | 'top'> | null) => {
+    const anchorEl = resolveCanvasWindowAnchorElement()
+    const anchorRect = anchorEl?.getBoundingClientRect() || fallbackRect || null
+    const left = Number.isFinite(anchorRect?.left) ? Number(anchorRect?.left) : 0
+    const top = Number.isFinite(anchorRect?.top) ? Number(anchorRect?.top) : 0
+    return { left, top }
+  }, [resolveCanvasWindowAnchorElement])
+
   const setCanvasWindowOffsetFromRect = React.useCallback((rect: DOMRect) => {
-    const left = Number.isFinite(rect.left) ? rect.left : 0
-    const top = Number.isFinite(rect.top) ? rect.top : 0
+    const { left, top } = resolveCanonicalCanvasWindowOffset(rect)
     const prev = canvasWindowOffsetRef.current
     if (prev.left === left && prev.top === top) return
     setCanvasWindowOffset({ left, top })
-  }, [])
-
-  const resolveCanvasWindowAnchorElement = React.useCallback((): HTMLElement | null => {
-    const self = args.rootRef.current
-    if (!self) return null
-    const viewportRoot = self.closest('[data-kg-canvas-viewport-root="1"]')
-    return viewportRoot instanceof HTMLElement ? viewportRoot : self
-  }, [args.rootRef])
+  }, [resolveCanonicalCanvasWindowOffset])
 
   React.useEffect(() => {
     if (!args.editorRuntimeActive) return
     if (typeof window === 'undefined') return
     const measure = () => {
-      const el = resolveCanvasWindowAnchorElement()
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      const left = Number.isFinite(rect.left) ? rect.left : 0
-      const top = Number.isFinite(rect.top) ? rect.top : 0
+      const { left, top } = resolveCanonicalCanvasWindowOffset()
       const prev = canvasWindowOffsetRef.current
       if (prev.left === left && prev.top === top) return
       setCanvasWindowOffset({ left, top })
@@ -53,7 +54,7 @@ export function useFlowEditorSurfaceAnchors(args: {
       window.removeEventListener('scroll', onAny, true)
       window.removeEventListener('resize', onAny)
     }
-  }, [args.editorRuntimeActive, resolveCanvasWindowAnchorElement])
+  }, [args.editorRuntimeActive, resolveCanonicalCanvasWindowOffset])
 
   const resolveInspectorPortalHost = React.useCallback(() => {
     if (!args.active) return null

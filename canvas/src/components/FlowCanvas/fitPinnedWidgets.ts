@@ -8,7 +8,7 @@ import {
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
@@ -32,15 +32,16 @@ export function fitFlowEditorPinnedWidgets(args: {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   if (nodes.length === 0) return d3.zoomIdentity
 
-  const explicitOpenIds = Array.isArray(args.openWidgetNodeIds) ? args.openWidgetNodeIds : []
-  const frontmatterOverlayIds = explicitOpenIds.length > 0 ? [] : deriveFrontmatterFlowOverlayNodeIds(args.graphData || null)
-  const openIds = explicitOpenIds.length > 0 ? explicitOpenIds : frontmatterOverlayIds
   const graphMeta = (args.graphData?.metadata || {}) as Record<string, unknown>
   const graphContext = String(args.graphData?.context || '').trim()
   const isFrontmatterOverlayFit =
-    frontmatterOverlayIds.length > 0 ||
     String(graphMeta.kind || '').trim() === 'frontmatter-flow' ||
     graphContext === 'frontmatter-flow'
+  const explicitOpenIds = Array.isArray(args.openWidgetNodeIds) ? args.openWidgetNodeIds : []
+  const frontmatterOverlayIds = isFrontmatterOverlayFit ? deriveFrontmatterFlowOverlayNodeIds(args.graphData || null) : []
+  const openIds = isFrontmatterOverlayFit
+    ? frontmatterOverlayIds
+    : explicitOpenIds
   if (openIds.length === 0) {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
@@ -99,6 +100,7 @@ export function fitFlowEditorPinnedWidgets(args: {
       count: Math.max(1, pinned.length),
       baseWidth: WIDGET_BASE_SIZE.width,
       baseHeight: WIDGET_BASE_SIZE.height,
+      viewportPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
     })
     const portExtraPadWorld = args.portExtraPadScreenPx / Math.max(1e-6, kGuess)
     const panelW = (WIDGET_BASE_SIZE.width * panelScale) / Math.max(1e-6, kGuess)
@@ -108,18 +110,20 @@ export function fitFlowEditorPinnedWidgets(args: {
       : 1
     const panelWFit = panelW * fitProxyScale
     const panelHFit = panelH * fitProxyScale
+    const balancedViewportPreset = resolveFlowLayoutBalancedViewportPreset({
+      graphData: args.graphData,
+      fallbackPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
+    })
     const spacingPx = computeBalancedSpreadSpacingPx({
       baseGapPx: 24,
       zoomK: kGuess,
       count: Math.max(1, pinned.length),
+      preset: balancedViewportPreset,
     })
     const margins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
-      preset: resolveFlowLayoutBalancedViewportPreset({
-        graphData: args.graphData,
-        fallbackPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
-      }),
+      preset: balancedViewportPreset,
       minLeftPx: 20,
       minRightPx: 20,
       minTopPx: isFrontmatterOverlayFit ? 64 : 96,
@@ -160,18 +164,18 @@ export function fitFlowEditorPinnedWidgets(args: {
       const fallback = (() => {
         const base = nodeById.get(id)
         if (!base) return null
-        const props = (base.properties || {}) as Record<string, unknown>
-        const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
-        const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
-        const x = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : null
-        const y = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : null
-        if (width == null || height == null || x == null || y == null) return null
         if (balancedCell) {
           return {
             left: balancedCell.left / Math.max(1e-6, kGuess),
             top: balancedCell.top / Math.max(1e-6, kGuess),
           }
         }
+        const props = (base.properties || {}) as Record<string, unknown>
+        const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+        const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+        const x = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : null
+        const y = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : null
+        if (width == null || height == null || x == null || y == null) return null
         const left = x - width / 2 + DEFAULT_FLOW_NODE_WIDTH_PX + portExtraPadWorld
         const top = y - height / 2
         return { left, top }
@@ -208,10 +212,12 @@ export function fitFlowEditorPinnedWidgets(args: {
       })
     }
 
-    const unpinnedNodes = nodes.filter(node => {
-      const id = String(node?.id || '').trim()
-      return !id || !pinnedIdSet.has(id)
-    })
+    const unpinnedNodes = isFrontmatterOverlayFit
+      ? []
+      : nodes.filter(node => {
+          const id = String(node?.id || '').trim()
+          return !id || !pinnedIdSet.has(id)
+        })
     return {
       extras,
       fitNodes: fitExtras.length > 0 ? [...unpinnedNodes, ...fitExtras] : nodes,
@@ -230,7 +236,8 @@ export function fitFlowEditorPinnedWidgets(args: {
   const kBase = typeof fitBase?.k === 'number' && Number.isFinite(fitBase.k) && fitBase.k > 0 ? (fitBase.k as number) : null
   if (!kBase) return fitBase
 
-  let kGuess = kBase
+  const neutralFrontmatterFitZoom = Math.max(minScale, Math.min(maxScale, 1))
+  let kGuess = isFrontmatterOverlayFit ? neutralFrontmatterFitZoom : kBase
   let last = fitBase
   for (let iter = 0; iter < 3; iter += 1) {
     const next = refit(kGuess)

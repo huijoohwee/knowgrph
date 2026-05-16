@@ -12,6 +12,9 @@ export const WORKSPACE_MULTI_DIMENSIONAL_TABLE_DEFAULT_SPLIT = {
 } as const
 
 const DEFAULT_VIEWPORT_WIDTH_PX = 1440
+const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_RATIO = 0.28
+const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX = 420
+const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX = 640
 
 function resolveViewportWidthPx(): number {
   if (typeof window === 'undefined') return DEFAULT_VIEWPORT_WIDTH_PX
@@ -24,10 +27,22 @@ function clampPx(px: number, minPx: number, maxPx: number): number {
   return Math.max(minPx, Math.min(maxPx, Math.round(px)))
 }
 
+export function resolveWorkspaceCanvasMinVisibleStripPx(): number {
+  const viewport = resolveViewportWidthPx()
+  return clampPx(
+    viewport * MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_RATIO,
+    MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX,
+    MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX,
+  )
+}
+
 export function resolveWorkspacePaneMaxWidthPx(args: { minPx: number; rightGutterPx: number }): number {
   const viewport = resolveViewportWidthPx()
   const gutter = Math.max(0, Math.floor(args.rightGutterPx))
-  const maxFromViewport = Math.max(args.minPx, viewport - gutter)
+  // Keep enough canvas visible for fit/recovery to preserve a readable centered collective.
+  const minCanvasVisibleStripPx = resolveWorkspaceCanvasMinVisibleStripPx()
+  const reservedCanvasStripPx = Math.max(gutter, minCanvasVisibleStripPx)
+  const maxFromViewport = Math.max(args.minPx, viewport - reservedCanvasStripPx)
   return Math.max(args.minPx, maxFromViewport)
 }
 

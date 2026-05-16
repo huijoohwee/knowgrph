@@ -27,6 +27,7 @@ import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/work
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
@@ -57,13 +58,8 @@ export default function FlowEditorCanvasRuntime(
   // Flow Editor runtime layout/edge/collision effects from mutating canvas state.
   const widgetDropBridgeOnly = widgetDropCaptureEnabled && !active
   const rootRef = React.useRef<HTMLElement | null>(null)
-  const resolveViewportMeasureElement = React.useCallback((self: HTMLElement | null): HTMLElement | null => {
-    if (!self) return null
-    const viewportRoot = self.closest('[data-kg-canvas-viewport-root="1"]')
-    return viewportRoot instanceof HTMLElement ? viewportRoot : self
-  }, [])
   const { width, height, left: containerLeft, top: containerTop } = useContainerDims(rootRef, {
-    resolveMeasureElement: resolveViewportMeasureElement,
+    resolveMeasureElement: resolveCanvasViewportMeasureElement,
   })
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
@@ -278,6 +274,7 @@ export default function FlowEditorCanvasRuntime(
     getLiveZoomTransform,
   } = useFlowEditorRuntimeScene({
     active,
+    flowEditorSurfaceId,
     openWidgetNodeIds,
     renderGraphDataOverride,
     viewportW,
@@ -604,11 +601,10 @@ export default function FlowEditorCanvasRuntime(
     overlayEditorNodeIdsRef.current = overlayEditorNodeIds
   }, [overlayEditorNodeIds])
   React.useEffect(() => {
-    const overlayEdgesActive = flowEditorViewActive && hasOverlayEditors
-    overlayEdgesEnabledRef.current = overlayEdgesActive
-    if (!overlayEdgesActive) return
+    overlayEdgesEnabledRef.current = overlayOnlyActive
+    if (!overlayOnlyActive) return
     scheduleOverlayEdgeUpdate()
-  }, [flowEditorViewActive, hasOverlayEditors, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
+  }, [overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
 
   if (widgetDropBridgeOnly) {
     return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />

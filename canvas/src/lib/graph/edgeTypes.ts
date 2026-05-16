@@ -212,6 +212,68 @@ const resolveAxis = (rankdir: 'TB' | 'LR' | null | undefined, sx: number, sy: nu
   return dx >= dy ? 'x' : 'y'
 }
 
+const clampNumber = (value: number, min: number, max: number): number => {
+  if (!(Number.isFinite(value) && Number.isFinite(min) && Number.isFinite(max))) return value
+  if (min > max) return value
+  return Math.min(max, Math.max(min, value))
+}
+
+const clampBezierControlPointsToLocalCorridor = (args: {
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+  axis: 'x' | 'y'
+  dist: number
+  c1x: number
+  c1y: number
+  c2x: number
+  c2y: number
+}) => {
+  const { sx, sy, tx, ty, axis, dist } = args
+  const minX = Math.min(sx, tx)
+  const maxX = Math.max(sx, tx)
+  const minY = Math.min(sy, ty)
+  const maxY = Math.max(sy, ty)
+  const crossSpan = axis === 'x' ? Math.abs(ty - sy) : Math.abs(tx - sx)
+  // Keep large orbital curves readable by limiting cross-axis drift to a
+  // local corridor around the source/target pair instead of allowing runaway
+  // control points on tall frontmatter routes.
+  const crossAxisLimit = Math.max(32, Math.min(220, crossSpan * 0.9 + dist * 0.08))
+  if (axis === 'x') {
+    return {
+      c1x: clampNumber(args.c1x, minX, maxX),
+      c1y: clampNumber(args.c1y, minY - crossAxisLimit, maxY + crossAxisLimit),
+      c2x: clampNumber(args.c2x, minX, maxX),
+      c2y: clampNumber(args.c2y, minY - crossAxisLimit, maxY + crossAxisLimit),
+    }
+  }
+  return {
+    c1x: clampNumber(args.c1x, minX - crossAxisLimit, maxX + crossAxisLimit),
+    c1y: clampNumber(args.c1y, minY, maxY),
+    c2x: clampNumber(args.c2x, minX - crossAxisLimit, maxX + crossAxisLimit),
+    c2y: clampNumber(args.c2y, minY, maxY),
+  }
+}
+
+const resolveBezierHandleReach = (args: {
+  axis: 'x' | 'y'
+  dx: number
+  dy: number
+  span: number
+  orbitMag: number
+}) => {
+  const { axis, dx, dy, span, orbitMag } = args
+  const crossSpan = axis === 'x' ? Math.abs(dy) : Math.abs(dx)
+  const baseHandleReach = Math.max(20, Math.min(180, span * 0.5))
+  const orbitalBoost = Math.abs(orbitMag) > 1e-6 ? 24 : 0
+  // Keep long 16:9 frontmatter runs from reading as parallel rails: let them
+  // commit toward the target earlier, but stay below the fully wide legacy
+  // handle reach so local routes do not balloon again.
+  const longRunTurnReach = 78 + crossSpan * 0.18 + span * 0.045 + orbitalBoost
+  return Math.max(20, Math.min(baseHandleReach, 164 + orbitalBoost, longRunTurnReach))
+}
+
 const computeBezierControlPoints = (args: {
   sx: number
   sy: number
@@ -230,7 +292,7 @@ const computeBezierControlPoints = (args: {
   const dirY = dy < 0 ? -1 : 1
   const span = axis === 'x' ? Math.abs(dx) : Math.abs(dy)
   // Keep the default curve shape axis-led with bounded handle reach for stable readability.
-  const handleReach = Math.max(20, Math.min(180, span * 0.5))
+  const handleReach = resolveBezierHandleReach({ axis, dx, dy, span, orbitMag })
   let c1x = axis === 'x' ? sx + dirX * handleReach : sx
   let c1y = axis === 'y' ? sy + dirY * handleReach : sy
   let c2x = axis === 'x' ? tx - dirX * handleReach : tx
@@ -244,7 +306,18 @@ const computeBezierControlPoints = (args: {
   c1y += ny * c1Normal
   c2x += nx * c2Normal
   c2y += ny * c2Normal
-  return { c1x, c1y, c2x, c2y }
+  return clampBezierControlPointsToLocalCorridor({
+    sx,
+    sy,
+    tx,
+    ty,
+    axis,
+    dist,
+    c1x,
+    c1y,
+    c2x,
+    c2y,
+  })
 }
 
 export const buildEdgePathD = (args: {

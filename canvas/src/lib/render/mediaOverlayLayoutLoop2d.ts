@@ -57,6 +57,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let rafLoop: number | null = null
   let lastSizingKey = ''
   let lastSizing: MediaOverlaySizing | null = null
+  let lastTransform: { k: number; x: number; y: number } | null = null
   let collectiveCenterWarmupStartedAtMs: number | null = null
   let collectiveCenterWarmupAttempts = 0
   const lastWorldCenterById = new Map<string, { x: number; y: number }>()
@@ -72,6 +73,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const t = args.readTransform()
     if (!t) return
     const rawK = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const rawX = typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0
+    const rawY = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
+    const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6
+    lastTransform = { k: rawK, x: rawX, y: rawY }
     const k = typeof args.computeSizingZoomK === 'function' ? args.computeSizingZoomK(rawK) : rawK
 
     const density = args.density === 'compact' ? 'compact' : 'default'
@@ -138,7 +143,14 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const overrideSize = typeof args.getPanelSizeForId === 'function' ? args.getPanelSizeForId(id) : null
       const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
       const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
-      const rect = computePanelRect({ cx, cy, w, h, clamp })
+      const previousBox = lastAppliedBoxById.get(id) || null
+      const preferredCenter = scaleChanged && previousBox
+        ? {
+            cx: previousBox.left + previousBox.w / 2,
+            cy: previousBox.top + previousBox.h / 2,
+          }
+        : { cx, cy }
+      const rect = computePanelRect({ cx: preferredCenter.cx, cy: preferredCenter.cy, w, h, clamp })
       preferred.push({ id, left: quantizePanelPos(rect.left), top: quantizePanelPos(rect.top), w, h, el })
     }
 

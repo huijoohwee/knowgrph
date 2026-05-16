@@ -51,7 +51,7 @@ import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKe
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
+import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
@@ -643,7 +643,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           .map((n: any) => String(n?.id || '').trim())
           .filter((id: string) => id.length > 0),
       )
-      const eligibleFlowWidgetNodeIds = buildFlowWidgetEligibleNodeIdSet(nodes as any)
+      const eligibleFlowWidgetNodeIds = buildFlowWidgetOverlayEligibleNodeIdSet(nodes as any)
       const sourceWidgets = Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : []
       const targetWidgets = Array.isArray(nextWidgetBy[radialRenderer]) ? nextWidgetBy[radialRenderer] : []
       const sourceValid = sourceWidgets.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))

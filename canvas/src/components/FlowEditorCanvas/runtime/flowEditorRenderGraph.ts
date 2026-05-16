@@ -8,10 +8,9 @@ import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashRecordSignature32, hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import {
-  deriveFrontmatterFlowOverlayNodeIds,
-  resolveDefaultFlowWidgetPinnedInCanvas,
-} from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
+import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import {
   buildFlowRunAllNodeSequence,
   type FlowRunAllPhaseId,
@@ -280,10 +279,14 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
   preferCurrentGraphDataRefs?: boolean
 }): FlowEditorOverlayEdgeGraphLookup | null {
   const graph = args.graphData
+  const graphMetaKind = String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
+  const overlayEdgeGraphData = graphMetaKind === 'frontmatter-flow'
+    ? (deriveSceneDisplayGraph({ graphData: graph })?.displayGraphData || graph)
+    : graph
   const graphRevision = Number.isFinite(args.graphRevision) ? Math.max(0, Math.floor(args.graphRevision)) : 0
   const baseGraph = getCachedFlowEditorRenderGraph({
     scope: 'flow-editor-overlay-edges-base-graph',
-    graphData: graph,
+    graphData: overlayEdgeGraphData,
     graphRevision,
     preferCurrentGraphDataRefs: args.preferCurrentGraphDataRefs,
   })

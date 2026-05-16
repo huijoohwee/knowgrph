@@ -40,8 +40,11 @@ export function testFlowEditorOverlayCollisionSkipsSelfCommittedStoreChurn() {
   if (!text.includes('const selfCommittedPosSignatureRef = React.useRef<string>(\'\')')) {
     throw new Error('expected overlay collision runtime to keep an explicit self-commit signature guard')
   }
-  if (!text.includes('selfCommittedPosSignatureRef.current = buildPosSignature(overlayNodeIds, next)')) {
+  if (!text.includes('selfCommittedPosSignatureRef.current = buildPosSignature(overlayNodeIds, {')) {
     throw new Error('expected overlay collision runtime to stamp self-commit signature before setFlowWidgetPosByNodeId writeback')
+  }
+  if (!text.includes('posById: nextPos') || !text.includes('worldById: nextWorld')) {
+    throw new Error('expected overlay collision runtime to include both floating and pinned positions in self-commit signature')
   }
   if (!text.includes('if (currentSig && currentSig === selfCommittedPosSignatureRef.current) {')) {
     throw new Error('expected overlay collision subscription to ignore immediate self-committed flowWidgetPos updates')

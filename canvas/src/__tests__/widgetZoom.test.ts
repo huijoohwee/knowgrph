@@ -193,6 +193,15 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     zoomK: 1,
     count: 36,
   })
+  const denseFrontmatterGapPx = computeBalancedSpreadSpacingPx({
+    baseGapPx: Math.max(12, Math.min(40, Math.round(usableW * 0.012))),
+    zoomK: 1,
+    count: 36,
+    preset: 'widgetFrontmatter',
+  })
+  if (!(denseFrontmatterGapPx > denseGapPx)) {
+    throw new Error(`expected dense frontmatter widget spacing to exceed generic widget-canvas spacing, got frontmatter=${denseFrontmatterGapPx} canvas=${denseGapPx}`)
+  }
   const densePanelW = 360 * followPinnedDense16x9
   const densePanelH = 520 * followPinnedDense16x9
   const denseLayout = computeBalancedSpreadLayout({

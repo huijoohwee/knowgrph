@@ -108,6 +108,16 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.flowCanvas.graphFilter.keepsOverlayNodes',
       modFlowCanvasFilter.testFlowCanvasDoesNotFilterGraphForOverlays,
     )
+    await execTest(
+      results,
+      'ui.flowEditor.frontmatter.overlayIds.compactCanonicalCollective',
+      modFlowCanvasFilter.testFrontmatterFlowOverlayIdsStayCompactToCanonicalBuiltIns,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.frontmatter.overlayIds.fallbackEligibleNodes',
+      modFlowCanvasFilter.testFrontmatterFlowOverlayIdsFallbackToEligibleNodesWithoutCanonicalCollective,
+    )
 
     const modFlowCanvasBlank = await import('../__tests__/flowCanvasBlankClickClearsSelectionRegression.test')
     await execTest(
@@ -352,6 +362,23 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
 
     const modRichMediaEditorDrag = await import('../__tests__/richMediaPanelEditorModeDragRegression.test')
     await execTest(results, 'ui.richMediaPanel.editorMode.disablesContentPointerEvents', modRichMediaEditorDrag.testRichMediaPanelEditorModeDisablesInteractiveContentForDragging)
+
+    const modRichMediaOpenWidgetExclusion = await import('../__tests__/flowEditorRichMediaPanelOpenWidgetExclusionRegression.test')
+    await execTest(
+      results,
+      'ui.flowEditor.richMediaPanel.openWidgetEligibility.excludesPanels',
+      modRichMediaOpenWidgetExclusion.testFlowEditorOpenWidgetEligibilityExcludesRichMediaPanels,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.richMediaPanel.overlayIds.dropLeakedPanels',
+      modRichMediaOpenWidgetExclusion.testDeriveOpenWidgetOverlayNodeIdsDropsRichMediaPanelsEvenIfStateLeaks,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.richMediaPanel.graphState.fallsBackToStoreGraph',
+      modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateFallsBackToStoreGraphForFlowEditorWhenOverrideIsEmpty,
+    )
 
     const modGdtDrag = await import('../__tests__/graphDataTableDragUsesSharedPointerDragRegression.test')
     await execTest(results, 'ui.graphDataTable.drag.usesSharedPointerDrag', modGdtDrag.testGraphDataTableDoesNotInstallGlobalMouseDragListeners)
@@ -622,6 +649,60 @@ export const runAllTests = async () => {
     'ui.zoom.pinned.allowsManualRequests',
     modPinnedZoom.testZoomPinnedDoesNotBlockManualZoomRequests,
   )
+
+  const modOverlayZoomDirection = await import('../__tests__/flowEditorOverlayZoomDirectionRegression.test')
+  await execTest(
+    results,
+    'ui.flowEditor.overlay.zoomDirection.widgetScaleMonotonic',
+    modOverlayZoomDirection.testFlowEditorWidgetCollectiveScaleDoesNotReverseZoomDirection,
+  )
+  await execTest(
+    results,
+    'ui.flowEditor.overlay.zoomDirection.richMediaScaleMonotonic',
+    modOverlayZoomDirection.testFlowEditorRichMediaCollectiveSizingDoesNotReverseZoomDirection,
+  )
+  await execTest(
+    results,
+    'ui.flowEditor.overlay.zoomDirection.centersStableAcrossZoom',
+    modOverlayZoomDirection.testFlowEditorOverlayZoomKeepsWidgetAndRichMediaCentersStable,
+  )
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.zoomDirection.metricProbeStableAcrossZoom',
+      modOverlayZoomDirection.testFlowEditorOverlayMetricProbeStaysStableAcrossZoom,
+    )
+
+    const modOverlayOffscreenRecovery = await import('../__tests__/flowEditorOverlayOffscreenRecoveryRegression.test')
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.offscreenRecovery.usesOverlayCollectiveViewportState',
+      modOverlayOffscreenRecovery.testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecovery,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.fitRecentering.clampsOverlayBoundsIntoVisibleViewport',
+      modOverlayOffscreenRecovery.testFlowEditorFitRecenteringClampsOverlayBoundsIntoVisibleViewport,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.offscreenRecovery.frontmatterLandingUsesNeutralSeedZoomWhenWorkspaceBlocked',
+      modOverlayOffscreenRecovery.testFlowEditorRuntimeSceneUsesNeutralSeedZoomForWorkspaceBlockedFrontmatterLanding,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.offscreenRecovery.skipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets',
+      modOverlayOffscreenRecovery.testFlowEditorOverlayPlacementRuntimeSkipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.offscreenRecovery.autoSeedTransformRejectsPoisonedLastUsable',
+      modOverlayOffscreenRecovery.testFlowEditorRuntimeSceneNeutralizesPoisonedTransformForAutoSeededWidgets,
+    )
+    await execTest(
+      results,
+      'ui.flowEditor.overlay.offscreenRecovery.frontmatterWidgetsPreferAutoSeedWorldPos',
+      modOverlayOffscreenRecovery.testFlowEditorRuntimeScenePrefersAutoSeedWorldPosForWorkspaceBlockedFrontmatterWidgets,
+    )
 
   const modMinimapBounds = await import('../__tests__/minimapBoundsIgnoreMissingCoordsRegression.test')
   await execTest(

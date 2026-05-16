@@ -1,6 +1,9 @@
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { fitFlowEditorPinnedWidgets, readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/fitPinnedWidgets'
-import { FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MAX } from '@/components/FlowCanvas/frontmatterLayoutConfig'
+import {
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MAX,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN,
+} from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
@@ -260,6 +263,230 @@ export function testFlowEditorFitUsesDenserFrontmatterOverlayProxy() {
   }
 }
 
+export function testFrontmatterOverlayFitAvoidsTinyGraphFitBootstrapWhenPinnedNodesSpanHugeScene() {
+  const baseArgs = {
+    nodes: [
+      {
+        id: 'w-text',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        label: 'Text',
+        x: 0,
+        y: 0,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+        },
+      },
+      {
+        id: 'w-image',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        label: 'Image',
+        x: 18000,
+        y: 8200,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+        },
+      },
+    ] as never,
+    fitW: 1280,
+    viewportH: 720,
+    viewportW: 1280,
+    openWidgetNodeIds: [],
+    pinnedById: { 'w-text': true, 'w-image': true },
+    worldPosById: {
+      'w-text': { x: 0, y: 0 },
+      'w-image': { x: 0, y: 0 },
+    },
+    portExtraPadScreenPx: 0,
+    fitOpts: { pad: 40, minScale: 0.01, maxScale: 10 } as never,
+    graphData: {
+      type: 'application/json',
+      context: 'frontmatter-flow',
+      metadata: { kind: 'frontmatter-flow' },
+      nodes: [
+        { id: 'w-text', type: FLOW_TEXT_GENERATION_NODE_TYPE_ID, label: 'Text', x: 0, y: 0, properties: {} },
+        { id: 'w-image', type: FLOW_TEXT_GENERATION_NODE_TYPE_ID, label: 'Image', x: 18000, y: 8200, properties: {} },
+      ],
+      edges: [],
+    } as never,
+  }
+  const graphOnly = fitAllTransform(baseArgs.nodes as never, baseArgs.fitW, baseArgs.viewportH, baseArgs.fitOpts as never)
+  const frontmatter = fitFlowEditorPinnedWidgets(baseArgs)
+
+  if (!(frontmatter.k > graphOnly.k + 1e-6)) {
+    throw new Error(`expected frontmatter overlay fit to avoid tiny graph-fit bootstrap when pinned nodes span a huge authored scene, graphOnly=${graphOnly.k} frontmatter=${frontmatter.k}`)
+  }
+}
+
+export function testFrontmatterOverlayFitIgnoresStaleExplicitOpenIdsOutsideCanonicalCollective() {
+  const fit = fitFlowEditorPinnedWidgets({
+    nodes: [
+      {
+        id: 'w-text',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        label: 'Text',
+        x: 0,
+        y: 0,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+        },
+      },
+      {
+        id: 'p-video',
+        type: 'RichMediaPanel',
+        label: 'Video',
+        x: 240,
+        y: 80,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+        },
+      },
+      {
+        id: 'stale-a',
+        type: 'default',
+        label: 'Stale A',
+        x: 12000,
+        y: 3000,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+          'flow:widgetFormId': 'fm:stale-a',
+        },
+      },
+      {
+        id: 'stale-b',
+        type: 'input',
+        label: 'Stale B',
+        x: 16000,
+        y: 5600,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+          'flow:widgetFormId': 'fm:stale-b',
+        },
+      },
+    ] as never,
+    fitW: 1280,
+    viewportH: 720,
+    viewportW: 1280,
+    openWidgetNodeIds: ['stale-a', 'stale-b'],
+    pinnedById: { 'w-text': true, 'p-video': true, 'stale-a': true, 'stale-b': true },
+    worldPosById: {
+      'w-text': { x: 0, y: 0 },
+      'p-video': { x: 0, y: 0 },
+      'stale-a': { x: 12000, y: 3000 },
+      'stale-b': { x: 16000, y: 5600 },
+    },
+    portExtraPadScreenPx: 0,
+    fitOpts: { pad: 40, minScale: 0.01, maxScale: 10 } as never,
+    graphData: {
+      type: 'application/json',
+      context: 'frontmatter-flow',
+      metadata: {
+        kind: 'frontmatter-flow',
+        flowWidgetRegistry: [
+          { formId: 'fm:w-text' },
+          { formId: 'fm:p-video' },
+        ],
+      },
+      nodes: [
+        { id: 'w-text', type: FLOW_TEXT_GENERATION_NODE_TYPE_ID, label: 'Text', x: 0, y: 0, properties: { 'flow:widgetFormId': 'fm:w-text' } },
+        { id: 'p-video', type: 'RichMediaPanel', label: 'Video', x: 240, y: 80, properties: { 'flow:widgetFormId': 'fm:p-video' } },
+        { id: 'stale-a', type: 'default', label: 'Stale A', x: 12000, y: 3000, properties: { 'flow:widgetFormId': 'fm:stale-a' } },
+        { id: 'stale-b', type: 'input', label: 'Stale B', x: 16000, y: 5600, properties: { 'flow:widgetFormId': 'fm:stale-b' } },
+      ],
+      edges: [],
+    } as never,
+  })
+
+  if (!(fit.k > 0.2)) {
+    throw new Error(`expected frontmatter overlay fit to ignore stale explicit open ids outside the canonical collective, got scale=${fit.k}`)
+  }
+}
+
+export function testFrontmatterOverlayFitExcludesNonOverlaySceneNodesFromCollectiveBounds() {
+  const fit = fitFlowEditorPinnedWidgets({
+    nodes: [
+      {
+        id: 'w-text',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        label: 'Text',
+        x: 0,
+        y: 0,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+          'flow:widgetFormId': 'fm:w-text',
+        },
+      },
+      {
+        id: 'p-video',
+        type: 'RichMediaPanel',
+        label: 'Video',
+        x: 240,
+        y: 80,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+          'flow:widgetFormId': 'fm:p-video',
+        },
+      },
+      {
+        id: 'n-huge-background',
+        type: 'default',
+        label: 'Huge Background',
+        x: 32000,
+        y: 24000,
+        properties: {
+          'visual:width': 120,
+          'visual:height': 80,
+          'visual:shape': 'rect',
+        },
+      },
+    ] as never,
+    fitW: 1280,
+    viewportH: 720,
+    viewportW: 1280,
+    openWidgetNodeIds: [],
+    pinnedById: { 'w-text': true, 'p-video': true },
+    worldPosById: {},
+    portExtraPadScreenPx: 0,
+    fitOpts: { pad: 40, minScale: 0.01, maxScale: 10 } as never,
+    graphData: {
+      type: 'application/json',
+      context: 'frontmatter-flow',
+      metadata: {
+        kind: 'frontmatter-flow',
+        flowWidgetRegistry: [
+          { formId: 'fm:w-text' },
+          { formId: 'fm:p-video' },
+        ],
+      },
+      nodes: [
+        { id: 'w-text', type: FLOW_TEXT_GENERATION_NODE_TYPE_ID, label: 'Text', x: 0, y: 0, properties: { 'flow:widgetFormId': 'fm:w-text' } },
+        { id: 'p-video', type: 'RichMediaPanel', label: 'Video', x: 240, y: 80, properties: { 'flow:widgetFormId': 'fm:p-video' } },
+        { id: 'n-huge-background', type: 'default', label: 'Huge Background', x: 32000, y: 24000, properties: {} },
+      ],
+      edges: [],
+    } as never,
+  })
+
+  if (!(fit.k > 0.2)) {
+    throw new Error(`expected frontmatter overlay fit to exclude large non-overlay scene nodes from collective bounds, got scale=${fit.k}`)
+  }
+}
+
 export function testFrontmatterOverlayFitProxyScaleRespondsToViewportWidth() {
   const mobile = readFrontmatterOverlayFitProxyScale(390)
   const tablet = readFrontmatterOverlayFitProxyScale(1024)
@@ -267,6 +494,14 @@ export function testFrontmatterOverlayFitProxyScaleRespondsToViewportWidth() {
 
   if (!(mobile > tablet && tablet > desktop)) {
     throw new Error(`expected mobile-first proxy scale ordering mobile>${'tablet'}>${'desktop'}, got mobile=${mobile} tablet=${tablet} desktop=${desktop}`)
+  }
+}
+
+export function testFrontmatterOverlayFitProxyScaleKeepsDesktopCollectiveUsable() {
+  const desktop = readFrontmatterOverlayFitProxyScale(1920)
+
+  if (desktop < 0.18) {
+    throw new Error(`expected desktop frontmatter overlay fit proxy scale to stay above tiny-scene territory on 16:9 workspaces, got ${desktop}`)
   }
 }
 
@@ -283,5 +518,13 @@ export function testFrontmatterOverlayFitAllowsViewportBucketOverrides() {
   }
   if (phone !== 0.77) {
     throw new Error(`expected phone viewport bucket override to be used at 390px, got ${phone}`)
+  }
+}
+
+export function testFrontmatterOverlayFitClampsPoisonedLowDesktopScale() {
+  const desktop = readFrontmatterOverlayFitProxyScale(1920, { desktop: 0.01 })
+
+  if (desktop !== FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN) {
+    throw new Error(`expected poisoned low desktop proxy scale to clamp up to ${FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN}, got ${desktop}`)
   }
 }

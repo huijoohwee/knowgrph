@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 
 import { NodeOverlayEditorView } from '@/components/FlowEditor/NodeOverlayEditorView'
-import { useNodeOverlayRichMediaToolbar } from '@/components/FlowEditor/useNodeOverlayRichMediaToolbar'
 import { useNodeOverlayDragHandlers } from '@/components/FlowEditor/useNodeOverlayDragHandlers'
 import { useNodeOverlayPlacementRuntime } from '@/components/FlowEditor/useNodeOverlayPlacementRuntime'
 import {
@@ -18,16 +17,19 @@ import { computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widget
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
+import { readScopedFlowWidgetNodeValue } from '@/lib/flowEditor/widgetStateScope'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
-const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
+const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidgetInner({
   active,
   flowEditorSurfaceId,
+  overlayCollectiveCount,
   interactionPassthrough = false,
   node,
   viewportW,
@@ -39,6 +41,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   getLiveZoomTransform,
   getLiveContainmentGroupAabbForNode,
   graphMetaKind,
+  graphMetaKey,
   portHandleEdges = [],
   registryEntries = EMPTY_WIDGET_REGISTRY,
   connectedValuesBySchemaPath,
@@ -95,7 +98,15 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   )
 
   const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
-  const widgetPos = useGraphStore(useShallow(s => s.flowWidgetPosByNodeId?.[nodeId]))
+  const widgetPos = useGraphStore(useShallow(s => {
+    return readScopedFlowWidgetNodeValue({
+      nodeId,
+      graphMetaKey,
+      graphData: s.graphData,
+      keyedByGraphMetaKey: s.flowWidgetPosByNodeIdByGraphMetaKey,
+      globalByNodeId: s.flowWidgetPosByNodeId,
+    })
+  }))
   const registryEntry = React.useMemo(
     () => resolveWidgetRegistryEntry({ node, registry: registryEntries, graphMetaKind }),
     [graphMetaKind, node, registryEntries],
@@ -109,10 +120,16 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   const readPinnedInCanvas = React.useCallback((id: string): boolean => {
     if (!id) return false
-    const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
-    const v = map[id]
+    const state = useGraphStore.getState()
+    const v = readScopedFlowWidgetNodeValue({
+      nodeId: id,
+      graphMetaKey,
+      graphData: state.graphData,
+      keyedByGraphMetaKey: state.flowWidgetPinnedByNodeIdByGraphMetaKey,
+      globalByNodeId: state.flowWidgetPinnedByNodeId,
+    })
     return typeof v === 'boolean' ? v : resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
-  }, [graphMetaKind])
+  }, [graphMetaKey, graphMetaKind])
 
   const [pinnedInCanvas, setPinnedInCanvasState] = React.useState<boolean>(() => readPinnedInCanvas(nodeId))
   const pinnedInCanvasRef = React.useRef<boolean>(readPinnedInCanvas(nodeId))
@@ -129,6 +146,13 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const floatingUsesScreenAuthority = shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas })
   const autoStackOffset = React.useMemo(() => computeWidgetAnchoredStackOffset(stackIndex), [stackIndex])
 
+  const effectiveOverlayCollectiveCount = React.useMemo(() => {
+    if (typeof overlayCollectiveCount === 'number' && Number.isFinite(overlayCollectiveCount)) {
+      return Math.max(1, Math.floor(overlayCollectiveCount))
+    }
+    return Math.max(1, openWidgetNodeCount)
+  }, [openWidgetNodeCount, overlayCollectiveCount])
+
   const placement = useNodeOverlayPlacementRuntime({
     node,
     nodeId,
@@ -137,6 +161,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     viewportW,
     viewportH,
     canvasWindowOffset,
+    graphMetaKey,
     graphMetaKind,
     zoomViewKey,
     getLiveNodeWorldPos,
@@ -144,7 +169,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     getLiveContainmentGroupAabbForNode,
     widgetPos,
     schema,
-    openWidgetNodeCount,
+    openWidgetNodeCount: effectiveOverlayCollectiveCount,
     autoStackOffset,
     floating,
     floatingUsesScreenAuthority,
@@ -161,8 +186,18 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   React.useEffect(() => {
     const readPinned = (s: unknown) => {
-      const map = (s as { flowWidgetPinnedByNodeId?: Record<string, boolean> })?.flowWidgetPinnedByNodeId || {}
-      const v = nodeId ? map[nodeId] : undefined
+      const state = s as {
+        graphData?: unknown
+        flowWidgetPinnedByNodeId?: Record<string, boolean>
+        flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>>
+      }
+      const v = readScopedFlowWidgetNodeValue({
+        nodeId,
+        graphMetaKey,
+        graphData: state.graphData,
+        keyedByGraphMetaKey: state.flowWidgetPinnedByNodeIdByGraphMetaKey,
+        globalByNodeId: state.flowWidgetPinnedByNodeId,
+      })
       return typeof v === 'boolean' ? v : readPinnedInCanvas(nodeId)
     }
     const unsub = useGraphStore.subscribe(readPinned, next => {
@@ -176,7 +211,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         void 0
       }
     }
-  }, [nodeId, readPinnedInCanvas])
+  }, [graphMetaKey, nodeId, readPinnedInCanvas])
 
   React.useEffect(() => {
     if (!active || !autoRevealKey) return
@@ -302,15 +337,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })
   }, [])
 
-  const { isRichMediaPanelWidget, richMediaWidgetPreview, richMediaPanelToolbarProps } = useNodeOverlayRichMediaToolbar({
-    node,
-    minimized,
-    hideFields,
-    connectedValuesBySchemaPath,
-    onPatchProperties,
-    onToggleHideFields: handleToggleHideFields,
-  })
-
   const drag = useNodeOverlayDragHandlers({
     nodeId,
     active,
@@ -373,13 +399,13 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       toolbarVisible={toolbarVisible}
       toolbarDock={placement.toolbarDock}
       toolbarSideClamp={placement.toolbarSideClamp}
-      isRichMediaPanelWidget={isRichMediaPanelWidget}
+      isRichMediaPanelWidget={false}
       isVideoTranscriberWidget={isVideoTranscriberWidget}
       uiIconScale={uiIconScale}
       uiIconStrokeWidth={uiIconStrokeWidth}
       enableHandlesDisabled={enableHandlesDisabled}
       convertToLoopDisabled={convertToLoopDisabled}
-      richMediaPanelToolbarProps={richMediaPanelToolbarProps}
+      richMediaPanelToolbarProps={{}}
       onRun={onRun}
       onDuplicate={onDuplicate}
       onClearOutput={onClearOutput}
@@ -405,7 +431,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       onValidate={onValidate}
       onRegistrySelectionChange={handleRegistrySelectionChange}
       onRenameSchemaFieldId={onRenameSchemaFieldId}
-      richMediaWidgetPreview={richMediaWidgetPreview}
+      richMediaWidgetPreview={null}
       registryEntry={registryEntry}
       registryEntries={registryEntries}
       connectedValuesBySchemaPath={connectedValuesBySchemaPath}
@@ -426,6 +452,12 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   )
 
   return typeof document === 'undefined' ? overlayElement : createPortal(overlayElement, document.body)
+})
+
+const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner(props: NodeOverlayEditorProps) {
+  const nodeTypeId = String(props.node.type || '').trim()
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return null
+  return <NodeOverlayEditorWidgetInner {...props} />
 })
 
 const NodeOverlayEditor = React.memo(function NodeOverlayEditor(props: NodeOverlayEditorProps) {

@@ -854,6 +854,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     balancedViewportPreset: 'widgetFrontmatter',
     balancedHeroRowCount: 3,
     balancedHeroRowGapScale: 0.76,
+    balancedHeroRowStaggerScale: 0.12,
     balancedPanelOffsetScale: 0.96,
     ...(asBoolean(readFlowValue(flow.snapToGrid)) != null ? { snapToGrid: asBoolean(readFlowValue(flow.snapToGrid)) } : {}),
     ...(asFiniteNumber(readFlowValue(flow.gridSize)) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(readFlowValue(flow.gridSize)) as number)) } : {}),

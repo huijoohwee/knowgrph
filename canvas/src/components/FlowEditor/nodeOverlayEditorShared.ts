@@ -8,6 +8,7 @@ export type NodeOverlayEditorProps = {
   active: boolean
   interactionPassthrough?: boolean
   flowEditorSurfaceId?: string
+  overlayCollectiveCount?: number
   node: GraphNode
   viewportW: number
   viewportH: number
@@ -18,6 +19,7 @@ export type NodeOverlayEditorProps = {
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   getLiveContainmentGroupAabbForNode?: (nodeId: string) => { groupId: string; minX: number; minY: number; maxX: number; maxY: number } | null
   graphMetaKind?: string | null
+  graphMetaKey?: string | null
   portHandleEdges?: ReadonlyArray<GraphEdge>
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath

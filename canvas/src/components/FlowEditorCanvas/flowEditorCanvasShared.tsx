@@ -3,15 +3,17 @@ import React from 'react'
 import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
+import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { isCanonicalFrontmatterBuiltInWidgetNode } from '@/lib/flowEditor/widgetPlacementAuthority'
+import {
+  deriveFrontmatterFlowOverlayNodeIds,
+  resolveGraphNodeIdByCanonicalId,
+} from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 export {
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
@@ -19,6 +21,10 @@ export {
   shouldUseFlowEditorWidgetFloatingScreenAuthority,
   stripFrontmatterAutoManagedWidgetScreenPositions,
 } from '@/lib/flowEditor/widgetPlacementAuthority'
+export {
+  deriveFrontmatterFlowOverlayNodeIds,
+  resolveGraphNodeIdByCanonicalId,
+} from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export type ToolMode = 'select' | 'addEdge'
@@ -54,8 +60,19 @@ export function readFiniteGeoLatLng(properties: Record<string, unknown>): { lat:
   return { lat, lng }
 }
 
-export function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
-  return String(resolveGraphNodeByCanonicalId(graph, rawId)?.id || '').trim()
+function normalizeGraphFilterNodeIdSet(
+  graphData: GraphData | null | undefined,
+  rawIds: ReadonlyArray<string> | null | undefined,
+): Set<string> {
+  const out = new Set<string>()
+  for (const rawId of rawIds || []) {
+    const id = String(rawId || '').trim()
+    if (!id) continue
+    out.add(id)
+    const resolvedId = resolveGraphNodeIdByCanonicalId(graphData, id)
+    if (resolvedId) out.add(resolvedId)
+  }
+  return out
 }
 
 export function snapToGridPx(value: number, stepPx: number): number {
@@ -118,59 +135,6 @@ export function deriveFlowEditorViewGraph(args: {
   })
 }
 
-export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null | undefined): string[] {
-  if (!graphData || !isFrontmatterFlowGraph(graphData)) return []
-  const metadata = ((graphData.metadata || {}) as Record<string, unknown>)
-  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-  if (nodes.length === 0) return []
-
-  const eligibleIds = buildFlowWidgetEligibleNodeIdSet(nodes)
-  const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
-  const compareNodeIdsByVisualIndex = (aId: string, bId: string): number => {
-    if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
-    if (aId === bId) return 0
-    const aKey = nodeZKeyById.get(aId)
-    const bKey = nodeZKeyById.get(bId)
-    if (aKey && bKey) return compareNodeZKey(aKey, bKey)
-    if (aKey || bKey) return aKey ? -1 : 1
-    return aId.localeCompare(bId)
-  }
-
-  const registry = readWidgetRegistryMetadataEntries(metadata)
-  const allowedFlowNodeIds = new Set<string>()
-  for (let i = 0; i < registry.length; i += 1) {
-    const entry = registry[i]
-    const formId = typeof entry?.formId === 'string' ? String(entry.formId).trim() : ''
-    if (!formId || !formId.startsWith('fm:')) continue
-    const nodeId = formId.slice('fm:'.length).trim()
-    if (!nodeId) continue
-    allowedFlowNodeIds.add(nodeId)
-  }
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const id = String(n?.id || '').trim()
-    if (!id || !isCanonicalFrontmatterBuiltInWidgetNode(n)) continue
-    allowedFlowNodeIds.add(id)
-  }
-  if (allowedFlowNodeIds.size === 0) {
-    for (const id of eligibleIds) allowedFlowNodeIds.add(id)
-  }
-  if (allowedFlowNodeIds.size === 0) return []
-
-  const next: string[] = []
-  const seen = new Set<string>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const id = String(n?.id || '').trim()
-    if (!id || seen.has(id)) continue
-    if (String(n?.type || '') === 'Section') continue
-    if (!allowedFlowNodeIds.has(id)) continue
-    seen.add(id)
-    next.push(id)
-  }
-  return next.sort(compareNodeIdsByVisualIndex)
-}
-
 export function filterGraphByExcludedNodeIds(args: {
   graphData: GraphData | null | undefined
   excludedNodeIds: ReadonlyArray<string> | null | undefined
@@ -179,7 +143,7 @@ export function filterGraphByExcludedNodeIds(args: {
   if (!graphData) return null
   const excludedNodeIds = Array.from(new Set((args.excludedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
   if (excludedNodeIds.length === 0) return graphData
-  const excluded = new Set(excludedNodeIds)
+  const excluded = normalizeGraphFilterNodeIdSet(graphData, excludedNodeIds)
   const nodes = Array.isArray(graphData.nodes)
     ? graphData.nodes.filter(node => !excluded.has(String(node?.id || '').trim()))
     : []
@@ -200,7 +164,7 @@ export function filterGraphByIncludedNodeIds(args: {
   if (!graphData) return null
   const includedNodeIds = Array.from(new Set((args.includedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
   if (includedNodeIds.length === 0) return { ...graphData, nodes: [], edges: [] }
-  const included = new Set(includedNodeIds)
+  const included = normalizeGraphFilterNodeIdSet(graphData, includedNodeIds)
   const nodes = Array.isArray(graphData.nodes)
     ? graphData.nodes.filter(node => included.has(String(node?.id || '').trim()))
     : []
@@ -232,7 +196,9 @@ export function deriveOpenWidgetOverlayNodeIds(args: {
   const canIncludeNodeId = (id: string): boolean => {
     if (!id || seen.has(id)) return false
     if (eligibleNodeIds && eligibleNodeIds.size > 0 && !eligibleNodeIds.has(id)) return false
-    if (isFlowEditorOverlayExcludedNode(nodeById?.get(id) || null)) return false
+    const node = nodeById?.get(id) || null
+    if (isFlowEditorOverlayExcludedNode(node)) return false
+    if (node && !isFlowWidgetOverlayEligibleNode(node)) return false
     return true
   }
 
@@ -259,8 +225,10 @@ type FlowEditorWidgetOverlayProps = {
   active: boolean
   interactionPassthrough?: boolean
   flowEditorSurfaceId?: string
+  overlayCollectiveCount?: number
   node: GraphNode
   graphMetaKind?: string | null
+  graphMetaKey?: string | null
   portHandleEdges?: ReadonlyArray<GraphEdge>
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
@@ -301,8 +269,10 @@ export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverl
       active={args.active}
       interactionPassthrough={args.interactionPassthrough}
       flowEditorSurfaceId={args.flowEditorSurfaceId}
+      overlayCollectiveCount={args.overlayCollectiveCount}
       node={args.node}
       graphMetaKind={args.graphMetaKind}
+      graphMetaKey={args.graphMetaKey}
       portHandleEdges={args.portHandleEdges}
       registryEntries={args.registryEntries}
       connectedValuesBySchemaPath={args.connectedValuesBySchemaPath}

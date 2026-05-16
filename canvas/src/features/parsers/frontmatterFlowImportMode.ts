@@ -35,18 +35,45 @@ export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | un
   const graphKey = buildGraphMetaKeyIgnoringPending(graphData)
   useGraphStore.setState(prev => {
     const prevState = prev as unknown as {
+      flowWidgetPinnedByNodeId?: Record<string, boolean>
+      flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>>
+      flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
+      flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
       flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
       flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
     }
+    const currentPinned = prevState.flowWidgetPinnedByNodeId || {}
+    const currentPinnedByKey = prevState.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
+    const currentPos = prevState.flowWidgetPosByNodeId || {}
+    const currentPosByKey = prevState.flowWidgetPosByNodeIdByGraphMetaKey || {}
     const currentWorld = prevState.flowWidgetWorldPosByNodeId || {}
-    const currentByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
+    const currentWorldByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
+    const hasGlobalPinned = Object.keys(currentPinned).length > 0
+    const hasKeyedPinned = graphKey ? Object.keys(currentPinnedByKey[graphKey] || {}).length > 0 : false
+    const hasGlobalPos = Object.keys(currentPos).length > 0
+    const hasKeyedPos = graphKey ? Object.keys(currentPosByKey[graphKey] || {}).length > 0 : false
     const hasGlobalWorld = Object.keys(currentWorld).length > 0
-    const hasKeyedWorld = graphKey ? Object.keys(currentByKey[graphKey] || {}).length > 0 : false
-    if (!hasGlobalWorld && !hasKeyedWorld) return {}
-    const nextByKey = graphKey ? { ...currentByKey, [graphKey]: {} } : currentByKey
+    const hasKeyedWorld = graphKey ? Object.keys(currentWorldByKey[graphKey] || {}).length > 0 : false
+    if (!hasGlobalPinned && !hasKeyedPinned && !hasGlobalPos && !hasKeyedPos && !hasGlobalWorld && !hasKeyedWorld) return {}
+    const nextPinnedByKey = graphKey ? { ...currentPinnedByKey, [graphKey]: {} } : currentPinnedByKey
+    const nextPosByKey = graphKey ? { ...currentPosByKey, [graphKey]: {} } : currentPosByKey
+    const nextWorldByKey = graphKey ? { ...currentWorldByKey, [graphKey]: {} } : currentWorldByKey
+    // Frontmatter-flow import owns the landing layout; clear pin/screen/world
+    // overlay caches so stale per-graph widget authority cannot drag the collective off-view.
     return graphKey
-      ? { flowWidgetWorldPosByNodeId: {}, flowWidgetWorldPosByNodeIdByGraphMetaKey: nextByKey }
-      : { flowWidgetWorldPosByNodeId: {} }
+      ? {
+          flowWidgetPinnedByNodeId: {},
+          flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey,
+          flowWidgetPosByNodeId: {},
+          flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey,
+          flowWidgetWorldPosByNodeId: {},
+          flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey,
+        }
+      : {
+          flowWidgetPinnedByNodeId: {},
+          flowWidgetPosByNodeId: {},
+          flowWidgetWorldPosByNodeId: {},
+        }
   })
   // A frontmatter-flow graph always owns the import landing contract. Returning
   // true here avoids downstream fallback preset replays when the effective

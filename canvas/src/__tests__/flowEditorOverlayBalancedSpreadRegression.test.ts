@@ -39,8 +39,14 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const renderGraphHelperText = readUtf8(renderGraphHelperPath)
   const topologySignatureText = readUtf8(topologySignaturePath)
   const presentationText = readUtf8(presentationPath)
-  if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, st.flowWidgetPosByNodeId)')) {
-    throw new Error('expected overlay collision key to include shared stored-position signatures')
+  if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, {')) {
+    throw new Error('expected overlay collision key to include shared scoped position signatures')
+  }
+  if (!hookText.includes('resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected overlay collision runtime to resolve widget pin/screen/world state through the shared graph-scoped helper')
+  }
+  if (!hookText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForOverlayRuntime)')) {
+    throw new Error('expected overlay collision runtime to derive one active render-graph key before reading scoped widget state')
   }
   if (!hookText.includes("import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'")) {
     throw new Error('expected overlay collision runtime to reuse shared semantic-key helpers instead of local join-based key assembly')
@@ -61,6 +67,9 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (!hookText.includes('computeBalancedSpreadLayout')) {
     throw new Error('expected overlay collision path to reuse shared centered balanced spread layout planning')
+  }
+  if (!hookText.includes("import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'")) {
+    throw new Error('expected overlay collision path to reuse the shared visible viewport helper before planning balanced frontmatter reseeds')
   }
   if (!hookText.includes('computeBalancedSpreadViewportMargins')) {
     throw new Error('expected overlay collision path to reuse shared 16:9 viewport margins instead of local hardcodes')
@@ -122,7 +131,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes("nodeTypeId: String(nodeById?.get(id)?.type || '').trim()")) {
     throw new Error('expected overlay collision path to keep canonical frontmatter built-ins auto-rebalanceable through the shared node lookup')
   }
-  if (!hookText.includes('if (stillOverlaps && changed)')) {
+  if (!hookText.includes('if (stillOverlaps && (changedPos || changedWorld))')) {
     throw new Error('expected overlay collision settle loop to stop rescheduling when no effective movement remains')
   }
   if (!hookText.includes('const unresolvedPairCount = (() => {')) {
@@ -138,10 +147,43 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
     throw new Error('expected overlay collision path to avoid raw zoom-key churn')
   }
   if (!hookText.includes('useGraphStore.subscribe(s => s.flowWidgetPosByNodeId')) {
-    throw new Error('expected overlay collision path to reschedule on floating position updates')
+    throw new Error('expected overlay collision path to reschedule on global floating position updates')
+  }
+  if (!hookText.includes('flowWidgetPosByNodeIdByGraphMetaKey')) {
+    throw new Error('expected overlay collision path to reschedule on graph-keyed floating position updates too')
+  }
+  if (!hookText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey')) {
+    throw new Error('expected overlay collision path to reschedule on graph-keyed world-position updates too')
+  }
+  if (!hookText.includes('flowWidgetPinnedByNodeIdByGraphMetaKey')) {
+    throw new Error('expected overlay collision path to reschedule on graph-keyed pinned-state updates too')
   }
   if (!hookText.includes('const allowNodeObstacleCollision = !overlayOnlyModeEnabled')) {
     throw new Error('expected overlay collision runtime to disable hidden node-obstacle feedback in overlay-only mode')
+  }
+  if (!hookText.includes('const visibleViewport = resolveFlowEditorVisibleViewport({')) {
+    throw new Error('expected overlay collision runtime to derive a pane-aware visible viewport before sizing the balanced collective')
+  }
+  if (!hookText.includes('viewportW: visibleViewportWidth,') || !hookText.includes('viewportH: visibleViewportHeight,')) {
+    throw new Error('expected overlay collision runtime to size frontmatter balanced reseeds against the visible viewport dimensions')
+  }
+  if (!hookText.includes('const activeViewport = isFrontmatterFlow')) {
+    throw new Error('expected overlay collision runtime to derive one active clamp/reuse viewport so frontmatter floating collectives stay inside the visible strip')
+  }
+  if (!hookText.includes('const clampToCollisionViewport = (pos: { left: number; top: number }, size: { width: number; height: number }) => {')) {
+    throw new Error('expected overlay collision runtime to clamp auto-managed frontmatter widgets against the active visible viewport instead of the full surface')
+  }
+  if (!hookText.includes('const storedCollectiveViewportState = deriveCollectiveViewportState(storedCollectiveItems)')) {
+    throw new Error('expected overlay collision runtime to score stored frontmatter floating collectives before preserving them')
+  }
+  if (!hookText.includes('&& (!storedCollectiveViewportState?.centered || !storedCollectiveViewportState?.balanced)')) {
+    throw new Error('expected overlay collision runtime to reject off-center or unbalanced stored frontmatter collective residue before reuse')
+  }
+  if (!hookText.includes('if (isFrontmatterFlow && overlayOnlyModeEnabled) return \'\'')) {
+    throw new Error('expected frontmatter overlay-only balanced reseeds to avoid anchoring the whole collective to one arbitrary survivor widget')
+  }
+  if (!hookText.includes('x: visibleViewportLeft + visibleViewportWidth / 2,') || !hookText.includes('y: visibleViewportTop + visibleViewportHeight / 2,')) {
+    throw new Error('expected frontmatter overlay-only balanced reseeds to fall back to the visible viewport centroid when no explicit fixed widget is selected')
   }
   if (!hookText.includes('if (overlayNodeIdSet.has(id)) continue')) {
     throw new Error('expected overlay collision runtime to avoid treating overlay-owned nodes as collision obstacles')
@@ -464,11 +506,14 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('workspaceOverlayOpenRef.current') || !overlayText.includes('workspaceOverlayOpenKey')) {
     throw new Error('expected Rich Media layout scheduling to track Workspace overlay open/close without raw workspace deps in hot layout state')
   }
-  if (!overlayText.includes('if (!active || mediaLayoutItems.length === 0 || workspaceOverlayOpenRef.current)')) {
-    throw new Error('expected Rich Media layout loop to stay stopped while Workspace/Indexing overlay is open')
+  if (!overlayText.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested')) {
+    throw new Error('expected Rich Media layout scheduling to derive a frontmatter-aware passive layout exception while Workspace/Indexing overlay is open')
   }
-  if (!overlayText.includes('if (workspaceOverlayOpenRef.current) return')) {
-    throw new Error('expected passive Rich Media layout scheduling to skip while Workspace/Indexing overlay is open')
+  if (!overlayText.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
+    throw new Error('expected Rich Media layout loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
+  }
+  if (!overlayText.includes('if (stopPassiveLayoutWhileWorkspaceOverlayOpen) return')) {
+    throw new Error('expected passive Rich Media layout scheduling to skip only when workspace-open mutation blocking applies outside frontmatter document mode')
   }
   if (!overlayText.includes('mediaLayoutPropsSignature,')) {
     throw new Error('expected passive Rich Media layout scheduling to resync on semantic panel output and sizing changes')

@@ -130,23 +130,26 @@ export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredFrontmatterH
   }
 }
 
-export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredFrontmatterHeroRowGapScale() {
+export function testFlowEditorWidgetSeedGroupSpreadKeepsPreferredFrontmatterHeroRowsNonOverlapping() {
   const ids = ['S01', 'S02', 'S03', 'S04', 'S05']
+  const cellW = 384
+  const cellH = 544
+  const gapWorld = 24
   const regular = placeWidgetsCenteredInGroupBounds({
     ids,
     bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
-    cellW: 384,
-    cellH: 544,
-    gapWorld: 24,
+    cellW,
+    cellH,
+    gapWorld,
     snapWorld: v => v,
     preferredFirstRowCount: 3,
   })
   const tightened = placeWidgetsCenteredInGroupBounds({
     ids,
     bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
-    cellW: 384,
-    cellH: 544,
-    gapWorld: 24,
+    cellW,
+    cellH,
+    gapWorld,
     snapWorld: v => v,
     preferredFirstRowCount: 3,
     preferredRowGapScale: 0.76,
@@ -159,7 +162,42 @@ export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredFrontmatterH
   const regularGap = regularSecondRowY - regularFirstRowY
   const tightenedGap = tightenedSecondRowY - tightenedFirstRowY
 
-  if (!(tightenedGap < regularGap)) {
-    throw new Error(`expected preferred hero row gap scale to tighten second-row spacing, regular=${regularGap} tightened=${tightenedGap}`)
+  if (tightenedGap < cellH) {
+    throw new Error(`expected preferred hero row gap scale to preserve non-overlapping top-to-top spacing, got gap=${tightenedGap} cellH=${cellH}`)
+  }
+  if (tightenedGap < regularGap) {
+    throw new Error(`expected preferred hero row gap scale to avoid shrinking balanced row spacing below the planner contract, regular=${regularGap} tightened=${tightenedGap}`)
+  }
+}
+
+export function testFlowEditorWidgetSeedGroupSpreadSupportsPreferredSingleRowFrontmatterStagger() {
+  const ids = ['w-img-scene', 'w-text-script', 'w-video-scene']
+  const regular = placeWidgetsCenteredInGroupBounds({
+    ids,
+    bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
+    cellW: 384,
+    cellH: 544,
+    gapWorld: 24,
+    snapWorld: v => v,
+  })
+  const staggered = placeWidgetsCenteredInGroupBounds({
+    ids,
+    bounds: { minX: 0, minY: 0, maxX: 1920, maxY: 1080 },
+    cellW: 384,
+    cellH: 544,
+    gapWorld: 24,
+    snapWorld: v => v,
+    preferredSingleRowStaggerScale: 0.12,
+  })
+
+  const regularSpan = Math.max(...regular.map(entry => entry.y)) - Math.min(...regular.map(entry => entry.y))
+  const staggeredByX = [...staggered].sort((a, b) => a.x - b.x)
+  const staggeredSpan = staggeredByX[2]!.y - staggeredByX[0]!.y
+
+  if (!(staggeredSpan > regularSpan + 40)) {
+    throw new Error(`expected preferred single-row stagger to increase trio vertical separation, regular=${regularSpan} staggered=${staggeredSpan}`)
+  }
+  if (!(staggeredByX[0]!.y < staggeredByX[1]!.y && staggeredByX[1]!.y < staggeredByX[2]!.y)) {
+    throw new Error(`expected preferred single-row stagger to keep a readable left-to-right vertical cascade, got ${JSON.stringify(staggeredByX.map(entry => ({ id: entry.id, x: entry.x, y: entry.y })))}`)
   }
 }

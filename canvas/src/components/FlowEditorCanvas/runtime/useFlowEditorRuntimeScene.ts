@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { computeFlowGroupAabb, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
+import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import {
@@ -27,7 +28,10 @@ import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
-import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
+import {
+  isFlowTransformKeepingWorldRectCollectiveInViewport,
+  isFlowTransformShowingGraph,
+} from '@/components/FlowCanvas/transformGuards'
 import { DEFAULT_FLOW_NODE_HEIGHT_PX, DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 
@@ -87,6 +91,7 @@ function pushFlowEditorRuntimeSceneTrace(entry: {
 
 export function useFlowEditorRuntimeScene(args: {
   active: boolean
+  flowEditorSurfaceId?: string
   openWidgetNodeIds: string[]
   renderGraphDataOverride: GraphData | null
   viewportW: number
@@ -103,6 +108,53 @@ export function useFlowEditorRuntimeScene(args: {
   const flowWidgetPinnedCount = useGraphStore(s => Object.keys(s.flowWidgetPinnedByNodeId || {}).length)
   const workspaceMutationBlockedPrevRef = React.useRef<boolean>(workspaceMutationBlocked)
   const lastInteractionFrameAtMsRef = React.useRef<number>(0)
+  const getVisibleViewport = React.useCallback(() => {
+    return resolveFlowEditorVisibleViewport({
+      flowEditorSurfaceId: args.flowEditorSurfaceId,
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+    })
+  }, [args.flowEditorSurfaceId, args.viewportH, args.viewportW])
+  const normalizeTransformToVisibleViewport = React.useCallback((transform: { k: number; x: number; y: number } | null) => {
+    if (!transform) return null
+    const visibleViewport = getVisibleViewport()
+    return {
+      k: transform.k,
+      x: transform.x - visibleViewport.left,
+      y: transform.y - visibleViewport.top,
+    }
+  }, [getVisibleViewport])
+
+  const buildAutoSeedWorldRectsForTransform = React.useCallback((transform: { k: number; x: number; y: number } | null) => {
+    if (!transform) return []
+    const visibleViewport = getVisibleViewport()
+    const zoomK = typeof transform.k === 'number' && Number.isFinite(transform.k) ? transform.k : 1
+    const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})
+      .filter((world): world is { x: number; y: number } => (
+        !!world
+        && Number.isFinite(world.x)
+        && Number.isFinite(world.y)
+      ))
+    if (autoSeedWorldNodes.length <= 0) return []
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK,
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
+      count: Math.max(1, autoSeedWorldNodes.length),
+      baseWidth: WIDGET_BASE_SIZE.width,
+      baseHeight: WIDGET_BASE_SIZE.height,
+    })
+    const panelScreen = computeWidgetScaledSize(panelScale)
+    const safeZoomK = Math.max(0.001, zoomK)
+    const panelWorldW = panelScreen.width / safeZoomK
+    const panelWorldH = panelScreen.height / safeZoomK
+    return autoSeedWorldNodes.map(world => ({
+      left: world.x,
+      top: world.y,
+      width: panelWorldW,
+      height: panelWorldH,
+    }))
+  }, [getVisibleViewport])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -126,6 +178,20 @@ export function useFlowEditorRuntimeScene(args: {
   const getLiveNodeWorldPos = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
     if (!id) return null
+    const state = useGraphStore.getState() as {
+      graphData?: GraphData | null
+      flowWidgetDraggingNodeId?: string | null
+    }
+    const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(state)
+    const autoSeed = latestAutoSeedWorldPosByNodeIdRef.current[id]
+    const autoSeedX = autoSeed && Number.isFinite(autoSeed.x) ? autoSeed.x : null
+    const autoSeedY = autoSeed && Number.isFinite(autoSeed.y) ? autoSeed.y : null
+    const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620
+    const flowWidgetDraggingNodeId = String(state.flowWidgetDraggingNodeId || '').trim()
+    const flowWidgetDragging = flowWidgetDraggingNodeId.length > 0
+    if (workspaceMutationBlocked && autoSeedX != null && autoSeedY != null && !interactionInProgress && !flowWidgetDragging) {
+      return { x: autoSeedX, y: autoSeedY }
+    }
     const runtime = flowRuntimeRefRef.current?.current
     if (!runtime || runtime.positionsReady !== true) return null
     const n = runtime.scene?.nodeById?.get(id) || null
@@ -180,12 +246,15 @@ export function useFlowEditorRuntimeScene(args: {
       const persistedK = typeof persisted?.k === 'number' && Number.isFinite(persisted.k) ? persisted.k : null
       const persistedX = typeof persisted?.x === 'number' && Number.isFinite(persisted.x) ? persisted.x : null
       const persistedY = typeof persisted?.y === 'number' && Number.isFinite(persisted.y) ? persisted.y : null
+      const visibleViewport = getVisibleViewport()
+      const normalizedPersistedTransform =
+        persistedK != null && persistedX != null && persistedY != null
+          ? normalizeTransformToVisibleViewport({ k: persistedK, x: persistedX, y: persistedY })
+          : null
       const persistedLooksSafeForWorkspaceBlocked =
-        persistedK != null
-        && persistedX != null
-        && persistedY != null
-        && Math.abs(persistedX) <= args.viewportW * 0.6
-        && Math.abs(persistedY) <= args.viewportH * 0.6
+        !!normalizedPersistedTransform
+        && Math.abs(normalizedPersistedTransform.x) <= visibleViewport.width * 0.6
+        && Math.abs(normalizedPersistedTransform.y) <= visibleViewport.height * 0.6
       const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging
       if (
         persistedK != null
@@ -250,11 +319,127 @@ export function useFlowEditorRuntimeScene(args: {
       return null
     }
     const next = { k, x, y }
+    const visibleViewport = getVisibleViewport()
+    const normalizedNext = normalizeTransformToVisibleViewport(next)
+    const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})
+      .filter((world): world is { x: number; y: number } => (
+        !!world
+        && Number.isFinite(world.x)
+        && Number.isFinite(world.y)
+      ))
+    const autoSeedWorldRects = buildAutoSeedWorldRectsForTransform(next)
+    if (workspaceMutationBlocked && sceneNodeCount > 0 && positionsReady !== true && !interactionInProgress && !flowWidgetDragging) {
+      const lastUsable = lastUsableZoomTransformRef.current
+      if (lastUsable) {
+        const lastUsableAutoSeedWorldRects = buildAutoSeedWorldRectsForTransform(lastUsable)
+        const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)
+        const lastUsableShowsAutoSeed =
+          autoSeedWorldNodes.length <= 0
+          || (
+            !!normalizedLastUsable
+            && isFlowTransformShowingGraph(normalizedLastUsable, {
+              nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
+              viewportW: visibleViewport.width,
+              viewportH: visibleViewport.height,
+              nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
+              nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
+            })
+            && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {
+              rects: lastUsableAutoSeedWorldRects,
+              viewportW: visibleViewport.width,
+              viewportH: visibleViewport.height,
+            })
+          )
+        if (!lastUsableShowsAutoSeed) {
+          pushFlowEditorRuntimeSceneTrace({
+            reason: 'workspace-blocked-unsettled-transform-neutralized-for-auto-seed',
+            sceneNodeCount,
+            positionsReady,
+            workspaceMutationBlocked,
+            viewportW: args.viewportW,
+            viewportH: args.viewportH,
+            transform: next,
+          })
+          return { k: 1, x: 0, y: 0 }
+        }
+        pushFlowEditorRuntimeSceneTrace({
+          reason: 'workspace-blocked-unsettled-transform-reusing-last-usable',
+          sceneNodeCount,
+          positionsReady,
+          workspaceMutationBlocked,
+          viewportW: args.viewportW,
+          viewportH: args.viewportH,
+          transform: next,
+        })
+        return lastUsable
+      }
+    }
+    if (workspaceMutationBlocked && autoSeedWorldNodes.length > 0 && !interactionInProgress && !flowWidgetDragging) {
+      const autoSeedVisible =
+        !!normalizedNext
+        && isFlowTransformShowingGraph(normalizedNext, {
+          nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
+          viewportW: visibleViewport.width,
+          viewportH: visibleViewport.height,
+          nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
+          nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
+        })
+        && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedNext, {
+          rects: autoSeedWorldRects,
+          viewportW: visibleViewport.width,
+          viewportH: visibleViewport.height,
+        })
+      if (!autoSeedVisible) {
+        const lastUsable = lastUsableZoomTransformRef.current
+        if (lastUsable) {
+          const lastUsableAutoSeedWorldRects = buildAutoSeedWorldRectsForTransform(lastUsable)
+          const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)
+          const lastUsableAutoSeedVisible =
+            !!normalizedLastUsable
+            && isFlowTransformShowingGraph(normalizedLastUsable, {
+              nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
+              viewportW: visibleViewport.width,
+              viewportH: visibleViewport.height,
+              nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
+              nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
+            })
+            && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {
+              rects: lastUsableAutoSeedWorldRects,
+              viewportW: visibleViewport.width,
+              viewportH: visibleViewport.height,
+            })
+          if (lastUsableAutoSeedVisible) {
+            pushFlowEditorRuntimeSceneTrace({
+              reason: 'workspace-blocked-auto-seed-transform-reusing-last-usable',
+              sceneNodeCount,
+              positionsReady,
+              workspaceMutationBlocked,
+              viewportW: args.viewportW,
+              viewportH: args.viewportH,
+              transform: next,
+            })
+            return lastUsable
+          }
+        }
+        pushFlowEditorRuntimeSceneTrace({
+          reason: 'workspace-blocked-auto-seed-transform-neutralized',
+          sceneNodeCount,
+          positionsReady,
+          workspaceMutationBlocked,
+          viewportW: args.viewportW,
+          viewportH: args.viewportH,
+          transform: next,
+        })
+        return { k: 1, x: 0, y: 0 }
+      }
+    }
     if (workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging) {
-      const visible = isFlowTransformShowingGraph(next, {
+      const visible =
+        !!normalizedNext
+        && isFlowTransformShowingGraph(normalizedNext, {
         nodes: sceneNodes as Array<{ x?: unknown; y?: unknown }>,
-        viewportW: args.viewportW,
-        viewportH: args.viewportH,
+        viewportW: visibleViewport.width,
+        viewportH: visibleViewport.height,
         nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
         nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
       })
@@ -295,7 +480,7 @@ export function useFlowEditorRuntimeScene(args: {
       transform: next,
     })
     return next
-  }, [args.viewportH, args.viewportW, args.zoomViewKeyRef])
+  }, [args.viewportH, args.viewportW, args.zoomViewKeyRef, buildAutoSeedWorldRectsForTransform, getVisibleViewport, normalizeTransformToVisibleViewport])
 
   const getLiveContainmentGroupAabbForNode = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
@@ -470,13 +655,15 @@ export function useFlowEditorRuntimeScene(args: {
         || Math.abs(Number.isFinite(persistedZoom.y) ? persistedZoom.y : 0) > 0.5
       )
     const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
+    const workspaceMutationBlockedForSeed = isWorkspaceGraphMutationBlocked(st)
     const isFirstFrontmatterInitSeed = isFrontmatterFlow && seededPinnedWidgetWorldPosKeyRef.current.length === 0
     const shouldUseNeutralSeedZoomForFrontmatterInit =
       isFirstFrontmatterInitSeed
+      || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
     const shouldUseNeutralSeedZoom =
       runtimeSceneNodeCount <= 0
       || shouldUseNeutralSeedZoomForFrontmatterInit
-    const allowPersistedViewportOffsetSeed = !isWorkspaceGraphMutationBlocked(st)
+    const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed
     const z =
       (shouldUseNeutralSeedZoom ? { k: 1, x: 0, y: 0 } : null)
       || (allowPersistedViewportOffsetSeed && persistedHasViewportOffset && liveLooksDefault ? persistedZoom : null)
@@ -484,18 +671,21 @@ export function useFlowEditorRuntimeScene(args: {
       || persistedZoom
       || { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
+    const visibleViewport = getVisibleViewport()
     const balancedViewportPreset = resolveBalancedViewportPreset({
       graphData: graphDataForSeeding,
       fallbackPreset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
     })
     const spreadMargins = computeBalancedSpreadViewportMargins({
-      viewportW: args.viewportW,
-      viewportH: args.viewportH,
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
       preset: balancedViewportPreset,
     })
+    const horizontalMargin = Math.max(spreadMargins.left, spreadMargins.right)
+    const verticalMargin = Math.max(spreadMargins.top, spreadMargins.bottom)
     const baseGapPx = Math.max(
       12,
-      Math.min(40, Math.round(Math.max(1, args.viewportW - spreadMargins.left - spreadMargins.right) * 0.012)),
+      Math.min(40, Math.round(Math.max(1, visibleViewport.width - spreadMargins.left - spreadMargins.right) * 0.012)),
     )
     const pinnedOpenIds = (
       isFrontmatterFlow
@@ -513,24 +703,25 @@ export function useFlowEditorRuntimeScene(args: {
       .filter((id, index, arr) => arr.indexOf(id) === index)
       .sort((a, b) => a.localeCompare(b))
     const useViewportOnlyBucket = isFrontmatterFlow || pinnedOpenIds.length >= 12
-    let panelScale = computeCollectiveFollowPinnedScale({
+    const panelScale = computeCollectiveFollowPinnedScale({
       zoomK,
-      viewportW: args.viewportW,
-      viewportH: args.viewportH,
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
       count: Math.max(1, pinnedOpenIds.length),
       baseWidth: WIDGET_BASE_SIZE.width,
       baseHeight: WIDGET_BASE_SIZE.height,
+      viewportPreset: balancedViewportPreset,
     })
+    const widgetGrid = readWidgetGridLayoutSettings(args.schema)
+    const gapBasePx = widgetGrid.gridEnabled ? Math.max(baseGapPx, widgetGrid.gapPx) : baseGapPx
     const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
     const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
-    const widgetGrid = readWidgetGridLayoutSettings(args.schema)
-
-    const gapBasePx = widgetGrid.gridEnabled ? Math.max(baseGapPx, widgetGrid.gapPx) : baseGapPx
     const gapScreenPx = computeBalancedSpreadSpacingPx({
       baseGapPx: gapBasePx,
       zoomK,
       count: Math.max(1, pinnedOpenIds.length),
+      preset: balancedViewportPreset,
     })
     const gapWorld = gapScreenPx / Math.max(0.001, zoomK)
     const cellW = (panelScreen.width + gapScreenPx) / Math.max(0.001, zoomK)
@@ -542,16 +733,16 @@ export function useFlowEditorRuntimeScene(args: {
     const zoomY = typeof z.y === 'number' && Number.isFinite(z.y) ? z.y : 0
     const viewportBounds = useViewportOnlyBucket
       ? {
-          minX: (0 - zoomX) / safeZoomK,
-          minY: (0 - zoomY) / safeZoomK,
-          maxX: (args.viewportW - zoomX) / safeZoomK,
-          maxY: (args.viewportH - zoomY) / safeZoomK,
+          minX: (visibleViewport.left - zoomX) / safeZoomK,
+          minY: (visibleViewport.top - zoomY) / safeZoomK,
+          maxX: (visibleViewport.right - zoomX) / safeZoomK,
+          maxY: (visibleViewport.bottom - zoomY) / safeZoomK,
         }
       : {
-          minX: (spreadMargins.left - zoomX) / safeZoomK,
-          minY: (spreadMargins.top - zoomY) / safeZoomK,
-          maxX: (args.viewportW - spreadMargins.right - zoomX) / safeZoomK,
-          maxY: (args.viewportH - spreadMargins.bottom - zoomY) / safeZoomK,
+          minX: (visibleViewport.left + horizontalMargin - zoomX) / safeZoomK,
+          minY: (visibleViewport.top + verticalMargin - zoomY) / safeZoomK,
+          maxX: (visibleViewport.right - horizontalMargin - zoomX) / safeZoomK,
+          maxY: (visibleViewport.bottom - verticalMargin - zoomY) / safeZoomK,
         }
     const normalizeSeedBoundsToViewport = (bounds: { minX: number; minY: number; maxX: number; maxY: number }) => {
       const bounded = {
@@ -569,14 +760,10 @@ export function useFlowEditorRuntimeScene(args: {
       if (intersected.maxX - intersected.minX >= 1 && intersected.maxY - intersected.minY >= 1) return intersected
       return viewportBounds
     }
-    const balancedHeroRowCount = (() => {
-      if (!isFrontmatterFlow) return undefined
-      return readFrontmatterFlowRenderSettings(graphDataForSeeding)?.balancedHeroRowCount
-    })()
-    const balancedHeroRowGapScale = (() => {
-      if (!isFrontmatterFlow) return undefined
-      return readFrontmatterFlowRenderSettings(graphDataForSeeding)?.balancedHeroRowGapScale
-    })()
+    const frontmatterRenderSettings = isFrontmatterFlow ? readFrontmatterFlowRenderSettings(graphDataForSeeding) : null
+    const balancedHeroRowCount = frontmatterRenderSettings?.balancedHeroRowCount
+    const balancedHeroRowGapScale = frontmatterRenderSettings?.balancedHeroRowGapScale
+    const balancedHeroRowStaggerScale = frontmatterRenderSettings?.balancedHeroRowStaggerScale
     const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
       placeWidgetsCenteredInGroupBounds({
         ids,
@@ -587,6 +774,7 @@ export function useFlowEditorRuntimeScene(args: {
         snapWorld,
         preferredFirstRowCount: balancedHeroRowCount,
         preferredRowGapScale: balancedHeroRowGapScale,
+        preferredSingleRowStaggerScale: balancedHeroRowStaggerScale,
       })
 
     const viewportBucketId = '__viewport__'
@@ -606,6 +794,7 @@ export function useFlowEditorRuntimeScene(args: {
     const bucketSignature = Array.from(allBoundsByBucket.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([bucketId, bounds]) => {
+        if (bucketId === viewportBucketId) return `${bucketId}:visible-viewport`
         const minX = Math.round(bounds.minX * 1000) / 1000
         const minY = Math.round(bounds.minY * 1000) / 1000
         const maxX = Math.round(bounds.maxX * 1000) / 1000
@@ -613,7 +802,7 @@ export function useFlowEditorRuntimeScene(args: {
         return `${bucketId}:${minX},${minY},${maxX},${maxY}`
       })
       .join('|')
-    const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
+    const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`
 
     const overlapEligible = (() => {
       const idsByBucket = new Map<string, string[]>()
@@ -726,6 +915,17 @@ export function useFlowEditorRuntimeScene(args: {
         .sort((a, b) => a.localeCompare(b))
       if (offscreenPinned.length > 0) pending = offscreenPinned
     }
+    const fullFrontmatterCollectiveIds = isFrontmatterFlow
+      ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+      : []
+    const shouldReseedWholeFrontmatterCollective =
+      isFrontmatterFlow
+      && fullFrontmatterCollectiveIds.length > 0
+      && (
+        forceSceneEmptyReseed
+        || (pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length)
+      )
+    if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds
     if (pending.length === 0) return
 
     const idsByBucket = new Map<string, string[]>()
@@ -864,13 +1064,12 @@ export function useFlowEditorRuntimeScene(args: {
       lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
       return
     }
-    const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(st)
     const hasMissingWorldSeeds = pendingRaw.length > 0
     const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed
-    if (workspaceMutationBlocked && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates) return
+    if (workspaceMutationBlockedForSeed && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates) return
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
-    if (workspaceMutationBlocked) {
+    if (workspaceMutationBlockedForSeed) {
       useGraphStore.setState(prev => {
         const prevState = prev as unknown as {
           graphData?: GraphData | null
@@ -894,7 +1093,7 @@ export function useFlowEditorRuntimeScene(args: {
           }
           if (unchanged) return {}
         }
-        const graphKey = buildGraphMetaKeyIgnoringPending(prevState.graphData || null)
+        const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding || prevState.graphData || null)
         const worldByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
         const nextWorldByKey = graphKey ? { ...worldByKey, [graphKey]: nextWorld } : worldByKey
         // Keep Workspace/indexing mutation guard semantics by skipping persistence,
@@ -912,6 +1111,7 @@ export function useFlowEditorRuntimeScene(args: {
     st.setFlowWidgetWorldPosByNodeId(nextWorld)
   }, [
     args.active,
+    args.flowEditorSurfaceId,
     args.openWidgetNodeIds,
     args.overlayTopologyLayoutSignature,
     args.schema,
@@ -921,6 +1121,7 @@ export function useFlowEditorRuntimeScene(args: {
     flowWidgetPinnedCount,
     flowWidgetWorldPosCount,
     getLiveContainmentGroupAabbForNode,
+    getVisibleViewport,
     getLiveZoomTransform,
   ])
 

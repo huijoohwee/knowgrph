@@ -61,7 +61,8 @@ export function isTransientOffscreenRichMediaOverlayRoot(overlayRoot: HTMLElemen
   if (String(overlayRoot.dataset.kgRichMediaOverlay || '').trim() !== '1') return false
   const tiny = rect.width <= 2 && rect.height <= 2
   const farOffscreen = rect.left < -10000 || rect.top < -10000
-  return tiny && farOffscreen
+  const parkedOffscreen = rect.right <= 0 || rect.bottom <= 0
+  return tiny && (farOffscreen || parkedOffscreen)
 }
 
 export function isUsableFlowEditorOverlayRectCandidate(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {

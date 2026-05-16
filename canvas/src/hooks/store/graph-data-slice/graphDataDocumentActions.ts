@@ -6,7 +6,7 @@ import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmd
 import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersistence'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
+import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import {
@@ -207,7 +207,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         })
         if (enforceFrontmatterOnly) {
           const parsedNodes = Array.isArray(reusedGraph.nodes) ? reusedGraph.nodes : []
-          const eligibleFlowWidgetNodeIds = buildFlowWidgetEligibleNodeIdSet(parsedNodes as any)
+          const eligibleFlowWidgetNodeIds = buildFlowWidgetOverlayEligibleNodeIdSet(parsedNodes as any)
           const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
             const normalized = String(id || '').trim()
             return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
@@ -222,11 +222,9 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
             Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
           ) as Record<string, boolean>
           afterApplyState.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
-          const currentPosByNodeId = afterApplyState.flowWidgetPosByNodeId || {}
-          const nextPosByNodeId = Object.fromEntries(
-            Object.entries(currentPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
-          ) as Record<string, { top: number; left: number }>
-          afterApplyState.setFlowWidgetPosByNodeId(nextPosByNodeId)
+          // Frontmatter flow imports should reseed overlay placement from graph anchors,
+          // not stale persisted screen coordinates from previous documents/sessions.
+          afterApplyState.setFlowWidgetPosByNodeId({})
           afterApplyState.setFlowWidgetWorldPosByNodeId({})
         }
         return !!(((reusedGraph.nodes || []).length > 0) || ((reusedGraph.edges || []).length > 0))
@@ -266,7 +264,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         })
         if (enforceFrontmatterOnly) {
           const parsedNodes = Array.isArray(parsedGraph.nodes) ? parsedGraph.nodes : []
-          const eligibleFlowWidgetNodeIds = buildFlowWidgetEligibleNodeIdSet(parsedNodes as any)
+          const eligibleFlowWidgetNodeIds = buildFlowWidgetOverlayEligibleNodeIdSet(parsedNodes as any)
           const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
             const normalized = String(id || '').trim()
             return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
@@ -281,11 +279,9 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
             Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
           ) as Record<string, boolean>
           afterApplyState.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
-          const currentPosByNodeId = afterApplyState.flowWidgetPosByNodeId || {}
-          const nextPosByNodeId = Object.fromEntries(
-            Object.entries(currentPosByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
-          ) as Record<string, { top: number; left: number }>
-          afterApplyState.setFlowWidgetPosByNodeId(nextPosByNodeId)
+          // Frontmatter flow imports should reseed overlay placement from graph anchors,
+          // not stale persisted screen coordinates from previous documents/sessions.
+          afterApplyState.setFlowWidgetPosByNodeId({})
           // Frontmatter flow imports should reseed overlay placement from graph anchors,
           // not stale persisted world coordinates from previous documents/sessions.
           afterApplyState.setFlowWidgetWorldPosByNodeId({})

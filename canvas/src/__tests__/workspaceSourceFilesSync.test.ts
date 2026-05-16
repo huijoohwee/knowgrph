@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
@@ -17,6 +19,11 @@ import {
   LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH as LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
+
+const normalizeFsPath = (value: string): string => String(value || '').replace(/\\/g, '/')
+const ABSOLUTE_DOCS_VIDEO_DEMO_PATH = normalizeFsPath(
+  path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-video-demo.md'),
+)
 
 export async function testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace() {
   const existing: SourceFile[] = [
@@ -331,7 +338,7 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
     throw new Error('expected docs-mirrored workspace paths to resolve into canonical workspace source-file paths')
   }
   if (
-    resolveWorkspaceSeedSourcePath('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md')
+    resolveWorkspaceSeedSourcePath(ABSOLUTE_DOCS_VIDEO_DEMO_PATH)
     !== 'workspace:/docs/knowgrph-video-demo.md'
   ) {
     throw new Error('expected absolute docs file paths to resolve into canonical /docs workspace source-file paths')
@@ -350,7 +357,7 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
 export async function testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForSeedAliases() {
   const docsValidationAliasPath = '/docs/workspace-seeds/knowgrph-video-demo.md'
   const canonicalSeedPath = LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH
-  const absoluteDocsPath = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md'
+  const absoluteDocsPath = ABSOLUTE_DOCS_VIDEO_DEMO_PATH
   if (resolveWorkspaceSourcePathKey(docsValidationAliasPath) !== TEST_VALIDATION_SOURCE_PATH) {
     throw new Error('expected docs validation alias path to resolve onto canonical validation source-file key')
   }

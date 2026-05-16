@@ -11,6 +11,7 @@ export type FrontmatterFlowRenderSettings = {
   balancedViewportPreset?: BalancedSpreadViewportPreset
   balancedHeroRowCount?: number
   balancedHeroRowGapScale?: number
+  balancedHeroRowStaggerScale?: number
   balancedPanelOffsetScale?: number
 }
 
@@ -63,12 +64,25 @@ export function readFrontmatterFlowRenderSettings(
     Number.isFinite(balancedHeroRowGapScaleRaw) && balancedHeroRowGapScaleRaw > 0
       ? Math.max(0.6, Math.min(1.5, balancedHeroRowGapScaleRaw))
       : undefined
+  const balancedHeroRowStaggerScaleRaw = Number(settings.balancedHeroRowStaggerScale)
+  const balancedHeroRowStaggerScale =
+    Number.isFinite(balancedHeroRowStaggerScaleRaw) && balancedHeroRowStaggerScaleRaw > 0
+      ? Math.max(0.05, Math.min(0.35, balancedHeroRowStaggerScaleRaw))
+      : undefined
   const balancedPanelOffsetScaleRaw = Number(settings.balancedPanelOffsetScale)
   const balancedPanelOffsetScale =
     Number.isFinite(balancedPanelOffsetScaleRaw) && balancedPanelOffsetScaleRaw > 0
       ? Math.max(0.8, Math.min(1.4, balancedPanelOffsetScaleRaw))
       : undefined
-  return { rankdir, edgeType, balancedViewportPreset, balancedHeroRowCount, balancedHeroRowGapScale, balancedPanelOffsetScale }
+  return {
+    rankdir,
+    edgeType,
+    balancedViewportPreset,
+    balancedHeroRowCount,
+    balancedHeroRowGapScale,
+    balancedHeroRowStaggerScale,
+    balancedPanelOffsetScale,
+  }
 }
 
 export function isFrontmatterFlowComputedEnabled(

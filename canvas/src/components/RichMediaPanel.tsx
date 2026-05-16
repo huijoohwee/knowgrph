@@ -851,7 +851,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const shouldHideSurfaceUntilReady = hideUntilReady && !ready && !isEmptyPanel && !panelIsLoading
   const rootStyle: React.CSSProperties = {
     ...PANEL_FRAME_ROOT_STYLE,
-    position: 'relative',
+    position: flowEditorInteractionMode ? 'absolute' : 'relative',
     ...(flowEditorFrontmatterDocumentMode
       ? {
           borderRadius: '12px',
@@ -866,7 +866,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   }
   const bodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
-    position: 'relative',
+    position: flowEditorInteractionMode ? 'absolute' : 'relative',
     padding: 0,
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
   }

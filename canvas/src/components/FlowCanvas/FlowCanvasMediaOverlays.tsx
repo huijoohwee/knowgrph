@@ -39,6 +39,12 @@ import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/work
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 
+function escapeSelectorAttrValue(value: string): string {
+  const text = String(value || '')
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text)
+  return text.replace(/["\\]/g, '\\$&')
+}
+
 function readMediaLayoutMeasureKey(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) ? String(Math.round(n)) : ''
@@ -286,7 +292,7 @@ export default function FlowCanvasMediaOverlays(args: {
     const surfaceId = String(flowEditorOverlaySurfaceId || '').trim()
     if (!surfaceId) return []
     const surfaceRoot = surfaceId
-      ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(surfaceId)}"]`)
+      ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeSelectorAttrValue(surfaceId)}"]`)
       : null
     const queryRoot: ParentNode = surfaceRoot || document
     return Array.from(queryRoot.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
@@ -524,8 +530,10 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [flowEditorOverlayInteractionMode, mediaLayoutPropsSignature, sceneGraphData?.nodes, sceneGraphDataRevision])
 
   React.useEffect(() => {
+    const stopPassiveLayoutWhileWorkspaceOverlayOpen =
+      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested
     if (!active) return
-    if (workspaceOverlayOpenRef.current) return
+    if (stopPassiveLayoutWhileWorkspaceOverlayOpen) return
     mediaOverlayLayoutScheduleRef.current?.()
     onInteractionFrame?.()
   }, [
@@ -540,7 +548,9 @@ export default function FlowCanvasMediaOverlays(args: {
   ])
 
   React.useEffect(() => {
-    if (!active || mediaLayoutItems.length === 0 || workspaceOverlayOpenRef.current) {
+    const stopPassiveLayoutWhileWorkspaceOverlayOpen =
+      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested
+    if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen) {
       mediaOverlayLayoutScheduleRef.current = null
       return
     }
@@ -683,6 +693,7 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayElsRef.current.set(node.id, el)
             }}
             className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}
+            style={{ position: 'absolute' }}
             title={node.title}
             url={node.url}
             srcDoc={node.srcDoc}

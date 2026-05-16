@@ -13,6 +13,7 @@ import { isPlainObject } from '@/lib/graph/value'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
+const FLOW_RICH_MEDIA_PANEL_FORM_ID = 'richMediaPanel' as const
 const FLOW_WIDGET_NODE_TYPE_IDS = new Set<string>([
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -33,6 +34,18 @@ export function isFlowWidgetEligibleNode(node: Pick<GraphNode, 'properties' | 't
   return false
 }
 
+export function isFlowWidgetOverlayEligibleNode(
+  node: Pick<GraphNode, 'properties' | 'type'> | null | undefined,
+): boolean {
+  if (!isFlowWidgetEligibleNode(node)) return false
+  const nodeTypeId = typeof node?.type === 'string' ? node.type.trim() : ''
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return false
+  const props = readNodeProperties(node)
+  const raw = props[FLOW_WIDGET_FORM_ID_KEY]
+  const formId = typeof raw === 'string' ? raw.trim() : ''
+  return formId !== FLOW_RICH_MEDIA_PANEL_FORM_ID
+}
+
 export function buildFlowWidgetEligibleNodeIdSet(nodes: Array<Pick<GraphNode, 'id' | 'properties' | 'type'>>): Set<string> {
   const out = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
@@ -40,6 +53,20 @@ export function buildFlowWidgetEligibleNodeIdSet(nodes: Array<Pick<GraphNode, 'i
     const id = String(node?.id || '').trim()
     if (!id) continue
     if (!isFlowWidgetEligibleNode(node)) continue
+    out.add(id)
+  }
+  return out
+}
+
+export function buildFlowWidgetOverlayEligibleNodeIdSet(
+  nodes: Array<Pick<GraphNode, 'id' | 'properties' | 'type'>>,
+): Set<string> {
+  const out = new Set<string>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    if (!isFlowWidgetOverlayEligibleNode(node)) continue
     out.add(id)
   }
   return out

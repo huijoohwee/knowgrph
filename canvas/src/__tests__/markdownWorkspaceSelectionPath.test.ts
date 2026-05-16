@@ -1,4 +1,11 @@
+import path from 'node:path'
+
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
+
+const normalizeFsPath = (value: string): string => String(value || '').replace(/\\/g, '/')
+const ABSOLUTE_DOCS_VIDEO_DEMO_PATH = normalizeFsPath(
+  path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-video-demo.md'),
+)
 
 export function testMarkdownWorkspaceSelectionPathCentralizesNormalizationAndCanonicalization() {
   const canonicalKgc = normalizeMarkdownWorkspaceSelectionPath('sandbox/chat-log/kgc-trace_20260419180222.md' as never)
@@ -12,7 +19,7 @@ export function testMarkdownWorkspaceSelectionPathCentralizesNormalizationAndCan
   }
 
   const absoluteDocsPath = normalizeMarkdownWorkspaceSelectionPath(
-    '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md' as never,
+    ABSOLUTE_DOCS_VIDEO_DEMO_PATH as never,
   )
   if (absoluteDocsPath !== '/docs/knowgrph-video-demo.md') {
     throw new Error(`expected absolute docs-backed selection paths to canonicalize to workspace /docs path, got ${String(absoluteDocsPath)}`)

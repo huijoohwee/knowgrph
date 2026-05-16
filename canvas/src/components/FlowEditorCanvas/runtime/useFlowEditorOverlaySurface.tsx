@@ -33,6 +33,7 @@ import {
   getCachedFlowEditorRenderGraph,
   getCachedFlowEditorWidgetPlacementContext,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
@@ -197,6 +198,15 @@ export function useFlowEditorOverlaySurface(args: {
 
   const overlayEditorNodeIds = React.useMemo(() => {
     if (!flowEditorViewActive) {
+      const isFrontmatterFlow = renderGraphPlacementContext?.isFrontmatterFlow === true
+      if (workspaceInteractionPassthrough && isFrontmatterFlow) {
+        const sorted = renderGraphPlacementContext?.frontmatterOverlayNodeIds || []
+        if (sorted.length > 0) {
+          lastStableOverlayEditorNodeIdsRef.current = sorted
+          lastStableOverlayEditorNodeIdsGraphKeyRef.current = renderGraphSemanticKey
+          return sorted
+        }
+      }
       const lastStable = lastStableOverlayEditorNodeIdsRef.current
       if (workspaceMutationBlocked && lastStable.length > 0) return lastStable
       return []
@@ -336,9 +346,12 @@ export function useFlowEditorOverlaySurface(args: {
     }
   }
   const overlayEditorNodeIdsSnapshot = overlayEditorNodeIdsSnapshotRef.current.value
+  const overlayVisibilityActive = React.useMemo(() => {
+    return flowEditorViewActive || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)
+  }, [flowEditorViewActive, overlayEditorNodeIds.length, workspaceInteractionPassthrough])
   const frontmatterOverlayCoverageActive = React.useMemo(() => {
-    return flowEditorViewActive && renderGraphPlacementContext?.isFrontmatterFlow === true
-  }, [flowEditorViewActive, renderGraphPlacementContext])
+    return overlayVisibilityActive && renderGraphPlacementContext?.isFrontmatterFlow === true
+  }, [overlayVisibilityActive, renderGraphPlacementContext])
 
   React.useEffect(() => {
     if (!geospatialWidgetPanelMode) return
@@ -445,10 +458,11 @@ export function useFlowEditorOverlaySurface(args: {
   }, [scheduleOverlayCollisionResolve])
 
   const overlayEditorElements = React.useMemo(() => {
-    if (!flowEditorViewActive) return []
+    if (!overlayVisibilityActive) return []
     const nodeById = renderGraphNodeById
     const incidentEdgesByNodeId = renderGraphIncidentEdgesByNodeId
     const graphMetaKind = renderGraphMetaKind
+    const graphMetaKey = buildGraphMetaKeyIgnoringPending(renderGraphDataOverride)
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
       if (found) return found
@@ -468,15 +482,23 @@ export function useFlowEditorOverlaySurface(args: {
         const autoRevealKey = id === String(lastDroppedWidgetNodeIdRef.current || '') ? lastDroppedWidgetToken : 0
         const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = connectedValuesByNodeId.get(id) || undefined
         const portHandleEdges = incidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES
+        const overlayInstanceKey = [
+          'qe',
+          String(flowEditorSurfaceId || '').trim() || 'surface',
+          String(renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph',
+          id,
+        ].join(':')
         return (
           <FlowEditorWidgetOverlay
-            key={`qe-${id}`}
-            visible={flowEditorViewActive || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)}
+            key={overlayInstanceKey}
+            visible={overlayVisibilityActive}
             active={canInteract}
             interactionPassthrough={workspaceInteractionPassthrough}
             flowEditorSurfaceId={flowEditorSurfaceId}
+            overlayCollectiveCount={overlayEditorNodeIds.length}
             node={node}
             graphMetaKind={graphMetaKind}
+            graphMetaKey={graphMetaKey}
             portHandleEdges={portHandleEdges}
             registryEntries={widgetRegistry}
             connectedValuesBySchemaPath={connectedValuesBySchemaPath}
@@ -556,7 +578,6 @@ export function useFlowEditorOverlaySurface(args: {
     enableHandlesForAllInputs,
     finalizePendingEdge,
     flowEditorSurfaceId,
-    flowEditorViewActive,
     flowWidgetPinnedByNodeId,
     getLiveContainmentGroupAabbForNode,
     getLiveNodeWorldPos,
@@ -589,6 +610,7 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphMetaKind,
     renderGraphNodeById,
     renderGraphDataOverride,
+    overlayVisibilityActive,
   ])
 
   const hasOverlayEditors =
@@ -627,28 +649,41 @@ export function useFlowEditorOverlaySurface(args: {
 
   const overlayOnlyActive =
     (() => {
-      const baseActive = flowEditorViewActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))
+      const baseActive = overlayVisibilityActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))
       if (!baseActive) {
         frontmatterOverlayOnlyCoverageRef.current = null
         return false
       }
-      if (Boolean(geospatialWidgetPanelMode)) return true
+      if (geospatialWidgetPanelMode) return true
+      const frontmatterOverlayCoverageReady =
+        frontmatterOverlayHideSafety.kind === 'frontmatter-flow'
+        && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
       if (workspaceMutationBlocked) {
-        // Keep base FlowCanvas interactive/visible while Workspace view mutations are active.
-        // This avoids overlay-only interaction lock and preserves edge visibility.
+        // Frontmatter document scenes already route visible nodes through widget/rich-media
+        // overlays, so keep overlay-only authority when coverage is complete even if the
+        // workspace blocks mutations.
+        if (frontmatterOverlayCoverageReady) return true
+        // Keep base FlowCanvas interactive/visible while Workspace view mutations are active
+        // for non-frontmatter scenes that still rely on the runtime canvas graph.
         frontmatterOverlayOnlyCoverageRef.current = null
         return false
       }
       if (workspaceEditorOverlayOpen) {
-        // Keep collective pan/zoom/edge interaction on base FlowCanvas whenever Workspace view is open.
-        // Overlay panels remain visible but should not become authoritative for canvas gestures.
+        // When frontmatter coverage is complete, disabling overlay-only mode here strands edges:
+        // the shared visible-node exclusion removes the corresponding FlowCanvas graph already.
+        // Keep overlays authoritative so widget/rich-media anchors and overlay-edge routing stay live.
+        if (frontmatterOverlayCoverageReady) return true
+        // Keep collective pan/zoom interaction on base FlowCanvas whenever Workspace view is open
+        // for non-frontmatter scenes that still render their graph on the canvas layer.
         frontmatterOverlayOnlyCoverageRef.current = null
         return false
       }
       if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {
-        // Keep the base FlowCanvas graph visible in document frontmatter mode; overlays augment it.
-        frontmatterOverlayOnlyCoverageRef.current = null
-        return false
+        if (!frontmatterOverlayCoverageReady) {
+          frontmatterOverlayOnlyCoverageRef.current = null
+          return false
+        }
+        return true
       }
       return true
     })()

@@ -9,6 +9,7 @@ import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemo
 import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/sourceFilesRuntimeShared'
 import { LS_KEYS } from '@/lib/config'
 import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildDocumentKey, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { lsBool } from '@/lib/persistence'
 import {
@@ -66,6 +67,54 @@ export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAlig
 
   if (handled !== true) {
     throw new Error('expected frontmatter-flow import mode to report handled even when no fallback state mutation is needed')
+  }
+}
+
+export function testFrontmatterFlowImportModeClearsWidgetScreenAndWorldPlacementCaches() {
+  useGraphStore.getState().resetAll()
+  const graph = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [{ id: 'w1', type: 'TextGeneration', label: 'w1', properties: { 'flow:widgetFormId': 'textGeneration.openai' } }],
+    edges: [],
+  } as const
+  const graphKey = buildGraphMetaKeyIgnoringPending(graph as never) || 'frontmatter-flow:demo'
+  useGraphStore.setState({
+    flowWidgetPinnedByNodeId: { w1: false },
+    flowWidgetPinnedByNodeIdByGraphMetaKey: {
+      [graphKey]: { w1: false },
+    },
+    flowWidgetPosByNodeId: { w1: { left: 2400, top: 700 } },
+    flowWidgetPosByNodeIdByGraphMetaKey: {
+      [graphKey]: { w1: { left: 2400, top: 700 } },
+    },
+    flowWidgetWorldPosByNodeId: { w1: { x: 2400, y: 700 } },
+    flowWidgetWorldPosByNodeIdByGraphMetaKey: {
+      [graphKey]: { w1: { x: 2400, y: 700 } },
+    },
+  })
+
+  applyFrontmatterFlowImportModes(graph as never)
+
+  const st = useGraphStore.getState()
+  if (Object.keys(st.flowWidgetPinnedByNodeId || {}).length !== 0) {
+    throw new Error('expected frontmatter-flow import mode to clear global widget pin cache')
+  }
+  if (Object.keys(st.flowWidgetPosByNodeId || {}).length !== 0) {
+    throw new Error('expected frontmatter-flow import mode to clear global widget screen placement cache')
+  }
+  if (Object.keys(st.flowWidgetWorldPosByNodeId || {}).length !== 0) {
+    throw new Error('expected frontmatter-flow import mode to clear global widget world placement cache')
+  }
+  if (Object.keys((st.flowWidgetPinnedByNodeIdByGraphMetaKey || {})[graphKey] || {}).length !== 0) {
+    throw new Error('expected frontmatter-flow import mode to clear keyed widget pin cache')
+  }
+  if (Object.keys((st.flowWidgetPosByNodeIdByGraphMetaKey || {})[graphKey] || {}).length !== 0) {
+    throw new Error('expected frontmatter-flow import mode to clear keyed widget screen placement cache')
+  }
+  if (Object.keys((st.flowWidgetWorldPosByNodeIdByGraphMetaKey || {})[graphKey] || {}).length !== 0) {
+    throw new Error('expected frontmatter-flow import mode to clear keyed widget world placement cache')
   }
 }
 

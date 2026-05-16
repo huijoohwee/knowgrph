@@ -9,6 +9,7 @@ import {
   EMPTY_STRING_ARRAY,
   EMPTY_WIDGET_REGISTRY,
 } from '@/components/FlowCanvas/shared'
+import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 export function useFlowCanvasStoreState(args: {
@@ -19,7 +20,9 @@ export function useFlowCanvasStoreState(args: {
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const selectedNodeId = useGraphStore(s => (active ? s.selectedNodeId : null))
   const selectedNodeIds = useGraphStore(s => (active ? s.selectedNodeIds : EMPTY_STRING_ARRAY))
-  const { width, height, dpr } = useContainerDims(containerRef)
+  const { width, height, dpr } = useContainerDims(containerRef, {
+    resolveMeasureElement: resolveCanvasViewportMeasureElement,
+  })
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
 

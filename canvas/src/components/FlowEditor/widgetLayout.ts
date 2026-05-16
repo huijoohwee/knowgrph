@@ -10,10 +10,10 @@ export function computeDefaultWidgetFloatingPos(args: {
   const h = Math.max(1, Math.floor(args.viewportH))
   const marginX = 12
   const marginTop = 96
-  const gapX = 20
-  const gapY = 16
+  const gapX = 24
+  const gapY = 24
   const cardW = WIDGET_BASE_SIZE.width
-  const cardH = Math.round(WIDGET_BASE_SIZE.height * 0.72)
+  const cardH = WIDGET_BASE_SIZE.height
   const usableWidth = Math.max(1, w - marginX * 2)
   const cols = Math.max(1, Math.floor((usableWidth + gapX) / (cardW + gapX)))
   const col = idx % cols

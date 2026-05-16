@@ -27,8 +27,8 @@ export function testToolbarNavMasksCanvasUnderlay() {
   if (!text.includes('toolbarHeaderElevated')) {
     throw new Error('Expected workspace toolbar header to use dynamic z-index toggle via toolbarHeaderElevated state')
   }
-  if (!text.includes('z-[400]') || !text.includes('z-[300]')) {
-    throw new Error('Expected workspace toolbar header to toggle between z-[400] (elevated) and z-[300] (default)')
+  if (!text.includes('z-[420]') || !text.includes('z-[400]')) {
+    throw new Error('Expected workspace toolbar header to toggle between z-[420] (elevated) and z-[400] (default) so toolbar triggers stay above the workspace editor shell')
   }
   if (!text.includes('absolute top-0 inset-x-0 z-[200]')) {
     throw new Error('Expected canvas toolbar nav to cover the top edge (top-0) to avoid visible underlay strip')

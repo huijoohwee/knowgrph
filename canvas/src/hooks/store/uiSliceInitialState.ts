@@ -14,6 +14,7 @@ import {
   FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO,
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP,
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN,
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE,
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET,
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
@@ -183,43 +184,43 @@ export const createUiInitialState = (
         return { frontmatterFlowInitialFitFillRatio: next } as Partial<GraphState>
       }),
     frontmatterFlowOverlayFitProxyScalePhone: clampFrontmatterOverlayFitProxyScale(
-      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScalePhone, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE, { min: 0.01, max: 1 }),
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScalePhone, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 }),
     ),
     setFrontmatterFlowOverlayFitProxyScalePhone: (v: number) =>
       set(state => {
         const next = clampFrontmatterOverlayFitProxyScale(v)
         if (state.frontmatterFlowOverlayFitProxyScalePhone === next) return {}
-        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScalePhone, next, { min: 0.01, max: 1 })
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScalePhone, next, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 })
         return { frontmatterFlowOverlayFitProxyScalePhone: next } as Partial<GraphState>
       }),
     frontmatterFlowOverlayFitProxyScaleTablet: clampFrontmatterOverlayFitProxyScale(
-      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleTablet, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET, { min: 0.01, max: 1 }),
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleTablet, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 }),
     ),
     setFrontmatterFlowOverlayFitProxyScaleTablet: (v: number) =>
       set(state => {
         const next = clampFrontmatterOverlayFitProxyScale(v)
         if (state.frontmatterFlowOverlayFitProxyScaleTablet === next) return {}
-        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleTablet, next, { min: 0.01, max: 1 })
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleTablet, next, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 })
         return { frontmatterFlowOverlayFitProxyScaleTablet: next } as Partial<GraphState>
       }),
     frontmatterFlowOverlayFitProxyScaleLaptop: clampFrontmatterOverlayFitProxyScale(
-      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleLaptop, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP, { min: 0.01, max: 1 }),
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleLaptop, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 }),
     ),
     setFrontmatterFlowOverlayFitProxyScaleLaptop: (v: number) =>
       set(state => {
         const next = clampFrontmatterOverlayFitProxyScale(v)
         if (state.frontmatterFlowOverlayFitProxyScaleLaptop === next) return {}
-        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleLaptop, next, { min: 0.01, max: 1 })
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleLaptop, next, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 })
         return { frontmatterFlowOverlayFitProxyScaleLaptop: next } as Partial<GraphState>
       }),
     frontmatterFlowOverlayFitProxyScaleDesktop: clampFrontmatterOverlayFitProxyScale(
-      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleDesktop, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP, { min: 0.01, max: 1 }),
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleDesktop, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 }),
     ),
     setFrontmatterFlowOverlayFitProxyScaleDesktop: (v: number) =>
       set(state => {
         const next = clampFrontmatterOverlayFitProxyScale(v)
         if (state.frontmatterFlowOverlayFitProxyScaleDesktop === next) return {}
-        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleDesktop, next, { min: 0.01, max: 1 })
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleDesktop, next, { min: FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_MIN, max: 1 })
         return { frontmatterFlowOverlayFitProxyScaleDesktop: next } as Partial<GraphState>
       }),
 

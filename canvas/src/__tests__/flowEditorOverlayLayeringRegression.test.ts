@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export function testFlowEditorOverlaysDoNotUseFloatingPanelZIndex() {
-  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditor.tsx')
+  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorInner.tsx')
   let text = ''
   try {
     text = fs.readFileSync(filePath, { encoding: 'utf8' })
@@ -18,7 +18,18 @@ export function testFlowEditorOverlaysDoNotUseFloatingPanelZIndex() {
   if (!text.includes('FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE') || !text.includes('FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED')) {
     throw new Error('Expected Flow Editor node overlays to use bounded z-index constants')
   }
-  if (!text.includes("from '@/lib/ui/zIndex'") || !text.includes('Z_INDEX_GRAPH_OVERLAY_BASE') || !text.includes('Z_INDEX_GRAPH_OVERLAY_SELECTED')) {
+  const sharedPath = path.resolve(process.cwd(), 'src/components/FlowEditor/nodeOverlayEditorShared.ts')
+  let sharedText = ''
+  try {
+    sharedText = fs.readFileSync(sharedPath, { encoding: 'utf8' })
+  } catch {
+    throw new Error(`Expected to read ${sharedPath}`)
+  }
+  if (
+    !sharedText.includes("from '@/lib/ui/zIndex'")
+    || !sharedText.includes('Z_INDEX_GRAPH_OVERLAY_BASE')
+    || !sharedText.includes('Z_INDEX_GRAPH_OVERLAY_SELECTED')
+  ) {
     throw new Error('Expected Flow Editor node overlays to reuse shared graph overlay z-index SSOT')
   }
 }
@@ -34,12 +45,15 @@ export function testFlowEditorOverlaySvgIsBoundedBelowToolbar() {
   if (text.includes('Z_INDEX_FLOATING_PANEL_DEFAULT) - 100') || text.includes('floatingPanelZIndex') && text.includes('- 100')) {
     throw new Error('Expected Flow Editor overlay-only SVG to avoid floating-panel-derived z-index')
   }
-  if (!text.includes('zIndex: 120')) {
-    throw new Error('Expected Flow Editor overlay-only SVG to use a bounded z-index')
+  if (!text.includes("from '@/lib/ui/zIndex'") || !text.includes('Z_INDEX_GRAPH_OVERLAY_EDGES')) {
+    throw new Error('Expected Flow Editor overlay-only SVG to reuse shared graph overlay z-index SSOT')
+  }
+  if (text.includes('zIndex: 120')) {
+    throw new Error('Expected Flow Editor overlay-only SVG to avoid hardcoded z-index values')
   }
 }
 
-export function testFlowEditorOverlayModeStillRendersGroups() {
+export function testFlowEditorOverlayModeSuppressesCanvasGroupsWhenOverlayOwnsTheScene() {
   const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
   let text = ''
   try {
@@ -47,11 +61,8 @@ export function testFlowEditorOverlayModeStillRendersGroups() {
   } catch {
     throw new Error(`Expected to read ${filePath}`)
   }
-  if (text.includes('renderGroups={props.overlayOnlyActive ? false : true}')) {
-    throw new Error('Expected Flow Editor group rendering to stay independent from overlay-only node rendering')
-  }
-  if (!text.includes('renderGroups={!props.geospatialWidgetPanelMode}')) {
-    throw new Error('Expected Flow Editor groups to stay enabled outside geospatial widget-panel mode')
+  if (!text.includes('renderGroups={!props.overlayOnlyActive && !props.geospatialWidgetPanelMode}')) {
+    throw new Error('Expected Flow Editor overlay-only mode to suppress FlowCanvas group shells so clusters/subgraphs cannot seep under overlay-owned scenes')
   }
 }
 
@@ -91,8 +102,8 @@ export function testWorkspacePanesOutrankFlowEditorOverlays() {
   } catch {
     throw new Error(`Expected to read ${filePath}`)
   }
-  if (!text.includes('Workspace Toolbar Header') || !text.includes('z-[300]')) {
-    throw new Error('Expected workspace header and panes to be elevated above canvas overlays in split views')
+  if (!text.includes('Workspace Toolbar Header') || !text.includes('z-[400]')) {
+    throw new Error('Expected workspace header baseline to stay above the workspace editor shell and canvas overlays in split views')
   }
 }
 

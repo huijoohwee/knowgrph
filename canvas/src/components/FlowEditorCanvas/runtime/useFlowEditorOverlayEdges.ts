@@ -68,6 +68,7 @@ type FrozenOverlayEdgePathSnapshot = {
 
 const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()
 const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'
+const FLOW_EDITOR_OVERLAY_EDGE_OPACITY = '0.82'
 
 export function useFlowEditorOverlayEdges(args: {
   active: boolean
@@ -355,7 +356,10 @@ export function useFlowEditorOverlayEdges(args: {
     }
     overlayEdgeReadinessRetryRef.current = null
     overlayEdgeLayoutSigRef.current = ''
-    const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? restoreFrozenOverlayEdgePaths(node) : 0
+    if (workspaceOverlayOpenRef.current) {
+      removeAllPaths(overlayEdgePathByIdRef)
+    }
+    const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? 0 : restoreFrozenOverlayEdgePaths(node)
     pushOverlayEdgeTrace('svg-attached', {
       overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
       svgWidthAttr: node.getAttribute('width') || '',
@@ -444,12 +448,14 @@ export function useFlowEditorOverlayEdges(args: {
             liveGraphEdgeCount,
           })
         } else {
-        const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
-        pushOverlayEdgeTrace('schedule-skip-workspace-open', {
-          overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
-          restoredFrozenPathCount,
-        })
-        return
+          removeAllPaths(overlayEdgePathByIdRef)
+          overlayEdgeLayoutSigRef.current = ''
+          overlayEdgeAnchorCacheRef.current.clear()
+          pushOverlayEdgeTrace('schedule-skip-workspace-open', {
+            overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
+            restoredFrozenPathCount: 0,
+          })
+          return
         }
       }
       if (!graph) {
@@ -514,12 +520,9 @@ export function useFlowEditorOverlayEdges(args: {
         const escapeForAttr = (value: string): string => {
           return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
         }
-        const surfaceRoot = surfaceId
-          ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeForAttr(surfaceId)}"]`)
-          : null
         const root = args.rootRef.current
-        if (!surfaceRoot && !root) return entries
-        const queryRoot: ParentNode = surfaceRoot || root
+        if (typeof document === 'undefined' && !root) return entries
+        const queryRoot: ParentNode = typeof document !== 'undefined' ? document : root
         // Overlay widgets are portal-mounted, so scope by surface id instead of DOM ancestry.
         const els = Array.from(queryRoot.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
         for (let i = 0; i < els.length; i += 1) {
@@ -565,7 +568,17 @@ export function useFlowEditorOverlayEdges(args: {
           const prevRetry = overlayEdgePartialNodeSetRetryRef.current
           const nextCount = prevRetry && prevRetry.key === retryKey ? prevRetry.count + 1 : 1
           overlayEdgePartialNodeSetRetryRef.current = { key: retryKey, count: nextCount }
-          if (nextCount <= 12) {
+          if (workspaceOverlayOpen) {
+            removeAllPaths(overlayEdgePathByIdRef)
+            overlayEdgeLayoutSigRef.current = ''
+            overlayEdgeAnchorCacheRef.current.clear()
+            if (overlayEdgeRafRef.current == null) {
+              overlayEdgeRafRef.current = requestAnimationFrame(() => {
+                overlayEdgeRafRef.current = null
+                scheduleOverlayEdgeUpdateRef.current()
+              })
+            }
+          } else if (nextCount <= 12) {
             for (let i = 0; i < stableIds.length; i += 1) {
               const id = stableIds[i]
               if (id) set.add(id)
@@ -585,6 +598,7 @@ export function useFlowEditorOverlayEdges(args: {
           lastStableOverlayEdgeNodeIdsRef.current = Array.from(set)
           return set
         }
+        if (workspaceOverlayOpen) return set
         for (let i = 0; i < lastStableOverlayEdgeNodeIdsRef.current.length; i += 1) {
           const id = String(lastStableOverlayEdgeNodeIdsRef.current[i] || '').trim()
           if (id) set.add(id)
@@ -1005,6 +1019,7 @@ export function useFlowEditorOverlayEdges(args: {
           pathEl.setAttribute('fill', 'none')
           pathEl.setAttribute('stroke', stroke)
           pathEl.setAttribute('stroke-width', strokeWidth)
+          pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)
           pathEl.setAttribute('stroke-linejoin', 'round')
           pathEl.setAttribute('stroke-linecap', 'round')
           pathEl.setAttribute('stroke-dasharray', edgeAnimated ? '7 5' : '')
@@ -1015,6 +1030,7 @@ export function useFlowEditorOverlayEdges(args: {
         if (pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) !== edgeId) pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)
         if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
         if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
+        if (pathEl.getAttribute('opacity') !== FLOW_EDITOR_OVERLAY_EDGE_OPACITY) pathEl.setAttribute('opacity', FLOW_EDITOR_OVERLAY_EDGE_OPACITY)
         const edgeDash = edgeAnimated ? '7 5' : ''
         if (pathEl.getAttribute('stroke-dasharray') !== edgeDash) pathEl.setAttribute('stroke-dasharray', edgeDash)
         pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''

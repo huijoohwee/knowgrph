@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { resolveWorkspacePreviewWidthFromPointerDrag } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
+import { resolveWorkspaceCanvasMinVisibleStripPx, resolveWorkspacePaneMaxWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 function readMarkdownDesignOverlaySourceText(): string {
   const base = resolve(process.cwd(), 'src')
@@ -117,6 +118,9 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!viewportText.includes('data-kg-canvas-viewport-root="1"')) {
     throw new Error('expected Canvas viewport root to expose an explicit canonical viewport marker for downstream measurement')
   }
+  if (!viewportText.includes("${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'}")) {
+    throw new Error('expected Canvas viewport minimap overlay to elevate above the workspace editor overlay shell so live Reset/Zoom controls remain reachable while Workspace is open')
+  }
   if (text.includes("layout={effectiveWorkspaceViewMode === 'editor' ? 'pane' : 'full'}")) {
     throw new Error('expected Canvas page to avoid pane-layout shrinkage when workspace editor is enabled')
   }
@@ -214,6 +218,47 @@ export function testWorkspaceEditorOverlayResizeHandleDragDirection() {
   })
   if (minClamped !== 320) {
     throw new Error(`expected overlay width to clamp at 320, got ${minClamped}`)
+  }
+}
+
+export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const hadWindow = typeof window !== 'undefined'
+  const originalInnerWidth = hadWindow ? window.innerWidth : undefined
+  try {
+    if (!hadWindow) {
+      Object.defineProperty(globalThis, 'window', {
+        value: { innerWidth: 1510 },
+        configurable: true,
+      })
+    } else {
+      ;(window as unknown as { innerWidth: number }).innerWidth = 1510
+    }
+    const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: 320, rightGutterPx: 48 })
+    const minCanvasStrip = resolveWorkspaceCanvasMinVisibleStripPx()
+    const clamped = resolveWorkspacePreviewWidthFromPointerDrag({
+      startWidthPx: 982,
+      startClientX: 100,
+      currentClientX: 1200,
+    })
+    if (clamped !== maxWidth) {
+      throw new Error(`expected resize drag to clamp at workspace max width ${maxWidth}, got ${clamped}`)
+    }
+    const remainingCanvasStrip = window.innerWidth - clamped
+    if (remainingCanvasStrip < minCanvasStrip) {
+      throw new Error(`expected workspace max width to preserve at least ${minCanvasStrip}px of canvas, got ${remainingCanvasStrip}px`)
+    }
+    if (remainingCanvasStrip < 420) {
+      throw new Error(`expected workspace max width to preserve a readable canvas strip, got ${remainingCanvasStrip}px`)
+    }
+  } finally {
+    if (hadWindow) {
+      ;(window as unknown as { innerWidth: number }).innerWidth = originalInnerWidth as number
+    } else if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+    } else {
+      delete (globalThis as { window?: unknown }).window
+    }
   }
 }
 

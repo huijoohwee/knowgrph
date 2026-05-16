@@ -1,0 +1,31 @@
+Script started on Sat May 16 22:08:16 2026
+Command: r"/uscript = r"''""t import React from "'react'"
+esetAll()
+  store.setDocumentStructureBaselineLock(false)
+  store.setCanvasRenderMode('"'"'2d'"'"')
+  store.setCanvas2dRenderer('"'"'d3'"'"')
+  store.setDocumentSemanticMode('"'"'keyword'"'"')
+  store.setFrontmatterModeEnabled(false)
+  store.setWorkspaceViewMode('"'"'editor'"'"')
+  store.setWorkspaceCanvasPaneOpen(true)
+
+  const doc = dom.window.document
+  const container = doc.createElement('"'"'div'"'"')
+  container.setAttribute('"'"'data-kg-canvas-viewport-root'"'"', '"'"'1'"'"')
+  container.id = '"'"'runtime-root-source-files-initial-workspace-open-1920x1080'"'"'
+  doc.body.appendChild(container)
+
+  await act(async () => {
+    root = createRoot(container)
+    root.render(React.createElement(FlowEditorCanvas, { active: true }))
+    await new Promise(r => setTimeout(r, 0))
+  })
+
+  dom.window.innerWidth = targetViewport.width
+  dom.window.innerHeight = targetViewport.height
+  await act(async () => {
+    dom.window.dispatchEvent(new dom.window.Event('"'"'resize'"'"'))
+    await new Prscript: r"/uscript: No such file or directory
+
+Command exit status: 1
+Script done on Sat May 16 22:08:16 2026

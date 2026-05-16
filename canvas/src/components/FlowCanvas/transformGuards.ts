@@ -52,3 +52,54 @@ export const isFlowTransformShowingGraph = (
   return true
 }
 
+export const isFlowTransformKeepingWorldRectCollectiveInViewport = (
+  t: { k: number; x: number; y: number },
+  args: {
+    rects: Array<{ left?: unknown; top?: unknown; width?: unknown; height?: unknown }>
+    viewportW: number
+    viewportH: number
+    marginPx?: number
+  },
+): boolean => {
+  const rects = args.rects
+  if (!rects || rects.length === 0) return true
+  let minLeft = Infinity
+  let minTop = Infinity
+  let maxRight = -Infinity
+  let maxBottom = -Infinity
+  const k = typeof t.k === 'number' && Number.isFinite(t.k) ? t.k : 1
+  const tx = typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0
+  const ty = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
+
+  for (let i = 0; i < rects.length; i += 1) {
+    const rect = rects[i] as { left?: unknown; top?: unknown; width?: unknown; height?: unknown }
+    const left = rect?.left
+    const top = rect?.top
+    const width = rect?.width
+    const height = rect?.height
+    if (typeof left !== 'number' || typeof top !== 'number') continue
+    if (typeof width !== 'number' || typeof height !== 'number') continue
+    if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) continue
+    const screenLeft = left * k + tx
+    const screenTop = top * k + ty
+    const screenRight = (left + Math.max(1, width)) * k + tx
+    const screenBottom = (top + Math.max(1, height)) * k + ty
+    minLeft = Math.min(minLeft, Math.min(screenLeft, screenRight))
+    minTop = Math.min(minTop, Math.min(screenTop, screenBottom))
+    maxRight = Math.max(maxRight, Math.max(screenLeft, screenRight))
+    maxBottom = Math.max(maxBottom, Math.max(screenTop, screenBottom))
+  }
+
+  if (!Number.isFinite(minLeft) || !Number.isFinite(minTop) || !Number.isFinite(maxRight) || !Number.isFinite(maxBottom)) return false
+
+  const margin = typeof args.marginPx === 'number' && Number.isFinite(args.marginPx)
+    ? Math.max(0, args.marginPx)
+    : 24
+  const vw = Math.max(1, args.viewportW)
+  const vh = Math.max(1, args.viewportH)
+  if (minLeft < -margin) return false
+  if (minTop < -margin) return false
+  if (maxRight > vw + margin) return false
+  if (maxBottom > vh + margin) return false
+  return true
+}

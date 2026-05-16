@@ -296,11 +296,19 @@ export function computeBalancedSpreadSpacingPx(args: {
   baseGapPx: number
   zoomK: number
   count: number
+  preset?: BalancedSpreadViewportPreset
 }): number {
   const baseGap = clamp(Math.floor(Number(args.baseGapPx) || 0), 8, 96)
   const zoomK = clamp(Number(args.zoomK) || 1, 0.5, 2.5)
   const count = Math.max(1, Math.floor(Number(args.count) || 1))
-  const densityFactor = 1 + Math.min(0.35, count / 18)
+  const preset = args.preset || 'widgetCanvas'
+  const presetSpacingBoost =
+    preset === 'widgetFrontmatter'
+      ? 1.18
+      : preset === 'richMedia'
+        ? 1.04
+        : 1
+  const densityFactor = (1 + Math.min(0.35, count / 18)) * presetSpacingBoost
   const zoomOutFactor = clamp(1 / Math.sqrt(zoomK), 0.9, 1.2)
   return Math.max(baseGap, Math.round(baseGap * densityFactor * zoomOutFactor))
 }
@@ -527,6 +535,7 @@ export function clampBalancedCollectiveScaleToViewport(args: {
     baseGapPx,
     zoomK: 1,
     count,
+    preset: args.viewportPreset || 'widgetCanvas',
   })
   const fitsViewportAtScale = (candidateScale: number): boolean => {
     const scale = clampToBounds(candidateScale)

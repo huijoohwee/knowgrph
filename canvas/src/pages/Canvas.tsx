@@ -154,7 +154,7 @@ export default function CanvasPage() {
             {workspaceEditorOverlayOpen ? (
               <header
                 ref={toolbarHeaderRef}
-                className={`absolute top-0 inset-x-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[400]' : 'z-[300]'}`}
+                className={`absolute top-0 inset-x-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[420]' : 'z-[400]'}`}
                 aria-label="Workspace Toolbar Header"
                 onPointerDown={() => setToolbarHeaderElevated(true)}
               >

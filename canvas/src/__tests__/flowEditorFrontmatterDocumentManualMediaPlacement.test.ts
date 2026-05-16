@@ -10,6 +10,12 @@ export function testFlowEditorFrontmatterDocumentUsesManualMediaPlacement() {
   if (!overlaysText.includes('manualPlacement: flowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlays to enable manual placement in Flow Editor frontmatter document mode')
   }
+  if (!overlaysText.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested')) {
+    throw new Error('expected FlowCanvas media overlays to keep passive layout active for frontmatter document mode while workspace mutation blocking is open')
+  }
+  if (!overlaysText.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
+    throw new Error('expected FlowCanvas media overlay loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
+  }
   if (!loopText.includes('manualPlacement?: boolean')) {
     throw new Error('expected shared media overlay layout loop to expose a manual placement contract')
   }

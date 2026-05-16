@@ -1,4 +1,5 @@
 import {
+  type BalancedSpreadViewportPreset,
   clampBalancedCollectiveScaleToViewport,
   computeBalancedSpreadLayout,
   computeBalancedSpreadSpacingPx,
@@ -70,7 +71,9 @@ export function computeCollectiveFollowPinnedScale(args: {
   quantizeStep?: number
   hardMinScale?: number
   hardMaxScale?: number
+  viewportPreset?: BalancedSpreadViewportPreset
 }): number {
+  const viewportPreset = args.viewportPreset || 'widgetCanvas'
   const baseScale = computeWidgetScale(args.zoomK, args.extent, { mode: 'pinnedInCanvas' })
   const requestedHardMin =
     Number.isFinite(args.hardMinScale) ? Math.max(0.001, Number(args.hardMinScale)) : COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min
@@ -86,6 +89,7 @@ export function computeCollectiveFollowPinnedScale(args: {
     quantizeStep: Number.isFinite(args.quantizeStep) ? Math.max(0.001, Number(args.quantizeStep)) : 0.02,
     hardMinScale: Math.min(requestedHardMin, baseScale),
     hardMaxScale: Math.max(requestedHardMax, baseScale),
+    viewportPreset,
   })
   if (Math.max(1, Math.floor(Number(args.count) || 1)) <= 1) return nextScale
   const viewportW = Math.max(1, Number(args.viewportW) || 1)
@@ -93,7 +97,7 @@ export function computeCollectiveFollowPinnedScale(args: {
   const margins = computeBalancedSpreadViewportMargins({
     viewportW,
     viewportH,
-    preset: 'widgetCanvas',
+    preset: viewportPreset,
   })
   const usableW = Math.max(1, viewportW - margins.left - margins.right)
   const usableH = Math.max(1, viewportH - margins.top - margins.bottom)
@@ -108,6 +112,7 @@ export function computeCollectiveFollowPinnedScale(args: {
       baseGapPx,
       zoomK: Number.isFinite(args.zoomK) ? Math.max(0.1, Number(args.zoomK)) : 1,
       count,
+      preset: viewportPreset,
     })
     const layout = computeBalancedSpreadLayout({
       count,

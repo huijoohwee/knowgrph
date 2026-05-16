@@ -7,6 +7,7 @@ import { FORCE_SELECT_MAX_TICKS, FORCE_SELECT_TICK_MS, OVERLAY_NODE_OVERRIDE_LOC
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 
 export function useFlowEditorSelectionBookkeeping(args: {
   active: boolean
@@ -97,7 +98,10 @@ export function useFlowEditorSelectionBookkeeping(args: {
   React.useEffect(() => {
     if (!editorRuntimeActive || !overlayOnlyModeEnabled || !draftGraphData || flowEditorFrontmatterGraphAvailable) return
     if (isFrontmatterFlowGraph(draftGraphData as GraphData)) return
-    const ids = Array.from(draftGraphLookup?.eligibleNodeIds || [])
+    const ids = Array.from(draftGraphLookup?.nodeById.entries() || [])
+      .filter(([, node]) => isFlowWidgetOverlayEligibleNode(node))
+      .map(([id]) => String(id || '').trim())
+      .filter(Boolean)
     if (ids.length === 0 || ids.length > 120) return
     setOpenWidgetNodeIds(ids)
   }, [
@@ -112,10 +116,15 @@ export function useFlowEditorSelectionBookkeeping(args: {
   React.useEffect(() => {
     if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return
     const idSet = new Set<string>(draftGraphLookup?.nodeById.keys() || [])
-    const eligible = draftGraphLookup?.eligibleNodeIds || new Set<string>()
+    const overlayEligible = new Set<string>(
+      Array.from(draftGraphLookup?.nodeById.entries() || [])
+        .filter(([, node]) => isFlowWidgetOverlayEligibleNode(node))
+        .map(([id]) => String(id || '').trim())
+        .filter(Boolean),
+    )
     updateOpenWidgetNodeIds(prev => prev.filter(id => {
       const s = String(id || '')
-      return idSet.has(s) && (eligible.size === 0 || eligible.has(s))
+      return idSet.has(s) && (overlayEligible.size === 0 || overlayEligible.has(s))
     }))
   }, [
     draftGraphData,
@@ -242,6 +251,7 @@ export function useFlowEditorSelectionBookkeeping(args: {
     pendingOpenWidgetNodeIdRef.current = null
     const openId = String(found.id || resolvedPending || pending).trim()
     if (!openId) return
+    if (!isFlowWidgetOverlayEligibleNode(found)) return
     updateOpenWidgetNodeIds(prev => (prev.includes(openId) ? prev : [...prev, openId]))
   }, [pendingOpenWidgetNodeIdRef, renderGraphDataOverride, updateOpenWidgetNodeIds])
 

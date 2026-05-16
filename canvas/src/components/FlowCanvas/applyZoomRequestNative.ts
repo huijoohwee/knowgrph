@@ -21,6 +21,8 @@ import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanva
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -117,10 +119,12 @@ export function resolveFlowEditorVisibleViewport(args: {
   if (!(surfaceRoot instanceof HTMLElement)) return fallback
   const rect = surfaceRoot.getBoundingClientRect()
   if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.right) || !Number.isFinite(rect.bottom)) return fallback
-  const top = Math.max(0, Math.min(args.viewportH, rect.top))
-  const bottom = Math.max(top + 1, Math.min(args.viewportH, rect.bottom))
-  let left = Math.max(0, Math.min(args.viewportW, rect.left))
-  const right = Math.max(left + 1, Math.min(args.viewportW, rect.right))
+  const surfaceOffsetLeft = Number(rect.left)
+  const surfaceOffsetTop = Number(rect.top)
+  const top = 0
+  const left = 0
+  const right = Math.max(left + 1, Math.min(args.viewportW, Math.floor(rect.width)))
+  const bottom = Math.max(top + 1, Math.min(args.viewportH, Math.floor(rect.height)))
   const paneEls = Array.from(document.querySelectorAll(WORKSPACE_LEFT_PANE_SELECTOR))
     .filter((el): el is HTMLElement => el instanceof HTMLElement)
   let maxPaneRight = Number.NEGATIVE_INFINITY
@@ -128,12 +132,17 @@ export function resolveFlowEditorVisibleViewport(args: {
   for (let i = 0; i < paneEls.length; i += 1) {
     const paneRect = paneEls[i]!.getBoundingClientRect()
     if (!Number.isFinite(paneRect.left) || !Number.isFinite(paneRect.right) || !Number.isFinite(paneRect.top) || !Number.isFinite(paneRect.bottom)) continue
-    if (paneRect.right <= left || paneRect.left >= right) continue
-    if (paneRect.bottom <= top || paneRect.top >= bottom) continue
-    maxPaneRight = Math.max(maxPaneRight, Math.min(args.viewportW, Math.max(0, paneRect.right)))
-    maxPaneWidth = Math.max(maxPaneWidth, Math.max(0, Math.min(args.viewportW, paneRect.right) - Math.max(0, paneRect.left)))
+    const paneLeft = Math.max(0, Math.min(args.viewportW, paneRect.left - surfaceOffsetLeft))
+    const paneRight = Math.max(0, Math.min(args.viewportW, paneRect.right - surfaceOffsetLeft))
+    const paneTop = Math.max(0, Math.min(args.viewportH, paneRect.top - surfaceOffsetTop))
+    const paneBottom = Math.max(0, Math.min(args.viewportH, paneRect.bottom - surfaceOffsetTop))
+    if (paneRight <= left || paneLeft >= right) continue
+    if (paneBottom <= top || paneTop >= bottom) continue
+    maxPaneRight = Math.max(maxPaneRight, paneRight)
+    maxPaneWidth = Math.max(maxPaneWidth, Math.max(0, paneRight - paneLeft))
   }
-  const visibleViewportWidth = Math.max(1, right - left)
+  let visibleLeft = left
+  const visibleViewportWidth = Math.max(1, right - visibleLeft)
   const paneCoverageRatio = maxPaneWidth / visibleViewportWidth
   const hasUsableRightCanvasStrip = right - maxPaneRight >= 160
   const shouldSubtractPaneOverlap =
@@ -141,25 +150,26 @@ export function resolveFlowEditorVisibleViewport(args: {
     && paneCoverageRatio < 0.86
     && hasUsableRightCanvasStrip
   if (shouldSubtractPaneOverlap) {
-    left = Math.max(left, maxPaneRight)
+    visibleLeft = Math.max(visibleLeft, maxPaneRight)
   }
   return {
-    left,
+    left: visibleLeft,
     top,
     right,
     bottom,
-    width: Math.max(1, right - left),
+    width: Math.max(1, right - visibleLeft),
     height: Math.max(1, bottom - top),
-    centerX: (left + right) / 2,
+    centerX: (visibleLeft + right) / 2,
     centerY: (top + bottom) / 2,
   }
 }
 
-function recenterVisibleFlowEditorOverlayCentroid(args: {
+export function recenterVisibleFlowEditorOverlayCentroid(args: {
   runtime: FlowNativeRuntime
   viewportW: number
   viewportH: number
   flowEditorSurfaceId?: string
+  graphData?: GraphData | null
   onFrame?: () => void
 }) {
   if (typeof document === 'undefined') return
@@ -167,8 +177,26 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
   const recenterOverlayWidgetPositions = (deltaX: number, deltaY: number) => {
     if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
-    const st = useGraphStore.getState()
-    const base = st.flowWidgetWorldPosByNodeId || {}
+    const st = useGraphStore.getState() as {
+      graphData?: GraphData | null
+      flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+      flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
+      flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
+      flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
+      setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void
+      setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => void
+    }
+    const graphKey = buildGraphMetaKeyIgnoringPending(args.graphData || st.graphData || null)
+    const storeGraphKey = buildGraphMetaKeyIgnoringPending(st.graphData || null)
+    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(st as never)
+    const shouldWriteGraphScopedInMemory =
+      workspaceEditorOverlayOpen
+      || (!!graphKey && graphKey !== storeGraphKey)
+    const base = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: graphKey,
+      keyedByGraphMetaKey: st.flowWidgetWorldPosByNodeIdByGraphMetaKey,
+      globalByNodeId: st.flowWidgetWorldPosByNodeId,
+    })
     const ids = new Set<string>()
     const selectors = [FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, RICH_MEDIA_OVERLAY_ROOT_SELECTOR]
     for (let i = 0; i < selectors.length; i += 1) {
@@ -187,7 +215,13 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
     let changedWorld = false
     let changedScreen = false
     const nextWorld = { ...base }
-    const nextScreen = { ...(st.flowWidgetPosByNodeId || {}) }
+    const nextScreen = {
+      ...resolveScopedFlowWidgetNodeMap({
+        graphMetaKey: graphKey,
+        keyedByGraphMetaKey: st.flowWidgetPosByNodeIdByGraphMetaKey,
+        globalByNodeId: st.flowWidgetPosByNodeId,
+      }),
+    }
     ids.forEach((nodeId) => {
       const curWorld = nextWorld[nodeId]
       if (curWorld && Number.isFinite(curWorld.x) && Number.isFinite(curWorld.y)) {
@@ -200,6 +234,37 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
         changedScreen = true
       }
     })
+    if (shouldWriteGraphScopedInMemory) {
+      useGraphStore.setState((prev) => {
+        const prevState = prev as unknown as {
+          flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+          flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
+          flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
+          flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
+        }
+        const nextState: Record<string, unknown> = {}
+        if (changedWorld) {
+          if (graphKey) {
+            const worldByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
+            nextState.flowWidgetWorldPosByNodeId = nextWorld
+            nextState.flowWidgetWorldPosByNodeIdByGraphMetaKey = { ...worldByKey, [graphKey]: nextWorld }
+          } else {
+            nextState.flowWidgetWorldPosByNodeId = nextWorld
+          }
+        }
+        if (changedScreen) {
+          if (graphKey) {
+            const posByKey = prevState.flowWidgetPosByNodeIdByGraphMetaKey || {}
+            nextState.flowWidgetPosByNodeId = nextScreen
+            nextState.flowWidgetPosByNodeIdByGraphMetaKey = { ...posByKey, [graphKey]: nextScreen }
+          } else {
+            nextState.flowWidgetPosByNodeId = nextScreen
+          }
+        }
+        return nextState
+      })
+      return
+    }
     if (changedWorld) st.setFlowWidgetWorldPosByNodeId(nextWorld)
     if (changedScreen) st.setFlowWidgetPosByNodeId(nextScreen)
   }
@@ -230,8 +295,20 @@ function recenterVisibleFlowEditorOverlayCentroid(args: {
     }), { x: 0, y: 0 })
     centroid.x /= entries.length
     centroid.y /= entries.length
-    const deltaX = visibleViewport.centerX - centroid.x
-    const deltaY = visibleViewport.centerY - centroid.y
+    const desiredDeltaX = visibleViewport.centerX - centroid.x
+    const desiredDeltaY = visibleViewport.centerY - centroid.y
+    const minDeltaX = visibleViewport.left - bounds.minX
+    const maxDeltaX = visibleViewport.right - bounds.maxX
+    const minDeltaY = visibleViewport.top - bounds.minY
+    const maxDeltaY = visibleViewport.bottom - bounds.maxY
+    const deltaX =
+      minDeltaX <= maxDeltaX
+        ? Math.max(minDeltaX, Math.min(maxDeltaX, desiredDeltaX))
+        : desiredDeltaX
+    const deltaY =
+      minDeltaY <= maxDeltaY
+        ? Math.max(minDeltaY, Math.min(maxDeltaY, desiredDeltaY))
+        : desiredDeltaY
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
     const current = args.runtime.transform || d3.zoomIdentity
     setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))
@@ -310,13 +387,42 @@ export const applyZoomRequestNative = (args: {
       args.zoomRequest.type === 'reset'
       || args.zoomRequest.type === 'fit'
     )
+  const isFlowEditorCollectiveOutRequest =
+    state.canvasRenderMode === '2d'
+    && state.canvas2dRenderer === 'flowEditor'
+    && args.zoomRequest.type === 'out'
   const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest
-  const isFlowEditorGraphFitRequest =
-    isFlowEditorFitLikeRequest
+  const hasFlowEditorGraphFitData =
+    state.canvasRenderMode === '2d'
+    && state.canvas2dRenderer === 'flowEditor'
     && !!args.graphData
     && Array.isArray(args.graphData.nodes)
     && args.graphData.nodes.length > 0
-  const flowEditorOverlayFitResolved = isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen
+  const isFlowEditorGraphFitRequest =
+    isFlowEditorFitLikeRequest
+    && hasFlowEditorGraphFitData
+  const isFlowEditorCollectiveGraphFitReferenceRequest =
+    (isFlowEditorFitLikeRequest || isFlowEditorCollectiveOutRequest)
+    && hasFlowEditorGraphFitData
+  const fitGraphMeta = ((args.graphData?.metadata || {}) as Record<string, unknown>)
+  const fitGraphContext = String(args.graphData?.context || '').trim()
+  const fitHasCollectiveOverlayFit =
+    (Array.isArray(state.openWidgetNodeIds) && state.openWidgetNodeIds.length > 0)
+    || String(fitGraphMeta.kind || '').trim() === 'frontmatter-flow'
+    || fitGraphContext === 'frontmatter-flow'
+  const shouldRecenterFlowEditorCollectiveAfterFit =
+    isFlowEditorFitLikeRequest
+    && (
+      !workspaceEditorOverlayOpen
+      || fitHasCollectiveOverlayFit
+    )
+  const canUseFlowEditorOverlayFitResolved =
+    (isFlowEditorFitLikeRequest || isFlowEditorCollectiveOutRequest)
+    && (
+      !workspaceEditorOverlayOpen
+      || fitHasCollectiveOverlayFit
+    )
+  const flowEditorOverlayFitResolved = canUseFlowEditorOverlayFitResolved
     ? (() => {
         const bounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
         if (!bounds) return null
@@ -334,14 +440,17 @@ export const applyZoomRequestNative = (args: {
         const targetY = visibleViewport.centerY - (centerY - base.y) * appliedScale
         return {
           nextTransform: d3.zoomIdentity.translate(targetX, targetY).scale(targetK),
-          durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
+          durationMs:
+            args.zoomRequest.type === 'reset'
+              ? 250
+              : args.zoomRequest.type === 'out'
+                ? DEFAULT_TOOLBAR_ZOOM_CONFIG.durationMs
+                : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
           nextMinScale: targetK,
         }
       })()
     : null
-  const resolved = flowEditorOverlayFitResolved
-    ? flowEditorOverlayFitResolved
-    : isFlowEditorGraphFitRequest
+  const flowEditorCollectiveGraphFitReference = isFlowEditorCollectiveGraphFitReferenceRequest
     ? (() => {
         const intent =
           args.zoomRequest.type === 'fit' && args.zoomRequest.intent === 'fitToScreen'
@@ -357,12 +466,14 @@ export const applyZoomRequestNative = (args: {
           enableDocumentStructureBounds: intent !== 'fitToScreen',
           frontmatterFlowInitialFitFillRatio: state.frontmatterFlowInitialFitFillRatio,
         })
-        const useWorkspaceOverlayGraphFallbackFit = workspaceEditorOverlayOpen
+        const useWorkspaceOverlayGraphFallbackFit =
+          workspaceEditorOverlayOpen
+          && !fitHasCollectiveOverlayFit
         const fit = useWorkspaceOverlayGraphFallbackFit
           ? fitAllTransform(
               args.graphData?.nodes || [],
-              Math.max(1, fitReferenceFrame.width),
-              Math.max(1, fitReferenceFrame.height),
+              Math.max(1, visibleViewport.width),
+              Math.max(1, visibleViewport.height),
               { ...fitOpts, graphData: args.graphData || undefined },
             )
           : fitFlowEditorPinnedWidgets({
@@ -385,34 +496,76 @@ export const applyZoomRequestNative = (args: {
             })
         return {
           nextTransform: fit,
-          durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
+          durationMs:
+            args.zoomRequest.type === 'reset'
+              ? 250
+              : args.zoomRequest.type === 'out'
+                ? DEFAULT_TOOLBAR_ZOOM_CONFIG.durationMs
+                : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
           nextMinScale: fit.k,
         }
       })()
-    : resolveZoomRequest2d({
-        zoomRequest: args.zoomRequest,
-        graphData: args.graphData,
-        schema,
-        documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
-        graphDataRevision: state.graphDataRevision || 0,
-        viewportW,
-        viewportH,
-        viewportFitReferenceWidth: state.viewportFitReferenceWidth,
-        viewportFitReferenceHeight: state.viewportFitReferenceHeight,
-        viewPinned: state.viewPinned === true,
-        durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },
-        toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
-        selectedNodeId: args.selectedNodeId,
-        selectedEdgeId: args.selectedEdgeId,
-        selectedGroupId: args.selectedGroupId,
-        selectedNodeIds: args.selectedNodeIds,
-        selectedEdgeIds: args.selectedEdgeIds,
-        selectedGroupIds: args.selectedGroupIds,
-        currentTransform: t0,
-        schemaExtent: { minK: flowMinK, maxK: flowMaxK },
-        currentExtent: { minK: autoMinK ?? flowMinK, maxK: flowMaxK },
-        cacheKeyBase: '2d',
-      })
+    : null
+  const defaultResolved = resolveZoomRequest2d({
+    zoomRequest: args.zoomRequest,
+    graphData: args.graphData,
+    schema,
+    documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
+    graphDataRevision: state.graphDataRevision || 0,
+    viewportW,
+    viewportH,
+    viewportFitReferenceWidth: state.viewportFitReferenceWidth,
+    viewportFitReferenceHeight: state.viewportFitReferenceHeight,
+    viewPinned: state.viewPinned === true,
+    durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },
+    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
+    selectedNodeId: args.selectedNodeId,
+    selectedEdgeId: args.selectedEdgeId,
+    selectedGroupId: args.selectedGroupId,
+    selectedNodeIds: args.selectedNodeIds,
+    selectedEdgeIds: args.selectedEdgeIds,
+    selectedGroupIds: args.selectedGroupIds,
+    currentTransform: t0,
+    schemaExtent: { minK: flowMinK, maxK: flowMaxK },
+    currentExtent: { minK: autoMinK ?? flowMinK, maxK: flowMaxK },
+    cacheKeyBase: '2d',
+  })
+  const flowEditorCollectiveFitReference =
+    flowEditorOverlayFitResolved
+    || (fitHasCollectiveOverlayFit ? flowEditorCollectiveGraphFitReference : null)
+  const flowEditorCollectiveOutResolved =
+    isFlowEditorCollectiveOutRequest
+    && flowEditorCollectiveFitReference
+    && defaultResolved
+    ? (() => {
+        const collectiveAutoMinScale = Math.min(
+          Number.isFinite(t0.k) ? t0.k : flowMinK,
+          flowEditorCollectiveFitReference.nextTransform.k,
+        )
+        const wantsCollectiveFloor =
+          typeof defaultResolved.nextMinScale === 'number'
+          && Number.isFinite(defaultResolved.nextMinScale)
+          && defaultResolved.nextTransform.k <= defaultResolved.nextMinScale + 1e-9
+        if (wantsCollectiveFloor) {
+          return {
+            nextTransform: flowEditorCollectiveFitReference.nextTransform,
+            durationMs: defaultResolved.durationMs,
+            nextMinScale: collectiveAutoMinScale,
+          }
+        }
+        return {
+          ...defaultResolved,
+          nextMinScale: collectiveAutoMinScale,
+        }
+      })()
+    : null
+  const resolved = flowEditorOverlayFitResolved
+    ? flowEditorOverlayFitResolved
+    : isFlowEditorGraphFitRequest
+    ? flowEditorCollectiveGraphFitReference
+    : flowEditorCollectiveOutResolved
+    ? flowEditorCollectiveOutResolved
+    : defaultResolved
   if (!resolved) {
     clear()
     return
@@ -431,12 +584,13 @@ export const applyZoomRequestNative = (args: {
     cancelFlowZoomRequestAnim(args.runtime)
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
-    if (isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen) {
+    if (shouldRecenterFlowEditorCollectiveAfterFit) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime: args.runtime,
         viewportW,
         viewportH,
         flowEditorSurfaceId: args.flowEditorSurfaceId,
+        graphData: args.graphData,
         onFrame: args.onFrame,
       })
     }
@@ -461,12 +615,13 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
-      if (isFlowEditorFitLikeRequest && !workspaceEditorOverlayOpen) {
+      if (shouldRecenterFlowEditorCollectiveAfterFit) {
         recenterVisibleFlowEditorOverlayCentroid({
           runtime: args.runtime,
           viewportW,
           viewportH,
           flowEditorSurfaceId: args.flowEditorSurfaceId,
+          graphData: args.graphData,
           onFrame: args.onFrame,
         })
       }

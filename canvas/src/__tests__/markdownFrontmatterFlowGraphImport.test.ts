@@ -2508,6 +2508,7 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoFrontma
   if (!settings) throw new Error('expected frontmatter flow settings metadata')
   if (Number(settings.balancedHeroRowCount) !== 3) throw new Error('expected balancedHeroRowCount=3')
   if (Math.abs(Number(settings.balancedHeroRowGapScale) - 0.76) > 0.0001) throw new Error('expected balancedHeroRowGapScale=0.76')
+  if (Math.abs(Number(settings.balancedHeroRowStaggerScale) - 0.12) > 0.0001) throw new Error('expected balancedHeroRowStaggerScale=0.12')
   if (Math.abs(Number(settings.balancedPanelOffsetScale) - 0.96) > 0.0001) throw new Error('expected balancedPanelOffsetScale=0.96')
 
   const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))

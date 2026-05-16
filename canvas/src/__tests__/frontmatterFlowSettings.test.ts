@@ -68,6 +68,23 @@ export const testFrontmatterFlowRenderSettingsReadsBalancedHeroRowGapScale = () 
   }
 }
 
+export const testFrontmatterFlowRenderSettingsReadsBalancedHeroRowStaggerScale = () => {
+  const settings = readFrontmatterFlowRenderSettings({
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: {
+        direction: 'LR',
+        edgeType: 'bezier',
+        balancedHeroRowStaggerScale: 0.12,
+      },
+    },
+  } as never)
+  if (!settings) throw new Error('expected frontmatter flow render settings')
+  if (Math.abs((settings.balancedHeroRowStaggerScale || 0) - 0.12) > 0.0001) {
+    throw new Error(`expected balanced hero row stagger scale to round-trip, got ${String(settings.balancedHeroRowStaggerScale || '')}`)
+  }
+}
+
 export const testFrontmatterFlowRenderSettingsReadsBalancedPanelOffsetScale = () => {
   const settings = readFrontmatterFlowRenderSettings({
     metadata: {

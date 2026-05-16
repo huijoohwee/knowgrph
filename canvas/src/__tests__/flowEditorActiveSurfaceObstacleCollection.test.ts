@@ -130,3 +130,70 @@ export async function testFlowEditorActiveSurfaceObstacleCollectionIsSurfaceBoun
     restore()
   }
 }
+
+export async function testFlowEditorActiveSurfaceObstacleCollectionIgnoresTinyParkedOffscreenRichMediaPlaceholders() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const doc = dom.window.document
+    const body = doc.body
+    const surface = doc.createElement('section')
+    surface.setAttribute(FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR, 'surface-a')
+    body.appendChild(surface)
+
+    const makeOverlay = (args: {
+      nodeId: string
+      widgetId?: string
+      richMedia?: boolean
+      left: number
+      top: number
+      width: number
+      height: number
+    }) => {
+      const el = doc.createElement('div')
+      el.setAttribute('data-kg-flow-editor-mode', '1')
+      el.setAttribute('data-kg-flow-editor-surface', 'surface-a')
+      if (args.widgetId) el.setAttribute('data-kg-widget', args.widgetId)
+      else el.setAttribute('data-node-id', args.nodeId)
+      if (args.richMedia) el.setAttribute('data-kg-rich-media-overlay', '1')
+      ;(el as unknown as { dataset: DOMStringMap }).dataset.nodeId = args.nodeId
+      ;(el as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
+        left: args.left,
+        top: args.top,
+        width: args.width,
+        height: args.height,
+        right: args.left + args.width,
+        bottom: args.top + args.height,
+        x: args.left,
+        y: args.top,
+        toJSON: () => ({}),
+      }) as DOMRect
+      surface.appendChild(el)
+      return el
+    }
+
+    makeOverlay({
+      nodeId: 'panel-a',
+      richMedia: true,
+      left: -209,
+      top: -83,
+      width: 2,
+      height: 2,
+    })
+    makeOverlay({
+      nodeId: 'widget-a',
+      widgetId: 'widget-a',
+      left: 240,
+      top: 140,
+      width: 220,
+      height: 160,
+    })
+
+    const overlays = Array.from(surface.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+    const entries = collectCanonicalFlowEditorOverlayRectEntries(overlays)
+    if (entries.length !== 1 || entries[0]?.id !== 'widget-a') {
+      throw new Error(`expected tiny parked rich-media placeholder to be ignored, got ${JSON.stringify(entries.map(entry => entry.id))}`)
+    }
+  } finally {
+    restore()
+  }
+}

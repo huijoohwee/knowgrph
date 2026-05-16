@@ -1176,7 +1176,7 @@ export async function testWorkspaceSeedProviderPrefersKnowgrphStorageExportWhenC
         {
           id: 'sf:video',
           workspaceId: 'kgws:test',
-          canonicalPath: '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`,
           title: 'knowgrph-video-demo.md',
           docType: 'markdown',
           lang: null,
@@ -1245,7 +1245,7 @@ export async function testWorkspaceSeedProviderStorageExportRebuildsMarkdownFrom
         {
           id: 'docs:video_demo',
           workspaceId: 'kgws:test',
-          canonicalPath: '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`,
           title: 'knowgrph-video-demo.md',
           docType: 'markdown',
           lang: null,

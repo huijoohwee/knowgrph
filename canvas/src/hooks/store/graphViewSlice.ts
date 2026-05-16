@@ -10,12 +10,13 @@ import {
   WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-
-const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
+import { buildFlowWidgetOverlayEligibleNodeIdSet, isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
+import {
+  deriveFrontmatterFlowOverlayNodeIds,
+  resolveGraphNodeIdByCanonicalId,
+} from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -46,40 +47,24 @@ const normalizeOpenWidgetNodeIds = (ids: string[], graphData: GraphState['graphD
   const normalized = normalizeIdsPreserveOrder(Array.isArray(ids) ? ids : [])
   if (!graphData) return normalized
   const nodeIds = new Set<string>((graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
-  const validNodeIds = normalized.filter(id => nodeIds.has(id))
+  const validNodeIds: string[] = []
+  const seenValidIds = new Set<string>()
+  for (let i = 0; i < normalized.length; i += 1) {
+    const rawId = normalized[i]
+    const resolvedId = resolveGraphNodeIdByCanonicalId(graphData, rawId) || rawId
+    if (!nodeIds.has(resolvedId) || seenValidIds.has(resolvedId)) continue
+    seenValidIds.add(resolvedId)
+    validNodeIds.push(resolvedId)
+  }
   if (!isFrontmatterFlowGraph(graphData)) {
     const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-    const eligible = buildFlowWidgetEligibleNodeIdSet(nodes as any)
+    const eligible = buildFlowWidgetOverlayEligibleNodeIdSet(nodes as any)
     if (eligible.size === 0) return validNodeIds
     return validNodeIds.filter(id => eligible.has(id))
   }
-
-  const registry = readWidgetRegistryMetadataEntries(graphData.metadata)
-  const allowedFormIds = new Set<string>()
-  for (let i = 0; i < registry.length; i += 1) {
-    const entry = registry[i] as Record<string, unknown> | null
-    const formId = typeof entry?.formId === 'string' ? String(entry.formId || '').trim() : ''
-    if (!formId) continue
-    allowedFormIds.add(formId)
-  }
-  if (allowedFormIds.size === 0) return []
-
-  const nodeById = new Map<string, Record<string, unknown>>()
-  for (let i = 0; i < (graphData.nodes || []).length; i += 1) {
-    const node = (graphData.nodes || [])[i]
-    const nodeId = String(node?.id || '').trim()
-    if (!nodeId || nodeById.has(nodeId)) continue
-    nodeById.set(nodeId, (node?.properties || {}) as Record<string, unknown>)
-  }
-  return validNodeIds.filter(id => {
-    const props = nodeById.get(id) || {}
-    const explicitFormId =
-      typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string'
-        ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
-        : ''
-    const expectedFormId = explicitFormId || `fm:${id}`
-    return allowedFormIds.has(expectedFormId)
-  })
+  const allowedFrontmatterOverlayIds = new Set<string>(deriveFrontmatterFlowOverlayNodeIds(graphData))
+  if (allowedFrontmatterOverlayIds.size === 0) return []
+  return validNodeIds.filter(id => allowedFrontmatterOverlayIds.has(id))
 }
 
 const FLOW_WIDGET_PERSIST_DELAY_MS = 90
@@ -548,7 +533,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   flowWidgetPinnedByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetPinnedByGraphMetaKey, raw => normalizePinnedByNodeId(raw as Record<string, boolean> | null | undefined), parseFlowWidgetPinnedByGraphMap),
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
-    if (isWorkspaceGraphMutationBlocked(state)) return
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
@@ -576,7 +561,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   ),
   setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
     const state = get()
-    if (isWorkspaceGraphMutationBlocked(state)) return
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const nextPosByNodeId = normalizePosByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPosByNodeIdByGraphMetaKey || {}
@@ -617,7 +602,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   ),
   setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
     const state = get()
-    if (isWorkspaceGraphMutationBlocked(state)) return
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const nextWorldByNodeId = normalizeWorldByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}

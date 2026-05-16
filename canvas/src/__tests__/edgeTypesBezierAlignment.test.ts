@@ -86,3 +86,42 @@ export function testBezierPathSupportsOrbitalFrontmatterLiftCurve() {
     throw new Error(`expected orbital frontmatter lift curve to preserve vertical progression, got c1y=${c1y} c2y=${c2y}`)
   }
 }
+
+export function testBezierOrbitalControlPointsStayWithinLocalEdgeCorridor() {
+  const pathNumbers = readPathNumbers(buildEdgePathD({
+    edgeType: 'bezier',
+    sx: 40,
+    sy: 120,
+    tx: 90,
+    ty: 1920,
+    rankdir: 'TB',
+    curve: { bend: 0.8, orbitShift: 0.45, orbital: true, phase: 1 },
+  }))
+  if (pathNumbers.length !== 8) throw new Error('expected cubic bezier path numbers for bounded orbital corridor test')
+  const [, , c1x, c1y, c2x, c2y] = pathNumbers
+  if (!(c1x >= -180 && c1x <= 310 && c2x >= -180 && c2x <= 310)) {
+    throw new Error(`expected bounded orbital control points to stay within the local edge corridor, got c1x=${c1x} c2x=${c2x}`)
+  }
+  if (!(c1y >= 120 && c1y <= 1920 && c2y >= 120 && c2y <= 1920)) {
+    throw new Error(`expected bounded orbital control points to keep forward vertical progression, got c1y=${c1y} c2y=${c2y}`)
+  }
+}
+
+export function testBezierLongAxisLedEdgesTurnSoonerOnWideFrontmatterRuns() {
+  const pathNumbers = readPathNumbers(buildEdgePathD({
+    edgeType: 'bezier',
+    sx: 1647.5,
+    sy: 700.37,
+    tx: 209,
+    ty: 237.71,
+    rankdir: 'LR',
+  }))
+  if (pathNumbers.length !== 8) throw new Error('expected cubic bezier path numbers for long frontmatter run compaction')
+  const [, , c1x, c1y, c2x, c2y] = pathNumbers
+  if (!(c1x < 1495 && c2x > 360)) {
+    throw new Error(`expected long frontmatter runs to turn sooner with tighter horizontal handle reach, got c1x=${c1x} c2x=${c2x}`)
+  }
+  if (!almostEqual(c1y, 700.37, 0.05) || !almostEqual(c2y, 237.71, 0.05)) {
+    throw new Error(`expected compacted long frontmatter runs to stay axis-led at the endpoints, got c1y=${c1y} c2y=${c2y}`)
+  }
+}
