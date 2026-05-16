@@ -15,6 +15,15 @@ function pickString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
+function hasFrontmatterDerivedCanonicalCollective(metadata: Record<string, unknown>): boolean {
+  const frontmatterMeta = isRecord(metadata.frontmatterMeta) ? metadata.frontmatterMeta : null
+  const directorBrief =
+    (frontmatterMeta && isRecord(frontmatterMeta.director_brief) ? frontmatterMeta.director_brief : null)
+    || (isRecord(metadata.director_brief) ? metadata.director_brief : null)
+  const shots = directorBrief && Array.isArray(directorBrief.shots) ? directorBrief.shots : []
+  return shots.length > 0
+}
+
 export function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
   return String(resolveGraphNodeByCanonicalId(graph, rawId)?.id || '').trim()
 }
@@ -62,7 +71,18 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
         })
     : []
   if (widgetBundleNodeIds.length > 0) {
-    return widgetBundleNodeIds.sort(compareNodeIdsByVisualIndex)
+    if (!hasFrontmatterDerivedCanonicalCollective(metadata)) {
+      return widgetBundleNodeIds.sort(compareNodeIdsByVisualIndex)
+    }
+    const mergedOverlayIds = new Set<string>(widgetBundleNodeIds)
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+      mergedOverlayIds.add(id)
+    }
+    return Array.from(mergedOverlayIds).sort(compareNodeIdsByVisualIndex)
   }
 
   const registry = readWidgetRegistryMetadataEntries(metadata)

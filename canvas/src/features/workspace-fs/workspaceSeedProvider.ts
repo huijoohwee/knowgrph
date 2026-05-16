@@ -1028,7 +1028,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
           selectedFolderPath: sourceFilesSelection.selectedFolderPath,
           sourceFiles: sourceFilesSelection.sourceFiles,
         })
-        if (viaKnowgrphDocView.length > 0) storageDatasets.push(viaKnowgrphDocView)
+        if (viaKnowgrphDocView.length > 0) return viaKnowgrphDocView
       }
       const viaKnowgrphStorage = await readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExport({
         baseUrl: knowgrphStorageBaseUrl,

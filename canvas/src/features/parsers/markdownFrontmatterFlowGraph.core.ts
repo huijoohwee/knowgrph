@@ -50,6 +50,7 @@ import {
 } from '@/features/parsers/markdownFrontmatterFlowGraph.compose'
 import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
+import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
 
 function guessJsonTypeLabel(value: unknown): string {
   if (value == null) return 'null'
@@ -193,15 +194,22 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       if (y > maxY) maxY = y
     }
     const ok = Number.isFinite(minX) && Number.isFinite(maxX) && Number.isFinite(minY) && Number.isFinite(maxY)
-    return ok ? { minX, maxX, minY, maxY } : { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+    return ok
+      ? { minX, maxX, minY, maxY, hasPositionedNodes: true }
+      : { minX: 0, maxX: 0, minY: 0, maxY: 0, hasPositionedNodes: false }
   })()
 
   const SHOT_WIDGET_COL_GAP_X = WIDGET_BASE_SIZE.width + 160
   const SHOT_PANEL_OFFSET_Y = WIDGET_BASE_SIZE.height + 140
   const SHOT_ROW_GAP_Y = SHOT_PANEL_OFFSET_Y + WIDGET_BASE_SIZE.height + 160
-  const GRID_START_X = Math.max(bounds.maxX + 1400, 4200)
-  const GRID_START_Y = bounds.minY
-  const frontmatterSettings = readFrontmatterFlowRenderSettings({ metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: meta.frontmatterFlowSettings } } as GraphData)
+  const SHOT_BAND_SEPARATION_Y = Math.round(WIDGET_BASE_SIZE.width * 0.9)
+  const authoredCenterX = (bounds.minX + bounds.maxX) / 2
+  const authoredBandBottomY = bounds.hasPositionedNodes ? bounds.maxY : -SHOT_ROW_GAP_Y
+  const GRID_START_X = authoredCenterX
+  const GRID_START_Y = authoredBandBottomY + Math.max(WIDGET_BASE_SIZE.height, SHOT_PANEL_OFFSET_Y) + SHOT_BAND_SEPARATION_Y
+  const frontmatterSettings = readFrontmatterFlowRenderSettings(
+    { metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: meta.frontmatterFlowSettings } } as unknown as GraphData,
+  )
   const shotLayout = buildDirectorBriefShotLayoutConfig({
     shotCount: shots.length,
     startX: GRID_START_X,
@@ -397,6 +405,7 @@ type DirectorBriefShotLayoutConfig = {
   panelOffsetY: number
   balancedHeroRowCount: number
   balancedHeroRowGapScale: number
+  shotOrigins: Array<{ x0: number; y0: number }>
 }
 
 function buildDirectorBriefShotLayoutConfig(args: {
@@ -433,8 +442,60 @@ function buildDirectorBriefShotLayoutConfig(args: {
     return bestCols
   }
 
+  const shotGridCols = chooseShotGridCols(args.shotCount)
+  const layout = computeBalancedSpreadLayout({
+    count: Math.max(1, Math.floor(args.shotCount)),
+    viewportW: Math.max(1, shotGridCols * shotCellWidth),
+    viewportH: Math.max(1, Math.ceil(Math.max(1, args.shotCount) / Math.max(1, shotGridCols)) * shotCellHeight),
+    cellW: shotCellWidth,
+    cellH: shotCellHeight,
+    gapPx: 0,
+    zoomK: 1,
+    marginLeftPx: 0,
+    marginRightPx: 0,
+    marginTopPx: 0,
+    marginBottomPx: 0,
+  })
+  const cells = layout.cells.map(cell => ({ ...cell }))
+  const applyHeroRows = (inputCells: typeof cells): typeof cells => {
+    const heroRowCount = args.balancedHeroRowCount || 0
+    if (heroRowCount < 2) return inputCells
+    const gapScale = args.balancedHeroRowGapScale || 1
+    return inputCells.map((cell, index) => {
+      const gridCol = index >= heroRowCount ? index - heroRowCount : index
+      const gridRow = index >= heroRowCount ? 1 + Math.floor((index - heroRowCount) / Math.max(1, heroRowCount)) : 0
+      const rowCount = gridRow === 0
+        ? Math.min(heroRowCount, Math.max(1, args.shotCount))
+        : Math.min(heroRowCount, Math.max(1, args.shotCount - heroRowCount - (gridRow - 1) * heroRowCount))
+      const rowOffsetX = ((Math.max(1, shotGridCols) - Math.max(1, rowCount)) * shotCellWidth) / 2
+      return {
+        ...cell,
+        left: rowOffsetX + gridCol * shotCellWidth,
+        top: gridRow === 0 ? 0 : gridRow * shotCellHeight * gapScale,
+        row: gridRow,
+        col: gridCol,
+      }
+    })
+  }
+  const shotCells = applyHeroRows(cells)
+  const shotBounds = shotCells.reduce(
+    (acc, cell) => ({
+      minX: Math.min(acc.minX, cell.left),
+      minY: Math.min(acc.minY, cell.top),
+      maxX: Math.max(acc.maxX, cell.left + shotCellWidth),
+      maxY: Math.max(acc.maxY, cell.top + shotCellHeight),
+    }),
+    { minX: Number.POSITIVE_INFINITY, minY: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, maxY: Number.NEGATIVE_INFINITY },
+  )
+  const shotBandWidth = Number.isFinite(shotBounds.maxX - shotBounds.minX) ? Math.max(1, shotBounds.maxX - shotBounds.minX) : shotGridCols * shotCellWidth
+  const shotBandMinX = Number.isFinite(shotBounds.minX) ? shotBounds.minX : 0
+  const shotOrigins = shotCells.map(cell => ({
+    x0: args.startX - shotBandWidth / 2 + (cell.left - shotBandMinX),
+    y0: args.startY + cell.top,
+  }))
+
   return {
-    shotGridCols: chooseShotGridCols(args.shotCount),
+    shotGridCols,
     shotCellWidth,
     shotCellHeight,
     gridStartX: args.startX,
@@ -443,6 +504,7 @@ function buildDirectorBriefShotLayoutConfig(args: {
     panelOffsetY: args.panelOffsetYBase * (args.balancedPanelOffsetScale || 1),
     balancedHeroRowCount: args.balancedHeroRowCount || 0,
     balancedHeroRowGapScale: args.balancedHeroRowGapScale || 1,
+    shotOrigins,
   }
 }
 
@@ -451,18 +513,7 @@ function readDirectorBriefShotPlacement(args: {
   layout: DirectorBriefShotLayoutConfig
 }): { x0: number; y0: number } {
   const { index, layout } = args
-  const heroRowCount = layout.balancedHeroRowCount
-  const useHeroRow = heroRowCount >= 2
-  const gridCol = useHeroRow && index >= heroRowCount ? index - heroRowCount : useHeroRow ? index : index % layout.shotGridCols
-  const gridRow = useHeroRow && index >= heroRowCount ? 1 + Math.floor((index - heroRowCount) / Math.max(1, heroRowCount)) : useHeroRow ? 0 : Math.floor(index / layout.shotGridCols)
-  const rowCount = useHeroRow
-    ? (gridRow === 0 ? heroRowCount : Math.min(heroRowCount, Math.max(1, args.index + 1 - heroRowCount)))
-    : Math.min(layout.shotGridCols, Math.max(1, args.index + 1 - gridRow * layout.shotGridCols))
-  const rowOffsetX = ((Math.max(1, layout.shotGridCols) - Math.max(1, rowCount)) * layout.shotCellWidth) / 2
-  return {
-    x0: layout.gridStartX + rowOffsetX + gridCol * layout.shotCellWidth,
-    y0: layout.gridStartY + (gridRow === 0 ? 0 : gridRow * layout.shotCellHeight * layout.balancedHeroRowGapScale),
-  }
+  return layout.shotOrigins[index] || { x0: layout.gridStartX, y0: layout.gridStartY }
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {

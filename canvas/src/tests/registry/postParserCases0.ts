@@ -75,6 +75,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoFrontmatterFlow16x9CompositionContract",
   ],
   [
+    "markdown.frontmatterFlowGraph.directorBrief.compactBalancedBandNoFixtureOffsets",
+    "@/__tests__/markdownFrontmatterFlowGraphImport.test",
+    "testMarkdownFrontmatterFlowGraphDirectorBriefUsesCompactBalancedBandWithoutFixtureOffsets",
+  ],
+  [
     "markdown.frontmatterFlowGraph.fidelity.knowgrphVideoDemo.seededVisualPayloads",
     "@/__tests__/markdownFrontmatterFlowGraphImport.test",
     "testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoSeededVisualPayloads",

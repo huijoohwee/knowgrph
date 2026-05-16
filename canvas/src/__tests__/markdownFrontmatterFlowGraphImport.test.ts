@@ -2557,6 +2557,78 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoFrontma
   }
 }
 
+export function testMarkdownFrontmatterFlowGraphDirectorBriefUsesCompactBalancedBandWithoutFixtureOffsets() {
+  const md = [
+    '---',
+    'nodes:',
+    '  - id: authored-text',
+    '    type: TextGeneration',
+    '    pos: { x: 0, y: 0 }',
+    '  - id: authored-image',
+    '    type: ImageGeneration',
+    '    pos: { x: 600, y: 0 }',
+    'frontmatterFlowSettings:',
+    '  balancedHeroRowCount: 3',
+    '  balancedHeroRowGapScale: 0.76',
+    '  balancedPanelOffsetScale: 0.96',
+    'director_brief:',
+    '  shots:',
+    '    - shot: S01',
+    '      timecode: 0-5s',
+    '      image_prompt: "One"',
+    '      video_prompt: "One motion"',
+    '    - shot: S02',
+    '      timecode: 5-10s',
+    '      image_prompt: "Two"',
+    '      video_prompt: "Two motion"',
+    '    - shot: S03',
+    '      timecode: 10-15s',
+    '      image_prompt: "Three"',
+    '      video_prompt: "Three motion"',
+    '    - shot: S04',
+    '      timecode: 15-20s',
+    '      image_prompt: "Four"',
+    '      video_prompt: "Four motion"',
+    '    - shot: S05',
+    '      timecode: 20-25s',
+    '      image_prompt: "Five"',
+    '      video_prompt: "Five motion"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('synthetic-director-brief.md', md)
+  if (!res) throw new Error('expected synthetic director brief parse result')
+  const nodeById = new Map(res.graphData.nodes.map(n => [String(n.id || ''), n] as const))
+  const readPos = (id: string): { x: number; y: number } => {
+    const node = nodeById.get(id) || null
+    const x = Number((node as unknown as { x?: unknown } | null)?.x)
+    const y = Number((node as unknown as { y?: unknown } | null)?.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`expected finite position for ${id}`)
+    return { x, y }
+  }
+  const s01 = readPos('db-shot-S01-text')
+  const s02 = readPos('db-shot-S02-text')
+  const s03 = readPos('db-shot-S03-text')
+  const s04 = readPos('db-shot-S04-text')
+  const s05 = readPos('db-shot-S05-text')
+  const s03Video = readPos('db-shot-S03-video')
+  const authoredCenterX = (readPos('authored-text').x + readPos('authored-image').x) / 2
+  const heroCenterX = (s01.x + s02.x + s03.x) / 3
+  const ctaCenterX = (s04.x + s05.x) / 2
+
+  if (!(s01.x < s02.x && s02.x < s03.x)) throw new Error('expected hero shot row to preserve visual order')
+  if (!(Math.abs(s01.y - s02.y) <= 1 && Math.abs(s02.y - s03.y) <= 1)) throw new Error('expected hero shots on one row')
+  if (!(Math.abs(s04.y - s05.y) <= 1 && s04.y > s01.y)) throw new Error('expected CTA shots on a lower balanced row')
+  if (Math.abs(heroCenterX - ctaCenterX) > 500) throw new Error('expected derived shot rows to share one centered collective centroid')
+
+  const shotXs = [s01.x, s02.x, s03.x, s04.x, s05.x, s03Video.x]
+  const derivedBandCenterX = (Math.min(...shotXs) + Math.max(...shotXs)) / 2
+  if (Math.abs(derivedBandCenterX - authoredCenterX) > 500) throw new Error('expected derived shot band to anchor near authored graph centroid')
+  const shotSpanX = Math.max(...shotXs) - Math.min(...shotXs)
+  if (shotSpanX > 5000) throw new Error(`expected compact balanced shot band, got x-span ${shotSpanX}`)
+  if (Math.max(...shotXs.map(x => Math.abs(x))) > 2600) throw new Error(`expected no far-right fixture offset residue, got xs ${shotXs.join(',')}`)
+}
+
 export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoSeededVisualPayloads() {
   const samplePath = readKnowgrphVideoDemoSeededPath()
   if (!samplePath || !fs.existsSync(samplePath)) return

@@ -572,6 +572,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspaceFs.envBridge.readsKnowgrphStorageBaseUrlFromProcessEnv","@/__tests__/workspaceSeedPersistence.test","testCanvasEnvBridgeReadsKnowgrphStorageBaseUrlFromProcessEnv"],
   ["workspaceFs.seedProvider.prefersConfiguredAbsoluteDocsRoot","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderPrefersConfiguredAbsoluteDocsRoot"],
   ["workspaceFs.seedProvider.resolvesDocsWorkspaceSeedsFromConfiguredAbsoluteDocsRoot","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderResolvesDocsWorkspaceSeedsFromConfiguredAbsoluteDocsRoot"],
+  ["workspaceFs.seedProvider.prefersSourceFilesDocViewOverLargerStorageExportDataset","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderPrefersSourceFilesDocViewOverLargerStorageExportDataset"],
   ["workspaceFs.seedProvider.browserUpsertWritesViaKgFsProxy","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy"],
   ["workspaceFs.seedProvider.runtimeReflectsSourceFilesFromDynamicDocsRoot","@/__tests__/workspaceSeedPersistence.test","testRuntimeSourceFilesReflectWorkspaceSeedFileContentChanges"],
   ["workspaceFs.bootstrap.materializesActiveWorkspaceEntryIntoParsedSourceFile","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializesActiveWorkspaceEntryIntoParsedSourceFile"],
