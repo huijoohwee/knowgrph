@@ -41,6 +41,28 @@ type SettingsSpecialValueNodeProps = {
   values: Record<string, string | number | boolean>
 }
 
+export function shouldRenderSettingsSpecialValueNode({
+  area,
+  resolvedValueKey,
+  sKey,
+}: {
+  area: string
+  resolvedValueKey: string
+  sKey: string
+}): boolean {
+  return (
+    sKey === 'chatSystemPrompt'
+    || (area === DEERFLOW_API_DOC_AREA && sKey === 'deerflowApi.provider')
+    || resolvedValueKey === 'maps.grabmaps.apiKey'
+    || sKey === 'stripeApi.auth.secret_key'
+    || sKey === 'stripeApi.checkout.session_url'
+    || sKey === 'chatHistoryWorkspacePath'
+    || sKey === 'chatKnowgrphWorkspacePath'
+    || sKey === 'chatHistoryCloudUrl'
+    || sKey === 'chatKnowgrphCloudUrl'
+  )
+}
+
 export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): React.ReactNode | null {
   const {
     actions,
@@ -55,6 +77,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
     ui,
     values,
   } = props
+
+  if (!shouldRenderSettingsSpecialValueNode({ area, resolvedValueKey, sKey })) return null
 
   if (sKey === 'chatSystemPrompt') {
     return (

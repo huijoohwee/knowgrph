@@ -1,5 +1,5 @@
 import React from 'react'
-import { SettingsSpecialValueNode } from './SettingsSpecialValueNode'
+import { SettingsSpecialValueNode, shouldRenderSettingsSpecialValueNode } from './SettingsSpecialValueNode'
 import type { SectionMeta } from './settingsView.constants'
 import type { SettingsEntry } from './useSettingsView.helpers'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
@@ -35,21 +35,23 @@ export function buildSettingsEntryValueNode({
   ui,
   values,
 }: BuildSettingsEntryValueNodeArgs) {
-  const specialValueNode = (
-    <SettingsSpecialValueNode
-      area={area}
-      actions={actions}
-      inputNode={inputNode}
-      pillButtonClassName={pillButtonClassName}
-      refs={refs}
-      resolvedValueKey={resolvedValueKey}
-      sKey={entry.meta.key}
-      status={status}
-      statusPillClassName={statusPillClassName}
-      ui={{ uiPanelKeyValueTextSizeClass: ui.uiPanelKeyValueTextSizeClass }}
-      values={values}
-    />
-  )
+  const specialValueNode = shouldRenderSettingsSpecialValueNode({ area, resolvedValueKey, sKey: entry.meta.key })
+    ? (
+      <SettingsSpecialValueNode
+        area={area}
+        actions={actions}
+        inputNode={inputNode}
+        pillButtonClassName={pillButtonClassName}
+        refs={refs}
+        resolvedValueKey={resolvedValueKey}
+        sKey={entry.meta.key}
+        status={status}
+        statusPillClassName={statusPillClassName}
+        ui={{ uiPanelKeyValueTextSizeClass: ui.uiPanelKeyValueTextSizeClass }}
+        values={values}
+      />
+    )
+    : null
 
   if (specialValueNode) return specialValueNode
 

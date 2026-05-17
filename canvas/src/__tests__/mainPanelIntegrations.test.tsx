@@ -554,6 +554,68 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusImageField
   }
 }
 
+export async function testMainPanelRequestedIntegrationsValueInputAcceptsTyping() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusImageApi.image',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const input = container.querySelector<HTMLInputElement>('input[type="text"]')
+    if (!input) {
+      throw new Error('expected integrations value column to render a text input')
+    }
+
+    await act(async () => {
+      input.value = 'Value'
+      input.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'Value' }))
+      await waitForFrames(anyWindow.requestAnimationFrame, 1)
+    })
+
+    const row = input.closest('dl')
+    if (!row) {
+      throw new Error('expected integrations value input to live inside a key/type/value row')
+    }
+
+    await act(async () => {
+      row.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForFrames(anyWindow.requestAnimationFrame, 1)
+    })
+
+    const rerenderedInput = container.querySelector<HTMLInputElement>('input[type="text"]')
+    if (rerenderedInput?.value !== 'Value') {
+      throw new Error(`expected integrations value input to keep typed text across rerender, got ${JSON.stringify(rerenderedInput?.value)}`)
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })

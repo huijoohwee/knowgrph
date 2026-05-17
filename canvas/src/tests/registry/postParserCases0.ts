@@ -467,6 +467,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.mainPanel.requestedIntegrationsSearch.reusesBytePlusScalarConfig","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchReusesBytePlusScalarConfig"],
   ["ui.mainPanel.requestedIntegrationsSearch.rendersBytePlusJsonEditor","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchRendersBytePlusJsonEditor"],
   ["ui.mainPanel.requestedIntegrationsSearch.byteplusImageFieldUsesConfigurableValueSlot","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchBytePlusImageFieldUsesConfigurableValueSlot"],
+  ["ui.mainPanel.requestedIntegrationsSearch.valueInputAcceptsTyping","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsValueInputAcceptsTyping"],
   ["ui.mainPanel.requestedIntegrationsSearch.rendersBytePlusNestedNumericField","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchRendersBytePlusNestedNumericField"],
   ["ui.mainPanel.requestedIntegrationsSearch.rendersWritableVirtualStringEditor","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchRendersWritableVirtualStringEditor"],
   ["ui.mainPanel.requestedIntegrationsSearch.rendersBytePlusMessagesJsonEditor","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchRendersBytePlusMessagesJsonEditor"],
