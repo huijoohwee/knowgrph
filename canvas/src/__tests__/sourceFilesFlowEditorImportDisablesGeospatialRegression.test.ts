@@ -47,4 +47,18 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
   if (!(strictPresetIndex < strictRendererIndex && strictRendererIndex < strictGeoDisableIndex)) {
     throw new Error('Expected strict Flow Editor preset path to disable Geospatial Mode immediately after renderer selection')
   }
+
+  const geospatialBridgePath = path.resolve(
+    process.cwd(),
+    'src',
+    'features',
+    'geospatial',
+    'gympgrphBridge.ts',
+  )
+  const geospatialBridgeText = fs.readFileSync(geospatialBridgePath, 'utf8')
+  if (!geospatialBridgeText.includes('function publishGeospatialModeEnabled(enabled: boolean')
+    || !geospatialBridgeText.includes('emitGeospatialModeChanged({ enabled: next })')
+    || !geospatialBridgeText.includes('publishGeospatialModeEnabled(next, { emitAlways: true })')) {
+    throw new Error('Expected geospatial bridge toggles to publish immediate local geospatial mode state before async module handoff so toolbar mode labels do not lag')
+  }
 }

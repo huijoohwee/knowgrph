@@ -1,3 +1,7 @@
+import { emitGeospatialModeChanged } from 'grph-shared/geospatial/events'
+import { LS_KEYS } from '@/lib/config'
+import { lsBool, lsSetBool } from '@/lib/persistence'
+
 const toErrorMessage = (err: unknown): string => {
   if (err && typeof err === 'object' && 'message' in err) {
     const msg = (err as { message?: unknown }).message
@@ -5,6 +9,29 @@ const toErrorMessage = (err: unknown): string => {
     if (text) return text
   }
   return 'Unknown error'
+}
+
+function publishGeospatialModeEnabled(enabled: boolean, opts?: { emitAlways?: boolean }): boolean {
+  const next = enabled === true
+  let previous = next
+  try {
+    previous = lsBool(LS_KEYS.geospatialOverlayEnabled, next)
+  } catch {
+    previous = next
+  }
+  try {
+    lsSetBool(LS_KEYS.geospatialOverlayEnabled, next)
+  } catch {
+    void 0
+  }
+  if (opts?.emitAlways === true || previous !== next) {
+    try {
+      emitGeospatialModeChanged({ enabled: next })
+    } catch {
+      void 0
+    }
+  }
+  return previous
 }
 
 export async function importGympgrph(): Promise<typeof import('gympgrph')> {
@@ -31,6 +58,7 @@ export async function toggleGeospatialModeEnabled(): Promise<boolean> {
     throw new Error('Geospatial mode API is unavailable')
   }
   const enabled = m.isGeospatialModeEnabled()
+  publishGeospatialModeEnabled(!enabled, { emitAlways: true })
   if (typeof m.setGeospatialModeEnabled === 'function') {
     m.setGeospatialModeEnabled(!enabled)
   } else if (typeof m.toggleGeospatialModeEnabled === 'function') {
@@ -42,21 +70,28 @@ export async function toggleGeospatialModeEnabled(): Promise<boolean> {
 }
 
 export async function setGeospatialModeEnabled(enabled: boolean): Promise<boolean> {
+  const next = enabled === true
+  const previous = publishGeospatialModeEnabled(next, { emitAlways: true })
   const m = await importGympgrph()
   if (typeof m.isGeospatialModeEnabled !== 'function') {
+    publishGeospatialModeEnabled(previous, { emitAlways: true })
     throw new Error('Geospatial mode API is unavailable')
   }
-  const next = enabled === true
   const current = Boolean(m.isGeospatialModeEnabled())
   if (current === next) return current
   if (typeof m.setGeospatialModeEnabled === 'function') {
     m.setGeospatialModeEnabled(next)
-    return Boolean(m.isGeospatialModeEnabled())
+    const resolved = Boolean(m.isGeospatialModeEnabled())
+    if (resolved !== next) publishGeospatialModeEnabled(resolved, { emitAlways: true })
+    return resolved
   }
   if (typeof m.toggleGeospatialModeEnabled === 'function') {
     m.toggleGeospatialModeEnabled()
-    return Boolean(m.isGeospatialModeEnabled())
+    const resolved = Boolean(m.isGeospatialModeEnabled())
+    if (resolved !== next) publishGeospatialModeEnabled(resolved, { emitAlways: true })
+    return resolved
   }
+  publishGeospatialModeEnabled(previous, { emitAlways: true })
   throw new Error('Geospatial mode toggle API is unavailable')
 }
 
