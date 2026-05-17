@@ -61,14 +61,23 @@ export function syncFlowCanvasDebugWindow(): void {
   }
 }
 
+export function resetFlowCanvasDebugStatus(args?: { dismissToast?: boolean }) {
+  __flowCanvasDebug.lastRecoveryReason = ''
+  __flowCanvasDebug.lastRuntimeTransform = ''
+  __flowCanvasDebug.lastExpectedFit = ''
+  syncFlowCanvasDebugWindow()
+  lastFlowCanvasDebugToastSig = ''
+  if (args?.dismissToast !== true) return
+  try {
+    useGraphStore.getState().dismissUiToast(FLOW_CANVAS_DEBUG_TOAST_ID)
+  } catch {
+    void 0
+  }
+}
+
 export function syncFlowCanvasDebugToast(args: { enabled: boolean }) {
   if (args.enabled !== true) {
-    lastFlowCanvasDebugToastSig = ''
-    try {
-      useGraphStore.getState().dismissUiToast(FLOW_CANVAS_DEBUG_TOAST_ID)
-    } catch {
-      void 0
-    }
+    resetFlowCanvasDebugStatus({ dismissToast: true })
     return
   }
   const message = readFlowCanvasDebugStatusLine()

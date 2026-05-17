@@ -10,7 +10,7 @@ import {
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
-import { __flowCanvasDebug, syncFlowCanvasDebugToast } from '@/components/FlowCanvas/flowCanvasDebug'
+import { __flowCanvasDebug, resetFlowCanvasDebugStatus, syncFlowCanvasDebugToast } from '@/components/FlowCanvas/flowCanvasDebug'
 import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
 import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
@@ -38,6 +38,7 @@ import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspa
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 
 export function useFlowCanvasRuntime(args: {
   active: boolean
@@ -423,6 +424,28 @@ export function useFlowCanvasRuntime(args: {
       setWorkspaceOverlayInteractionFrameTick(prev => (prev + 1) % 1000000)
     }, timeoutMs)
   }, [])
+  const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {
+    const frontmatterOverlayIds = deriveFrontmatterFlowOverlayNodeIds(graphData)
+    if (frontmatterOverlayIds.length > 0) return frontmatterOverlayIds
+    return Array.from(new Set((openWidgetNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
+      .sort((leftId, rightId) => leftId.localeCompare(rightId))
+  }, [openWidgetNodeIds])
+  const isOverlayCollectiveCoverageComplete = React.useCallback((args: {
+    graphData: any
+    overlayBounds: null | { ids?: string[] }
+  }): boolean => {
+    const expectedIds = deriveExpectedOverlayCollectiveIds(args.graphData)
+    if (expectedIds.length === 0) return true
+    const liveIds = Array.isArray(args.overlayBounds?.ids)
+      ? args.overlayBounds.ids.map(id => String(id || '').trim()).filter(Boolean)
+      : []
+    if (liveIds.length === 0) return false
+    const liveIdSet = new Set(liveIds)
+    for (let i = 0; i < expectedIds.length; i += 1) {
+      if (!liveIdSet.has(expectedIds[i]!)) return false
+    }
+    return true
+  }, [deriveExpectedOverlayCollectiveIds])
 
   React.useEffect(() => {
     if (!active) return
@@ -440,6 +463,7 @@ export function useFlowCanvasRuntime(args: {
       // This prevents stale offscreen transforms from prior sessions persisting across reopen.
       lastInitTransformZoomViewKeyRef.current = null
       lastOffscreenOverlayRecoveryKeyRef.current = null
+      resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
       clearWorkspaceOffscreenRecoveryRetry()
     }
@@ -454,6 +478,7 @@ export function useFlowCanvasRuntime(args: {
       // Drop init/recovery memoization on close so next open starts from fresh fit authority.
       lastInitTransformZoomViewKeyRef.current = null
       lastOffscreenOverlayRecoveryKeyRef.current = null
+      resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
       clearWorkspaceOffscreenRecoveryRetry()
     }
@@ -474,6 +499,7 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportSignatureRef.current = null
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
+      resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
       clearWorkspaceOffscreenRecoveryRetry()
     }
@@ -905,12 +931,20 @@ export function useFlowCanvasRuntime(args: {
           visibleViewport: initVisibleViewport,
         })
       : null
+    const initOverlayBounds = isFlowEditor ? collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || '')) : null
+    const initOverlayCollectiveCoverageComplete = isFlowEditor
+      ? isOverlayCollectiveCoverageComplete({
+          graphData: graphDataForFit,
+          overlayBounds: initOverlayBounds,
+        })
+      : true
     const canUseFrontmatterCollectiveInitFit =
       String(initFitGraphMeta.kind || '').trim() === 'frontmatter-flow'
       || initFitGraphContext === 'frontmatter-flow'
-    const hasCollectiveFlowWidgets = isFlowEditor && Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
+    const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []
+    const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0
     const canUseCollectiveInitFit = hasCollectiveFlowWidgets || canUseFrontmatterCollectiveInitFit
-    const hasUsableCollectiveWidgetWorldPos = hasCollectiveFlowWidgets && openWidgetNodeIds.some(rawId => {
+    const hasUsableCollectiveWidgetWorldPos = hasCollectiveFlowWidgets && collectiveOverlayFitIds.some(rawId => {
       const id = String(rawId || '').trim()
       if (!id) return false
       const world = fitWorldPosById[id]
@@ -918,7 +952,7 @@ export function useFlowCanvasRuntime(args: {
     })
     const effectivePinnedByIdForInitFit =
       hasCollectiveFlowWidgets && workspaceEditorOverlayOpen === true
-        ? openWidgetNodeIds.reduce<Record<string, boolean>>((acc, rawId) => {
+        ? collectiveOverlayFitIds.reduce<Record<string, boolean>>((acc, rawId) => {
             const id = String(rawId || '').trim()
             if (!id) return acc
             acc[id] = true
@@ -976,7 +1010,7 @@ export function useFlowCanvasRuntime(args: {
         { k: t.k, x: t.x, y: t.y },
         visibleViewportFit,
       )
-      if (Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0) {
+      if (collectiveOverlayFitIds.length > 0) {
         const k = Number.isFinite(normalizedTransform.k) ? Math.max(0.001, normalizedTransform.k) : 1
         const tx = Number.isFinite(normalizedTransform.x) ? normalizedTransform.x : 0
         const ty = Number.isFinite(normalizedTransform.y) ? normalizedTransform.y : 0
@@ -985,8 +1019,8 @@ export function useFlowCanvasRuntime(args: {
         let minTop = Number.POSITIVE_INFINITY
         let maxRight = Number.NEGATIVE_INFINITY
         let maxBottom = Number.NEGATIVE_INFINITY
-        for (let i = 0; i < openWidgetNodeIds.length; i += 1) {
-          const nodeId = String(openWidgetNodeIds[i] || '').trim()
+        for (let i = 0; i < collectiveOverlayFitIds.length; i += 1) {
+          const nodeId = String(collectiveOverlayFitIds[i] || '').trim()
           if (!nodeId) continue
           const world = fitWorldPosById[nodeId]
           if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
@@ -1028,6 +1062,7 @@ export function useFlowCanvasRuntime(args: {
       && workspaceEditorOverlayOpen === true
       && hasNonIdentityTransform
       && currentTransformUsable
+      && initOverlayCollectiveCoverageComplete
       && (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)
     ) {
       // Preserve only if current transform remains usable/visible.
@@ -1094,6 +1129,7 @@ export function useFlowCanvasRuntime(args: {
     scheduleWorkspaceViewportSettleRetry,
     workspaceEditorOverlayOpen,
     workspaceOverlayInteractionFrameTick,
+    isOverlayCollectiveCoverageComplete,
   ])
 
   React.useEffect(() => {
@@ -1199,9 +1235,18 @@ export function useFlowCanvasRuntime(args: {
     const collectiveBalanced = overlayCollectiveState?.balanced ?? graphBalanced
     const collectiveCentered = overlayCollectiveState?.centered ?? graphCentered
     const recoveryGraphData = graphDataForZoomRequests || graphDataForZoom || sceneGraphData || null
+    const overlayCollectiveCoverageComplete = isOverlayCollectiveCoverageComplete({
+      graphData: recoveryGraphData,
+      overlayBounds,
+    })
+    if (!overlayCollectiveCoverageComplete) {
+      workspaceOverlayStabilizedRef.current = false
+      lastOffscreenOverlayRecoveryKeyRef.current = null
+    }
     const recoveryGraphMeta = (recoveryGraphData?.metadata || {}) as Record<string, unknown>
     const recoveryGraphContext = String(recoveryGraphData?.context || '').trim()
-    const recoveryHasCollectiveFlowWidgets = Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
+    const recoveryCollectiveOverlayFitIds = deriveExpectedOverlayCollectiveIds(recoveryGraphData)
+    const recoveryHasCollectiveFlowWidgets = recoveryCollectiveOverlayFitIds.length > 0
     const recoveryCanUseCollectiveOverlayFit =
       recoveryHasCollectiveFlowWidgets
       || String(recoveryGraphMeta.kind || '').trim() === 'frontmatter-flow'
@@ -1210,8 +1255,8 @@ export function useFlowCanvasRuntime(args: {
       workspaceEditorOverlayOpen === true
       && !recoveryCanUseCollectiveOverlayFit
     const effectivePinnedByIdForRecoveryFit =
-      workspaceEditorOverlayOpen === true && Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.length > 0
-        ? openWidgetNodeIds.reduce<Record<string, boolean>>((acc, rawId) => {
+      workspaceEditorOverlayOpen === true && recoveryCollectiveOverlayFitIds.length > 0
+        ? recoveryCollectiveOverlayFitIds.reduce<Record<string, boolean>>((acc, rawId) => {
             const id = String(rawId || '').trim()
             if (!id) return acc
             acc[id] = true
@@ -1273,13 +1318,13 @@ export function useFlowCanvasRuntime(args: {
       || Math.abs(Math.log(Math.max(0.001, current.k) / Math.max(0.001, expectedFit.k))) > 0.16
     __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
     __flowCanvasDebug.lastExpectedFit = `${Math.round(expectedScreenX)},${Math.round(expectedScreenY)},${Math.round(expectedFit.k * 1000) / 1000}`
-    if (workspaceEditorOverlayOpen && collectiveVisible && workspaceOverlayStabilizedRef.current) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && workspaceOverlayStabilizedRef.current) {
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-stabilized-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
-    if (workspaceEditorOverlayOpen && collectiveVisible && (collectiveBalanced || collectiveCentered)) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {
       // In workspace-open mode, preserve already-visible centroid-centered transforms.
       // This avoids late corrective refits that can pull a centered first frame far right.
       workspaceOverlayStabilizedRef.current = true
@@ -1406,6 +1451,7 @@ export function useFlowCanvasRuntime(args: {
     isWorkspaceVisibleViewportSettled,
     remapTransformToVisibleViewport,
     deriveFlowOverlayCollectiveViewportState,
+    isOverlayCollectiveCoverageComplete,
     isFlowTransformBalancedCollective,
     isFlowTransformCentroidCentered,
     buildSceneViewportRecoverySignature,

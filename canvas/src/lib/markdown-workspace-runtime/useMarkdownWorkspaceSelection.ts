@@ -3,6 +3,8 @@ import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMark
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { extractYamlFrontmatterBlock, parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
@@ -159,6 +161,22 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   const lastFrontmatterSwitchApplySigRef = React.useRef<string>('')
   const frontmatterSwitchApplyInFlightSigRef = React.useRef<string>('')
   const lastFrontmatterSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
+  const primeStrictFrontmatterFlowEditorMode = React.useCallback((text: string) => {
+    const preset = parseCanvasWorkspaceFrontmatterPreset(text)
+    const strictFlowEditorPreset =
+      preset?.canvasSurfaceMode === '2d'
+      && preset?.canvas2dRenderer === 'flowEditor'
+      && preset?.documentSemanticMode === 'document'
+      && preset?.frontmatterModeEnabled === true
+    if (!strictFlowEditorPreset) return
+    const state = useGraphStore.getState()
+    if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
+    state.setCanvasRenderMode('2d')
+    state.setCanvas2dRenderer('flowEditor')
+    state.setDocumentSemanticMode('document')
+    state.setFrontmatterModeEnabled(true)
+    void setGeospatialModeEnabled(false).catch(() => void 0)
+  }, [])
   React.useEffect(() => {
     if (activeEntryKind === 'folder') return
     if (!activeDocumentKey) return
@@ -187,6 +205,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     lastFrontmatterSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
     frontmatterSwitchApplyInFlightSigRef.current = nextSig
     lastFrontmatterSwitchApplySigRef.current = nextSig
+    primeStrictFrontmatterFlowEditorMode(nextText)
     void (async () => {
       try {
         await applyActiveMarkdownDocumentPayload({
@@ -202,6 +221,65 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       } finally {
         if (frontmatterSwitchApplyInFlightSigRef.current === nextSig) {
           frontmatterSwitchApplyInFlightSigRef.current = ''
+        }
+      }
+    })()
+  }, [
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeEntry,
+    activeEntryKind,
+    activeEntryText,
+    primeStrictFrontmatterFlowEditorMode,
+    args.setActiveMarkdownDocument,
+  ])
+
+  const lastDocumentSwitchApplySigRef = React.useRef<string>('')
+  const documentSwitchApplyInFlightSigRef = React.useRef<string>('')
+  const lastDocumentSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
+  React.useEffect(() => {
+    const switched = switchedActivePathRef.current
+    if (!switched) return
+    if (activeEntryKind === 'folder') return
+    if (!activeDocumentKey) return
+    const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
+    if (!nextText.trim()) return
+    if (parseCanvasWorkspaceFrontmatterPreset(nextText)) return
+
+    const nextSig = hashSignatureParts([
+      'markdown-workspace-document-switch-apply',
+      activeDocumentKey,
+      nextText,
+      activeEntry?.updatedAtMs ?? 0,
+    ])
+    const nowMs = Date.now()
+    const lastAttempt = lastDocumentSwitchApplyAttemptRef.current
+    if (
+      lastAttempt.sig === nextSig &&
+      nowMs - lastAttempt.atMs < 400
+    ) {
+      return
+    }
+    if (documentSwitchApplyInFlightSigRef.current === nextSig) return
+    if (lastDocumentSwitchApplySigRef.current === nextSig) return
+    lastDocumentSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
+    documentSwitchApplyInFlightSigRef.current = nextSig
+    lastDocumentSwitchApplySigRef.current = nextSig
+    void (async () => {
+      try {
+        await applyActiveMarkdownDocumentPayload({
+          setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+          name: activeDocumentKey,
+          text: nextText,
+          sourceUrl: activeDocumentSourceUrl,
+          autoEnableFrontmatter: false,
+          applyViewPreset: false,
+          applyToGraph: false,
+          normalizeWebpageFrontmatterToMarkdown: false,
+        })
+      } finally {
+        if (documentSwitchApplyInFlightSigRef.current === nextSig) {
+          documentSwitchApplyInFlightSigRef.current = ''
         }
       }
     })()

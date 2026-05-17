@@ -6,6 +6,8 @@ const markdownWorkspaceRuntimePath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
 const markdownWorkspaceSelectionPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSelection.ts')
+const markdownWorkspaceViewShellPath = () =>
+  path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceViewShell.tsx')
 const markdownWorkspaceEffectiveContentPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceEffectiveContent.ts')
 const markdownWorkspaceInteractionsPath = () =>
@@ -180,6 +182,7 @@ export const testMarkdownWorkspaceSelectionClearsStaleEditorTextBeforeSsotDocume
 
 export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileSwitch = () => {
   const text = readUtf8(markdownWorkspaceSelectionPath())
+  const viewShellText = readUtf8(markdownWorkspaceViewShellPath())
   if (!text.includes('const lastFrontmatterSwitchApplySigRef = React.useRef<string>(\'\')')) {
     throw new Error('Expected markdown workspace selection to track per-document frontmatter switch signatures and avoid repeated preset replay churn')
   }
@@ -191,6 +194,21 @@ export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileS
   }
   if (!text.includes('if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return')) {
     throw new Error('Expected markdown workspace selection to gate immediate switch-time view preset replay behind explicit YAML canvas frontmatter detection')
+  }
+  if (!text.includes('const primeStrictFrontmatterFlowEditorMode = React.useCallback((text: string) => {')
+    || !text.includes("state.setCanvas2dRenderer('flowEditor')")
+    || !text.includes('state.setFrontmatterModeEnabled(true)')
+    || !text.includes('void setGeospatialModeEnabled(false).catch(() => void 0)')) {
+    throw new Error('Expected markdown workspace selection to synchronously prime strict frontmatter Flow Editor mode on file switch before async graph apply settles')
+  }
+  if (!text.includes('primeStrictFrontmatterFlowEditorMode(nextText)')) {
+    throw new Error('Expected markdown workspace selection to prime Flow Editor frontmatter mode immediately before switch-time active-document replay')
+  }
+  if (!viewShellText.includes('const entry = entries.find(candidate => candidate.kind === \'file\' && candidate.path === normalized) || null')
+    || !viewShellText.includes('const preset = parseCanvasWorkspaceFrontmatterPreset(entryText)')
+    || !viewShellText.includes("state.setCanvas2dRenderer('flowEditor')")
+    || !viewShellText.includes('void setGeospatialModeEnabled(false).catch(() => void 0)')) {
+    throw new Error('Expected markdown workspace explorer click path to prime strict frontmatter Flow Editor mode immediately when the target file already exposes the YAML preset')
   }
   if (!text.includes('applyViewPreset: true')) {
     throw new Error('Expected markdown workspace selection switch-time active-document replay to reapply view presets from YAML frontmatter')

@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useMarkdownSourceFilesSelection } from '@/features/markdown/ui/useMarkdownSourceFilesSelection'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export async function testUseMarkdownSourceFilesSelectionCentralizesSourcePanelSelectionState() {
   const { dom, restore } = initJsdomHarness()
@@ -43,6 +44,26 @@ export async function testUseMarkdownSourceFilesSelectionCentralizesSourcePanelS
   }
 
   try {
+    useGraphStore.getState().resetAll()
+    useGraphStore.setState({
+      sourceFiles: [
+        {
+          id: 'ref-file',
+          name: 'api/ref/index.md',
+          text: [
+            '---',
+            'canvasSurfaceMode: 2d',
+            'canvas2dRenderer: flowEditor',
+            'documentSemanticMode: document',
+            'frontmatterModeEnabled: true',
+            '---',
+            '',
+            '# Ref',
+          ].join('\n'),
+          status: 'idle',
+        },
+      ] as any,
+    })
     await act(async () => {
       root.render(React.createElement(Harness, { selectedFolderPath: 'docs/guides' }))
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -107,10 +128,18 @@ export async function testUseMarkdownSourceFilesSelectionCentralizesSourcePanelS
     if (expandedAfterFileClick !== '|api|api/ref|docs|docs/guides') {
       throw new Error(`expected file click to preserve expanded api ancestors, got ${expandedAfterFileClick}`)
     }
+    const store = useGraphStore.getState()
+    if (store.canvasRenderMode !== '2d' || store.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected source-file selection to prime Flow Editor mode for strict frontmatter docs, got ${store.canvasRenderMode}/${store.canvas2dRenderer}`)
+    }
+    if (store.frontmatterModeEnabled !== true || store.documentSemanticMode !== 'document') {
+      throw new Error(`expected source-file selection to prime document frontmatter mode, got frontmatter=${String(store.frontmatterModeEnabled)} semantic=${String(store.documentSemanticMode)}`)
+    }
   } finally {
     await act(async () => {
       root.unmount()
     })
+    useGraphStore.getState().resetAll()
     restore()
   }
 }

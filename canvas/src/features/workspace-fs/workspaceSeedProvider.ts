@@ -29,6 +29,10 @@ const normalizeBasename = (value: string): string => {
   return parts[parts.length - 1] || ''
 }
 
+const isWorkspaceBackedSourcePath = (value: unknown): boolean => {
+  return String(value || '').trim().startsWith('workspace:')
+}
+
 const normalizeAbsRoot = (value: string): string => {
   return String(value || '')
     .trim()
@@ -255,6 +259,7 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles = async
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
     if (sourceKind && sourceKind !== 'local') continue
     const sourcePathRaw = String(sourceFile.source?.path || sourceFile.name || '').trim()
+    if (isWorkspaceBackedSourcePath(sourcePathRaw)) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourcePathRaw)
     if (!pathCandidate || !isMarkdownMirrorFileName(pathCandidate)) continue
     const canonicalCandidates = readCanonicalPathCandidatesForSourcePath(sourcePathRaw)
@@ -464,6 +469,7 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecords = (args: {
     if (!sourceFile) continue
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
     if (sourceKind && sourceKind !== 'local') continue
+    if (isWorkspaceBackedSourcePath(sourceFile.source?.path || sourceFile.name || '')) continue
     const text = String(sourceFile.text || '')
     if (!text.trim()) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourceFile.source?.path || sourceFile.name || '')
@@ -500,6 +506,7 @@ const hasIncompleteSourceFilesMirrorText = (args: {
     if (!sourceFile) continue
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
     if (sourceKind && sourceKind !== 'local') continue
+    if (isWorkspaceBackedSourcePath(sourceFile.source?.path || sourceFile.name || '')) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourceFile.source?.path || sourceFile.name || '')
     if (!pathCandidate) continue
     if (!isMarkdownMirrorFileName(pathCandidate)) continue
@@ -561,6 +568,7 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
     if (sourceKind && sourceKind !== 'local') continue
     const sourcePathRaw = String(sourceFile.source?.path || sourceFile.name || '').trim()
+    if (isWorkspaceBackedSourcePath(sourcePathRaw)) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourcePathRaw)
     if (!pathCandidate) continue
     if (!isMarkdownMirrorFileName(pathCandidate)) continue

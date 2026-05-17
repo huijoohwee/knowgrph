@@ -1,4 +1,8 @@
 import React from 'react'
+import { flushSync } from 'react-dom'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import {
   expandMarkdownSourceFolderAncestors,
   normalizeMarkdownSourceFolderPath,
@@ -58,18 +62,42 @@ export function useMarkdownSourceFilesSelection(args: {
 
   const selectFile = React.useCallback(
     (args: { fileId: string; path: string }) => {
-      onSourceFileSelect?.(args.fileId)
-      const parentPath = resolveMarkdownSourceParentFolderPath(args.path)
-      setSelectedSourceFolderPath(parentPath)
-      onSelectedFolderPathChange?.(parentPath)
-      if (parentPath) {
-        setExpandedSourceFolderPaths(prev =>
-          expandMarkdownSourceFolderAncestors({
-            expandedPaths: prev,
-            selectedFolderPath: parentPath,
-          }),
-        )
+      const fileId = String(args.fileId || '').trim()
+      if (fileId) {
+        const state = useGraphStore.getState()
+        const sourceFile = (state.sourceFiles || []).find(file => String(file?.id || '').trim() === fileId) || null
+        const sourceText = sourceFile && typeof sourceFile.text === 'string' ? sourceFile.text : ''
+        const preset = parseCanvasWorkspaceFrontmatterPreset(sourceText)
+        const strictFlowEditorPreset =
+          preset?.canvasSurfaceMode === '2d'
+          && preset?.canvas2dRenderer === 'flowEditor'
+          && preset?.documentSemanticMode === 'document'
+          && preset?.frontmatterModeEnabled === true
+        if (strictFlowEditorPreset) {
+          flushSync(() => {
+            if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
+            state.setCanvasRenderMode('2d')
+            state.setCanvas2dRenderer('flowEditor')
+            state.setDocumentSemanticMode('document')
+            state.setFrontmatterModeEnabled(true)
+          })
+          void setGeospatialModeEnabled(false).catch(() => void 0)
+        }
       }
+      const parentPath = resolveMarkdownSourceParentFolderPath(args.path)
+      flushSync(() => {
+        onSourceFileSelect?.(args.fileId)
+        setSelectedSourceFolderPath(parentPath)
+        onSelectedFolderPathChange?.(parentPath)
+        if (parentPath) {
+          setExpandedSourceFolderPaths(prev =>
+            expandMarkdownSourceFolderAncestors({
+              expandedPaths: prev,
+              selectedFolderPath: parentPath,
+            }),
+          )
+        }
+      })
     },
     [onSelectedFolderPathChange, onSourceFileSelect],
   )

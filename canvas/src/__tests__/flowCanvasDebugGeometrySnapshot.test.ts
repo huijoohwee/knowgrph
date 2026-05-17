@@ -3,7 +3,13 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import FlowCanvas from '@/components/FlowCanvas'
-import { __flowCanvasDebug, readFlowCanvasDebugGeometrySnapshot } from '@/components/FlowCanvas/flowCanvasDebug'
+import {
+  __flowCanvasDebug,
+  readFlowCanvasDebugGeometrySnapshot,
+  readFlowCanvasDebugStatusLine,
+  resetFlowCanvasDebugStatus,
+  syncFlowCanvasDebugToast,
+} from '@/components/FlowCanvas/flowCanvasDebug'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
@@ -142,4 +148,36 @@ export async function testFlowCanvasDebugGeometrySnapshotPublishesWidgetAndRichM
 
   root.unmount()
   useGraphStore.setState(priorState)
+}
+
+export function testFlowCanvasDebugStatusResetClearsStickyRecoveryToast() {
+  const priorState = useGraphStore.getState()
+  try {
+    useGraphStore.setState({ uiToasts: [] })
+    __flowCanvasDebug.lastRecoveryReason = 'workspace-open-offscreen-debounce-pending'
+    __flowCanvasDebug.lastRuntimeTransform = '10,20,1'
+    __flowCanvasDebug.lastExpectedFit = '30,40,1'
+
+    syncFlowCanvasDebugToast({ enabled: true })
+    const beforeReset = useGraphStore.getState().uiToasts
+    if (!beforeReset.some(toast => String(toast?.message || '').includes('workspace-open-offscreen-debounce-pending'))) {
+      throw new Error('expected flow canvas debug toast to surface the sticky recovery reason before reset')
+    }
+
+    resetFlowCanvasDebugStatus({ dismissToast: true })
+
+    if (__flowCanvasDebug.lastRecoveryReason || __flowCanvasDebug.lastRuntimeTransform || __flowCanvasDebug.lastExpectedFit) {
+      throw new Error('expected flow canvas debug status reset to clear sticky recovery payload fields')
+    }
+    const afterReset = useGraphStore.getState().uiToasts
+    if (afterReset.some(toast => String(toast?.message || '').startsWith('Flow status '))) {
+      throw new Error('expected flow canvas debug status reset to dismiss the sticky runtime toast')
+    }
+    if (readFlowCanvasDebugStatusLine() !== 'Flow status - | t - | e -') {
+      throw new Error(`expected cleared debug status line after reset, got ${readFlowCanvasDebugStatusLine()}`)
+    }
+  } finally {
+    useGraphStore.setState(priorState)
+    resetFlowCanvasDebugStatus({ dismissToast: true })
+  }
 }

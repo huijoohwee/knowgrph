@@ -767,6 +767,18 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('&& currentTransformUsable\n      && (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
     throw new Error('expected Flow runtime workspace-open init-preserve guard to require usable current transform before skipping re-fit')
   }
+  if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
+    || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')
+    || !runtimeText.includes('overlayCollectiveCoverageComplete && workspaceOverlayStabilizedRef.current')
+    || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)')) {
+    throw new Error('expected Flow runtime workspace-open preserve-current guards to require full live overlay collective coverage before stabilizing a centered frontmatter landing')
+  }
+  if (!runtimeText.includes('const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []')
+    || !runtimeText.includes('const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0')
+    || !runtimeText.includes('const recoveryCollectiveOverlayFitIds = deriveExpectedOverlayCollectiveIds(recoveryGraphData)')
+    || !runtimeText.includes('workspaceEditorOverlayOpen === true && recoveryCollectiveOverlayFitIds.length > 0')) {
+    throw new Error('expected Flow runtime workspace-open init and recovery fits to use canonical frontmatter collective ids instead of transient live open-widget subsets')
+  }
   if (!runtimeText.includes('workspace-open-stabilized-preserve-current')) {
     throw new Error('expected Flow runtime workspace-open recovery to preserve stabilized transform and forbid late fly-off refits')
   }

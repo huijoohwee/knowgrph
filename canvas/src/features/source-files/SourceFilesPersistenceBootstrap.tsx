@@ -206,6 +206,7 @@ export function SourceFilesPersistenceBootstrap() {
   const workspaceMaterializeInFlightRef = React.useRef(false)
   const workspaceMaterializeQueuedRef = React.useRef(false)
   const workspaceMaterializeTimerRef = React.useRef<number | null>(null)
+  const scheduleWorkspaceRematerializeRef = React.useRef<(() => void) | null>(null)
   const activePathMaterializeInFlightRef = React.useRef(false)
   const queuedActivePathMaterializeRef = React.useRef<string | null>(null)
   const suppressComposeUntilMsRef = React.useRef(0)
@@ -450,6 +451,7 @@ export function SourceFilesPersistenceBootstrap() {
         restoreBootstrapWorkspaceState(persistedWorkspace)
         workspaceHydratedRef.current = true
         lastWorkspacePersistedRef.current = persistedWorkspace
+        scheduleWorkspaceRematerializeRef.current?.()
       } catch {
         hydratedRef.current = true
         workspaceHydratedRef.current = true
@@ -536,8 +538,15 @@ export function SourceFilesPersistenceBootstrap() {
       }
     }
     const scheduleRematerialize = () => {
+      if (!workspaceHydratedRef.current) {
+        workspaceMaterializeQueuedRef.current = true
+        return
+      }
       const sourceFiles = useGraphStore.getState().sourceFiles
-      if (!hasNonWorkspaceSourceFile(sourceFiles) && !hasWorkspaceSourceFile(sourceFiles)) return
+      if (!hasNonWorkspaceSourceFile(sourceFiles) && !hasWorkspaceSourceFile(sourceFiles)) {
+        workspaceMaterializeQueuedRef.current = true
+        return
+      }
       if (workspaceMaterializeTimerRef.current != null) {
         window.clearTimeout(workspaceMaterializeTimerRef.current)
         workspaceMaterializeTimerRef.current = null
@@ -552,14 +561,29 @@ export function SourceFilesPersistenceBootstrap() {
         void rematerializeWorkspaceBackedSourceFiles()
       }, delayMs)
     }
+    scheduleWorkspaceRematerializeRef.current = scheduleRematerialize
     lastWorkspaceEntriesSignatureRef.current = ''
     scheduleRematerialize()
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
+      if (!workspaceHydratedRef.current) {
+        workspaceMaterializeQueuedRef.current = true
+        return
+      }
       const sourceFiles = useGraphStore.getState().sourceFiles
-      if (!hasNonWorkspaceSourceFile(sourceFiles) && !hasWorkspaceSourceFile(sourceFiles)) return
+      if (!hasNonWorkspaceSourceFile(sourceFiles) && !hasWorkspaceSourceFile(sourceFiles)) {
+        workspaceMaterializeQueuedRef.current = true
+        return
+      }
       const op = String(detail?.op || '')
       if (!op) return
       if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return
+      if (op === 'ensureSeed') {
+        void materializeActiveWorkspaceEntryIntoSourceFiles({
+          fs: reusableWorkspaceFsRef.current || undefined,
+        }).catch(() => {
+          void 0
+        })
+      }
       const changedPath = String(detail?.path || '').trim()
       const activePath = resolveMaterializedWorkspaceActivePath({
         explorerActivePath: useMarkdownExplorerStore.getState().activePath,
@@ -574,6 +598,9 @@ export function SourceFilesPersistenceBootstrap() {
       scheduleRematerialize()
     })
     return () => {
+      if (scheduleWorkspaceRematerializeRef.current === scheduleRematerialize) {
+        scheduleWorkspaceRematerializeRef.current = null
+      }
       if (workspaceMaterializeTimerRef.current != null) {
         window.clearTimeout(workspaceMaterializeTimerRef.current)
         workspaceMaterializeTimerRef.current = null

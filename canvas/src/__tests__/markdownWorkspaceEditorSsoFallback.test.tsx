@@ -7,6 +7,7 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { LS_KEYS } from '@/lib/config'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 
 const tick = async (dom: { window: Window }) => {
@@ -48,6 +49,80 @@ export async function testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiv
     const v = String(textarea.value || '')
     if (!v.includes('Fallback')) {
       throw new Error(`expected fallback text in editor, got ${JSON.stringify(v.slice(0, 120))}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMarkdownWorkspaceImmediatelySyncsPlainDocumentOnFileSwitch() {
+  const storage = new MemoryStorage()
+  storage.setItem(LS_KEYS.markdownLayoutMode, JSON.stringify('editor'))
+  storage.setItem(LS_KEYS.markdownWorkspaceUserClearedAllFiles, 'true')
+
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  let root: ReturnType<typeof createRoot> | null = null
+
+  const waitFor = async (predicate: () => boolean, maxTicks = 48) => {
+    for (let i = 0; i < maxTicks; i += 1) {
+      await tick(dom)
+      if (predicate()) return
+    }
+    throw new Error('timed out waiting for markdown workspace state')
+  }
+
+  try {
+    const doc = dom.window.document
+    const fs = await getWorkspaceFs()
+    await fs.ensureSeed()
+    const firstPath = await fs.createFile({
+      parentPath: '/',
+      name: 'grabmaps-switch-source.md',
+      text: '# GrabMaps Switch Source\n\nAlpha',
+    })
+    const secondPath = await fs.createFile({
+      parentPath: '/',
+      name: 'video-demo-switch-source.md',
+      text: '# Video Demo Switch Target\n\nBeta',
+    })
+
+    useMarkdownExplorerStore.getState().setActivePath(firstPath)
+    const graph = useGraphStore.getState()
+    graph.setMarkdownDocument(workspaceDocumentKey(firstPath), '# GrabMaps Switch Source\n\nAlpha')
+    graph.setMarkdownDocumentSourceUrl(null)
+
+    root = createRoot(doc.getElementById('root') as unknown as HTMLElement)
+    root.render(React.createElement(MarkdownWorkspace))
+
+    await waitFor(() => String(doc.body.textContent || '').includes('video-demo-switch-source.md'))
+
+    useMarkdownExplorerStore.getState().setActivePath(secondPath)
+
+    await waitFor(() => {
+      const state = useGraphStore.getState()
+      return (
+        state.markdownDocumentName === workspaceDocumentKey(secondPath) &&
+        String(state.markdownDocumentText || '').includes('Video Demo Switch Target')
+      )
+    }, 8)
+
+    const switchedState = useGraphStore.getState()
+    const switchedText = String(switchedState.markdownDocumentText || '')
+    if (switchedState.markdownDocumentName !== workspaceDocumentKey(secondPath)) {
+      throw new Error(`expected active markdown document name to switch immediately, got ${String(switchedState.markdownDocumentName)}`)
+    }
+    if (!switchedText.includes('Video Demo Switch Target')) {
+      throw new Error(`expected switched markdown document text to match the target file, got ${JSON.stringify(switchedText.slice(0, 160))}`)
+    }
+    if (switchedText.includes('GrabMaps Switch Source')) {
+      throw new Error(`expected switched markdown document text to drop the previous file payload, got ${JSON.stringify(switchedText.slice(0, 160))}`)
     }
   } finally {
     try {

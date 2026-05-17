@@ -699,6 +699,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["markdown.workspace.folderDoesNotClearMarkdown","@/__tests__/workspaceImportFolderDoesNotClearMarkdownDocument.test","testWorkspaceFolderSelectionDoesNotClearMarkdownDocument"],
   ["markdown.workspace.folderModeContract.opensDocs","@/__tests__/markdownWorkspaceFolderModeContract.test","testMarkdownWorkspaceFolderModeContractOpensDocs"],
   ["markdown.workspace.editorSsoFallback","@/__tests__/markdownWorkspaceEditorSsoFallback.test","testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiveTextEmpty"],
+  ["markdown.workspace.switch.immediatelySyncsPlainDocument","@/__tests__/markdownWorkspaceEditorSsoFallback.test","testMarkdownWorkspaceImmediatelySyncsPlainDocumentOnFileSwitch"],
+  ["flowCanvas.debug.resetClearsStickyRecoveryToast","@/__tests__/flowCanvasDebugGeometrySnapshot.test","testFlowCanvasDebugStatusResetClearsStickyRecoveryToast"],
   ["markdown.workspace.canvasHtmlIndexGuard.skipsCanvasExports","@/__tests__/markdownWorkspaceCanvasHtmlIndexGuard.test","testMarkdownWorkspaceCanvasHtmlIndexGuardSkipsExports"],
   ["markdown.loader.normalizesBasename","@/__tests__/markdownLoaderInterop.test","testMarkdownLoaderKeyNormalizesBasename"],
   ["markdown.loader.prefersImportedBasenameMatch","@/__tests__/markdownLoaderInterop.test","testMarkdownLoaderPrefersImportedForBasenameMatch"],

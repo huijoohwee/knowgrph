@@ -80,6 +80,10 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
     && Number.isFinite(entry.bottom),
   )
   if (entries.length === 0) return null
+  const ids = Array.from(merged.keys())
+    .map(id => String(id || '').trim())
+    .filter(Boolean)
+    .sort((leftId, rightId) => leftId.localeCompare(rightId))
   let minX = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
@@ -92,7 +96,16 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
     maxY = Math.max(maxY, entry.bottom)
   }
   if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null
-  return { minX, maxX, minY, maxY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) }
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+    ids,
+    count: ids.length,
+  }
 }
 
 export function resolveFlowEditorVisibleViewport(args: {

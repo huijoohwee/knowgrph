@@ -1,7 +1,11 @@
 import React from 'react'
+import { flushSync } from 'react-dom'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
 import {
@@ -71,11 +75,33 @@ export function useMarkdownWorkspaceViewShell(args: {
 
   const onSelectFile = React.useCallback(
     (path: WorkspacePath) => {
-      setSelectionSource('editor')
-      setActivePathSafe(path)
-      setSelectionPathSafe(path)
+      const normalized = normalizeWorkspacePath(path)
+      const entry = entries.find(candidate => candidate.kind === 'file' && candidate.path === normalized) || null
+      const entryText = entry && typeof entry.text === 'string' ? entry.text : ''
+      const preset = parseCanvasWorkspaceFrontmatterPreset(entryText)
+      const strictFlowEditorPreset =
+        preset?.canvasSurfaceMode === '2d'
+        && preset?.canvas2dRenderer === 'flowEditor'
+        && preset?.documentSemanticMode === 'document'
+        && preset?.frontmatterModeEnabled === true
+      if (strictFlowEditorPreset) {
+        flushSync(() => {
+          const state = useGraphStore.getState()
+          if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
+          state.setCanvasRenderMode('2d')
+          state.setCanvas2dRenderer('flowEditor')
+          state.setDocumentSemanticMode('document')
+          state.setFrontmatterModeEnabled(true)
+        })
+        void setGeospatialModeEnabled(false).catch(() => void 0)
+      }
+      flushSync(() => {
+        setSelectionSource('editor')
+        setActivePathSafe(normalized)
+        setSelectionPathSafe(normalized)
+      })
     },
-    [setActivePathSafe, setSelectionPathSafe, setSelectionSource],
+    [entries, setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )
 
   const onSelectFolder = React.useCallback(

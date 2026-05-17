@@ -2,6 +2,7 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
+import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 
 const notifyWorkspaceFsDegraded = async (err: unknown) => {
   try {
@@ -167,7 +168,12 @@ export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
   }
 
   return {
-    ensureSeed: () => run('ensureSeed', fs => fs.ensureSeed()),
+    ensureSeed: () =>
+      run('ensureSeed', async fs => {
+        const changed = await fs.ensureSeed()
+        if (changed) notifyWorkspaceFsChanged({ op: 'ensureSeed' })
+        return changed
+      }),
     listEntries: () =>
       run('listEntries', async fs => {
         const list = await fs.listEntries()

@@ -70,7 +70,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (!e || e.kind !== 'file') continue
     const path = String(e.path || '').trim()
     if (!path) continue
-    if (workspaceDocsOnly && !path.startsWith('/docs/')) continue
+    if (workspaceDocsOnly && !path.startsWith('/docs/') && !forceInclude.has(path)) continue
 
     const seedSourcePath = resolveWorkspaceSeedSourcePath(path)
     const isLegacyRootSeedAliasCoveredByDocsMirror =

@@ -11,6 +11,7 @@ export type WorkspaceFsChangedDetail = {
 let workspaceFsChangedBatchDepth = 0
 let pendingWorkspaceFsChangedDetail: WorkspaceFsChangedDetail | null = null
 let suppressPendingWorkspaceFsChangedBatchEvent = false
+let lastEnsureSeedDetail: WorkspaceFsChangedDetail | null = null
 
 export async function runWorkspaceFsChangedBatch<T>(fn: () => Promise<T> | T): Promise<T> {
   workspaceFsChangedBatchDepth += 1
@@ -43,6 +44,9 @@ export function suppressNextWorkspaceFsChangedEvent(count: number = 1): void {
 export function notifyWorkspaceFsChanged(detail?: WorkspaceFsChangedDetail): void {
   try {
     if (typeof window === 'undefined') return
+    if (detail?.op === 'ensureSeed') {
+      lastEnsureSeedDetail = { op: 'ensureSeed' }
+    }
 
     if (workspaceFsChangedBatchDepth > 0) {
       const normalizedPath = detail?.path ? normalizeWorkspacePath(detail.path) : undefined
@@ -73,6 +77,13 @@ export function notifyWorkspaceFsChanged(detail?: WorkspaceFsChangedDetail): voi
 export function subscribeWorkspaceFsChanged(fn: (detail: WorkspaceFsChangedDetail) => void): () => void {
   try {
     if (typeof window === 'undefined') return () => void 0
+    if (lastEnsureSeedDetail) {
+      try {
+        fn(lastEnsureSeedDetail)
+      } catch {
+        void 0
+      }
+    }
     const handler = (ev: Event) => {
       const detailRaw = (ev as CustomEvent).detail
       const detail = detailRaw && typeof detailRaw === 'object' && !Array.isArray(detailRaw) ? (detailRaw as WorkspaceFsChangedDetail) : {}
