@@ -28,6 +28,8 @@
     "lint": "npm --prefix canvas run lint",
     "check": "npm --prefix canvas run check",
     "test": "npm --prefix canvas run test:ci",
+    "superagent:example": "python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example",
+    "superagent:test": "python3 -m unittest knowgrph_parser.superagent_harness_test",
     "pipeline": "python3 -m knowgrph_parser pipeline",
     "graphrag:example-workflow": "python3 -m knowgrph_parser graphrag-workflow",
     "docs:byteplus-chat-reference": "npm --prefix canvas run doc:generate-byteplus-chat-reference",

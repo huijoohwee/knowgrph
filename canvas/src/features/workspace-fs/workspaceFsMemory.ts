@@ -97,6 +97,12 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
       for (const seed of seeds) {
         const path = normalizeWorkspacePath(seed.path)
         const existing = entriesByPath.get(path)
+        if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && path === TEST_VALIDATION_WORKSPACE_SEED_PATH && (!existing || existing.kind !== 'file')) {
+          const entries = expandWorkspaceSeedFileEntries(path, seed.text, Date.now())
+          for (const entry of entries) entriesByPath.set(entry.path, entry)
+          seededTextChanged = true
+          continue
+        }
         if (!existing || existing.kind !== 'file') continue
         const currentText = String(existing.text ?? '')
         if (seed.isFallback && currentText.trim().length > 0) continue

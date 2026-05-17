@@ -1,0 +1,210 @@
+# Goal: Enhance Knowgrph for E2E Rich Media Content Generation
+
+Enhance Knowgrph into a Codex-compatible, end-to-end rich media generation system that can turn a user-provided brief into traceable text, image, video, and canvas artifacts. The work must improve the repo itself: runtime harness, provider abstraction, canvas graph output, validation, recovery, documentation, and runnable examples.
+
+The deliverable is not a single demo asset. The deliverable is a durable rich-media generation pipeline that can be run, resumed, judged, inspected, and extended.
+
+## Non-Negotiables
+
+- Do not copy implementation, wording, names, architecture files, or project structure from any external repository. External projects may inspire broad orchestration ideas only.
+- Keep the system universal, neutral, and project-agnostic. It must operate on user-provided briefs, canvas graphs, tool schemas, and media providers without assuming any particular campaign, product, document, filename, fixture, repository path, brand, geography, language, model vendor, or demo story.
+- Tests must not pass because of hardcoded in-repo demo content or absolute local paths. Neutral fixtures are allowed; specific demo documents are allowed only as manually supplied runtime inputs.
+- Codex must be a first-class execution surface. A reviewer must be able to run the E2E pipeline from Codex using the goal, CLI, MCP, or documented commands.
+- Baseline validation must work offline with deterministic mock providers. Real provider execution may require credentials, but the repo must remain testable without network or paid services.
+- Generated media and canvas artifacts must be provenance-linked to the goal, source brief, plan, tool calls, and verification checks.
+
+## App Surface Contract
+
+The E2E rich media generation pipeline must be usable and inspectable through the full Knowgrph app surface:
+
+```text
+MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges
+```
+
+This means the pipeline must not stop at backend artifact creation. It must produce artifacts and metadata that can move from integration configuration, through FloatingPanel chat-driven orchestration, into the editor workspace, onto the canvas, into flow widgets, through readable edges, and finally into the Rich Media Panel render surface.
+
+The visual canvas contract is a balanced landscape layout:
+
+- Treat 1920x1080 as the canonical logical presentation frame for generated rich media frontmatter-flow artifacts.
+- Keep Text, Image, Video, and Rich Media Panel widgets visible, proportionally sized, and non-overlapping inside the 16:9 frame.
+- Keep data-flow edges readable and routed between the widgets and Rich Media Panel ports without crossing directly through the center of widget content when a better route is available.
+- Preserve the layout in metadata so it can be inspected, replayed, and adapted to other viewport sizes without hardcoding a demo document or absolute path.
+- Use this layout as a validation target, not as a one-off fixed scene. Other briefs must be able to reuse the same balanced layout rules.
+
+## User-Supplied Validation Input
+
+The following path is an external runtime validation input supplied by the user, not a fixture or implementation dependency:
+
+```text
+/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md
+```
+
+Use this document only when explicitly passed at runtime for E2E validation. Do not hardcode this absolute path, its repository location, or its story content into source code, tests, fixtures, package scripts, MCP defaults, generated templates, or documentation. The pipeline must pass neutral in-repo validation without it, and then also accept this path as a user-supplied input.
+
+## Target E2E Capability
+
+Given a neutral brief and optional existing canvas graph, Knowgrph should:
+
+1. Ingest the goal, source brief, constraints, media requirements, and available provider configuration.
+2. Plan a text → image → video → canvas workflow with explicit dependencies, budgets, retries, and termination criteria.
+3. Generate or mock text artifacts: scene plan, captions, narration, prompts, metadata, and final copy.
+4. Generate or mock image artifacts: reference frames, prompt metadata, dimensions, media type, and provenance.
+5. Generate or mock video artifacts: storyboard or rendered video output, reference media links, duration, aspect ratio, and provenance.
+6. Compose a canvas graph containing typed text, image, video, Rich Media Panel, verification, and report nodes with data-flow/provenance edges.
+7. Emit a Knowgrph frontmatter-flow workspace artifact that can travel the app route: MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges.
+8. Persist state, trace, observations, artifacts, recovery events, and a final report.
+9. Verify media references, canvas topology, Rich Media Panel wiring, trace completeness, restartability, and neutrality.
+10. Stop deterministically when acceptance criteria pass, a recorded blocker is reached, or configured budgets are exhausted.
+
+## Required Runtime Concepts
+
+Implement or maintain the following as first-class, inspectable concepts:
+
+- `Goal`: user intent, constraints, output contract, quality bar, budget, and stop rules.
+- `Run`: unique run id, status, timestamps, active plan version, budget use, current phase, and final result.
+- `Step`: atomic planner, agent, tool, verification, recovery, or synthesis action.
+- `Tool`: typed input/output schema, timeout, retry policy, error taxonomy, and structured observation.
+- `Agent`: role, task contract, allowed tools, memory scope, artifact responsibility, and completion signal.
+- `Provider`: mock and real implementations behind the same text/image/video contracts.
+- `Memory`: durable run memory plus optional long-term summaries, dedupe, and provenance.
+- `Artifact`: text, image, video, canvas graph, preview, report, or trace file with source step metadata.
+- `Judge`: deterministic validation checks plus optional model-assisted critique that cannot override hard failures.
+- `Recovery`: retry, degrade, skip-with-evidence, ask-for-human-only-when-blocked, and resume behavior.
+
+Prefer simple, inspectable modules over hidden behavior. A reviewer should be able to follow the pipeline from goal intake to final artifact without guessing.
+
+## Agent Loop
+
+The core loop must be explicit:
+
+1. Normalize goal, source brief, constraints, and output contract.
+2. Inspect workspace, provider configuration, and available tools.
+3. Create or update the plan.
+4. Select ready tasks based on dependencies.
+5. Dispatch tasks to workers or tools with typed contracts.
+6. Record observations, costs when available, and artifacts.
+7. Verify completed work.
+8. Decide whether to continue, retry, recover, replan, resume, or terminate.
+9. Produce a final answer/report with artifact links and trace summary.
+
+The loop must be bounded by configurable limits such as maximum wall time, maximum steps, maximum retries per task, maximum concurrent workers, and provider-specific cost or token budgets.
+
+## Rich Media Generation Requirements
+
+Text generation must support:
+
+- Scene planning from arbitrary briefs.
+- Captions, narration, prompts, and metadata.
+- Provider-agnostic output records.
+- Deterministic mock output for tests.
+
+Image generation must support:
+
+- Prompt input, dimensions/aspect ratio, optional reference context, and output path or URL.
+- Deterministic mock image output for tests.
+- Real provider adapter hooks when configured.
+- Media validation and provenance.
+
+Video generation must support:
+
+- Prompt input, optional reference image/video, duration, aspect ratio, and output path or URL.
+- Deterministic mock video/storyboard output for tests.
+- Real provider adapter hooks when configured.
+- Media validation and provenance.
+
+All providers must expose typed errors: retryable, recoverable-by-replan, blocked-by-configuration, and fatal.
+
+## Canvas Requirements
+
+The canvas must be treated as a graph of typed nodes and edges, not as one fixed demo:
+
+- Text nodes may hold briefs, scene scripts, captions, narration, prompts, metadata, or evaluation notes.
+- Image nodes may hold prompts, reference images, generated image URLs or files, dimensions, and provenance.
+- Video nodes may hold prompts, reference media, generated video URLs or files, duration, aspect ratio, and provenance.
+- Composition nodes may group scenes, variants, timelines, panels, or export bundles.
+- Rich Media Panel nodes must receive text, image, and video output through explicit widget ports (`output`, `imageUrl`, `videoUrl`) rather than hidden side effects.
+- Verification/report nodes must show validation status and final output links.
+- Edges must express data flow, dependency, provenance, verification, or recovery relationships.
+- Frontmatter-flow widget layout must use a balanced 16:9 logical frame (`1920x1080`) with Text, Image, Video, and Rich Media Panel widgets positioned as a readable composition, not a stacked or offscreen cluster.
+- Edges connecting Text, Image, and Video widgets to the Rich Media Panel must be inspectable, connected to explicit handles, and retained in the generated graph and workspace markdown.
+- Missing, failed, degraded, or pending media must be represented explicitly rather than hidden.
+
+The generated canvas artifact should be loadable or inspectable by existing Knowgrph surfaces where feasible, and must always be available as a standalone graph artifact.
+When Knowgrph frontmatter-flow is available, also emit a workspace markdown artifact that declares `kgCanvas2dRenderer: "flowEditor"`, canonical widget form ids, widget handles, the balanced 16:9 widget layout metadata, and the Rich Media Panel node needed by the Editor Workspace Canvas Widgets, Edges, and Rich Media Panel surface.
+
+## Tooling And Entry Points
+
+Provide or maintain:
+
+- A CLI entrypoint for running the E2E rich media pipeline.
+- A Codex-friendly `/goal` workflow and documented command.
+- An MCP tool or equivalent API wrapper for external clients.
+- A deterministic neutral example that runs without credentials.
+- Optional real-provider configuration through environment variables or config files.
+- Trace query or replay support sufficient for judging.
+
+Every tool call must produce a structured observation. Every final artifact must link back to run, step, tool, and input provenance.
+
+## Verification Requirements
+
+Validation must be layered:
+
+- Unit tests for planning, run state transitions, tool schema validation, provider contracts, retry behavior, and termination.
+- Integration tests for a neutral brief flowing through text, image, video, and canvas artifact creation using mock providers.
+- Resume tests proving a run can continue from a saved checkpoint.
+- Failure tests proving retry and recovery paths are observable and bounded.
+- Neutrality tests proving the system does not depend on specific demo filenames, absolute local paths, branded fixture strings, or one campaign narrative.
+- Trace tests proving every final artifact links back to run, step, tool, and input provenance.
+- Canvas tests proving text, image, video, verification, and report nodes exist with valid data-flow/provenance edges.
+- Workspace/widget tests proving the generated frontmatter-flow artifact contains canonical TextGeneration, ImageGeneration, VideoGeneration, and RichMediaPanel widgets connected to the Rich Media Panel ports.
+- Layout tests proving generated frontmatter-flow positions fit a balanced 16:9 (`1920x1080`) logical frame with visible Text, Image, Video, and Rich Media Panel widgets plus readable connecting edges.
+- Media tests proving generated or mocked image/video artifacts exist, have declared media types, and are referenced by the canvas graph.
+
+If visual or browser validation is available, include a smoke test that loads a generated canvas or preview and confirms that text, image, and video nodes are represented without missing references. Do not require external network access for baseline tests.
+
+## Acceptance Criteria
+
+The goal is complete only when:
+
+- A reviewer can identify the E2E rich media entrypoint and run a minimal neutral example.
+- The run produces persisted state, trace, report, text artifact, image artifact, video artifact, canvas graph, and canvas preview or equivalent inspectable surface.
+- The trace includes plan, task dispatch, tool calls, observations, verification, recovery handling, and final synthesis.
+- Text, image, and video generation paths exist behind provider-agnostic contracts.
+- Deterministic mock providers are covered by tests.
+- Real provider hooks are documented and do not break offline tests when credentials are absent.
+- The canvas graph captures generated media and provenance through typed nodes and edges.
+- The generated workspace artifact exposes the same media through the MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges path.
+- Live UI or browser verification confirms the route can open MainPanel Integrations, FloatingPanel Chat UI, Editor Workspace, Canvas, visible widgets, Rich Media Panel, and their edges without relying on the validation document being hardcoded in the repo.
+- Test validation can run with the user-supplied validation path above as a runtime input, while the repo remains free of hardcoded dependencies on that absolute path or its demo content.
+- Failure and resume behavior are tested.
+- Termination is deterministic and recorded.
+- No test or implementation relies on hardcoded absolute local paths or a specific pre-existing demo document.
+- Codex usage is documented or implemented so evaluation can be anchored on Codex.
+
+## Suggested Implementation Order
+
+1. Preserve or add neutral run schemas and trace persistence.
+2. Preserve or add typed tool/provider registry for text, image, and video.
+3. Add or refine planner/executor loop with explicit termination.
+4. Add worker role contracts for text, image, video, canvas, verifier, and synthesizer tasks.
+5. Add checkpoint/resume and bounded recovery.
+6. Add canvas graph and preview artifacts for generated media.
+7. Add neutral integration example and tests.
+8. Add optional real-provider adapter hooks.
+9. Add Codex-facing instructions, MCP or API entrypoint, and reviewer documentation.
+10. Run the neutral E2E example and, when supplied by the user, run external/demo briefs only as runtime inputs.
+
+## Final Output Contract
+
+At the end of a successful run, produce:
+
+- A final report summarizing the goal, plan, completed steps, generated artifacts, verification results, recovery events, provider mode, and termination reason.
+- A text artifact containing scene plan/captions/narration/prompts.
+- An image artifact or deterministic mock image artifact.
+- A video artifact or deterministic mock video/storyboard artifact.
+- A canvas graph artifact containing text, image, video, verification, and report nodes with provenance.
+- A Knowgrph frontmatter-flow workspace artifact containing text/image/video widgets wired into a Rich Media Panel with a balanced 16:9 (`1920x1080`) layout and inspectable edges.
+- A run trace artifact that can be inspected independently.
+- Clear commands or Codex instructions for rerunning the neutral example and for running user-supplied briefs.
+
+Knowgrph should make rich media autonomy legible. Its value is not that it generated one impressive asset; its value is that it can be trusted to pursue a media goal, coordinate text/image/video work, recover when reality pushes back, and explain every step it took.

@@ -311,6 +311,21 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
         for (const seed of seeds) {
           const path = normalizeWorkspacePath(seed.path)
           const row = await collections.entries.findOne(path).exec()
+          if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && path === TEST_VALIDATION_WORKSPACE_SEED_PATH && (!row || row.get('kind') !== 'file')) {
+            const entries = expandWorkspaceSeedFileEntries(path, seed.text, Date.now())
+            for (const entry of entries) {
+              await collections.entries.incrementalUpsert({
+                path: entry.path,
+                parentPath: entry.parentPath || '',
+                kind: entry.kind,
+                name: entry.name,
+                text: entry.kind === 'file' ? String(entry.text ?? '') : '',
+                updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
+              })
+            }
+            seededTextChanged = true
+            continue
+          }
           if (!row || row.get('kind') !== 'file') continue
           const currentText = String(row.get('text') ?? '')
           if (seed.isFallback && currentText.trim().length > 0) continue

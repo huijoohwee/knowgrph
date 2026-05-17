@@ -29,6 +29,10 @@ ClawdChat itself is not required to run Knowgrph—your users still connect to *
 2. `knowgrph.graphrag_pipeline`
    - Runs: `python -m knowgrph_parser graphrag-pipeline ...`
    - Typical use: generate GraphData + A0 exports from a GraphRAG indexing run
+3. `knowgrph.superagent.run`
+   - Runs: `python -m knowgrph_parser superagent ...`
+   - Typical use: run the Codex-compatible rich media super-agent harness with deterministic mock text/image/video providers
+   - Emits: `state.json`, `trace.jsonl`, `final-report.md`, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
 
 ## Install (external users)
 
@@ -77,6 +81,7 @@ Then you can call:
 - `knowgrph.ui.launch` with `{ "target": "workspaceEditor" }` (or `canvas` / `geospatial`)
 - `knowgrph.pipeline` with `{ "mode": "pipeline", "inputPath": "data/outputs/graph.json", "outputDir": "data/outputs" }`
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
+- `knowgrph.superagent.run` with `{ "inputPath": "knowgrph_parser/fixtures/superagent-neutral.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example" }`
 
 ## Security / sandboxing
 

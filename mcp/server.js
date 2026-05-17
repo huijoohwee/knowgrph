@@ -178,6 +178,12 @@ async function summarizeArtifacts({ outputDir, extraPaths = [] }) {
     outputDir ? path.join(outputDir, "a0.csv") : null,
     outputDir ? path.join(outputDir, "a0.jsonld") : null,
     outputDir ? path.join(outputDir, "a0.ttl") : null,
+    outputDir ? path.join(outputDir, "state.json") : null,
+    outputDir ? path.join(outputDir, "trace.jsonl") : null,
+    outputDir ? path.join(outputDir, "final-report.md") : null,
+    outputDir ? path.join(outputDir, "artifacts", "canvas", "canvas.graph.json") : null,
+    outputDir ? path.join(outputDir, "artifacts", "canvas", "canvas-preview.html") : null,
+    outputDir ? path.join(outputDir, "artifacts", "workspace", "rich-media-flow.md") : null,
     ...extraPaths,
   ].filter(Boolean);
 
@@ -303,6 +309,55 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             outDir: { type: "string", description: "Output directory." },
             graphId: { type: "string", description: "Graph identifier used in emitted workflow doc." },
             timeoutMs: { type: "number", description: "Optional timeout in milliseconds." },
+          },
+        },
+      },
+      {
+        name: "knowgrph.superagent.run",
+        description:
+          "Run the Codex-compatible super-agent harness for rich media canvas generation with deterministic mock media providers.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            inputPath: {
+              type: "string",
+              description: "Path to a markdown/text brief. Required unless resume=true.",
+            },
+            outputDir: {
+              type: "string",
+              description: "Directory for state, trace, report, and artifacts. Defaults to data/outputs/superagent-mcp-run-<timestamp>.",
+            },
+            goalPath: {
+              type: "string",
+              description: "Optional goal file path. Defaults to KNOWGRPH_ROOT/goal.",
+            },
+            runId: {
+              type: "string",
+              description: "Optional stable run id.",
+            },
+            resume: {
+              type: "boolean",
+              default: false,
+              description: "Resume from outputDir/state.json.",
+            },
+            stopAfterStep: {
+              type: "number",
+              description: "Optional checkpoint after N completed tasks.",
+            },
+            failOnceTool: {
+              type: "string",
+              description: "Optional tool name to fail once for recovery testing, e.g. video.generate.mock.",
+            },
+            allowExternalInput: {
+              type: "boolean",
+              default: false,
+              description: "Allow inputPath outside KNOWGRPH_ROOT for explicit E2E runs.",
+            },
+            timeoutMs: {
+              type: "number",
+              description: "Optional timeout in milliseconds.",
+            },
           },
         },
       },
@@ -445,6 +500,56 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         extra.push(path.join(outDir, "graphrag-workflow.jsonld"));
       }
       const artifacts = await summarizeArtifacts({ outputDir: outDir || null, extraPaths: extra });
+
+      const outputText = [
+        `KNOWGRPH_ROOT: ${KNOWGRPH_ROOT}`,
+        `Command: ${formatCommand(PYTHON_BIN, cmdArgs, KNOWGRPH_ROOT)}`,
+        `Exit: ${String(result.code)}${result.signal ? ` (signal: ${result.signal})` : ""}`,
+        artifacts.length ? `Artifacts:\n- ${artifacts.join("\n- ")}` : "Artifacts: (none detected)",
+        result.stdout.trim() ? `\nSTDOUT:\n${truncate(result.stdout)}` : "",
+        result.stderr.trim() ? `\nSTDERR:\n${truncate(result.stderr)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
+    }
+
+    if (toolName === "knowgrph.superagent.run") {
+      const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
+      const resume = typeof args.resume === "boolean" ? args.resume : false;
+      const outputDir =
+        typeof args.outputDir === "string" && args.outputDir.trim()
+          ? resolvePathMaybeWithinRoot(args.outputDir, { allowOutsideRoot: false })
+          : path.join(KNOWGRPH_ROOT, "data", "outputs", `superagent-mcp-run-${Date.now()}`);
+
+      const cmdArgs = ["-m", "knowgrph_parser", "superagent", "--output-dir", outputDir];
+      if (resume) {
+        cmdArgs.push("--resume");
+      } else {
+        if (typeof args.inputPath !== "string" || !args.inputPath.trim()) {
+          throw new Error("Missing required argument: inputPath (unless resume=true).");
+        }
+        cmdArgs.push(
+          "--input",
+          resolvePathMaybeWithinRoot(args.inputPath, { allowOutsideRoot: Boolean(args.allowExternalInput) })
+        );
+      }
+      if (typeof args.goalPath === "string" && args.goalPath.trim()) {
+        cmdArgs.push("--goal-file", resolvePathMaybeWithinRoot(args.goalPath, { allowOutsideRoot: false }));
+      }
+      if (typeof args.runId === "string" && args.runId.trim()) {
+        cmdArgs.push("--run-id", args.runId.trim());
+      }
+      if (typeof args.stopAfterStep === "number" && Number.isFinite(args.stopAfterStep)) {
+        cmdArgs.push("--stop-after-step", String(Math.max(0, Math.floor(args.stopAfterStep))));
+      }
+      if (typeof args.failOnceTool === "string" && args.failOnceTool.trim()) {
+        cmdArgs.push("--fail-once", args.failOnceTool.trim());
+      }
+
+      const result = await runCommand(PYTHON_BIN, cmdArgs, { cwd: KNOWGRPH_ROOT, timeoutMs });
+      const artifacts = await summarizeArtifacts({ outputDir });
 
       const outputText = [
         `KNOWGRPH_ROOT: ${KNOWGRPH_ROOT}`,

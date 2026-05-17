@@ -44,6 +44,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if cmd in {"graphrag-pipeline"}:
             from . import graphrag_pipeline_cmd
             return graphrag_pipeline_cmd.main(rest)
+        if cmd in {"superagent", "super-agent", "run-goal"}:
+            from . import superagent_harness
+            return superagent_harness.main(rest, base_dir=base_dir)
         if cmd in {"youtube"}:
             from . import youtube_cmd
             return youtube_cmd.main(rest, parser_script_path=entrypoint)
