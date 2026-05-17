@@ -9,6 +9,7 @@ import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import {
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
@@ -23,6 +24,36 @@ type PendingMarkdownApplyRequest = {
 
 let markdownApplyInFlight = false
 let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null
+
+function buildPendingFrontmatterMarkdownGraph(args: {
+  name: string
+  currentGraph: GraphData | null
+}): GraphData {
+  const name = String(args.name || '').trim()
+  const currentMeta = ((args.currentGraph?.metadata || null) as Record<string, unknown> | null) || null
+  const currentBaselineGraphMetaKey =
+    typeof currentMeta?.baselineGraphMetaKey === 'string'
+      ? String(currentMeta.baselineGraphMetaKey || '').trim()
+      : ''
+  const currentSource = typeof currentMeta?.source === 'string' ? String(currentMeta.source || '').trim() : ''
+  const source = name ? `markdown:${name}` : (currentSource || 'markdown:pending')
+  const baselineGraphMetaKey =
+    currentBaselineGraphMetaKey
+    || buildGraphMetaKeyIgnoringPending(args.currentGraph)
+    || source
+  return {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: {
+      kind: 'frontmatter-flow',
+      source,
+      baselineGraphMetaKey,
+      pending: true,
+    },
+    nodes: [],
+    edges: [],
+  } as GraphData
+}
 
 export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   return ({
@@ -82,6 +113,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     if (!name) return false
     const rawText = String(args?.text || '')
     const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
+    const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(text)
+    const strictFlowEditorPreset =
+      parsedTextPreset?.canvasSurfaceMode === '2d'
+      && parsedTextPreset?.canvas2dRenderer === 'flowEditor'
+      && parsedTextPreset?.documentSemanticMode === 'document'
+      && parsedTextPreset?.frontmatterModeEnabled === true
 
     get().setMarkdownDocument(name, text, {
       autoEnableFrontmatter: args?.autoEnableFrontmatter,
@@ -117,6 +154,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     }
 
     if (args?.applyToGraph) {
+      if (strictFlowEditorPreset) {
+        get().setGraphData(buildPendingFrontmatterMarkdownGraph({
+          name,
+          currentGraph: get().graphData,
+        }))
+      }
       try {
         return await get().applyMarkdownDocumentToGraph(name, text, { force: args?.forceApplyToGraph !== false })
       } catch {

@@ -832,6 +832,7 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   const savePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSave.ts')
   const corePath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'core.ts')
   const importEffectsPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'importSideEffects.ts')
+  const documentActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataDocumentActions.ts')
 
   const runtimeIoText = readFileSync(runtimeIoPath, 'utf8')
   const activeDocText = readFileSync(activeDocPath, 'utf8')
@@ -842,6 +843,7 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   const savePathText = readFileSync(savePath, 'utf8')
   const coreText = readFileSync(corePath, 'utf8')
   const importEffectsText = readFileSync(importEffectsPath, 'utf8')
+  const documentActionsText = readFileSync(documentActionsPath, 'utf8')
 
   if (!runtimeIoText.includes('export const writeWorkspaceFileAndSync = async (args:')) {
     throw new Error('expected markdown workspace runtime IO to remain the shared write-through owner')
@@ -878,6 +880,14 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   }
   if (!activeDocText.includes('export function applyActiveMarkdownDocumentPayload(args:')) {
     throw new Error('expected active markdown document apply ownership to be centralized in a shared markdown helper')
+  }
+  if (!documentActionsText.includes('function buildPendingFrontmatterMarkdownGraph(args:')) {
+    throw new Error('expected markdown document actions to centralize strict frontmatter pending graph handoff in a shared helper')
+  }
+  if (!documentActionsText.includes('if (strictFlowEditorPreset) {')
+    || !documentActionsText.includes('get().setGraphData(buildPendingFrontmatterMarkdownGraph({')
+    || !documentActionsText.includes('currentGraph: get().graphData,')) {
+    throw new Error('expected strict frontmatter markdown graph applies to publish a pending empty graph immediately so the previous scene cannot stay render-authoritative during async handoff')
   }
   if (!selectionText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected markdown workspace selection restore paths to reuse the shared active markdown document helper')
