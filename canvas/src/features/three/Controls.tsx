@@ -345,7 +345,7 @@ export function Controls({
     const layoutMode = schema.layout?.mode
     const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
     const voxelMode = mode === 'voxel'
-    const topBiasedOrbit = voxelMode || mode === '3d'
+    const topBiasedOrbit = voxelMode || mode === '3d' || mode === 'xr'
     const orbitProfile = voxelMode
       ? {
           rotateFactor: 0.68,
