@@ -7,7 +7,12 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { isCanvas2dRendererId, type Canvas2dRendererId } from '@/lib/config.render'
+import type { Canvas2dRendererId } from '@/lib/config.render'
+import {
+  getWorkspaceUrlImportCanvasRendererLabel,
+  isWorkspaceUrlImportCanvasRendererId,
+  normalizeWorkspaceUrlImportDocumentMode,
+} from '../workspaceImport/canvasPresets'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
   importWorkspaceLocalFiles,
@@ -388,11 +393,14 @@ export function useWorkspaceImportActions(args: {
   )
 
   const handleImportUrl = React.useCallback(
-    async (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null }) => {
+    async (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }) => {
       const url = String(urlRaw || '').trim()
       if (!url) return
-      const selectedCanvas2dRenderer = isCanvas2dRendererId(opts?.canvas2dRenderer) ? opts?.canvas2dRenderer : null
-      const importKindLabel = selectedCanvas2dRenderer === 'design' ? 'Importing URL (Design)' : 'Importing URL'
+      const selectedCanvas2dRenderer = isWorkspaceUrlImportCanvasRendererId(opts?.canvas2dRenderer) ? opts?.canvas2dRenderer : null
+      const selectedDocumentSemanticMode = selectedCanvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(opts?.documentSemanticMode) : null
+      const importKindLabel = selectedCanvas2dRenderer
+        ? `Importing URL (${getWorkspaceUrlImportCanvasRendererLabel(selectedCanvas2dRenderer)})`
+        : 'Importing URL'
       const jobId = (importJobRef.current += 1)
       status.setStatusProgress(importKindLabel)
       useGraphStore.getState().pushUiLog({ kind: 'neutral', message: `Import URL started: ${url}`, source: 'workspace:importUrl' })
@@ -409,7 +417,8 @@ export function useWorkspaceImportActions(args: {
             urlRaw: url,
             parentPath: WORKSPACE_ROOT_PATH,
             canvas2dRenderer: selectedCanvas2dRenderer,
-            viewHint: selectedCanvas2dRenderer === 'design' ? 'html' : undefined,
+            documentSemanticMode: selectedDocumentSemanticMode,
+            viewHint: selectedCanvas2dRenderer ? 'html' : undefined,
             onProgress: p => {
               if (importJobRef.current !== jobId) return
               const label = p.label ? String(p.label) : p.phase

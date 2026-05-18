@@ -23,12 +23,9 @@ import {
   writeGrabMapsDiscoverySettingsValues,
   type GrabMapsDiscoverySettingsValues,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import {
-  GRABMAPS_DISCOVERY_FIELD_META,
-  GRABMAPS_DISCOVERY_SETTING_SPECS,
-} from '@/features/integrations/grabMapsSsot'
 import type { GraphNode } from '@/lib/graph/types'
 import { FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import { GrabMapsDiscoverySettingsGrid } from './GrabMapsDiscoverySettingsGrid'
 
 type PlannerOperation = {
   endpoint: 'keywordSearch' | 'nearbySearch' | 'reverseGeo'
@@ -108,13 +105,6 @@ function resolveSelectedDiscoveryWidgetNode(args: {
     return node
   }
   return null
-}
-
-function getDiscoverySettingTypeLabel(settingKey: string): string {
-  const spec = GRABMAPS_DISCOVERY_SETTING_SPECS[settingKey as keyof typeof GRABMAPS_DISCOVERY_SETTING_SPECS]
-  if (!spec) return 'string'
-  if (spec.options && spec.options.length > 0) return 'enum'
-  return spec.valueType === 'number' ? 'number' : 'string'
 }
 
 function parsePlaces(jsonText: string): PlaceItem[] {
@@ -498,78 +488,13 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         </button>
       </div>
 
-      <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
-        <div className={`grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-          <span>Key</span>
-          <span>Type</span>
-          <span>Value</span>
-        </div>
-        <div className="space-y-2">
-          {GRABMAPS_DISCOVERY_FIELD_META.map(field => {
-            const settingKey = field.settingKey
-            const spec = GRABMAPS_DISCOVERY_SETTING_SPECS[settingKey]
-            const currentValue = settingsValues[settingKey]
-            const typeLabel = getDiscoverySettingTypeLabel(settingKey)
-            const valueText = typeof currentValue === 'undefined' ? String(spec?.defaultValue ?? '') : String(currentValue)
-            return (
-              <div key={field.propertyKey} className="grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 items-center">
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} truncate`} title={settingKey}>
-                  {settingKey}
-                </span>
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{typeLabel}</span>
-                {field.fieldType === 'select' && spec?.options?.length ? (
-                  <select
-                    value={valueText}
-                    onChange={event => {
-                      const next = String(event.target.value || '').trim()
-                      const patched = { ...settingsValues, [settingKey]: next } as GrabMapsDiscoverySettingsValues
-                      setSettingsValues(patched)
-                      writeGrabMapsDiscoverySettingsValues(patched)
-                    }}
-                    className={`h-7 w-full rounded border px-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
-                  >
-                    {spec.options.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                ) : field.fieldType === 'number' ? (
-                  <input
-                    type="number"
-                    value={valueText}
-                    onChange={event => {
-                      const raw = String(event.target.value || '').trim()
-                      const parsed = Number(raw)
-                      const next = Number.isFinite(parsed) ? parsed : spec?.defaultValue
-                      const patched = { ...settingsValues, [settingKey]: next } as GrabMapsDiscoverySettingsValues
-                      setSettingsValues(patched)
-                      writeGrabMapsDiscoverySettingsValues(patched)
-                    }}
-                    className={`h-7 w-full rounded border px-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
-                  />
-                ) : (
-                  <input
-                    value={valueText}
-                    onChange={event => {
-                      const next = String(event.target.value || '')
-                      const patched = { ...settingsValues, [settingKey]: next } as GrabMapsDiscoverySettingsValues
-                      setSettingsValues(patched)
-                      writeGrabMapsDiscoverySettingsValues(patched)
-                      if (settingKey === 'maps.grabmaps.mcp.searchPlaces.query') setQueryText(next)
-                    }}
-                    placeholder={field.placeholder}
-                    className={`h-7 w-full rounded border px-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
-        {selectedDiscoveryNode ? (
-          <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-            Selected widget local values override global discovery defaults at run time.
-          </p>
-        ) : null}
-      </section>
+      <GrabMapsDiscoverySettingsGrid
+        settingsValues={settingsValues}
+        setSettingsValues={setSettingsValues}
+        setQueryText={setQueryText}
+        selectedNodeActive={Boolean(selectedDiscoveryNode)}
+        uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+      />
 
       <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
         <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-widget-query">

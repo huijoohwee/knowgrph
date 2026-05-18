@@ -1,6 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import type { GraphSchema } from '@/lib/graph/schema'
-import { getNodeRenderRadius, getThreeConfig } from '@/lib/graph/schema'
+import { getNodeRenderRadius, getThreeConfig, type GraphSchema } from '@/lib/graph/schema'
 import { getEdgeBaseStroke, getNodeBaseFill } from '@/lib/graph/visualStyles'
 import { computePositions3d } from '@/features/three/positions'
 import { getEdgeStrokeWidth, getLayerOpacity, getRenderNodeRadius2d, getVisualOpacity } from '@/components/GraphCanvas/helpers'

@@ -13,7 +13,6 @@ import {
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
-  readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
@@ -21,8 +20,7 @@ import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanva
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
-import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanvas/flowEditorOverlayRecenter'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -187,100 +185,6 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
 }) {
   if (typeof document === 'undefined') return
   const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
-  const recenterOverlayWidgetPositions = (deltaX: number, deltaY: number) => {
-    if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return
-    if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
-    const st = useGraphStore.getState() as {
-      graphData?: GraphData | null
-      flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
-      flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-      flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
-      flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
-      setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void
-      setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => void
-    }
-    const graphKey = buildGraphMetaKeyIgnoringPending(args.graphData || st.graphData || null)
-    const storeGraphKey = buildGraphMetaKeyIgnoringPending(st.graphData || null)
-    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(st as never)
-    const shouldWriteGraphScopedInMemory =
-      workspaceEditorOverlayOpen
-      || (!!graphKey && graphKey !== storeGraphKey)
-    const base = resolveScopedFlowWidgetNodeMap({
-      graphMetaKey: graphKey,
-      keyedByGraphMetaKey: st.flowWidgetWorldPosByNodeIdByGraphMetaKey,
-      globalByNodeId: st.flowWidgetWorldPosByNodeId,
-    })
-    const ids = new Set<string>()
-    const selectors = [FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, RICH_MEDIA_OVERLAY_ROOT_SELECTOR]
-    for (let i = 0; i < selectors.length; i += 1) {
-      const selector = selectors[i]!
-      const roots = Array.from(document.querySelectorAll(selector)).filter(
-        (el): el is HTMLElement =>
-          el instanceof HTMLElement
-          && readFlowEditorOverlaySurfaceId(el) === activeSurfaceId,
-      )
-      for (let j = 0; j < roots.length; j += 1) {
-        const nodeId = readCanvasOverlayNodeId(roots[j])
-        if (nodeId) ids.add(nodeId)
-      }
-    }
-    if (ids.size === 0) return
-    let changedWorld = false
-    let changedScreen = false
-    const nextWorld = { ...base }
-    const nextScreen = {
-      ...resolveScopedFlowWidgetNodeMap({
-        graphMetaKey: graphKey,
-        keyedByGraphMetaKey: st.flowWidgetPosByNodeIdByGraphMetaKey,
-        globalByNodeId: st.flowWidgetPosByNodeId,
-      }),
-    }
-    ids.forEach((nodeId) => {
-      const curWorld = nextWorld[nodeId]
-      if (curWorld && Number.isFinite(curWorld.x) && Number.isFinite(curWorld.y)) {
-        nextWorld[nodeId] = { x: curWorld.x + deltaX, y: curWorld.y + deltaY }
-        changedWorld = true
-      }
-      const curScreen = nextScreen[nodeId]
-      if (curScreen && Number.isFinite(curScreen.left) && Number.isFinite(curScreen.top)) {
-        nextScreen[nodeId] = { left: curScreen.left + deltaX, top: curScreen.top + deltaY }
-        changedScreen = true
-      }
-    })
-    if (shouldWriteGraphScopedInMemory) {
-      useGraphStore.setState((prev) => {
-        const prevState = prev as unknown as {
-          flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
-          flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-          flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
-          flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
-        }
-        const nextState: Record<string, unknown> = {}
-        if (changedWorld) {
-          if (graphKey) {
-            const worldByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
-            nextState.flowWidgetWorldPosByNodeId = nextWorld
-            nextState.flowWidgetWorldPosByNodeIdByGraphMetaKey = { ...worldByKey, [graphKey]: nextWorld }
-          } else {
-            nextState.flowWidgetWorldPosByNodeId = nextWorld
-          }
-        }
-        if (changedScreen) {
-          if (graphKey) {
-            const posByKey = prevState.flowWidgetPosByNodeIdByGraphMetaKey || {}
-            nextState.flowWidgetPosByNodeId = nextScreen
-            nextState.flowWidgetPosByNodeIdByGraphMetaKey = { ...posByKey, [graphKey]: nextScreen }
-          } else {
-            nextState.flowWidgetPosByNodeId = nextScreen
-          }
-        }
-        return nextState
-      })
-      return
-    }
-    if (changedWorld) st.setFlowWidgetWorldPosByNodeId(nextWorld)
-    if (changedScreen) st.setFlowWidgetPosByNodeId(nextScreen)
-  }
   const run = () => {
     const bounds = collectFlowEditorOverlayBounds(activeSurfaceId)
     if (!bounds) return
@@ -325,7 +229,12 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
     const current = args.runtime.transform || d3.zoomIdentity
     setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))
-    recenterOverlayWidgetPositions(deltaX, deltaY)
+    recenterFlowEditorOverlayWidgetPositions({
+      activeSurfaceId,
+      deltaX,
+      deltaY,
+      graphData: args.graphData,
+    })
     args.onFrame?.()
   }
   requestAnimationFrame(() => {

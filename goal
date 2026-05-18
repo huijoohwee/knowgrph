@@ -128,12 +128,20 @@ Default automated management is the baseline path:
 
 Manual management is explicit user intent:
 
-- Manual actions include New Source File, Import URL, Import local files, paste/edit/save, rename, delete, enable/disable, geo-layer toggle, parse/reparse, folder selection, and explicit conflict resolution.
+- Manual actions include New Source File, Import URL, Import local files, paste/edit/save, rename, delete, enable/disable, geo-layer toggle, parse/reparse, folder selection, Source Files context-menu Share URL, and explicit conflict resolution.
 - Manual actions must be visible in the UI, recorded through the same store/update path as automated changes, and reflected in composed graph state without duplicate replay logic.
 - Import local files is allowed only as an explicit manual action. It must never be used to mask missing automated D1/docs bootstrap behavior.
 - Manual imports must retain provenance, original source kind, source URL or user-visible local path label, content hash, parse status, and error state without introducing hidden absolute-path dependencies into tests or persisted cross-device records.
 - Manual deletion or disabling must be respected by automated refresh unless the user explicitly resets the workspace, re-enables the default seed set, or accepts a remote replacement.
 - Manual and automated records must converge through the same conflict UX, toast/log reporting, storage outbox handling, and stale-write guards.
+
+Source-file sharing is explicit publish intent:
+
+- Toolbar -> Launch -> Editor Workspace -> Source Files -> right-click "Share URL" must generate or copy a shareable URL for the selected SourceFile through the same canonical SourceFile record, storage sync contract, provenance metadata, and conflict/stale-write guards used by automated and manual source-file updates.
+- Share URL identity must be derived from the canonical workspace/source path, semantic content hash, storage workspace id, and shared semantic-key helper. It must not be derived from display name, context-menu order, import order, local absolute path, demo filename, route-specific host, stale alias, or legacy remap.
+- Opening the context menu must not upload, recompute, reparse, rehydrate, or rerender the SourceFile. Share work starts only from the Share URL command, dedupes in-flight requests by semantic share key, reuses already-synced content when the hash matches, and bounds network/storage retries.
+- Share URL state must be observable and race-safe: pending, copied, unavailable/offline, conflict, stale-local-edit, and failed states surface through the shared toast/log/status path without silently overwriting local edits or publishing stale remote content.
+- Dev owns the implementation and tests. Prod mirror and Cloudflare behavior must come from the upstream storage/share owner after build/sync/publish, not from route-specific downstream patches.
 
 The implementation boundary is source-owned:
 
@@ -148,7 +156,9 @@ Required source-file acceptance criteria:
 - A clean Editor Workspace opens with the default automated Source Files present from the D1/docs storage path, including the full Markdown content and matching content hashes.
 - Manual creation, import, edit, delete, enable/disable, parse, and conflict-resolution paths continue to work after automated hydration is enabled by default.
 - Automated default sync and manual source-file actions share the same SourceFile normalization, storage sync, recomposition, provenance, and stale-guard utilities.
+- Source Files context-menu Share URL is available from Toolbar -> Launch -> Editor Workspace -> Source Files, reuses the canonical SourceFile storage/share owner, dedupes by semantic share key, copies a URL only for the latest non-conflicting content, and never depends on a local absolute path, demo fixture, stale alias, or downstream host patch.
 - Focused tests prove default D1/docs hydration, manual import isolation, duplicate canonical-path suppression, local-edit conflict protection, source-file recomposition, and stale remote-pull rejection.
+- Focused tests prove Share URL generation/copy behavior, offline/unavailable reporting, in-flight dedupe, stale-edit conflict protection, and absence of upload/reparse/rerender work when merely opening the Source Files context menu.
 - Cross-repo docs and API/schema notes describe the automated default path, the manual-only Import local files boundary, and the Dev -> Prod -> Cloudflare ownership chain.
 
 ## App Surface Contract

@@ -12,7 +12,9 @@ export function MarkdownWorkspaceLayout(props: {
   binaryPaneVisible?: boolean
   splitPaneVisibility: MarkdownWorkspacePaneVisibility
   paneAvailability?: MarkdownWorkspacePaneAvailability
+  forceMarkdownEditorInEditorMode?: boolean
   viewer: React.ReactNode
+  htmlViewer?: React.ReactNode
   presentation: React.ReactNode
   slidesGallery: React.ReactNode
 }) {
@@ -20,6 +22,7 @@ export function MarkdownWorkspaceLayout(props: {
     layoutMode: props.layoutMode,
     splitPaneVisibility: props.splitPaneVisibility,
     paneAvailability: props.paneAvailability,
+    forceMarkdownEditorInEditorMode: props.forceMarkdownEditorInEditorMode,
   })
   const binaryPaneVisible = props.binaryPaneVisible === true
   const splitPanes = [
@@ -41,6 +44,11 @@ export function MarkdownWorkspaceLayout(props: {
     paneVisibility.viewer ? (
       <section key="viewer" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Viewer">
         {props.viewer}
+      </section>
+    ) : null,
+    paneVisibility.html && props.htmlViewer ? (
+      <section key="html" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="HTML Viewer">
+        {props.htmlViewer}
       </section>
     ) : null,
   ].filter(Boolean) as React.ReactElement[]

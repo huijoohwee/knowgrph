@@ -177,6 +177,10 @@ function listSchemaFilesFromDisk(schemaDir: string): string[] {
   const entries = fs.readdirSync(schemaDir, { withFileTypes: true })
   for (const entry of entries) {
     if (!entry.isFile()) continue
+    if (/^README(?:\.[\w-]+)?\.md$/.test(entry.name)) {
+      out.push(entry.name)
+      continue
+    }
     if (!entry.name.endsWith('.jsonld')) continue
     out.push(entry.name)
   }

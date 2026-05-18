@@ -8,7 +8,7 @@ import {
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS,
 } from '@/lib/config'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
-import { isFrontmatterOnlyDoc, parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { extractYamlFrontmatterHeaderBlock, isFrontmatterOnlyDoc, parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -194,6 +194,12 @@ export async function applyWorkspaceImportToCanvas(args: {
       }
     }
     if (!text.trim()) continue
+    const frontmatterHeaderBlock = extractYamlFrontmatterHeaderBlock(text)
+    const frontmatterHeaderText = frontmatterHeaderBlock ? `${frontmatterHeaderBlock.rawBlock}\n` : ''
+    const hasCanvasFrontmatterPresetInHeader = !!frontmatterHeaderText && !!parseCanvasWorkspaceFrontmatterPreset(frontmatterHeaderText)
+    if (!preferredInteractiveImportRawText && hasCanvasFrontmatterPresetInHeader) {
+      preferredInteractiveImportRawText = frontmatterHeaderText
+    }
     if (text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS) continue
     if (text.length > remainingChars) continue
 
@@ -226,7 +232,7 @@ export async function applyWorkspaceImportToCanvas(args: {
     const graphData = res?.graphData || null
     const parserId = typeof res?.parserId === 'string' ? res.parserId : undefined
     const inlineText = resolveWorkspaceSourceFileInlineText(text)
-    const hasCanvasFrontmatterPreset = !!parseCanvasWorkspaceFrontmatterPreset(text)
+    const hasCanvasFrontmatterPreset = hasCanvasFrontmatterPresetInHeader || !!parseCanvasWorkspaceFrontmatterPreset(text)
     if (!preferredInteractiveImportRawText && hasCanvasFrontmatterPreset) {
       preferredInteractiveImportRawText = text
     }
@@ -302,7 +308,21 @@ export async function applyWorkspaceImportToCanvas(args: {
   }
   if (merged !== existing) {
     store.setSourceFiles(merged)
+    if (preferredInteractiveImportRawText || sawFrontmatterOnlyDoc) {
+      applyInteractiveImportModes({
+        graphData: preferredInteractiveImportGraphData,
+        frontmatterOnlyDoc: sawFrontmatterOnlyDoc,
+        rawText: preferredInteractiveImportRawText,
+      })
+    }
     return { sourceFilesUpdated: true, enabledCount, parsedCount: 0 }
+  }
+  if (preferredInteractiveImportRawText || sawFrontmatterOnlyDoc) {
+    applyInteractiveImportModes({
+      graphData: preferredInteractiveImportGraphData,
+      frontmatterOnlyDoc: sawFrontmatterOnlyDoc,
+      rawText: preferredInteractiveImportRawText,
+    })
   }
   return { sourceFilesUpdated: false, enabledCount: 0, parsedCount: 0 }
 }

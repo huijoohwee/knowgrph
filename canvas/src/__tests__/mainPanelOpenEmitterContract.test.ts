@@ -46,12 +46,12 @@ export const testEmitMainPanelOpenDispatchesSharedEvent = async () => {
 
 export const testMainPanelOpenCallsitesUseSharedEmitter = () => {
   const files = [
-    'src/components/FlowEditorCanvas/runtime/useFlowEditorOverlaySurface.tsx',
+    'src/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements.tsx',
     'src/features/toolbar/GrabMapsDiscoveryWidgetSection.tsx',
     'src/features/canvas/CanvasQueryBootstrapRuntime.tsx',
     'src/features/panels/hooks/useHelpViewLogic.ts',
     'src/features/spotlight/LaunchSpotlightTourCard.tsx',
-    'src/lib/markdown-core/ui/MarkdownMediaUi.impl.tsx',
+    'src/lib/markdown-core/ui/MarkdownMediaWrapper.tsx',
     'src/components/FlowEditor/NodeOverlayEditorActionsToolbar.tsx',
     'src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx',
     'src/features/panels/ui/SchemaSummary.tsx',

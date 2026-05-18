@@ -6,7 +6,7 @@ import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 
-export type MarkdownWorkspacePaneVisibility = { json: boolean; markdown: boolean; viewer: boolean }
+export type MarkdownWorkspacePaneVisibility = { json: boolean; markdown: boolean; viewer: boolean; html: boolean }
 
 export type MarkdownWorkspacePaneAvailability = {
   bin: boolean
@@ -20,6 +20,7 @@ export const DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY: MarkdownWorkspacePaneVi
   json: false,
   markdown: false,
   viewer: true,
+  html: false,
 }
 
 export const DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY: MarkdownWorkspacePaneAvailability = {
@@ -46,27 +47,33 @@ export function resolveMarkdownWorkspaceInitialPaneVisibility(args: {
   modelAssetFormat?: 'glb' | 'gltf' | null
   webpageView?: WebpageViewMode | null
 }): MarkdownWorkspacePaneVisibility {
-  if (args.modelAssetFormat === 'glb') return { json: false, markdown: false, viewer: false }
-  if (args.modelAssetFormat === 'gltf') return { json: true, markdown: false, viewer: false }
-  if (args.webpageView === 'json') return { json: true, markdown: false, viewer: false }
-  if (args.webpageView === 'html') return { json: false, markdown: false, viewer: true }
-  return { json: false, markdown: true, viewer: false }
+  if (args.modelAssetFormat === 'glb') return { json: false, markdown: false, viewer: false, html: false }
+  if (args.modelAssetFormat === 'gltf') return { json: true, markdown: false, viewer: false, html: false }
+  if (args.webpageView === 'json') return { json: true, markdown: false, viewer: false, html: false }
+  if (args.webpageView === 'html') return { json: false, markdown: false, viewer: true, html: true }
+  return { json: false, markdown: true, viewer: false, html: false }
 }
 
 export function resolveMarkdownWorkspacePaneVisibility(args: {
   layoutMode: MarkdownWorkspaceLayoutMode
   splitPaneVisibility: MarkdownWorkspacePaneVisibility
   paneAvailability?: MarkdownWorkspacePaneAvailability
+  forceMarkdownEditorInEditorMode?: boolean
 }): MarkdownWorkspacePaneVisibility {
   const isEditor = args.layoutMode === 'editor'
   const isSplit = args.layoutMode === 'split'
   const isViewer = args.layoutMode === 'viewer'
   const availability = args.paneAvailability || DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY
+  const forceMarkdownEditorInEditorMode = args.forceMarkdownEditorInEditorMode !== false
 
   return {
     json: availability.json && (isEditor || isSplit) && args.splitPaneVisibility.json,
-    markdown: availability.markdown && (isEditor || (isSplit && args.splitPaneVisibility.markdown)),
+    markdown: availability.markdown && (
+      (isEditor && (forceMarkdownEditorInEditorMode || args.splitPaneVisibility.markdown)) ||
+      (isSplit && args.splitPaneVisibility.markdown)
+    ),
     viewer: availability.viewer && (isViewer || (isSplit && args.splitPaneVisibility.viewer) || (isEditor && args.splitPaneVisibility.viewer)),
+    html: availability.html && (isEditor || isSplit) && args.splitPaneVisibility.html,
   }
 }
 

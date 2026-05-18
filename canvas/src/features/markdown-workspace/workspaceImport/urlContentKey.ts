@@ -1,6 +1,6 @@
 import { hashSignatureParts } from '@/lib/hash/signature'
 import type { Canvas2dRendererId } from '@/lib/config.render'
-import { normalizeWorkspaceUrlImportCanvas2dRenderer } from './canvasPresets'
+import { normalizeWorkspaceUrlImportCanvas2dRenderer, normalizeWorkspaceUrlImportDocumentMode } from './canvasPresets'
 
 type WebpageViewMode = 'markdown' | 'json' | 'html'
 type FetchMode = 'import' | 'refresh'
@@ -25,6 +25,7 @@ export const buildWorkspaceUrlContentCacheKey = (args: {
   mode: FetchMode
   viewHint: WebpageViewMode | ''
   canvas2dRenderer: Canvas2dRendererId | null
+  documentSemanticMode?: unknown
   storeSnapshot?: {
     webpageImportIncludeImages?: unknown
     webpageImportView?: unknown
@@ -33,12 +34,13 @@ export const buildWorkspaceUrlContentCacheKey = (args: {
 }): string => {
   const normalizedUrl = String(args.normalizedUrl || '').trim()
   const canvas2dRenderer = normalizeWorkspaceUrlImportCanvas2dRenderer(args.canvas2dRenderer)
+  const documentSemanticMode = normalizeWorkspaceUrlImportDocumentMode(args.documentSemanticMode)
   const mode: FetchMode = args.mode === 'refresh' ? 'refresh' : 'import'
   const viewHint = args.viewHint === 'markdown' ? 'markdown' : args.viewHint === 'json' ? 'json' : args.viewHint === 'html' ? 'html' : ''
 
-  if (canvas2dRenderer === 'design') {
-    const sig = hashSignatureParts(['url', normalizedUrl, 'r2d', canvas2dRenderer, 'vh', viewHint])
-    return `${mode}:design:${sig}`
+  if (canvas2dRenderer) {
+    const sig = hashSignatureParts(['url', normalizedUrl, 'r2d', canvas2dRenderer, 'doc', documentSemanticMode, 'vh', viewHint])
+    return `${mode}:url-import-${canvas2dRenderer}:${sig}`
   }
 
   const snap = args.storeSnapshot || null

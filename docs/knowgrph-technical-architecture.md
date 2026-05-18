@@ -330,6 +330,8 @@ This root document exists as the auto-generated settings registry table surface 
 | `websiteImportConcurrency` | number | store |  |  |
 | `websiteImportOutputDirRel` | string | store |  |  |
 | `viewport.fitFillRatio` | number | store |  |  |
+| `viewport.fitReferenceWidth` | number | store |  |  |
+| `viewport.fitReferenceHeight` | number | store |  |  |
 | `flow.frontmatter.initialFitFillRatio` | number | store |  |  |
 | `flow.frontmatter.overlayFitProxyScale.phone` | number | store |  |  |
 | `flow.frontmatter.overlayFitProxyScale.tablet` | number | store |  |  |

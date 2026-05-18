@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Download, Workflow } from 'lucide-react'
+import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -7,8 +7,17 @@ import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/li
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
-import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
+import {
+  type WorkspaceUrlImportCanvasRendererId,
+  type WorkspaceUrlImportDocumentModeId,
+} from '@/features/markdown-workspace/workspaceImport/canvasPresets'
+import {
+  LaunchDropdownExportMenu,
+  hasLaunchDropdownExportActions,
+  type LaunchDropdownExportActions,
+} from './LaunchDropdownExportMenu'
+import { ImportUrlRendererSelect, parseImportUrlRendererSelection, type ImportUrlRendererSelection } from './ImportUrlRendererSelect'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -52,7 +61,7 @@ export function LaunchDropdown({
   const urlInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
-  const [importUrlRenderer, setImportUrlRenderer] = React.useState<'default' | 'design'>('default')
+  const [importUrlRenderer, setImportUrlRenderer] = React.useState<ImportUrlRendererSelection>('default')
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = React.useState(false)
   const exportCloseTimeoutRef = React.useRef<number | null>(null)
@@ -166,17 +175,17 @@ export function LaunchDropdown({
   )
 
   const importUrlFallback = React.useCallback(
-    async (urlRaw: string, opts?: { canvas2dRenderer?: 'design' | null }) => {
+    async (urlRaw: string, opts?: { canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null; documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null }) => {
       const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, pushUiToast })
+      await mod.importUrlFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast })
     },
     [pushUiToast],
   )
 
   const importUrlDeerFlowFallback = React.useCallback(
-    async (urlRaw: string, opts?: { canvas2dRenderer?: 'design' | null }) => {
+    async (urlRaw: string, opts?: { canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null; documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null }) => {
       const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlDeerFlowFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, pushUiToast })
+      await mod.importUrlDeerFlowFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast })
     },
     [pushUiToast],
   )
@@ -187,8 +196,7 @@ export function LaunchDropdown({
       if (!nextUrl) return
       onClose()
       const launchBridge = getMarkdownWorkspaceActionBridge()
-      const canvas2dRenderer: 'design' | null = importUrlRenderer === 'design' ? 'design' : null
-      const opts = canvas2dRenderer ? { canvas2dRenderer } : undefined
+      const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
       if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
       else void importUrlFallback(nextUrl, opts)
       setUrlInputOpen(false)
@@ -201,8 +209,7 @@ export function LaunchDropdown({
       const nextUrl = String(nextUrlRaw || '').trim()
       if (!nextUrl) return
       onClose()
-      const canvas2dRenderer: 'design' | null = importUrlRenderer === 'design' ? 'design' : null
-      const opts = canvas2dRenderer ? { canvas2dRenderer } : undefined
+      const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
       void importUrlDeerFlowFallback(nextUrl, opts)
       setUrlInputOpen(false)
     },
@@ -240,36 +247,11 @@ export function LaunchDropdown({
     [pushUiToast],
   )
 
-  const exportActions = React.useMemo(() => ({ ...fallbackExportActions, ...(bridge.export || {}) }), [bridge.export, fallbackExportActions])
-  const canExport = !!(
-    exportActions?.duplicateInWorkspace ||
-    exportActions?.workspaceFileJsonLd ||
-    exportActions?.markdown ||
-    exportActions?.png ||
-    exportActions?.gltf ||
-    exportActions?.glb ||
-    exportActions?.htmlViewer ||
-    exportActions?.htmlCanvas ||
-    exportActions?.json ||
-    exportActions?.svg ||
-    exportActions?.pdfPortrait ||
-    exportActions?.pdfLandscape
+  const exportActions = React.useMemo<LaunchDropdownExportActions>(
+    () => ({ ...fallbackExportActions, ...((bridge.export || {}) as LaunchDropdownExportActions) }),
+    [bridge.export, fallbackExportActions],
   )
-
-  const exportMenuClass = cn(
-    'kg-launch-menu-root absolute left-full top-0 flex flex-col w-72 list-none m-0',
-    UI_THEME_TOKENS.panel.bg,
-    'border',
-    UI_THEME_TOKENS.panel.border,
-    'rounded shadow-md',
-  )
-  const pdfExportMenuClass = cn(
-    'kg-launch-menu-root absolute left-full top-0 flex flex-col w-64 list-none m-0',
-    UI_THEME_TOKENS.panel.bg,
-    'border',
-    UI_THEME_TOKENS.panel.border,
-    'rounded shadow-md',
-  )
+  const canExport = hasLaunchDropdownExportActions(exportActions)
 
   const runExportAction = React.useCallback(
     (label: string, action: (() => void) | undefined) => {
@@ -282,11 +264,6 @@ export function LaunchDropdown({
     },
     [onClose, pushUiToast],
   )
-  const nonPdfExportItems = React.useMemo(
-    () => WORKSPACE_EXPORT_MENU_ITEMS.filter(item => item.id !== 'pdfPortrait' && item.id !== 'pdfLandscape'),
-    [],
-  )
-  const canExportPdf = Boolean(exportActions?.pdfPortrait || exportActions?.pdfLandscape)
 
   return (
     <>
@@ -471,21 +448,10 @@ export function LaunchDropdown({
                   }}
                   rightAddon={
                     <section className="flex items-stretch gap-1">
-                      <select
-                        className={cn(
-                          'h-[var(--kg-control-height,28px)] px-2 rounded border text-xs',
-                          UI_THEME_TOKENS.input.border,
-                          UI_THEME_TOKENS.input.bg,
-                          UI_THEME_TOKENS.input.text,
-                        )}
+                      <ImportUrlRendererSelect
                         value={importUrlRenderer}
-                        onChange={e => setImportUrlRenderer(String(e.target.value || '').trim() === 'design' ? 'design' : 'default')}
-                        aria-label="Import URL renderer"
-                        title="2D renderer"
-                      >
-                        <option value="default">Default</option>
-                        <option value="design">Design</option>
-                      </select>
+                        onChange={setImportUrlRenderer}
+                      />
                       {typeof bridge.importWebsite === 'function' ? (
                         <button
                           type="button"
@@ -570,83 +536,19 @@ export function LaunchDropdown({
 
           <li className={cn('my-1 border-t', UI_THEME_TOKENS.panel.divider)} aria-hidden="true" />
 
-          <li className="list-none">
-            <section className="relative" onPointerEnter={openExportMenu} onPointerLeave={scheduleCloseExportMenu}>
-              <button
-                type="button"
-                className={menuItemClass}
-                disabled={!canExport}
-                onClick={() => {
-                  if (!canExport) return
-                  openExportMenu()
-                }}
-              >
-                <Download className={menuIconClass} strokeWidth={1.6} />
-                <span className="truncate">Export</span>
-              </button>
-              {exportMenuOpen ? (
-                <menu className={exportMenuClass} aria-label="Export" onPointerEnter={openExportMenu} onPointerLeave={scheduleCloseExportMenu}>
-                  {nonPdfExportItems.map(item => (
-                    <li key={item.id} className="list-none">
-                      <button
-                        type="button"
-                        className={menuItemClass}
-                        onPointerDown={e => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          const action = (exportActions as unknown as Record<string, (() => void) | undefined>)?.[item.id]
-                          runExportAction(item.toastLabel, action)
-                        }}
-                      >
-                        <span className="truncate">{item.menuLabel}</span>
-                      </button>
-                    </li>
-                  ))}
-                  {canExportPdf ? (
-                    <li className="list-none">
-                      <section className="relative" onPointerEnter={openPdfMenu} onPointerLeave={scheduleClosePdfMenu}>
-                        <button
-                          type="button"
-                          className={menuItemClass}
-                          onClick={() => {
-                            runExportAction('PDF Landscape', exportActions?.pdfLandscape || exportActions?.pdfPortrait)
-                          }}
-                        >
-                          <span className="truncate">PDF (.pdf) — Print…</span>
-                        </button>
-                        {pdfMenuOpen ? (
-                          <menu className={pdfExportMenuClass} aria-label="PDF export orientation" onPointerEnter={openPdfMenu} onPointerLeave={scheduleClosePdfMenu}>
-                            <li className="list-none">
-                              <button
-                                type="button"
-                                className={menuItemClass}
-                                onClick={() => {
-                                  runExportAction('PDF Portrait', exportActions?.pdfPortrait)
-                                }}
-                              >
-                                <span className="truncate">Portrait 9:16</span>
-                              </button>
-                            </li>
-                            <li className="list-none">
-                              <button
-                                type="button"
-                                className={menuItemClass}
-                                onClick={() => {
-                                  runExportAction('PDF Landscape', exportActions?.pdfLandscape)
-                                }}
-                              >
-                                <span className="truncate">Landscape 16:9</span>
-                              </button>
-                            </li>
-                          </menu>
-                        ) : null}
-                      </section>
-                    </li>
-                  ) : null}
-                </menu>
-              ) : null}
-            </section>
-          </li>
+          <LaunchDropdownExportMenu
+            canExport={canExport}
+            exportActions={exportActions}
+            exportMenuOpen={exportMenuOpen}
+            pdfMenuOpen={pdfMenuOpen}
+            menuItemClass={menuItemClass}
+            menuIconClass={menuIconClass}
+            openExportMenu={openExportMenu}
+            scheduleCloseExportMenu={scheduleCloseExportMenu}
+            openPdfMenu={openPdfMenu}
+            scheduleClosePdfMenu={scheduleClosePdfMenu}
+            runExportAction={runExportAction}
+          />
 
           <li className={cn('my-1 border-t', UI_THEME_TOKENS.panel.divider)} aria-hidden="true" />
 

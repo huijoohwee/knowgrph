@@ -9,8 +9,13 @@ import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { UserSubgraph } from '@/lib/graph/subgraphs'
 import { subgraphGroupId } from '@/lib/graph/subgraphs'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { FlowEditorInspectorTabs, type InspectorTab } from './FlowEditorInspectorTabs'
+import {
+  FlowEditorInspectorJsonButton,
+  type FlowEditorInspectorJsonTarget,
+} from './FlowEditorInspectorJsonButton'
 
-export type InspectorTab = 'node' | 'edge' | 'workflow' | 'groups'
+export type { InspectorTab } from './FlowEditorInspectorTabs'
 
 export default function FlowEditorInspector({
   active,
@@ -91,7 +96,7 @@ export default function FlowEditorInspector({
   onSetNodeLabel: (label: string) => void
   onSetNodeType: (type: string) => void
   onSetEdgeLabel: (label: string) => void
-  onApplyJson: (target: 'nodeProps' | 'nodeMeta' | 'edgeProps' | 'edgeMeta' | 'workflowMeta' | 'workflowContext') => void
+  onApplyJson: (target: FlowEditorInspectorJsonTarget) => void
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, keyValueInputClass, textSizeClass, keyLabelClass } = usePanelTypography()
   const [newSubgraphLabel, setNewSubgraphLabel] = React.useState('')
@@ -104,40 +109,7 @@ export default function FlowEditorInspector({
     >
       <header className="flex items-center justify-between gap-2">
         <h2 className={cn('font-semibold', UI_THEME_TOKENS.text.primary)}>Inspector</h2>
-        <menu className="flex items-center gap-1" aria-label="Inspector tabs">
-          <button
-            type="button"
-            className={`App-toolbar__btn ${tab === 'node' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setTab('node')}
-            disabled={!active}
-          >
-            Node
-          </button>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${tab === 'edge' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setTab('edge')}
-            disabled={!active}
-          >
-            Edge
-          </button>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${tab === 'workflow' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setTab('workflow')}
-            disabled={!active}
-          >
-            Workflow
-          </button>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${tab === 'groups' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setTab('groups')}
-            disabled={!active}
-          >
-            Groups
-          </button>
-        </menu>
+        <FlowEditorInspectorTabs active={active} tab={tab} setTab={setTab} />
       </header>
 
       {jsonError && <p className={cn('mt-2 text-red-300', microLabelClass)}>{jsonError}</p>}
@@ -201,14 +173,7 @@ export default function FlowEditorInspector({
             multiline
             disabled={!active || !selectedNode}
           />
-          <button
-            type="button"
-            className={`mt-2 App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={() => onApplyJson('nodeProps')}
-            disabled={!active || !selectedNode}
-          >
-            Apply properties
-          </button>
+          <FlowEditorInspectorJsonButton label="Apply properties" target="nodeProps" disabled={!active || !selectedNode} onApplyJson={onApplyJson} />
           <label
             className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-node-meta"
@@ -229,14 +194,7 @@ export default function FlowEditorInspector({
             multiline
             disabled={!active || !selectedNode}
           />
-          <button
-            type="button"
-            className={`mt-2 App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={() => onApplyJson('nodeMeta')}
-            disabled={!active || !selectedNode}
-          >
-            Apply metadata
-          </button>
+          <FlowEditorInspectorJsonButton label="Apply metadata" target="nodeMeta" disabled={!active || !selectedNode} onApplyJson={onApplyJson} />
         </section>
       )}
 
@@ -298,14 +256,7 @@ export default function FlowEditorInspector({
             multiline
             disabled={!active || !selectedEdge}
           />
-          <button
-            type="button"
-            className={`mt-2 App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={() => onApplyJson('edgeProps')}
-            disabled={!active || !selectedEdge}
-          >
-            Apply properties
-          </button>
+          <FlowEditorInspectorJsonButton label="Apply properties" target="edgeProps" disabled={!active || !selectedEdge} onApplyJson={onApplyJson} />
           <label
             className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-edge-meta"
@@ -326,14 +277,7 @@ export default function FlowEditorInspector({
             multiline
             disabled={!active || !selectedEdge}
           />
-          <button
-            type="button"
-            className={`mt-2 App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={() => onApplyJson('edgeMeta')}
-            disabled={!active || !selectedEdge}
-          >
-            Apply metadata
-          </button>
+          <FlowEditorInspectorJsonButton label="Apply metadata" target="edgeMeta" disabled={!active || !selectedEdge} onApplyJson={onApplyJson} />
         </section>
       )}
 
@@ -411,14 +355,7 @@ export default function FlowEditorInspector({
             multiline
             disabled={!active}
           />
-          <button
-            type="button"
-            className={`mt-2 App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={() => onApplyJson('workflowMeta')}
-            disabled={!active}
-          >
-            Apply workflow metadata
-          </button>
+          <FlowEditorInspectorJsonButton label="Apply workflow metadata" target="workflowMeta" disabled={!active} onApplyJson={onApplyJson} />
           <label
             className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)}
             htmlFor="flow-editor-workflow-context"
@@ -439,14 +376,7 @@ export default function FlowEditorInspector({
             multiline
             disabled={!active}
           />
-          <button
-            type="button"
-            className={`mt-2 App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={() => onApplyJson('workflowContext')}
-            disabled={!active}
-          >
-            Apply workflow context
-          </button>
+          <FlowEditorInspectorJsonButton label="Apply workflow context" target="workflowContext" disabled={!active} onApplyJson={onApplyJson} />
         </section>
       )}
 

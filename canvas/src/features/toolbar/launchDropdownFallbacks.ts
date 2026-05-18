@@ -2,6 +2,13 @@ import type { UiToastInput } from '@/hooks/store/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
+import {
+  getWorkspaceUrlImportCanvasRendererLabel,
+  isWorkspaceUrlImportCanvasRendererId,
+  normalizeWorkspaceUrlImportDocumentMode,
+  type WorkspaceUrlImportCanvasRendererId,
+  type WorkspaceUrlImportDocumentModeId,
+} from '@/features/markdown-workspace/workspaceImport/canvasPresets'
 type PushUiToast = (toast: UiToastInput) => void
 
 async function focusFirstImportedWorkspaceFile(args: {
@@ -145,14 +152,17 @@ export async function importLocalFolderFallback(args: {
 
 export async function importUrlFallback(args: {
   urlRaw: string
-  canvas2dRenderer?: 'design' | null
+  canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null
+  documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   pushUiToast: PushUiToast
 }): Promise<void> {
   const url = String(args.urlRaw || '').trim()
   if (!url) return
-  const canvas2dRenderer = args.canvas2dRenderer === 'design' ? 'design' : null
+  const canvas2dRenderer = isWorkspaceUrlImportCanvasRendererId(args.canvas2dRenderer) ? args.canvas2dRenderer : null
+  const documentSemanticMode = canvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(args.documentSemanticMode) : null
+  const rendererLabel = canvas2dRenderer ? getWorkspaceUrlImportCanvasRendererLabel(canvas2dRenderer) : ''
   const toastId = 'launch:import:url'
-  args.pushUiToast({ id: toastId, kind: 'neutral', message: canvas2dRenderer === 'design' ? 'Importing URL (Design)…' : 'Importing URL…', ttlMs: null, dismissible: false })
+  args.pushUiToast({ id: toastId, kind: 'neutral', message: rendererLabel ? `Importing URL (${rendererLabel})…` : 'Importing URL…', ttlMs: null, dismissible: false })
   try {
     const [
       { getWorkspaceFs },
@@ -182,7 +192,8 @@ export async function importUrlFallback(args: {
         urlRaw: url,
         parentPath: WORKSPACE_ROOT_PATH,
         canvas2dRenderer,
-        viewHint: canvas2dRenderer === 'design' ? 'html' : undefined,
+        documentSemanticMode,
+        viewHint: canvas2dRenderer ? 'html' : undefined,
         onProgress: p => {
           const label = String((p as { label?: unknown }).label || '').trim() || 'Importing URL…'
           args.pushUiToast({ id: toastId, kind: 'neutral', message: label, ttlMs: null, dismissible: false })
@@ -216,7 +227,8 @@ export async function importUrlFallback(args: {
 
 export async function importUrlDeerFlowFallback(args: {
   urlRaw: string
-  canvas2dRenderer?: 'design' | null
+  canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null
+  documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   pushUiToast: PushUiToast
 }): Promise<void> {
   const url = String(args.urlRaw || '').trim()
@@ -227,7 +239,8 @@ export async function importUrlDeerFlowFallback(args: {
     const { importUrlViaDeerFlowAndApply } = (await import(
       '@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction'
     )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction')
-    await importUrlViaDeerFlowAndApply({ urlRaw: url, canvas2dRenderer: args.canvas2dRenderer, pushUiToast: args.pushUiToast })
+    const canvas2dRenderer = isWorkspaceUrlImportCanvasRendererId(args.canvas2dRenderer) ? args.canvas2dRenderer : null
+    await importUrlViaDeerFlowAndApply({ urlRaw: url, canvas2dRenderer, pushUiToast: args.pushUiToast })
   } catch (e) {
     args.pushUiToast({
       id: toastId,

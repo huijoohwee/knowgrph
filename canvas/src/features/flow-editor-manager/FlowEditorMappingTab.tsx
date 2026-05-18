@@ -1,10 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import {
-  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
-} from '@/lib/chatEndpoint'
+import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -14,12 +11,6 @@ import {
 } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
-import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
-import { downloadBlob } from '@/lib/graph/save'
-import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
-import { normalizeWidgetRegistryEntries, readValidatedWidgetRegistryMetadataEntries } from '@/hooks/store/flowEditorManagerSlice'
-import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
-import { createUniqueId } from '@/lib/ids'
 import {
   buildGenerateImageRegistryDraft,
   buildGenerateVideoRegistryDraft,
@@ -35,26 +26,10 @@ import {
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
-import { patchById } from 'grph-shared/array/patchArrayItem'
 import { FlowEditorMappingTabLayout } from '@/features/flow-editor-manager/FlowEditorMappingTabLayout'
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
-
-function inferSmartMediaMode(args: {
-  nodeTypeId?: unknown
-  formId?: unknown
-}): 'image' | 'video' | null {
-  const nodeTypeId = String(args.nodeTypeId || '').trim()
-  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
-  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
-  const formId = String(args.formId || '').trim()
-  if (formId === 'imageGeneration') return 'image'
-  if (formId === 'videoGeneration') return 'video'
-  return null
-}
-
-function getDefaultSmartMediaModel(mode: 'image' | 'video'): string {
-  return mode === 'image' ? CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT : CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
-}
+import { exportWidgetRegistryAsJson, importWidgetRegistryFromJson } from '@/features/flow-editor-manager/FlowEditorMappingRegistryIo'
+import { getDefaultSmartMediaModel, inferSmartMediaMode } from '@/features/flow-editor-manager/FlowEditorMappingSmartMedia'
+import { useFlowEditorMappingRowsEditor } from '@/features/flow-editor-manager/useFlowEditorMappingRowsEditor'
 
 export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }: {
   searchQuery: string
@@ -448,71 +423,19 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   }, [graphData, selected, selectedNodeId, toggleWidgetRegistryEntryEnabled, updateNode, upsertUiToast])
 
   const importRegistryFromJson = React.useCallback(async () => {
-    const files = await pickFilesWithExtensions(['json'], false)
-    const file = files && files[0] ? files[0] : null
-    if (!file) return
-    let json: unknown = null
-    try {
-      json = JSON.parse(await file.text())
-    } catch {
-      return
-    }
-    const parsed = tryParseWidgetImportGraphData(json)
-    const meta = parsed?.graphData?.metadata
-    const imported = readValidatedWidgetRegistryMetadataEntries(meta)
-    if (imported.length === 0) return
-    const merged = normalizeWidgetRegistryEntries([...(widgetRegistry || []), ...imported])
-    setWidgetRegistry(merged)
+    await importWidgetRegistryFromJson({ widgetRegistry, setWidgetRegistry })
   }, [widgetRegistry, setWidgetRegistry])
 
   const exportRegistryAsJson = React.useCallback(() => {
-    const selectedEntry = selected
-    const entries = selectedEntry ? [selectedEntry] : (widgetRegistry || [])
-    if (!entries || entries.length === 0) return
-    const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })
-    const blob = new Blob([bundleText], { type: 'application/json' })
-    const filename = selectedEntry ? `widget-${selectedEntry.nodeTypeId}.json` : 'widget-registry.json'
-    downloadBlob(blob, filename)
+    exportWidgetRegistryAsJson({ selected, widgetRegistry })
   }, [widgetRegistry, selected])
 
-
-
-  const addEditorRow = React.useCallback(() => {
-    setEditorRows(prev => {
-      const used = new Set(prev.map(r => r.id))
-      const id = createUniqueId('qerRow', used)
-      return [...prev, { id, key: '', type: 'text', value: '', required: false, direction: 'default' }]
-    })
-  }, [])
-
-  const updateEditorRow = React.useCallback((id: string, patch: Partial<FlowEditorMappingRow>) => {
-    const target = String(id || '').trim()
-    if (!target) return
-    setEditorRows(prev => patchById(prev, target, r => r.id, r => ({ ...r, ...patch })))
-  }, [])
-
-  const deleteEditorRow = React.useCallback((id: string) => {
-    const target = String(id || '').trim()
-    if (!target) return
-    setEditorRows(prev => prev.filter(r => r.id !== target))
-  }, [])
-
-  const reorderEditorRow = React.useCallback((fromId: string, toId: string) => {
-    const from = String(fromId || '').trim()
-    const to = String(toId || '').trim()
-    if (!from || !to || from === to) return
-    setEditorRows(prev => {
-      const fromIndex = prev.findIndex(r => r.id === from)
-      const toIndex = prev.findIndex(r => r.id === to)
-      if (fromIndex < 0 || toIndex < 0) return prev
-      if (fromIndex === toIndex) return prev
-      const next = prev.slice()
-      const [moved] = next.splice(fromIndex, 1)
-      const insertIndex = fromIndex < toIndex ? Math.max(0, toIndex - 1) : toIndex
-      next.splice(insertIndex, 0, moved)
-      return next
-    })
-  }, [])
+  const {
+    addEditorRow,
+    updateEditorRow,
+    deleteEditorRow,
+    reorderEditorRow,
+  } = useFlowEditorMappingRowsEditor(setEditorRows)
 
   const resetEditor = React.useCallback(() => {
     setEditorError(null)

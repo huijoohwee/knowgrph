@@ -120,6 +120,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.import.localFolder.lazyHydrate","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalFolderHydratesOnlyOpenedFile"],
   ["workspace.import.localFiles.canvasFrontmatterOptInGraphLanding","@/__tests__/workspaceImportLocal.test","testWorkspaceImportCanvasFrontmatterDocsOptIntoGraphLanding"],
   ["workspace.import.localFiles.canvasPresetParsedGraphLanding","@/__tests__/workspaceImportLocal.test","testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGraphLanding"],
+  ["workspace.import.localFiles.largeCanvasPresetHeaderLanding","@/__tests__/workspaceImportLargeCanvasPreset.test","testWorkspaceImportLargeCanvasPresetHeaderAppliesWithoutFullParse"],
   ["workspace.import.localFiles.activateImportedDocFrontmatterLanding","@/__tests__/workspaceImportLocal.test","testActivateFirstImportedWorkspaceFilePreservesImportedFrontmatterLandingFromPreviousSelection"],
   ["workspace.import.localFiles.videoDemo.runtimeRendererIsolation","@/__tests__/workspaceImportVideoDemoRendererIsolation.test.tsx","testVideoDemoRuntimeLandingRejectsRendererWidgetSeepage"],
   ["workspace.import.localFiles.videoDemo.runtimeRendererIsolation.flowchart","@/__tests__/workspaceImportVideoDemoRendererIsolation.test.tsx","testVideoDemoRuntimeLandingRejectsFlowchartWidgetSeepage"],

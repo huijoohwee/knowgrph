@@ -537,7 +537,7 @@ export async function testMarkdownWorkspaceSplitOmitsDocumentSelectorInHeader() 
     const splitViewerPane = splitView.querySelector('section[aria-label="Viewer"]') as HTMLElement | null
     if (!splitViewerPane) throw new Error('expected split layout to include WYSIWYG viewer pane')
     const splitFormattingMenu = container.querySelector('menu[aria-label="Formatting"]') as HTMLElement | null
-    if (splitFormattingMenu) throw new Error('expected split header to defer formatting to inline floating toolbar and hide duplicate formatting menu')
+    if (!splitFormattingMenu) throw new Error('expected split header to keep formatting visible when the Viewer pane is checked')
     const derivedViewsMenu = container.querySelector('menu[aria-label="Derived views"]') as HTMLElement | null
     if (derivedViewsMenu) throw new Error('expected split header to omit Monaco document selector and avoid duplicate mode switching')
   } finally {

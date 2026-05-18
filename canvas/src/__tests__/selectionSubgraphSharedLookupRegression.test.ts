@@ -46,7 +46,7 @@ export function testSelectionSubgraphForIdsPreservesNeighborhoodBehavior() {
 }
 
 export function testSelectionSubgraphSsotReusesSharedLookupAndSemanticCache() {
-  const graphFileText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'file.ts'), 'utf8')
+  const selectionSubgraphText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'selectionSubgraph.ts'), 'utf8')
   const selectionInspectorText = readFileSync(
     resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableSelectionInspector.tsx'),
     'utf8',
@@ -61,11 +61,11 @@ export function testSelectionSubgraphSsotReusesSharedLookupAndSemanticCache() {
   )
 
   if (
-    !graphFileText.includes("const selectionSubgraphCache = new Map<string, GraphData | null>()")
-    || !graphFileText.includes("buildScopedGraphSemanticKey('graph-file-selection-subgraph'")
-    || !graphFileText.includes("cacheScope: 'graph-file-selection-subgraph-lookup'")
-    || !graphFileText.includes('const edgeById = graphLookup?.edgeById')
-    || !graphFileText.includes('const incidentEdgesByNodeId = graphLookup?.incidentEdgesByNodeId')
+    !selectionSubgraphText.includes("const selectionSubgraphCache = new Map<string, GraphData | null>()")
+    || !selectionSubgraphText.includes("buildScopedGraphSemanticKey('graph-file-selection-subgraph'")
+    || !selectionSubgraphText.includes("cacheScope: 'graph-file-selection-subgraph-lookup'")
+    || !selectionSubgraphText.includes('const edgeById = graphLookup?.edgeById')
+    || !selectionSubgraphText.includes('const incidentEdgesByNodeId = graphLookup?.incidentEdgesByNodeId')
   ) {
     throw new Error('expected selection subgraph SSOT to reuse shared graph lookups and semantic-keyed caching instead of rebuilding node and edge maps per caller')
   }

@@ -79,10 +79,9 @@ export const buildCanvasViewOptions = (
 
   const optionsWithDisabled = rendererOptions.map(option => {
     const supportsD3LikeLayout = isD3Like2dRenderer(option.id)
-    const disabledForVoxel = state.canvas3dMode === 'voxel' && !supportsD3LikeLayout
     const disabledForRadial = state.layoutMode === 'radial' && !supportsD3LikeLayout
     const disabledForGeospatial = state.geospatialEnabled
-    const disabledOption = disabledForVoxel || disabledForRadial || disabledForGeospatial
+    const disabledOption = disabledForRadial || disabledForGeospatial
     return {
       id: `renderer:${option.id}` as const,
       title: option.title,
@@ -91,16 +90,12 @@ export const buildCanvasViewOptions = (
       disabled: disabledOption,
       disabledReason: disabledForGeospatial
         ? 'Disabled in Geospatial Mode'
-        : disabledForVoxel
-          ? 'Disabled for Voxel Mode'
-          : disabledForRadial
+        : disabledForRadial
             ? 'Disabled in Radial Layout'
             : undefined,
       enableHint: disabledForGeospatial
         ? 'Switch to Document Mode to enable'
-        : disabledForVoxel
-          ? 'Switch to D3 or Flowchart'
-          : disabledForRadial
+        : disabledForRadial
             ? 'Switch layout mode to Block to enable'
             : undefined,
     } satisfies CanvasViewOption

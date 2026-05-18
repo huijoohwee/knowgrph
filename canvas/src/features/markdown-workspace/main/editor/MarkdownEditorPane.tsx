@@ -16,6 +16,7 @@ export function MarkdownEditorPane(props: {
   uri: string
   onEditorHandle?: (h: MonacoTextEditorHandle | null) => void
   ariaLabel?: string
+  paneAriaLabel?: string
 }) {
   const rafIdRef = React.useRef<number | null>(null)
   const lastSelectionStartRef = React.useRef<number | null>(null)
@@ -72,7 +73,7 @@ export function MarkdownEditorPane(props: {
   }, [])
 
   return (
-    <section className="flex-1 min-h-0 overflow-hidden flex flex-col" aria-label="Markdown Editor">
+    <section className="flex-1 min-h-0 overflow-hidden flex flex-col" aria-label={props.paneAriaLabel || 'Markdown Editor'}>
       <MonacoTextEditor
         value={props.value}
         onChange={props.readOnly ? () => void 0 : props.onChange}

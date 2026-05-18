@@ -20,7 +20,7 @@ import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { htmlFallbackToMarkdownAllText, normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
 import { yamlQuote } from './yaml'
 import type { Canvas2dRendererId } from '@/lib/config.render'
-import { getWorkspaceUrlImportCanvasPreset, normalizeWorkspaceUrlImportCanvas2dRenderer } from './canvasPresets'
+import { getWorkspaceUrlImportCanvasPreset, normalizeWorkspaceUrlImportCanvas2dRenderer, normalizeWorkspaceUrlImportDocumentMode } from './canvasPresets'
 import { buildWebpageWorkspaceEntryStubText, buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
 import { tryFetchApiNativeMarkdown } from './apiNative'
 import type { WorkspaceUrlContent } from './types'
@@ -35,104 +35,18 @@ import {
   buildGltfAssetMarkdown,
   deriveModelWorkspaceDocumentNameFromUrl,
 } from './glbAsset'
+import {
+  autoTuneFromHtml,
+  deriveFallbackExtFromNormalizedLower,
+  isWeChatArticleUrl,
+  looksLikeJsShellText,
+  shouldSkipUnifiedMarkdownConversion,
+  shouldTreatAsSubstackUrl,
+  type FetchMode,
+  type WebpageViewMode,
+} from './urlContentHeuristics'
 
-type WebpageViewMode = 'markdown' | 'json' | 'html'
-type FetchMode = 'import' | 'refresh'
-
-type FetchWorkspaceUrlContentOpts = {
-  mode?: FetchMode
-  onProgress?: (percentage: number) => void
-  viewHint?: WebpageViewMode
-  canvas2dRenderer?: Canvas2dRendererId | null
-}
-
-function isWeChatArticleUrl(url: string): boolean {
-  try {
-    const u = new URL(url)
-    const host = u.hostname.toLowerCase()
-    if (host === 'mp.weixin.qq.com' || host.endsWith('.mp.weixin.qq.com')) return true
-  } catch {
-    void 0
-  }
-  return false
-}
-function shouldTreatAsSubstackUrl(url: string): boolean {
-  try {
-    const u = new URL(url)
-    const p = String(u.pathname || '')
-    return /^\/p\/[^/]+\/?$/i.test(p)
-  } catch {
-    return false
-  }
-}
-function looksLikeJsShellText(text: string): boolean {
-  const t = String(text || '')
-  if (!t.trim()) return false
-  if (/failed\s+to\s+load\s+posts/i.test(t)) return true
-  if (/enable-javascript\.com/i.test(t)) return true
-  if (/requires\s+java\s*script/i.test(t)) return true
-  if (/page not foundlatesttopdiscussions/i.test(t.replace(/\s+/g, ''))) return true
-  return false
-}
-
-function shouldSkipUnifiedMarkdownConversion(html: string): boolean {
-  const h = String(html || '')
-  if (!h) return false
-  if (h.length > 1_500_000) return true
-  const scriptCount = (h.match(/<script\b/gi) || []).length
-  if (scriptCount > 18) return true
-  return false
-}
-
-function deriveFallbackExtFromNormalizedLower(normalizedLower: string): '.md' | '.json' | '.csv' | '.svg' | '.yaml' | '.html' | '.txt' {
-  if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
-  if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
-  if (normalizedLower.endsWith('.csv')) return '.csv'
-  if (normalizedLower.endsWith('.svg')) return '.svg'
-  if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
-  if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
-  return '.txt'
-}
-
-function autoTuneFromHtml(args: {
-  html: string
-  includeImages: boolean
-  fidelityLevel: 1 | 2 | 3 | 4
-  defaultView: WebpageViewMode
-  mode: FetchMode
-  forceConvertToMarkdown: boolean
-  isWeChat: boolean
-}): {
-  isSubstackLike: boolean
-  includeImages: boolean
-  fidelityLevel: 1 | 2 | 3 | 4
-  defaultView: WebpageViewMode
-  shouldConvertToMarkdown: boolean
-  shouldFallbackToPlainText: boolean
-} {
-  const h = String(args.html || '')
-  const isSubstackLike =
-    /substackcdn\.com/i.test(h) ||
-    /\bdata-page\s*=\s*["'][^"']+/i.test(h) ||
-    /failed\s+to\s+load\s+posts/i.test(h) ||
-    /enable-javascript\.com/i.test(h) ||
-    /requires\s+java\s*script/i.test(h)
-
-  const looksHuge = h.length > 5_000_000
-  const includeImages = isSubstackLike ? true : looksHuge ? false : args.includeImages
-  const fidelityLevel = (isSubstackLike ? 4 : looksHuge ? 2 : args.fidelityLevel) as 1 | 2 | 3 | 4
-  const defaultView = (isSubstackLike ? 'markdown' : args.defaultView) as WebpageViewMode
-
-  const shouldConvertToMarkdown =
-    args.forceConvertToMarkdown ||
-    args.mode !== 'refresh' ||
-    isSubstackLike ||
-    args.isWeChat ||
-    (defaultView === 'markdown' && args.mode === 'refresh')
-
-  const shouldFallbackToPlainText = shouldConvertToMarkdown && defaultView === 'markdown'
-  return { isSubstackLike, includeImages, fidelityLevel, defaultView, shouldConvertToMarkdown, shouldFallbackToPlainText }
-}
+type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage: number) => void; viewHint?: WebpageViewMode; canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }
 
 async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspaceUrlContentOpts): Promise<WorkspaceUrlContent> {
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
@@ -141,7 +55,8 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   const normalizedUrl = normalizeGitHubBlobLikeUrl(cleaned) ?? cleaned
   const normalizedLower = normalizedUrl.toLowerCase()
   const canvas2dRenderer = normalizeWorkspaceUrlImportCanvas2dRenderer(opts?.canvas2dRenderer)
-  const canvasPreset = getWorkspaceUrlImportCanvasPreset(canvas2dRenderer)
+  const documentSemanticMode = normalizeWorkspaceUrlImportDocumentMode(opts?.documentSemanticMode)
+  const canvasPreset = getWorkspaceUrlImportCanvasPreset(canvas2dRenderer, documentSemanticMode)
 
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
@@ -292,8 +207,10 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     }
   }
 
-  const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(normalizedLower)
   const looksLikeLocalHtml = isLocalRepoPath && /\.(html|htm)(\?|#|$)/i.test(normalizedLower)
+  const looksLikeCodeOrData =
+    /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(normalizedLower) ||
+    looksLikeLocalHtml
   if (!looksLikeCodeOrData) {
     const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
     const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
@@ -303,23 +220,6 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     const viewHint: WebpageViewMode | '' =
       opts?.viewHint === 'markdown' ? 'markdown' : opts?.viewHint === 'json' ? 'json' : opts?.viewHint === 'html' ? 'html' : ''
     const looksLikeSubstackUrl = shouldTreatAsSubstackUrl(normalizedUrl)
-
-    if (mode === 'import' && canvasPreset && !looksLikeSubstackUrl) {
-      const view: WebpageViewMode = viewHint || 'html'
-      return {
-        normalizedUrl,
-        name,
-        text: buildWebpageWorkspaceEntryStubText({
-          url: normalizedUrl,
-          view,
-          body: `[](${normalizedUrl})\n`,
-          hydrate: false,
-          canvasPreset,
-          fidelityLevel: canvasPreset ? 4 : undefined,
-          includeImages: canvasPreset ? true : undefined,
-        }),
-      }
-    }
 
     const ctrl = new AbortController()
     const progressSession = opts?.onProgress
@@ -339,7 +239,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       progressSession?.start()
 
       const store = useGraphStore.getState()
-      includeImages = store.webpageImportIncludeImages !== false
+      includeImages = canvasPreset ? true : store.webpageImportIncludeImages !== false
       defaultView = (
         opts?.viewHint === 'markdown'
           ? 'markdown'
@@ -352,6 +252,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
                 : store.webpageImportView
       ) as WebpageViewMode
       fidelityLevel = (() => {
+        if (canvasPreset) return 4
         const raw = store.webpageArtifactFidelityMaxLevel
         const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
         return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
@@ -668,12 +569,14 @@ export async function fetchWorkspaceUrlContent(rawUrl: string, opts?: FetchWorks
   const mode: FetchMode = opts?.mode === 'refresh' ? 'refresh' : 'import'
   const viewHint = opts?.viewHint === 'markdown' ? 'markdown' : opts?.viewHint === 'json' ? 'json' : opts?.viewHint === 'html' ? 'html' : ''
   const canvas2dRenderer = normalizeWorkspaceUrlImportCanvas2dRenderer(opts?.canvas2dRenderer)
-  const storeSnapshot = canvas2dRenderer === 'design' ? null : useGraphStore.getState()
+  const documentSemanticMode = normalizeWorkspaceUrlImportDocumentMode(opts?.documentSemanticMode)
+  const storeSnapshot = canvas2dRenderer ? null : useGraphStore.getState()
   const key = buildWorkspaceUrlContentCacheKey({
     normalizedUrl,
     mode,
     viewHint,
     canvas2dRenderer,
+    documentSemanticMode,
     storeSnapshot,
   })
 

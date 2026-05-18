@@ -58,8 +58,9 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   if (id.startsWith('renderer:')) {
     if (id === 'renderer:menu') return
     const nextRenderer = id.slice('renderer:'.length) as Canvas2dRendererId
-    if (nextRenderer === canvas2dRenderer) return
-    setCanvas2dRenderer(nextRenderer)
+    const rendererChanged = nextRenderer !== canvas2dRenderer
+    if (canvasRenderMode !== '2d') setCanvasRenderMode('2d')
+    if (rendererChanged) setCanvas2dRenderer(nextRenderer)
     if (isFrontmatterOnlyCanvas2dRenderer(nextRenderer)) {
       if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
       if (!frontmatterModeEnabled) setFrontmatterModeEnabled(true)

@@ -128,7 +128,9 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
-  const blockControlsEnabled = nestingLevel <= 0 && !markdownLargeDocumentMode
+  const topLevelBlock = nestingLevel <= 0
+  const blockControlsEnabled = topLevelBlock
+  const blockChromeEnabled = topLevelBlock && !markdownLargeDocumentMode
 
   let stickyHeadingCascadeBaseDepth = 7
   for (const t of tokens) {
@@ -159,14 +161,14 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       collapsedIds,
       onToggleCollapse,
       viewerBlockEditingEnabled,
-      onMoveHeadingSection,
-      onReorderHeadingSection,
-      onInsertLineAfter,
-      onReorderLineBlock,
+      onMoveHeadingSection: blockChromeEnabled ? onMoveHeadingSection : undefined,
+      onReorderHeadingSection: blockChromeEnabled ? onReorderHeadingSection : undefined,
+      onInsertLineAfter: blockChromeEnabled ? onInsertLineAfter : undefined,
+      onReorderLineBlock: blockChromeEnabled ? onReorderLineBlock : undefined,
       onReplaceLineRange,
       geoDatasetIntegration,
       markdownBlockControlsEnabled: blockControlsEnabled,
-      markdownBlockGutterEnabled: blockControlsEnabled,
+      markdownBlockGutterEnabled: blockChromeEnabled,
       markdownForcePlainTables: !!markdownForcePlainTables,
       markdownSourceLines,
       forbidCopy: !!forbidCopy,
@@ -176,6 +178,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     }),
     [
       activeDocumentPath,
+      blockChromeEnabled,
       blockControlsEnabled,
       codeAnnotations,
       collapsedIds,

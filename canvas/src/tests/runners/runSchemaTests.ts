@@ -81,6 +81,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewSelectionBlocksVoxelDuringGeospatialMode()
   })
+  await execTest(results, 'canvas.viewSelection.rendererOptionsStaySelectable', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelState()
+  })
+  await execTest(results, 'canvas.viewSelection.rendererActivates2dSurface', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvasViewRendererSelectionActivates2dSurface()
+  })
   await execTest(results, 'canvas.3dMode.persistedGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted()

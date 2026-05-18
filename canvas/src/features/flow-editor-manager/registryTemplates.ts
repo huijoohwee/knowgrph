@@ -11,9 +11,6 @@ import {
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
 import {
-  FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
-  FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
-  FLOW_EDITOR_RESOLUTION_OPTIONS,
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -398,16 +395,6 @@ export function resolveEffectiveTextGenerationWidgetProperties(args: {
   }
 
   return next
-}
-
-function buildCommonTextGenerationFields(): WidgetRegistryEntry['fields'] {
-  return [
-    { fieldKey: 'chatProvider', fieldType: 'text', schemaPath: 'properties.chatProvider', required: true, label: 'Provider' },
-    { fieldKey: 'chatAuthMode', fieldType: 'text', schemaPath: 'properties.chatAuthMode', required: true, label: 'Auth mode' },
-    { fieldKey: 'chatEndpointUrl', fieldType: 'text', schemaPath: 'properties.chatEndpointUrl', required: true, label: 'Endpoint URL' },
-    { fieldKey: 'chatModel', fieldType: 'text', schemaPath: 'properties.chatModel', required: true, label: 'Model' },
-    { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', required: true, label: 'Prompt' },
-  ]
 }
 
 function buildCommonTextGenerationPorts(): WidgetRegistryEntry['ports'] {

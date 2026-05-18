@@ -11,7 +11,7 @@ import {
   WORKSPACE_ROOT_PATH,
 } from '@/features/workspace-fs/path'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
-import { getWorkspaceSeedFiles, isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import {
@@ -46,25 +46,11 @@ import {
 } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
-import {
-  resolveWorkspaceSourceFileInlineText,
-  upsertWorkspaceEntryInlineText,
-} from '@/features/workspace-fs/workspaceInlineText'
+import { resolveWorkspaceSourceFileInlineText, upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
+import { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
+export { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
 
 const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000
-
-export function shouldTrustEmptyWorkspaceSelectionCache(args: {
-  cachedText: string | null
-  path: WorkspacePath
-  lastLoaded: { path: WorkspacePath; text: string } | null
-}): boolean {
-  if (args.cachedText !== '') return false
-  const lastLoaded = args.lastLoaded
-  if (!lastLoaded || lastLoaded.path !== args.path || lastLoaded.text !== '') return false
-  // Initialization docs can be chunk-only in storage; never lock in blank cache for them.
-  if (isInitializationWorkspacePath(args.path)) return false
-  return true
-}
 
 export type MarkdownWorkspaceIndexingArgs = MarkdownWorkspaceRuntimeProgressStatusBindings & {
   active: boolean

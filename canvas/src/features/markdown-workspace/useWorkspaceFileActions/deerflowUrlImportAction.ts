@@ -3,6 +3,7 @@ import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { CHAT_DEERFLOW_ENDPOINT_URL, CHAT_PROVIDER_DEERFLOW, normalizeChatProviderId, resolveChatEndpointForRequest } from '@/lib/chatEndpoint'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { WorkspaceUrlImportCanvasRendererId } from '../workspaceImport/canvasPresets'
 
 type PushUiToast = (toast: UiToastInput) => void
 
@@ -23,7 +24,7 @@ function isLocalUiHost(): boolean {
 
 export async function importUrlViaDeerFlowAndApply(args: {
   urlRaw: string
-  canvas2dRenderer?: 'design' | null
+  canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null
   pushUiToast?: PushUiToast
 }): Promise<{ createdPaths: string[] } | null> {
   const url = String(args.urlRaw || '').trim()

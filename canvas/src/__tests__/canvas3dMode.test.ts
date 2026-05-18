@@ -1,5 +1,7 @@
 import { getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
+import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
+import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage } from '@/lib/persistence'
@@ -224,6 +226,80 @@ export function testCanvasViewSelectionBlocksVoxelDuringGeospatialMode() {
   }
   if (setCanvas2dRendererCalls !== 0 || setCanvas3dModeCalls !== 0 || setCanvasRenderModeCalls !== 0 || setSchemaCalls !== 0) {
     throw new Error('Expected Voxel selection to avoid renderer or schema mutations while Geospatial Mode is enabled')
+  }
+}
+
+export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelState() {
+  const options = buildCanvasViewOptions(
+    {
+      canvas2dRenderer: 'd3',
+      canvas3dMode: 'voxel',
+      canvasRenderMode: '2d',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      renderMediaAsNodes: false,
+      geospatialEnabled: false,
+      layoutMode: 'block',
+      schema: BLOCK_SCHEMA,
+      frontmatterOnlyAllowed: false,
+      isD3Like2dLayoutToggle: true,
+      voxelApplicable: true,
+      voxelDisabledReason: null,
+    },
+    getCanvasViewRendererOptions(),
+  )
+  const rendererMenu = options.find(option => option.id === 'renderer:menu')
+  if (!rendererMenu?.children?.length) throw new Error('Expected renderer menu children')
+  const disabled = new Map(rendererMenu.children.map(option => [option.id, option.disabled === true]))
+  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:flowEditor', 'renderer:d3', 'renderer:design']
+  for (const id of requiredSelectable) {
+    if (disabled.get(id)) {
+      throw new Error(`Expected ${id} to stay selectable for a 2D renderer choice even when inactive canvas3dMode is voxel`)
+    }
+  }
+  const documentMenu = options.find(option => option.id === 'document:menu')
+  if (!documentMenu?.children?.length) throw new Error('Expected document mode menu children')
+  const documentDisabled = new Map(documentMenu.children.map(option => [option.id, option.disabled === true]))
+  for (const id of ['document:documentStructure', 'document:keyword'] as CanvasViewOptionId[]) {
+    if (documentDisabled.get(id)) throw new Error(`Expected ${id} to stay selectable for canvas document mode selection`)
+  }
+}
+
+export function testCanvasViewRendererSelectionActivates2dSurface() {
+  const renderModes: Array<'2d' | '3d'> = []
+  let rendererCalls = 0
+
+  applyCanvasViewSelection({
+    id: 'renderer:flowEditor',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected 2D renderer selection to avoid opening Geospatial Mode')
+    },
+    canvas2dRenderer: 'flowEditor',
+    canvas3dMode: 'voxel',
+    canvasRenderMode: '3d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: () => { rendererCalls += 1 },
+    setCanvasRenderMode: mode => { renderModes.push(mode) },
+    setCanvas3dMode: () => {},
+    setSchema: () => {},
+    setRenderMediaAsNodes: () => {},
+    setDocumentSemanticMode: () => {},
+    setFrontmatterModeEnabled: () => {},
+    setMultiDimTableModeEnabled: () => {},
+  })
+
+  if (renderModes.length !== 1 || renderModes[0] !== '2d') {
+    throw new Error(`Expected renderer selection to activate 2D render mode once, got ${renderModes.join(',') || 'none'}`)
+  }
+  if (rendererCalls !== 0) {
+    throw new Error(`Expected same renderer selection to avoid duplicate renderer writes, got ${rendererCalls}`)
   }
 }
 

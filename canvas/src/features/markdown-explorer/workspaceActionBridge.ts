@@ -1,7 +1,9 @@
 import type { Canvas2dRendererId } from '@/lib/config.render'
+import type { WorkspaceUrlImportDocumentModeId } from '@/features/markdown-workspace/workspaceImport/canvasPresets'
 
 export type WorkspaceImportUrlOpts = {
   canvas2dRenderer?: Canvas2dRendererId | null
+  documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
 }
 
 export type MarkdownWorkspaceActionBridge = {

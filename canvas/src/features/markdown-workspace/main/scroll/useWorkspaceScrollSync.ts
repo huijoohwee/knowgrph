@@ -36,7 +36,6 @@ export function useWorkspaceScrollSync(args: {
   markdownEditorHandle: MonacoTextEditorHandle | null
   jsonEditorHandle: MonacoTextEditorHandle | null
   viewerEl: HTMLElement | null
-  setViewerEl: (next: HTMLElement | null) => void
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>
 }) {
   const scrollRatioByDocRef = React.useRef<Map<string, number>>(new Map())
@@ -58,10 +57,6 @@ export function useWorkspaceScrollSync(args: {
     const v = scrollRatioByDocRef.current.get(docKey)
     return typeof v === 'number' && Number.isFinite(v) ? clamp01(v) : 0
   }, [docKey])
-
-  React.useEffect(() => {
-    if (args.showWebpageHtml) args.setViewerEl(null)
-  }, [args.showWebpageHtml, args.setViewerEl])
 
   React.useEffect(() => {
     const disposers: Array<{ dispose: () => void }> = []
@@ -104,10 +99,10 @@ export function useWorkspaceScrollSync(args: {
 
   React.useEffect(() => {
     const ratio = getSavedRatio()
+    if (args.viewerEl) {
+      setScrollRatio(args.viewerEl, ratio)
+    }
     if (!args.showWebpageHtml) {
-      if (args.viewerEl) {
-        setScrollRatio(args.viewerEl, ratio)
-      }
       if (args.layoutMode === 'editor' || args.layoutMode === 'split') {
         if (args.markdownEditorHandle) setEditorScrollRatio(args.markdownEditorHandle, ratio)
         if (args.jsonEditorHandle) setEditorScrollRatio(args.jsonEditorHandle, ratio)
@@ -137,8 +132,8 @@ export function useWorkspaceScrollSync(args: {
     }
   }, [args.iframeRef, args.jsonEditorHandle, args.layoutMode, args.markdownEditorHandle, args.showWebpageHtml, args.viewerEl, getSavedRatio])
 
-  useSyncScrollEditorHandleElements(args.markdownEditorHandle, args.viewerEl, args.layoutMode === 'split' && !args.showWebpageHtml)
-  useSyncScrollEditorHandleElements(args.jsonEditorHandle, args.viewerEl, args.layoutMode === 'split' && !args.showWebpageHtml)
+  useSyncScrollEditorHandleElements(args.markdownEditorHandle, args.viewerEl, args.layoutMode === 'split')
+  useSyncScrollEditorHandleElements(args.jsonEditorHandle, args.viewerEl, args.layoutMode === 'split')
 
   React.useEffect(() => {
     if (!args.showWebpageHtml) return

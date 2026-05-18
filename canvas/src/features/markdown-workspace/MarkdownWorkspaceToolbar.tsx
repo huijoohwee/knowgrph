@@ -128,43 +128,16 @@ export function MarkdownWorkspaceToolbar({
     [paneAvailability],
   )
   const inlineFloatingFormattingOwnsViewerSurface =
-    (layoutMode === 'viewer'
-      || (layoutMode === 'split' && Boolean(effectiveSplitPanes.viewer)))
+    layoutMode === 'viewer'
     && viewerKind === 'markdown'
     && viewerMode === 'read'
   const showWorkspaceFormattingMenu =
-    layoutMode !== 'split'
+    (layoutMode !== 'split' || Boolean(effectiveSplitPanes.viewer))
     && !inlineFloatingFormattingOwnsViewerSurface
     && isEditing
     && isMarkdown
   const showMarkdownDisplayMenu = viewerKind === 'markdown' && (viewerMode === 'read' || !viewerMode)
   const workspacePanesControlId = React.useId()
-  const toggleSplitPane = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
-    if (!setSplitPaneVisibility) return
-    const current = effectiveSplitPanes
-    const enabledCount =
-      Number(current.json && effectivePaneAvailability.json) +
-      Number(current.markdown && effectivePaneAvailability.markdown) +
-      Number(current.viewer && effectivePaneAvailability.viewer)
-    if (current[key] && enabledCount <= 1) return
-    setSplitPaneVisibility({ ...current, [key]: !current[key] })
-  }, [effectivePaneAvailability.json, effectivePaneAvailability.markdown, effectivePaneAvailability.viewer, effectiveSplitPanes, setSplitPaneVisibility])
-  const ensureSplitPaneEnabled = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
-    if (!setSplitPaneVisibility) return
-    if (!effectivePaneAvailability[key]) return
-    const current = effectiveSplitPanes
-    if (current[key]) return
-    setSplitPaneVisibility({ ...current, [key]: true })
-  }, [effectivePaneAvailability, effectiveSplitPanes, setSplitPaneVisibility])
-  const handleSplitPaneToggle = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
-    if (!setSplitPaneVisibility) return
-    if (!effectivePaneAvailability[key]) return
-    if (layoutMode !== 'split') {
-      setLayoutMode('split')
-    }
-    toggleSplitPane(key)
-  }, [effectivePaneAvailability, layoutMode, setLayoutMode, setSplitPaneVisibility, toggleSplitPane])
-
   const webpageControls = React.useMemo(() => {
     const meta = webpageWorkspaceMeta
     if (!meta || !meta.url) return null
@@ -181,6 +154,49 @@ export function MarkdownWorkspaceToolbar({
               : 'inherit'
     return { view, fidelityMode }
   }, [webpageWorkspaceMeta])
+  const visiblePaneCount = React.useCallback((current: MarkdownWorkspacePaneVisibility) => (
+    Number(current.json && effectivePaneAvailability.json) +
+    Number(current.markdown && effectivePaneAvailability.markdown) +
+    Number(current.viewer && effectivePaneAvailability.viewer) +
+    Number(current.html && effectivePaneAvailability.html && webpageControls?.view === 'html')
+  ), [effectivePaneAvailability.html, effectivePaneAvailability.json, effectivePaneAvailability.markdown, effectivePaneAvailability.viewer, webpageControls])
+  const toggleSplitPane = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
+    if (!setSplitPaneVisibility) return
+    const current = effectiveSplitPanes
+    const enabledCount = visiblePaneCount(current)
+    if (current[key] && enabledCount <= 1) return
+    setSplitPaneVisibility({ ...current, [key]: !current[key] })
+  }, [effectiveSplitPanes, setSplitPaneVisibility, visiblePaneCount])
+  const handleSplitPaneToggle = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
+    if (!setSplitPaneVisibility) return
+    if (!effectivePaneAvailability[key]) return
+    if (layoutMode !== 'split') {
+      setLayoutMode('split')
+    }
+    toggleSplitPane(key)
+  }, [effectivePaneAvailability, layoutMode, setLayoutMode, setSplitPaneVisibility, toggleSplitPane])
+  const htmlPaneAvailable = effectivePaneAvailability.html && !!webpageControls && !!onWebpageChangeView
+  const htmlPaneChecked = htmlPaneAvailable && webpageControls?.view === 'html' && effectiveSplitPanes.html
+  const handleHtmlPaneToggle = React.useCallback(() => {
+    if (!setSplitPaneVisibility) return
+    if (!htmlPaneAvailable || !onWebpageChangeView) return
+    const current = effectiveSplitPanes
+    if (htmlPaneChecked) {
+      if (visiblePaneCount(current) <= 1) return
+      setSplitPaneVisibility({ ...current, html: false })
+      onWebpageChangeView('markdown')
+      return
+    }
+    if (layoutMode !== 'split') {
+      setLayoutMode('split')
+    }
+    setSplitPaneVisibility({
+      ...current,
+      viewer: current.viewer || effectivePaneAvailability.viewer,
+      html: true,
+    })
+    onWebpageChangeView('html')
+  }, [effectivePaneAvailability.viewer, effectiveSplitPanes, htmlPaneAvailable, htmlPaneChecked, layoutMode, onWebpageChangeView, setLayoutMode, setSplitPaneVisibility, visiblePaneCount])
 
   const webpageSignalsNode = React.useMemo(() => {
     const s = webpageSignalSummary
@@ -291,7 +307,6 @@ export function MarkdownWorkspaceToolbar({
                   aria-disabled={!effectivePaneAvailability.json}
                   onChange={() => {
                     if (!effectivePaneAvailability.json) return
-                    if (!effectiveSplitPanes.json && webpageControls) onWebpageChangeView?.('json')
                     handleSplitPaneToggle('json')
                   }}
                 />
@@ -305,7 +320,6 @@ export function MarkdownWorkspaceToolbar({
                   aria-disabled={!effectivePaneAvailability.markdown}
                   onChange={() => {
                     if (!effectivePaneAvailability.markdown) return
-                    if (!effectiveSplitPanes.markdown && webpageControls) onWebpageChangeView?.('markdown')
                     handleSplitPaneToggle('markdown')
                   }}
                 />
@@ -324,17 +338,13 @@ export function MarkdownWorkspaceToolbar({
                 />
                 <span>Viewer</span>
               </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.html && !!webpageControls && !!onWebpageChangeView)} title={paneToggleTitle('HTML', effectivePaneAvailability.html && !!webpageControls && !!onWebpageChangeView)}>
+              <label className={paneToggleLabelClass(htmlPaneAvailable)} title={paneToggleTitle('HTML', htmlPaneAvailable)}>
                 <input
                   type="checkbox"
-                  checked={effectivePaneAvailability.html && !!webpageControls && webpageControls.view === 'html'}
-                  disabled={!effectivePaneAvailability.html || !webpageControls || !onWebpageChangeView}
-                  aria-disabled={!effectivePaneAvailability.html || !webpageControls || !onWebpageChangeView}
-                  onChange={() => {
-                    if (!effectivePaneAvailability.html || !webpageControls || !onWebpageChangeView) return
-                    onWebpageChangeView('html')
-                    if (layoutMode === 'split') ensureSplitPaneEnabled('viewer')
-                  }}
+                  checked={htmlPaneChecked}
+                  disabled={!htmlPaneAvailable}
+                  aria-disabled={!htmlPaneAvailable}
+                  onChange={handleHtmlPaneToggle}
                 />
                 <span>HTML</span>
               </label>

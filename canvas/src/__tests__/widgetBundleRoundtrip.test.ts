@@ -102,15 +102,15 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
     throw new Error('expected GraphTableInspector shared graph lookup to preserve current graph references on cache refresh')
   }
 
-  const flowEditorMappingTabPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingTab.tsx')
-  const flowEditorMappingTabText = readFileSync(flowEditorMappingTabPath, 'utf8')
-  if (!flowEditorMappingTabText.includes('const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })')) {
+  const flowEditorMappingRegistryIoPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingRegistryIo.ts')
+  const flowEditorMappingRegistryIoText = readFileSync(flowEditorMappingRegistryIoPath, 'utf8')
+  if (!flowEditorMappingRegistryIoText.includes('const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })')) {
     throw new Error('expected FlowEditorMappingTab JSON export path to reuse the shared widget bundle JSON helper')
   }
-  if (!flowEditorMappingTabText.includes('readValidatedWidgetRegistryMetadataEntries(meta)')) {
+  if (!flowEditorMappingRegistryIoText.includes('readValidatedWidgetRegistryMetadataEntries(meta)')) {
     throw new Error('expected FlowEditorMappingTab JSON import path to reuse the shared validated widget-registry metadata reader')
   }
-  if (flowEditorMappingTabText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+  if (flowEditorMappingRegistryIoText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
     throw new Error('expected FlowEditorMappingTab JSON import path to stop parsing the widget registry metadata key inline')
   }
 

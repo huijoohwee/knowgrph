@@ -5,6 +5,7 @@ import { importGitHubFolder } from '../githubRepoImport'
 import type { WorkspaceImportProgress, WorkspaceImportResult } from './types'
 import { fetchWorkspaceUrlContent } from './urlContent'
 import type { Canvas2dRendererId } from '@/lib/config.render'
+import type { WorkspaceUrlImportDocumentModeId } from './canvasPresets'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -12,6 +13,7 @@ export async function importWorkspaceUrl(args: {
   parentPath?: WorkspacePath
   onProgress?: (p: WorkspaceImportProgress) => void
   canvas2dRenderer?: Canvas2dRendererId | null
+  documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   viewHint?: 'markdown' | 'json' | 'html'
 }): Promise<WorkspaceImportResult> {
   const rawUrl = String(args.urlRaw || '').trim()
@@ -32,6 +34,7 @@ export async function importWorkspaceUrl(args: {
     mode: 'import',
     viewHint: args.viewHint === 'json' ? 'json' : args.viewHint === 'html' ? 'html' : 'markdown',
     canvas2dRenderer: args.canvas2dRenderer,
+    documentSemanticMode: args.documentSemanticMode,
     onProgress: p => {
       try {
         args.onProgress?.({ phase: 'fetching', current: p, total: 100, label: 'Fetching' })

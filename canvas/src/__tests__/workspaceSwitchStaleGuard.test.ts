@@ -474,12 +474,14 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   const mainPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const editorPanePath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'editor', 'MarkdownEditorPane.tsx')
   const layoutPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'layout', 'MarkdownWorkspaceLayout.tsx')
+  const initialPaneVisibilityPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'useInitialWorkspacePaneVisibility.ts')
   const toolbarPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
   const dropdownPath = path.resolve(process.cwd(), 'src', 'components', 'toolbar', 'ToolbarDropdownSelect.tsx')
   const typesPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'types.ts')
   const mainText = readUtf8(mainPath)
   const editorPaneText = readUtf8(editorPanePath)
   const layoutText = readUtf8(layoutPath)
+  const initialPaneVisibilityText = readUtf8(initialPaneVisibilityPath)
   const toolbarText = readUtf8(toolbarPath)
   const dropdownText = readUtf8(dropdownPath)
   const typesText = readUtf8(typesPath)
@@ -516,20 +518,20 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (mainText.includes('setSplitPaneVisibility({ json: true, markdown: true, viewer: true })')) {
     throw new Error('Expected toolbar Editor Workspace open not to eagerly mount JSON, Markdown, and Viewer panes together')
   }
-  if (!mainText.includes('prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }')) {
-    throw new Error('Expected toolbar Editor Workspace open to normalize to markdown-only visibility')
+  if (!mainText.includes('useInitialWorkspacePaneVisibility({') || !initialPaneVisibilityText.includes('resolveMarkdownWorkspaceInitialPaneVisibility({')) {
+    throw new Error('Expected workspace pane presets to flow through the shared initial visibility helper')
   }
   if (!mainText.includes('parseGlbAssetDocument(activeText)')) {
     throw new Error('Expected workspace main to derive model-asset pane policy from the parsed active Source File')
   }
-  if (!mainText.includes("modelAssetFormat === 'gltf'") || !mainText.includes("modelAssetFormat === 'glb'")) {
-    throw new Error('Expected workspace main to select JSON for GLTF and bin for GLB model assets')
+  if (!mainText.includes('resolveMarkdownWorkspacePaneAvailability({ modelAssetFormat })')) {
+    throw new Error('Expected workspace main to delegate GLTF/GLB pane selection to the shared availability helper')
   }
   if (!mainText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('Expected workspace main open-edge pane normalization to use canonical overlay-open semantics')
   }
-  if (!mainText.includes('}, [modelAssetFormat, workspaceEditorOverlayOpen])')) {
-    throw new Error('Expected workspace main open-edge pane normalization not to key off workspaceViewMode alone')
+  if (!initialPaneVisibilityText.includes('args.webpageView ||') || !initialPaneVisibilityText.includes('args.workspaceEditorOverlayOpen')) {
+    throw new Error('Expected workspace main pane normalization to include webpage view and canonical overlay-open semantics')
   }
   if (dropdownText.includes('flushSync')) {
     throw new Error('Expected toolbar dropdown selection not to force a synchronous close commit before opening Workspace View')
@@ -540,7 +542,7 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!editorPaneText.includes('const getLineStarts = React.useCallback')) {
     throw new Error('Expected markdown editor pane to build line starts lazily after caret events')
   }
-  if (!mainText.includes('resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility, paneAvailability })')) {
+  if (!mainText.includes('forceMarkdownEditorInEditorMode') || !mainText.includes('resolveMarkdownWorkspacePaneVisibility({')) {
     throw new Error('Expected workspace main pane visibility to reuse the shared visibility helper SSOT')
   }
   if (!mainText.includes('if (!markdownPaneVisible && !viewerPaneVisible) return null')) {
