@@ -18,7 +18,7 @@ import { createProgressSession } from '@/lib/progress/progressTicker'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { htmlFallbackToMarkdownAllText, normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
-import { yamlQuote } from './yaml'
+import { buildYouTubeWorkspaceEntryText } from './youtubeEntryText'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import { getWorkspaceUrlImportCanvasPreset, normalizeWorkspaceUrlImportCanvas2dRenderer, normalizeWorkspaceUrlImportDocumentMode } from './canvasPresets'
 import { buildWebpageWorkspaceEntryStubText, buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
@@ -94,7 +94,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     return {
       normalizedUrl,
       name: String(converted.name || 'youtube-transcript.md'),
-      text: String(converted.markdown || ''),
+      text: buildYouTubeWorkspaceEntryText({ normalizedUrl, converted, viewHint: opts?.viewHint }),
     }
   }
 

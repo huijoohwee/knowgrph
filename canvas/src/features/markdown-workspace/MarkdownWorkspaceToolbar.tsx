@@ -76,6 +76,8 @@ export type MarkdownWorkspaceToolbarProps = {
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void
   onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
+  contentFormat?: 'markdown' | 'json' | null
+  onContentFormatChange?: (format: 'markdown' | 'json') => void | Promise<void>
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -113,6 +115,8 @@ export function MarkdownWorkspaceToolbar({
   webpageWorkspaceMeta,
   onWebpageChangeView,
   onWebpageUpdateMeta,
+  contentFormat,
+  onContentFormatChange,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
@@ -175,6 +179,33 @@ export function MarkdownWorkspaceToolbar({
     }
     toggleSplitPane(key)
   }, [effectivePaneAvailability, layoutMode, setLayoutMode, setSplitPaneVisibility, toggleSplitPane])
+  const handleContentPaneToggle = React.useCallback((key: 'json' | 'markdown') => {
+    if (!setSplitPaneVisibility) return
+    if (!effectivePaneAvailability[key]) return
+    const current = effectiveSplitPanes
+    const isVisible = Boolean(current[key])
+    const hasFormatSwitch = !!contentFormat && !!onContentFormatChange
+    if (hasFormatSwitch && contentFormat !== key) {
+      if (layoutMode !== 'split') {
+        setLayoutMode('split')
+      }
+      if (!isVisible) {
+        setSplitPaneVisibility({ ...current, [key]: true })
+      }
+      void onContentFormatChange(key)
+      return
+    }
+    handleSplitPaneToggle(key)
+  }, [
+    contentFormat,
+    effectivePaneAvailability,
+    effectiveSplitPanes,
+    handleSplitPaneToggle,
+    layoutMode,
+    onContentFormatChange,
+    setLayoutMode,
+    setSplitPaneVisibility,
+  ])
   const htmlPaneAvailable = effectivePaneAvailability.html && !!webpageControls && !!onWebpageChangeView
   const htmlPaneChecked = htmlPaneAvailable && webpageControls?.view === 'html' && effectiveSplitPanes.html
   const handleHtmlPaneToggle = React.useCallback(() => {
@@ -307,7 +338,7 @@ export function MarkdownWorkspaceToolbar({
                   aria-disabled={!effectivePaneAvailability.json}
                   onChange={() => {
                     if (!effectivePaneAvailability.json) return
-                    handleSplitPaneToggle('json')
+                    handleContentPaneToggle('json')
                   }}
                 />
                 <span>JSON</span>
@@ -320,7 +351,7 @@ export function MarkdownWorkspaceToolbar({
                   aria-disabled={!effectivePaneAvailability.markdown}
                   onChange={() => {
                     if (!effectivePaneAvailability.markdown) return
-                    handleSplitPaneToggle('markdown')
+                    handleContentPaneToggle('markdown')
                   }}
                 />
                 <span>Markdown</span>

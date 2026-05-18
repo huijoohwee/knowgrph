@@ -16,6 +16,7 @@ import {
   FLOW_EDITOR_INTERACTION_FRAME_EVENT,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
+  computeBalancedSpreadBaseGapPx,
   computeBalancedSpreadViewportMargins,
   computeBalancedSpreadSpacingPx,
   isHorizontalOverlayStrip,
@@ -683,10 +684,7 @@ export function useFlowEditorRuntimeScene(args: {
     })
     const horizontalMargin = Math.max(spreadMargins.left, spreadMargins.right)
     const verticalMargin = Math.max(spreadMargins.top, spreadMargins.bottom)
-    const baseGapPx = Math.max(
-      12,
-      Math.min(40, Math.round(Math.max(1, visibleViewport.width - spreadMargins.left - spreadMargins.right) * 0.012)),
-    )
+    const baseGapPx = computeBalancedSpreadBaseGapPx({ viewportW: visibleViewport.width, viewportH: visibleViewport.height, preset: balancedViewportPreset, margins: spreadMargins })
     const pinnedOpenIds = (
       isFrontmatterFlow
         ? effectiveOrFallbackOpenIds

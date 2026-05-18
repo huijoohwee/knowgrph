@@ -68,6 +68,10 @@ export function isTransientOffscreenRichMediaOverlayRoot(overlayRoot: HTMLElemen
 export function isUsableFlowEditorOverlayRectCandidate(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {
   if (!overlayRoot || !rect) return false
   if (isTransientOffscreenRichMediaOverlayRoot(overlayRoot, rect)) return false
+  if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+    const style = window.getComputedStyle(overlayRoot)
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') === 0) return false
+  }
   return Number.isFinite(rect.left) && Number.isFinite(rect.top) && rect.width > 0 && rect.height > 0
 }
 
@@ -86,7 +90,10 @@ function readOverlayRectCandidateRank(el: HTMLElement): number {
   const surfaceId = readFlowEditorOverlaySurfaceId(el)
   const hasWidgetShellId = String(el.dataset.kgWidget || '').trim().length > 0
   const isRichMediaOverlay = String(el.dataset.kgRichMediaOverlay || '').trim() === '1'
+  const isPinnedCanvasProxy = readCanvasOverlayPinnedState(el)
   if (surfaceId && hasWidgetShellId) return 3
+  if (surfaceId && isRichMediaOverlay && !isPinnedCanvasProxy) return 3
+  if (surfaceId && isPinnedCanvasProxy) return 1
   if (surfaceId) return 2
   if (isRichMediaOverlay) return 1
   return 0

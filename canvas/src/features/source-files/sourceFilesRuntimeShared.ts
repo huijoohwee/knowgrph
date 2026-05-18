@@ -23,6 +23,7 @@ import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspa
 import { readEnvString } from '@/lib/config.env'
 import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncContract'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
+import { loadPersistedSourceFilesWorkspace } from '@/features/source-files/sourceFilesDb'
 import {
   readCachedWorkspaceActiveEntrySnapshot,
   rememberWorkspaceActiveEntrySnapshot,
@@ -160,15 +161,13 @@ const readWorkspaceStorageDocFallbackText = async (
       selectedFolderPath: useGraphStore.getState().localMarkdownSelectedFolderPath,
     }))
     if (runtimeWorkspaceId) workspaceIdCandidates.add(runtimeWorkspaceId)
-    const persistedWorkspaceId = await (async () => {
-      try {
-        const { loadPersistedSourceFilesWorkspace } = await import('@/features/source-files/sourceFilesDb')
-        const workspaceState = await loadPersistedSourceFilesWorkspace()
-        return normalizeString(buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState(workspaceState))
-      } catch {
-        return ''
-      }
-    })()
+    let persistedWorkspaceId = ''
+    try {
+      const workspaceState = await loadPersistedSourceFilesWorkspace()
+      persistedWorkspaceId = normalizeString(buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState(workspaceState))
+    } catch {
+      persistedWorkspaceId = ''
+    }
     if (persistedWorkspaceId) workspaceIdCandidates.add(persistedWorkspaceId)
     if (workspaceIdCandidates.size === 0) return ''
     const workspaceIds = [...workspaceIdCandidates]

@@ -18,8 +18,8 @@ async function focusFirstImportedWorkspaceFile(args: {
 }): Promise<void> {
   try {
     const { activateFirstImportedWorkspaceFile } = (await import(
-      '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
-    )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
+      '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
+    )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
     await activateFirstImportedWorkspaceFile(args)
   } catch {
     void 0
@@ -56,8 +56,8 @@ export async function importLocalFilesFallback(args: {
         import('@/features/markdown-workspace/workspaceImport') as Promise<
           typeof import('@/features/markdown-workspace/workspaceImport')
         >,
-        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
         >,
       ])
     const fs = await getWorkspaceFs()
@@ -70,11 +70,13 @@ export async function importLocalFilesFallback(args: {
       }),
     ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
+    const applyToGraph = typeof res.applyToGraph === 'boolean'
+      ? res.applyToGraph
+      : await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
     await applyWorkspaceImportToCanvasBestEffort({
       fs,
       createdPaths: res.createdPaths,
-      opts: applyToGraph ? { applyToGraph: true } : undefined,
+      opts: { applyToGraph },
     })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
     args.pushUiToast({
@@ -117,19 +119,21 @@ export async function importLocalFolderFallback(args: {
         import('@/features/markdown-workspace/workspaceImport') as Promise<
           typeof import('@/features/markdown-workspace/workspaceImport')
         >,
-        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
         >,
       ])
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
     const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot })))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
+    const applyToGraph = typeof res.applyToGraph === 'boolean'
+      ? res.applyToGraph
+      : await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
     await applyWorkspaceImportToCanvasBestEffort({
       fs,
       createdPaths: res.createdPaths,
-      opts: applyToGraph ? { applyToGraph: true } : undefined,
+      opts: { applyToGraph },
     })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
     args.pushUiToast({
@@ -170,7 +174,7 @@ export async function importUrlFallback(args: {
       { runWorkspaceFsChangedBatch },
       { bulkSetWorkspaceEntrySources },
       { importWorkspaceUrl },
-      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult },
+      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult, resolveImportedCanvasDocumentApplyToGraph },
     ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
@@ -180,8 +184,8 @@ export async function importUrlFallback(args: {
         import('@/features/markdown-workspace/workspaceImport') as Promise<
           typeof import('@/features/markdown-workspace/workspaceImport')
         >,
-        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
         >,
       ])
     const fs = await getWorkspaceFs()
@@ -201,12 +205,15 @@ export async function importUrlFallback(args: {
       }),
     ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
+    const applyToGraph = typeof res.applyToGraph === 'boolean'
+      ? res.applyToGraph
+      : await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
     await applyWorkspaceImportToCanvasBestEffort({
       fs,
       createdPaths: res.createdPaths,
-      opts: { applyToGraph: true },
+      opts: { applyToGraph },
     })
-    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph: true })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
     args.pushUiToast({
       id: toastId,
       kind: 'success',

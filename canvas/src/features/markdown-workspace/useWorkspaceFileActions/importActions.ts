@@ -1,12 +1,10 @@
 import React from 'react'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
-import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
-import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
-import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
@@ -18,213 +16,11 @@ import {
   importWorkspaceLocalFiles,
   importWorkspaceLocalFolder,
   importWorkspaceUrl,
-  peekPendingWorkspaceLocalImport,
 } from '../workspaceImport'
 import type { WorkspaceImportResult } from '../workspaceImport/types'
 import type { WorkspaceImportActionsCtx } from './types'
 
-export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportResult {
-  const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
-  const createdPaths = Array.isArray(rec.createdPaths)
-    ? rec.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
-    : []
-  const sources = Array.isArray(rec.sources)
-    ? rec.sources
-        .map((item): WorkspaceImportResult['sources'][number] | null => {
-          const path = String((item as { path?: unknown } | null)?.path || '').trim() as WorkspacePath
-          const rawSource = (item as { source?: unknown } | null)?.source
-          if (!path || !rawSource || typeof rawSource !== 'object') return null
-          const kind = String((rawSource as { kind?: unknown }).kind || '').trim()
-          if (kind === 'url') {
-            const url = String((rawSource as { url?: unknown }).url || '').trim()
-            if (!url) return null
-            return { path, source: { kind: 'url' as const, url } }
-          }
-          if (kind === 'local') {
-            const originalName = typeof (rawSource as { originalName?: unknown }).originalName === 'string'
-              ? String((rawSource as { originalName?: string }).originalName || '').trim()
-              : ''
-            return originalName
-              ? { path, source: { kind: 'local' as const, originalName } }
-              : { path, source: { kind: 'local' as const } }
-          }
-          return null
-        })
-        .filter((item): item is WorkspaceImportResult['sources'][number] => !!item)
-    : []
-  const skipped = Array.isArray(rec.skipped)
-    ? rec.skipped
-        .map(item => {
-          const name = String((item as { name?: unknown } | null)?.name || '').trim()
-          const reasonRaw = String((item as { reason?: unknown } | null)?.reason || '').trim()
-          const reason = reasonRaw === 'missing-name' ? 'missing-name' : reasonRaw === 'unsupported' ? 'unsupported' : ''
-          if (!reason) return null
-          return { name, reason }
-        })
-        .filter((item): item is WorkspaceImportResult['skipped'][number] => !!item)
-    : []
-  const failed = Array.isArray(rec.failed)
-    ? rec.failed
-        .map(item => {
-          const name = String((item as { name?: unknown } | null)?.name || '').trim()
-          const error = String((item as { error?: unknown } | null)?.error || '').trim()
-          if (!error) return null
-          return { name, error }
-        })
-        .filter((item): item is WorkspaceImportResult['failed'][number] => !!item)
-    : []
-  return { createdPaths, sources, skipped, failed }
-}
-
-export function shouldApplyImportedCanvasDocumentToGraph(args: {
-  path: string
-  text: string
-}): boolean {
-  const path = String(args.path || '').trim().toLowerCase()
-  const text = String(args.text || '')
-  if (!text.trim()) return false
-  if (parseCanvasWorkspaceFrontmatterPreset(text)) return true
-  if (!path.endsWith('.md') && !path.endsWith('.mdx')) return false
-  if (!text.startsWith('---')) return false
-  if (/^\$schema:\s*["']kgc-pipeline\/v1["']/m.test(text)) return true
-  if (/^widget_bundle\s*:/m.test(text)) return true
-  if (/^flow\s*:/m.test(text)) return true
-  return false
-}
-
-export async function resolveImportedCanvasDocumentApplyToGraph(args: {
-  fs: WorkspaceFs
-  createdPaths: string[]
-}): Promise<boolean> {
-  const createdPaths = Array.isArray(args.createdPaths)
-    ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
-    : []
-  for (const path of createdPaths) {
-    const text = String((await args.fs.readFileText(path).catch(() => '')) || '')
-    if (shouldApplyImportedCanvasDocumentToGraph({ path, text })) return true
-    if (peekPendingWorkspaceLocalImport(path)) continue
-    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path }).catch(() => null)
-    const hydratedText = String(hydrated?.text || '')
-    if (shouldApplyImportedCanvasDocumentToGraph({ path, text: hydratedText })) return true
-  }
-  return false
-}
-
-export async function applyWorkspaceImportToCanvasBestEffort(args: {
-  fs: WorkspaceFs
-  createdPaths: string[]
-  opts?: {
-    applyToGraph?: boolean
-    workspaceEntries?: WorkspaceEntry[]
-    sourcesByPath?: Record<string, WorkspaceEntrySource | undefined> | null
-  } | null
-}): Promise<void> {
-  const createdPaths = Array.isArray(args.createdPaths)
-    ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
-    : []
-  if (createdPaths.length === 0) return
-  try {
-    const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-      '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-    )
-    await applyWorkspaceImportToCanvas({
-      fs: args.fs,
-      createdPaths,
-      ...(args.opts ? { opts: args.opts } : {}),
-    })
-  } catch {
-    void 0
-  }
-}
-
-export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, createdPaths: string[]): Promise<string | null> {
-  const normalized = Array.isArray(createdPaths) ? createdPaths.map(path => String(path || '').trim()).filter(Boolean) : []
-  if (normalized.length === 0) return null
-
-  try {
-    const createdSet = new Set(normalized)
-    const entries = await fs.listEntries()
-    const firstFile = entries.find(entry => entry.kind === 'file' && createdSet.has(String(entry.path || '').trim()))
-    if (firstFile) return String(firstFile.path || '').trim() || null
-  } catch {
-    void 0
-  }
-
-  const fileLike = normalized.find(path => /\/[^/]+\.[^/]+$/.test(path))
-  if (fileLike) return fileLike
-  return normalized[0] || null
-}
-
-export async function activateFirstImportedWorkspaceFile(args: {
-  fs: WorkspaceFs
-  createdPaths: string[]
-  applyToGraph?: boolean
-}): Promise<void> {
-  const createdPaths = Array.isArray(args.createdPaths)
-    ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
-    : []
-  if (createdPaths.length === 0) return
-  try {
-    const [
-      { workspaceBasename, workspaceDocumentKey },
-      { normalizeMermaidMmdToMarkdown },
-      { hydrateWorkspaceFileFromPendingLocalImport, peekPendingWorkspaceLocalImport },
-    ] = await Promise.all([
-      import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
-      import('grph-shared/markdown/mermaidInput') as Promise<typeof import('grph-shared/markdown/mermaidInput')>,
-      import('@/features/markdown-workspace/workspaceImport') as Promise<
-        typeof import('@/features/markdown-workspace/workspaceImport')
-      >,
-    ])
-
-    const firstPath = (await pickFirstCreatedFilePathForImportFocus(args.fs, createdPaths)) || ''
-    if (!firstPath) return
-
-    const pendingImport = peekPendingWorkspaceLocalImport(firstPath as WorkspacePath)
-    const hydrated = pendingImport?.kind === 'glb' || pendingImport?.kind === 'gltf'
-      ? null
-      : await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path: firstPath }).catch(() => null)
-    const text = String((hydrated?.text || (await args.fs.readFileText(firstPath).catch(() => ''))) || '')
-    const docKey = workspaceDocumentKey(firstPath)
-    const name = docKey || workspaceBasename(firstPath) || firstPath
-    const state = useGraphStore.getState()
-    const normalizedPath = firstPath as WorkspacePath
-    try {
-      useMarkdownExplorerStore.getState().setActivePath(normalizedPath)
-    } catch {
-      try {
-        useMarkdownExplorerStore.setState({
-          activePath: normalizedPath,
-          lastSetActivePath: { path: normalizedPath, atMs: Date.now() },
-        })
-      } catch {
-        void 0
-      }
-    }
-
-    await state.setActiveMarkdownDocument({
-      name,
-      text: normalizeMermaidMmdToMarkdown(name, text),
-      normalizeMermaidMmd: false,
-      sourceUrl: null,
-      jsonSourceText: null,
-      applyViewPreset: args.applyToGraph === true,
-      applyToGraph: args.applyToGraph === true,
-    })
-    if (args.applyToGraph === true) {
-      try {
-        applyCanvasFrontmatterPreset({
-          graphData: useGraphStore.getState().graphData,
-          rawText: text,
-        })
-      } catch {
-        void 0
-      }
-    }
-  } catch {
-    void 0
-  }
-}
+const loadWorkspaceImportRuntimeActions = (): Promise<typeof import('./importRuntimeActions')> => import('./importRuntimeActions')
 
 export function useWorkspaceImportActions(args: {
   core: {
@@ -254,6 +50,10 @@ export function useWorkspaceImportActions(args: {
       resolveSourceUrl?: boolean
     }) => {
       const { fs, result } = args
+      const {
+        applyWorkspaceImportToCanvasBestEffort,
+        pickFirstCreatedFilePathForImportFocus,
+      } = await loadWorkspaceImportRuntimeActions()
       bulkSetWorkspaceEntrySources(result.sources)
       if (args.hydratePending) {
         await hydratePendingImportedPaths(fs, result.createdPaths)
@@ -271,7 +71,7 @@ export function useWorkspaceImportActions(args: {
         fs,
         createdPaths: result.createdPaths,
         opts: {
-          ...(args.applyToGraph ? { applyToGraph: true } : {}),
+          applyToGraph: args.applyToGraph === true,
           workspaceEntries: refreshed.entries,
           sourcesByPath: refreshed.sourcesByPath,
         },
@@ -317,7 +117,8 @@ export function useWorkspaceImportActions(args: {
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
+        const importRuntime = await loadWorkspaceImportRuntimeActions()
+        const res = importRuntime.normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
           suppressNextWorkspaceFsChangedEvent()
           return importWorkspaceLocalFiles({
             fs,
@@ -330,10 +131,12 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({
-          fs,
-          createdPaths: res.createdPaths,
-        })
+        const applyToGraph = typeof res.applyToGraph === 'boolean'
+          ? res.applyToGraph
+          : await importRuntime.resolveImportedCanvasDocumentApplyToGraph({
+              fs,
+              createdPaths: res.createdPaths,
+            })
         if (importJobRef.current !== jobId) return
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
@@ -361,7 +164,8 @@ export function useWorkspaceImportActions(args: {
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
+        const importRuntime = await loadWorkspaceImportRuntimeActions()
+        const res = importRuntime.normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
           suppressNextWorkspaceFsChangedEvent()
           return importWorkspaceLocalFolder({
             fs,
@@ -369,10 +173,12 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({
-          fs,
-          createdPaths: res.createdPaths,
-        })
+        const applyToGraph = typeof res.applyToGraph === 'boolean'
+          ? res.applyToGraph
+          : await importRuntime.resolveImportedCanvasDocumentApplyToGraph({
+              fs,
+              createdPaths: res.createdPaths,
+            })
         if (importJobRef.current !== jobId) return
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
@@ -407,10 +213,11 @@ export function useWorkspaceImportActions(args: {
       try {
         const fs = await getFs()
         await fs.ensureSeed()
+        const importRuntime = await loadWorkspaceImportRuntimeActions()
         const maxImportLogRows = 59
         let logCount = 1
         let lastLabel = ''
-        const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
+        const res = importRuntime.normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
           suppressNextWorkspaceFsChangedEvent()
           return importWorkspaceUrl({
             fs,
@@ -455,16 +262,23 @@ export function useWorkspaceImportActions(args: {
         }))
         if (importJobRef.current !== jobId) return
         const summary = formatWorkspaceImportSummary('Imported URL', res)
+        const applyToGraph = typeof res.applyToGraph === 'boolean'
+          ? res.applyToGraph
+          : await importRuntime.resolveImportedCanvasDocumentApplyToGraph({
+              fs,
+              createdPaths: res.createdPaths,
+            })
+        if (importJobRef.current !== jobId) return
         const { createdPath, sourceUrl } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: false,
-          applyToGraph: true,
+          applyToGraph,
           resolveSourceUrl: true,
         })
 
         if (createdPath) {
-          await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
+          await focusAfterImport(createdPath, { sourceUrl, applyToGraph, jobId })
         }
 
         status.setStatusInfo(summary.imported > 1 ? `Imported ${summary.imported}${summary.suffix}${summary.failureSuffix}` : `Imported URL${summary.suffix}${summary.failureSuffix}`)

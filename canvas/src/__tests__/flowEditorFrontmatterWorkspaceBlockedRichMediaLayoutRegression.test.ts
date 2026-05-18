@@ -16,8 +16,16 @@ export function testFlowEditorFrontmatterWorkspaceBlockedRichMediaLayoutStaysLiv
   if (!text.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
     throw new Error('expected Rich Media layout loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
   }
-  if (!text.includes("style={{ position: 'absolute' }}")) {
-    throw new Error('expected FlowCanvas rich media overlays to force absolute positioning so passive layout transforms do not stack in normal document flow')
+  const panelInvocationStart = text.indexOf('<RichMediaPanel')
+  const panelInvocationEnd = panelInvocationStart >= 0 ? text.indexOf('/>', panelInvocationStart) : -1
+  const panelInvocation = panelInvocationStart >= 0 && panelInvocationEnd > panelInvocationStart
+    ? text.slice(panelInvocationStart, panelInvocationEnd)
+    : ''
+  if (!panelInvocation.includes('className={`absolute left-0 top-0')) {
+    throw new Error('expected FlowCanvas rich media overlays to anchor at absolute top-left so passive layout transforms do not stack in normal document flow')
+  }
+  if (!panelInvocation.includes('flowEditorInteractionMode={flowEditorOverlayInteractionMode}')) {
+    throw new Error('expected FlowCanvas rich media overlays to delegate Flow Editor absolute root positioning to the shared Rich Media Panel owner')
   }
   if (!panelText.includes("position: flowEditorInteractionMode ? 'absolute' : 'relative'")) {
     throw new Error('expected shared Rich Media Panel root positioning to switch to absolute in Flow Editor interaction mode so passive layout transforms map directly to overlay boxes')

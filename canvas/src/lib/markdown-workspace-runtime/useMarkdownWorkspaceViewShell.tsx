@@ -27,8 +27,6 @@ export function useMarkdownWorkspaceViewShell(args: {
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
   resolveFolderContractDocPath: (folderPath: WorkspacePath, mode: FolderModeContract) => WorkspacePath
   pickFolderContractTargetPath: (folderPath: WorkspacePath, preferredMode: FolderModeContract) => WorkspacePath | null
-  youtubeWorkspaceMeta: { format: 'markdown' | 'json' } | null
-  switchActiveYoutubeWorkspaceFormat: (format: 'markdown' | 'json') => Promise<void>
   revealLineInEditor: (line: number) => void
   setStatusWithAutoClear: (label: string, ttlMs?: number) => void
 }) {
@@ -45,8 +43,6 @@ export function useMarkdownWorkspaceViewShell(args: {
     setExpandedPaths,
     resolveFolderContractDocPath,
     pickFolderContractTargetPath,
-    youtubeWorkspaceMeta,
-    switchActiveYoutubeWorkspaceFormat,
     revealLineInEditor,
     setStatusWithAutoClear,
   } = args
@@ -125,20 +121,6 @@ export function useMarkdownWorkspaceViewShell(args: {
           />
         )
       }
-      if (youtubeWorkspaceMeta) {
-        return (
-          <WorkspaceModeSelect<'markdown' | 'json'>
-            ariaLabel="YouTube transcript format"
-            value={youtubeWorkspaceMeta.format}
-            isActive={renderArgs.isActive}
-            options={[
-              { value: 'markdown', label: 'Markdown' },
-              { value: 'json', label: 'JSON' },
-            ]}
-            onChange={next => void switchActiveYoutubeWorkspaceFormat(next)}
-          />
-        )
-      }
       return null
     },
     [
@@ -149,8 +131,6 @@ export function useMarkdownWorkspaceViewShell(args: {
       setActivePathSafe,
       setFolderModeContract,
       setSelectionSource,
-      switchActiveYoutubeWorkspaceFormat,
-      youtubeWorkspaceMeta,
     ],
   )
 

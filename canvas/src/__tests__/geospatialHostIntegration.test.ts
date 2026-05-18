@@ -869,7 +869,7 @@ export const testLaunchDropdownFallbackActivatesFirstImportedWorkspaceFile = () 
     throw new Error(`Expected launch dropdown fallback import to activate first imported workspace file: ${missing.join(', ')}`)
   }
 
-  const importActionsPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const importActionsPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'importRuntimeActions.ts')
   const importActionsText = readUtf8(importActionsPath)
   const sharedRequired = [
     'export async function activateFirstImportedWorkspaceFile',

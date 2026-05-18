@@ -756,14 +756,14 @@ export function testWorkspaceImportFocusDoesNotDuplicateGraphApply() {
   if (!text.includes("await focusAfterImport(createdPath, { applyToGraph, jobId })")) {
     throw new Error('expected local workspace import focus to reuse the shared graph-apply decision when activating the imported file')
   }
-  if (!text.includes("await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })")) {
-    throw new Error('expected URL workspace import focus to enforce graph-aware activation for imported canvas documents')
+  if (!text.includes("await focusAfterImport(createdPath, { sourceUrl, applyToGraph, jobId })")) {
+    throw new Error('expected URL workspace import focus to reuse the shared graph-apply decision when activating imported documents')
   }
   if (!fallbackText.includes('await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })')) {
     throw new Error('expected launch dropdown local import fallback to forward the shared graph-apply decision into imported-file activation')
   }
-  if (!fallbackText.includes("opts: { applyToGraph: true }")) {
-    throw new Error('expected launch dropdown URL import fallback to enforce graph apply before focusing the imported document')
+  if (!fallbackText.includes('opts: { applyToGraph }')) {
+    throw new Error('expected launch dropdown URL import fallback to reuse the shared graph-apply decision before focusing the imported document')
   }
   if (fallbackText.includes('forceApplyToGraph: true')) {
     throw new Error('expected launch dropdown fallback focus to stop forcing duplicate graph apply after import')

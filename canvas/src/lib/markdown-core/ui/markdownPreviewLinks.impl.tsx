@@ -8,6 +8,10 @@ import {
   normalizeHtmlHrefLikeValue,
   pickFirstSrcsetUrl,
 } from 'grph-shared/markdown/mediaHtml'
+import {
+  buildYouTubeEmbedUrl as buildSharedYouTubeEmbedUrl,
+  getYouTubeId as getSharedYouTubeId,
+} from 'grph-shared/rich-media/providers'
 import { renderSafeHtmlBlockImpl } from './markdownPreviewLinks.safeHtml.render'
 import { deriveSafeLayoutStyleFromClassAttrImpl } from './markdownPreviewLinks.layoutStyle.derive'
 
@@ -98,37 +102,31 @@ export const buildMarkdownPreviewMediaKey = (kind: string, startLine: number, id
 export const getYouTubeId = (href: string): string => {
   const raw = String(href || '').trim()
   if (!raw) return ''
-  try {
-    const url = new URL(normalizeWebpageLikeUrl(raw))
-    const host = url.hostname.toLowerCase()
-    if (host === 'youtu.be' || host === 'www.youtu.be') {
-      return (url.pathname || '').replace(/^\/+/, '').split('/')[0] || ''
-    }
-    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
-      const v = url.searchParams.get('v')
-      if (v) return v
-      const parts = (url.pathname || '').split('/').filter(Boolean)
-      const embedIndex = parts.indexOf('embed')
-      if (embedIndex >= 0 && parts[embedIndex + 1]) return parts[embedIndex + 1]
-      const shortsIndex = parts.indexOf('shorts')
-      if (shortsIndex >= 0 && parts[shortsIndex + 1]) return parts[shortsIndex + 1]
-    }
-    return ''
-  } catch {
-    return ''
-  }
+  return getSharedYouTubeId(normalizeWebpageLikeUrl(raw)) || ''
 }
 
 export const buildYouTubeEmbedUrl = (href: string): string => {
-  const id = getYouTubeId(href)
-  if (!id) return ''
-  return `https://www.youtube.com/embed/${encodeURIComponent(id)}`
+  return buildSharedYouTubeEmbedUrl(normalizeWebpageLikeUrl(href), { includeOrigin: false }) || ''
+}
+
+export const shouldRenderStandaloneMediaForLine = (args: {
+  href: string
+  startLine: number
+  markdownLargeDocumentMode?: boolean
+  standaloneMediaRenderLineSet?: ReadonlySet<number> | null
+}): boolean => {
+  if (!String(args.href || '').trim()) return false
+  if (!args.markdownLargeDocumentMode) return true
+  if (!buildYouTubeEmbedUrl(args.href)) return false
+  const lineSet = args.standaloneMediaRenderLineSet || null
+  return !lineSet || lineSet.has(Math.max(1, Math.floor(args.startLine || 1)))
 }
 
 export const isVideoUrl = (href: string): boolean => {
   const raw = String(href || '').trim()
   if (!raw) return false
   if (/\.(mp4|webm|mov|ogg)(\?|#|$)/i.test(raw)) return true
+  if (getYouTubeId(raw)) return true
   const url = normalizeWebpageLikeUrl(raw)
   return /\/(embed|watch)\b/i.test(url) && (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com'))
 }

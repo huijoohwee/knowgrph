@@ -297,6 +297,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["viewport.flowEditor.fit.centersVisiblePinnedOverlayCollective","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFlowEditorFitCentersVisiblePinnedOverlayCollective"],
   ["viewport.flowEditor.fit.frontmatterDerivesOverlayIds","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFlowEditorFitDerivesFrontmatterOverlayIdsWhenOpenSetIsEmpty"],
   ["viewport.flowEditor.fit.frontmatterUsesDenserProxy","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFlowEditorFitUsesDenserFrontmatterOverlayProxy"],
+  ["viewport.flowEditor.fit.frontmatterIgnoresStaleWorldForBalancedFallback","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFrontmatterOverlayFitUsesSemanticBalancedFallbackOverStaleWorldPositions"],
   ["viewport.flowEditor.fit.frontmatterProxyScaleBuckets","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFrontmatterOverlayFitProxyScaleRespondsToViewportWidth"],
   ["viewport.flowEditor.fit.frontmatterProxyScaleOverrides","@/__tests__/flowEditorFitPinnedWidgetsRegression.test","testFrontmatterOverlayFitAllowsViewportBucketOverrides"],
   ["viewport.flowEditor.fit.frontmatterInitialFillRatio","@/__tests__/flowFitRuntimeOptions.test","testBuildFlowFitOptionsUsesDenserFrontmatterInitialFitFillRatio"],

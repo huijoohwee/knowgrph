@@ -1,8 +1,10 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { MarkdownWorkspaceToolbar } from '@/features/markdown-workspace/MarkdownWorkspaceToolbar'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import { resolveMarkdownWorkspaceInitialPaneVisibility } from '@/features/markdown-workspace/main/types'
+import type { MarkdownWorkspacePaneVisibility } from '@/features/markdown-workspace/main/types'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
@@ -17,6 +19,91 @@ const checkboxFor = (doc: Document, label: string): HTMLInputElement => {
   const input = found.querySelector('input[type="checkbox"]') as HTMLInputElement | null
   if (!input) throw new Error(`expected ${label} checkbox input`)
   return input
+}
+
+export async function testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const formatCalls: Array<'markdown' | 'json'> = []
+
+    function Harness() {
+      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'>('split')
+      const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
+        json: false,
+        markdown: true,
+        viewer: false,
+        html: false,
+      })
+      const [format, setFormat] = React.useState<'markdown' | 'json'>('markdown')
+
+      return (
+        <MarkdownWorkspaceToolbar
+          explorerOpen={true}
+          setExplorerOpen={() => {}}
+          canvasOpen={false}
+          setCanvasOpen={() => {}}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+          markdownWordWrap={true}
+          setMarkdownWordWrap={() => {}}
+          markdownTextHighlight={false}
+          setMarkdownTextHighlight={() => {}}
+          splitPaneVisibility={visibility}
+          setSplitPaneVisibility={setVisibility}
+          onToggleFullscreen={() => {}}
+          presentationApiRef={{ current: null }}
+          isEditing={false}
+          isMarkdown={true}
+          onFormatAction={() => {}}
+          contentFormat={format}
+          onContentFormatChange={next => {
+            formatCalls.push(next)
+            setFormat(next)
+          }}
+        />
+      )
+    }
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<Harness />)
+      await tick()
+    })
+
+    if (dom.window.document.querySelector('[aria-label="YouTube transcript format"]')) {
+      throw new Error('expected active document format controls to use the workspace pane checkboxes')
+    }
+    const jsonInput = checkboxFor(dom.window.document, 'JSON')
+    const markdownInput = checkboxFor(dom.window.document, 'Markdown')
+    if (jsonInput.checked) throw new Error('expected JSON pane to start closed')
+    if (!markdownInput.checked) throw new Error('expected Markdown pane to start open')
+
+    await act(async () => {
+      jsonInput.click()
+      await tick()
+    })
+    if (formatCalls[0] !== 'json') throw new Error(`expected JSON pane checkbox to switch content format, got ${JSON.stringify(formatCalls)}`)
+    if (!jsonInput.checked) throw new Error('expected JSON pane to open from the consolidated checkbox')
+    if (!markdownInput.checked) throw new Error('expected Markdown pane to remain open after JSON format switch')
+
+    await act(async () => {
+      markdownInput.click()
+      await tick()
+    })
+    if (formatCalls[1] !== 'markdown') {
+      throw new Error(`expected visible Markdown pane checkbox to switch content format without hiding, got ${JSON.stringify(formatCalls)}`)
+    }
+    if (!markdownInput.checked) throw new Error('expected Markdown pane to remain open when used as a format switch')
+
+    await act(async () => {
+      root.unmount()
+      await tick()
+    })
+  } finally {
+    restore()
+  }
 }
 
 export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidated() {

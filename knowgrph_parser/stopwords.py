@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import FrozenSet
 
 
-_NLTK_STOPWORDS_EN = frozenset(
+_ENGLISH_STOPWORDS = frozenset(
     [
         "a",
         "about",
@@ -208,13 +207,5 @@ _NLTK_STOPWORDS_EN = frozenset(
 )
 
 
-@lru_cache(maxsize=1)
 def stopwords_en() -> FrozenSet[str]:
-    try:
-        from nltk.corpus import stopwords as nltk_stopwords  # type: ignore
-
-        words = nltk_stopwords.words("english")
-        return frozenset([str(w or "").strip().lower() for w in words if str(w or "").strip()])
-    except Exception:
-        return _NLTK_STOPWORDS_EN
-
+    return _ENGLISH_STOPWORDS

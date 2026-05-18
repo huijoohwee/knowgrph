@@ -23,7 +23,11 @@ function splitTranscriptMarkdown(markdown: string): { header: string; body: stri
     String(lines[2] || '').startsWith('Video ID:') &&
     String(lines[3] || '').startsWith('Source:')
   ) {
-    return { header: lines.slice(0, 5).join('\n'), body: lines.slice(5).join('\n') }
+    let headerEnd = 4
+    const maybeImageLine = String(lines[headerEnd] || '').trim()
+    if (maybeImageLine.startsWith('[![') || maybeImageLine.startsWith('![')) headerEnd += 1
+    if (String(lines[headerEnd] || '').trim() === '') headerEnd += 1
+    return { header: lines.slice(0, headerEnd).join('\n'), body: lines.slice(headerEnd).join('\n') }
   }
   const idx = md.indexOf('\n\n')
   if (idx >= 0) return { header: md.slice(0, idx + 2), body: md.slice(idx + 2) }

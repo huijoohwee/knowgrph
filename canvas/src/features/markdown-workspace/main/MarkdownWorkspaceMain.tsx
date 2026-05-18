@@ -117,9 +117,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     isEditing,
     isMarkdown,
     onFormatAction,
-    webpageWorkspaceMeta,
-    onWebpageChangeView,
-    onWebpageUpdateMeta,
+    webpageWorkspaceMeta, onWebpageChangeView, onWebpageUpdateMeta, contentFormat, onContentFormatChange,
     activeText,
     setActiveText,
     editorTextOverride,
@@ -750,9 +748,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         isMarkdown,
         onFormatAction,
         webpageSignalSummary,
-        webpageWorkspaceMeta,
-        onWebpageChangeView,
-        onWebpageUpdateMeta,
+        webpageWorkspaceMeta, onWebpageChangeView, onWebpageUpdateMeta, contentFormat, onContentFormatChange,
       }}
       layoutMode={layoutMode}
       renderMarkdownEditor={renderMarkdownEditorPane}

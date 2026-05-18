@@ -22,7 +22,7 @@ import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import { getDefaultNewWorkspaceFileName, resolveNewWorkspaceFileDraft } from './fileDraft'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
-import { shouldApplyImportedCanvasDocumentToGraph } from './importActions'
+import { shouldApplyImportedCanvasDocumentToGraph } from '../workspaceImport/applyPolicy'
 
 const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
 
@@ -276,8 +276,9 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         activeDocumentSourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
         setActiveMarkdownDocument: content.trim() ? setActiveMarkdownDocument : undefined,
       })
-      const inferredApplyToGraph = shouldApplyImportedCanvasDocumentToGraph({ path: docKey || String(path || ''), text: content })
-      const shouldApplyToGraph = opts?.applyToGraph === true || inferredApplyToGraph
+      const shouldApplyToGraph =
+        opts?.applyToGraph === true ||
+        (opts?.applyToGraph !== false && shouldApplyImportedCanvasDocumentToGraph({ path: docKey || String(path || ''), text: content }))
       if (docKey && content.trim() && shouldApplyToGraph) {
         await applyImportedTextToGraph({ nameForParse: docKey, text: content })
       }

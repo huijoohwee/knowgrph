@@ -1,12 +1,13 @@
 import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
-import { commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
+import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function DesignCanvasMediaOverlay(props: {
   active: boolean
   designMediaOverlayNodes: MediaOverlayNode[]
+  renderMediaAsNodes: boolean
   onRegisterOverlayEl: (id: string, el: HTMLElement | null) => void
   forwardWheelTo: () => SVGSVGElement | null
   shouldStartHeaderDrag: () => boolean
@@ -20,6 +21,7 @@ export function DesignCanvasMediaOverlay(props: {
   const {
     active,
     designMediaOverlayNodes,
+    renderMediaAsNodes,
     onRegisterOverlayEl,
     forwardWheelTo,
     shouldStartHeaderDrag,
@@ -31,6 +33,7 @@ export function DesignCanvasMediaOverlay(props: {
     onHeaderDragEnd,
   } = props
   const updateNode = useGraphStore(s => s.updateNode)
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode || 'static')
   if (!active || designMediaOverlayNodes.length === 0) return null
   return (
     <section aria-label="Design media overlay" className="absolute inset-0 z-[80] pointer-events-none">
@@ -44,7 +47,12 @@ export function DesignCanvasMediaOverlay(props: {
           srcDoc={node.srcDoc}
           openUrl={node.openUrl}
           kind={node.kind}
-          interactive={node.interactive}
+          interactive={resolveRichMediaPanelInteractive({
+            nodeInteractive: node.interactive,
+            renderMediaAsNodes,
+            infiniteCanvasInteractionMode,
+            canvas2dRenderer: 'design',
+          })}
           hideUntilReady={true}
           panel={node.panel}
           onPanelChange={next => {

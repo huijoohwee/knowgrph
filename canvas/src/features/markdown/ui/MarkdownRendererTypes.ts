@@ -59,6 +59,7 @@ export type RenderOpts = InlineRenderOpts & {
   markdownForcePlainTables?: boolean
   webpageLayoutWireframeAscii?: string | null
   markdownSourceLines?: string[]
+  standaloneMediaRenderLineSet?: ReadonlySet<number> | null
   forbidCopy?: boolean
   deferMermaidRender?: boolean
 }

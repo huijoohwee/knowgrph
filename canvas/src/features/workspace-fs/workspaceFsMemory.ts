@@ -4,12 +4,10 @@ import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   buildWorkspaceSeedFileEntry,
   expandWorkspaceSeedFileEntries,
-  LEGACY_WORKSPACE_README_PATH,
-  LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
   isInitializationWorkspacePath,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  shouldMigrateLegacyWorkspaceSeedPaths,
+  shouldPreserveFallbackWorkspaceSeedText,
 } from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
@@ -55,24 +53,6 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     ensureRoot()
     let changed = false
 
-    const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
-    const legacy = entriesByPath.get(legacyPath)
-    if (legacy && legacy.kind === 'file' && String(legacy.text ?? '') === LEGACY_WORKSPACE_README_TEXT) {
-      entriesByPath.delete(legacyPath)
-      changed = true
-    }
-
-    const existingFilePaths = [...entriesByPath.values()]
-      .filter(e => e.kind === 'file')
-      .map(e => normalizeWorkspacePath(e.path))
-      .filter((path): path is WorkspacePath => Boolean(path))
-    if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
-      for (const path of existingFilePaths) {
-        entriesByPath.delete(path)
-        changed = true
-      }
-    }
-
     const hasAnyFilesNow = [...entriesByPath.values()].some(e => e.kind === 'file')
     if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && !hasAnyFilesNow) {
       const now = Date.now()
@@ -105,7 +85,7 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
         }
         if (!existing || existing.kind !== 'file') continue
         const currentText = String(existing.text ?? '')
-        if (seed.isFallback && currentText.trim().length > 0) continue
+        if (seed.isFallback && shouldPreserveFallbackWorkspaceSeedText(currentText)) continue
         const nextText = String(seed.text ?? '')
         if (currentText === nextText) continue
         entriesByPath.set(path, buildWorkspaceSeedFileEntry(path, nextText, Date.now()))

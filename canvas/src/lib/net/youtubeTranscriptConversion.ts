@@ -1,5 +1,6 @@
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { JSONValue } from '@/lib/graph/types'
+import { buildYouTubeThumbnailUrl, getYouTubeId, parseYouTubeStartSeconds, stripYouTubeUrlTrailingPunctuation } from 'grph-shared/rich-media/providers'
 
 export type YouTubeTranscriptConversionOk = {
   ok: true
@@ -56,6 +57,246 @@ const readSourceUrl = (transcript: Record<string, JSONValue> | null, fallback: s
   return sourceUrl || fallback
 }
 
+const escapeMarkdownAlt = (value: string): string => {
+  const raw = String(value || '').trim()
+  return raw.replace(/[\[\]\n\r]/g, ' ').replace(/\s+/g, ' ').trim() || 'YouTube thumbnail'
+}
+
+const formatTimestampLabel = (seconds: number | null): string => {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return ''
+  const total = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+const cleanSemanticLabelText = (value: string): string => {
+  const raw = String(value || '')
+    .replace(/\[[^\]]*\]\(([^)]+)\)/g, '$1')
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/[`*~#>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return raw.replace(/^[\s,.;:!?-]+|[\s,.;:!?-]+$/g, '')
+}
+
+const isGenericTranscriptTitle = (title: string, videoId: string): boolean => {
+  const raw = cleanSemanticLabelText(title)
+  if (!raw) return true
+  const lower = raw.toLowerCase()
+  const id = String(videoId || '').toLowerCase()
+  if (id && lower === id) return true
+  if (id && lower.startsWith('youtube transcript') && lower.includes(id)) return true
+  if (/^(youtube\s+)?transcript$/i.test(raw)) return true
+  return false
+}
+
+const readSegmentRows = (transcript: Record<string, JSONValue> | null): Array<{ text: string; start: number | null }> => {
+  const rawSegments = Array.isArray(transcript?.segments) ? transcript.segments : []
+  const rows: Array<{ text: string; start: number | null }> = []
+  for (const segment of rawSegments) {
+    if (!segment || typeof segment !== 'object' || Array.isArray(segment)) continue
+    const record = segment as Record<string, JSONValue>
+    const text = cleanSemanticLabelText(typeof record.text === 'string' ? record.text : '')
+    if (!text) continue
+    const rawStart = typeof record.start === 'number' ? record.start : typeof record.start_s === 'number' ? record.start_s : NaN
+    rows.push({ text, start: Number.isFinite(rawStart) ? rawStart : null })
+  }
+  return rows
+}
+
+const readFirstMarkdownExcerpt = (markdown: string, videoId: string): string => {
+  const id = String(videoId || '').toLowerCase()
+  for (const line of String(markdown || '').split(/\r?\n/).slice(0, 80)) {
+    const text = cleanSemanticLabelText(line)
+    const lower = text.toLowerCase()
+    if (!text || text.length < 3) continue
+    if (lower === id || lower.includes('youtube transcript') || lower.startsWith('video id')) continue
+    if (readStandaloneLineUrl(line)) continue
+    return text
+  }
+  return ''
+}
+
+const buildSemanticYouTubeThumbnailLabel = (args: {
+  markdown: string
+  transcript: Record<string, JSONValue> | null
+  sourceUrl: string
+  videoId: string
+  imageSource?: string
+}): string => {
+  const title = typeof args.transcript?.title === 'string' ? args.transcript.title : ''
+  const meaningfulTitle = isGenericTranscriptTitle(title, args.videoId) ? '' : cleanSemanticLabelText(title)
+  if (meaningfulTitle) return escapeMarkdownAlt(meaningfulTitle)
+
+  const rows = readSegmentRows(args.transcript)
+  const timestamp = parseYouTubeStartSeconds(args.imageSource || '') ?? parseYouTubeStartSeconds(args.sourceUrl)
+  const byTime = timestamp == null
+    ? null
+    : rows.reduce<{ text: string; start: number | null; distance: number } | null>((best, row) => {
+        if (row.start == null) return best
+        const distance = Math.abs(row.start - timestamp)
+        return !best || distance < best.distance ? { ...row, distance } : best
+      }, null)
+  const row = byTime || rows[0] || null
+  const excerpt = row?.text || readFirstMarkdownExcerpt(args.markdown, args.videoId)
+  const timeLabel = formatTimestampLabel(timestamp ?? row?.start ?? null)
+  const label = excerpt
+    ? `YouTube thumbnail: ${excerpt}${timeLabel ? ` at ${timeLabel}` : ''}`
+    : 'YouTube thumbnail'
+  return escapeMarkdownAlt(label.length > 120 ? `${label.slice(0, 117).trim()}...` : label)
+}
+
+const readThumbnailUrl = (transcript: Record<string, JSONValue> | null, sourceUrl: string): string => {
+  const existing = typeof transcript?.thumbnail_url === 'string' ? transcript.thumbnail_url.trim() : ''
+  if (existing) return existing
+  const bySource = buildYouTubeThumbnailUrl(sourceUrl)
+  if (bySource) return bySource
+  const videoId = typeof transcript?.video_id === 'string' ? transcript.video_id.trim() : ''
+  return videoId ? buildYouTubeThumbnailUrl(videoId) || '' : ''
+}
+
+const isGenericThumbnailAlt = (alt: string, videoId: string): boolean => {
+  const raw = cleanSemanticLabelText(alt)
+  if (!raw) return true
+  const lower = raw.toLowerCase()
+  const id = String(videoId || '').toLowerCase()
+  if (/^(youtube\s+)?(video\s+)?thumbnail$/i.test(raw)) return true
+  if (/^(youtube\s+)?preview( image)?$/i.test(raw)) return true
+  if (id && lower.includes(id) && /^(youtube\s+)?transcript\b/i.test(raw)) return true
+  return /^image$/i.test(raw)
+}
+
+const normalizeEarlyYouTubeMarkdownImage = (
+  markdown: string,
+  thumbnailUrl: string,
+  videoId: string,
+  alt: string,
+): { markdown: string; found: boolean } => {
+  const lines = String(markdown || '').split('\n')
+  const escapedId = videoId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const imageRe = /!\[([^\]]*)\]\((https?:\/\/(?:(?:i|img)\.ytimg\.com|img\.youtube\.com)\/vi\/([A-Za-z0-9_-]{6,128})\/[^)\s]+)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/i
+  const videoIdRe = escapedId ? new RegExp(`https?://(?:(?:i|img)\\.ytimg\\.com|img\\.youtube\\.com)/vi/${escapedId}/`, 'i') : null
+  for (let i = 0; i < Math.min(lines.length, 24); i += 1) {
+    const line = lines[i] || ''
+    const image = line.match(imageRe)
+    if (!image?.[2]) continue
+    const imageUrl = image[2]
+    const imageVideoId = String(image[3] || '')
+    const sameThumbnail = (thumbnailUrl && imageUrl === thumbnailUrl) || (videoId && imageVideoId === videoId) || !!(videoIdRe && videoIdRe.test(line))
+    if (!sameThumbnail) continue
+    if (!isGenericThumbnailAlt(image[1] || '', videoId)) return { markdown, found: true }
+    lines[i] = line.replace(imageRe, `![${alt}](${imageUrl})`)
+    return { markdown: lines.join('\n'), found: true }
+  }
+  return { markdown, found: false }
+}
+
+const readStandaloneLineUrl = (line: string): string => {
+  const raw = String(line || '').trim()
+  if (!raw) return ''
+  const angle = raw.match(/^<([^<>\s]+)>$/)
+  if (angle?.[1]) return stripYouTubeUrlTrailingPunctuation(angle[1])
+  const link = raw.match(/^\[([^\]]*)\]\(([^)\s]+)\)$/)
+  if (link?.[2]) {
+    const label = String(link[1] || '').trim()
+    const href = stripYouTubeUrlTrailingPunctuation(link[2])
+    if (!label || label === href || label === link[2]) return href
+  }
+  if (/^https?:\/\/\S+$/i.test(raw)) return stripYouTubeUrlTrailingPunctuation(raw)
+  return ''
+}
+
+const getYouTubeVideoKey = (value: string): string => getYouTubeId(String(value || '').trim()) || ''
+
+const isSameYouTubeSourceLine = (line: string, sourceUrl: string, videoId: string): string => {
+  const lineUrl = readStandaloneLineUrl(line)
+  if (!lineUrl) return ''
+  const source = String(sourceUrl || '').trim()
+  if (lineUrl === source) return lineUrl
+  const lineId = getYouTubeVideoKey(lineUrl)
+  const sourceId = getYouTubeVideoKey(source)
+  const expectedId = videoId || sourceId
+  return lineId && expectedId && lineId === expectedId ? lineUrl : ''
+}
+
+const isTranscriptTextLineCandidate = (line: string): boolean => {
+  const raw = String(line || '').trim()
+  if (!raw) return false
+  if (readStandaloneLineUrl(raw)) return false
+  if (/^(---|\+\+\+|```|~~~)/.test(raw)) return false
+  if (/^(#{1,6}\s|!\[|\[!\[)/.test(raw)) return false
+  if (/^(video id|source)\s*:/i.test(raw)) return false
+  return true
+}
+
+const normalizeYouTubeTranscriptTimestampLinks = (
+  markdown: string,
+  sourceUrl: string,
+  videoId: string,
+): string => {
+  const expectedId = videoId || getYouTubeVideoKey(sourceUrl)
+  if (!expectedId) return markdown
+  const lines = String(markdown || '').split('\n')
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] || ''
+    const lineUrl = readStandaloneLineUrl(line)
+    const timestamp = lineUrl ? parseYouTubeStartSeconds(lineUrl) : null
+    const nextLine = lines[i + 1] || ''
+    if (
+      lineUrl &&
+      timestamp != null &&
+      getYouTubeVideoKey(lineUrl) === expectedId &&
+      isTranscriptTextLineCandidate(nextLine)
+    ) {
+      out.push(`[${formatTimestampLabel(timestamp)}](${lineUrl}) ${String(nextLine || '').trim()}`)
+      i += 1
+      continue
+    }
+    out.push(line)
+  }
+  return out.join('\n')
+}
+
+const ensureYouTubeMarkdownThumbnail = (
+  markdown: string,
+  transcript: Record<string, JSONValue> | null,
+  sourceUrl: string,
+): string => {
+  const md = String(markdown || '')
+  const source = String(sourceUrl || '').trim()
+  const thumbnailUrl = readThumbnailUrl(transcript, source)
+  const videoId = getYouTubeVideoKey(source) || (typeof transcript?.video_id === 'string' ? transcript.video_id.trim() : '')
+  const alt = buildSemanticYouTubeThumbnailLabel({ markdown: md, transcript, sourceUrl: source, videoId })
+  const withTimestampLinks = (value: string) => normalizeYouTubeTranscriptTimestampLinks(value, source, videoId)
+  if (!thumbnailUrl) return withTimestampLinks(md)
+  const normalizedImage = normalizeEarlyYouTubeMarkdownImage(md, thumbnailUrl, videoId, alt)
+  if (normalizedImage.found) return withTimestampLinks(normalizedImage.markdown)
+  const lines = md.split('\n')
+  const standaloneIndex = lines.findIndex(line => !!isSameYouTubeSourceLine(line, source, videoId))
+  if (standaloneIndex >= 0) {
+    const matchedSource = isSameYouTubeSourceLine(lines[standaloneIndex] || '', source, videoId)
+    const imageSource = matchedSource || source
+    const imageAlt = buildSemanticYouTubeThumbnailLabel({ markdown: md, transcript, sourceUrl: source, videoId, imageSource })
+    lines[standaloneIndex] = imageSource ? `[![${imageAlt}](${thumbnailUrl})](${imageSource})` : `![${imageAlt}](${thumbnailUrl})`
+    return withTimestampLinks(lines.join('\n'))
+  }
+  const imageLine = source ? `[![${alt}](${thumbnailUrl})](${source})` : `![${alt}](${thumbnailUrl})`
+  const sourceIndex = lines.findIndex(line => /^\s*Source\s*:/i.test(line))
+  if (sourceIndex >= 0) {
+    lines.splice(sourceIndex + 1, 0, imageLine)
+    return withTimestampLinks(lines.join('\n'))
+  }
+  if (lines[0]?.startsWith('# ')) {
+    lines.splice(1, 0, '', imageLine)
+    return withTimestampLinks(lines.join('\n'))
+  }
+  return withTimestampLinks(`${imageLine}\n\n${md}`)
+}
+
 const readCached = (key: string): YouTubeTranscriptConversionResult | null => {
   const cached = transcriptCache.get(key) || null
   if (!cached) return null
@@ -84,7 +325,7 @@ export async function fetchYouTubeTranscriptConversion(rawUrl: string, opts?: {
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
   if (!cleaned) return null
   const lang = typeof opts?.lang === 'string' ? opts.lang.trim() : ''
-  const key = `youtube-transcript:v2:${lang || 'default'}:${cleaned}`
+  const key = `youtube-transcript:v6:${lang || 'default'}:${cleaned}`
   const cached = readCached(key)
   if (cached) return cached
   const inflight = transcriptInflight.get(key)
@@ -118,13 +359,14 @@ export async function fetchYouTubeTranscriptConversion(rawUrl: string, opts?: {
       if (json && json.ok === true && typeof json.markdown === 'string') {
         const transcript = normalizeTranscript(json.transcript)
         const transcriptJsonText = readTranscriptJsonText(json.transcriptJsonText, transcript)
+        const sourceUrl = readSourceUrl(transcript, cleaned)
         return writeCached(key, {
           ok: true,
           name: typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'youtube-transcript.md',
-          markdown: json.markdown,
+          markdown: ensureYouTubeMarkdownThumbnail(json.markdown, transcript, sourceUrl),
           transcriptJsonText,
           transcript,
-          sourceUrl: readSourceUrl(transcript, cleaned),
+          sourceUrl,
         })
       }
       const err = readErrorMessage(json?.error, '')

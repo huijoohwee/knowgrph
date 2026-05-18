@@ -1,6 +1,6 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { LRUCache } from '@/lib/cache/LRUCache'
-import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashSignatureParts } from '@/lib/hash/signature'
 import { KG_SUBGRAPHS_KEY, type UserSubgraph } from '@/lib/graph/subgraphs'
 import { DESIGN_WIREFRAME_META_KEY } from '@/lib/render/designWireframeSettings'
 import {
@@ -8,6 +8,7 @@ import {
   type WorkspaceDataViewGraphColumnRole,
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { normalizeTableCellText, toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 type TableNodeLike = {
   id?: unknown
@@ -23,31 +24,19 @@ type DeriveArgs = {
 
 const cache = new LRUCache<string, GraphData | null>(32, 30_000)
 
-const fnv1a32PushString = (h0: number, input: string): number => {
-  let h = h0 >>> 0
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return h >>> 0
-}
-
 const hashTableContentToHex = (header: string[], rows: string[][]): string => {
-  let h = 0x811c9dc5
-  h = fnv1a32PushString(h, `h:${header.length}|r:${rows.length}`)
+  const parts: Array<string | number> = ['table', header.length, rows.length]
   for (let i = 0; i < header.length; i += 1) {
-    h = fnv1a32PushString(h, '\u0001')
-    h = fnv1a32PushString(h, header[i] ?? '')
+    parts.push('h', i, header[i] ?? '')
   }
   for (let rIdx = 0; rIdx < rows.length; rIdx += 1) {
     const row = rows[rIdx]!
-    h = fnv1a32PushString(h, '\u0002')
+    parts.push('r', rIdx, row.length)
     for (let cIdx = 0; cIdx < row.length; cIdx += 1) {
-      h = fnv1a32PushString(h, '\u0001')
-      h = fnv1a32PushString(h, row[cIdx] ?? '')
+      parts.push('c', cIdx, row[cIdx] ?? '')
     }
   }
-  return (h >>> 0).toString(16).padStart(8, '0')
+  return hashSignatureParts(parts)
 }
 
 const normalizeText = (v: unknown): string => String(v ?? '').replace(/\s+/g, ' ').trim()
@@ -172,7 +161,7 @@ const normalizePropertyKey = (name: string): string => {
 }
 
 const makeStableId = (prefix: string, raw: string): string => {
-  const h = hashStringToHex(`${prefix}|${raw}`)
+  const h = hashSignatureParts([prefix, raw])
   return `${prefix}:${h.slice(0, 16)}`
 }
 
@@ -204,16 +193,33 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
     if (!cfg.enabled) return null
     if (requireStored && !cfg.hasStoredValue) return null
 
-    const cfgKey = hashStringToHex(
-      `cfg|${cfg.enabled ? 1 : 0}|${Object.entries(cfg.rolesByColumnId)
+    const cfgKey = hashSignatureParts([
+      'cfg',
+      cfg.enabled,
+      Object.entries(cfg.rolesByColumnId)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => `${k}:${v}`)
-        .join('|')}`,
-    )
+        .join('|'),
+    ])
     const tableHash = hashTableContentToHex(header, rows)
-    const cacheKey = hashStringToHex(
-      `mdtbl|${documentPath || meta.documentPath || ''}|${tableId}|${cfgKey}|${tableHash}`,
-    )
+    const cacheKey = buildScopedGraphSemanticKey('markdown-table-graph', {
+      graphData: {
+        type: 'GraphData',
+        context: 'markdown-table',
+        nodes: [
+          {
+            id: String(tn.id || tableId),
+            type: String(tn.type || 'Table'),
+            label: tableId,
+            properties: {},
+          } as GraphNode,
+        ],
+        edges: [],
+      },
+      graphSemanticKey: `${documentPath || meta.documentPath || ''}|${tableId}|${tIdx}`,
+      sourceLayerHash: tableHash,
+      sourceLayerOrderHash: cfgKey,
+    })
     const cached = cache.get(cacheKey)
     if (cached !== undefined) return cached
 

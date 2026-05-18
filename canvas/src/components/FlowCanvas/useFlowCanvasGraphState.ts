@@ -10,12 +10,11 @@ import {
   getCanonicalNodeLookupValue,
 } from '@/lib/graph/canonicalNodeIds'
 import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import {
-  buildRichMediaConnectedValueTargetNodeIdSet,
   buildRichMediaPanelOverlayExcludeNodeIdSet,
+  computeRichMediaOverlayConnectedValuesByNodeId,
   isRichMediaConnectedValueTargetNode,
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
@@ -142,19 +141,12 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   }, [baseWidgetRegistry, documentWidgetRegistry, widgetRegistry])
 
   const mediaRenderConnectedValuesByNodeId = React.useMemo(() => {
-    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
-    if (nodes.length === 0) return new Map()
-    const targetNodeIds = buildRichMediaConnectedValueTargetNodeIdSet({
-      nodes,
-      includeMediaSpecNodes: true,
-    })
-    if (targetNodeIds.size === 0) return new Map()
-    return computeFlowConnectedValuesBySchemaPath({
+    return computeRichMediaOverlayConnectedValuesByNodeId({
       graphData: sceneGraphData,
       registry: dataflowWidgetRegistry,
-      targetNodeIds,
       graphRevision: graphDataRevision,
       graphSemanticKey: sceneGraphSemanticKey,
+      includeMediaSpecNodes: true,
     })
   }, [dataflowWidgetRegistry, graphDataRevision, sceneGraphData, sceneGraphSemanticKey])
 

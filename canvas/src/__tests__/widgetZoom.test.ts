@@ -1,6 +1,7 @@
 import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 import {
   clampBalancedCollectiveScaleToViewport,
+  computeBalancedSpreadBaseGapPx,
   computeBalancedSpreadLayout,
   computeBalancedSpreadSpacingPx,
   computeBalancedSpreadGrid,
@@ -83,7 +84,12 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
   const usableW = 1920 - widgetMargins.left - widgetMargins.right
   const usableH = 1080 - widgetMargins.top - widgetMargins.bottom
   const gapPx = computeBalancedSpreadSpacingPx({
-    baseGapPx: Math.max(12, Math.min(40, Math.round(usableW * 0.012))),
+    baseGapPx: computeBalancedSpreadBaseGapPx({
+      viewportW: 1920,
+      viewportH: 1080,
+      preset: 'widgetCanvas',
+      margins: widgetMargins,
+    }),
     zoomK: 1,
     count: 4,
   })
@@ -189,12 +195,26 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     throw new Error(`expected dense 36-up pinned collective scale to stay within explicit 16:9 bounds, got ${followPinnedDense16x9}`)
   }
   const denseGapPx = computeBalancedSpreadSpacingPx({
-    baseGapPx: Math.max(12, Math.min(40, Math.round(usableW * 0.012))),
+    baseGapPx: computeBalancedSpreadBaseGapPx({
+      viewportW: 1920,
+      viewportH: 1080,
+      preset: 'widgetCanvas',
+      margins: widgetMargins,
+    }),
     zoomK: 1,
     count: 36,
   })
   const denseFrontmatterGapPx = computeBalancedSpreadSpacingPx({
-    baseGapPx: Math.max(12, Math.min(40, Math.round(usableW * 0.012))),
+    baseGapPx: computeBalancedSpreadBaseGapPx({
+      viewportW: 1920,
+      viewportH: 1080,
+      preset: 'widgetFrontmatter',
+      margins: computeBalancedSpreadViewportMargins({
+        viewportW: 1920,
+        viewportH: 1080,
+        preset: 'widgetFrontmatter',
+      }),
+    }),
     zoomK: 1,
     count: 36,
     preset: 'widgetFrontmatter',

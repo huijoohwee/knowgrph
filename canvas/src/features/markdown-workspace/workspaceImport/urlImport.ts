@@ -6,6 +6,7 @@ import type { WorkspaceImportProgress, WorkspaceImportResult } from './types'
 import { fetchWorkspaceUrlContent } from './urlContent'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import type { WorkspaceUrlImportDocumentModeId } from './canvasPresets'
+import { shouldApplyImportedCanvasDocumentToGraph } from './applyPolicy'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -55,10 +56,15 @@ export async function importWorkspaceUrl(args: {
     void 0
   }
   const normalized = normalizeWorkspacePath(createdPath)
+  const applyToGraph = shouldApplyImportedCanvasDocumentToGraph({
+    path: normalized || fetched.name,
+    text: fetched.text,
+  })
   return {
     createdPaths: [normalized],
     sources: [{ path: normalized, source: { kind: 'url', url: fetched.normalizedUrl } }],
     skipped: [],
     failed: [],
+    applyToGraph,
   }
 }

@@ -1,4 +1,5 @@
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import { normalizeWorkspaceUrlImportCanvas2dRenderer, normalizeWorkspaceUrlImportDocumentMode } from './canvasPresets'
 
@@ -20,6 +21,11 @@ const normalizeFidelityLevel = (value: unknown): 1 | 2 | 3 | 4 => {
   return 4
 }
 
+const buildUrlContentSemanticKey = (parts: Array<string | number | boolean | null | undefined>): string => {
+  const rawKey = hashSignatureParts(parts)
+  return buildScopedGraphSemanticKey('workspace-url-content', { graphSemanticKey: rawKey }) || rawKey
+}
+
 export const buildWorkspaceUrlContentCacheKey = (args: {
   normalizedUrl: string
   mode: FetchMode
@@ -39,7 +45,7 @@ export const buildWorkspaceUrlContentCacheKey = (args: {
   const viewHint = args.viewHint === 'markdown' ? 'markdown' : args.viewHint === 'json' ? 'json' : args.viewHint === 'html' ? 'html' : ''
 
   if (canvas2dRenderer) {
-    const sig = hashSignatureParts(['url', normalizedUrl, 'r2d', canvas2dRenderer, 'doc', documentSemanticMode, 'vh', viewHint])
+    const sig = buildUrlContentSemanticKey(['url', normalizedUrl, 'r2d', canvas2dRenderer, 'doc', documentSemanticMode, 'vh', viewHint])
     return `${mode}:url-import-${canvas2dRenderer}:${sig}`
   }
 
@@ -62,6 +68,6 @@ export const buildWorkspaceUrlContentCacheKey = (args: {
   ]
   if (mode === 'import' && !viewHint) parts.push('iv', importView)
 
-  const sig = hashSignatureParts(parts)
+  const sig = buildUrlContentSemanticKey(parts)
   return `${mode}:${canvas2dRenderer || 'default'}:${sig}`
 }

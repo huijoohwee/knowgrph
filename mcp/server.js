@@ -177,7 +177,6 @@ async function summarizeArtifacts({ outputDir, extraPaths = [] }) {
     outputDir ? path.join(outputDir, "runtime-events.jsonl") : null,
     outputDir ? path.join(outputDir, "a0.csv") : null,
     outputDir ? path.join(outputDir, "a0.jsonld") : null,
-    outputDir ? path.join(outputDir, "a0.ttl") : null,
     outputDir ? path.join(outputDir, "state.json") : null,
     outputDir ? path.join(outputDir, "trace.jsonl") : null,
     outputDir ? path.join(outputDir, "final-report.md") : null,
@@ -257,14 +256,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "knowgrph.pipeline",
         description:
-          "Run the Knowgrph pipeline (GraphData -> A0 CSV/JSON-LD + codebase index artifacts) or run a preset DuckDB example query.",
+          "Run the Knowgrph pipeline (GraphData -> A0 CSV/JSON-LD + codebase index artifacts).",
         inputSchema: {
           type: "object",
           additionalProperties: false,
           properties: {
             mode: {
               type: "string",
-              enum: ["pipeline", "example-query"],
+              enum: ["pipeline"],
               default: "pipeline",
               description: "Which pipeline mode to run.",
             },
@@ -276,18 +275,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description:
                 "Directory for outputs. If omitted, defaults to knowgrph_parser's configured output directory.",
-            },
-            presetId: {
-              type: "string",
-              description: "DuckDB query preset id (required when mode=example-query).",
-            },
-            configPath: {
-              type: "string",
-              description: "Optional DuckDB query config path (mode=example-query).",
-            },
-            dbPath: {
-              type: "string",
-              description: "Optional DuckDB database path (mode=example-query).",
             },
             timeoutMs: {
               type: "number",
@@ -439,31 +426,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           .filter(Boolean)
           .join("\n");
 
-        return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
-      }
-
-      if (mode === "example-query") {
-        if (typeof args.presetId !== "string" || !args.presetId.trim()) {
-          throw new Error("Missing required argument: presetId (mode=example-query).");
-        }
-        const cmdArgs = ["-m", "knowgrph_parser", "pipeline", "--mode", "example-query", "--preset-id", args.presetId];
-        if (typeof args.configPath === "string" && args.configPath.trim()) {
-          cmdArgs.push("--config", resolvePathMaybeWithinRoot(args.configPath, { allowOutsideRoot: false }));
-        }
-        if (typeof args.dbPath === "string" && args.dbPath.trim()) {
-          cmdArgs.push("--db", resolvePathMaybeWithinRoot(args.dbPath, { allowOutsideRoot: false }));
-        }
-
-        const result = await runCommand(PYTHON_BIN, cmdArgs, { cwd: KNOWGRPH_ROOT, timeoutMs });
-        const outputText = [
-          `KNOWGRPH_ROOT: ${KNOWGRPH_ROOT}`,
-          `Command: ${formatCommand(PYTHON_BIN, cmdArgs, KNOWGRPH_ROOT)}`,
-          `Exit: ${String(result.code)}${result.signal ? ` (signal: ${result.signal})` : ""}`,
-          result.stdout.trim() ? `\nSTDOUT:\n${truncate(result.stdout)}` : "",
-          result.stderr.trim() ? `\nSTDERR:\n${truncate(result.stderr)}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
         return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
       }
 

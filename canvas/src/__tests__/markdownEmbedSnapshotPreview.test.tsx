@@ -3,6 +3,22 @@ import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
+const buildSyntheticYouTubeId = (seed: string): string => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'
+  let hash = 0x811c9dc5
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  let out = ''
+  for (let i = 0; i < 11; i += 1) {
+    hash ^= i + 0x9e3779b9
+    hash = Math.imul(hash, 0x85ebca6b) >>> 0
+    out += alphabet[hash % alphabet.length] || 'A'
+  }
+  return out
+}
+
 export async function testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
@@ -59,6 +75,249 @@ export async function testMarkdownPreviewRendersWebpageSnapshotForStandaloneLink
 
     root.unmount()
   } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLargeDocumentMode() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const fakeId = buildSyntheticYouTubeId('standalone large document timestamp')
+    const markdownText = [
+      `https://youtu.be/${fakeId}?t=2178;`,
+      '',
+      ...Array.from({ length: 2600 }, (_, i) => `Paragraph ${i + 1}`),
+    ].join('\n')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const videoSnapshot = container.querySelector('[data-kg-video-snapshot="1"]')
+    if (!videoSnapshot) throw new Error('expected youtube short URL to render as a large-document snapshot')
+    const src = String(videoSnapshot.getAttribute('data-src') || '')
+    if (!src.includes(`/embed/${fakeId}`)) throw new Error('expected embedded youtube id to be preserved')
+    if (!src.includes('start=2178')) throw new Error('expected youtube timestamp to be preserved')
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewBudgetsRepeatedLargeDocumentYouTubeSnapshots() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const fakeId = buildSyntheticYouTubeId('repeated large document timestamp')
+    const finalTimestamp = 2178
+    const markdownText = [
+      `https://youtu.be/${fakeId}?t=42`,
+      '',
+      ...Array.from({ length: 80 }, (_, i) => [
+        `https://youtu.be/${fakeId}?t=${i === 79 ? finalTimestamp : i + 50}`,
+        `Transcript segment ${i + 1}`,
+      ].join('\n')),
+      ...Array.from({ length: 2600 }, (_, i) => `Paragraph ${i + 1}`),
+    ].join('\n\n')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const snapshots = container.querySelectorAll('[data-kg-video-snapshot="1"]')
+    if (snapshots.length !== 1) throw new Error(`expected one snapshot for repeated large-document YouTube URLs, got ${snapshots.length}`)
+    if (!String(container.textContent || '').includes(`https://youtu.be/${fakeId}?t=${finalTimestamp}`)) {
+      throw new Error('expected later transcript timestamp links to remain visible as text links')
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewRendersLinkedYouTubeThumbnailImage() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const fakeId = buildSyntheticYouTubeId('linked thumbnail image')
+    const thumbnailUrl = `https://i.ytimg.com/vi/${fakeId}/hqdefault.jpg`
+    const sourceUrl = `https://youtu.be/${fakeId}?t=2178`
+    const markdownText = `[![Video thumbnail](${thumbnailUrl})](${sourceUrl})`
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const image = container.querySelector('img[data-kg-media-thumbnail="1"]') as HTMLImageElement | null
+    if (!image) throw new Error('expected linked YouTube thumbnail markdown image to render in Viewer')
+    if (!String(image.getAttribute('src') || '').includes(encodeURIComponent(thumbnailUrl))) {
+      throw new Error('expected thumbnail image src to preserve the YouTube thumbnail URL through the media proxy')
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndTap() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const anyWindow = dom.window as unknown as Window & {
+    matchMedia?: Window['matchMedia']
+  }
+  const previousMatchMedia = anyWindow.matchMedia
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const fakeId = buildSyntheticYouTubeId('hover and tap timestamp preview')
+    const sourceUrl = `https://youtu.be/${fakeId}?t=421`
+    const markdownText = `[7:01](${sourceUrl}) timestamped transcript segment`
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const link = container.querySelector('[data-kg-youtube-timestamp-link="1"]') as HTMLAnchorElement | null
+    if (!link) throw new Error('expected YouTube timestamp link to be marked for thumbnail preview')
+    if (link.textContent !== '7:01') throw new Error('expected timestamp link label to remain compact')
+    const linkPreviewKey = String(link.getAttribute('data-kg-rich-media-preview-key') || '')
+    if (!linkPreviewKey.startsWith('rich-media-preview:')) {
+      throw new Error('expected timestamp link to reuse the Rich Media preview semantic key')
+    }
+    if (container.querySelector('[data-kg-youtube-timestamp-preview="1"]')) {
+      throw new Error('expected timestamp preview to stay closed before interaction')
+    }
+
+    link.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+    await tick()
+    let preview = container.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    if (!preview) throw new Error('expected hover to reveal the YouTube timestamp preview')
+    if (preview.getAttribute('data-kg-rich-media-preview-key') !== linkPreviewKey) {
+      throw new Error('expected timestamp preview to reuse the link Rich Media preview semantic key')
+    }
+    const frame = preview.querySelector('iframe') as HTMLIFrameElement | null
+    if (!frame) throw new Error('expected timestamp preview iframe')
+    const src = String(frame.getAttribute('src') || '')
+    if (!src.includes(`/embed/${fakeId}`)) {
+      throw new Error('expected timestamp preview iframe to preserve the YouTube video id')
+    }
+    if (!src.includes('start=421')) {
+      throw new Error('expected timestamp preview iframe to preserve the requested timestamp')
+    }
+    if (!String(preview.textContent || '').includes('7:01')) {
+      throw new Error('expected timestamp preview to expose the semantic timestamp label')
+    }
+
+    link.dispatchEvent(new dom.window.MouseEvent('mouseout', { bubbles: true, cancelable: true }))
+    await tick()
+    if (container.querySelector('[data-kg-youtube-timestamp-preview="1"]')) {
+      throw new Error('expected timestamp preview to close after hover leaves')
+    }
+
+    anyWindow.matchMedia = (() => ({
+      matches: true,
+      media: '(hover: none), (pointer: coarse)',
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => true,
+    })) as Window['matchMedia']
+    const click = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })
+    const notCancelled = link.dispatchEvent(click)
+    await tick()
+    preview = container.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    if (notCancelled || !click.defaultPrevented) {
+      throw new Error('expected first coarse-pointer tap to open preview before navigation')
+    }
+    if (!preview) throw new Error('expected tap to reveal the YouTube timestamp preview')
+
+    root.unmount()
+  } finally {
+    anyWindow.matchMedia = previousMatchMedia
     restoreDom()
   }
 }

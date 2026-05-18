@@ -1,55 +1,8 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
-import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncContract'
-
-const DEEP_LINK_PREFIX = '/doc/'
-const DEEP_LINK_PARAM = 'kgPath'
-const LOCAL_DOC_PARAM = 'kgDoc'
-
-type RemoteDocDeepLink = { kind: 'remote'; workspaceId: string; canonicalPath: string }
-type LocalDocDeepLink = { kind: 'local'; relativePath: string }
-type DocDeepLink = RemoteDocDeepLink | LocalDocDeepLink
-
-function parseDocDeepLink(search: string): DocDeepLink | null {
-  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
-
-  const localRaw = String(params.get(LOCAL_DOC_PARAM) || '').trim()
-  if (localRaw) {
-    return { kind: 'local', relativePath: localRaw }
-  }
-
-  const rawPath = String(params.get(DEEP_LINK_PARAM) || '').trim()
-  if (!rawPath.startsWith(DEEP_LINK_PREFIX)) return null
-  const suffix = rawPath.slice(DEEP_LINK_PREFIX.length)
-  if (!suffix) return null
-  const firstSlash = suffix.indexOf('/')
-  if (firstSlash < 1) return null
-  const workspaceId = decodeURIComponent(suffix.slice(0, firstSlash)).trim()
-  const canonicalPath = decodeURIComponent(suffix.slice(firstSlash + 1)).trim()
-  if (!workspaceId || !canonicalPath) return null
-  return { kind: 'remote', workspaceId, canonicalPath }
-}
-
-function buildDocViewUrl(workspaceId: string, canonicalPath: string): string {
-  const base = KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix
-  return `${base}${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
-}
-
-function consumeDeepLinkParams(search: string): void {
-  try {
-    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
-    let changed = false
-    if (params.has(LOCAL_DOC_PARAM)) { params.delete(LOCAL_DOC_PARAM); changed = true }
-    if (params.has(DEEP_LINK_PARAM)) { params.delete(DEEP_LINK_PARAM); changed = true }
-    if (!changed) return
-    const next = params.toString()
-    const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
-    window.history.replaceState(null, '', nextUrl)
-  } catch {
-    void 0
-  }
-}
+import { buildDocViewUrl, consumeDeepLinkParams, parseDocDeepLink } from './canvasDocDeepLink'
+import type { RemoteDocDeepLink } from './canvasDocDeepLink'
 
 async function handleLocalDeepLink(
   relativePath: string,
@@ -61,10 +14,14 @@ async function handleLocalDeepLink(
   try {
     const [
       { getWorkspaceFs },
-      { normalizeWorkspacePath, workspaceBasename },
+      { normalizeWorkspacePath, workspaceBasename, workspaceDocumentKey },
+      { applyActiveMarkdownDocumentPayload },
+      { applyCanvasWorkspacePresetForSwitch },
     ] = await Promise.all([
       import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
       import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
+      import('@/features/markdown/activeMarkdownDocument') as Promise<typeof import('@/features/markdown/activeMarkdownDocument')>,
+      import('@/lib/markdown-workspace-runtime/workspaceSwitchPreset') as Promise<typeof import('@/lib/markdown-workspace-runtime/workspaceSwitchPreset')>,
     ])
 
     const fs = await getWorkspaceFs()
@@ -79,9 +36,31 @@ async function handleLocalDeepLink(
     }
 
     const markdownExplorer = await import('@/features/markdown-explorer/store')
-    const { setWorkspaceViewState } = useGraphStore.getState()
-    setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+    const graphStore = useGraphStore.getState()
+    graphStore.setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+    graphStore.setSelectionSource('editor')
+    graphStore.selectNode(null)
+    graphStore.selectEdge(null)
     markdownExplorer.useMarkdownExplorerStore.getState().setActivePath(targetPath)
+
+    const entryText = typeof entry.text === 'string' ? entry.text : ''
+    if (entryText) {
+      try {
+        applyCanvasWorkspacePresetForSwitch({ text: entryText })
+      } catch {
+        void 0
+      }
+      void applyActiveMarkdownDocumentPayload({
+        setActiveMarkdownDocument: graphStore.setActiveMarkdownDocument,
+        name: workspaceDocumentKey(targetPath),
+        text: entryText,
+        sourceUrl: null,
+        autoEnableFrontmatter: false,
+        applyViewPreset: false,
+        applyToGraph: true,
+        normalizeWebpageFrontmatterToMarkdown: false,
+      })?.catch(() => { void 0 })
+    }
 
     pushUiToast({
       id: toastId,
@@ -118,7 +97,7 @@ async function handleRemoteDeepLink(
     import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
     import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
     import('@/features/markdown-workspace/workspaceImport') as Promise<typeof import('@/features/markdown-workspace/workspaceImport')>,
-    import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')>,
+    import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions') as Promise<typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')>,
   ])
 
   const fs = await getWorkspaceFs()
@@ -148,15 +127,13 @@ async function handleRemoteDeepLink(
 
 export function CanvasDocDeepLinkRuntime(props: { search: string }) {
   const { search } = props
-  const consumedRef = React.useRef(false)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
 
   React.useEffect(() => {
-    if (consumedRef.current) return
-    const link = parseDocDeepLink(search)
+    const currentSearch = typeof window !== 'undefined' ? String(window.location.search || '') : String(search || '')
+    const link = parseDocDeepLink(currentSearch)
     if (!link) return
-    consumedRef.current = true
-    consumeDeepLinkParams(search)
+    consumeDeepLinkParams(currentSearch)
 
     if (link.kind === 'local') {
       void handleLocalDeepLink(link.relativePath, pushUiToast)

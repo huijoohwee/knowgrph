@@ -105,34 +105,6 @@ export function findWorkspaceSourceFileByPath(path: WorkspacePath) {
   return sourceFiles.find(file => String(file?.source?.path || '') === key) || null
 }
 
-export function parseYoutubeWorkspaceFrontmatter(
-  text: string,
-): { videoId: string; format: 'markdown' | 'json' } | null {
-  const raw = String(text || '')
-  if (!raw.startsWith('---')) return null
-  const end = raw.indexOf('\n---')
-  if (end < 0) return null
-  const fm = raw.slice(0, end + 4)
-  const readVal = (key: string): string => {
-    const m = fm.match(new RegExp(`^${key}:\\s*(.+)\\s*$`, 'm'))
-    const v = m ? String(m[1] || '').trim() : ''
-    if (!v) return ''
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1)
-    return v
-  }
-  const videoId = readVal('kgYoutubeVideoId')
-  const formatRaw = readVal('kgYoutubeFormat')
-  const format: 'markdown' | 'json' = formatRaw === 'json' ? 'json' : 'markdown'
-  if (!videoId) return null
-  return { videoId, format }
-}
-
-export function inferYoutubeVideoIdFromPath(path: string): string | null {
-  const base = path.split('/').pop() || ''
-  const m = base.match(/^(?:transcript|youtube)-([a-zA-Z0-9_-]{11})(?:\.(?:txt|md|markdown|json))?$/i)
-  return m ? m[1] : null
-}
-
 export const areWorkspaceEntriesEqual = (a: WorkspaceEntry[], b: WorkspaceEntry[]): boolean => {
   if (a === b) return true
   if (a.length !== b.length) return false

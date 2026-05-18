@@ -6,7 +6,7 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { beginProgressSession, createDefaultProgressSession, failProgressSession, finishProgressSession } from '@/lib/progress/progressTicker'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
-import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
+import { fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import {
@@ -20,7 +20,6 @@ import { fetchWebpageConversionJsonViaConvert, fetchWebsiteImportArtifact } from
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import { inferYoutubeVideoIdFromPath, parseYoutubeWorkspaceFrontmatter } from './markdownWorkspaceRuntime.shared'
 import { resolveAuthoritativeWorkspaceText, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
@@ -111,22 +110,6 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
     const t = String(activeText || '')
     if (!t.startsWith('---')) return null
     return parsePdfWorkspaceFrontmatter(t)
-  }, [activePath, activeText])
-
-  const youtubeWorkspaceMeta = React.useMemo(() => {
-    if (!activePath) return null
-    const ext = activePath.split('.').pop()?.toLowerCase() || ''
-    const allowed = ['md', 'markdown', 'txt', 'json']
-    if (!allowed.includes(ext)) return null
-
-    const t = String(activeText || '')
-    if (t.startsWith('---')) {
-      const parsed = parseYoutubeWorkspaceFrontmatter(t)
-      if (parsed) return parsed
-    }
-    const inferredId = inferYoutubeVideoIdFromPath(activePath)
-    if (inferredId) return { videoId: inferredId, format: 'markdown' as const }
-    return null
   }, [activePath, activeText])
 
   const webpageWorkspaceMeta = React.useMemo(() => {
@@ -337,37 +320,6 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
     })
   }, [setStatusProgress, statusAdapter, webpageUrl, webpageView, websiteImportKey])
 
-  const switchActiveYoutubeWorkspaceFormat = React.useCallback(
-    async (format: 'markdown' | 'json') => {
-      if (!activePath || !youtubeWorkspaceMeta) return
-      setStatusProgress('Loading YouTube transcript')
-      try {
-        setPdfWorkspaceViewerTextOverride(null)
-        const res = await fetchYouTubeTranscriptMarkdown(`https://youtu.be/${youtubeWorkspaceMeta.videoId}`)
-        if (!res) {
-          statusAdapter.reportError(undefined, { fallbackMessage: 'Request failed' })
-          return
-        }
-        if (res.ok !== true) {
-          statusAdapter.reportError(res.error, { fallbackMessage: 'Request failed' })
-          return
-        }
-
-        const frontmatter = `---\nkgYoutubeVideoId: "${youtubeWorkspaceMeta.videoId}"\nkgYoutubeFormat: "${format}"\n---\n\n`
-        const nextText =
-          format === 'json' && res.transcriptJsonText
-            ? `${frontmatter}\`\`\`json\n${res.transcriptJsonText}\n\`\`\`\n`
-            : `${frontmatter}${res.markdown}`
-
-        await persistDerivedWorkspaceText(nextText, { refreshActiveDocument: true })
-        statusAdapter.loaded()
-      } catch (e) {
-        statusAdapter.loadFailed(e)
-      }
-    },
-    [activePath, persistDerivedWorkspaceText, setStatusProgress, statusAdapter, youtubeWorkspaceMeta],
-  )
-
   const switchActiveWebpageWorkspaceView = React.useCallback(
     async (view: WebpageViewMode) => {
       if (!activePath || !webpageWorkspaceMeta) return
@@ -481,13 +433,11 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
 
   return {
     pdfWorkspaceMeta,
-    youtubeWorkspaceMeta,
     webpageWorkspaceMeta,
     websiteImportMeta,
     pdfWorkspaceViewerTextOverride,
     webpageWorkspaceEditorTextOverride,
     webpageWorkspaceViewerTextOverride,
-    switchActiveYoutubeWorkspaceFormat,
     switchActiveWebpageWorkspaceView,
     updateActiveWebpageWorkspaceMeta,
   }

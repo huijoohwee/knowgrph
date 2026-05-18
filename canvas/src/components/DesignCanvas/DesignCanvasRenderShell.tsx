@@ -439,6 +439,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
       <DesignCanvasMediaOverlay
         active={active}
         designMediaOverlayNodes={designMediaOverlayNodes}
+        renderMediaAsNodes={renderMediaAsNodes}
         onRegisterOverlayEl={onRegisterOverlayEl}
         forwardWheelTo={() => svgRef.current}
         shouldStartHeaderDrag={shouldStartHeaderDrag}

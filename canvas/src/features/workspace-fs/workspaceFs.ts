@@ -176,9 +176,9 @@ export async function getWorkspaceFs(): Promise<WorkspaceFs> {
 
   try {
     const { createWorkspaceRxdbFs } = await import('./workspaceFsRxdb.ts')
-    const persistentFs = createWorkspaceRxdbFs()
+    const persistentFs = createResilientWorkspaceFs(createWorkspaceRxdbFs())
     await persistentFs.ensureSeed()
-    fsSingleton = createResilientWorkspaceFs(persistentFs)
+    fsSingleton = persistentFs
     return fsSingleton
   } catch (e: unknown) {
     fsSingleton = createResilientWorkspaceFs(memory)
@@ -205,16 +205,6 @@ export function resetWorkspaceFsForTests(): void {
   warnedDegraded = false
 }
 
-export const LEGACY_WORKSPACE_README_PATH = '/README.md' as WorkspacePath
-export const LEGACY_WORKSPACE_TRIP_DEMO_PATH = '/trip-demo-mmd.md' as WorkspacePath
-export const LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH = '/knowgrph-video-demo.md' as WorkspacePath
-export const LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH = '/knowgrph-maps-grabmap-multim-demo.md' as WorkspacePath
-export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
-  LEGACY_WORKSPACE_README_PATH,
-  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
-])
 const normalizeInitializationSeedRelPath = (value: string): string => {
   return String(value || '')
     .trim()
@@ -354,31 +344,12 @@ const WORKSPACE_SEED_SOURCE_REL_PATH_SET = new Set<WorkspacePath>(
     .filter((path): path is WorkspacePath => Boolean(path && path !== WORKSPACE_ROOT_PATH)),
 )
 const WORKSPACE_INITIALIZATION_PATH_SET = new Set<WorkspacePath>([
-  LEGACY_WORKSPACE_README_PATH,
-  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   ...WORKSPACE_SEED_PATH_SET,
   ...WORKSPACE_SEED_SOURCE_REL_PATH_SET,
 ])
 const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
-  LEGACY_WORKSPACE_README_PATH,
-  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   ...WORKSPACE_SEED_SPECS.map(seed => seed.path),
 ])
-export const LEGACY_WORKSPACE_README_TEXT = [
-  '# Workspace',
-  '',
-  '- Select a file in SOURCE FILES to load it into the editor.',
-  '- Headings show up in TOC.',
-  '- Use [[README]] as a wikilink example.',
-  '',
-  '## Notes',
-  '',
-  'This workspace is stored locally in your browser.',
-].join('\n')
 
 const loadWorkspaceSeedText = async (args: {
   basename: string
@@ -463,34 +434,14 @@ export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
   return loaded
 }
 
-export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<WorkspacePath>): boolean {
-  const normalized = paths
-    .map(path => normalizeWorkspacePath(path))
-    .filter((path): path is WorkspacePath => Boolean(path))
-  if (normalized.length === 0) return false
-  const staleSeedPaths = new Set<WorkspacePath>([
-    LEGACY_WORKSPACE_README_PATH,
-    LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-    LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-    LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
-  ])
-  const hasStaleSeedPath = normalized.some(path => staleSeedPaths.has(path))
-  if (!hasStaleSeedPath) return false
-  const nextSeedPaths = WORKSPACE_SEED_PATH_SET
-  let alreadyOnNextSeedSet = normalized.length === nextSeedPaths.size
-  if (alreadyOnNextSeedSet) {
-    for (const path of normalized) {
-      if (!nextSeedPaths.has(path)) {
-        alreadyOnNextSeedSet = false
-        break
-      }
-    }
-  }
-  if (alreadyOnNextSeedSet) return false
-  for (let i = 0; i < normalized.length; i += 1) {
-    if (!DEFAULT_WORKSPACE_SEED_FAMILY_PATHS.has(normalized[i]!)) return false
-  }
-  return true
+export function shouldPreserveFallbackWorkspaceSeedText(text: string): boolean {
+  const trimmed = String(text || '').trim()
+  if (!trimmed) return false
+  return trimmed.startsWith('---') && (
+    trimmed.includes('kgCanvasSurfaceMode:')
+    || trimmed.includes('kgCanvasRenderMode:')
+    || trimmed.includes('kgDocumentSemanticMode:')
+  )
 }
 
 export function shouldReconcileDefaultWorkspaceSeedFamily(paths: ReadonlyArray<WorkspacePath>): boolean {

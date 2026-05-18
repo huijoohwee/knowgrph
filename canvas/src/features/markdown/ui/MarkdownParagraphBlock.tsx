@@ -9,6 +9,7 @@ import {
   isSafeHref,
   isVideoUrl,
   resolveHref,
+  shouldRenderStandaloneMediaForLine,
 } from '@/features/markdown/ui/markdownPreviewLinks'
 import { normalizeWebpageLikeUrl } from 'grph-shared/url'
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
@@ -30,6 +31,7 @@ import {
 } from './MarkdownBlockGutter'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+import { readStandaloneParagraphUrlToken } from './standaloneMediaBudget'
 
 const extractLinkText = (token: Token): string => {
   const p = token as unknown as TokensParagraph
@@ -119,57 +121,6 @@ type MarkdownParagraphBlockProps = {
   fragmentStep?: number
   fragmentClassNames?: string[]
   fragmentTags?: string[]
-}
-
-const hasInlineMediaToken = (tokens: Token[] | undefined): boolean => {
-  const list = Array.isArray(tokens) ? tokens : []
-  for (const t of list) {
-    const type = String((t as unknown as { type?: unknown }).type || '')
-    if (type === 'image' || type === 'html') return true
-    const nested = (t as unknown as { tokens?: unknown }).tokens
-    if (Array.isArray(nested) && hasInlineMediaToken(nested as Token[])) return true
-  }
-  return false
-}
-
-const isStandaloneLinkParagraph = (token: Token): string | null => {
-  const p = token as unknown as TokensParagraph
-  const inner = Array.isArray(p.tokens) ? p.tokens : []
-  const meaningful = inner.filter(t => {
-    const tt = t as unknown as { type?: unknown; text?: unknown }
-    const type = String(tt.type || '')
-    if (type === 'space' || type === 'br' || type === 'softbreak') return false
-    if (type === 'text') return String((t as unknown as TokensText).text || '').trim().length > 0
-    return true
-  })
-  if (meaningful.length !== 1) return null
-  const only = meaningful[0] as unknown as TokensGeneric
-  if (only.type !== 'link') return null
-  const link = only as unknown as TokensLink
-  // Preserve markdown semantics for linked media thumbnails: [![alt](img)](url)
-  // should render as a clickable image, not be rewritten into an auto-embed iframe.
-  if (hasInlineMediaToken(link.tokens)) return null
-  const href = String(link.href || '').trim()
-  return href || null
-}
-
-const isStandaloneTextUrlParagraph = (token: Token): string | null => {
-  const p = token as unknown as TokensParagraph
-  const inner = Array.isArray(p.tokens) ? p.tokens : []
-  const nonTrivial = inner.filter(t => {
-    const tt = t as unknown as { type?: unknown; text?: unknown }
-    const type = String(tt.type || '')
-    if (type === 'softbreak' || type === 'br') return false
-    if (type === 'text') return String((t as unknown as TokensText).text || '').trim().length > 0
-    return true
-  })
-  if (nonTrivial.length !== 1) return null
-  const only = nonTrivial[0] as unknown as TokensGeneric
-  if (only.type !== 'text') return null
-  const raw = String((only as unknown as TokensText).text || '').trim()
-  if (!raw) return null
-  if (!/^https?:\/\//i.test(raw)) return null
-  return raw
 }
 
 const getStandaloneLinkedImageParagraph = (
@@ -414,8 +365,8 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       </MediaWrapper>
     )
   }
-
-  const standaloneHref = opts.markdownLargeDocumentMode ? null : isStandaloneLinkParagraph(t as unknown as Token) || isStandaloneTextUrlParagraph(t as unknown as Token)
+  const standaloneHrefRaw = readStandaloneParagraphUrlToken(t as unknown as Token, { rejectLinkedMedia: true })
+  const standaloneHref = standaloneHrefRaw && shouldRenderStandaloneMediaForLine({ href: standaloneHrefRaw, startLine: t.startLine, markdownLargeDocumentMode: opts.markdownLargeDocumentMode, standaloneMediaRenderLineSet: opts.standaloneMediaRenderLineSet }) ? standaloneHrefRaw : null
   if (standaloneHref && isSafeHref(standaloneHref) && isAbsoluteWebUrl(standaloneHref)) {
     const renderStandaloneMedia = (type: string, children: React.ReactNode) => (
       <MediaWrapper
@@ -439,6 +390,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
           src={youtube}
           title="YouTube"
           presentationMode={opts.markdownPresentationMode}
+          deferLoad={opts.markdownLargeDocumentMode}
         />,
       )
     }
@@ -496,7 +448,6 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     const linkText = extractLinkText(t as unknown as Token)
     const linkDomain = extractDomain(standaloneHref)
     const linkDisplayMode = getLinkDisplayMode(t.startLine)
-
     if (linkDisplayMode === 'card') {
       return renderStandaloneMedia(
         'webpage',

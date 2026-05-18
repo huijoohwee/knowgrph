@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const widgetScopePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetStateScope.ts')
   const editorText = readFileSync(editorPath, 'utf8')
@@ -13,7 +13,7 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const widgetScopeText = readFileSync(widgetScopePath, 'utf8')
 
-  if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(renderGraphDataOverride)')) {
+  if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.renderGraphDataOverride)')) {
     throw new Error('expected Flow Editor overlay surface to pass the active rendered graph key into widget overlays')
   }
   if (!overlaySurfaceText.includes('graphMetaKey={graphMetaKey}')) {
@@ -22,10 +22,10 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (!overlaySurfaceText.includes('const overlayInstanceKey = [')) {
     throw new Error('expected Flow Editor overlay surface to derive one remount key for widget overlays from surface and graph identity')
   }
-  if (!overlaySurfaceText.includes("String(flowEditorSurfaceId || '').trim() || 'surface'")) {
+  if (!overlaySurfaceText.includes("String(args.flowEditorSurfaceId || '').trim() || 'surface'")) {
     throw new Error('expected Flow Editor overlay remount key to include surface identity so stale portal instances cannot survive across surfaces')
   }
-  if (!overlaySurfaceText.includes("String(renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'")) {
+  if (!overlaySurfaceText.includes("String(args.renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph'")) {
     throw new Error('expected Flow Editor overlay remount key to prefer the semantic render-graph identity before falling back to graph meta kind')
   }
   if (!overlaySurfaceText.includes('key={overlayInstanceKey}')) {

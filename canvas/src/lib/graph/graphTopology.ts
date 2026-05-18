@@ -128,6 +128,21 @@ const graphTopologySignature = (summary: Omit<GraphTopologySummary, 'signature'>
   ])
 }
 
+const buildTopologySourceKey = (args: {
+  graphData: GraphData
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+}): string => {
+  return buildScopedGraphSemanticKey('graph-topology-source', {
+    graphData: args.graphData,
+    graphRevision: args.graphRevision,
+    graphSemanticKey: [
+      args.graphSemanticKey || '',
+      `v:${GRAPH_TOPOLOGY_VERSION}`,
+    ].join('|'),
+  })
+}
+
 const analyzeGraphTopology = (graphData: GraphData): TopologyAnalysis => {
   const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
   const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
@@ -230,6 +245,23 @@ export const readGraphTopologySummary = (
   return raw as unknown as GraphTopologySummary
 }
 
+const hasCurrentTopologySummary = (args: {
+  graphData: GraphData
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+  sourceKey?: string
+}): boolean => {
+  const summary = readGraphTopologySummary(args.graphData)
+  if (!summary) return false
+  if (summary.version !== GRAPH_TOPOLOGY_VERSION) return false
+  const nodes = Array.isArray(args.graphData.nodes) ? args.graphData.nodes : []
+  const edges = Array.isArray(args.graphData.edges) ? args.graphData.edges : []
+  if (summary.nodeCount !== nodes.length || summary.edgeCount !== edges.length) return false
+  const meta = readRecord(args.graphData.metadata)
+  const sourceKey = args.sourceKey || buildTopologySourceKey(args)
+  return !!sourceKey && String(meta.graphTopologySourceKey || '') === sourceKey
+}
+
 const readCachedEnrichedGraph = (graphData: GraphData, cacheKey: string): GraphData | null => {
   const perGraph = enrichedGraphCache.get(graphData as unknown as object)
   if (!perGraph) return null
@@ -264,15 +296,25 @@ export function withGraphTopologyMetadata(args: {
 }): GraphData | null {
   const graphData = args.graphData || null
   if (!graphData) return null
-  const stage = String(args.stage || 'graph').trim() || 'graph'
   const annotate = args.annotate !== false
   const maxAnnotatedItems = Math.max(0, Math.floor(args.maxAnnotatedItems ?? DEFAULT_ANNOTATED_ITEM_LIMIT))
+  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+  const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
+  const shouldAnnotate = annotate && nodes.length + edges.length <= maxAnnotatedItems
+  const sourceKey = buildTopologySourceKey({
+    graphData,
+    graphRevision: args.graphRevision,
+    graphSemanticKey: args.graphSemanticKey,
+  })
+  const meta = readRecord(graphData.metadata)
+  if (hasCurrentTopologySummary({ graphData, sourceKey }) && (!shouldAnnotate || meta.graphTopologyAnnotated === true)) {
+    return graphData
+  }
   const cacheKey = buildScopedGraphSemanticKey('graph-topology', {
     graphData,
     graphRevision: args.graphRevision,
     graphSemanticKey: [
       args.graphSemanticKey || '',
-      `stage:${stage}`,
       `annotate:${annotate ? '1' : '0'}`,
       `limit:${maxAnnotatedItems}`,
       `v:${GRAPH_TOPOLOGY_VERSION}`,
@@ -285,28 +327,26 @@ export function withGraphTopologyMetadata(args: {
 
   const analysis = analyzeGraphTopology(graphData)
   const summary = analysis.summary
-  const meta = readRecord(graphData.metadata)
   const nextMetadata: Record<string, JSONValue> = {
     ...(meta as Record<string, JSONValue>),
     graphTopologyVersion: GRAPH_TOPOLOGY_VERSION as unknown as JSONValue,
-    graphTopologyStage: stage as unknown as JSONValue,
+    graphTopologySourceKey: sourceKey as unknown as JSONValue,
     graphTopologySignature: summary.signature as unknown as JSONValue,
     graphTopology: summary as unknown as JSONValue,
+    ...(!shouldAnnotate ? {} : { graphTopologyAnnotated: true as unknown as JSONValue }),
   }
-
-  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-  const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
-  const shouldAnnotate = annotate && nodes.length + edges.length <= maxAnnotatedItems
 
   if (!shouldAnnotate) {
     const metadataOnly = { ...graphData, metadata: nextMetadata }
     return cacheKey ? writeCachedEnrichedGraph(graphData, cacheKey, metadataOnly) : metadataOnly
   }
 
-  const nextNodes = nodes.map(node => {
+  let nextNodes: GraphNode[] | null = null
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!
     const id = String(node?.id || '').trim()
     const topology = id ? analysis.nodeTopologyById.get(id) : null
-    if (!topology) return node
+    if (!topology) continue
     const props = { ...readRecord((node as { properties?: unknown }).properties) }
     let changed = false
     changed = writeJsonProp(props, 'graph:degree', topology.degree as unknown as JSONValue) || changed
@@ -319,13 +359,17 @@ export function withGraphTopologyMetadata(args: {
     if (readFiniteNumber(props['visual:nodeSize']) == null && topology.degree > 0) {
       changed = writeJsonProp(props, 'visual:nodeSize', Math.min(48, 10 + Math.sqrt(topology.degree) * 4) as unknown as JSONValue) || changed
     }
-    return changed ? { ...node, properties: props as GraphNode['properties'] } : node
-  })
+    if (!changed) continue
+    if (!nextNodes) nextNodes = nodes.slice()
+    nextNodes[i] = { ...node, properties: props as GraphNode['properties'] }
+  }
 
-  const nextEdges = edges.map((edge, index) => {
+  let nextEdges: GraphEdge[] | null = null
+  for (let index = 0; index < edges.length; index += 1) {
+    const edge = edges[index]!
     const structural = analysis.structuralEdgeIndexSet.has(index)
     const resolved = analysis.resolvedEdgeIndexSet.has(index)
-    if (!structural && resolved) return edge
+    if (!structural && resolved) continue
     const props = { ...readRecord((edge as { properties?: unknown }).properties) }
     let changed = false
     if (structural) {
@@ -335,13 +379,15 @@ export function withGraphTopologyMetadata(args: {
       }
     }
     if (!resolved) changed = writeJsonProp(props, 'graph:endpointState', 'unresolved' as unknown as JSONValue) || changed
-    return changed ? { ...edge, properties: props as GraphEdge['properties'] } : edge
-  })
+    if (!changed) continue
+    if (!nextEdges) nextEdges = edges.slice()
+    nextEdges[index] = { ...edge, properties: props as GraphEdge['properties'] }
+  }
 
   const enriched: GraphData = {
     ...graphData,
-    nodes: nextNodes,
-    edges: nextEdges,
+    nodes: nextNodes || nodes,
+    edges: nextEdges || edges,
     metadata: nextMetadata,
   }
   return cacheKey ? writeCachedEnrichedGraph(graphData, cacheKey, enriched) : enriched

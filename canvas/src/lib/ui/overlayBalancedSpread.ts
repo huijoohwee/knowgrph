@@ -1,5 +1,8 @@
 export const BALANCED_OVERLAY_SPREAD_TARGET_ASPECT = 16 / 9
 export type BalancedSpreadViewportPreset = 'widgetCanvas' | 'widgetFrontmatter' | 'richMedia'
+const BALANCED_SPREAD_BASE_GAP_MIN_PX = 12
+const BALANCED_SPREAD_BASE_GAP_MAX_PX = 40
+const BALANCED_SPREAD_BASE_GAP_USABLE_WIDTH_RATIO = 0.012
 
 function clamp(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
@@ -177,6 +180,22 @@ export function computeBalancedSpreadViewportMargins(args: {
   const top = Math.max(profile.minTop, Math.floor(viewportH * profile.topRatio * verticalBias), Math.max(0, Math.floor(Number(args.minTopPx) || 0)))
   const bottom = Math.max(profile.minBottom, Math.floor(viewportH * profile.bottomRatio * verticalBias), Math.max(0, Math.floor(Number(args.minBottomPx) || 0)))
   return { left, right, top, bottom }
+}
+
+export function computeBalancedSpreadBaseGapPx(args: {
+  viewportW: number
+  viewportH: number
+  preset?: BalancedSpreadViewportPreset
+  margins?: { left: number; right: number; top?: number; bottom?: number } | null
+}): number {
+  const viewportW = Math.max(1, Number(args.viewportW) || 1)
+  const margins = args.margins || computeBalancedSpreadViewportMargins({
+    viewportW,
+    viewportH: Math.max(1, Number(args.viewportH) || 1),
+    preset: args.preset || 'widgetCanvas',
+  })
+  const usableW = Math.max(1, viewportW - Math.max(0, margins.left || 0) - Math.max(0, margins.right || 0))
+  return Math.max(BALANCED_SPREAD_BASE_GAP_MIN_PX, Math.min(BALANCED_SPREAD_BASE_GAP_MAX_PX, Math.round(usableW * BALANCED_SPREAD_BASE_GAP_USABLE_WIDTH_RATIO)))
 }
 
 export function isVerticalOverlayCluster(args: {
@@ -530,7 +549,7 @@ export function clampBalancedCollectiveScaleToViewport(args: {
   })
   const usableW = Math.max(1, viewportW - margins.left - margins.right)
   const usableH = Math.max(1, viewportH - margins.top - margins.bottom)
-  const baseGapPx = Math.max(12, Math.min(40, Math.round(usableW * 0.012)))
+  const baseGapPx = computeBalancedSpreadBaseGapPx({ viewportW, viewportH, preset: args.viewportPreset || 'widgetCanvas', margins })
   const gapPx = computeBalancedSpreadSpacingPx({
     baseGapPx,
     zoomK: 1,

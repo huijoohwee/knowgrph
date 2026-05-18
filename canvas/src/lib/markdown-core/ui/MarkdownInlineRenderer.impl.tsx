@@ -28,6 +28,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { InlineRenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
+import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/providers'
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
@@ -37,6 +38,7 @@ import {
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
 import { renderInlineHtmlToken } from './markdownInlineHtmlToken'
+import { YouTubeTimestampPreviewLink } from './MarkdownYouTubeTimestampPreviewLink'
 
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
 type KatexModule = typeof import('katex')
@@ -241,6 +243,14 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
                 return <React.Fragment key={k}>{p.value}</React.Fragment>
               }
               const anchor = buildAnchorAttrs(hrefRaw)
+              const preview = buildYouTubeTimestampPreviewDescriptor(hrefRaw)
+              if (preview) {
+                return (
+                  <YouTubeTimestampPreviewLink key={k} href={hrefRaw} anchor={anchor} preview={preview}>
+                    {hrefRaw}
+                  </YouTubeTimestampPreviewLink>
+                )
+              }
               return (
                 <a
                   key={k}
@@ -311,6 +321,14 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         return decoded.startsWith('^') ? `#${decoded}` : href
       })()
       const enforceRawHashCaretHref = rawHashHref.startsWith('#^')
+      const preview = buildYouTubeTimestampPreviewDescriptor(href)
+      if (preview) {
+        return (
+          <YouTubeTimestampPreviewLink key={key} href={href} anchor={anchor} preview={preview}>
+            {renderTokens(link.tokens, true)}
+          </YouTubeTimestampPreviewLink>
+        )
+      }
       return (
         <a
           key={key}

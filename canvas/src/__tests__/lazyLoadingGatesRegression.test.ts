@@ -286,8 +286,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
     throw new Error('expected Mermaid runtime to use the standard renderer branch')
   }
 
-  const threeGraphText = readFileSync(resolve(root, 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
-  if (!threeGraphText.includes("await import('three/examples/jsm/exporters/GLTFExporter.js')")) {
+  const threeGraphSnapshotsText = readFileSync(resolve(root, 'src', 'lib', 'three', 'ThreeGraphSnapshots.ts'), 'utf8')
+  if (!threeGraphSnapshotsText.includes("await import('three/examples/jsm/exporters/GLTFExporter.js')")) {
     throw new Error('expected ThreeGraph GLTF export path to lazy-load GLTFExporter')
   }
 

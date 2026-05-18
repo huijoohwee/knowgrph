@@ -4,13 +4,15 @@ import { resolve } from 'node:path'
 export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelper() {
   const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const authorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
+  const overlayPlacementRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
   const graphDataCommitActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataCommitActions.ts')
   const sharedText = readFileSync(sharedPath, 'utf8')
   const authorityText = readFileSync(authorityPath, 'utf8')
   const overlayText = readFileSync(overlayPath, 'utf8')
+  const overlayPlacementRuntimeText = readFileSync(overlayPlacementRuntimePath, 'utf8')
   const runtimeText = readFileSync(runtimeScenePath, 'utf8')
   const collisionText = readFileSync(collisionPath, 'utf8')
   const graphDataCommitActionsText = readFileSync(graphDataCommitActionsPath, 'utf8')
@@ -45,10 +47,10 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!overlayText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority')) {
     throw new Error('expected node overlay runtime to reuse the shared frontmatter floating screen-authority helper')
   }
-  if (!overlayText.includes('const storedWorld = floatingUsesScreenAuthority ? null : widgetWorldPosRef.current')) {
+  if (!overlayPlacementRuntimeText.includes('const storedWorld = floatingUsesScreenAuthority ? null : (currentStoredWorld || widgetWorldPosRef.current)')) {
     throw new Error('expected frontmatter floating screen-authority mode to ignore stored world positions as a placement authority')
   }
-  if (!overlayText.includes('persistWorldPos(nextWorld)')) {
+  if (!overlayPlacementRuntimeText.includes('persistWorldPos(nextWorld)')) {
     throw new Error('expected node overlay runtime to keep derived world positions synchronized for edge anchors and fit logic')
   }
   if (!runtimeText.includes('shouldAutoPlaceFlowEditorWidget')) {

@@ -12,6 +12,7 @@ import { MarkdownHtmlBlock } from './MarkdownHtmlBlock'
 import { MarkdownParagraphBlock } from './MarkdownParagraphBlock'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import { MarkdownFootnoteBlock } from './MarkdownFootnoteBlock'
+import { buildStandaloneMediaRenderLineSetFromTokens } from './standaloneMediaBudget'
 import type { MarkdownGeoDatasetIntegration, RenderOpts } from './MarkdownRendererTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { applyMediaProxySrc, isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
@@ -131,6 +132,10 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
   const topLevelBlock = nestingLevel <= 0
   const blockControlsEnabled = topLevelBlock
   const blockChromeEnabled = topLevelBlock && !markdownLargeDocumentMode
+  const standaloneMediaRenderLineSet = React.useMemo(() => buildStandaloneMediaRenderLineSetFromTokens({
+    markdownLargeDocumentMode: !!markdownLargeDocumentMode,
+    tokens,
+  }), [markdownLargeDocumentMode, tokens])
 
   let stickyHeadingCascadeBaseDepth = 7
   for (const t of tokens) {
@@ -171,6 +176,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownBlockGutterEnabled: blockChromeEnabled,
       markdownForcePlainTables: !!markdownForcePlainTables,
       markdownSourceLines,
+      standaloneMediaRenderLineSet,
       forbidCopy: !!forbidCopy,
       onInlineEditStateChange,
       deferMermaidRender: !!deferMermaidRender,
@@ -187,6 +193,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownPresentationMode,
       markdownForcePlainTables,
       markdownSourceLines,
+      standaloneMediaRenderLineSet,
       markdownWordWrap,
       forbidCopy,
       onInlineEditStateChange,

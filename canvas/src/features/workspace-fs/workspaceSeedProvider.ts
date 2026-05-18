@@ -8,10 +8,9 @@ import {
   type KnowgrphStorageExportResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import { readCachedWorkspaceDocsMirrorEntries, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
-const KG_FS_WRITE_PATH = '/__kg_fs_write'
-const KG_FS_LIST_PATH = '/__kg_fs_list'
-const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500
-const WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
+import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
+const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
+const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const normalizeRelPath = (value: string): string => {
   return String(value || '')
     .trim()
@@ -780,7 +779,7 @@ const buildWorkspaceSeedAbsolutePathCandidates = (args: {
 const readTextViaNodeFs = async (absolutePath: string): Promise<string | null> => {
   if (typeof window !== 'undefined') return null
   try {
-    const fs = (await import('node:fs/promises')) as typeof import('node:fs/promises')
+    const fs = await importNodeFsPromises()
     const text = String(await fs.readFile(absolutePath, 'utf8')).trim()
     return text || null
   } catch {
@@ -962,8 +961,8 @@ const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
 ): Promise<WorkspaceDocsMirrorEntry[]> => {
   if (typeof window !== 'undefined') return []
   try {
-    const fs = (await import('node:fs/promises')) as typeof import('node:fs/promises')
-    const path = (await import('node:path')) as typeof import('node:path')
+    const fs = await importNodeFsPromises()
+    const path = await importNodePath()
     const root = normalizeAbsRoot(docsAbsRoot)
     if (!root) return []
     const out: WorkspaceDocsMirrorEntry[] = []
@@ -1126,8 +1125,8 @@ export async function upsertWorkspaceInitializationSeedText(args: {
     return writeTextViaLocalFsProxy(absolutePath, args.text)
   }
   try {
-    const fs = (await import('node:fs/promises')) as typeof import('node:fs/promises')
-    const path = (await import('node:path')) as typeof import('node:path')
+    const fs = await importNodeFsPromises()
+    const path = await importNodePath()
     await fs.mkdir(path.dirname(absolutePath), { recursive: true })
     await fs.writeFile(absolutePath, String(args.text ?? ''), 'utf8')
     return true
@@ -1145,7 +1144,7 @@ export async function deleteWorkspaceInitializationSeedText(args: {
   })[0] || null
   if (!absolutePath || typeof window !== 'undefined') return false
   try {
-    const fs = (await import('node:fs/promises')) as typeof import('node:fs/promises')
+    const fs = await importNodeFsPromises()
     await fs.unlink(absolutePath)
     return true
   } catch {

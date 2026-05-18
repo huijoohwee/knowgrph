@@ -184,7 +184,7 @@ export function testRichMediaSsotConsistencyRegression() {
   const markdownMediaUiText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx'), 'utf8')
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
   const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
-  const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
+  const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'useThreeRichMediaOverlayController.tsx'), 'utf8')
 
   if (
     !flowCanvasGraphStateText.includes('listDisplayRichMediaOverlayNodes')
@@ -208,8 +208,8 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasGraphStateText.includes('excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet')) {
     throw new Error('expected FlowCanvas overlay pool to exclude Flow Editor Rich Media panel nodes from duplicate overlay panels')
   }
-  if (!flowCanvasGraphStateText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
-    throw new Error('expected FlowCanvas graph state to reuse the upstream Rich Media connected-value target helper')
+  if (!flowCanvasGraphStateText.includes('computeRichMediaOverlayConnectedValuesByNodeId({')) {
+    throw new Error('expected FlowCanvas graph state to reuse the upstream Rich Media connected-value derivation helper')
   }
   if (!flowCanvasGraphStateText.includes('isRichMediaConnectedValueTargetNode({ node, includeMediaSpecNodes: true })')) {
     throw new Error('expected FlowCanvas sticky Rich Media overlay validation to reuse the upstream node-level eligibility helper')

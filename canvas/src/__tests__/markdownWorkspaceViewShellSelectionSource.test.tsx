@@ -49,8 +49,6 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
         setExpandedPaths,
         resolveFolderContractDocPath: folderPath => folderPath,
         pickFolderContractTargetPath: () => null,
-        youtubeWorkspaceMeta: null,
-        switchActiveYoutubeWorkspaceFormat: async () => {},
         revealLineInEditor: () => {},
         setStatusWithAutoClear: () => {},
       })
@@ -102,6 +100,68 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
     } catch {
       void 0
     }
+    try {
+      await act(async () => {
+        root?.unmount()
+        await tick()
+      })
+    } catch {
+      void 0
+    }
+    harness.restore()
+  }
+}
+
+export async function testMarkdownWorkspaceViewShellKeepsYoutubeFormatOutOfSourceFileRow() {
+  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const entry: WorkspaceEntry = {
+      path: '/youtube-transcript.md',
+      parentPath: '/',
+      kind: 'file',
+      name: 'youtube-transcript.md',
+      text: '# Transcript',
+      updatedAtMs: 1,
+    }
+    const container = harness.dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    function TestHarness() {
+      const [folderModeContract, setFolderModeContract] = React.useState<'sitemap' | 'user-journey'>('sitemap')
+      const [, setExpandedPaths] = React.useState<Set<string>>(() => new Set())
+      const viewShell = useMarkdownWorkspaceViewShell({
+        entries: [{ path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 0 }, entry],
+        sourcesByPath: {},
+        folderModeContract,
+        setFolderModeContract,
+        selectionPath: entry.path,
+        selectionEntryKind: 'file',
+        setActivePathSafe: () => {},
+        setSelectionPathSafe: () => {},
+        setSelectionSource: () => {},
+        setExpandedPaths,
+        resolveFolderContractDocPath: folderPath => folderPath,
+        pickFolderContractTargetPath: () => null,
+        revealLineInEditor: () => {},
+        setStatusWithAutoClear: () => {},
+      })
+
+      return <section>{viewShell.renderSourceFileRight({ entry, isActive: true })}</section>
+    }
+
+    root = createRoot(container as unknown as HTMLElement)
+    await act(async () => {
+      root.render(<TestHarness />)
+      await tick()
+    })
+
+    const legacySelect = container.querySelector('select[aria-label="YouTube transcript format"]')
+    if (legacySelect) throw new Error('expected YouTube source file format control to avoid legacy select menu')
+    const rowControls = String(container.textContent || '').trim()
+    if (rowControls) throw new Error(`expected file-name right side format controls to be consolidated into the toolbar, got ${rowControls}`)
+  } finally {
     try {
       await act(async () => {
         root?.unmount()

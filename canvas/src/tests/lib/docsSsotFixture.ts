@@ -3,8 +3,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
+  TEST_VALIDATION_WORKSPACE_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 
 const DEFAULT_DOCS_SSOT_CACHE_DIR = path.join(os.tmpdir(), 'knowgrph-docs-ssot-fixtures')
@@ -14,7 +14,7 @@ const DEFAULT_DOCS_SSOT_CANONICAL_PREFIX = 'huijoohwee/docs'
 const DOCS_SSOT_REQUEST_TIMEOUT_SECONDS = '20'
 
 export const KNOWGRPH_VIDEO_DEMO_BASENAME = TEST_VALIDATION_WORKSPACE_SEED_BASENAME
-export const KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH = LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH
+export const KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH = TEST_VALIDATION_WORKSPACE_SEED_PATH
 
 const fetchedFixtureTextByBasename = new Map<string, string>()
 const fetchedFixturePathByBasename = new Map<string, string>()

@@ -5567,15 +5567,13 @@ export default defineConfig(({ command }) => ({
                 ) {
                   return 'panel-hubs'
                 }
-                if (moduleId.includes('/src/features/panels/views/graph-fields/') || moduleId.includes('/src/features/schema/ui/')) {
-                  return 'panel-graph-fields'
-                }
-                if (
-                  moduleId.includes('/src/features/panels/') ||
-                  moduleId.includes('/src/lib/panels/')
-                ) {
-                  return 'panels'
-                }
+                if (moduleId.includes('/src/features/panels/views/graph-fields/') || moduleId.includes('/src/features/schema/ui/')) return 'panel-graph-fields'
+                if (moduleId.includes('/src/features/panels/ui/')) return 'panel-ui'
+                if (moduleId.includes('/src/features/panels/hooks/') || moduleId.includes('/src/lib/panels/hooks/')) return 'panel-hooks'
+                if (moduleId.includes('/src/features/panels/utils/')) return 'panel-utils'
+                if (moduleId.includes('/src/features/panels/config.ts') || moduleId.includes('/src/features/panels/constants.ts') || moduleId.includes('/src/features/panels/mainPanelTabs.ts')) return 'panel-core'
+                if (moduleId.includes('/src/lib/panels/views/RenderSettingsSection') || moduleId.includes('/src/lib/panels/views/ThreeViewLayoutSection')) return 'panel-render-settings'
+                if (moduleId.includes('/src/features/panels/') || moduleId.includes('/src/lib/panels/')) return 'panels'
                 if (moduleId.includes('/src/features/settings/registry')) return 'settings-registry'
                 if (moduleId.includes('/src/features/settings/') || moduleId.includes('/src/lib/settings/')) return 'settings'
                 if (moduleId.includes('/src/features/schema-editor/')) return 'schema-editor'

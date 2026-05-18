@@ -786,7 +786,7 @@ export default function FlowCanvasMediaOverlays(args: {
             flowEditorInteractionMode={flowEditorOverlayInteractionMode}
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
             flowEditorSurfaceId={flowEditorOverlaySurfaceId}
-            style={{ transform: `translate(${Math.max(-99999, -mediaViewportMargins.left)}px, ${Math.max(-99999, -mediaViewportMargins.top)}px)`, width: 1, height: 1, zIndex: overlayZIndex }}
+            style={{ transform: `translate(${Math.max(-99999, -mediaViewportMargins.left)}px, ${Math.max(-99999, -mediaViewportMargins.top)}px)`, width: 1, height: 1, visibility: workspaceOverlayOpen ? 'hidden' : undefined, zIndex: overlayZIndex }}
             onWheelCapture={workspaceOverlayOpen ? undefined : stopEvent}
             onClickCapture={workspaceOverlayOpen ? undefined : stopEvent}
             onDoubleClickCapture={workspaceOverlayOpen ? undefined : stopEvent}

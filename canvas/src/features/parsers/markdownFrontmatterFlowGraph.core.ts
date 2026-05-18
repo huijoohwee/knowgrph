@@ -51,6 +51,7 @@ import {
 import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
+import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 
 function guessJsonTypeLabel(value: unknown): string {
   if (value == null) return 'null'
@@ -202,11 +203,10 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
   const SHOT_WIDGET_COL_GAP_X = WIDGET_BASE_SIZE.width + 160
   const SHOT_PANEL_OFFSET_Y = WIDGET_BASE_SIZE.height + 140
   const SHOT_ROW_GAP_Y = SHOT_PANEL_OFFSET_Y + WIDGET_BASE_SIZE.height + 160
-  const SHOT_BAND_SEPARATION_Y = Math.round(WIDGET_BASE_SIZE.width * 0.9)
   const authoredCenterX = (bounds.minX + bounds.maxX) / 2
-  const authoredBandBottomY = bounds.hasPositionedNodes ? bounds.maxY : -SHOT_ROW_GAP_Y
+  const authoredCenterY = bounds.hasPositionedNodes ? (bounds.minY + bounds.maxY) / 2 : 0
   const GRID_START_X = authoredCenterX
-  const GRID_START_Y = authoredBandBottomY + Math.max(WIDGET_BASE_SIZE.height, SHOT_PANEL_OFFSET_Y) + SHOT_BAND_SEPARATION_Y
+  const GRID_START_Y = authoredCenterY
   const frontmatterSettings = readFrontmatterFlowRenderSettings(
     { metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: meta.frontmatterFlowSettings } } as unknown as GraphData,
   )
@@ -240,9 +240,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
     keys: ['model', 'ratio', 'resolution', 'duration', 'generate_audio', 'draft', 'camera_fixed', 'image_url_url'],
   })
 
-  const appendConnection = (from: string, to: string, label: string) => {
-    connections.push({ from, to, label, animated: true })
-  }
+  const appendConnection = (from: string, to: string, label: string, layoutLane: number) => appendFrontmatterBalancedConnection(connections, from, to, label, layoutLane)
 
   const appendNode = (node: Record<string, unknown>) => {
     const id = String(node.id || '').trim()
@@ -306,8 +304,8 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
     const durationSeconds = parseDurationSeconds(shot.duration)
     if (durationSeconds != null) addField('duration_seconds', durationSeconds)
 
-    const shotMarkdown = buildShotMarkdown({ ...shot, shot: shotId })
-    appendNode({
+    const appendCollectiveNode = (role: string, roleIndex: number, node: Record<string, unknown>) => appendNode(withFrontmatterCollectiveRoleProperties(node, { itemKey: shotId, itemIndex: i, role, roleIndex }))
+    appendCollectiveNode('text', 0, {
       id: textNodeId,
       type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
       label: `Shot ${shotId} · Text`,
@@ -316,11 +314,11 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
         ...textDefaults,
         ...fieldValues,
         [FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]: fieldSpecs,
-        output: shotMarkdown,
+        output: buildShotMarkdown({ ...shot, shot: shotId }),
         'visual:zIndex': 0,
       },
     })
-    appendNode({
+    appendCollectiveNode('textPanel', 0, {
       id: textPanelId,
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `Shot ${shotId} · Panel (Text)`,
@@ -333,7 +331,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
     })
 
     const imagePrompt = String(shot.image_prompt || '').trim()
-    appendNode({
+    appendCollectiveNode('image', 1, {
       id: imageNodeId,
       type: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
       label: `Shot ${shotId} · Image`,
@@ -345,7 +343,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
         'visual:zIndex': 0,
       },
     })
-    appendNode({
+    appendCollectiveNode('imagePanel', 1, {
       id: imagePanelId,
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `Shot ${shotId} · Panel (Image)`,
@@ -359,7 +357,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
 
     const videoPrompt = String(shot.video_prompt || '').trim()
     const durationOverride = durationSeconds != null ? { duration: durationSeconds } : null
-    appendNode({
+    appendCollectiveNode('video', 2, {
       id: videoNodeId,
       type: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
       label: `Shot ${shotId} · Video`,
@@ -372,7 +370,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
         'visual:zIndex': 0,
       },
     })
-    appendNode({
+    appendCollectiveNode('videoPanel', 2, {
       id: videoPanelId,
       type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
       label: `Shot ${shotId} · Panel (Video)`,
@@ -384,11 +382,12 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       },
     })
 
-    appendConnection(`${textNodeId}.text_out`, `${textPanelId}.output`, 'text_out → output')
-    appendConnection(`${textNodeId}.outputSrcDoc`, `${textPanelId}.outputSrcDoc`, 'outputSrcDoc → outputSrcDoc')
-    appendConnection(`${imageNodeId}.imageUrl`, `${imagePanelId}.imageUrl`, 'imageUrl → imageUrl')
-    appendConnection(`${imageNodeId}.imageUrl`, `${videoNodeId}.reference_image`, 'imageUrl → reference_image')
-    appendConnection(`${videoNodeId}.videoUrl`, `${videoPanelId}.videoUrl`, 'videoUrl → videoUrl')
+    const laneSign = i % 2 === 0 ? 1 : -1
+    appendConnection(`${textNodeId}.text_out`, `${textPanelId}.output`, 'text_out → output', laneSign)
+    appendConnection(`${textNodeId}.outputSrcDoc`, `${textPanelId}.outputSrcDoc`, 'outputSrcDoc → outputSrcDoc', -laneSign)
+    appendConnection(`${imageNodeId}.imageUrl`, `${imagePanelId}.imageUrl`, 'imageUrl → imageUrl', laneSign)
+    appendConnection(`${imageNodeId}.imageUrl`, `${videoNodeId}.reference_image`, 'imageUrl → reference_image', 0)
+    appendConnection(`${videoNodeId}.videoUrl`, `${videoPanelId}.videoUrl`, 'videoUrl → videoUrl', -laneSign)
   }
 
   meta.nodes = rawNodes
@@ -488,10 +487,12 @@ function buildDirectorBriefShotLayoutConfig(args: {
     { minX: Number.POSITIVE_INFINITY, minY: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, maxY: Number.NEGATIVE_INFINITY },
   )
   const shotBandWidth = Number.isFinite(shotBounds.maxX - shotBounds.minX) ? Math.max(1, shotBounds.maxX - shotBounds.minX) : shotGridCols * shotCellWidth
+  const shotBandHeight = Number.isFinite(shotBounds.maxY - shotBounds.minY) ? Math.max(1, shotBounds.maxY - shotBounds.minY) : Math.ceil(Math.max(1, args.shotCount) / Math.max(1, shotGridCols)) * shotCellHeight
   const shotBandMinX = Number.isFinite(shotBounds.minX) ? shotBounds.minX : 0
+  const shotBandMinY = Number.isFinite(shotBounds.minY) ? shotBounds.minY : 0
   const shotOrigins = shotCells.map(cell => ({
     x0: args.startX - shotBandWidth / 2 + (cell.left - shotBandMinX),
-    y0: args.startY + cell.top,
+    y0: args.startY - shotBandHeight / 2 + (cell.top - shotBandMinY),
   }))
 
   return {
@@ -1509,7 +1510,6 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     registry: normalized.registry,
     subgraphs,
   })
-
   const graphData: GraphData = {
     type: 'Graph',
     context: 'frontmatter-flow',

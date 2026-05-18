@@ -13,6 +13,7 @@ import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorC
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { buildFlowRunAllNodeSequence, type FlowRunAllPhaseId } from '@/lib/flowEditor/runAllSequenceSsot'
 import { readFlowEditorRuntimeCacheEntry, writeFlowEditorRuntimeCacheEntry } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeCache'
+import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCurveOptions } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 
 export type FlowEditorRenderGraphLookup = {
   graph: GraphData | null
@@ -308,6 +309,7 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
     const inPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'in') || FLOW_HANDLE_DEFAULT_EDGE_ID
     defaultPortKeyByNodeId.set(id, { out: outPortKey, in: inPortKey })
   }
+  const overlayNodeById = buildFrontmatterOverlayNodeLookup(nodes)
 
   const rawEdgeById = new Map<string, GraphEdge>()
   const edgeCurveById = new Map<string, { bend: number; orbitShift: number; orbital: boolean; phase: -1 | 1 } | null>()
@@ -338,17 +340,10 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
       || defaultPortKeyByNodeId.get(target)?.in
       || FLOW_HANDLE_DEFAULT_EDGE_ID
     rawEdgeById.set(id, edge)
-    const propsRecord = props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : null
-    const isFrontmatterFlow = String(baseGraph.graphMetaKind || '').trim() === 'frontmatter-flow'
-    const heroRowCurve = isFrontmatterFlow && source !== target && /^db-shot-S0[1-5]-/.test(source) && /^db-shot-S0[1-5]-/.test(target)
-      ? {
-          bend: propsRecord?.['visual:curveBend'] == null ? 0.16 : Number(propsRecord['visual:curveBend']),
-          orbitShift: propsRecord?.['visual:orbitShift'] == null ? 0.1 : Number(propsRecord['visual:orbitShift']),
-          orbital: propsRecord?.['visual:curveInterpolator'] == null ? true : String(propsRecord['visual:curveInterpolator']).trim().toLowerCase() === 'orbital',
-          phase: (source.localeCompare(target) <= 0 ? 1 : -1) as 1 | -1,
-        }
-      : null
-    edgeCurveById.set(id, heroRowCurve)
+    const semanticEdgeCurve = resolveFrontmatterOverlayEdgeCurveOptions({
+      graphMetaKind: baseGraph.graphMetaKind, edge, sourceNode: overlayNodeById.get(source) || null, targetNode: overlayNodeById.get(target) || null, sourceId: source, targetId: target,
+    })
+    edgeCurveById.set(id, semanticEdgeCurve)
     edges.push({
       id,
       source,

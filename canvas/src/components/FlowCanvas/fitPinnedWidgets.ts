@@ -12,7 +12,7 @@ import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatte
 import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
+import { computeBalancedSpreadBaseGapPx, computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 
 export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 
@@ -114,12 +114,6 @@ export function fitFlowEditorPinnedWidgets(args: {
       graphData: args.graphData,
       fallbackPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
     })
-    const spacingPx = computeBalancedSpreadSpacingPx({
-      baseGapPx: 24,
-      zoomK: kGuess,
-      count: Math.max(1, pinned.length),
-      preset: balancedViewportPreset,
-    })
     const margins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
@@ -128,6 +122,17 @@ export function fitFlowEditorPinnedWidgets(args: {
       minRightPx: 20,
       minTopPx: isFrontmatterOverlayFit ? 64 : 96,
       minBottomPx: 24,
+    })
+    const spacingPx = computeBalancedSpreadSpacingPx({
+      baseGapPx: computeBalancedSpreadBaseGapPx({
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        preset: balancedViewportPreset,
+        margins,
+      }),
+      zoomK: kGuess,
+      count: Math.max(1, pinned.length),
+      preset: balancedViewportPreset,
     })
     const balanced = computeBalancedSpreadLayout({
       count: Math.max(1, pinned.length),
@@ -181,8 +186,8 @@ export function fitFlowEditorPinnedWidgets(args: {
         return { left, top }
       })()
 
-      const left = storedX != null ? storedX : (fallback ? fallback.left : null)
-      const top = storedY != null ? storedY : (fallback ? fallback.top : null)
+      const left = !isFrontmatterOverlayFit && storedX != null ? storedX : (fallback ? fallback.left : storedX)
+      const top = !isFrontmatterOverlayFit && storedY != null ? storedY : (fallback ? fallback.top : storedY)
       if (left == null || top == null) continue
       const centerX = left + panelW / 2
       const centerY = top + panelH / 2

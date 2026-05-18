@@ -11,15 +11,14 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { applyPanelBox } from '@/lib/render/mediaPanelLayout'
-import { listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
+import { computeRichMediaOverlayConnectedValuesByNodeId, listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { buildNodeMediaInventory, getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -135,24 +134,15 @@ export function useRichMediaOverlays2d(args: {
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
-    const richMediaPanelNodeIds = new Set<string>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]
-      if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
-      const id = String(node?.id || '').trim()
-      if (id) richMediaPanelNodeIds.add(id)
-    }
     const metadata = (sceneGraphData?.metadata || {}) as Record<string, unknown>
     const registry = readWidgetRegistryMetadataEntries<WidgetRegistryEntry>(metadata)
-    const connectedValuesByNodeId = richMediaPanelNodeIds.size > 0
-      ? computeFlowConnectedValuesBySchemaPath({
+    const connectedValuesByNodeId = computeRichMediaOverlayConnectedValuesByNodeId({
         graphData: sceneGraphData,
         registry,
-        targetNodeIds: richMediaPanelNodeIds,
         graphRevision: graphDataRevision,
         graphSemanticKey: sceneGraphSemanticKey,
+        includeMediaSpecNodes: true,
       })
-      : undefined
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
       canvas2dRenderer,

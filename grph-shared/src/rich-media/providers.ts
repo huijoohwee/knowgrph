@@ -1,33 +1,89 @@
+import { hashStringToHex } from '../hash/stringHash.js'
+
 export type YouTubeEmbedOptions = {
   noCookie?: boolean
   includeOrigin?: boolean
   origin?: string | null
 }
 
-export function getYouTubeId(href: string): string | null {
+export type RichMediaPreviewKind = 'timestamp-embed' | 'thumbnail'
+
+export type RichMediaPreviewDescriptor = {
+  provider: 'youtube'
+  kind: RichMediaPreviewKind
+  sourceUrl: string
+  semanticKey: string
+  timestampLabel?: string
+  startSeconds?: number
+  embedUrl?: string
+  thumbnailUrl?: string
+}
+
+export function buildRichMediaPreviewSemanticKey(parts: Array<string | number | boolean | null | undefined>): string {
+  const signature = parts
+    .map(part => {
+      if (part == null) return ''
+      if (typeof part === 'boolean') return part ? '1' : '0'
+      if (typeof part === 'number') return Number.isFinite(part) ? String(part) : ''
+      return String(part)
+    })
+    .join('|')
+  return `rich-media-preview:${hashStringToHex(signature)}`
+}
+
+const normalizeYouTubeIdLikeValue = (value: string): string | null => {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  return /^[A-Za-z0-9_-]{6,128}$/.test(raw) ? raw : null
+}
+
+const readYouTubeIdFromUrl = (href: string): string | null => {
   try {
     const url = new URL(String(href || '').trim())
     const host = String(url.hostname || '').toLowerCase()
     if (host === 'youtu.be' || host.endsWith('.youtu.be')) {
       const id = url.pathname.replace(/^\/+/, '').split('/')[0]?.trim() || ''
-      return id || null
+      return normalizeYouTubeIdLikeValue(id)
     }
-    if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+    if (
+      host === 'youtube.com' ||
+      host.endsWith('.youtube.com') ||
+      host === 'youtube-nocookie.com' ||
+      host.endsWith('.youtube-nocookie.com')
+    ) {
       const v = String(url.searchParams.get('v') || '').trim()
-      if (v) return v
+      if (v) return normalizeYouTubeIdLikeValue(v)
       const parts = url.pathname.split('/').filter(Boolean)
       const head = parts[0] || ''
       const id = parts[1] || ''
-      if ((head === 'embed' || head === 'shorts' || head === 'live') && id) return id
+      if ((head === 'embed' || head === 'shorts' || head === 'live') && id) return normalizeYouTubeIdLikeValue(id)
       if (head === 'watch') {
         const maybe = String(url.searchParams.get('v') || '').trim()
-        return maybe || null
+        return normalizeYouTubeIdLikeValue(maybe)
       }
     }
   } catch {
     return null
   }
   return null
+}
+
+export function stripYouTubeUrlTrailingPunctuation(value: string): string {
+  let raw = String(value || '').trim().replace(/^<|>$/g, '').trim()
+  while (/[),.;:!?]$/.test(raw)) {
+    const next = raw.slice(0, -1).trim()
+    if (!next) break
+    const currentId = readYouTubeIdFromUrl(raw)
+    const nextId = readYouTubeIdFromUrl(next)
+    if (!nextId) break
+    if (currentId && currentId !== nextId) break
+    raw = next
+  }
+  return raw
+}
+
+export function getYouTubeId(href: string): string | null {
+  return readYouTubeIdFromUrl(stripYouTubeUrlTrailingPunctuation(href))
 }
 
 export function parseYouTubeStartSeconds(href: string): number | null {
@@ -44,13 +100,23 @@ export function parseYouTubeStartSeconds(href: string): number | null {
     return out > 0 && Number.isFinite(out) ? out : null
   }
   try {
-    const u = new URL(String(href || '').trim())
+    const u = new URL(stripYouTubeUrlTrailingPunctuation(href))
     const fromQuery = u.searchParams.get('t') || u.searchParams.get('start') || ''
     const fromHash = u.hash ? new URLSearchParams(u.hash.replace(/^#/, '')).get('t') || '' : ''
     return parseChunk(fromQuery) ?? parseChunk(fromHash)
   } catch {
     return null
   }
+}
+
+export function formatMediaTimestampSeconds(seconds: number): string {
+  const safe = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0))
+  const h = Math.floor(safe / 3600)
+  const m = Math.floor((safe % 3600) / 60)
+  const s = safe % 60
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m)
+  const ss = String(s).padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
 }
 
 export function buildYouTubeEmbedUrl(href: string, opts?: YouTubeEmbedOptions): string | null {
@@ -72,6 +138,49 @@ export function buildYouTubeEmbedUrl(href: string, opts?: YouTubeEmbedOptions): 
   const host = opts?.noCookie === false ? 'www.youtube.com' : 'www.youtube-nocookie.com'
   const q = params.toString()
   return `https://${host}/embed/${id}${q ? `?${q}` : ''}`
+}
+
+export function buildYouTubeThumbnailUrl(value: string): string | null {
+  const id = getYouTubeId(value) || normalizeYouTubeIdLikeValue(value)
+  if (!id) return null
+  return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`
+}
+
+export function buildYouTubeThumbnailPreviewDescriptor(value: string): RichMediaPreviewDescriptor | null {
+  const sourceUrl = stripYouTubeUrlTrailingPunctuation(value)
+  const id = getYouTubeId(sourceUrl) || normalizeYouTubeIdLikeValue(sourceUrl)
+  if (!id) return null
+  const thumbnailUrl = buildYouTubeThumbnailUrl(id)
+  if (!thumbnailUrl) return null
+  return {
+    provider: 'youtube',
+    kind: 'thumbnail',
+    sourceUrl,
+    thumbnailUrl,
+    semanticKey: buildRichMediaPreviewSemanticKey(['youtube', 'thumbnail', id, thumbnailUrl]),
+  }
+}
+
+export function buildYouTubeTimestampPreviewDescriptor(
+  href: string,
+  opts?: YouTubeEmbedOptions,
+): RichMediaPreviewDescriptor | null {
+  const sourceUrl = stripYouTubeUrlTrailingPunctuation(href)
+  const id = getYouTubeId(sourceUrl)
+  const startSeconds = parseYouTubeStartSeconds(sourceUrl)
+  if (!id || startSeconds == null || !Number.isFinite(startSeconds)) return null
+  const embedUrl = buildYouTubeEmbedUrl(sourceUrl, opts)
+  if (!embedUrl) return null
+  const timestampLabel = formatMediaTimestampSeconds(startSeconds)
+  return {
+    provider: 'youtube',
+    kind: 'timestamp-embed',
+    sourceUrl,
+    embedUrl,
+    startSeconds,
+    timestampLabel,
+    semanticKey: buildRichMediaPreviewSemanticKey(['youtube', 'timestamp-embed', id, startSeconds, embedUrl]),
+  }
 }
 
 export function getTwitterStatusId(href: string): string | null {

@@ -4,6 +4,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
+import { readLocalDocDeepLinkPathFromCurrentLocation } from '@/features/canvas/canvasDocDeepLink'
 
 export function resolveInitialMarkdownExplorerActivePath(value: unknown): WorkspacePath | null {
   const v = typeof value === 'string' ? value : null
@@ -24,12 +25,18 @@ type MarkdownExplorerState = {
   requestRevealLine: (line: number | null) => void
 }
 
-export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
-  activePath: lsJson(
+function readInitialMarkdownExplorerActivePath(): WorkspacePath | null {
+  const deepLinkPath = resolveInitialMarkdownExplorerActivePath(readLocalDocDeepLinkPathFromCurrentLocation())
+  if (deepLinkPath) return deepLinkPath
+  return lsJson(
     LS_KEYS.markdownExplorerActivePath,
     null as WorkspacePath | null,
     resolveInitialMarkdownExplorerActivePath,
-  ),
+  )
+}
+
+export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
+  activePath: readInitialMarkdownExplorerActivePath(),
   requestedRevealLine: null,
   lastSetActivePath: null,
   setActivePath: (path: WorkspacePath | null) => {

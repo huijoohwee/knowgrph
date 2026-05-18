@@ -5,8 +5,9 @@ export function resolveInitialMarkdownWorkspaceSelectionPath(args: {
   selectionPath: WorkspacePath | null
   activePath: WorkspacePath | null
 }): WorkspacePath | null {
-  if (args.selectionPath) return null
-  return args.activePath || null
+  if (!args.activePath) return null
+  if (args.selectionPath === args.activePath) return null
+  return args.activePath
 }
 
 export function resolveInvalidatedMarkdownWorkspaceSelectionPath(args: {

@@ -7,18 +7,13 @@ import {
   expandWorkspaceSeedFileEntries,
   GEOSPATIAL_WORKSPACE_SEED_BASENAME,
   GEOSPATIAL_WORKSPACE_SEED_PATH,
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
-  LEGACY_WORKSPACE_README_PATH,
-  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-  LEGACY_WORKSPACE_README_TEXT,
   TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
   getWorkspaceSeedFiles,
   isInitializationWorkspacePath,
   WORKSPACE_README_SEED_BASENAME,
   WORKSPACE_README_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  shouldMigrateLegacyWorkspaceSeedPaths,
+  shouldPreserveFallbackWorkspaceSeedText,
 } from './workspaceFs'
 import { upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedProvider'
@@ -262,32 +257,12 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
       ? await readWorkspaceInitializationDocsMirrorEntries()
       : []
     const hasDocsMirrorFiles = docsMirrorEntries.length > 0
-    const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
-    const legacy = await collections.entries.findOne(legacyPath).exec()
-    if (legacy && legacy.get('kind') === 'file' && String(legacy.get('text') ?? '') === LEGACY_WORKSPACE_README_TEXT) {
-      await legacy.remove()
-      changed = true
-    }
-    const fileRows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
-    const existingFilePaths = fileRows
-      .map(row => normalizeWorkspacePath(String(row.get('path') || '')))
-      .filter((path): path is WorkspacePath => Boolean(path))
-    if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
-      for (let i = 0; i < fileRows.length; i += 1) {
-        await fileRows[i]!.remove()
-        changed = true
-      }
-    }
     const hasAnyFilesNow = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length > 0)
     if (docsOnlyMode && hasDocsMirrorFiles) {
       const rootSeedPaths = new Set<WorkspacePath>([
         WORKSPACE_README_SEED_PATH,
         TEST_VALIDATION_WORKSPACE_SEED_PATH,
         GEOSPATIAL_WORKSPACE_SEED_PATH,
-        LEGACY_WORKSPACE_README_PATH,
-        LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-        LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-        LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
       ])
       const rows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
       for (let i = 0; i < rows.length; i += 1) {
@@ -347,7 +322,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
           }
           if (!row || row.get('kind') !== 'file') continue
           const currentText = String(row.get('text') ?? '')
-          if (seed.isFallback && currentText.trim().length > 0) continue
+          if (seed.isFallback && shouldPreserveFallbackWorkspaceSeedText(currentText)) continue
           const nextText = String(seed.text ?? '')
           if (currentText === nextText) continue
           const entry = buildWorkspaceSeedFileEntry(path, nextText, Date.now())

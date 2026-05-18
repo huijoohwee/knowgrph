@@ -321,6 +321,62 @@ export function testFrontmatterOverlayFitAvoidsTinyGraphFitBootstrapWhenPinnedNo
   }
 }
 
+export function testFrontmatterOverlayFitUsesSemanticBalancedFallbackOverStaleWorldPositions() {
+  const ids = ['w-text', 'w-image', 'w-video', 'p-panel']
+  const fit = fitFlowEditorPinnedWidgets({
+    nodes: ids.map((id, index) => ({
+      id,
+      type: id === 'p-panel' ? 'RichMediaPanel' : FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      label: id,
+      x: index * 240,
+      y: index * 80,
+      properties: {
+        'visual:width': 120,
+        'visual:height': 80,
+        'visual:shape': 'rect',
+        'flow:widgetFormId': `fm:${id}`,
+      },
+    })) as never,
+    fitW: 1920,
+    viewportH: 1080,
+    viewportW: 1920,
+    openWidgetNodeIds: [],
+    pinnedById: ids.reduce<Record<string, boolean>>((acc, id) => {
+      acc[id] = true
+      return acc
+    }, {}),
+    worldPosById: {
+      'w-text': { x: 0, y: 0 },
+      'w-image': { x: 0, y: 4800 },
+      'w-video': { x: 0, y: 9600 },
+      'p-panel': { x: 0, y: 14400 },
+    },
+    portExtraPadScreenPx: 0,
+    fitOpts: { pad: 40, minScale: 0.01, maxScale: 10 } as never,
+    graphData: {
+      type: 'application/json',
+      context: 'frontmatter-flow',
+      metadata: {
+        kind: 'frontmatter-flow',
+        flowWidgetRegistry: ids.map(id => ({ formId: `fm:${id}` })),
+      },
+      nodes: ids.map((id, index) => ({
+        id,
+        type: id === 'p-panel' ? 'RichMediaPanel' : FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        label: id,
+        x: index * 240,
+        y: index * 80,
+        properties: { 'flow:widgetFormId': `fm:${id}` },
+      })),
+      edges: [],
+    } as never,
+  })
+
+  if (!(fit.k > 0.5)) {
+    throw new Error(`expected frontmatter overlay fit to neutralize stale vertical world positions through semantic balanced fallback, got scale=${fit.k}`)
+  }
+}
+
 export function testFrontmatterOverlayFitIgnoresStaleExplicitOpenIdsOutsideCanonicalCollective() {
   const fit = fitFlowEditorPinnedWidgets({
     nodes: [

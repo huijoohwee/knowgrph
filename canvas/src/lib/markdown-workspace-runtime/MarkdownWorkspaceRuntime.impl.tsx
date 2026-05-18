@@ -468,8 +468,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setExpandedPaths,
     resolveFolderContractDocPath: explorerState.resolveFolderContractDocPath,
     pickFolderContractTargetPath: explorerState.pickFolderContractTargetPath,
-    youtubeWorkspaceMeta: derivedViews.youtubeWorkspaceMeta,
-    switchActiveYoutubeWorkspaceFormat: derivedViews.switchActiveYoutubeWorkspaceFormat,
     revealLineInEditor: interactionState.revealLineInEditor,
     setStatusWithAutoClear,
   })
@@ -558,6 +556,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         webpageWorkspaceMeta={derivedViews.webpageWorkspaceMeta}
         onWebpageChangeView={view => void derivedViews.switchActiveWebpageWorkspaceView(view)}
         onWebpageUpdateMeta={patch => void derivedViews.updateActiveWebpageWorkspaceMeta(patch)}
+        contentFormat={null}
+        onContentFormatChange={undefined}
         activeText={effectiveContent.effectiveActiveText}
         setActiveText={effectiveContent.effectiveSetActiveText}
         editorTextOverride={effectiveContent.effectiveEditorTextOverride}

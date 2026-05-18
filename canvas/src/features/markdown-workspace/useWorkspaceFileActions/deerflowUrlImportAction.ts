@@ -64,8 +64,8 @@ export async function importUrlViaDeerFlowAndApply(args: {
         import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
         import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
         import('@/features/markdown-workspace/workspaceImport') as Promise<typeof import('@/features/markdown-workspace/workspaceImport')>,
-        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
         >,
       ])
 

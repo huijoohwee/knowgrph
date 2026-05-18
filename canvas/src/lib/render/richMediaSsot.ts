@@ -1,5 +1,6 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
 } from '@/lib/flowEditor/richMediaPanelConfig'
@@ -354,6 +355,32 @@ export function listDisplayRichMediaOverlayNodes(args: {
     excludeNodeIdSet: args.excludeNodeIdSet,
     connectedValuesByNodeId: args.connectedValuesByNodeId,
     nodeById: args.nodeById,
+  })
+}
+
+export function computeRichMediaOverlayConnectedValuesByNodeId(args: {
+  graphData: GraphData | null | undefined
+  registry: ReadonlyArray<WidgetRegistryEntry> | null | undefined
+  graphRevision?: number
+  graphSemanticKey?: string
+  extraNodeIds?: ReadonlyArray<string> | ReadonlySet<string> | null | undefined
+  includeMediaSpecNodes?: boolean
+}): ReadonlyMap<string, FlowConnectedValuesBySchemaPath> {
+  const graphData = args.graphData
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  if (!graphData || nodes.length === 0) return new Map()
+  const targetNodeIds = buildRichMediaConnectedValueTargetNodeIdSet({
+    nodes,
+    extraNodeIds: args.extraNodeIds,
+    includeMediaSpecNodes: args.includeMediaSpecNodes === true,
+  })
+  if (targetNodeIds.size === 0) return new Map()
+  return computeFlowConnectedValuesBySchemaPath({
+    graphData,
+    registry: Array.isArray(args.registry) ? args.registry : [],
+    targetNodeIds,
+    graphRevision: args.graphRevision,
+    graphSemanticKey: args.graphSemanticKey,
   })
 }
 

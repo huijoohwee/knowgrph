@@ -11,35 +11,10 @@ import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMar
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY } from '@/lib/render/effectiveMediaNode'
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
+import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 
-export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'iframe'] as const
-export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
-export const DEFAULT_NODE_MEDIA_KIND: NodeMediaKind = NODE_MEDIA_KINDS[0]
-
-export function patchNodeMediaProperties(args: {
-  properties?: Record<string, unknown> | null | undefined
-  kind?: unknown
-  url?: unknown
-  interactive?: unknown
-}): Record<string, unknown> {
-  const next = { ...(args.properties || {}) }
-  const normalizedUrl = coerceMediaUrl(args.url)
-  if (!normalizedUrl) {
-    delete next.media_url
-    delete next.media_kind
-    delete next.media_interactive
-    return next
-  }
-  const kindRaw = String(args.kind || '').trim().toLowerCase()
-  const normalizedKind = NODE_MEDIA_KINDS.includes(kindRaw as NodeMediaKind)
-    ? (kindRaw as NodeMediaKind)
-    : DEFAULT_NODE_MEDIA_KIND
-  next.media_url = normalizedUrl
-  next.media_kind = normalizedKind
-  if (args.interactive === true) next.media_interactive = true
-  else delete next.media_interactive
-  return next
-}
+export { DEFAULT_NODE_MEDIA_KIND, NODE_MEDIA_KINDS, patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
+export type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 
 export type NodeMediaSpec = {
   kind: NodeMediaKind

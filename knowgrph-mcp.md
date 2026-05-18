@@ -184,7 +184,6 @@ From a pipeline run, you typically get:
 - **GraphData** (input and/or intermediate): `graph.json`
 - **A0 CSV**: `a0.csv` (universal CSV schema pattern)
 - **A0 JSON-LD**: `a0.jsonld`
-- **Optional RDF Turtle**: `a0.ttl`
 - **Runtime events**: `runtime-events.jsonl` (for debugging + audit)
 
 ### 6.3 How UI consumes data
@@ -272,4 +271,3 @@ Next tools (if needed, but keep Lean):
 - [ ] MCP server remains stdio (local) unless you explicitly add remote transport
 - [ ] No secrets committed (`credentials.json` remains ignored)
 - [ ] Keep “launch modes” query params documented and stable
-

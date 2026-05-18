@@ -175,6 +175,9 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
   if (!next.markdownDocumentText || !next.markdownDocumentText.includes(fakeId)) {
     throw new Error('Expected markdownDocumentText to be populated with transcript markdown')
   }
+  if (!next.markdownDocumentText.includes(`[![Example Title](https://i.ytimg.com/vi/${fakeId}/hqdefault.jpg)](${sourceUrl})`)) {
+    throw new Error('Expected markdownDocumentText to include a linked YouTube thumbnail image')
+  }
   if (next.markdownDocumentSourceUrl !== sourceUrl) {
     throw new Error(
       `Expected markdownDocumentSourceUrl to be ${sourceUrl}, got ${String(next.markdownDocumentSourceUrl)}`,

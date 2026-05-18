@@ -22,9 +22,6 @@ import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
-  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
-  LEGACY_WORKSPACE_README_PATH,
-  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
   resolveWorkspaceStartupActivePath,
@@ -83,52 +80,6 @@ export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFil
     const afterEnsureSeedAgain = await fs.listEntries()
     if (afterEnsureSeedAgain.some(e => e.kind === 'file')) {
       throw new Error('expected ensureSeed not to reseed after user deleted all files')
-    }
-  } finally {
-    restore()
-  }
-}
-
-export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndValidationDemo() {
-  const { restore } = initJsdomHarness()
-  try {
-    const fs = createMemoryWorkspaceFs({
-      initialEntries: [
-        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
-        { path: LEGACY_WORKSPACE_README_PATH, parentPath: '/', kind: 'file', name: 'README.md', text: '# Workspace', updatedAtMs: 1 },
-        { path: LEGACY_WORKSPACE_TRIP_DEMO_PATH, parentPath: '/', kind: 'file', name: 'trip-demo-mmd.md', text: '# Trip demo', updatedAtMs: 1 },
-        { path: LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH, parentPath: '/', kind: 'file', name: 'knowgrph-maps-grabmap-multim-demo.md', text: '# Maps demo', updatedAtMs: 1 },
-      ],
-    })
-    await fs.ensureSeed()
-
-    const entries = await fs.listEntries()
-    const filePaths = new Set(entries.filter(e => e.kind === 'file').map(e => String(e.path || '')))
-    if (filePaths.has(LEGACY_WORKSPACE_TRIP_DEMO_PATH)) {
-      throw new Error('expected legacy trip demo workspace seed to be removed during validation demo migration')
-    }
-    if (filePaths.has(LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH)) {
-      throw new Error('expected legacy geospatial workspace seed to be removed during canonical seed-family migration')
-    }
-    if (!filePaths.has(WORKSPACE_README_SEED_PATH)) {
-      throw new Error('expected README workspace seed to be present after legacy seed migration')
-    }
-    if (!filePaths.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
-      throw new Error('expected validation demo workspace seed to remain present after legacy seed migration')
-    }
-    if (!filePaths.has(GEOSPATIAL_WORKSPACE_SEED_PATH)) {
-      throw new Error('expected geospatial workspace seed to be added during canonical seed-family migration')
-    }
-    if (filePaths.size !== 3) {
-      throw new Error(`expected exactly three default workspace seed files after migration, got ${String(filePaths.size)}`)
-    }
-    const readmeEntry = entries.find(e => e.path === WORKSPACE_README_SEED_PATH && e.kind === 'file')
-    const geospatialEntry = entries.find(e => e.path === GEOSPATIAL_WORKSPACE_SEED_PATH && e.kind === 'file')
-    if (!readmeEntry || typeof readmeEntry.text !== 'string' || !readmeEntry.text.includes('kgCanvas2dRenderer: "d3"')) {
-      throw new Error('expected migrated README workspace seed to replace the legacy placeholder content with the real D3 preload seed')
-    }
-    if (!geospatialEntry || typeof geospatialEntry.text !== 'string' || !geospatialEntry.text.includes('kgCanvasSurfaceMode: "geospatial"')) {
-      throw new Error('expected migrated geospatial workspace seed to carry the canonical geospatial frontmatter preset')
     }
   } finally {
     restore()
@@ -352,7 +303,7 @@ export function testCanvasEnvBridgeFallsBackToProcessEnvOutsideBrowser() {
   try {
     const next = readEnvString(
       'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
-      'sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
+      'docs/default-validation.md',
     )
     if (next !== 'huijoohwee.github.io/template/knowgrph-video-script-template.md') {
       throw new Error(`expected process env fallback to resolve custom validation target, got ${String(next)}`)

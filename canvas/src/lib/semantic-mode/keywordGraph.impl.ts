@@ -1,4 +1,3 @@
-import { LRUCache } from '@/lib/cache/LRUCache'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashText } from '@/features/parsers/hash'
 import { MVP_COLOR_PALETTE } from '@/lib/graph/schema'
@@ -27,6 +26,7 @@ import {
 import { computeKeywordCloudPlacements } from './keywordCloudLayout'
 import { readKeywordGraphMaxNodes, selectRetainedKeywordEntityKeys } from './keywordGraphRetention'
 import { withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
+import { KEYWORD_GRAPH_ALGO_VERSION, type KeywordGraphResult } from './keywordGraphCache'
 
 export type KeywordGraphSource = {
   documentId: string
@@ -38,11 +38,6 @@ export type KeywordGraphSource = {
     maxEdgesCap?: number
     maxNodes?: number
   }
-}
-
-export type KeywordGraphResult = {
-  graph: GraphData
-  nodeCountsById: Map<string, number>
 }
 
 const clampNumber = (v: number, min: number, max: number): number => {
@@ -78,8 +73,6 @@ const prettyLabel = (key: string): string => {
     .map(w => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ')
 }
-
-export const KEYWORD_GRAPH_ALGO_VERSION = 7
 
 const STOPWORD_SET = new Set<string>(NLTK_STOPWORDS_EN.map(s => String(s || '').trim().toLowerCase()).filter(Boolean))
 
@@ -595,5 +588,3 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
 
   return { graph, nodeCountsById }
 }
-
-export const keywordGraphCache = new LRUCache<string, KeywordGraphResult>(12)

@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testThreeGraphHasOverlayDragGlobalFailsafe() {
-  const p = resolve(process.cwd(), 'src', 'features', 'three', 'ThreeGraph.tsx')
+  const p = resolve(process.cwd(), 'src', 'lib', 'three', 'useThreeRichMediaOverlayController.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('overlayHeaderDrag3dRef')) {
+  if (!text.includes('const headerDragRef = React.useRef')) {
     throw new Error('expected ThreeGraph to track overlay 3d header drag state')
   }
   if (!text.includes("window.addEventListener('pointerup', onAnyEnd, { capture: true })")) {
@@ -16,7 +16,7 @@ export function testThreeGraphHasOverlayDragGlobalFailsafe() {
   if (!text.includes("window.addEventListener('pointerdown', onAnyEnd, { capture: true })")) {
     throw new Error('expected ThreeGraph overlay drag failsafe to recover on next pointerdown')
   }
-  if (!text.includes('window.setInterval(() => {')) {
+  if (!text.includes('const watchdog = window.setInterval(onAnyEnd, 12000)')) {
     throw new Error('expected ThreeGraph overlay drag failsafe to include a watchdog interval')
   }
 }

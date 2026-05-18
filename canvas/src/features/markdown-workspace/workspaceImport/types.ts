@@ -6,6 +6,7 @@ export type WorkspaceImportResult = {
   sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
   skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }>
   failed: Array<{ name: string; error: string }>
+  applyToGraph?: boolean
 }
 
 export type WorkspaceUrlContent = {
@@ -20,4 +21,3 @@ export type WorkspaceImportProgress = {
   total?: number
   label?: string
 }
-

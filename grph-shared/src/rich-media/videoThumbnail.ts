@@ -1,4 +1,4 @@
-import { getYouTubeId } from './providers.js'
+import { buildRichMediaPreviewSemanticKey, buildYouTubeThumbnailPreviewDescriptor } from './providers.js'
 
 type CacheEntry = {
   value: string | null
@@ -135,31 +135,29 @@ async function captureVideoFrameThumbnail(absUrl: string): Promise<string | null
 export async function getOrCreateVideoThumbnail(url: string): Promise<string | null> {
   const raw = String(url || '').trim()
   if (!raw) return null
+  const youtubeThumbnail = buildYouTubeThumbnailPreviewDescriptor(raw)
+  const cacheKey = youtubeThumbnail?.semanticKey || buildRichMediaPreviewSemanticKey(['video', 'thumbnail', raw])
   const cache = getCache()
-  const existing = cache.get(raw)
+  const existing = cache.get(cacheKey)
   if (existing) {
     if (existing.value) {
-      lruTouch(cache, raw)
+      lruTouch(cache, cacheKey)
       return existing.value
     }
     if (existing.inflight) return await existing.inflight
   }
 
   const inflight = (async (): Promise<string | null> => {
-    const yt = getYouTubeId(raw)
-    if (yt) {
-      const img = `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg`
-      return toProxy(img)
-    }
+    if (youtubeThumbnail?.thumbnailUrl) return toProxy(youtubeThumbnail.thumbnailUrl)
     if (isDirectVideoUrl(raw)) {
       return await captureVideoFrameThumbnail(raw)
     }
     return null
   })()
 
-  cache.set(raw, { value: null, inflight })
+  cache.set(cacheKey, { value: null, inflight })
   const value = await inflight
-  cache.set(raw, { value: value || null })
-  lruTouch(cache, raw)
+  cache.set(cacheKey, { value: value || null })
+  lruTouch(cache, cacheKey)
   return value
 }

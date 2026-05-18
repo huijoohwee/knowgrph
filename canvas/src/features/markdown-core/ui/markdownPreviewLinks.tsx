@@ -18,4 +18,5 @@ export {
   pickFirstSrcsetUrl,
   renderSafeHtmlBlock,
   resolveHref,
+  shouldRenderStandaloneMediaForLine,
 } from '@/lib/markdown-core/ui/markdownPreviewLinks.impl'

@@ -156,17 +156,6 @@ def read_graphrag_bundle(out_dir: str) -> Dict[str, Any]:
     return {"entities": [], "relationships": [], "chunks": []}
 
 
-def maybe_write_ttl_from_jsonld(jsonld_path: str, ttl_out_path: str) -> None:
-    try:
-        from rdflib import Graph  # type: ignore
-
-        g = Graph()
-        g.parse(jsonld_path, format="json-ld")
-        g.serialize(destination=ttl_out_path, format="turtle")
-    except Exception:
-        return
-
-
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="graphrag-pipeline", add_help=True)
     parser.add_argument("--config", default=DEFAULT_CONFIG)
@@ -206,8 +195,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     safe_nodes = nodes if isinstance(nodes, list) else []
     safe_edges = edges if isinstance(edges, list) else []
     write_a0_csv(outputs_dir, safe_nodes, safe_edges)
-    jsonld_path = write_jsonld(outputs_dir, safe_nodes, safe_edges)
-    maybe_write_ttl_from_jsonld(jsonld_path, os.path.join(outputs_dir, "a0.ttl"))
+    write_jsonld(outputs_dir, safe_nodes, safe_edges)
 
     return 0
-

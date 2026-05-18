@@ -16,8 +16,8 @@ import {
 import {
   activateFirstImportedWorkspaceFile,
   resolveImportedCanvasDocumentApplyToGraph,
-  shouldApplyImportedCanvasDocumentToGraph,
-} from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
+} from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
+import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/workspaceImport/applyPolicy'
 import { resolveWorkspaceFileJsonLdExport } from '@/features/markdown-workspace/workspaceImport/workspaceFileJsonLd'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES, WORKSPACE_IMPORT_DEFER_LOCAL_GLB_BYTES } from '@/lib/config'

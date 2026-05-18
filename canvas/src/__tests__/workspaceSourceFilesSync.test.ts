@@ -4,19 +4,16 @@ import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import {
-  BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH,
-  BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   GEOSPATIAL_WORKSPACE_SOURCE_PATH,
   TEST_VALIDATION_SOURCE_PATH,
   WORKSPACE_README_SOURCE_PATH,
-  LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH,
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   reconcileDefaultWorkspaceSeedSourceFiles,
   resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
 import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
-  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH as LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 
@@ -162,15 +159,15 @@ export async function testWorkspaceSourceFilesSyncForceIncludeReenablesExistingD
     workspaceEntries: [
       {
         kind: 'file',
-        path: '/sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
-        parentPath: '/sandbox/test-data/test-generate-video',
-        name: 'knowgrph-demo-video.md',
+        path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        parentPath: '/',
+        name: 'knowgrph-video-demo.md',
         text: '---\ntitle: Validation\nkgCanvas2dRenderer: "flowEditor"\n---\n',
         updatedAtMs: 1,
       },
     ],
     sourcesByPath: {},
-    forceIncludePaths: ['/sandbox/test-data/test-generate-video/knowgrph-demo-video.md'],
+    forceIncludePaths: [TEST_VALIDATION_WORKSPACE_SEED_PATH],
   })
 
   const validation = next.find(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
@@ -187,9 +184,9 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
       { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-readme.md', text: '# Readme', updatedAtMs: 1 },
       {
         kind: 'file',
-        path: '/sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
-        parentPath: '/sandbox/test-data/test-generate-video',
-        name: 'knowgrph-demo-video.md',
+        path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        parentPath: '/',
+        name: 'knowgrph-video-demo.md',
         text: '# Demo',
         updatedAtMs: 1,
       },
@@ -241,66 +238,37 @@ export async function testWorkspaceSourceFilesSyncSuppressesLegacyRootSeedAliase
   if (!docsPlaces) throw new Error('expected docs mirrored places markdown to stay present as canonical Source Files entry')
 }
 
-export async function testWorkspaceSourceFilesSyncDeduplicatesLegacyAliasFamilyToSingleCanonicalSourcePath() {
-  const next = mergeWorkspaceEntriesIntoSourceFiles({
-    existing: [],
-    workspaceEntries: [
-      {
-        kind: 'file',
-        path: BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-        parentPath: '/sandbox/test-data/test-generate-video',
-        name: 'knowgrph-demo-video.md',
-        text: '# bundled',
-        updatedAtMs: 1,
-      },
-      {
-        kind: 'file',
-        path: LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH,
-        parentPath: '/',
-        name: 'knowgrph-video-demo.md',
-        text: '# legacy',
-        updatedAtMs: 2,
-      },
-    ],
-    sourcesByPath: {},
-  })
-
-  const canonicalValidation = next.filter(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
-  if (canonicalValidation.length !== 1) {
-    throw new Error(`expected seed alias family to collapse into one canonical validation source entry, got ${canonicalValidation.length}`)
-  }
-}
-
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWorkspaceFiles() {
+  const nonDocsPath = '/scratch/places-demo.md'
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
     workspaceEntries: [
       { kind: 'file', path: '/docs/documents/knowgrph-storage-sync-document.md', parentPath: '/docs/documents', name: 'knowgrph-storage-sync-document.md', text: '# docs', updatedAtMs: 1 },
-      { kind: 'file', path: '/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md', parentPath: '/sandbox/demo', name: 'knowgrph-maps-grabmap-multim-demo.md', text: '# demo', updatedAtMs: 1 },
+      { kind: 'file', path: nonDocsPath, parentPath: '/scratch', name: 'places-demo.md', text: '# demo', updatedAtMs: 1 },
     ],
     sourcesByPath: {
       '/docs/documents/knowgrph-storage-sync-document.md': { kind: 'local', originalName: 'knowgrph-storage-sync-document.md' },
-      '/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md': { kind: 'local', originalName: 'knowgrph-maps-grabmap-multim-demo.md' },
+      [nonDocsPath]: { kind: 'local', originalName: 'places-demo.md' },
     },
     workspaceDocsOnly: true,
   })
 
   const docs = next.find(f => f.source?.path === 'workspace:/docs/documents/knowgrph-storage-sync-document.md')
   if (!docs) throw new Error('expected docs mirror entry to remain in docs-only mode')
-  const sandbox = next.find(f => f.source?.path === 'workspace:/sandbox/demo/knowgrph-maps-grabmap-multim-demo.md')
-  if (sandbox) throw new Error('expected non-docs workspace entries to be excluded in docs-only mode')
+  const nonDocs = next.find(f => f.source?.path === `workspace:${nonDocsPath}`)
+  if (nonDocs) throw new Error('expected non-docs workspace entries to be excluded in docs-only mode')
 }
 
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWorkspaceEntries() {
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [
       {
-        id: 'legacy-root-readme',
+        id: 'external-root-readme',
         name: 'knowgrph-maps-readme.md',
-        text: '# legacy root',
+        text: '# external root',
         enabled: true,
         status: 'idle',
-        source: { kind: 'url', url: 'https://example.com/knowgrph-maps-readme.md', path: 'legacy:root:knowgrph-maps-readme.md' },
+        source: { kind: 'url', url: 'https://example.com/knowgrph-maps-readme.md', path: 'external:root:knowgrph-maps-readme.md' },
       },
     ],
     workspaceEntries: [
@@ -312,27 +280,21 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWo
     workspaceDocsOnly: true,
   })
 
-  const legacyRoot = next.find(f => f.id === 'legacy-root-readme')
-  if (legacyRoot) throw new Error('expected docs-only mode to remove existing non-workspace/legacy source files')
+  const externalRoot = next.find(f => f.id === 'external-root-readme')
+  if (externalRoot) throw new Error('expected docs-only mode to remove existing non-workspace source files')
   const docs = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-storage-sync-cloudflare-d1.md')
   if (!docs) throw new Error('expected docs-only mode to keep docs mirrored source files')
 }
 
-export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath() {
-  if (resolveWorkspaceSeedSourcePath(BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
-    throw new Error('expected bundled validation workspace seed alias to resolve onto the canonical validation source-file path')
-  }
-  if (resolveWorkspaceSeedSourcePath(BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
-    throw new Error('expected bundled geospatial workspace seed alias to resolve onto the canonical geospatial source-file path')
-  }
+export async function testWorkspaceSeedSourceFilesResolveCurrentSeedsToCanonicalSourcePath() {
   if (resolveWorkspaceSeedSourcePath(WORKSPACE_README_SEED_PATH) !== WORKSPACE_README_SOURCE_PATH) {
     throw new Error('expected README workspace seed path to resolve onto the canonical README source-file path')
   }
-  if (resolveWorkspaceSeedSourcePath(LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
-    throw new Error('expected legacy video demo workspace seed alias to resolve onto the canonical validation source-file path')
+  if (resolveWorkspaceSeedSourcePath(TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected validation workspace seed path to resolve onto the canonical validation source-file path')
   }
-  if (resolveWorkspaceSeedSourcePath(LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
-    throw new Error('expected legacy geospatial workspace seed alias to resolve onto the canonical geospatial source-file path')
+  if (resolveWorkspaceSeedSourcePath(GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
+    throw new Error('expected geospatial workspace seed path to resolve onto the canonical geospatial source-file path')
   }
   if (resolveWorkspaceSeedSourcePath('/docs/documents/knowgrph-storage-sync-document.md') !== 'workspace:/docs/documents/knowgrph-storage-sync-document.md') {
     throw new Error('expected docs-mirrored workspace paths to resolve into canonical workspace source-file paths')
@@ -355,14 +317,10 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
 }
 
 export async function testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForSeedAliases() {
-  const docsValidationAliasPath = '/docs/workspace-seeds/knowgrph-video-demo.md'
-  const canonicalSeedPath = LEGACY_TEST_VALIDATION_WORKSPACE_SEED_PATH
+  const docsValidationAliasPath = `/${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}`
   const absoluteDocsPath = ABSOLUTE_DOCS_VIDEO_DEMO_PATH
   if (resolveWorkspaceSourcePathKey(docsValidationAliasPath) !== TEST_VALIDATION_SOURCE_PATH) {
-    throw new Error('expected docs validation alias path to resolve onto canonical validation source-file key')
-  }
-  if (resolveWorkspaceSourcePathKey(canonicalSeedPath) !== TEST_VALIDATION_SOURCE_PATH) {
-    throw new Error('expected legacy validation alias path to resolve onto canonical validation source-file key')
+    throw new Error('expected configured docs validation seed path to resolve onto canonical validation source-file key')
   }
   if (resolveWorkspaceSourcePathKey(absoluteDocsPath) !== 'workspace:/docs/knowgrph-video-demo.md') {
     throw new Error('expected absolute docs path to resolve onto canonical docs workspace source-file key')
@@ -375,12 +333,12 @@ export async function testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForS
 export async function testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamilyToCanonicalOrder() {
   const next = reconcileDefaultWorkspaceSeedSourceFiles([
     {
-      id: 'legacy-demo',
-      name: 'trip-demo-mmd.md',
-      text: '# legacy',
+      id: 'readme',
+      name: 'knowgrph-maps-readme.md',
+      text: '# Readme',
       enabled: true,
-      status: 'parsed',
-      source: { kind: 'local', path: 'workspace:/trip-demo-mmd.md' },
+      status: 'idle',
+      source: { kind: 'local', path: WORKSPACE_README_SOURCE_PATH },
     },
   ])
 

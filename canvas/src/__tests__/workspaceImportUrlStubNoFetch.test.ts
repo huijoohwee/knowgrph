@@ -1,8 +1,13 @@
 import path from 'node:path'
 
-import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
+import { fetchWorkspaceUrlContent, importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
+import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/workspaceImport/applyPolicy'
+import { resolveImportedCanvasDocumentApplyToGraph } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
 import { chooseWebpageMarkdownByContentCoverage } from '@/features/markdown-workspace/workspaceImport/webpageMarkdownFidelity'
 import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 
@@ -58,6 +63,39 @@ function installWebpageProxyFetch(htmlByUrl: Map<string, string>, calls: string[
     const first = htmlByUrl.values().next()
     const html = htmlByUrl.get(sourceUrl) || (first.done ? '' : first.value) || ''
     return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+  }) as unknown as typeof fetch
+  return () => {
+    g.fetch = prev
+  }
+}
+
+function installYouTubeTranscriptFetch(calls: string[]) {
+  const g = globalThis as GlobalWithFetch
+  const prev = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const url = input instanceof URL ? input.toString() : String(input || '')
+    calls.push(url)
+    if (!url.startsWith('/__youtube_transcript?')) {
+      return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+    }
+    const qs = new URLSearchParams(url.slice(url.indexOf('?') + 1))
+    const sourceUrl = qs.get('url') || ''
+    const parsed = new URL(sourceUrl)
+    const videoId = parsed.searchParams.get('v') || parsed.pathname.split('/').filter(Boolean)[0] || ''
+    const title = `Transcript ${videoId}`
+    return new Response(JSON.stringify({
+      ok: true,
+      name: `youtube-${videoId}.md`,
+      markdown: `# ${title}\n\n${sourceUrl};\n\nTranscript body.\n`,
+      transcript: {
+        ok: true,
+        title,
+        video_id: videoId,
+        source_url: sourceUrl,
+        segment_count: 1,
+        segments: [{ text: 'Transcript body.', start: 0, duration: 1 }],
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }) as unknown as typeof fetch
   return () => {
     g.fetch = prev
@@ -135,6 +173,157 @@ export async function testWorkspaceImportUrlViewHintsUseSingleIngestionPass(): P
   } finally {
     restore()
     resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlYouTubePreservesPaneContentFormats(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const calls: string[] = []
+  const restore = installYouTubeTranscriptFetch(calls)
+  try {
+    const fakeId = 'AbC_DeF1234'
+    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}&t=42`
+    const markdownRes = await fetchWorkspaceUrlContent(watchUrl, { mode: 'import', viewHint: 'markdown' })
+    if (!markdownRes.text.includes(`kgYoutubeVideoId: "${fakeId}"`)) {
+      throw new Error('expected YouTube workspace import to preserve the case-sensitive video id in frontmatter')
+    }
+    if (!markdownRes.text.includes('kgYoutubeFormat: "markdown"')) {
+      throw new Error('expected markdown import to preserve markdown format frontmatter')
+    }
+    if (!markdownRes.text.includes(`[![Transcript ${fakeId}](https://i.ytimg.com/vi/${fakeId}/hqdefault.jpg)](${watchUrl})`)) {
+      throw new Error('expected markdown import to render the source URL as a linked thumbnail image')
+    }
+
+    const jsonUrl = `https://www.youtube.com/watch?v=${fakeId}&t=42&pane=json`
+    const jsonRes = await fetchWorkspaceUrlContent(jsonUrl, { mode: 'import', viewHint: 'json' })
+    if (!jsonRes.text.includes(`kgYoutubeVideoId: "${fakeId}"`)) {
+      throw new Error('expected JSON import to preserve the case-sensitive video id in frontmatter')
+    }
+    if (!jsonRes.text.includes('kgYoutubeFormat: "json"')) {
+      throw new Error('expected JSON import to preserve json format frontmatter')
+    }
+    if (!jsonRes.text.includes('```json') || !jsonRes.text.includes(`"video_id": "${fakeId}"`)) {
+      throw new Error('expected JSON import to keep transcript JSON visible in the workspace file')
+    }
+
+    const rendererRes = await fetchWorkspaceUrlContent(watchUrl, {
+      mode: 'import',
+      viewHint: 'html',
+      canvas2dRenderer: 'd3',
+      documentSemanticMode: 'keyword',
+    })
+    if (shouldApplyImportedCanvasDocumentToGraph({ path: '/youtube-transcript.md', text: rendererRes.text })) {
+      throw new Error('expected renderer-selected YouTube imports to avoid graph parsing without canvas frontmatter')
+    }
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        {
+          path: '/youtube-transcript.md',
+          parentPath: '/',
+          kind: 'file',
+          name: 'youtube-transcript.md',
+          text: rendererRes.text,
+          updatedAtMs: 2,
+        },
+      ],
+    })
+    const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({
+      fs,
+      createdPaths: ['/youtube-transcript.md'],
+    })
+    if (applyToGraph) throw new Error('expected imported YouTube transcript content to remain a workspace document')
+    if (calls.length !== 2) throw new Error(`expected renderer-selected import to reuse the cached YouTube conversion, got ${calls.length} requests`)
+  } finally {
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const calls: string[] = []
+  const restore = installYouTubeTranscriptFetch(calls)
+  try {
+    const fakeId = 'PolicyId1234'
+    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}`
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const result = await importWorkspaceUrl({ fs, urlRaw: watchUrl, parentPath: '/' })
+    if (result.applyToGraph !== false) {
+      throw new Error(`expected YouTube URL import to carry passive apply policy, got ${String(result.applyToGraph)}`)
+    }
+    const transcriptCalls = calls.filter(call => call.startsWith('/__youtube_transcript?'))
+    if (transcriptCalls.length !== 1) throw new Error(`expected one YouTube ingestion request, got ${transcriptCalls.length}`)
+  } finally {
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportApplyPolicyIgnoresBodyOnlyCanvasWords(): Promise<void> {
+  const transcriptText = [
+    '---',
+    'kgYoutubeVideoId: "neutralVideoId"',
+    'kgYoutubeFormat: "markdown"',
+    '---',
+    '',
+    '# Transcript',
+    '',
+    'The spoken transcript can contain YAML-looking words.',
+    'flow:',
+    'widget_bundle:',
+    '$schema: "kgc-pipeline/v1"',
+    '',
+  ].join('\n')
+  if (shouldApplyImportedCanvasDocumentToGraph({ path: '/youtube-transcript.md', text: transcriptText })) {
+    throw new Error('expected import graph-apply policy to inspect only the frontmatter header')
+  }
+
+  const canvasText = [
+    '---',
+    'flow:',
+    '  nodes: []',
+    '---',
+    '',
+    '# Canvas document',
+    '',
+  ].join('\n')
+  if (!shouldApplyImportedCanvasDocumentToGraph({ path: '/canvas.md', text: canvasText })) {
+    throw new Error('expected frontmatter flow documents to apply to graph')
+  }
+}
+
+export async function testWorkspaceImportToCanvasRespectsApplyToGraphFalseForTranscripts(): Promise<void> {
+  const prevSourceFiles = useGraphStore.getState().sourceFiles
+  try {
+    useGraphStore.getState().setSourceFiles([])
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        {
+          path: '/youtube-transcript.md',
+          parentPath: '/',
+          kind: 'file',
+          name: 'youtube-transcript.md',
+          text: '# Transcript\n\nTranscript body.',
+          updatedAtMs: 2,
+        },
+      ],
+    })
+    const result = await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: ['/youtube-transcript.md' as never],
+      opts: { applyToGraph: false },
+    })
+    if (result.parsedCount !== 0) throw new Error(`expected no parser work when applyToGraph=false, got ${result.parsedCount}`)
+    const file = useGraphStore.getState().sourceFiles.find(item => item.name === 'youtube-transcript.md')
+    if (!file) throw new Error('expected imported transcript to stay visible in Source Files')
+    if (file.status === 'parsed' || file.status === 'error') {
+      throw new Error(`expected transcript Source File to avoid auto-parse status churn, got ${String(file.status)}`)
+    }
+  } finally {
+    useGraphStore.getState().setSourceFiles(prevSourceFiles)
   }
 }
 

@@ -23,8 +23,20 @@ export function testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecove
   if (!runtimeText.includes('overlayCollectiveState?.offscreen === true')) {
     throw new Error('expected Flow runtime to recenter fully offscreen overlay collectives even after the native scene has been built')
   }
+  if (!runtimeText.includes('const overlayCollectiveNeedsRecovery = overlayCollectiveState?.offscreen === true || (!!overlayCollectiveState && overlayCollectiveState.visible && !overlayCollectiveState.balanced && !overlayCollectiveState.centered)')) {
+    throw new Error('expected root overlay centroid recovery to include visible but unbalanced collectives')
+  }
+  if (!runtimeText.includes('const allowOverlayCentroidRecovery = !overlayOpen && ((!scene || scene.nodes.length === 0) || overlayCollectiveNeedsRecovery)')) {
+    throw new Error('expected root overlay centroid recovery to reuse the shared visible/unbalanced recovery predicate')
+  }
   if (!runtimeText.includes('recenterVisibleFlowEditorOverlayCentroid({')) {
     throw new Error('expected Flow runtime offscreen recovery to reuse the shared overlay-centroid recenter helper after applying the recovery fit')
+  }
+  if (!runtimeText.includes('const shouldRecenterOverlayCollective = !collectiveVisible || overlayCollectiveState?.offscreen === true || (workspaceEditorOverlayOpen && overlayCollectiveCoverageComplete && !collectiveBalanced && !collectiveCentered)')) {
+    throw new Error('expected workspace-open visible-but-unbalanced overlay collectives to recenter instead of stabilizing a mutated layout')
+  }
+  if (!runtimeText.includes('workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current')) {
+    throw new Error('expected workspace-open stabilized preservation to revalidate balanced or centered overlay collective state')
   }
   if (!runtimeText.includes('if (workspaceEditorOverlayOpen && !collectiveVisible && !workspaceOffscreenDebounced) {')) {
     throw new Error('expected workspace-open offscreen debounce to track collective overlay visibility instead of raw scene visibility')
@@ -35,8 +47,14 @@ export function testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecove
   if (!runtimeText.includes('const shouldLatchRecoveryKey = collectiveVisible')) {
     throw new Error('expected Flow runtime offscreen recovery to latch retry suppression only after the overlay collective is visible')
   }
+  if (!runtimeText.includes('const shouldLatchRecoveryKey = collectiveVisible && overlayCollectiveCoverageComplete && !shouldRecenterOverlayCollective')) {
+    throw new Error('expected Flow runtime recovery latch to wait until the visible workspace overlay collective is complete and no longer needs recentering')
+  }
   if (!runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = shouldLatchRecoveryKey ? recoveryKey : null')) {
     throw new Error('expected Flow runtime offscreen recovery to keep retrying until a stale offscreen transform is actually displaced')
+  }
+  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && (collectiveBalanced || collectiveCentered)) workspaceOverlayStabilizedRef.current = true')) {
+    throw new Error('expected workspace-open stabilization to require balanced or centered overlay collective state')
   }
   if (!runtimeText.includes('workspace-open-visible-balanced-preserve-current')) {
     throw new Error('expected workspace-open preserve path to remain active after overlay-collective visibility gating')
@@ -103,6 +121,43 @@ export function testFlowEditorOverlayPlacementRuntimeSkipsStaleStoreZoomFallback
   }
   if (!text.includes('if (!liveZoom && !bypassStoreZoomFallback && storeZoom && storeZoom !== z) {')) {
     throw new Error('expected Flow Editor overlay placement runtime to use persisted store zoom only when the workspace-blocked bypass is inactive')
+  }
+}
+
+export function testFlowEditorOverlayPlacementRuntimeIgnoresProjectedOffscreenFrontmatterStoredWorld() {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
+  const text = fs.readFileSync(runtimePath, 'utf8')
+  const frontmatterPlacementPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayFrontmatterPlacement.ts')
+  const frontmatterPlacementText = fs.readFileSync(frontmatterPlacementPath, 'utf8')
+
+  if (!text.includes('const storedWorldScreen = storedWorld ? worldToScreen({ transform: z, x: storedWorld.x, y: storedWorld.y }) : null')) {
+    throw new Error('expected Flow Editor placement runtime to project stored widget world positions through the active transform')
+  }
+  if (!text.includes("import { isFrontmatterManagedOverlayNode, resolveFrontmatterBalancedFallbackPos } from '@/components/FlowEditor/nodeOverlayFrontmatterPlacement'")
+    || !frontmatterPlacementText.includes('function isFrontmatterManagedOverlayNode(')
+    || !frontmatterPlacementText.includes('isFrontmatterCollectiveNode(node)')
+    || !text.includes('const frontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, n)')) {
+    throw new Error('expected projected offscreen stored-world guard to be scoped by shared frontmatter collective node semantics')
+  }
+  if (!text.includes('const effectiveStoredWorld = storedWorldFarOffscreen ? null : storedWorld')) {
+    throw new Error('expected Flow Editor placement runtime to ignore frontmatter stored widget positions that project far offscreen')
+  }
+  if (!frontmatterPlacementText.includes("computeBalancedSpreadLayout({")
+    || !frontmatterPlacementText.includes("preset: 'widgetFrontmatter'")
+    || !text.includes('const frontmatterBaseFarOffscreen = frontmatterManagedNode')) {
+    throw new Error('expected Flow Editor placement runtime to recover frontmatter overlays through the shared balanced spread fallback when anchored geometry is far offscreen')
+  }
+  if (!frontmatterPlacementText.includes("computeBalancedSpreadBaseGapPx({ viewportW: args.viewportW, viewportH: args.viewportH, preset: 'widgetFrontmatter', margins })")
+    || text.includes('baseGapPx: 24')
+    || frontmatterPlacementText.includes('baseGapPx: 24')) {
+    throw new Error('expected Flow Editor placement runtime to reuse the shared balanced-spread gap helper without fixed fallback spacing')
+  }
+  if (!text.includes("import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'")
+    || !text.includes('emitFlowEditorInteractionFrame()')) {
+    throw new Error('expected Flow Editor placement runtime to notify recovery observers after programmatic overlay placement changes')
+  }
+  if (!text.includes('const worldPinned = worldDragOverride || effectiveStoredWorld || defaultWorld')) {
+    throw new Error('expected Flow Editor placement runtime to fall back to live anchored placement after rejecting stale stored world positions')
   }
 }
 

@@ -1,6 +1,7 @@
 import {
   type BalancedSpreadViewportPreset,
   clampBalancedCollectiveScaleToViewport,
+  computeBalancedSpreadBaseGapPx,
   computeBalancedSpreadLayout,
   computeBalancedSpreadSpacingPx,
   computeBalancedSpreadViewportMargins,
@@ -101,7 +102,12 @@ export function computeCollectiveFollowPinnedScale(args: {
   })
   const usableW = Math.max(1, viewportW - margins.left - margins.right)
   const usableH = Math.max(1, viewportH - margins.top - margins.bottom)
-  const baseGapPx = Math.max(12, Math.min(40, Math.round(usableW * 0.012)))
+  const baseGapPx = computeBalancedSpreadBaseGapPx({
+    viewportW,
+    viewportH,
+    preset: viewportPreset,
+    margins,
+  })
   const count = Math.max(1, Math.floor(Number(args.count) || 1))
   const quantizeStep = Number.isFinite(args.quantizeStep) ? Math.max(0.001, Number(args.quantizeStep)) : 0.02
   const quantize = (value: number) => Math.round(value / quantizeStep) * quantizeStep

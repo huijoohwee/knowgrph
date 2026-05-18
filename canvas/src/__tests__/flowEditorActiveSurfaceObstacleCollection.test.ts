@@ -3,6 +3,7 @@ import {
   collectCanonicalFlowEditorOverlayRectEntries,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
+  RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 
@@ -192,6 +193,60 @@ export async function testFlowEditorActiveSurfaceObstacleCollectionIgnoresTinyPa
     const entries = collectCanonicalFlowEditorOverlayRectEntries(overlays)
     if (entries.length !== 1 || entries[0]?.id !== 'widget-a') {
       throw new Error(`expected tiny parked rich-media placeholder to be ignored, got ${JSON.stringify(entries.map(entry => entry.id))}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testFlowEditorActiveSurfaceObstacleCollectionPrefersInteractiveRichMediaRootOverPinnedProxy() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const doc = dom.window.document
+    const surface = doc.createElement('section')
+    surface.setAttribute(FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR, 'surface-a')
+    doc.body.appendChild(surface)
+
+    const makeRichMedia = (args: {
+      pinned?: boolean
+      left: number
+      top: number
+      width: number
+      height: number
+    }) => {
+      const el = doc.createElement('section')
+      el.setAttribute('data-kg-flow-editor-mode', '1')
+      el.setAttribute('data-kg-flow-editor-surface', 'surface-a')
+      el.setAttribute('data-kg-rich-media-overlay', '1')
+      el.setAttribute('data-node-id', 'panel-a')
+      if (args.pinned) el.setAttribute('data-kg-canvas-overlay-pinned', '1')
+      ;(el as unknown as { dataset: DOMStringMap }).dataset.nodeId = 'panel-a'
+      ;(el as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
+        left: args.left,
+        top: args.top,
+        width: args.width,
+        height: args.height,
+        right: args.left + args.width,
+        bottom: args.top + args.height,
+        x: args.left,
+        y: args.top,
+        toJSON: () => ({}),
+      }) as DOMRect
+      surface.appendChild(el)
+      return el
+    }
+
+    makeRichMedia({ pinned: true, left: 10, top: 10, width: 360, height: 240 })
+    makeRichMedia({ left: 500, top: 320, width: 112, height: 72 })
+
+    const overlays = Array.from(surface.querySelectorAll(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)) as HTMLElement[]
+    const entries = collectCanonicalFlowEditorOverlayRectEntries(overlays)
+    const entry = entries[0] || null
+    if (entries.length !== 1 || entry?.id !== 'panel-a') {
+      throw new Error(`expected one canonical Rich Media entry, got ${JSON.stringify(entries.map(item => item.id))}`)
+    }
+    if (Math.round(entry.rect.left) !== 500 || Math.round(entry.rect.top) !== 320) {
+      throw new Error(`expected unpinned Flow Editor Rich Media root to beat larger passive pinned proxy, got ${entry.rect.left},${entry.rect.top}`)
     }
   } finally {
     restore()

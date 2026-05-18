@@ -1,27 +1,8 @@
 import { slugify } from './markdownJsonLdUtils'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
 import { decodeCodebasePathFromUrl } from '@/lib/url'
-import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
+import { buildAliasedMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
-
-function buildAliasedMediaProperties(args: {
-  kind: 'image' | 'svg' | 'video' | 'iframe'
-  url: string
-  interactive?: boolean
-}): Record<string, unknown> {
-  const url = String(args.url || '').trim()
-  if (!url) return {}
-  const next = patchNodeMediaProperties({
-    kind: args.kind,
-    url,
-    interactive: args.interactive === true,
-  })
-  next.media = url
-  if (args.kind === 'video') next.video = url
-  else if (args.kind === 'iframe') next.iframe_url = url
-  else next.image = url
-  return next
-}
 
 export interface BuilderContext {
   gid: string

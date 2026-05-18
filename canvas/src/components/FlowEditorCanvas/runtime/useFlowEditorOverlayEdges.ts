@@ -48,6 +48,7 @@ import {
   readCanonicalFlowEditorOverlayIdentity,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
+import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
   for (const el of ref.current.values()) {
@@ -641,6 +642,7 @@ export function useFlowEditorOverlayEdges(args: {
         const strokeWidth = style?.edgeWidthPx != null ? String(style.edgeWidthPx) : String(getEdgeStrokeWidth(rawEdge as GraphEdge, schema))
         return { ...edge, stroke, strokeWidth }
       })
+      const overlayNodeById = buildFrontmatterOverlayNodeLookup(nodes)
 
       if (nodeIds.size === 0 || edges.length === 0) {
         pushOverlayEdgeTrace('empty-filtered-edge-set', {
@@ -827,7 +829,7 @@ export function useFlowEditorOverlayEdges(args: {
           pending.toolMode === 'addEdge' && pending.sourceId && cursor
             ? `${pending.toolMode}:${pending.sourceId}:${String(pending.sourcePortKey || '')}:${round2(cursor.x)}:${round2(cursor.y)}`
             : ''
-        return `${workspaceOverlayOpen ? 'workspace-open' : 'workspace-closed'}:${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}`
+        return `${workspaceOverlayOpen ? 'workspace-open' : 'workspace-closed'}:${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${graphSemanticKey}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}`
       })()
       if (overlayEdgeLayoutSigRef.current === layoutSig) return
       overlayEdgeLayoutSigRef.current = layoutSig
@@ -991,15 +993,13 @@ export function useFlowEditorOverlayEdges(args: {
         const ty = (tAnchor ? tAnchor.y : tRect.top + (Math.max(0, Math.min(100, tPct)) / 100) * tRect.height) - baseTop
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
         const overlayCurve = edgeCurveById.get(edgeId) || null
-        const frontmatterShotEdgeCrowdingLift =
-          String(graphMetaKind || '').trim() === 'frontmatter-flow'
-          && /^db-shot-S0[1-5]-/.test(source)
-          && /^db-shot-S0[1-5]-/.test(target)
-          && Math.abs(ty - sy) > 280
-          ? Math.max(0, Math.min(26, (Math.abs(ty - sy) - 280) * 0.08))
-          : 0
-        const adjustedSy = frontmatterShotEdgeCrowdingLift > 0 ? sy - frontmatterShotEdgeCrowdingLift : sy
-        const adjustedTy = frontmatterShotEdgeCrowdingLift > 0 ? ty + frontmatterShotEdgeCrowdingLift * 0.25 : ty
+        const rawEdge = graphLookup?.rawEdgeById.get(edgeId) || null
+        const frontmatterEdgeCrowdingLift = resolveFrontmatterOverlayEdgeCrowdingLiftPx({
+          graphMetaKind, edge: rawEdge, sourceNode: overlayNodeById.get(source) || null, targetNode: overlayNodeById.get(target) || null,
+          sourceId: source, targetId: target, sourceY: sy, targetY: ty, sourceHeight: sRect.height, targetHeight: tRect.height,
+        })
+        const adjustedSy = frontmatterEdgeCrowdingLift > 0 ? sy - frontmatterEdgeCrowdingLift : sy
+        const adjustedTy = frontmatterEdgeCrowdingLift > 0 ? ty + frontmatterEdgeCrowdingLift * 0.25 : ty
 
         const d = buildEdgePathD({
           edgeType: globalEdgeType,

@@ -584,6 +584,9 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.preview.webpageSnapshotEmbeds', async () => {
     const mod = await modMarkdownEmbedSnapshotPreview()
     await mod.testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed()
+    await mod.testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLargeDocumentMode()
+    await mod.testMarkdownPreviewBudgetsRepeatedLargeDocumentYouTubeSnapshots()
+    await mod.testMarkdownPreviewRendersLinkedYouTubeThumbnailImage()
   })
   await execTest(results, 'markdown.preview.pipelinePreservesGridHtml', async () => {
     const mod = await modHtmlToMarkdownUnifiedLayoutPreserve()

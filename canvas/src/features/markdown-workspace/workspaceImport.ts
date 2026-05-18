@@ -12,6 +12,8 @@ export { importWorkspaceLocalFiles, importWorkspaceLocalFolder } from './workspa
 
 export { fetchWorkspaceUrlContent } from './workspaceImport/urlContent'
 
+export { shouldApplyImportedCanvasDocumentToGraph } from './workspaceImport/applyPolicy'
+
 export {
   buildWebpageWorkspaceEntryTextFromUpstreamMarkdown,
   buildWebsiteImportWebpageDocFromUpstreamMarkdown,

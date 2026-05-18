@@ -20,7 +20,7 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 | 模块目录 | 核心技术栈 | 职责描述 |
 | :--- | :--- | :--- |
 | `canvas/` | React, Vite, Three.js, D3, Zustand, RxDB | **前端可视化应用**。提供图谱的 2D 和 3D 渲染，包含富文本编辑（Monaco）、Markdown 预览、节点/边的实时交互操作，以及配置面板和侧边栏控制。 |
-| `knowgrph_parser/` | Python, NetworkX, RDFLib, NLTK, DuckDB | **后端数据解析与提取引擎**。处理数据源的加载和转化工作。支持从代码库中建立知识图谱索引、GraphRAG 流水线处理，以及将多模态数据转换为统一的 `GraphData` 格式。 |
+| `knowgrph_parser/` | Python, NetworkX, PyYAML, yt-dlp | **后端数据解析与提取引擎**。处理数据源的加载和转化工作。支持从代码库中建立知识图谱索引、GraphRAG 流水线处理，以及将多模态数据转换为统一的 `GraphData` 格式。 |
 | `grph-shared/` | TypeScript | **共享库**。提供图谱核心类型（如 `GraphNode`, `GraphEdge`, `GraphData`），以及在各前端模块之间共享的纯函数工具（哈希、缓存、数组处理、URL解析等）。 |
 | `gympgrph/` | TypeScript, MapLibre | **地理空间与地图集成库**。负责提供 2D/3D 地理信息及相关可视化能力，用于包含地理坐标的数据集（GeoJSON等）。 |
 | `schema-config/` | JSON | **样式与规则配置库**。存储图谱节点和边的预设视觉样式（颜色、粗细）、布局物理力参数以及验证约束规则。 |
@@ -73,8 +73,7 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 ### 4.2 后端依赖 (Backend)
 通过 `pip` 及 `requirements.txt` 管理。
 - **图处理**: `networkx` (复杂网络与图算法)
-- **数据与语义化**: `rdflib` (解析与操作 RDF/JSON-LD), `duckdb` (内存数据分析)
-- **文本处理**: `nltk` (自然语言处理), `pyyaml` (YAML 配置解析)
+- **数据与语义化**: `pyyaml` (YAML 配置解析), built-in stopwords (关键词噪声过滤)
 - **媒体抓取**: `yt-dlp` (获取 YouTube 视频字幕与元数据)
 
 ---
@@ -83,7 +82,7 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 
 ### 5.1 环境要求
 - Node.js (推荐 v18+ )
-- Python 3.10+
+- Python 3.11+
 - 现代浏览器 (支持 WebGL 和 ES6+)
 
 ### 5.2 前端开发服务器 (Canvas App)
@@ -108,7 +107,7 @@ npm run dev
 cd /workspace
 
 # 2. 创建并激活 Python 虚拟环境
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 
 # 3. 安装后端依赖

@@ -8,7 +8,6 @@ import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .common import DEFAULT_TERM_IRI_BASE
-from .example_duckdb_queries import run_example_duckdb_query_cli
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYTHON_BIN = sys.executable
@@ -275,14 +274,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="pipeline", add_help=True)
     parser.add_argument(
         "--mode",
-        choices=["pipeline", "example-query"],
+        choices=["pipeline"],
         default="pipeline",
     )
     parser.add_argument("--input", "-i", dest="input_path", default=None)
     parser.add_argument("--output-dir", "-o", dest="output_dir", default=None)
-    parser.add_argument("--preset-id")
-    parser.add_argument("--config", dest="config_path")
-    parser.add_argument("--db", dest="db_path")
     arguments = parser.parse_args(list(argv) if argv is not None else None)
 
     if arguments.mode == "pipeline":
@@ -316,16 +312,6 @@ def main(argv: Optional[List[str]] = None) -> int:
             predicate_default=predicate_default,
         )
         run_codebase_index_pipeline(output_dir, runtime_events_log_path)
-        return 0
-
-    if arguments.mode == "example-query":
-        if not arguments.preset_id:
-            raise SystemExit("Missing --preset-id for --mode example-query")
-        run_example_duckdb_query_cli(
-            arguments.preset_id,
-            config_path=arguments.config_path,
-            db_path=arguments.db_path,
-        )
         return 0
 
     raise SystemExit(f"Unknown mode: {arguments.mode}")

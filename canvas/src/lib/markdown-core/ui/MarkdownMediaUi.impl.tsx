@@ -5,6 +5,7 @@ import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
 import { applyMediaProxySrc } from '@/features/markdown/ui/markdownPreviewLinks'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
+import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { getWebpageFallbackInfo } from 'grph-shared/rich-media/webpageFallback'
 import { applyImageLikeProxySrc } from '@/lib/url'
@@ -81,6 +82,19 @@ export const MediaIframe = React.memo(function MediaIframe({
   }
   if (inferredKind === 'audio') {
     return <MediaAudio src={rawSrc} className={className} style={style} />
+  }
+  if (richMediaPanelMode === 'snapshot' && getYouTubeId(rawSrc)) {
+    return (
+      <MediaVideoSnapshot
+        url={rawSrc}
+        title={title}
+        presentationMode={presentationMode}
+        containerClassName={containerClassName}
+        containerStyle={containerStyle}
+        className={className}
+        style={style}
+      />
+    )
   }
   const preferEmbed = richMediaPanelMode === 'embed'
   const embed = resolveIframeEmbed({

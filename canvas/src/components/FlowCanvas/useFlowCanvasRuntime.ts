@@ -527,6 +527,9 @@ export function useFlowCanvasRuntime(args: {
     if (workspaceEditorOverlayOpen !== true) return false
     const visibleViewport = resolveVisibleFlowViewportWidth()
     if (isWorkspaceVisibleViewportSettled(visibleViewport)) {
+      if (workspaceDeferredDrawPendingRef.current && __flowCanvasDebug.lastRecoveryReason === 'workspace-open-first-draw-deferred-unsettled-viewport') {
+        resetFlowCanvasDebugStatus({ dismissToast: true })
+      }
       workspaceDeferredDrawPendingRef.current = false
       return false
     }
@@ -758,7 +761,8 @@ export function useFlowCanvasRuntime(args: {
   React.useEffect(() => {
     if (!active) return
     const runtime = runtimeRef.current
-    if (!runtime || !graphDataForZoom) return
+    const graphDataForFit = graphDataForZoomRequests || graphDataForZoom || sceneGraphData || null
+    if (!runtime || !graphDataForFit) return
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
     if (documentSemanticMode === 'keyword') {
       const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
@@ -809,7 +813,6 @@ export function useFlowCanvasRuntime(args: {
       documentStructureBaselineLock,
       enableDocumentStructureBounds: false,
     })
-    const graphDataForFit = graphDataForZoomRequests || graphDataForZoom || sceneGraphData || null
     const nodesForFit = Array.isArray(graphDataForFit?.nodes) ? graphDataForFit.nodes : []
     if (isFlowEditor && nodesForFit.length === 0) return
     const visibleViewportFit = resolveVisibleFlowViewportWidth()
@@ -1150,12 +1153,8 @@ export function useFlowCanvasRuntime(args: {
       bounds: overlayBounds,
       visibleViewport: surfaceViewport,
     })
-    const allowOverlayCentroidRecovery =
-      !overlayOpen
-      && (
-        (!scene || scene.nodes.length === 0)
-        || overlayCollectiveState?.offscreen === true
-      )
+    const overlayCollectiveNeedsRecovery = overlayCollectiveState?.offscreen === true || (!!overlayCollectiveState && overlayCollectiveState.visible && !overlayCollectiveState.balanced && !overlayCollectiveState.centered)
+    const allowOverlayCentroidRecovery = !overlayOpen && ((!scene || scene.nodes.length === 0) || overlayCollectiveNeedsRecovery)
     if (overlayBounds && allowOverlayCentroidRecovery) {
       const overlayCentroidX = (overlayBounds.minX + overlayBounds.maxX) / 2
       const overlayCentroidY = (overlayBounds.minY + overlayBounds.maxY) / 2
@@ -1318,15 +1317,14 @@ export function useFlowCanvasRuntime(args: {
       || Math.abs(Math.log(Math.max(0.001, current.k) / Math.max(0.001, expectedFit.k))) > 0.16
     __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
     __flowCanvasDebug.lastExpectedFit = `${Math.round(expectedScreenX)},${Math.round(expectedScreenY)},${Math.round(expectedFit.k * 1000) / 1000}`
-    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && workspaceOverlayStabilizedRef.current) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current) {
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-stabilized-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
     if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {
-      // In workspace-open mode, preserve already-visible centroid-centered transforms.
-      // This avoids late corrective refits that can pull a centered first frame far right.
+      // Preserve already-visible centroid-centered transforms while the workspace overlay is open.
       workspaceOverlayStabilizedRef.current = true
       __flowCanvasDebug.lastRecoveryReason = collectiveBalanced
         ? 'workspace-open-visible-balanced-preserve-current'
@@ -1385,7 +1383,8 @@ export function useFlowCanvasRuntime(args: {
     const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)
     const currentTransformSignature = `${Math.round(current.x)}:${Math.round(current.y)}:${Math.round(current.k * 1000)}`
     const recoveryKey = `${graphKey}:${fitW}:${fitH}:${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${sceneViewportSignature}:${currentTransformSignature}`
-    const shouldLatchRecoveryKey = collectiveVisible
+    const shouldRecenterOverlayCollective = !collectiveVisible || overlayCollectiveState?.offscreen === true || (workspaceEditorOverlayOpen && overlayCollectiveCoverageComplete && !collectiveBalanced && !collectiveCentered)
+    const shouldLatchRecoveryKey = collectiveVisible && overlayCollectiveCoverageComplete && !shouldRecenterOverlayCollective
     if (shouldLatchRecoveryKey && lastOffscreenOverlayRecoveryKeyRef.current === recoveryKey) return
 
     const fit = expectedFitForRecovery || getExpectedFitForRecovery()
@@ -1400,7 +1399,7 @@ export function useFlowCanvasRuntime(args: {
         .translate(fit.x + fitOffsetX, fit.y + fitOffsetY)
         .scale(fit.k),
     )
-    if (!collectiveVisible || overlayCollectiveState?.offscreen === true) {
+    if (shouldRecenterOverlayCollective) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime,
         viewportW,
@@ -1413,7 +1412,7 @@ export function useFlowCanvasRuntime(args: {
         },
       })
     }
-    if (workspaceEditorOverlayOpen && collectiveVisible) workspaceOverlayStabilizedRef.current = true
+    if (workspaceEditorOverlayOpen && collectiveVisible && (collectiveBalanced || collectiveCentered)) workspaceOverlayStabilizedRef.current = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
     requestCommit()
     lastOffscreenOverlayRecoveryKeyRef.current = shouldLatchRecoveryKey ? recoveryKey : null

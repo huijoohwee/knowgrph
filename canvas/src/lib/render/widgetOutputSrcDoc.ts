@@ -1,3 +1,9 @@
+import { getMarkdownItFast } from '@/features/markdown/markdownIt'
+import { buildMarkdownHtmlViewerDocument } from '@/features/markdown/htmlViewerCss'
+import { LRUCache } from '@/lib/cache/LRUCache'
+import { hashSignatureParts } from '@/lib/hash/signature'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+
 function escapeHtml(raw: string): string {
   return String(raw || '')
     .replace(/&/g, '&amp;')
@@ -7,31 +13,24 @@ function escapeHtml(raw: string): string {
     .replace(/'/g, '&#39;')
 }
 
+const md = getMarkdownItFast()
+const textWidgetOutputSrcDocCache = new LRUCache<string, string>(48, 2 * 60_000)
+
 export function buildTextWidgetOutputSrcDoc(args: {
   title?: unknown
   text?: unknown
 }): string {
   const title = String(args.title || '').trim() || 'Text Widget Output'
   const text = typeof args.text === 'string' ? args.text : String(args.text ?? '')
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    :root{color-scheme:light dark}
-    html,body{height:100%;margin:0;padding:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    body{background:transparent;color:CanvasText}
-    .wrap{box-sizing:border-box;padding:12px;height:100%;display:flex;flex-direction:column;gap:10px}
-    .title{font-size:12px;font-weight:600;opacity:.8}
-    pre{margin:0;flex:1;overflow:auto;white-space:pre-wrap;word-break:break-word;border-radius:12px;padding:12px;background:rgba(127,127,127,.10);border:1px solid rgba(127,127,127,.25);font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}
-  </style>
-</head>
-<body>
-  <section class="wrap">
-    <div class="title">${escapeHtml(title)}</div>
-    <pre>${escapeHtml(text)}</pre>
-  </section>
-</body>
-</html>`
+  const textHash = hashStringToHexCached(`rich-media-text-srcdoc:${title.slice(0, 120)}`, text)
+  const cacheKey = hashSignatureParts(['rich-media-text-srcdoc', title, text.length, textHash])
+  const cached = textWidgetOutputSrcDocCache.get(cacheKey)
+  if (cached) return cached
+  const markdownHtml = text.trim() ? md.render(text) : `<pre>${escapeHtml(text)}</pre>`
+  const html = buildMarkdownHtmlViewerDocument({
+    title,
+    bodyHtml: `<section data-kg-rich-media-markdown-srcdoc="1">${markdownHtml}</section>`,
+  })
+  textWidgetOutputSrcDocCache.set(cacheKey, html)
+  return html
 }

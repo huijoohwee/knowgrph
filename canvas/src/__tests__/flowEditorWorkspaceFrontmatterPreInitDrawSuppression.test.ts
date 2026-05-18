@@ -13,6 +13,10 @@ export function testFlowEditorWorkspaceFrontmatterPreInitSuppressionKeepsRendera
   if (!runtimeText.includes('if (hasRenderableGraphNodes && !frontmatterDocumentModeRequested) return false')) {
     throw new Error('expected Flow runtime workspace-open pre-init draw suppression to keep Flow Editor frontmatter document mode off the generic renderable-graph early-draw path')
   }
+  if (!runtimeText.includes('const graphDataForFit = graphDataForZoomRequests || graphDataForZoom || sceneGraphData || null')
+    || runtimeText.includes('if (!runtime || !graphDataForZoom) return')) {
+    throw new Error('expected Flow runtime pre-init fit to reuse the same current graph source family as workspace-open draw suppression, avoiding a stale missing graphDataForZoom deadlock')
+  }
   if (!runtimeText.includes("__flowCanvasDebug.lastRecoveryReason = 'workspace-open-preinit-draw-suppressed'")) {
     throw new Error('expected Flow runtime workspace-open frontmatter pre-init draw suppression to emit the deterministic debug reason')
   }

@@ -33,6 +33,7 @@ export const __flowCanvasDebug: {
 }
 
 const FLOW_CANVAS_DEBUG_TOAST_ID = 'flow-canvas-runtime-debug-status'
+const FLOW_CANVAS_DEBUG_TOAST_TTL_MS = 2400
 
 let lastFlowCanvasDebugToastSig = ''
 
@@ -89,7 +90,7 @@ export function syncFlowCanvasDebugToast(args: { enabled: boolean }) {
       id: FLOW_CANVAS_DEBUG_TOAST_ID,
       kind: 'neutral',
       message,
-      ttlMs: null,
+      ttlMs: FLOW_CANVAS_DEBUG_TOAST_TTL_MS,
       dismissible: true,
       log: false,
     })

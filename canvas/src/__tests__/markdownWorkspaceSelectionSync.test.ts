@@ -23,12 +23,20 @@ export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalid
     throw new Error(`expected empty selection state to hydrate from active path, got ${String(initial)}`)
   }
 
-  const preserveExisting = resolveInitialMarkdownWorkspaceSelectionPath({
+  const preserveMatching = resolveInitialMarkdownWorkspaceSelectionPath({
+    selectionPath: '/docs/a.md' as never,
+    activePath: '/docs/a.md' as never,
+  })
+  if (preserveMatching !== null) {
+    throw new Error(`expected matching selection state to avoid redundant hydration, got ${String(preserveMatching)}`)
+  }
+
+  const syncExternalActiveChange = resolveInitialMarkdownWorkspaceSelectionPath({
     selectionPath: '/docs/b.md' as never,
     activePath: '/docs/a.md' as never,
   })
-  if (preserveExisting !== null) {
-    throw new Error(`expected existing selection state to avoid redundant hydration, got ${String(preserveExisting)}`)
+  if (syncExternalActiveChange !== '/docs/a.md') {
+    throw new Error(`expected external active path changes to update selection, got ${String(syncExternalActiveChange)}`)
   }
 
   const loadingNoop = resolveInvalidatedMarkdownWorkspaceSelectionPath({

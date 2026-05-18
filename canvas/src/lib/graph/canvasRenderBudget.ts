@@ -1,7 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { isStructuralGraphEdge } from '@/lib/graph/graphTopology'
+import { isStructuralGraphEdge, readGraphTopologySummary, withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
 
 export type CanvasRenderBudgetSurface = 'd3Graph' | 'surface3d' | 'none'
 
@@ -199,8 +199,21 @@ export function applyCanvasRenderBudget(args: {
   const budget = readBudgetConfig(args.surface)
   if (!budget) return graphData
 
-  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-  const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
+  const sourceNodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+  const sourceEdges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
+  if (sourceNodes.length <= budget.maxNodes && sourceEdges.length <= budget.maxEdges) return graphData
+
+  const topologyGraph = readGraphTopologySummary(graphData)
+    ? graphData
+    : withGraphTopologyMetadata({
+      graphData,
+      graphRevision: args.graphRevision,
+      stage: 'render-budget',
+      annotate: true,
+      maxAnnotatedItems: Number.MAX_SAFE_INTEGER,
+    }) || graphData
+  const nodes = Array.isArray(topologyGraph.nodes) ? (topologyGraph.nodes as GraphNode[]) : []
+  const edges = Array.isArray(topologyGraph.edges) ? (topologyGraph.edges as GraphEdge[]) : []
   if (nodes.length <= budget.maxNodes && edges.length <= budget.maxEdges) return graphData
 
   const cacheKey = buildScopedGraphSemanticKey('canvas-render-budget', {
@@ -219,6 +232,10 @@ export function applyCanvasRenderBudget(args: {
     if (cached) return cached
   }
 
+  const hasTopologyAnnotations = nodes.every(node => {
+    const props = readRecord((node as { properties?: unknown }).properties)
+    return readFiniteNumber(props['graph:degree']) != null && readFiniteNumber(props['graph:structuralDegree']) != null
+  })
   const degreeById = new Map<string, number>()
   const structuralDegreeById = new Map<string, number>()
   const structuralChildrenById = new Map<string, string[]>()
@@ -227,11 +244,15 @@ export function applyCanvasRenderBudget(args: {
     const edge = edges[i]
     const { src, tgt } = readGraphEdgeEndpoints(edge)
     if (!src || !tgt || src === tgt) continue
-    degreeById.set(src, (degreeById.get(src) || 0) + 1)
-    degreeById.set(tgt, (degreeById.get(tgt) || 0) + 1)
+    if (!hasTopologyAnnotations) {
+      degreeById.set(src, (degreeById.get(src) || 0) + 1)
+      degreeById.set(tgt, (degreeById.get(tgt) || 0) + 1)
+    }
     if (isStructuralGraphEdge(edge)) {
-      structuralDegreeById.set(src, (structuralDegreeById.get(src) || 0) + 1)
-      structuralDegreeById.set(tgt, (structuralDegreeById.get(tgt) || 0) + 1)
+      if (!hasTopologyAnnotations) {
+        structuralDegreeById.set(src, (structuralDegreeById.get(src) || 0) + 1)
+        structuralDegreeById.set(tgt, (structuralDegreeById.get(tgt) || 0) + 1)
+      }
       const children = structuralChildrenById.get(src)
       if (children) children.push(tgt)
       else structuralChildrenById.set(src, [tgt])
@@ -247,8 +268,9 @@ export function applyCanvasRenderBudget(args: {
     const node = nodes[i]
     const id = String(node?.id || '').trim()
     if (!id) continue
-    const degree = degreeById.get(id) || 0
-    const structuralDegree = structuralDegreeById.get(id) || 0
+    const props = readRecord((node as { properties?: unknown }).properties)
+    const degree = readFiniteNumber(props['graph:degree']) ?? degreeById.get(id) ?? 0
+    const structuralDegree = readFiniteNumber(props['graph:structuralDegree']) ?? structuralDegreeById.get(id) ?? 0
     const scored: ScoredNode = {
       node,
       id,
@@ -364,7 +386,7 @@ export function applyCanvasRenderBudget(args: {
   retainedEdges.sort((a, b) => a.index - b.index)
 
   const nextMetadata: Record<string, JSONValue> = {
-    ...(readRecord((graphData as { metadata?: unknown }).metadata) as Record<string, JSONValue>),
+    ...(readRecord((topologyGraph as { metadata?: unknown }).metadata) as Record<string, JSONValue>),
     canvasRenderBudgetSurface: args.surface as unknown as JSONValue,
     canvasRenderNodeCount: retained.length as unknown as JSONValue,
     canvasRenderNodeLimit: budget.maxNodes as unknown as JSONValue,
@@ -375,7 +397,7 @@ export function applyCanvasRenderBudget(args: {
   }
 
   const budgeted: GraphData = {
-    ...graphData,
+    ...topologyGraph,
     nodes: retained.map(item => item.node),
     edges: retainedEdges.map(item => item.edge),
     metadata: nextMetadata,
