@@ -48,6 +48,70 @@ class SuperAgentHarnessTests(unittest.TestCase):
             handle.write(text)
         return path
 
+    def test_external_xr_validation_document_is_runtime_input_only(self) -> None:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        external_name = "-".join(["knowgrph", "xr", "demo"]) + ".md"
+        external_abs_path = os.path.join(
+            os.path.sep,
+            "Users",
+            "huijoohwee",
+            "Documents",
+            "GitHub",
+            "huijoohwee",
+            "docs",
+            external_name,
+        )
+        forbidden_tokens = {
+            external_name,
+            external_abs_path,
+            external_abs_path.replace(os.path.sep, "/"),
+        }
+        skipped_dir_names = {
+            ".git",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".venv",
+            "__pycache__",
+            "build",
+            "coverage",
+            "dist",
+            "node_modules",
+        }
+        skipped_rel_prefixes = (
+            "canvas/build",
+            "canvas/dist",
+            "canvas/node_modules",
+            "data/outputs",
+            "data/superagent-runs",
+        )
+        offenders: list[str] = []
+
+        for root, dirs, files in os.walk(repo_root):
+            rel_root = os.path.relpath(root, repo_root)
+            rel_root = "" if rel_root == "." else rel_root.replace(os.path.sep, "/")
+            dirs[:] = [
+                name for name in dirs
+                if name not in skipped_dir_names and not os.path.islink(os.path.join(root, name))
+            ]
+            if rel_root and any(rel_root == prefix or rel_root.startswith(f"{prefix}/") for prefix in skipped_rel_prefixes):
+                dirs[:] = []
+                continue
+            for name in files:
+                path = os.path.join(root, name)
+                if os.path.islink(path):
+                    continue
+                try:
+                    if os.path.getsize(path) > 2_000_000:
+                        continue
+                    with open(path, "r", encoding="utf-8") as handle:
+                        text = handle.read()
+                except (OSError, UnicodeDecodeError):
+                    continue
+                if any(token in text for token in forbidden_tokens):
+                    offenders.append(os.path.relpath(path, repo_root).replace(os.path.sep, "/"))
+
+        self.assertEqual([], sorted(offenders))
+
     def test_tool_registry_validates_required_inputs(self) -> None:
         registry = ToolRegistry()
         # Reuse the default registry through a tiny fake object because the builder does not depend on harness state.
@@ -228,7 +292,8 @@ class SuperAgentHarnessTests(unittest.TestCase):
             )
             serialized = json.dumps(state, ensure_ascii=False).lower()
             self.assertNotIn("robodrone", serialized)
-            self.assertNotIn("knowgrph-video-demo.md", serialized)
+            self.assertNotIn("-".join(["knowgrph", "video", "demo"]) + ".md", serialized)
+            self.assertNotIn("-".join(["knowgrph", "xr", "demo"]) + ".md", serialized)
 
 
 if __name__ == "__main__":

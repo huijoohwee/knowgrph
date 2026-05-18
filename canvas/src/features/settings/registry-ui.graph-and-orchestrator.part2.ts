@@ -211,12 +211,12 @@ export const uiGraphAndOrchestratorSettingsRegistryPart2: SettingMeta[] = [
     read: () => s().canvas3dMode,
     write: (v) => {
       const raw = String(v || '')
-      const mode = raw === 'voxel' ? 'voxel' : '3d'
+      const mode = raw === 'voxel' || raw === 'xr' ? raw : '3d'
       s().setCanvas3dMode(mode)
     },
     docKey: 'canvas3dMode',
     default: () => '3d',
-    options: ['3d', 'voxel'],
+    options: ['3d', 'xr', 'voxel'],
   },
   {
     key: 'viewportControlsPreset',

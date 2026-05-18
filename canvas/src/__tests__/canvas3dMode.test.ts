@@ -1,4 +1,4 @@
-import { getVoxelModeInapplicableReason, isVoxelModeApplicable, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
@@ -36,6 +36,47 @@ export function testVoxelModeRejectsGeospatialMode() {
   const resolved = resolveCanvas3dMode({ ...args, requested: 'voxel' })
   if (resolved !== '3d') {
     throw new Error(`Expected Voxel Mode request to fall back to 3D in Geospatial Mode, got ${resolved}`)
+  }
+}
+
+export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
+  if (normalizeCanvas3dMode('xr') !== 'xr') {
+    throw new Error('Expected XR Mode to normalize as a first-class 3D canvas mode')
+  }
+
+  let selectedRenderMode: '2d' | '3d' | null = null
+  let canvas3dMode: string | null = null
+
+  applyCanvasViewSelection({
+    id: 'surface:xr',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected XR Mode selection to avoid opening Geospatial Mode when geospatial is disabled')
+    },
+    canvas2dRenderer: 'd3',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: () => {},
+    setCanvasRenderMode: mode => { selectedRenderMode = mode },
+    setCanvas3dMode: mode => { canvas3dMode = mode },
+    setSchema: () => {},
+    setRenderMediaAsNodes: () => {},
+    setDocumentSemanticMode: () => {},
+    setFrontmatterModeEnabled: () => {},
+    setMultiDimTableModeEnabled: () => {},
+  })
+
+  if (selectedRenderMode !== '3d') {
+    throw new Error(`Expected XR Mode selection to activate 3D canvas rendering, got ${String(selectedRenderMode)}`)
+  }
+  if (canvas3dMode !== 'xr') {
+    throw new Error(`Expected XR Mode selection to set canvas3dMode=xr, got ${String(canvas3dMode)}`)
   }
 }
 

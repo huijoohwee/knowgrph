@@ -82,9 +82,10 @@ function readCanvasRenderModePreset(value: unknown): '2d' | '3d' | undefined {
 function readCanvas3dModePreset(value: unknown): Canvas3dModeId | undefined {
   const raw = String(value || '').trim()
   if (!raw) return undefined
-  if (raw === '3d' || raw === 'voxel') return raw
+  if (raw === '3d' || raw === 'xr' || raw === 'voxel') return raw
   const normalized = normalizePresetToken(raw)
   if (normalized === '3d' || normalized === 'free3d') return '3d'
+  if (normalized === 'xr' || normalized === 'xrmode') return 'xr'
   if (normalized === 'voxel' || normalized === 'voxelmode') return 'voxel'
   return undefined
 }

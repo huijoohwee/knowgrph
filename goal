@@ -131,6 +131,7 @@ The visual canvas contract is mobile-first and responsive:
 - Keep data-flow edges readable and routed between the widgets and Rich Media Panel ports without crossing directly through the center of widget content when a better route is available.
 - Preserve responsive layout metadata so it can be inspected, replayed, and adapted across viewport sizes without hardcoding a demo document or absolute path.
 - Use these layouts as validation targets, not as one-off fixed scenes. Other briefs must be able to reuse the same mobile-first balanced layout rules.
+- When Canvas View Mode changes the active surface, the same graph, widget, edge, provenance, and responsive metadata must travel across 2D, 3D, XR, voxel, and geospatial surfaces without introducing route-specific branches.
 
 ## Mobile-First Responsive Design Contract
 
@@ -152,15 +153,28 @@ Forbidden behavior:
 - Desktop-only acceptance, hidden mobile controls, viewport-specific hardcoded coordinates, route-specific CSS overrides, duplicate mobile component trees, downstream publish patches, and legacy aliases that keep stale layout behavior alive.
 - Silent clipping, inaccessible fixed-position controls, unbounded resize observers, per-frame React state churn, layout jumps during panel transitions, or canvas redraw loops triggered by mobile keyboard/orientation changes.
 
-## User-Supplied Validation Input
+## External Validation Inputs
 
-The following path is an external runtime validation input supplied by the user, not a fixture or implementation dependency:
+User-provided validation briefs may live outside this repository and may be passed to CLI, MCP, Codex, or app entrypoints at runtime.
+
+Use external validation documents only when explicitly supplied for a run. Do not hardcode their absolute paths, repository locations, filenames, narrative details, brands, geography, or story content into source code, tests, fixtures, package scripts, MCP defaults, generated templates, or documentation. The repo must pass neutral in-repo validation without any external brief, then also accept a supplied path as runtime input.
+
+## Canvas XR Mode Contract
+
+XR Mode is a first-class Canvas surface selected through:
 
 ```text
-/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-video-demo.md
+Toolbar -> Canvas View Mode -> Surface Mode -> XR Mode
 ```
 
-Use this document only when explicitly passed at runtime for E2E validation. Do not hardcode this absolute path, its repository location, or its story content into source code, tests, fixtures, package scripts, MCP defaults, generated templates, or documentation. The pipeline must pass neutral in-repo validation without it, and then also accept this path as a user-supplied input.
+Required behavior:
+
+- XR Mode is represented by shared renderer mode state and schema-compatible configuration, not by a document-specific route, fixture, local file path, or demo story switch.
+- The active canvas graph, widget handles, edge routing, provenance metadata, selection state, and responsive layout metadata remain inspectable when XR Mode is selected.
+- The implementation may be inspired by broad web XR scene ideas such as declarative scene metadata, entity/component composition, camera rigs, cursor/raycast selection, controller affordances, and asset readiness, but it must not copy external implementation code, markup, component names, examples, file structure, copy, or project architecture.
+- XR entry is capability-gated and user-gesture driven. Unsupported browsers, blocked permissions, unavailable devices, and non-secure contexts must fall back to an inspectable 3D canvas surface with explicit status rather than a blank canvas or crash.
+- Pointer, mouse, keyboard, touch, and XR-controller selection must share neutral input semantics where feasible, with no browser-specific fork unless a tested platform bug requires a bounded guard.
+- Baseline tests must prove the toolbar path can select XR Mode and that external XR demo briefs are runtime inputs only, never hardcoded repo dependencies.
 
 ## Target E2E Capability
 
@@ -172,7 +186,7 @@ Given a neutral brief and optional existing canvas graph, Knowgrph should:
 4. Generate or mock image artifacts: reference frames, prompt metadata, dimensions, media type, and provenance.
 5. Generate or mock video artifacts: storyboard or rendered video output, reference media links, duration, aspect ratio, and provenance.
 6. Compose a canvas graph containing typed text, image, video, Rich Media Panel, verification, and report nodes with data-flow/provenance edges.
-7. Emit a Knowgrph frontmatter-flow workspace artifact that can travel the app route: MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Mobile-first responsive layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges, including the balanced 16:9 (1920x1080) proof class.
+7. Emit a Knowgrph frontmatter-flow workspace artifact that can travel the app route: MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Mobile-first responsive layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges, including the balanced 16:9 (1920x1080) proof class and the optional Surface Mode -> XR Mode proof path.
 8. Persist state, trace, observations, artifacts, recovery events, and a final report.
 9. Verify media references, canvas topology, Rich Media Panel wiring, trace completeness, restartability, and neutrality.
 10. Stop deterministically when acceptance criteria pass, a recorded blocker is reached, or configured budgets are exhausted.
@@ -249,6 +263,8 @@ The canvas must be treated as a graph of typed nodes and edges, not as one fixed
 - Frontmatter-flow widget layout must use mobile-first responsive metadata plus a balanced 16:9 logical frame (`1920x1080`) with Text, Image, Video, and Rich Media Panel widgets positioned as a readable composition, not an unreachable stacked or offscreen cluster.
 - Edges connecting Text, Image, and Video widgets to the Rich Media Panel must be inspectable, connected to explicit handles, and retained in the generated graph and workspace markdown.
 - Missing, failed, degraded, or pending media must be represented explicitly rather than hidden.
+- XR Mode must reuse the same graph artifact and explicit widget/edge/provenance data rather than generating a separate XR-only demo scene.
+- XR controls must expose status for available, unavailable, blocked, entering, entered, and exited states without requiring external hardware for baseline repo tests.
 
 The generated canvas artifact should be loadable or inspectable by existing Knowgrph surfaces where feasible, and must always be available as a standalone graph artifact.
 When Knowgrph frontmatter-flow is available, also emit a workspace markdown artifact that declares `kgCanvas2dRenderer: "flowEditor"`, canonical widget form ids, widget handles, responsive breakpoint/fallback metadata, the balanced 16:9 widget layout metadata, and the Rich Media Panel node needed by the Editor Workspace Canvas Widgets, Edges, and Rich Media Panel surface.
@@ -281,6 +297,8 @@ Validation must be layered:
 - Layout tests proving generated frontmatter-flow positions fit a balanced 16:9 (`1920x1080`) logical frame with visible Text, Image, Video, and Rich Media Panel widgets plus readable connecting edges.
 - Responsive tests proving mobile, tablet, desktop, and wide-canvas proof classes preserve reachable controls, visible widgets, readable edges, stable fit behavior, and non-overlapping panel surfaces.
 - Touch and resize tests proving pan/zoom, selection, drawer/panel transitions, keyboard resize, safe-area insets, and orientation changes do not trigger stale writes, duplicate canvas mounts, or unbounded recalculation.
+- XR surface tests proving Canvas View Mode can select XR Mode through shared renderer state, persists neutral mode metadata where expected, and falls back cleanly when WebXR capability is unavailable.
+- Hardcode-guard tests proving externally supplied XR validation documents are not referenced by filename or absolute local path anywhere in the repo under test.
 - Media tests proving generated or mocked image/video artifacts exist, have declared media types, and are referenced by the canvas graph.
 
 If visual or browser validation is available, include a smoke test that loads a generated canvas or preview and confirms that text, image, and video nodes are represented without missing references. Do not require external network access for baseline tests.
@@ -296,11 +314,11 @@ The goal is complete only when:
 - Deterministic mock providers are covered by tests.
 - Real provider hooks are documented and do not break offline tests when credentials are absent.
 - The canvas graph captures generated media and provenance through typed nodes and edges.
-- The generated workspace artifact exposes the same media through the MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges path.
+- The generated workspace artifact exposes the same media through the MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges path, with Surface Mode -> XR Mode available as a first-class canvas mode.
 - The generated workspace artifact exposes mobile-first responsive metadata for widget bounds, fit strategy, edge anchors, panel behavior, safe-area offsets, and overflow handling.
 - Live UI or browser verification confirms the route can open MainPanel Integrations, FloatingPanel Chat UI, Editor Workspace, Canvas, visible widgets, Rich Media Panel, and their edges on mobile, tablet, desktop, and wide-canvas proof classes without relying on the validation document being hardcoded in the repo.
 - Cloudflare production verification confirms `airvio.co/knowgrph` preserves the same mobile-first responsive behavior after the Dev source and Prod mirror are synced.
-- Test validation can run with the user-supplied validation path above as a runtime input, while the repo remains free of hardcoded dependencies on that absolute path or its demo content.
+- Test validation can run with a user-supplied external validation path as a runtime input, while the repo remains free of hardcoded dependencies on that absolute path, filename, or demo content.
 - Failure and resume behavior are tested.
 - Termination is deterministic and recorded.
 - No test or implementation relies on hardcoded absolute local paths or a specific pre-existing demo document.
@@ -315,10 +333,11 @@ The goal is complete only when:
 5. Add checkpoint/resume and bounded recovery.
 6. Add canvas graph and preview artifacts for generated media.
 7. Add mobile-first responsive layout metadata, panel stacking policy, touch-safe controls, and viewport proof tests.
-8. Add neutral integration example and tests.
-9. Add optional real-provider adapter hooks.
-10. Add Codex-facing instructions, MCP or API entrypoint, and reviewer documentation.
-11. Run the neutral E2E example and, when supplied by the user, run external/demo briefs only as runtime inputs.
+8. Add XR Mode as a shared canvas surface option with capability-gated WebXR entry and non-XR fallback status.
+9. Add neutral integration example and tests.
+10. Add optional real-provider adapter hooks.
+11. Add Codex-facing instructions, MCP or API entrypoint, and reviewer documentation.
+12. Run the neutral E2E example and, when supplied by the user, run external/demo briefs only as runtime inputs.
 
 ## Final Output Contract
 
@@ -331,6 +350,7 @@ At the end of a successful run, produce:
 - A canvas graph artifact containing text, image, video, verification, and report nodes with provenance.
 - A Knowgrph frontmatter-flow workspace artifact containing text/image/video widgets wired into a Rich Media Panel with mobile-first responsive metadata, a balanced 16:9 (`1920x1080`) proof layout, and inspectable edges.
 - A responsive verification artifact covering mobile, tablet, desktop, and wide-canvas proof classes.
+- An XR surface verification artifact when XR Mode is selected, proving capability status, fallback behavior, and graph/widget/edge continuity.
 - A run trace artifact that can be inspected independently.
 - Clear commands or Codex instructions for rerunning the neutral example and for running user-supplied briefs.
 

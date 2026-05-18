@@ -87,7 +87,10 @@ function coerceState(raw: unknown): PerDocumentUiState | null {
   const record = readPlainObject(raw)
   if (!record) return null
   const canvasRenderMode = record.canvasRenderMode === '3d' ? '3d' : record.canvasRenderMode === '2d' ? '2d' : undefined
-  const canvas3dMode = record.canvas3dMode === 'voxel' ? 'voxel' : record.canvas3dMode === '3d' ? '3d' : undefined
+  const canvas3dMode =
+    record.canvas3dMode === 'voxel' || record.canvas3dMode === 'xr' || record.canvas3dMode === '3d'
+      ? record.canvas3dMode
+      : undefined
   const canvas2dRenderer = isCanvas2dRendererId(record.canvas2dRenderer) ? (record.canvas2dRenderer as Canvas2dRendererId) : undefined
   const documentSemanticMode = record.documentSemanticMode === 'keyword' || record.documentSemanticMode === 'document'
     ? (record.documentSemanticMode as DocumentSemanticMode)

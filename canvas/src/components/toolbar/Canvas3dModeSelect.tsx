@@ -101,6 +101,15 @@ export function Canvas3dModeSelect({
     }
     return null
   }, [schema])
+  const xrDisabledReason = React.useMemo(() => {
+    if (geospatialEnabled) {
+      return {
+        reason: 'Disabled in Geospatial Mode',
+        hint: 'Switch to Document Mode to enable',
+      }
+    }
+    return threeDisabledReason
+  }, [geospatialEnabled, threeDisabledReason])
   const options = React.useMemo(
     () =>
       [
@@ -119,9 +128,9 @@ export function Canvas3dModeSelect({
           title: 'XR Mode',
           label: 'XR',
           Icon: Glasses,
-          disabled: !!threeDisabledReason,
-          disabledReason: threeDisabledReason?.reason,
-          enableHint: threeDisabledReason?.hint,
+          disabled: !!xrDisabledReason,
+          disabledReason: xrDisabledReason?.reason,
+          enableHint: xrDisabledReason?.hint,
         },
         {
           id: 'voxel',
@@ -133,7 +142,7 @@ export function Canvas3dModeSelect({
           enableHint: !schema ? 'Wait for graph initialization, then retry' : !voxelApplicable ? disabledReason?.hint : undefined,
         },
       ] satisfies ThreeModeOption[],
-    [disabledReason?.hint, disabledReason?.reason, schema, threeDisabledReason, voxelApplicable],
+    [disabledReason?.hint, disabledReason?.reason, schema, threeDisabledReason, voxelApplicable, xrDisabledReason],
   )
   const selectedModeId = (canvasRenderMode === '3d' ? canvas3dMode : '2d') as ThreeModeOption['id']
 
@@ -142,7 +151,7 @@ export function Canvas3dModeSelect({
       value={selectedModeId}
       options={options}
       title={canvasRenderMode === '3d' ? options.find(o => o.id === canvas3dMode)?.title || '3D Mode' : '3D Mode'}
-      tooltipContent="3D Mode: switch between default 3D and Voxel rendering"
+      tooltipContent="3D Mode: switch between default 3D, XR, and Voxel rendering"
       disabled={disabled}
       isButtonActive={canvasRenderMode === '3d'}
       onSelect={id => {
@@ -170,6 +179,15 @@ export function Canvas3dModeSelect({
           }
           setCanvas3dMode('voxel')
           setCanvasRenderMode('3d')
+          return
+        }
+        if (id === 'xr') {
+          if (geospatialEnabled) {
+            onOpenGeospatialMode()
+            return
+          }
+          setCanvasRenderMode('3d')
+          setCanvas3dMode('xr')
           return
         }
         setCanvasRenderMode('3d')

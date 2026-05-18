@@ -778,7 +778,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   KG_OUTPUT_DIR: { area: 'Pipeline Env', responsibility: 'Pipeline output directory' },
   'max-lines': { area: 'ESLint Guard', responsibility: 'Max lines per file' },
   canvasRenderMode: { area: 'Canvas Rendering', responsibility: 'Render mode (2d or 3d)' },
-  canvas3dMode: { area: 'Canvas Rendering', responsibility: '3D renderer mode (default or voxel)' },
+  canvas3dMode: { area: 'Canvas Rendering', responsibility: '3D renderer mode (default, XR, or voxel)' },
   viewportControlsPreset: {
     area: 'Canvas Interaction (Viewport Controls)',
     responsibility: 'Pointer/wheel gesture preset (map vs design)',

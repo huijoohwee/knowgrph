@@ -57,6 +57,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testVoxelModeRejectsGeospatialMode()
   })
+  await execTest(results, 'canvas.viewSelection.xrSurfaceMode', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeNormalizesAndCanvasViewSelectionActivatesSurface()
+  })
   await execTest(results, 'canvas.viewSelection.voxelGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewSelectionBlocksVoxelDuringGeospatialMode()

@@ -6528,7 +6528,7 @@
   },
   "canvas3dMode": {
     "area": "Canvas Rendering",
-    "responsibility": "3D renderer mode (default or voxel)",
+    "responsibility": "3D renderer mode (default, XR, or voxel)",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",

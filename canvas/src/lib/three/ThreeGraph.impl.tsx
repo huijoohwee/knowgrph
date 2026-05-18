@@ -58,6 +58,8 @@ type XrSessionLike = {
   removeEventListener?: (type: string, listener: () => void) => void
 }
 
+type ThreeWebXrSession = Parameters<WebGLRenderer['xr']['setSession']>[0]
+
 type NavigatorWithXr = Navigator & {
   xr?: {
     isSessionSupported?: (mode: string) => Promise<boolean>
@@ -160,7 +162,7 @@ function CanvasXrEntryPanel({
         void 0
       }
       renderer.xr.enabled = true
-      await renderer.xr.setSession(session as never)
+      await renderer.xr.setSession(session as ThreeWebXrSession)
       sessionRef.current = session
       setStatus('active')
     } catch {
