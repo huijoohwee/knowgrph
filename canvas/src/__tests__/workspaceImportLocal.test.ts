@@ -13,12 +13,17 @@ import {
   isPendingLocalImportStubText,
   peekPendingWorkspaceLocalImport,
 } from '@/features/markdown-workspace/workspaceImport'
-import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
-import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
+import {
+  activateFirstImportedWorkspaceFile,
+  resolveImportedCanvasDocumentApplyToGraph,
+  shouldApplyImportedCanvasDocumentToGraph,
+} from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
 import { resolveWorkspaceFileJsonLdExport } from '@/features/markdown-workspace/workspaceImport/workspaceFileJsonLd'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
+import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES, WORKSPACE_IMPORT_DEFER_LOCAL_GLB_BYTES } from '@/lib/config'
+import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
 import {
   KNOWGRPH_VIDEO_DEMO_BASENAME,
   KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
@@ -28,6 +33,11 @@ import {
 const createFile = (name: string, text: string) => {
   const blob = new Blob([text], { type: 'text/plain' })
   return new File([blob], name, { type: 'text/plain' })
+}
+
+const createBinaryFile = (name: string, bytes: Uint8Array, type = 'application/octet-stream') => {
+  const blob = new Blob([bytes], { type })
+  return new File([blob], name, { type })
 }
 
 export async function testWorkspaceImportLocalFilesCreatesExpectedEntries() {
@@ -165,6 +175,274 @@ export async function testWorkspaceImportLocalFilesSvgPreservesBytes() {
   } finally {
     restore()
   }
+}
+
+export async function testWorkspaceImportLocalFilesGlbCreatesModelManifest() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const glbHeader = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 12, 0, 0, 0])
+    const files = [createBinaryFile('scene.glb', glbHeader, 'model/gltf-binary')]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+    if (res.createdPaths[0] !== '/scene.glb') {
+      throw new Error(`expected GLB import to preserve /scene.glb, got ${String(res.createdPaths[0] || '')}`)
+    }
+
+    const text = await fs.readFileText('/scene.glb')
+    if (!text) throw new Error('expected GLB manifest text')
+    if (!text.includes('kgAssetFormat: "glb"')) throw new Error('expected GLB asset format frontmatter')
+    if (!text.includes('kgAssetValidGlbMagic: true')) throw new Error('expected GLB magic validation flag')
+    if (!text.includes('kgCanvasSurfaceMode: "3d"')) throw new Error('expected GLB manifest to request 3D surface mode')
+    if (!text.includes('kgCanvasRenderMode: "3d"')) throw new Error('expected GLB manifest to request 3D canvas render mode')
+    if (!text.includes('kgCanvas3dMode: "xr"')) throw new Error('expected GLB manifest to request XR 3D mode')
+    if (!text.includes('kgAssetEncoding: "base64-body"')) {
+      throw new Error('expected GLB manifest to keep encoded model data outside frontmatter')
+    }
+    if (!text.includes('```kg-glb-base64')) {
+      throw new Error('expected GLB manifest to embed chunked model data in a fenced payload')
+    }
+    const asset = parseGlbAssetDocument(text)
+    if (!asset) throw new Error('expected GLB manifest to parse as a renderable asset document')
+    if (asset.name !== 'scene.glb') throw new Error(`expected parsed GLB asset name scene.glb, got ${asset.name}`)
+    if (!asset.dataUrl?.startsWith('data:model/gltf-binary;base64,')) {
+      throw new Error('expected parsed GLB asset to expose the embedded binary data URL')
+    }
+    if (!shouldApplyImportedCanvasDocumentToGraph({ path: '/scene.glb', text })) {
+      throw new Error('expected GLB asset manifest to opt into canvas preset application without a .md suffix')
+    }
+
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas3dMode('3d')
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: { applyToGraph: true, skipComposedGraphApply: true },
+    })
+    const next = useGraphStore.getState()
+    if (next.canvasRenderMode !== '3d') {
+      throw new Error(`expected GLB manifest activation to switch Canvas to 3D, got ${String(next.canvasRenderMode || '')}`)
+    }
+    if (next.canvas3dMode !== 'xr') {
+      throw new Error(`expected GLB manifest activation to switch Canvas 3D mode to XR, got ${String(next.canvas3dMode || '')}`)
+    }
+
+    next.setCanvasRenderMode('2d')
+    next.setCanvas3dMode('3d')
+    await next.setActiveMarkdownDocument({
+      name: 'scene.glb',
+      text,
+      normalizeMermaidMmd: false,
+      applyViewPreset: true,
+      applyToGraph: true,
+    })
+    const afterSourceFileOpen = useGraphStore.getState()
+    if (afterSourceFileOpen.canvasRenderMode !== '3d') {
+      throw new Error(`expected Source Files GLB activation to switch Canvas to 3D, got ${String(afterSourceFileOpen.canvasRenderMode || '')}`)
+    }
+    if (afterSourceFileOpen.canvas3dMode !== 'xr') {
+      throw new Error(`expected Source Files GLB activation to preserve XR, got ${String(afterSourceFileOpen.canvas3dMode || '')}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLocalFilesGltfCreatesModelManifest() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const gltf = JSON.stringify({ asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [] }], nodes: [] }, null, 2)
+    const files = [createFile('scene.gltf', `${gltf}\n`)]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+    if (res.createdPaths[0] !== '/scene.gltf') {
+      throw new Error(`expected GLTF import to preserve /scene.gltf, got ${String(res.createdPaths[0] || '')}`)
+    }
+
+    const text = await fs.readFileText('/scene.gltf')
+    if (!text) throw new Error('expected GLTF manifest text')
+    if (!text.includes('kgAssetFormat: "gltf"')) throw new Error('expected GLTF asset format frontmatter')
+    if (!text.includes('kgAssetValidGltfJson: true')) throw new Error('expected GLTF JSON validation flag')
+    if (!text.includes('kgCanvasSurfaceMode: "3d"')) throw new Error('expected GLTF manifest to request 3D surface mode')
+    if (!text.includes('kgCanvasRenderMode: "3d"')) throw new Error('expected GLTF manifest to request 3D canvas render mode')
+    if (!text.includes('kgCanvas3dMode: "xr"')) throw new Error('expected GLTF manifest to request XR 3D mode')
+    if (!text.includes('kgAssetEncoding: "json-body"')) {
+      throw new Error('expected GLTF manifest to keep JSON payload outside frontmatter')
+    }
+    if (!text.includes('```kg-gltf-base64')) {
+      throw new Error('expected GLTF manifest to embed chunked model JSON in a fenced payload')
+    }
+    const asset = parseGlbAssetDocument(text)
+    if (!asset) throw new Error('expected GLTF manifest to parse as a renderable asset document')
+    if (asset.format !== 'gltf') throw new Error(`expected parsed asset format gltf, got ${asset.format}`)
+    if (asset.name !== 'scene.gltf') throw new Error(`expected parsed GLTF asset name scene.gltf, got ${asset.name}`)
+    if (!asset.dataUrl?.startsWith('data:model/gltf+json;base64,')) {
+      throw new Error('expected parsed GLTF asset to expose the embedded JSON data URL')
+    }
+    if (!shouldApplyImportedCanvasDocumentToGraph({ path: '/scene.gltf', text })) {
+      throw new Error('expected GLTF asset manifest to opt into canvas preset application without a .md suffix')
+    }
+
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas3dMode('3d')
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: { applyToGraph: true, skipComposedGraphApply: true },
+    })
+    const next = useGraphStore.getState()
+    if (next.canvasRenderMode !== '3d') {
+      throw new Error(`expected GLTF manifest activation to switch Canvas to 3D, got ${String(next.canvasRenderMode || '')}`)
+    }
+    if (next.canvas3dMode !== 'xr') {
+      throw new Error(`expected GLTF manifest activation to switch Canvas 3D mode to XR, got ${String(next.canvas3dMode || '')}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLargeLocalGlbDefersEditorHydrationButKeepsXrRenderable() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const bytes = new Uint8Array(Math.max(WORKSPACE_IMPORT_DEFER_LOCAL_GLB_BYTES + 32, 1024))
+    bytes.set([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0], 0)
+    const files = [createBinaryFile('large-scene.glb', bytes, 'model/gltf-binary')]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+    if (res.createdPaths[0] !== '/large-scene.glb') {
+      throw new Error(`expected large GLB import to preserve /large-scene.glb, got ${String(res.createdPaths[0] || '')}`)
+    }
+
+    const stub = await fs.readFileText('/large-scene.glb')
+    if (!stub || !isPendingLocalImportStubText(stub)) throw new Error('expected large GLB import to keep an editor-safe pending stub')
+    if (stub.includes('kgAssetDataUrl') || stub.includes('```kg-glb-base64')) {
+      throw new Error('expected pending GLB stub to avoid eager embedded base64 payloads')
+    }
+    const pending = peekPendingWorkspaceLocalImport('/large-scene.glb')
+    if (!pending || pending.kind !== 'glb') throw new Error('expected pending GLB local import handle')
+    const asset = parseGlbAssetDocument(stub)
+    if (!asset || !asset.pendingLocalImport || asset.pendingLocalImportPath !== '/large-scene.glb') {
+      throw new Error('expected pending GLB stub to parse as a renderable pending asset document')
+    }
+
+    const shouldApply = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
+    if (!shouldApply) throw new Error('expected pending GLB stub to request XR canvas activation')
+    const afterResolve = await fs.readFileText('/large-scene.glb')
+    if (afterResolve !== stub) throw new Error('expected apply resolution to avoid hydrating pending GLB payloads')
+
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas3dMode('3d')
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: { applyToGraph: true, skipComposedGraphApply: true },
+    })
+    const next = useGraphStore.getState()
+    if (next.canvasRenderMode !== '3d') {
+      throw new Error(`expected pending GLB activation to switch Canvas to 3D, got ${String(next.canvasRenderMode || '')}`)
+    }
+    if (next.canvas3dMode !== 'xr') {
+      throw new Error(`expected pending GLB activation to switch Canvas 3D mode to XR, got ${String(next.canvas3dMode || '')}`)
+    }
+
+    await activateFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph: true })
+    const active = useGraphStore.getState()
+    if (String(active.markdownDocumentText || '') !== stub) {
+      throw new Error('expected active editor text to remain the lightweight pending GLB stub')
+    }
+    if (peekPendingWorkspaceLocalImport('/large-scene.glb')?.kind !== 'glb') {
+      throw new Error('expected pending GLB handle to remain available for XR renderer resolution')
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLargeLocalGltfDefersEditorHydrationButKeepsXrRenderable() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const padding = 'x'.repeat(Math.max(WORKSPACE_IMPORT_DEFER_LOCAL_GLB_BYTES + 32, 1024))
+    const gltf = JSON.stringify({ asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [] }], nodes: [], extras: { padding } })
+    const files = [createFile('large-scene.gltf', gltf)]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+    if (res.createdPaths[0] !== '/large-scene.gltf') {
+      throw new Error(`expected large GLTF import to preserve /large-scene.gltf, got ${String(res.createdPaths[0] || '')}`)
+    }
+
+    const stub = await fs.readFileText('/large-scene.gltf')
+    if (!stub || !isPendingLocalImportStubText(stub)) throw new Error('expected large GLTF import to keep an editor-safe pending stub')
+    if (stub.includes('kgAssetDataUrl') || stub.includes('```kg-gltf-base64')) {
+      throw new Error('expected pending GLTF stub to avoid eager embedded JSON payloads')
+    }
+    const pending = peekPendingWorkspaceLocalImport('/large-scene.gltf')
+    if (!pending || pending.kind !== 'gltf') throw new Error('expected pending GLTF local import handle')
+    const asset = parseGlbAssetDocument(stub)
+    if (!asset || asset.format !== 'gltf' || !asset.pendingLocalImport || asset.pendingLocalImportPath !== '/large-scene.gltf') {
+      throw new Error('expected pending GLTF stub to parse as a renderable pending asset document')
+    }
+
+    const shouldApply = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
+    if (!shouldApply) throw new Error('expected pending GLTF stub to request XR canvas activation')
+    const afterResolve = await fs.readFileText('/large-scene.gltf')
+    if (afterResolve !== stub) throw new Error('expected apply resolution to avoid hydrating pending GLTF payloads')
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLocalFolderGlbDefersAsModelManifest() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const glbHeader = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 12, 0, 0, 0])
+    const file = createBinaryFile('scene.glb', glbHeader, 'model/gltf-binary')
+    Object.defineProperty(file, 'webkitRelativePath', { value: 'models/scene.glb' })
+    const res = await importWorkspaceLocalFolder({ fs, files: [file] })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+    if (res.createdPaths[0] !== '/models/scene.glb') {
+      throw new Error(`expected folder GLB import to preserve /models/scene.glb, got ${String(res.createdPaths[0] || '')}`)
+    }
+
+    const before = await fs.readFileText('/models/scene.glb')
+    if (!before || !isPendingLocalImportStubText(before)) throw new Error('expected folder GLB import to start as a pending stub')
+    const pending = peekPendingWorkspaceLocalImport('/models/scene.glb')
+    if (!pending || pending.kind !== 'glb') throw new Error('expected pending GLB local import handle')
+    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs, path: '/models/scene.glb' })
+    if (!hydrated || hydrated.kind !== 'glb') throw new Error('expected GLB hydration result')
+    if (!hydrated.text.includes('kgAssetFormat: "glb"')) throw new Error('expected hydrated GLB manifest frontmatter')
+  } finally {
+    restore()
+  }
+}
+
+export function testWorkspaceExportMenuIncludesGlbAction() {
+  const gltf = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'gltf')
+  if (!gltf) throw new Error('expected workspace export menu to include GLTF')
+  if (!gltf.menuLabel.includes('.gltf')) throw new Error(`expected GLTF export menu label to name .gltf, got ${gltf.menuLabel}`)
+  const glb = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'glb')
+  if (!glb) throw new Error('expected workspace export menu to include GLB')
+  if (!glb.menuLabel.includes('.glb')) throw new Error(`expected GLB export menu label to name .glb, got ${glb.menuLabel}`)
 }
 
 export async function testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen() {

@@ -455,12 +455,14 @@ export default function RenderSettingsSection({
                 disabled={canvasRenderMode !== '3d'}
                 onChange={e => {
                   if (!ensureBaselineUnlocked()) return
-                  const next = e.target.value === 'voxel' ? 'voxel' : '3d'
+                  const raw = e.target.value
+                  const next = raw === 'voxel' ? 'voxel' : raw === 'xr' ? 'xr' : '3d'
                   if (next === 'voxel' && !voxelApplicable) return
                   setCanvas3dMode(next)
                 }}
               >
                 <option value="3d">3d</option>
+                <option value="xr">xr</option>
                 <option value="voxel" disabled={!voxelApplicable}>voxel</option>
               </select>
             </div>

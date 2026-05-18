@@ -74,13 +74,19 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     responsibility: 'Auto-refresh editor workspace when workspace FS changes',
   },
   'workspace.sync.sourceFiles.docsOnly': {
-    area: 'Workspace Storage Sync',
-    responsibility: 'Keep Source Files constrained to /docs workspace mirror entries only',
+    area: 'Source File Management',
+    responsibility: 'Constrain automated Source Files hydration to canonical /docs workspace mirror entries',
+    notes: 'Default automated path is D1/docs backed; Import local files remains manual-only.',
   },
   'workspace.sync.sourceFiles.debounceMs': {
-    area: 'Workspace Storage Sync',
+    area: 'Source File Management',
     responsibility: 'Debounce interval before Source Files rematerialization after workspace FS updates',
-    notes: 'Unit: ms, clamped to [100, 10000]',
+    notes: 'Unit: ms, clamped to [100, 10000]; applies to automated D1/docs and workspace-FS refreshes.',
+  },
+  'workspace.import.defaultSourceUrl': {
+    area: 'Source File Management',
+    responsibility: 'Default remote source URL for source-file bootstrap without using hidden local imports',
+    notes: 'Local filesystem paths and Cloudflare dashboard D1 URLs normalize to the configured storage base URL.',
   },
   'payments.stripe.mode': { area: 'Stripe Payment API', responsibility: 'Stripe mode label (test vs live)' },
   'payments.stripe.secretKey': { area: 'Stripe Payment API', responsibility: 'Stripe secret key (server-side)', notes: 'Keep secret keys server-side only; do not expose in client code.' },

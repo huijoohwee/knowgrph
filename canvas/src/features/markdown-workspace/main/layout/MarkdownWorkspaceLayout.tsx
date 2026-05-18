@@ -1,14 +1,17 @@
 import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { MarkdownWorkspaceToolbar } from '../../MarkdownWorkspaceToolbar'
-import { resolveMarkdownWorkspacePaneVisibility, type MarkdownWorkspacePaneVisibility } from '../types'
+import { resolveMarkdownWorkspacePaneVisibility, type MarkdownWorkspacePaneAvailability, type MarkdownWorkspacePaneVisibility } from '../types'
 
 export function MarkdownWorkspaceLayout(props: {
   toolbarProps: React.ComponentProps<typeof MarkdownWorkspaceToolbar>
   layoutMode: MarkdownWorkspaceLayoutMode
   renderMarkdownEditor: () => React.ReactNode
   renderJsonEditor: () => React.ReactNode
+  binaryPane?: React.ReactNode
+  binaryPaneVisible?: boolean
   splitPaneVisibility: MarkdownWorkspacePaneVisibility
+  paneAvailability?: MarkdownWorkspacePaneAvailability
   viewer: React.ReactNode
   presentation: React.ReactNode
   slidesGallery: React.ReactNode
@@ -16,8 +19,15 @@ export function MarkdownWorkspaceLayout(props: {
   const paneVisibility = resolveMarkdownWorkspacePaneVisibility({
     layoutMode: props.layoutMode,
     splitPaneVisibility: props.splitPaneVisibility,
+    paneAvailability: props.paneAvailability,
   })
+  const binaryPaneVisible = props.binaryPaneVisible === true
   const splitPanes = [
+    binaryPaneVisible ? (
+      <section key="bin" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Binary Model">
+        {props.binaryPane}
+      </section>
+    ) : null,
     paneVisibility.json ? (
       <section key="json" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
         {props.renderJsonEditor()}
@@ -48,6 +58,12 @@ export function MarkdownWorkspaceLayout(props: {
 
       {props.layoutMode === 'editor' ? (
         <section className="flex-1 min-h-0 flex" aria-label="Monaco editors">
+          {binaryPaneVisible ? (
+            <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Binary Model">
+              {props.binaryPane}
+            </section>
+          ) : null}
+          {binaryPaneVisible && paneVisibility.json ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
           {paneVisibility.json ? (
             <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
               {props.renderJsonEditor()}

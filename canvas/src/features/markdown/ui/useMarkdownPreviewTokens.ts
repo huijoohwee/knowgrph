@@ -14,53 +14,105 @@ type CachedFrontmatterResult = {
   startLineOffset: number
 }
 
-const TOKEN_KEY_CACHE_LIMIT = 6
-const FRONTMATTER_CACHE_LIMIT = 6
+type CacheEntry<T> = {
+  sourceChars: number
+  value: T
+}
+
+const FRONTMATTER_CACHE_LIMIT = 8
+const FRONTMATTER_CACHE_MAX_TOTAL_CHARS = 1_500_000
+const FRONTMATTER_CACHE_MAX_ENTRY_CHARS = 500_000
 const LEXED_CACHE_LIMIT = 6
+const LEXED_CACHE_MAX_TOTAL_CHARS = 720_000
+const LEXED_CACHE_MAX_ENTRY_CHARS = 240_000
 
-const tokenKeyCache = new Map<string, string>()
-const frontmatterCache = new Map<string, CachedFrontmatterResult>()
-const lexedMarkdownCache = new Map<string, LexedMarkdownResult>()
+const frontmatterCache = new Map<string, CacheEntry<CachedFrontmatterResult>>()
+const lexedMarkdownCache = new Map<string, CacheEntry<LexedMarkdownResult>>()
 
-const readCachedValue = <T,>(cache: Map<string, T>, key: string): T | null => {
+const sumCachedSourceChars = <T,>(cache: Map<string, CacheEntry<T>>): number => {
+  let total = 0
+  for (const entry of cache.values()) total += entry.sourceChars
+  return total
+}
+
+const readCachedValue = <T,>(cache: Map<string, CacheEntry<T>>, key: string): T | null => {
   const cached = cache.get(key)
   if (cached == null) return null
   cache.delete(key)
   cache.set(key, cached)
-  return cached
+  return cached.value
 }
 
-const writeCachedValue = <T,>(cache: Map<string, T>, key: string, value: T, limit: number): T => {
-  if (cache.has(key)) cache.delete(key)
-  cache.set(key, value)
-  if (cache.size > limit) {
+const pruneCachedValues = <T,>(
+  cache: Map<string, CacheEntry<T>>,
+  limits: { maxEntries: number; maxTotalChars: number },
+): void => {
+  while (cache.size > limits.maxEntries || sumCachedSourceChars(cache) > limits.maxTotalChars) {
     const oldest = cache.keys().next().value
-    if (typeof oldest === 'string') cache.delete(oldest)
+    if (typeof oldest !== 'string') return
+    cache.delete(oldest)
   }
+}
+
+const writeCachedValue = <T,>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  value: T,
+  limits: { maxEntries: number; maxTotalChars: number; maxEntryChars: number },
+  sourceChars: number,
+): T => {
+  if (sourceChars > limits.maxEntryChars) return value
+  if (cache.has(key)) cache.delete(key)
+  cache.set(key, { sourceChars, value })
+  pruneCachedValues(cache, limits)
   return value
 }
 
-const getMarkdownTokensKeyCached = (text: string): string => {
-  const cached = readCachedValue(tokenKeyCache, text)
-  if (cached != null) return cached
-  return writeCachedValue(tokenKeyCache, text, buildMarkdownTokensKey(text), TOKEN_KEY_CACHE_LIMIT)
-}
-
-const getParsedFrontmatterCached = (text: string): CachedFrontmatterResult => {
-  const cached = readCachedValue(frontmatterCache, text)
+const getParsedFrontmatterCached = (text: string, cacheKey: string): CachedFrontmatterResult => {
+  const cached = readCachedValue(frontmatterCache, cacheKey)
   if (cached) return cached
   if (!text.startsWith('---')) {
-    return writeCachedValue(frontmatterCache, text, { meta: {}, startLineOffset: 0 }, FRONTMATTER_CACHE_LIMIT)
+    return writeCachedValue(
+      frontmatterCache,
+      cacheKey,
+      { meta: {}, startLineOffset: 0 },
+      {
+        maxEntries: FRONTMATTER_CACHE_LIMIT,
+        maxTotalChars: FRONTMATTER_CACHE_MAX_TOTAL_CHARS,
+        maxEntryChars: FRONTMATTER_CACHE_MAX_ENTRY_CHARS,
+      },
+      text.length,
+    )
   }
   const lines = splitMarkdownLines(text)
   const { meta, startIndex } = parseMarkdownFrontmatter(lines)
-  return writeCachedValue(frontmatterCache, text, { meta, startLineOffset: startIndex }, FRONTMATTER_CACHE_LIMIT)
+  return writeCachedValue(
+    frontmatterCache,
+    cacheKey,
+    { meta, startLineOffset: startIndex },
+    {
+      maxEntries: FRONTMATTER_CACHE_LIMIT,
+      maxTotalChars: FRONTMATTER_CACHE_MAX_TOTAL_CHARS,
+      maxEntryChars: FRONTMATTER_CACHE_MAX_ENTRY_CHARS,
+    },
+    text.length,
+  )
 }
 
-const getLexedMarkdownCached = (text: string): LexedMarkdownResult => {
-  const cached = readCachedValue(lexedMarkdownCache, text)
+const getLexedMarkdownCached = (text: string, cacheKey: string): LexedMarkdownResult => {
+  const cached = readCachedValue(lexedMarkdownCache, cacheKey)
   if (cached) return cached
-  return writeCachedValue(lexedMarkdownCache, text, lexMarkdown(text), LEXED_CACHE_LIMIT)
+  return writeCachedValue(
+    lexedMarkdownCache,
+    cacheKey,
+    lexMarkdown(text),
+    {
+      maxEntries: LEXED_CACHE_LIMIT,
+      maxTotalChars: LEXED_CACHE_MAX_TOTAL_CHARS,
+      maxEntryChars: LEXED_CACHE_MAX_ENTRY_CHARS,
+    },
+    text.length,
+  )
 }
 
 export function useMarkdownPreviewLexedMarkdown(
@@ -78,15 +130,12 @@ export function useMarkdownPreviewLexedMarkdown(
   const storedTokensStartLineOffset = useGraphStore(s => s.markdownTokensStartLineOffset)
   const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
 
-  const currentTokensKey = React.useMemo(() => {
-    if (!canCacheInStore) return `nocache:${text.length}`
-    return getMarkdownTokensKeyCached(text)
-  }, [canCacheInStore, text])
+  const currentTokensKey = React.useMemo(() => buildMarkdownTokensKey(text), [text])
 
   const providedTokensFrontmatter = React.useMemo(() => {
     if (!providedTokens || providedTokens.length === 0) return null
-    return getParsedFrontmatterCached(text)
-  }, [providedTokens, text])
+    return getParsedFrontmatterCached(text, currentTokensKey)
+  }, [currentTokensKey, providedTokens, text])
 
   const lexedLarge = React.useMemo((): LexedMarkdownResult => {
     if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
@@ -96,8 +145,8 @@ export function useMarkdownPreviewLexedMarkdown(
         startLineOffset: providedTokensFrontmatter.startLineOffset,
       }
     }
-    return getLexedMarkdownCached(text)
-  }, [providedTokens, providedTokensFrontmatter, text])
+    return getLexedMarkdownCached(text, currentTokensKey)
+  }, [currentTokensKey, providedTokens, providedTokensFrontmatter, text])
 
   const lexedSmall = React.useMemo((): LexedMarkdownResult => {
     if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
@@ -121,15 +170,15 @@ export function useMarkdownPreviewLexedMarkdown(
       }
     }
 
-    return getLexedMarkdownCached(text)
+    return getLexedMarkdownCached(text, currentTokensKey)
   }, [
+    currentTokensKey,
     providedTokens,
     providedTokensFrontmatter,
     storedTokens,
     storedTokensKey,
     storedTokensMeta,
     storedTokensStartLineOffset,
-    currentTokensKey,
     text,
   ])
 
@@ -162,6 +211,7 @@ export function useMarkdownPreviewLexedMarkdown(
       })
     }
   }, [
+    activeDocumentPath,
     lexed.tokens,
     lexed.meta,
     lexed.startLineOffset,

@@ -127,16 +127,16 @@ export const IMPORT_EXPORT_STATUS_COPY = {
 } as const;
 
 export const SOURCE_FILES_FORMATS = {
-  import: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml', '.pdf'] as const,
+  import: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml', '.pdf', '.gltf', '.glb'] as const,
   importLocalText: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml'] as const,
-  export: ['.md', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.svg', '.yaml'] as const,
+  export: ['.md', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.svg', '.yaml', '.gltf', '.glb'] as const,
 } as const
 
 export const SOURCE_FILES_COPY = {
   supports:
-    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonld .csv .html .htm .svg .yaml .yml .pdf; URL sources: https://… (including YouTube).',
-  importUrlPrompt: 'Enter a Source File URL (https://… or YouTube).',
-  urlPlaceholder: 'https://… (or YouTube)',
+    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonld .csv .html .htm .svg .yaml .yml .pdf .gltf .glb; URL sources: https://… (including YouTube and GLTF/GLB assets).',
+  importUrlPrompt: 'Enter a Source File URL (https://… YouTube, GLTF, or GLB).',
+  urlPlaceholder: 'https://… (YouTube, .gltf, or .glb)',
   geoLayerEmbeddedGeojsonNotFound: 'Geo layer enable failed: no embedded GeoJSON FeatureCollection blocks found in the Markdown file',
   geoLayerEmbeddedGeojsonUploadFailed: 'Geo layer enable failed: unable to upload embedded GeoJSON to local dataset cache',
   geoLayerJsonNoPointsDerived:

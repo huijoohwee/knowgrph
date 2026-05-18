@@ -12,6 +12,8 @@ const markdownWorkspaceEffectiveContentPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceEffectiveContent.ts')
 const markdownWorkspaceInteractionsPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceInteractions.ts')
+const markdownPreviewTokensPath = () =>
+  path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'useMarkdownPreviewTokens.ts')
 
 export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
@@ -195,6 +197,7 @@ export const testMarkdownWorkspaceSelectionClearsStaleEditorTextBeforeSsotDocume
 export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileSwitch = () => {
   const text = readUtf8(markdownWorkspaceSelectionPath())
   const viewShellText = readUtf8(markdownWorkspaceViewShellPath())
+  const presetHelperText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'workspaceSwitchPreset.ts'))
   if (!text.includes('const lastFrontmatterSwitchApplySigRef = React.useRef<string>(\'\')')) {
     throw new Error('Expected markdown workspace selection to track per-document frontmatter switch signatures and avoid repeated preset replay churn')
   }
@@ -204,7 +207,7 @@ export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileS
   if (text.includes('const hasGraphData =')) {
     throw new Error('Expected markdown workspace selection frontmatter replay dedupe to avoid empty-graph retry loops that can churn and freeze on file switching')
   }
-  if (!text.includes('if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return')) {
+  if (!text.includes('if (!hasCanvasWorkspacePresetForSwitch(nextText)) return')) {
     throw new Error('Expected markdown workspace selection to gate immediate switch-time view preset replay behind explicit YAML canvas frontmatter detection')
   }
   if (!text.includes('const primeStrictFrontmatterFlowEditorMode = React.useCallback((text: string) => {')
@@ -213,11 +216,17 @@ export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileS
     || !text.includes('void setGeospatialModeEnabled(false).catch(() => void 0)')) {
     throw new Error('Expected markdown workspace selection to synchronously prime strict frontmatter Flow Editor mode on file switch before async graph apply settles')
   }
+  if (!presetHelperText.includes('WORKSPACE_SWITCH_PRESET_SCAN_CHARS') || !presetHelperText.includes('hasCanvasWorkspacePresetForSwitch') || !presetHelperText.includes('shouldPrimeStrictFlowEditorModeForWorkspaceText')) {
+    throw new Error('Expected markdown workspace selection to use a bounded frontmatter preset detector before parsing switch-time text')
+  }
+  if (!text.includes('extractYamlFrontmatterHeaderBlock(nextText)')) {
+    throw new Error('Expected markdown workspace selection to avoid copying full markdown bodies when only switch-time frontmatter headers are needed')
+  }
   if (!text.includes('primeStrictFrontmatterFlowEditorMode(nextText)')) {
     throw new Error('Expected markdown workspace selection to prime Flow Editor frontmatter mode immediately before switch-time active-document replay')
   }
-  if (!viewShellText.includes('const entry = entries.find(candidate => candidate.kind === \'file\' && candidate.path === normalized) || null')
-    || !viewShellText.includes('const preset = parseCanvasWorkspaceFrontmatterPreset(entryText)')
+  if (!viewShellText.includes('const entry = getWorkspaceFileEntry(entriesIndex, normalized)')
+    || !viewShellText.includes('shouldPrimeStrictFlowEditorModeForWorkspaceText(entryText)')
     || !viewShellText.includes("state.setCanvas2dRenderer('flowEditor')")
     || !viewShellText.includes('void setGeospatialModeEnabled(false).catch(() => void 0)')) {
     throw new Error('Expected markdown workspace explorer click path to prime strict frontmatter Flow Editor mode immediately when the target file already exposes the YAML preset')
@@ -230,6 +239,137 @@ export const testMarkdownWorkspaceSelectionReappliesFrontmatterViewPresetOnFileS
   }
   if (!text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
     throw new Error('Expected Source Files frontmatter replay to keep original markdown flow blocks instead of normalizing to webpage key/value markdown')
+  }
+  if (!text.includes('hashStringToHexCached(`markdown-workspace-switch:${activeDocumentKey || \'document\'}`, text)')) {
+    throw new Error('Expected plain document switch signatures to hash text through the bounded text cache instead of joining full markdown into scheduler signatures')
+  }
+  if (text.includes("'markdown-workspace-document-switch-apply',\n      activeDocumentKey,\n      nextText,")) {
+    throw new Error('Expected plain document switch signatures not to embed full markdown text in signature parts')
+  }
+}
+
+export const testMarkdownEditorSsotSyncUsesHashedTextRefs = () => {
+  const text = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useMarkdownEditorSsotSync.ts'))
+  if (!text.includes('hashStringToHexCached')) {
+    throw new Error('Expected markdown editor SSOT sync to reuse bounded text hash caching')
+  }
+  if (!text.includes('const lastPushedRef = React.useRef<{ key: string; textHash: string } | null>(null)')) {
+    throw new Error('Expected markdown editor SSOT sync to avoid retaining full pushed document text')
+  }
+  if (!text.includes('const lastSeenRef = React.useRef<{ key: string; signature: string } | null>(null)')) {
+    throw new Error('Expected markdown editor SSOT sync to track compact signatures instead of full seen document text')
+  }
+  if (text.includes('textRaw: string') || text.includes('lastPushedRef.current = { key, text:')) {
+    throw new Error('Expected markdown editor SSOT sync not to store full active markdown text in refs')
+  }
+}
+
+export const testMarkdownWorkspaceSelectionUsesEntryIndexForSwitchHotPath = () => {
+  const selectionText = readUtf8(markdownWorkspaceSelectionPath())
+  const derivedText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceSelectionDerived.ts'))
+  const syncText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceSelectionSync.ts'))
+  const bootstrapText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceSelectionBootstrap.ts'))
+  const canonicalText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceSelectionCanonicalPath.ts'))
+  const viewShellText = readUtf8(markdownWorkspaceViewShellPath())
+  const explorerStateText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceExplorerState.tsx'))
+  const indexText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'workspaceEntriesIndex.ts'))
+  if (!selectionText.includes('const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])')) {
+    throw new Error('Expected markdown workspace selection to build one entries index per entries revision instead of scanning on active-path switches')
+  }
+  if (!derivedText.includes('entriesIndex: WorkspaceEntriesIndex') || !derivedText.includes('getWorkspaceEntry(args.entriesIndex, args.activePath)')) {
+    throw new Error('Expected selection derivation to resolve active and selection entries through the shared entries index')
+  }
+  if (derivedText.includes('args.entries.find(') || syncText.includes('args.entries.some(') || canonicalText.includes('args.entries.some(')) {
+    throw new Error('Expected selection helpers to avoid repeated linear scans when only the active Source Files path changes')
+  }
+  if (!bootstrapText.includes('workspaceFilePaths: args.entriesIndex.filePaths')
+    || !bootstrapText.includes('hasWorkspaceEntry(args.entriesIndex, args.activePath)')
+    || !bootstrapText.includes('return args.entriesIndex.firstFilePath')) {
+    throw new Error('Expected active-path bootstrap fallback to reuse indexed file paths and first-file metadata')
+  }
+  if (!viewShellText.includes('const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(entries), [entries])')
+    || !viewShellText.includes('hasWorkspaceFileEntry(entriesIndex, sitemapPath)')
+    || !viewShellText.includes('hasWorkspaceFileEntry(entriesIndex, journeyPath)')) {
+    throw new Error('Expected Source Files shell actions to use indexed file lookups instead of per-click/per-render scans')
+  }
+  if (!explorerStateText.includes('getFirstDescendantFilePath(entriesIndex, folder)')
+    || !indexText.includes('firstDescendantFileByFolderPath')) {
+    throw new Error('Expected folder contract targeting to use first-descendant file metadata from the shared entries index')
+  }
+}
+
+export const testMarkdownPreviewTokenCachesUseCompactBoundedKeys = () => {
+  const text = readUtf8(markdownPreviewTokensPath())
+  if (!text.includes('const lexedMarkdownCache = new Map<string, CacheEntry<LexedMarkdownResult>>()')) {
+    throw new Error('Expected markdown preview lex cache values to carry size metadata behind compact string keys')
+  }
+  if (!text.includes('const currentTokensKey = React.useMemo(() => buildMarkdownTokensKey(text), [text])')) {
+    throw new Error('Expected markdown preview caches to use the exact compact markdown token key instead of whole document strings')
+  }
+  if (!text.includes('LEXED_CACHE_MAX_TOTAL_CHARS') || !text.includes('LEXED_CACHE_MAX_ENTRY_CHARS')) {
+    throw new Error('Expected markdown preview token cache to enforce memory budgets while switching across Source Files')
+  }
+  if (text.includes('readCachedValue(lexedMarkdownCache, text)') || text.includes('writeCachedValue(lexedMarkdownCache, text')) {
+    throw new Error('Expected markdown preview token cache not to retain full markdown text as a Map key')
+  }
+  if (text.includes('const tokenKeyCache = new Map<string, string>()')) {
+    throw new Error('Expected markdown preview token key caching not to pin full markdown strings in memory')
+  }
+}
+
+export const testFrontmatterSwitchHotPathUsesHeaderOnlyExtraction = () => {
+  const frontmatterText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'markdown', 'frontmatter.ts'))
+  const webpageMetaText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'webpage', 'webpageMeta.ts'))
+  const mermaidInputText = readUtf8(path.resolve(process.cwd(), '..', 'grph-shared', 'src', 'markdown', 'mermaidInput.ts'))
+  if (!frontmatterText.includes('export function extractYamlFrontmatterHeaderBlock(rawText: string): YamlFrontmatterHeaderBlock | null')) {
+    throw new Error('Expected frontmatter utilities to expose a header-only extractor for Source Files switch hot paths')
+  }
+  if (!frontmatterText.includes('const header = extractYamlFrontmatterHeaderBlock(text)')
+    || !frontmatterText.includes('if (bodyTextCache == null) bodyTextCache = text.slice(rawBlock.length)')) {
+    throw new Error('Expected full frontmatter extraction to build body text only for callers that actually need it')
+  }
+  if (!frontmatterText.includes('export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWorkspaceFrontmatterPreset | null {\n  const block = extractYamlFrontmatterHeaderBlock(rawText)')) {
+    throw new Error('Expected canvas frontmatter preset parsing not to copy full markdown bodies on plain file switches')
+  }
+  if (!frontmatterText.includes('export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {\n  const block = extractYamlFrontmatterHeaderBlock(rawText)')) {
+    throw new Error('Expected webpage frontmatter parsing not to retain full body slices during workspace switching')
+  }
+  if (!webpageMetaText.includes('YamlFrontmatterHeaderBlock')) {
+    throw new Error('Expected webpage metadata helpers to accept header-only frontmatter blocks')
+  }
+  if (mermaidInputText.includes('raw.match(/^---') || !mermaidInputText.includes("const end = raw.indexOf('\\n---')")) {
+    throw new Error('Expected shared frontmatter Mermaid detection to scan only the YAML header instead of regex-capturing full markdown text')
+  }
+}
+
+export const testFrontmatterCanvasSwitchSkipsDuplicateAndPlainMarkdownApply = () => {
+  const runtimeText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasFrontmatterRuntime.tsx'))
+  const loaderText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'parsers', 'loader.ts'))
+  const documentActionsText = readUtf8(path.resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataDocumentActions.ts'))
+  const presetText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'parsers', 'canvasFrontmatterPreset.ts'))
+  if (!runtimeText.includes('isPendingFrontmatterFlowGraph(graphData)')) {
+    throw new Error('Expected Canvas frontmatter runtime to skip auto-apply while explicit Source Files frontmatter graph parsing is pending')
+  }
+  if (!runtimeText.includes('if (!containsFrontmatterMermaid(text)) return')) {
+    throw new Error('Expected Canvas frontmatter runtime to skip parser imports for plain markdown documents')
+  }
+  if (!runtimeText.includes("hashStringToHexCached(`canvas-frontmatter-runtime:${markdownDocumentName || 'document.md'}`, text)")) {
+    throw new Error('Expected Canvas frontmatter runtime dedupe to reuse bounded text hashing')
+  }
+  if (!loaderText.includes('if (!containsFrontmatterMermaid(text)) return false')) {
+    throw new Error('Expected parser auto-apply fallback to avoid loading parsers for markdown without YAML Mermaid frontmatter')
+  }
+  if (!documentActionsText.includes('const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true')) {
+    throw new Error('Expected active markdown document updates to skip canvas preset parsing when switch payloads disable preset and graph apply')
+  }
+  if (!documentActionsText.includes('const needsAutoEnable = shouldAutoEnableFrontmatter &&') || !documentActionsText.includes('containsFrontmatterMermaid(nextText)')) {
+    throw new Error('Expected markdown document state updates to scan frontmatter Mermaid only when auto-enable may change state')
+  }
+  if (!documentActionsText.includes('preset: parsedTextPreset || undefined')) {
+    throw new Error('Expected graph apply path to pass pre-parsed canvas frontmatter presets through to avoid repeat YAML parsing')
+  }
+  if (!presetText.includes('preset?: CanvasWorkspaceFrontmatterPreset | null') || !presetText.includes('if (args.preset) return args.preset')) {
+    throw new Error('Expected canvas frontmatter preset application to accept pre-parsed presets from the switch hot path')
   }
 }
 
@@ -323,6 +463,9 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!typesText.includes('DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY')) {
     throw new Error('Expected workspace pane visibility defaults to live in the shared main types module')
   }
+  if (!typesText.includes('resolveMarkdownWorkspacePaneAvailability') || !typesText.includes("modelAssetFormat === 'glb'") || !typesText.includes("modelAssetFormat === 'gltf'")) {
+    throw new Error('Expected workspace pane availability to classify GLB as bin and GLTF as JSON from a shared helper')
+  }
   if (!typesText.includes('export function resolveMarkdownWorkspacePaneVisibility')) {
     throw new Error('Expected workspace pane visibility rules to live in a shared main types helper')
   }
@@ -353,10 +496,16 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!mainText.includes('prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }')) {
     throw new Error('Expected toolbar Editor Workspace open to normalize to markdown-only visibility')
   }
+  if (!mainText.includes('parseGlbAssetDocument(activeText)')) {
+    throw new Error('Expected workspace main to derive model-asset pane policy from the parsed active Source File')
+  }
+  if (!mainText.includes("modelAssetFormat === 'gltf'") || !mainText.includes("modelAssetFormat === 'glb'")) {
+    throw new Error('Expected workspace main to select JSON for GLTF and bin for GLB model assets')
+  }
   if (!mainText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('Expected workspace main open-edge pane normalization to use canonical overlay-open semantics')
   }
-  if (!mainText.includes('}, [workspaceEditorOverlayOpen])')) {
+  if (!mainText.includes('}, [modelAssetFormat, workspaceEditorOverlayOpen])')) {
     throw new Error('Expected workspace main open-edge pane normalization not to key off workspaceViewMode alone')
   }
   if (dropdownText.includes('flushSync')) {
@@ -368,7 +517,7 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!editorPaneText.includes('const getLineStarts = React.useCallback')) {
     throw new Error('Expected markdown editor pane to build line starts lazily after caret events')
   }
-  if (!mainText.includes('resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility })')) {
+  if (!mainText.includes('resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility, paneAvailability })')) {
     throw new Error('Expected workspace main pane visibility to reuse the shared visibility helper SSOT')
   }
   if (!mainText.includes('if (!markdownPaneVisible && !viewerPaneVisible) return null')) {
@@ -382,6 +531,9 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   }
   if (!toolbarText.includes('DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY')) {
     throw new Error('Expected toolbar split pane fallback to reuse shared visibility defaults')
+  }
+  if (!toolbarText.includes('effectivePaneAvailability.bin') || !toolbarText.includes('not applicable for this Source File')) {
+    throw new Error('Expected toolbar pane controls to show GLB bin state and grey out non-applicable model-asset panes')
   }
 }
 

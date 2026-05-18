@@ -9,6 +9,8 @@ export type YamlFrontmatterBlock = {
   bodyText: string
 }
 
+export type YamlFrontmatterHeaderBlock = Omit<YamlFrontmatterBlock, 'bodyText'>
+
 export type CanvasWorkspaceFrontmatterPreset = {
   canvasSurfaceMode?: '2d' | '3d' | 'geospatial'
   canvasRenderMode?: '2d' | '3d'
@@ -23,15 +25,30 @@ export type CanvasWorkspaceFrontmatterPreset = {
 const FRONTMATTER_PRESET_CACHE_LIMIT = 48
 const frontmatterPresetCache = new Map<string, CanvasWorkspaceFrontmatterPreset | null>()
 
-export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlock | null {
+export function extractYamlFrontmatterHeaderBlock(rawText: string): YamlFrontmatterHeaderBlock | null {
   const text = String(rawText || '')
   if (!text.startsWith('---')) return null
   const end = text.indexOf('\n---')
   if (end < 0) return null
   const rawBlock = text.slice(0, end + 4)
   const yamlText = rawBlock.replace(/^---\s*\n?/, '').replace(/\n---\s*$/, '')
-  const bodyText = text.slice(end + 4).replace(/^\s*\n/, '')
-  return { rawBlock, yamlText, bodyText }
+  return { rawBlock, yamlText }
+}
+
+export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlock | null {
+  const text = String(rawText || '')
+  const header = extractYamlFrontmatterHeaderBlock(text)
+  if (!header) return null
+  const { rawBlock, yamlText } = header
+  let bodyTextCache: string | null = null
+  return {
+    rawBlock,
+    yamlText,
+    get bodyText() {
+      if (bodyTextCache == null) bodyTextCache = text.slice(rawBlock.length).replace(/^\s*\n/, '')
+      return bodyTextCache
+    },
+  }
 }
 
 export function isFrontmatterOnlyDoc(rawText: string): boolean {
@@ -176,7 +193,7 @@ export function readCanvasWorkspaceFrontmatterPresetFromMeta(
 }
 
 export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWorkspaceFrontmatterPreset | null {
-  const block = extractYamlFrontmatterBlock(rawText)
+  const block = extractYamlFrontmatterHeaderBlock(rawText)
   if (!block) return null
   const cacheKey = hashStringToHexCached('markdown-frontmatter:preset', block.rawBlock)
   if (frontmatterPresetCache.has(cacheKey)) {
@@ -233,7 +250,7 @@ export type WebpageFrontmatterMeta = {
 }
 
 export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {
-  const block = extractYamlFrontmatterBlock(rawText)
+  const block = extractYamlFrontmatterHeaderBlock(rawText)
   if (!block) return null
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   const viewRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageView')
@@ -282,7 +299,7 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
       : 0
   const includeImages: boolean | null =
     meta?.includeImages === true ? true : meta?.includeImages === false ? false : null
-  const block = extractYamlFrontmatterBlock(text)
+  const block = extractYamlFrontmatterHeaderBlock(text)
   if (!block) {
     const lines: string[] = []
     lines.push('---')
@@ -353,7 +370,7 @@ export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFront
 
 export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageViewMode = 'markdown'): string {
   const text = String(rawText || '')
-  const block = extractYamlFrontmatterBlock(text)
+  const block = extractYamlFrontmatterHeaderBlock(text)
   if (!block) return text
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   if (!url) return text
@@ -380,7 +397,7 @@ export function normalizeWebpageFrontmatterView(rawText: string, view: WebpageVi
 export type WebsiteImportFrontmatterMeta = { importId: string; nodeId: string; outputDirRel?: string }
 
 export function parseWebsiteImportFrontmatterMeta(rawText: string): WebsiteImportFrontmatterMeta | null {
-  const block = extractYamlFrontmatterBlock(rawText)
+  const block = extractYamlFrontmatterHeaderBlock(rawText)
   if (!block) return null
   const importId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteImportId')
   const nodeId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteNodeId')

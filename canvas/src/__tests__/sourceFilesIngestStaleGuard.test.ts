@@ -1048,6 +1048,9 @@ export function testSourceFilesBootstrapGuardsSafariStorageSyncHotPath() {
   if (!text.includes('const reusableWorkspaceEntriesRef = React.useRef<ReturnType<typeof readReusableWorkspaceEntriesSnapshot>>(undefined)')) {
     throw new Error('expected source files bootstrap to cache reusable workspace entry snapshots for active-path materialization hot paths')
   }
+  if (!text.includes('invalidateCachedWorkspaceActiveEntrySnapshot')) {
+    throw new Error('expected source files bootstrap to invalidate bounded active-entry cache on workspace-fs mutations')
+  }
   if (!text.includes('reusableWorkspaceEntriesRef.current = readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries)')) {
     throw new Error('expected source files rematerialization path to refresh reusable workspace entry snapshot cache')
   }
@@ -1065,6 +1068,10 @@ export function testSourceFilesBootstrapGuardsSafariStorageSyncHotPath() {
   }
   if (!startupText.includes('const hydratedEntries = await hydrateWorkspaceEntriesInlineText({')) {
     throw new Error('expected source files bootstrap startup to use a shared inline hydration path across browsers')
+  }
+  const cacheText = readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'workspaceActiveEntryCache.ts'), 'utf8')
+  if (!cacheText.includes('ACTIVE_ENTRY_CACHE_MAX_PATHS') || !cacheText.includes('ACTIVE_ENTRY_CACHE_MAX_TOTAL_CHARS')) {
+    throw new Error('expected active workspace entry cache to stay bounded by entry count and total text size')
   }
 }
 
@@ -1085,6 +1092,9 @@ export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisab
   }
   if (!text.includes('const workspaceEntries = await readWorkspaceActiveEntrySnapshot({')) {
     throw new Error('expected workspace active materialization non-graph path to limit merge workload to active workspace entry snapshots')
+  }
+  if (!text.includes('readCachedWorkspaceActiveEntrySnapshot({') || !text.includes('rememberWorkspaceActiveEntrySnapshot({')) {
+    throw new Error('expected workspace active entry snapshots to reuse a bounded cache when switching back to recently opened Source Files')
   }
   if (text.includes('workspaceEntries.filter(entry => entry?.kind === \'file\' && entry.path === activePath)')) throw new Error('expected workspace active materialization non-graph path to avoid downstream filtering aliases and read the active entry at the source')
   if (!text.includes('forceIncludeOnly: true')) throw new Error('expected workspace active materialization non-graph path to enforce active-only source-file merging upstream')

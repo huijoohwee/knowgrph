@@ -23,6 +23,10 @@ import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspa
 import { readEnvString } from '@/lib/config.env'
 import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncContract'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
+import {
+  readCachedWorkspaceActiveEntrySnapshot,
+  rememberWorkspaceActiveEntrySnapshot,
+} from '@/features/source-files/workspaceActiveEntryCache'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 const STORAGE_DOC_FALLBACK_TIMEOUT_MS = 8000
@@ -273,7 +277,15 @@ export const readWorkspaceActiveEntrySnapshot = async (args: {
   const activePath = normalizeWorkspacePath(args.activePath)
   const provided = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const existingEntry = provided.find(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath) || null
-  if (existingEntry && typeof existingEntry.text === 'string' && existingEntry.text.trim()) return [existingEntry]
+  if (existingEntry && typeof existingEntry.text === 'string' && existingEntry.text.trim()) {
+    const snapshot = [existingEntry]
+    return rememberWorkspaceActiveEntrySnapshot({ activePath, entries: snapshot }) || snapshot
+  }
+  const cached = readCachedWorkspaceActiveEntrySnapshot({
+    activePath,
+    minUpdatedAtMs: typeof existingEntry?.updatedAtMs === 'number' ? existingEntry.updatedAtMs : undefined,
+  })
+  if (cached) return cached
   let text = existingEntry && typeof existingEntry.text === 'string' ? existingEntry.text : ''
   if (!text.trim()) {
     try {
@@ -290,7 +302,7 @@ export const readWorkspaceActiveEntrySnapshot = async (args: {
   const parentPath = pathParts.length > 1
     ? normalizeWorkspacePath(pathParts.slice(0, -1).join('/'))
     : '/'
-  return [{
+  const snapshot: WorkspaceEntry[] = [{
     ...(existingEntry || {}),
     path: activePath,
     parentPath,
@@ -299,6 +311,7 @@ export const readWorkspaceActiveEntrySnapshot = async (args: {
     text,
     updatedAtMs: typeof existingEntry?.updatedAtMs === 'number' ? existingEntry.updatedAtMs : Date.now(),
   }]
+  return rememberWorkspaceActiveEntrySnapshot({ activePath, entries: snapshot }) || snapshot
 }
 
 export async function hydrateWorkspaceEntriesInlineText(args: {

@@ -1,5 +1,6 @@
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { resolveMarkdownWorkspaceCanonicalSelection } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionCanonicalPath'
+import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 const buildFileEntry = (path: string): WorkspaceEntry => ({
   path,
@@ -17,7 +18,7 @@ export function testMarkdownWorkspaceSelectionCanonicalPathCentralizesLegacyPath
   const mirrored = resolveMarkdownWorkspaceCanonicalSelection({
     activePath: tracePath as never,
     selectionPath: tracePath as never,
-    entries: [buildFileEntry(canonicalPath)],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry(canonicalPath)]),
   })
   if (!mirrored || mirrored.activePath !== canonicalPath || mirrored.selectionPath !== canonicalPath) {
     throw new Error(`expected legacy trace path to upgrade active and mirrored selection paths, got ${JSON.stringify(mirrored)}`)
@@ -26,7 +27,7 @@ export function testMarkdownWorkspaceSelectionCanonicalPathCentralizesLegacyPath
   const activeOnly = resolveMarkdownWorkspaceCanonicalSelection({
     activePath: tracePath as never,
     selectionPath: '/docs/other.md' as never,
-    entries: [buildFileEntry(canonicalPath), buildFileEntry('/docs/other.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry(canonicalPath), buildFileEntry('/docs/other.md')]),
   })
   if (!activeOnly || activeOnly.activePath !== canonicalPath || activeOnly.selectionPath !== null) {
     throw new Error(`expected canonical upgrade without unrelated selection mirroring, got ${JSON.stringify(activeOnly)}`)
@@ -35,7 +36,7 @@ export function testMarkdownWorkspaceSelectionCanonicalPathCentralizesLegacyPath
   const missingCanonical = resolveMarkdownWorkspaceCanonicalSelection({
     activePath: tracePath as never,
     selectionPath: tracePath as never,
-    entries: [buildFileEntry('/docs/other.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/other.md')]),
   })
   if (missingCanonical !== null) {
     throw new Error(`expected no canonical upgrade when target file is absent, got ${JSON.stringify(missingCanonical)}`)

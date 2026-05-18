@@ -62,6 +62,7 @@ import { readEnvString } from '@/lib/config.env'
 import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
+import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
 import {
   readWorkspaceSeedSyncEnabledSetting,
   readWorkspaceSeedSyncIdleMaxMsSetting,
@@ -575,6 +576,12 @@ export function SourceFilesPersistenceBootstrap() {
       const op = String(detail?.op || '')
       if (!op) return
       if (op !== 'ensureSeed' && op !== 'batch' && op !== 'writeFileText' && op !== 'createFile' && op !== 'deleteEntry') return
+      const changedPath = String(detail?.path || '').trim()
+      if (op === 'batch' || (op === 'ensureSeed' && !changedPath)) {
+        invalidateCachedWorkspaceActiveEntrySnapshot()
+      } else if (changedPath) {
+        invalidateCachedWorkspaceActiveEntrySnapshot(changedPath)
+      }
       if (op === 'ensureSeed') {
         void materializeActiveWorkspaceEntryIntoSourceFiles({
           fs: reusableWorkspaceFsRef.current || undefined,
@@ -582,7 +589,6 @@ export function SourceFilesPersistenceBootstrap() {
           void 0
         })
       }
-      const changedPath = String(detail?.path || '').trim()
       const activePath = resolveMaterializedWorkspaceActivePath({
         explorerActivePath: useMarkdownExplorerStore.getState().activePath,
       })

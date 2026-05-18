@@ -1,7 +1,9 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { hashText } from '@/features/parsers/hash'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { isPendingFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 
 export function CanvasFrontmatterRuntime() {
   const { markdownDocumentName, markdownDocumentText, frontmatterModeEnabled, documentSemanticMode, graphData } = useGraphStore(
@@ -25,7 +27,9 @@ export function CanvasFrontmatterRuntime() {
     const n = base && Array.isArray(base.nodes) ? base.nodes.length : 0
     const e = base && Array.isArray(base.edges) ? base.edges.length : 0
     if (n > 0 || e > 0) return
-    const h = hashText(text)
+    if (isPendingFrontmatterFlowGraph(graphData)) return
+    if (!containsFrontmatterMermaid(text)) return
+    const h = hashStringToHexCached(`canvas-frontmatter-runtime:${markdownDocumentName || 'document.md'}`, text)
     if (lastAutoAppliedMarkdownHashRef.current === h) return
     lastAutoAppliedMarkdownHashRef.current = h
     void import('@/features/parsers/loader')

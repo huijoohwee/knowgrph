@@ -31,6 +31,7 @@ export type ThreeCameraSnapshotFns = {
 
 export type ThreeGlbSnapshotFns = {
   captureGlb: () => Promise<Blob | null>
+  captureGltf?: () => Promise<Blob | null>
 }
 
 export type ThreeLayoutSnapshotFns = {

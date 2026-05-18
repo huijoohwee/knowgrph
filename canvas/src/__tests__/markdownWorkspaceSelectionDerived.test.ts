@@ -1,6 +1,7 @@
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { deriveMarkdownWorkspaceSelectionState } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionDerived'
+import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 const buildFileEntry = (path: string, text = ''): WorkspaceEntry => ({
   path,
@@ -28,11 +29,12 @@ export function testMarkdownWorkspaceSelectionDerivedCentralizesActiveDocumentMo
   const sourcesByPath: WorkspaceSourceIndex = {
     '/docs/url.md': { kind: 'url', url: ' https://example.com/page ' },
   }
+  const entriesIndex = buildWorkspaceEntriesIndex(entries)
 
   const fileState = deriveMarkdownWorkspaceSelectionState({
     activePath: '/docs/url.md' as never,
     selectionPath: '/docs/readme.md' as never,
-    entries,
+    entriesIndex,
     sourcesByPath,
   })
   if (fileState.activeEntry?.path !== '/docs/url.md' || fileState.activeEntryKind !== 'file') {
@@ -54,7 +56,7 @@ export function testMarkdownWorkspaceSelectionDerivedCentralizesActiveDocumentMo
   const folderState = deriveMarkdownWorkspaceSelectionState({
     activePath: '/docs' as never,
     selectionPath: '/docs' as never,
-    entries,
+    entriesIndex,
     sourcesByPath,
   })
   if (folderState.activeEntryKind !== 'folder' || folderState.activeDocumentKey !== '') {

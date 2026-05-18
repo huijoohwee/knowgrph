@@ -45,6 +45,11 @@ import {
 } from './markdownWorkspaceRuntime.shared'
 import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
+import {
+  buildWorkspaceEntriesIndex,
+  getFirstDescendantFilePath,
+  hasWorkspaceFileEntry,
+} from './workspaceEntriesIndex'
 
 const hasNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
   const list = Array.isArray(sourceFiles) ? sourceFiles : []
@@ -87,6 +92,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
   const workspaceSeedSyncSignatureRef = React.useRef('')
   const workspaceRefreshSemanticKeyRef = React.useRef('')
   const [workspaceSyncSettingsRev, setWorkspaceSyncSettingsRev] = React.useState(0)
+  const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])
 
   React.useEffect(() => {
     return subscribeWorkspaceStoreSyncSettingsChanged(() => {
@@ -503,17 +509,15 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
     (folderPath: WorkspacePath, preferredMode: FolderModeContract): WorkspacePath | null => {
       const folder = normalizeWorkspacePath(folderPath)
       const preferred = resolveFolderContractDocPath(folder, preferredMode)
-      if (args.entries.some(entry => entry.kind === 'file' && entry.path === preferred)) return preferred
+      if (hasWorkspaceFileEntry(entriesIndex, preferred)) return preferred
 
       const alternateMode: FolderModeContract = preferredMode === 'sitemap' ? 'user-journey' : 'sitemap'
       const alternate = resolveFolderContractDocPath(folder, alternateMode)
-      if (args.entries.some(entry => entry.kind === 'file' && entry.path === alternate)) return alternate
+      if (hasWorkspaceFileEntry(entriesIndex, alternate)) return alternate
 
-      const prefix = folder === '/' ? '/' : `${folder}/`
-      const firstDescendantFile = args.entries.find(entry => entry.kind === 'file' && entry.path.startsWith(prefix)) || null
-      return firstDescendantFile ? firstDescendantFile.path : null
+      return getFirstDescendantFilePath(entriesIndex, folder)
     },
-    [args.entries, resolveFolderContractDocPath],
+    [entriesIndex, resolveFolderContractDocPath],
   )
 
   return {

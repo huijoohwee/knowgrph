@@ -72,6 +72,30 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     })
   }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
+  const handleExportGlb = React.useCallback(async () => {
+    flushGraphWritebackForExport()
+    const mod = await import('./exports/exportGlb')
+    const { exportCanvasGlb } = mod
+    await exportCanvasGlb({
+      exportBaseName,
+      activeDocumentPath: activeDocumentKey,
+      pushUiToast,
+      getStore: () => useGraphStore.getState(),
+    })
+  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
+
+  const handleExportGltf = React.useCallback(async () => {
+    flushGraphWritebackForExport()
+    const mod = await import('./exports/exportGlb')
+    const { exportCanvasGltf } = mod
+    await exportCanvasGltf({
+      exportBaseName,
+      activeDocumentPath: activeDocumentKey,
+      pushUiToast,
+      getStore: () => useGraphStore.getState(),
+    })
+  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
+
   const handleExportHtmlViewer = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportHtmlViewer')
@@ -137,6 +161,8 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
         workspaceFileJsonLd: () => void handleExportWorkspaceFile(),
         markdown: () => void handleExportMarkdown(),
         png: () => void handleExportPng(),
+        gltf: () => void handleExportGltf(),
+        glb: () => void handleExportGlb(),
         htmlViewer: () => void handleExportHtmlViewer(),
         htmlCanvas: () => void handleExportHtmlCanvas(),
         json: () => void handleExportJson(),
@@ -146,6 +172,8 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
       },
     }),
     [
+      handleExportGlb,
+      handleExportGltf,
       handleExportHtmlCanvas,
       handleExportHtmlViewer,
       handleExportJson,
@@ -167,6 +195,8 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     handleExportWorkspaceFile,
     handleExportMarkdown,
     handleExportPng,
+    handleExportGlb,
+    handleExportGltf,
     handleExportHtmlViewer,
     handleExportHtmlCanvas,
     handleExportSvg,

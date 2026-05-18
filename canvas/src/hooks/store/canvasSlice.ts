@@ -881,6 +881,15 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return null
     }
   },
+  captureThreeGltfSnapshot: async (): Promise<Blob | null> => {
+    const fns = get().threeGlbSnapshotFns
+    if (!fns || typeof fns.captureGltf !== 'function') return null
+    try {
+      return await fns.captureGltf()
+    } catch {
+      return null
+    }
+  },
 
   threeLayoutSnapshotFns: null,
   registerThreeLayoutSnapshotFns: (fns) => set({ threeLayoutSnapshotFns: fns || null }),

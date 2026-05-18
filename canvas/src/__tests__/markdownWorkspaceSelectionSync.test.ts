@@ -3,6 +3,7 @@ import {
   resolveInitialMarkdownWorkspaceSelectionPath,
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionSync'
+import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 const buildFileEntry = (path: string): WorkspaceEntry => ({
   path,
@@ -33,7 +34,7 @@ export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalid
   const loadingNoop = resolveInvalidatedMarkdownWorkspaceSelectionPath({
     selectionPath: '/docs/missing.md' as never,
     activePath: '/docs/a.md' as never,
-    entries: [buildFileEntry('/docs/a.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md')]),
     loading: true,
   })
   if (typeof loadingNoop !== 'undefined') {
@@ -43,7 +44,7 @@ export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalid
   const fallbackToActive = resolveInvalidatedMarkdownWorkspaceSelectionPath({
     selectionPath: '/docs/missing.md' as never,
     activePath: '/docs/a.md' as never,
-    entries: [buildFileEntry('/docs/a.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md')]),
     loading: false,
   })
   if (fallbackToActive !== '/docs/a.md') {
@@ -53,7 +54,7 @@ export function testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalid
   const clearMissing = resolveInvalidatedMarkdownWorkspaceSelectionPath({
     selectionPath: '/docs/missing.md' as never,
     activePath: '/docs/also-missing.md' as never,
-    entries: [buildFileEntry('/docs/a.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md')]),
     loading: false,
   })
   if (clearMissing !== null) {

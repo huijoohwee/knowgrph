@@ -246,6 +246,8 @@ export function LaunchDropdown({
     exportActions?.workspaceFileJsonLd ||
     exportActions?.markdown ||
     exportActions?.png ||
+    exportActions?.gltf ||
+    exportActions?.glb ||
     exportActions?.htmlViewer ||
     exportActions?.htmlCanvas ||
     exportActions?.json ||

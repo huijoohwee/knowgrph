@@ -1,4 +1,4 @@
-import type { WebpageFrontmatterMeta, WebpageViewMode, WebsiteImportFrontmatterMeta, YamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
+import type { WebpageFrontmatterMeta, WebpageViewMode, WebsiteImportFrontmatterMeta, YamlFrontmatterHeaderBlock } from '@/lib/markdown/frontmatter'
 import { readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 
 export function normalizeWebpageViewFromFrontmatterValue(viewRaw: string): WebpageViewMode {
@@ -10,7 +10,7 @@ export function normalizeWebpageViewFromFrontmatterValue(viewRaw: string): Webpa
   return 'markdown'
 }
 
-export function deriveWebpageFrontmatterMetaFromBlock(block: YamlFrontmatterBlock | null): WebpageFrontmatterMeta | null {
+export function deriveWebpageFrontmatterMetaFromBlock(block: YamlFrontmatterHeaderBlock | null): WebpageFrontmatterMeta | null {
   if (!block) return null
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   if (!url) return null
@@ -32,7 +32,7 @@ export function deriveWebpageFrontmatterMetaFromBlock(block: YamlFrontmatterBloc
   return { url, view, siteRootRel, scriptPolicy, fidelityLevel, includeImages }
 }
 
-export function deriveWebsiteImportFrontmatterMetaFromBlock(block: YamlFrontmatterBlock | null): WebsiteImportFrontmatterMeta | null {
+export function deriveWebsiteImportFrontmatterMetaFromBlock(block: YamlFrontmatterHeaderBlock | null): WebsiteImportFrontmatterMeta | null {
   if (!block) return null
   const importId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteImportId')
   const nodeId = readYamlFrontmatterValue(block.rawBlock, 'kgWebsiteNodeId')
@@ -45,4 +45,3 @@ export function deriveWebsiteImportFrontmatterMetaFromBlock(block: YamlFrontmatt
 export function shouldRenderWebpageIframe(meta: WebpageFrontmatterMeta | null): boolean {
   return !!(meta && meta.url && (meta.view === 'html' || meta.view === 'json'))
 }
-

@@ -26,6 +26,14 @@ import { tryFetchApiNativeMarkdown } from './apiNative'
 import type { WorkspaceUrlContent } from './types'
 import { clearInflightWorkspaceUrlContent, getCachedWorkspaceUrlContent, getInflightWorkspaceUrlContent, setCachedWorkspaceUrlContent, setInflightWorkspaceUrlContent } from './urlContentCache'
 import { buildWorkspaceUrlContentCacheKey } from './urlContentKey'
+import { resolveBinaryDownloadProxyUrl } from '@/lib/chatEndpoint'
+import {
+  GLB_ASSET_MIME_TYPE,
+  GLTF_ASSET_MIME_TYPE,
+  buildGlbAssetMarkdown,
+  buildGltfAssetMarkdown,
+  deriveModelWorkspaceDocumentNameFromUrl,
+} from './glbAsset'
 
 type WebpageViewMode = 'markdown' | 'json' | 'html'
 type FetchMode = 'import' | 'refresh'
@@ -186,6 +194,8 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
   const isYouTube = isYouTubeUrl(normalizedUrl)
   const isPdf = /\.pdf(\?|#|$)/i.test(normalizedUrl)
+  const isGlb = /\.glb(\?|#|$)/i.test(normalizedLower)
+  const isGltf = /\.gltf(\?|#|$)/i.test(normalizedLower)
   const isWeChat = isWeChatArticleUrl(normalizedUrl)
 
   if (isYouTube) {
@@ -211,6 +221,39 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       normalizedUrl,
       name: String(converted.name || 'document.md'),
       text: String(converted.markdown || ''),
+    }
+  }
+
+  if (isGlb || isGltf) {
+    opts?.onProgress?.(10)
+    const fetchPath =
+      localFsFetchPath ||
+      (isLocalRepoPath ? buildCodebaseFilePath(localRepoPath) : resolveBinaryDownloadProxyUrl(normalizedUrl))
+    const accept = isGltf
+      ? `${GLTF_ASSET_MIME_TYPE},application/json,text/plain,*/*`
+      : `${GLB_ASSET_MIME_TYPE},application/octet-stream,*/*`
+    const res = await fetch(fetchPath, { headers: { Accept: accept } })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const payload = isGltf ? await res.text() : await res.arrayBuffer()
+    opts?.onProgress?.(100)
+    const sourceUrl = localFsFetchPath && isFileUrl ? normalizedUrl.replace(/^file:\/\//i, '') : normalizedUrl
+    const name = deriveFilenameFromUrl(normalizedUrl, isGltf ? 'model.gltf' : 'model.glb')
+    return {
+      normalizedUrl: sourceUrl,
+      name: deriveModelWorkspaceDocumentNameFromUrl(normalizedUrl),
+      text: isGltf
+        ? buildGltfAssetMarkdown({
+            name,
+            sourceKind: 'url',
+            sourceUrl,
+            text: String(payload || ''),
+          })
+        : buildGlbAssetMarkdown({
+            name,
+            sourceKind: 'url',
+            sourceUrl,
+            buffer: payload as ArrayBuffer,
+          }),
     }
   }
 

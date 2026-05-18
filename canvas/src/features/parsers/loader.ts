@@ -356,6 +356,7 @@ export async function autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty(args?: {
   const text = String(args?.text ?? store.markdownDocumentText ?? '')
   if (!text.trim()) return false
   if (!isMarkdownLikeFileName(name)) return false
+  if (!containsFrontmatterMermaid(text)) return false
 
   const base = store.graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
   const n = base && Array.isArray(base.nodes) ? base.nodes.length : 0

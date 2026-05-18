@@ -89,7 +89,7 @@ The 100% refactor proceeds by ownership cluster, not by random line-count shavin
 
 1. Flow Editor and FlowCanvas runtime: split layout, collision, edge routing, media overlay, zoom, and scene state into single-responsibility modules with bounded recalculation.
 2. GraphCanvas and 3D runtime: split scene, simulation, positioning, group geometry, minimap, and render-order logic around shared semantic keys and lazy-loaded runtime chunks.
-3. Markdown workspace and source-files pipeline: isolate bootstrap, indexing, source-file ingest, composed graph replay, storage sync, and stale-guard logic so one source controls active content.
+3. Markdown workspace and source-files pipeline: isolate automated default bootstrap, manual source-file actions, indexing, source-file ingest, composed graph replay, storage sync, and stale-guard logic so one source controls active content.
 4. Rich media, provider, and parser pipeline: keep text/image/video contracts provider-agnostic, remove hardcoded demo assumptions, and split oversized parser/provider files by schema and execution concern.
 5. Geospatial and cross-package integration: use declared package entrypoints and shared utilities only; remove arbitrary subpath imports, duplicated constants, and downstream bridge drift.
 6. Tests and fixtures: split large tests by behavior, replace hardcoded path/story fixtures with neutral builders, and delete stale regression cases once the upstream bug class is impossible.
@@ -111,6 +111,45 @@ The codebase refactor is complete only when:
 - Cross-repo docs and API/schema mirrors are updated from the canonical upstream source after the upstream refactor is green.
 
 Post-task documentation must update the canonical upstream docs first, then any matching API reference, responsive contract note, or cross-repo schema mirror. The expected handoff surfaces are `todo-log.md`, `docs/`, and `huijoohwee.github.io/schema/AgenticRAG`.
+
+## Source File Management Contract
+
+Source Files are the Editor Workspace's active content boundary. Automated default management and manual management must share one SourceFile record contract, one canonical path policy, one storage sync contract, and one recomposition path. They must differ only in how intent is initiated and confirmed.
+
+Default automated management is the baseline path:
+
+- Empty or freshly seeded workspaces must hydrate Source Files automatically from the canonical upstream source chain without asking the user to import local files.
+- In single-user canonical-docs mode, `huijoohwee/docs/**` is the filesystem authoring SSOT, Cloudflare D1 workspace `kgws:canonical-docs` is the shared remote store, and the app hydrates through the storage export/doc-view/RxDB cache path.
+- Dev changes originate in `/Users/huijoohwee/Documents/GitHub/knowgrph`; publish output syncs to `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`; Cloudflare production at `airvio.co/knowgrph` consumes the generated Prod artifact and D1-backed storage routes.
+- Default Source Files must be deduped by canonical source path and semantic content hash, not by display name, import order, local absolute path, or stale alias.
+- Automated sync owns bootstrap, D1 pull/push, RxDB persistence, docs mirror hydration, source-file indexing, composed graph replay, and stale-guard recovery as one observable pipeline.
+- Automated updates must not overwrite a locally edited manual Source File silently. They must preserve the manual edit, surface a conflict, or require an explicit user action to replace, merge, or discard.
+- D1 seeding and verification must use the storage API or remote D1 tooling, never the app's Import local files UI as a hidden default path.
+
+Manual management is explicit user intent:
+
+- Manual actions include New Source File, Import URL, Import local files, paste/edit/save, rename, delete, enable/disable, geo-layer toggle, parse/reparse, folder selection, and explicit conflict resolution.
+- Manual actions must be visible in the UI, recorded through the same store/update path as automated changes, and reflected in composed graph state without duplicate replay logic.
+- Import local files is allowed only as an explicit manual action. It must never be used to mask missing automated D1/docs bootstrap behavior.
+- Manual imports must retain provenance, original source kind, source URL or user-visible local path label, content hash, parse status, and error state without introducing hidden absolute-path dependencies into tests or persisted cross-device records.
+- Manual deletion or disabling must be respected by automated refresh unless the user explicitly resets the workspace, re-enables the default seed set, or accepts a remote replacement.
+- Manual and automated records must converge through the same conflict UX, toast/log reporting, storage outbox handling, and stale-write guards.
+
+The implementation boundary is source-owned:
+
+- Keep config keys, storage route paths, canonical docs workspace ids, docs-only policies, debounce intervals, and copy strings centralized in their current SSOT modules.
+- Remove legacy source-file aliases, downstream path remaps, duplicate import buttons, stale bundled seed fallbacks, and compatibility shims once the canonical automated/manual path covers the behavior.
+- Do not add route-specific fixes in the Prod mirror or Cloudflare artifact. Fix stale source-file behavior in Dev owners, then build/sync/publish.
+- Treat source-file hydration, parsing, composed graph replay, D1 sync, cross-tab updates, and workspace reset as race boundaries with latest-result guards and bounded retries.
+- Keep source-file tests neutral: no hardcoded external absolute paths, no dependence on one local docs folder being manually imported, and no assertions that pass only because a demo document is already present.
+
+Required source-file acceptance criteria:
+
+- A clean Editor Workspace opens with the default automated Source Files present from the D1/docs storage path, including the full Markdown content and matching content hashes.
+- Manual creation, import, edit, delete, enable/disable, parse, and conflict-resolution paths continue to work after automated hydration is enabled by default.
+- Automated default sync and manual source-file actions share the same SourceFile normalization, storage sync, recomposition, provenance, and stale-guard utilities.
+- Focused tests prove default D1/docs hydration, manual import isolation, duplicate canonical-path suppression, local-edit conflict protection, source-file recomposition, and stale remote-pull rejection.
+- Cross-repo docs and API/schema notes describe the automated default path, the manual-only Import local files boundary, and the Dev -> Prod -> Cloudflare ownership chain.
 
 ## App Surface Contract
 
@@ -170,6 +209,10 @@ Toolbar -> Canvas View Mode -> Surface Mode -> XR Mode
 Required behavior:
 
 - XR Mode is represented by shared renderer mode state and schema-compatible configuration, not by a document-specific route, fixture, local file path, or demo story switch.
+- Toolbar -> Launch model-asset actions must support both `.gltf` and `.glb` through the same neutral Source Files path: Import local files, Import URL, and Export must preserve the selected format instead of converting through Markdown suffixes, demo filenames, or absolute-path assumptions.
+- Local `.gltf` and `.glb` imports must avoid editor freezes by keeping large model payloads out of eager Source Files hydration while retaining enough pending metadata for Canvas XR/3D render activation.
+- URL `.gltf` and `.glb` imports must ingest into renderable model-asset manifests with provenance and validation metadata; remote or local URL handling must not hardcode a host, path, repository, or demo asset.
+- Export from the active 3D/XR canvas must expose both embedded-JSON GLTF (`.gltf`) and binary GLB (`.glb`) outputs from the same scene snapshot owner.
 - The active canvas graph, widget handles, edge routing, provenance metadata, selection state, and responsive layout metadata remain inspectable when XR Mode is selected.
 - The implementation may be inspired by broad web XR scene ideas such as declarative scene metadata, entity/component composition, camera rigs, cursor/raycast selection, controller affordances, and asset readiness, but it must not copy external implementation code, markup, component names, examples, file structure, copy, or project architecture.
 - XR entry is capability-gated and user-gesture driven. Unsupported browsers, blocked permissions, unavailable devices, and non-secure contexts must fall back to an inspectable 3D canvas surface with explicit status rather than a blank canvas or crash.
@@ -297,6 +340,7 @@ Validation must be layered:
 - Layout tests proving generated frontmatter-flow positions fit a balanced 16:9 (`1920x1080`) logical frame with visible Text, Image, Video, and Rich Media Panel widgets plus readable connecting edges.
 - Responsive tests proving mobile, tablet, desktop, and wide-canvas proof classes preserve reachable controls, visible widgets, readable edges, stable fit behavior, and non-overlapping panel surfaces.
 - Touch and resize tests proving pan/zoom, selection, drawer/panel transitions, keyboard resize, safe-area insets, and orientation changes do not trigger stale writes, duplicate canvas mounts, or unbounded recalculation.
+- Source-file management tests proving automated default D1/docs hydration and manual source-file actions share one SourceFile pipeline while preserving local edits, provenance, dedupe, and conflict behavior.
 - XR surface tests proving Canvas View Mode can select XR Mode through shared renderer state, persists neutral mode metadata where expected, and falls back cleanly when WebXR capability is unavailable.
 - Hardcode-guard tests proving externally supplied XR validation documents are not referenced by filename or absolute local path anywhere in the repo under test.
 - Media tests proving generated or mocked image/video artifacts exist, have declared media types, and are referenced by the canvas graph.
@@ -318,6 +362,7 @@ The goal is complete only when:
 - The generated workspace artifact exposes mobile-first responsive metadata for widget bounds, fit strategy, edge anchors, panel behavior, safe-area offsets, and overflow handling.
 - Live UI or browser verification confirms the route can open MainPanel Integrations, FloatingPanel Chat UI, Editor Workspace, Canvas, visible widgets, Rich Media Panel, and their edges on mobile, tablet, desktop, and wide-canvas proof classes without relying on the validation document being hardcoded in the repo.
 - Cloudflare production verification confirms `airvio.co/knowgrph` preserves the same mobile-first responsive behavior after the Dev source and Prod mirror are synced.
+- Editor Workspace verification confirms automated default Source Files hydrate from the D1/docs storage path without Import local files, while manual source-file management remains explicit, observable, conflict-safe, and provenance-preserving.
 - Test validation can run with a user-supplied external validation path as a runtime input, while the repo remains free of hardcoded dependencies on that absolute path, filename, or demo content.
 - Failure and resume behavior are tested.
 - Termination is deterministic and recorded.

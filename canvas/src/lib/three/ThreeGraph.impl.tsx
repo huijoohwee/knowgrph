@@ -27,6 +27,8 @@ import {
 } from '@/lib/canvas/overlayInteractions3d'
 import type { Canvas3dModeId } from '@/lib/config'
 import { emitPropsPanelOpen } from '@/features/canvas/utils'
+import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
+import { GlbAssetModel } from '@/lib/three/GlbAssetModel'
 
 const SceneLazy = React.lazy(() =>
   import('@/features/three/Scene').then(mod => ({
@@ -171,19 +173,21 @@ function CanvasXrEntryPanel({
   }, [rendererRef, sessionMode])
 
   if (!active) return null
-  const canStart = status === 'supported' || status === 'active'
-  const label = status === 'active' ? 'Exit XR' : status === 'unsupported' ? 'XR unavailable' : status === 'error' ? 'XR blocked' : 'Enter XR'
+  const canStart = status === 'supported' || status === 'active' || status === 'error'
+  const label = status === 'active' ? 'Exit XR' : status === 'supported' ? 'Enter XR' : status === 'error' ? 'Retry XR' : 'XR preview'
+  const buttonDisabled = !canStart
   return (
     <section
       aria-label="XR Mode"
       data-kg-canvas-xr-mode="1"
+      data-kg-canvas-xr-status={status}
       className="absolute right-3 top-3 z-[90] pointer-events-auto rounded-md border border-[var(--kg-border)] bg-[var(--kg-surface)]/90 p-1 shadow-sm backdrop-blur"
     >
       <button
         type="button"
         data-kg-canvas-xr-enter="1"
         className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={!canStart}
+        disabled={buttonDisabled}
         onClick={() => {
           void startOrEndSession()
         }}
@@ -292,12 +296,16 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     renderGraphRef.current = graph
     return graph
   }, [paused, graph])
+  const glbAsset = useMemo(() => parseGlbAssetDocument(markdownDocumentText), [markdownDocumentText])
   const sceneGraph = useMemo(() => {
+    if (glbAsset) return null
     const g = renderGraph as GraphData | null
     if (!g) return null
     return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
-  }, [renderGraph])
+  }, [glbAsset, renderGraph])
   const hasGraph = !!(sceneGraph && Array.isArray(sceneGraph.nodes) && Array.isArray(sceneGraph.edges))
+  const hasGlbAsset = !!glbAsset
+  const hasRenderableScene = hasGraph || hasGlbAsset
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(
     hasGraph ? (sceneGraph as GraphData).nodes : [],
@@ -1012,7 +1020,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       void 0
     }
   }, [])
-  if (!hasGraph || webglSupported === false) {
+  if (!hasRenderableScene || webglSupported === false) {
     return (
       <div
         className="absolute inset-0 w-full h-full z-0"
@@ -1106,6 +1114,26 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 return null
               }
             },
+            captureGltf: async () => {
+              try {
+                const scene = threeSceneRef.current
+                if (!scene) return null
+                const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+                const exporter = new GLTFExporter()
+                const json = await new Promise<unknown | null>(resolve => {
+                  exporter.parse(
+                    scene,
+                    gltf => resolve(gltf || null),
+                    () => resolve(null),
+                    { binary: false },
+                  )
+                })
+                if (!json || json instanceof ArrayBuffer) return null
+                return new Blob([`${JSON.stringify(json, null, 2)}\n`], { type: 'model/gltf+json' })
+              } catch {
+                return null
+              }
+            },
           })
         }}
         onPointerMissed={(ev) => {
@@ -1116,23 +1144,33 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         }}
       >
         <React.Suspense fallback={null}>
-          <SceneLazy
-            data={sceneGraph as GraphData}
-            schema={effectiveSchema as GraphSchema}
-            positions={positions}
-            paused={paused}
-            onSelectNode={onSelectNode}
-            onHoverNode={hoverEnabled ? handleHoverNode : undefined}
-            onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
-            onHoverEdgeIdChange={hoverEnabled ? handleHoverEdgeIdChange : undefined}
-            hoveredEdgeId={hoveredEdgeId}
-            onDragNode={setDraggedNodeId}
-            draggedNodeId={draggedNodeId}
-            theme={theme}
-            dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
-            hiddenNodeIdSet={overlayHiddenNodeIdSet}
-            mode={mode}
-          />
+          {hasGraph ? (
+            <SceneLazy
+              data={sceneGraph as GraphData}
+              schema={effectiveSchema as GraphSchema}
+              positions={positions}
+              paused={paused}
+              onSelectNode={onSelectNode}
+              onHoverNode={hoverEnabled ? handleHoverNode : undefined}
+              onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
+              onHoverEdgeIdChange={hoverEnabled ? handleHoverEdgeIdChange : undefined}
+              hoveredEdgeId={hoveredEdgeId}
+              onDragNode={setDraggedNodeId}
+              draggedNodeId={draggedNodeId}
+              theme={theme}
+              dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
+              hiddenNodeIdSet={overlayHiddenNodeIdSet}
+              mode={mode}
+            />
+          ) : null}
+          {glbAsset ? (
+            <GlbAssetModel
+              asset={glbAsset}
+              mode={mode}
+              paused={paused}
+              standalone={!hasGraph}
+            />
+          ) : null}
           <ControlsLazy
             schema={effectiveSchema as GraphSchema}
             positions={positions}

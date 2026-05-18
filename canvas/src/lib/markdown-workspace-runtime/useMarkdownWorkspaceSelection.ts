@@ -5,7 +5,7 @@ import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { extractYamlFrontmatterBlock, parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { extractYamlFrontmatterHeaderBlock } from '@/lib/markdown/frontmatter'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
 import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
@@ -22,6 +22,12 @@ import {
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from './markdownWorkspaceSelectionSync'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import {
+  hasCanvasWorkspacePresetForSwitch,
+  shouldPrimeStrictFlowEditorModeForWorkspaceText,
+} from './workspaceSwitchPreset'
+import { buildWorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
 export type MarkdownWorkspaceSelectionArgs = {
   activePath: WorkspacePath | null
@@ -51,6 +57,23 @@ export type MarkdownWorkspaceSelectionArgs = {
   setHighlightedLineRange: (value: null) => void
 }
 
+function buildWorkspaceDocumentSwitchSignature(args: {
+  activeDocumentKey: string
+  text: string
+  updatedAtMs: unknown
+}): string {
+  const activeDocumentKey = String(args.activeDocumentKey || '').trim()
+  const text = String(args.text || '')
+  const textHash = hashStringToHexCached(`markdown-workspace-switch:${activeDocumentKey || 'document'}`, text)
+  return hashSignatureParts([
+    'markdown-workspace-document-switch-apply',
+    activeDocumentKey,
+    text.length,
+    textHash,
+    typeof args.updatedAtMs === 'number' ? args.updatedAtMs : 0,
+  ])
+}
+
 export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
   const setActivePathSafe = React.useCallback(
     (path: WorkspacePath) => {
@@ -70,6 +93,8 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     setSelectionPath(normalizeMarkdownWorkspaceSelectionPath(path))
   }, [])
 
+  const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])
+
   React.useEffect(() => {
     const nextSelectionPath = resolveInitialMarkdownWorkspaceSelectionPath({
       selectionPath: selectionPathRef.current,
@@ -83,12 +108,12 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const nextSelectionPath = resolveInvalidatedMarkdownWorkspaceSelectionPath({
       selectionPath,
       activePath: args.activePath,
-      entries: args.entries,
+      entriesIndex,
       loading: args.loading,
     })
     if (typeof nextSelectionPath === 'undefined') return
     setSelectionPath(nextSelectionPath)
-  }, [args.activePath, args.entries, args.loading, selectionPath])
+  }, [args.activePath, args.loading, entriesIndex, selectionPath])
 
   const {
     activeEntry,
@@ -103,10 +128,10 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       deriveMarkdownWorkspaceSelectionState({
         activePath: args.activePath,
         selectionPath,
-        entries: args.entries,
+        entriesIndex,
         sourcesByPath: args.sourcesByPath,
       }),
-    [args.activePath, args.entries, args.sourcesByPath, selectionPath],
+    [args.activePath, args.sourcesByPath, entriesIndex, selectionPath],
   )
 
   const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)
@@ -162,13 +187,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   const frontmatterSwitchApplyInFlightSigRef = React.useRef<string>('')
   const lastFrontmatterSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
   const primeStrictFrontmatterFlowEditorMode = React.useCallback((text: string) => {
-    const preset = parseCanvasWorkspaceFrontmatterPreset(text)
-    const strictFlowEditorPreset =
-      preset?.canvasSurfaceMode === '2d'
-      && preset?.canvas2dRenderer === 'flowEditor'
-      && preset?.documentSemanticMode === 'document'
-      && preset?.frontmatterModeEnabled === true
-    if (!strictFlowEditorPreset) return
+    if (!shouldPrimeStrictFlowEditorModeForWorkspaceText(text)) return
     const state = useGraphStore.getState()
     if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
     state.setCanvasRenderMode('2d')
@@ -182,9 +201,9 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     if (!activeDocumentKey) return
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
     if (!nextText.trim()) return
-    const frontmatterBlock = extractYamlFrontmatterBlock(nextText)
+    const frontmatterBlock = extractYamlFrontmatterHeaderBlock(nextText)
     if (!frontmatterBlock) return
-    if (!parseCanvasWorkspaceFrontmatterPreset(nextText)) return
+    if (!hasCanvasWorkspacePresetForSwitch(nextText)) return
 
     const nextSig = hashSignatureParts([
       'markdown-workspace-frontmatter-switch-apply',
@@ -244,14 +263,13 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     if (!activeDocumentKey) return
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
     if (!nextText.trim()) return
-    if (parseCanvasWorkspaceFrontmatterPreset(nextText)) return
+    if (hasCanvasWorkspacePresetForSwitch(nextText)) return
 
-    const nextSig = hashSignatureParts([
-      'markdown-workspace-document-switch-apply',
+    const nextSig = buildWorkspaceDocumentSwitchSignature({
       activeDocumentKey,
-      nextText,
-      activeEntry?.updatedAtMs ?? 0,
-    ])
+      text: nextText,
+      updatedAtMs: activeEntry?.updatedAtMs,
+    })
     const nowMs = Date.now()
     const lastAttempt = lastDocumentSwitchApplyAttemptRef.current
     if (
@@ -424,9 +442,9 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   ])
 
   React.useEffect(() => {
-    if (!args.entries.length || args.loading) return
+    if (!entriesIndex.byPath.size || args.loading) return
     const nextActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
-      entries: args.entries,
+      entriesIndex,
       activePath: args.activePath,
       lastSetActivePath: args.lastSetActivePath,
       lastRequestedActivePath: args.lastRequestedActivePathRef.current,
@@ -435,10 +453,10 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     setActivePathSafe(nextActivePath)
   }, [
     args.activePath,
-    args.entries,
     args.lastRequestedActivePathRef,
     args.lastSetActivePath,
     args.loading,
+    entriesIndex,
     setActivePathSafe,
   ])
 
@@ -446,12 +464,12 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const canonicalSelection = resolveMarkdownWorkspaceCanonicalSelection({
       activePath: args.activePath,
       selectionPath,
-      entries: args.entries,
+      entriesIndex,
     })
     if (!canonicalSelection) return
     setActivePathSafe(canonicalSelection.activePath)
     if (canonicalSelection.selectionPath) setSelectionPathSafe(canonicalSelection.selectionPath)
-  }, [args.activePath, args.entries, selectionPath, setActivePathSafe, setSelectionPathSafe])
+  }, [args.activePath, entriesIndex, selectionPath, setActivePathSafe, setSelectionPathSafe])
 
   React.useEffect(() => {
     const path = args.activePath

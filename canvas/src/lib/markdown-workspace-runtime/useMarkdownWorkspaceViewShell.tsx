@@ -5,7 +5,6 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
 import {
@@ -14,6 +13,8 @@ import {
 } from './markdownWorkspaceRuntime.stateSync'
 import type { FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import { applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
+import { shouldPrimeStrictFlowEditorModeForWorkspaceText } from './workspaceSwitchPreset'
+import { buildWorkspaceEntriesIndex, getWorkspaceFileEntry, hasWorkspaceFileEntry } from './workspaceEntriesIndex'
 
 export function useMarkdownWorkspaceViewShell(args: {
   entries: WorkspaceEntry[]
@@ -62,6 +63,7 @@ export function useMarkdownWorkspaceViewShell(args: {
     },
     [setStatusWithAutoClear],
   )
+  const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(entries), [entries])
 
   const toggleExpanded = React.useCallback((path: WorkspacePath) => {
     const normalized = normalizeWorkspacePath(path)
@@ -76,15 +78,9 @@ export function useMarkdownWorkspaceViewShell(args: {
   const onSelectFile = React.useCallback(
     (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
-      const entry = entries.find(candidate => candidate.kind === 'file' && candidate.path === normalized) || null
+      const entry = getWorkspaceFileEntry(entriesIndex, normalized)
       const entryText = entry && typeof entry.text === 'string' ? entry.text : ''
-      const preset = parseCanvasWorkspaceFrontmatterPreset(entryText)
-      const strictFlowEditorPreset =
-        preset?.canvasSurfaceMode === '2d'
-        && preset?.canvas2dRenderer === 'flowEditor'
-        && preset?.documentSemanticMode === 'document'
-        && preset?.frontmatterModeEnabled === true
-      if (strictFlowEditorPreset) {
+      if (shouldPrimeStrictFlowEditorModeForWorkspaceText(entryText)) {
         flushSync(() => {
           const state = useGraphStore.getState()
           if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
@@ -95,13 +91,13 @@ export function useMarkdownWorkspaceViewShell(args: {
         })
         void setGeospatialModeEnabled(false).catch(() => void 0)
       }
-      flushSync(() => {
+      React.startTransition(() => {
         setSelectionSource('editor')
         setActivePathSafe(normalized)
         setSelectionPathSafe(normalized)
       })
     },
-    [entries, setActivePathSafe, setSelectionPathSafe, setSelectionSource],
+    [entriesIndex, setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )
 
   const onSelectFolder = React.useCallback(
@@ -120,8 +116,8 @@ export function useMarkdownWorkspaceViewShell(args: {
       if (renderArgs.entry.kind === 'folder') {
         const sitemapPath = resolveFolderContractDocPath(renderArgs.entry.path, 'sitemap')
         const journeyPath = resolveFolderContractDocPath(renderArgs.entry.path, 'user-journey')
-        const hasSitemap = entries.some(entry => entry.kind === 'file' && entry.path === sitemapPath)
-        const hasJourney = entries.some(entry => entry.kind === 'file' && entry.path === journeyPath)
+        const hasSitemap = hasWorkspaceFileEntry(entriesIndex, sitemapPath)
+        const hasJourney = hasWorkspaceFileEntry(entriesIndex, journeyPath)
         if (!hasSitemap && !hasJourney) return null
         return (
           <WorkspaceModeSelect<FolderModeContract>
@@ -158,7 +154,7 @@ export function useMarkdownWorkspaceViewShell(args: {
       return null
     },
     [
-      entries,
+      entriesIndex,
       folderModeContract,
       pickFolderContractTargetPath,
       resolveFolderContractDocPath,

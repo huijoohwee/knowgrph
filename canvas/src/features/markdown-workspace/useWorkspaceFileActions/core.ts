@@ -217,17 +217,20 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         await loadGraphDataFromTextViaParser(inner.nameForParse, resolvedText, { applyToStore: true })
       }
 
+      try {
+        applyCanvasFrontmatterPreset({
+          graphData: useGraphStore.getState().graphData,
+          rawText: resolvedText,
+        })
+      } catch {
+        void 0
+      }
+
       const store = useGraphStore.getState()
       const baselineLocked = store.documentStructureBaselineLock === true
       const graphData = store.graphData
       const hasAnyGraph = !!(graphData && (((graphData.nodes || []).length > 0) || ((graphData.edges || []).length > 0)))
       if (!hasAnyGraph) return
-
-      try {
-        applyCanvasFrontmatterPreset({ graphData, rawText: resolvedText })
-      } catch {
-        void 0
-      }
 
       if (!baselineLocked && shouldForceDocumentSemanticModeForImport(inner.nameForParse)) {
         store.setDocumentSemanticMode('document')

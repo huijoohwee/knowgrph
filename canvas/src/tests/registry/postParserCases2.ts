@@ -110,6 +110,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["webpageSandbox.absolutizesLocalProxyUrlsInsteadOfChangingBase","@/__tests__/webpageSandboxLazyImages.test","testWebpageSandboxAbsolutizesLocalProxyUrlsInsteadOfChangingBase"],
   ["workspaceImport.normalizesProxyUrlsAndAutolinks","@/__tests__/workspaceImportNormalizeProxyUrls.test","testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks"],
   ["workspaceImport.urlStub.doesNotFetch","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlStubDoesNotFetch"],
+  ["workspaceImport.urlGlb.binaryManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGlbFetchesBinaryManifest"],
+  ["workspaceImport.urlGltf.jsonManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGltfFetchesJsonManifest"],
   ["workspaceImport.urlStub.designDoesNotFetch","@/__tests__/workspaceImportUrlDesignStub.test","testWorkspaceImportUrlDesignStubDoesNotFetchAndSetsCanvasPreset"],
   ["workspaceImport.policy.forbidVendorHostLiterals","@/__tests__/forbidHardcodedVendorHosts.test","testForbidHardcodedDesignVendorHosts"],
   ["ui.markdown.workspace.toolbar.webpageViewControls.consolidated","@/__tests__/markdownWorkspaceToolbarWebpageViewControls.test","testMarkdownWorkspaceToolbarWebpageViewControlsConsolidated"],

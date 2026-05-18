@@ -149,10 +149,11 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
       lastLoaded,
     })
     const isPendingStub = cachedText != null && isPendingLocalImportStubText(cachedText)
+    const canUsePendingModelStub = (pendingLocalImport?.kind === 'glb' || pendingLocalImport?.kind === 'gltf') && isPendingStub
     const canUseCachedText =
       cachedText != null &&
       (cachedText !== '' || canTrustEmptyCache) &&
-      !(pendingLocalImport && (cachedText === '' || isPendingStub))
+      !(pendingLocalImport && !canUsePendingModelStub && (cachedText === '' || isPendingStub))
 
     let cancelled = false
     scheduleMarkdownWorkspaceIndexStart(() => {

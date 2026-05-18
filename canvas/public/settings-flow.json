@@ -4549,9 +4549,9 @@
     "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L87"
   },
   "workspace.sync.sourceFiles.docsOnly": {
-    "area": "Workspace Storage Sync",
-    "responsibility": "Keep Source Files constrained to /docs workspace mirror entries only",
-    "notes": "",
+    "area": "Source File Management",
+    "responsibility": "Constrain automated Source Files hydration to canonical /docs workspace mirror entries",
+    "notes": "Default automated path is D1/docs backed; Import local files remains manual-only.",
     "modules": [
       "canvas/src/features/settings/registry-ui.workspace.ts"
     ],
@@ -4563,9 +4563,9 @@
     "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L97"
   },
   "workspace.sync.sourceFiles.debounceMs": {
-    "area": "Workspace Storage Sync",
+    "area": "Source File Management",
     "responsibility": "Debounce interval before Source Files rematerialization after workspace FS updates",
-    "notes": "Unit: ms, clamped to [100, 10000]",
+    "notes": "Unit: ms, clamped to [100, 10000]; applies to automated D1/docs and workspace-FS refreshes.",
     "modules": [
       "canvas/src/features/settings/registry-ui.workspace.ts"
     ],
@@ -4577,9 +4577,9 @@
     "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L107"
   },
   "workspace.import.defaultSourceUrl": {
-    "area": "—",
-    "responsibility": "default source url",
-    "notes": "",
+    "area": "Source File Management",
+    "responsibility": "Default remote source URL for source-file bootstrap without using hidden local imports",
+    "notes": "Local filesystem paths and Cloudflare dashboard D1 URLs normalize to the configured storage base URL.",
     "modules": [
       "canvas/src/features/settings/registry-ui.workspace.ts",
       "canvas/src/hooks/store/canvasSlice.ts",

@@ -2,7 +2,7 @@ import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
+import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES, WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES } from '@/lib/config'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
@@ -13,6 +13,14 @@ import {
   isPendingLocalImportStubText,
   setPendingLocalImport,
 } from './pendingLocalImport'
+import {
+  buildModelAssetMarkdownFromFile,
+  deriveModelWorkspaceDocumentName,
+  inferModelAssetFormatFromName,
+  isGlbAssetName,
+  isGltfAssetName,
+} from './glbAsset'
+import type { WorkspaceModelAssetFormat } from './glbAsset'
 import { importTextFileOrWorkspaceJsonLd } from './workspaceFileJsonLd'
 import type { WorkspaceImportResult } from './types'
 
@@ -29,6 +37,23 @@ function isPdfFile(file: File): boolean {
   const lower = String(file.name || '').toLowerCase()
   if (lower.endsWith('.pdf')) return true
   return file.type === 'application/pdf'
+}
+
+function isGlbFile(file: File): boolean {
+  if (isGlbAssetName(file.name)) return true
+  return String(file.type || '').toLowerCase() === 'model/gltf-binary'
+}
+
+function isGltfFile(file: File): boolean {
+  if (isGltfAssetName(file.name)) return true
+  const type = String(file.type || '').toLowerCase()
+  return type === 'model/gltf+json' || type === 'application/json+gltf'
+}
+
+function getModelAssetFormat(file: File): WorkspaceModelAssetFormat | null {
+  if (isGltfFile(file)) return 'gltf'
+  if (isGlbFile(file)) return 'glb'
+  return null
 }
 
 function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
@@ -114,6 +139,7 @@ function shouldDeferLargeLocalFileImport(file: File, nameRaw: string): boolean {
   if (isPdfFile(file)) return false
   if (isWorkspaceJsonLdName(nameRaw)) return false
   const size = Math.max(0, Number(file?.size || 0))
+  if (getModelAssetFormat(file)) return size >= WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES
   return size >= WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES
 }
 
@@ -187,18 +213,33 @@ export async function importWorkspaceLocalFiles(args: {
       continue
     }
     try {
-      const desiredPath = normalizeWorkspacePath(`${parentPath}/${nameRaw}`)
+      const modelFormat = getModelAssetFormat(file)
+      const importName = modelFormat ? deriveModelWorkspaceDocumentName(nameRaw, modelFormat) : nameRaw
+      const desiredPath = normalizeWorkspacePath(`${parentPath}/${importName}`)
       const lowerName = nameRaw.toLowerCase()
       const looksLikeWorkspaceFile = lowerName.endsWith('.jsonld') || lowerName.endsWith('.json-ld')
       if (
         desiredPath
         && !looksLikeWorkspaceFile
         && !isPdfFile(file)
-        && !shouldDeferLargeLocalFileImport(file, nameRaw)
       ) {
         const existingText = await args.fs.readFileText(desiredPath)
         if (typeof existingText === 'string' && isPendingLocalImportStubText(existingText)) {
-          const rawText = await file.text()
+          if (shouldDeferLargeLocalFileImport(file, nameRaw)) {
+            const kind = modelFormat || 'text'
+            await args.fs.writeFileText(desiredPath, buildPendingLocalImportStub({
+              kind,
+              originalName: nameRaw,
+              source: 'file',
+              ...(modelFormat ? { pendingPath: desiredPath } : {}),
+              bytes: Math.max(0, Number(file?.size || 0)),
+            }))
+            setPendingLocalImport(desiredPath, { kind, file, originalName: nameRaw })
+            createdPaths.push(desiredPath)
+            sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+            continue
+          }
+          const rawText = modelFormat ? await buildModelAssetMarkdownFromFile(file, modelFormat) : await file.text()
           await args.fs.writeFileText(desiredPath, rawText)
           clearPendingLocalImport(desiredPath)
           createdPaths.push(desiredPath)
@@ -211,14 +252,34 @@ export async function importWorkspaceLocalFiles(args: {
         ? await (async () => {
             const created = await args.fs.createFile({
               parentPath,
-              name: nameRaw,
-              text: buildPendingLocalImportStub({ kind: 'text', originalName: nameRaw, source: 'file' }),
+              name: importName,
+              text: buildPendingLocalImportStub({
+                kind: modelFormat || 'text',
+                originalName: nameRaw,
+                source: 'file',
+                bytes: Math.max(0, Number(file?.size || 0)),
+              }),
             })
-            setPendingLocalImport(created, { kind: 'text', file, originalName: nameRaw })
+            setPendingLocalImport(created, { kind: modelFormat || 'text', file, originalName: nameRaw })
+            if (modelFormat) {
+              await args.fs.writeFileText(created, buildPendingLocalImportStub({
+                kind: modelFormat,
+                originalName: nameRaw,
+                source: 'file',
+                pendingPath: created,
+                bytes: Math.max(0, Number(file?.size || 0)),
+              }))
+            }
             return created
           })()
         : isPdfFile(file)
           ? await importPdfFile({ fs: args.fs, file, parentPath })
+          : modelFormat
+            ? await args.fs.createFile({
+                parentPath,
+                name: importName,
+                text: await buildModelAssetMarkdownFromFile(file, modelFormat),
+              })
           : await importTextFileOrWorkspaceJsonLd({
               file,
               onText: async ({ name, text }) => await args.fs.createFile({ parentPath, name, text }),
@@ -286,7 +347,9 @@ export async function importWorkspaceLocalFolder(args: {
       .replace(/\\/g, '/')
       .replace(/^\/+/, '')
     const parts = relPath.split('/').filter(Boolean)
-    const relName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
+    const modelFormat = getModelAssetFormat(file)
+    const rawRelName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
+    const relName = modelFormat ? deriveModelWorkspaceDocumentName(rawRelName, modelFormat) : rawRelName
     const relDir = parts.length > 1 ? parts.slice(0, -1).join('/') : ''
 
     try {
@@ -297,18 +360,32 @@ export async function importWorkspaceLocalFolder(args: {
             const created = await args.fs.createFile({
               parentPath,
               name: baseName,
-              text: buildPendingLocalImportStub({ kind: 'pdf', originalName: relName, source: 'folder' }),
+              text: buildPendingLocalImportStub({ kind: 'pdf', originalName: rawRelName, source: 'folder' }),
             })
-            setPendingLocalImport(created, { kind: 'pdf', file, originalName: relName })
+            setPendingLocalImport(created, { kind: 'pdf', file, originalName: rawRelName })
             return created
           })()
         : await (async () => {
             const created = await args.fs.createFile({
               parentPath,
               name: relName,
-              text: buildPendingLocalImportStub({ kind: 'text', originalName: relName, source: 'folder' }),
+              text: buildPendingLocalImportStub({
+                kind: modelFormat || 'text',
+                originalName: rawRelName,
+                source: 'folder',
+                bytes: Math.max(0, Number(file?.size || 0)),
+              }),
             })
-            setPendingLocalImport(created, { kind: 'text', file, originalName: relName })
+            setPendingLocalImport(created, { kind: modelFormat || 'text', file, originalName: rawRelName })
+            if (modelFormat) {
+              await args.fs.writeFileText(created, buildPendingLocalImportStub({
+                kind: modelFormat,
+                originalName: rawRelName,
+                source: 'folder',
+                pendingPath: created,
+                bytes: Math.max(0, Number(file?.size || 0)),
+              }))
+            }
             return created
           })()
 

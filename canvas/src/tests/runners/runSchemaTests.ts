@@ -61,6 +61,18 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeNormalizesAndCanvasViewSelectionActivatesSurface()
   })
+  await execTest(results, 'canvas.renderSettings.xrModeSelect', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testRenderSettings3dModeSelectPreservesXrMode()
+  })
+  await execTest(results, 'canvas.xrMode.glbAssetRenderGate', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate()
+  })
+  await execTest(results, 'canvas.xrMode.gltfAssetRenderGate', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate()
+  })
   await execTest(results, 'canvas.viewSelection.voxelGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewSelectionBlocksVoxelDuringGeospatialMode()

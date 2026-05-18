@@ -1,17 +1,18 @@
-import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
+import { hasWorkspaceFileEntry, type WorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
 export function resolveMarkdownWorkspaceCanonicalSelection(args: {
   activePath: WorkspacePath | null
   selectionPath: WorkspacePath | null
-  entries: WorkspaceEntry[]
+  entriesIndex: WorkspaceEntriesIndex
 }): { activePath: WorkspacePath; selectionPath: WorkspacePath | null } | null {
   const path = String(args.activePath || '').trim()
   if (!path) return null
 
   const canonicalPath = toCanonicalKgcWorkspacePath(path as WorkspacePath)
   if (!canonicalPath || canonicalPath === path) return null
-  if (!args.entries.some(entry => entry.kind === 'file' && entry.path === canonicalPath)) return null
+  if (!hasWorkspaceFileEntry(args.entriesIndex, canonicalPath)) return null
 
   return {
     activePath: canonicalPath,

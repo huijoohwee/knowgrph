@@ -4,18 +4,19 @@ import {
 } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import { getWorkspaceEntry, type WorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
 export function deriveMarkdownWorkspaceSelectionState(args: {
   activePath: WorkspacePath | null
   selectionPath: WorkspacePath | null
-  entries: WorkspaceEntry[]
+  entriesIndex: WorkspaceEntriesIndex
   sourcesByPath: WorkspaceSourceIndex
 }) {
   const activeEntry = args.activePath
-    ? args.entries.find(entry => entry.path === args.activePath) || null
+    ? getWorkspaceEntry(args.entriesIndex, args.activePath)
     : null
   const selectionEntry = args.selectionPath
-    ? args.entries.find(entry => entry.path === args.selectionPath) || null
+    ? getWorkspaceEntry(args.entriesIndex, args.selectionPath)
     : null
   const activeEntryKind = activeEntry ? activeEntry.kind : null
   const activeEntryText = activeEntry && activeEntry.kind === 'file' ? activeEntry.text : undefined

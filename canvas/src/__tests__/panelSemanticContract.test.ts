@@ -116,6 +116,41 @@ export const testMainPanelLazyLoadsInactiveHeavyTabs = () => {
   }
 }
 
+export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
+  const root = process.cwd()
+  const settingsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsView.tsx')
+  const sourceFilePanelPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SourceFileManagementSettingsPanel.tsx')
+  const collapseStatePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'useMarkdownExplorerSectionCollapseState.ts')
+  const schemaPath = path.resolve(root, 'src', 'features', 'settings', 'settings-flow.schema.json')
+
+  const settingsViewText = readUtf8(settingsViewPath)
+  const sourceFilePanelText = readUtf8(sourceFilePanelPath)
+  const collapseStateText = readUtf8(collapseStatePath)
+  const schemaText = readUtf8(schemaPath)
+
+  if (!settingsViewText.includes('<SourceFileManagementSettingsPanel')) {
+    throw new Error('Expected MainPanel Settings to render the Source File Management panel')
+  }
+  if (!sourceFilePanelText.includes('Restore D1/docs defaults') || !sourceFilePanelText.includes('Open Source Files')) {
+    throw new Error('Expected Source File Management settings panel to expose D1/docs restore and Source Files open actions')
+  }
+  if (!sourceFilePanelText.includes('scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })')) {
+    throw new Error('Expected Source File Management settings panel to recompose D1/workspace-backed Source Files explicitly')
+  }
+  if (!sourceFilePanelText.includes('Import local files remains an explicit manual action')) {
+    throw new Error('Expected Source File Management settings panel to document the manual-only local import boundary')
+  }
+  if (sourceFilePanelText.includes('importLocalFiles') || sourceFilePanelText.includes('openFilePicker')) {
+    throw new Error('Expected Source File Management settings panel to avoid hidden Import local files actions')
+  }
+  if (!collapseStateText.includes('requestMarkdownExplorerSourceFilesOpen')) {
+    throw new Error('Expected markdown explorer collapse state to expose a source-owned Source Files open request')
+  }
+  if (!schemaText.includes('"area": "Source File Management"')) {
+    throw new Error('Expected settings schema to group Source Files controls under Source File Management')
+  }
+}
+
 export const testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView = () => {
   const root = process.cwd()
   const filePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')

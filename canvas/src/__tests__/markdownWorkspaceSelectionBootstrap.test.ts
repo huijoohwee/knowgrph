@@ -5,6 +5,7 @@ import {
 } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { resolveMarkdownWorkspaceBootstrapActivePath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionBootstrap'
+import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 const buildFileEntry = (path: string): WorkspaceEntry => ({
   path,
@@ -23,7 +24,7 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
   ]
 
   const startup = resolveMarkdownWorkspaceBootstrapActivePath({
-    entries: defaultSeedEntries,
+    entriesIndex: buildWorkspaceEntriesIndex(defaultSeedEntries),
     activePath: null,
     lastSetActivePath: null,
     lastRequestedActivePath: null,
@@ -34,7 +35,7 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
   }
 
   const preserveValidActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
-    entries: [buildFileEntry('/docs/a.md'), buildFileEntry('/docs/b.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md'), buildFileEntry('/docs/b.md')]),
     activePath: '/docs/b.md' as never,
     lastSetActivePath: { path: '/docs/b.md' as never, atMs: 8_000 },
     lastRequestedActivePath: null,
@@ -45,7 +46,7 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
   }
 
   const preserveRecentMissingRequest = resolveMarkdownWorkspaceBootstrapActivePath({
-    entries: [buildFileEntry('/docs/a.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/a.md')]),
     activePath: '/docs/missing.md' as never,
     lastSetActivePath: null,
     lastRequestedActivePath: { path: '/docs/missing.md' as never, atMs: 9_500 },
@@ -56,7 +57,7 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
   }
 
   const fallback = resolveMarkdownWorkspaceBootstrapActivePath({
-    entries: [buildFileEntry('/docs/first.md'), buildFileEntry('/docs/second.md')],
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/first.md'), buildFileEntry('/docs/second.md')]),
     activePath: '/docs/missing.md' as never,
     lastSetActivePath: { path: '/docs/missing.md' as never, atMs: 1_000 },
     lastRequestedActivePath: null,

@@ -21,6 +21,12 @@ export function isFrontmatterFlowGraph(graphData: GraphData | null | undefined):
   return false
 }
 
+export function isPendingFrontmatterFlowGraph(graphData: GraphData | null | undefined): boolean {
+  if (!isFrontmatterFlowGraph(graphData)) return false
+  const metadata = readFrontmatterGraphMetadata(graphData)
+  return metadata.pending === true
+}
+
 export function computeEffectiveFrontmatterMode(args: {
   frontmatterModeEnabled: boolean
   documentSemanticMode: string

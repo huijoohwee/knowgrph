@@ -6,6 +6,7 @@ import {
   WORKSPACE_SYNC_SCOPE_MARKDOWN_EDITOR_SSOT_RUNTIME_PERSISTENCE,
   WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT,
 } from '@/lib/async/workspaceSyncKeys'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export function useMarkdownEditorSsotSync(args: {
   activeDocumentKey: string
@@ -21,8 +22,8 @@ export function useMarkdownEditorSsotSync(args: {
     setActiveMarkdownDocument,
     paused,
   } = args
-  const lastPushedRef = React.useRef<{ key: string; text: string } | null>(null)
-  const lastSeenRef = React.useRef<{ key: string; textRaw: string } | null>(null)
+  const lastPushedRef = React.useRef<{ key: string; textHash: string } | null>(null)
+  const lastSeenRef = React.useRef<{ key: string; signature: string } | null>(null)
   const idleRef = React.useRef<number | null>(null)
   const scheduleTaskKeyRef = React.useRef<string | null>(null)
 
@@ -46,16 +47,16 @@ export function useMarkdownEditorSsotSync(args: {
     if (paused) return
     const scheduleTaskKey = `${WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT}:${key}`
     scheduleTaskKeyRef.current = scheduleTaskKey
+    const textHash = hashStringToHexCached(`markdown-editor-ssot:${key}`, textRaw)
     const signature = [
       key,
       textRaw.length,
-      textRaw.slice(0, 128),
-      textRaw.slice(-64),
+      textHash,
     ].join('|')
 
     const lastSeen = lastSeenRef.current
-    if (lastSeen && lastSeen.key === key && lastSeen.textRaw === textRaw) return
-    lastSeenRef.current = { key, textRaw }
+    if (lastSeen && lastSeen.key === key && lastSeen.signature === signature) return
+    lastSeenRef.current = { key, signature }
 
     const commit = () => {
       const currentKey = String(activeDocumentKey || '').trim()
@@ -64,8 +65,9 @@ export function useMarkdownEditorSsotSync(args: {
       if (!rawNow.trim()) return
 
       const normalized = normalizeWebpageFrontmatterView(rawNow, 'markdown')
+      const normalizedHash = hashStringToHexCached(`markdown-editor-ssot-normalized:${key}`, normalized)
       const prev = lastPushedRef.current
-      if (prev && prev.key === key && prev.text === normalized) return
+      if (prev && prev.key === key && prev.textHash === normalizedHash) return
       try {
         void setActiveMarkdownDocument({
           name: key,
@@ -75,7 +77,7 @@ export function useMarkdownEditorSsotSync(args: {
           applyViewPreset: false,
           sourceUrl: activeDocumentSourceUrl,
         })
-        lastPushedRef.current = { key, text: normalized }
+        lastPushedRef.current = { key, textHash: normalizedHash }
       } catch {
         void 0
       }

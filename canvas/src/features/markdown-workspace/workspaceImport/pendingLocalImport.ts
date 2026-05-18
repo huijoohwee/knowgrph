@@ -2,10 +2,14 @@ import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
+import { buildModelAssetMarkdownFromFile } from './glbAsset'
+import { clearPendingGlbAsset, setPendingGlbAsset } from '@/lib/assets/glbAssetRuntime'
 
 type PendingLocalImportItem =
   | { kind: 'text'; file: File; originalName: string }
   | { kind: 'pdf'; file: File; originalName: string }
+  | { kind: 'glb'; file: File; originalName: string }
+  | { kind: 'gltf'; file: File; originalName: string }
 
 const pendingLocalImportsByPath = new Map<string, PendingLocalImportItem>()
 
@@ -48,8 +52,42 @@ function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: bool
   return { text: out, changed }
 }
 
-export function buildPendingLocalImportStub(args: { kind: PendingLocalImportItem['kind']; originalName: string; source?: 'file' | 'folder' }): string {
+export function buildPendingLocalImportStub(args: {
+  kind: PendingLocalImportItem['kind']
+  originalName: string
+  source?: 'file' | 'folder'
+  pendingPath?: string
+  bytes?: number
+}): string {
   const name = String(args.originalName || '').trim() || 'file'
+  if (args.kind === 'glb' || args.kind === 'gltf') {
+    const isGltf = args.kind === 'gltf'
+    const pendingPath = String(args.pendingPath || '').trim()
+    const bytes = Math.max(0, Number(args.bytes || 0))
+    const formatLabel = isGltf ? 'GLTF' : 'GLB'
+    return [
+      '---',
+      'kgAssetType: "model"',
+      `kgAssetFormat: "${isGltf ? 'gltf' : 'glb'}"`,
+      `kgAssetName: "${name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+      'kgAssetSource: "local"',
+      `kgAssetMimeType: "${isGltf ? 'model/gltf+json' : 'model/gltf-binary'}"`,
+      'kgAssetPendingLocalImport: true',
+      pendingPath ? `kgAssetPendingLocalPath: "${pendingPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : '',
+      bytes > 0 ? `kgAssetBytes: ${bytes}` : '',
+      'kgCanvasSurfaceMode: "3d"',
+      'kgCanvasRenderMode: "3d"',
+      'kgCanvas3dMode: "xr"',
+      '---',
+      '',
+      `<!--${PENDING_LOCAL_IMPORT_MARKER}-->`,
+      `# ${name}`,
+      '',
+      `> Pending local import (${formatLabel} model).`,
+      `> Re-import the file if you reload before opening this ${formatLabel} model.`,
+      '',
+    ].filter(line => line !== '').join('\n')
+  }
   const kindLabel = args.kind === 'pdf' ? 'PDF' : 'file'
   const sourceLabel = args.source === 'folder' ? 'folder import' : 'local import'
   const reloadHint = args.source === 'folder' ? 'Re-import the folder if you reload before opening this' : 'Re-import the file if you reload before opening this'
@@ -65,11 +103,15 @@ export function buildPendingLocalImportStub(args: { kind: PendingLocalImportItem
 export function setPendingLocalImport(path: WorkspacePath, item: PendingLocalImportItem): void {
   const key = normalizeWorkspacePath(path)
   pendingLocalImportsByPath.set(key, item)
+  if (item.kind === 'glb' || item.kind === 'gltf') {
+    setPendingGlbAsset(key, item.file, item.originalName, item.kind)
+  }
 }
 
 export function clearPendingLocalImport(path: WorkspacePath): void {
   const key = normalizeWorkspacePath(path)
   pendingLocalImportsByPath.delete(key)
+  clearPendingGlbAsset(key)
 }
 
 export function peekPendingWorkspaceLocalImport(path: WorkspacePath): PendingLocalImportItem | null {
@@ -104,6 +146,14 @@ export async function hydrateWorkspaceFileFromPendingLocalImport(args: {
       await args.fs.writeFileText(key, text)
       pendingLocalImportsByPath.delete(key)
       return { kind: 'pdf', text }
+    }
+
+    if (pending.kind === 'glb' || pending.kind === 'gltf') {
+      const text = await buildModelAssetMarkdownFromFile(pending.file, pending.kind)
+      await args.fs.writeFileText(key, text)
+      pendingLocalImportsByPath.delete(key)
+      clearPendingGlbAsset(key)
+      return { kind: pending.kind, text }
     }
 
     const text = await pending.file.text()

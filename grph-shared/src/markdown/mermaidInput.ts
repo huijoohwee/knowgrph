@@ -76,10 +76,13 @@ export const normalizeMermaidCodeForRuntime = (code: string): string => {
 export const containsFrontmatterMermaid = (text: string): boolean => {
   const raw = String(text || '')
   if (!raw.trim()) return false
-  const m = raw.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/)
-  if (!m || !m[1]) return false
-  const fm = m[1]
-  return /\bmermaid\s*:/i.test(fm)
+  if (!raw.startsWith('---')) return false
+  const end = raw.indexOf('\n---')
+  if (end < 0) return false
+  const blockEnd = end + 4
+  const next = raw.charAt(blockEnd)
+  if (next && next !== '\n' && next !== '\r') return false
+  return /\bmermaid\s*:/i.test(raw.slice(0, blockEnd))
 }
 
 export const normalizeMermaidMmdToMarkdown = (name: string, text: string): string => {

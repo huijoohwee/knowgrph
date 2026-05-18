@@ -23,6 +23,7 @@ import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProvide
 import { INTEGRATIONS_SECTION_META, MAPS_SECTION_META, MCP_SECTION_META, type SectionMeta } from './settingsView.constants'
 import { useSettingsChatAssist } from './useSettingsChatAssist'
 import { SettingsSections, type SettingsSectionDescriptor } from './SettingsSections'
+import { SourceFileManagementSettingsPanel } from './SourceFileManagementSettingsPanel'
 import { useSettingsRowBundles } from './useSettingsRowBundles'
 import { useSettingsSync } from './useSettingsSync'
 import { useSettingsWorkspaceActions } from './useSettingsWorkspaceActions'
@@ -412,6 +413,12 @@ export default function SettingsView({
           <section className="p-2 border-b border-white/10">
             <WorkspaceTableModeControl />
           </section>
+        )}
+        {mode === 'all' && (
+          <SourceFileManagementSettingsPanel
+            normalizedQuery={normalizedQuery}
+            values={values}
+          />
         )}
         <SettingsSections
           applyUiPanelDensityPreset={applyUiPanelDensityPreset}

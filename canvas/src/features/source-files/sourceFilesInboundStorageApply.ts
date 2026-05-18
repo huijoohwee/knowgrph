@@ -199,7 +199,7 @@ const scheduleBlankPulledDocsHydration = (args: {
     })
     if (!changed) return
     state.setSourceFiles(next)
-    scheduleApplyComposedGraphFromSourceFiles()
+    scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
   })()
 }
 
@@ -397,7 +397,7 @@ export const applyPulledKnowgrphStorageChangesToSourceFiles = (args: {
   }
   if (!changed) return { applied: false, nextCount: currentSourceFiles.length }
   current.setSourceFiles(next)
-  scheduleApplyComposedGraphFromSourceFiles()
+  scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
   void (async () => {
     try {
       const mod = (await import('@/features/workspace-fs/workspaceFs')) as typeof import('@/features/workspace-fs/workspaceFs')

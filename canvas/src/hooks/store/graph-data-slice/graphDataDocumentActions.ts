@@ -7,7 +7,7 @@ import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersisten
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { parseCanvasWorkspaceFrontmatterPreset, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import {
@@ -55,6 +55,13 @@ function buildPendingFrontmatterMarkdownGraph(args: {
   } as GraphData
 }
 
+const isStrictFlowEditorFrontmatterPreset = (preset: CanvasWorkspaceFrontmatterPreset | null): boolean => (
+  preset?.canvasSurfaceMode === '2d' &&
+  preset?.canvas2dRenderer === 'flowEditor' &&
+  preset?.documentSemanticMode === 'document' &&
+  preset?.frontmatterModeEnabled === true
+)
+
 export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   return ({
   resyncGraphFieldsFromGraphData: () => {
@@ -73,11 +80,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean },
   ) => {
     const nextText = String(text || '')
-    const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
     const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
     const applyViewPreset = typeof opts?.applyViewPreset === 'boolean' ? opts.applyViewPreset !== false : true
     const state = get()
-    const needsAutoEnable = shouldAutoEnableFrontmatter && hasFrontmatterMermaid && !(state.frontmatterModeEnabled || false)
+    const needsAutoEnable = shouldAutoEnableFrontmatter &&
+      !(state.frontmatterModeEnabled || false) &&
+      containsFrontmatterMermaid(nextText)
     if (
       !needsAutoEnable &&
       state.markdownDocumentName === name &&
@@ -93,7 +101,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       markdownTokensKey: null,
       markdownTokensMeta: null,
       markdownTokensStartLineOffset: null,
-      ...(shouldAutoEnableFrontmatter && hasFrontmatterMermaid ? { frontmatterModeEnabled: true } : {}),
+      ...(needsAutoEnable ? { frontmatterModeEnabled: true } : {}),
     })
   },
 
@@ -113,24 +121,22 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     if (!name) return false
     const rawText = String(args?.text || '')
     const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
-    const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(text)
-    const strictFlowEditorPreset =
-      parsedTextPreset?.canvasSurfaceMode === '2d'
-      && parsedTextPreset?.canvas2dRenderer === 'flowEditor'
-      && parsedTextPreset?.documentSemanticMode === 'document'
-      && parsedTextPreset?.frontmatterModeEnabled === true
+    const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true
+    const parsedTextPreset = shouldResolveCanvasPreset ? parseCanvasWorkspaceFrontmatterPreset(text) : null
+    const strictFlowEditorPreset = isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
 
     get().setMarkdownDocument(name, text, {
       autoEnableFrontmatter: args?.autoEnableFrontmatter,
       applyViewPreset: args?.applyViewPreset,
     })
 
-    if (args?.applyViewPreset !== false && !args?.applyToGraph && text.trim()) {
+    if (args?.applyViewPreset !== false && text.trim()) {
       try {
         const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
         applyCanvasFrontmatterPreset({
           graphData: get().graphData,
           rawText: text,
+          preset: parsedTextPreset || undefined,
         })
       } catch {
         void 0
@@ -218,19 +224,16 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         String(exactSourceFile.text || '') === nextText &&
         exactSourceFile.parsedGraphData
       )
+      const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(nextText)
+      const strictFlowEditorPreset = isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
       if (canReuseParsedSourceGraph) {
         const reusedGraph = exactSourceFile.parsedGraphData as GraphData
         const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
         applyCanvasFrontmatterPreset({
           graphData: reusedGraph,
           rawText: nextText,
+          preset: parsedTextPreset || undefined,
         })
-        const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(nextText)
-        const strictFlowEditorPreset =
-          parsedTextPreset?.canvasSurfaceMode === '2d' &&
-          parsedTextPreset?.canvas2dRenderer === 'flowEditor' &&
-          parsedTextPreset?.documentSemanticMode === 'document' &&
-          parsedTextPreset?.frontmatterModeEnabled === true
         if (strictFlowEditorPreset) {
           const nextState = get()
           if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)
@@ -280,13 +283,8 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       applyCanvasFrontmatterPreset({
         graphData: parsedGraph,
         rawText: nextText,
+        preset: parsedTextPreset || undefined,
       })
-      const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(nextText)
-      const strictFlowEditorPreset =
-        parsedTextPreset?.canvasSurfaceMode === '2d' &&
-        parsedTextPreset?.canvas2dRenderer === 'flowEditor' &&
-        parsedTextPreset?.documentSemanticMode === 'document' &&
-        parsedTextPreset?.frontmatterModeEnabled === true
       if (strictFlowEditorPreset) {
         const nextState = get()
         if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)

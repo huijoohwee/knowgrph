@@ -73,9 +73,11 @@ function resolveCanvasSurfacePreset(args: {
 }
 
 export function resolveCanvasFrontmatterPreset(args: {
+  preset?: CanvasWorkspaceFrontmatterPreset | null
   graphData?: GraphData | null
   rawText?: string | null
 }): CanvasWorkspaceFrontmatterPreset | null {
+  if (args.preset) return args.preset
   const rawText = String(args.rawText || '')
   const fromText = rawText ? parseCanvasWorkspaceFrontmatterPreset(rawText) : null
   if (fromText) return fromText
@@ -86,6 +88,7 @@ export function resolveCanvasFrontmatterPreset(args: {
 }
 
 export function applyCanvasFrontmatterPreset(args: {
+  preset?: CanvasWorkspaceFrontmatterPreset | null
   graphData?: GraphData | null
   rawText?: string | null
   defaultCanvasSurfaceMode?: '2d' | '3d' | 'geospatial'

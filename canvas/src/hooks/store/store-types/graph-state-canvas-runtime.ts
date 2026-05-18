@@ -220,6 +220,7 @@ export interface GraphStateCanvasRuntime {
   threeGlbSnapshotFns: ThreeGlbSnapshotFns | null;
   registerThreeGlbSnapshotFns: (fns: ThreeGlbSnapshotFns | null) => void;
   captureThreeGlbSnapshot: () => Promise<Blob | null>;
+  captureThreeGltfSnapshot: () => Promise<Blob | null>;
 
   threeLayoutSnapshotFns: ThreeLayoutSnapshotFns | null;
   registerThreeLayoutSnapshotFns: (fns: ThreeLayoutSnapshotFns | null) => void;

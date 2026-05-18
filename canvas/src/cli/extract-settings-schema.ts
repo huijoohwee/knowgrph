@@ -379,7 +379,7 @@ function main(): void {
 
   writeFileSync(flowMdPath, buildMarkdown(merged), 'utf8')
 
-  const json = JSON.stringify(merged, null, 2)
+  const json = `${JSON.stringify(merged, null, 2)}\n`
   writeFileSync(outJsonPublic, json, 'utf8')
   writeFileSync(outJsonSrc, json, 'utf8')
   const suffix = exists ? '' : ' (source doc created)'

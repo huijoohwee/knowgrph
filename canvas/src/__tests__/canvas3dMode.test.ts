@@ -5,6 +5,8 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage } from '@/lib/persistence'
 import { readGeospatialOverlayEnabledPreference, writeGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const BLOCK_SCHEMA = {
   layout: { mode: 'block' },
@@ -77,6 +79,65 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   }
   if (canvas3dMode !== 'xr') {
     throw new Error(`Expected XR Mode selection to set canvas3dMode=xr, got ${String(canvas3dMode)}`)
+  }
+}
+
+export function testRenderSettings3dModeSelectPreservesXrMode() {
+  const text = readFileSync(resolve(process.cwd(), 'src/lib/panels/views/RenderSettingsSection.impl.tsx'), 'utf8')
+  if (!text.includes('<option value="xr">xr</option>')) {
+    throw new Error('Expected Render Settings 3D Mode select to expose XR as a selectable value')
+  }
+  if (!text.includes(`raw === 'xr' ? 'xr' : '3d'`)) {
+    throw new Error('Expected Render Settings 3D Mode onChange to preserve XR instead of coercing it to 3D')
+  }
+}
+
+export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
+  const threeGraph = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
+  if (!threeGraph.includes('parseGlbAssetDocument(markdownDocumentText)')) {
+    throw new Error('Expected ThreeGraph to detect active model asset documents from markdown document text')
+  }
+  if (!threeGraph.includes('const hasRenderableScene = hasGraph || hasGlbAsset')) {
+    throw new Error('Expected ThreeGraph to keep the canvas mounted for model asset documents without graph nodes')
+  }
+  if (!threeGraph.includes('<GlbAssetModel')) {
+    throw new Error('Expected XR/3D canvas to render active model asset documents with the shared model component')
+  }
+  const unavailableLabel = ['XR', 'unavailable'].join(' ')
+  if (threeGraph.includes(unavailableLabel)) {
+    throw new Error('Expected XR Mode to avoid surfacing the unavailable XR label as the model-rendering state')
+  }
+  const glbModel = readFileSync(resolve(process.cwd(), 'src/lib/three/GlbAssetModel.tsx'), 'utf8')
+  if (!glbModel.includes('asset.validMagic === false')) {
+    throw new Error('Expected GLB rendering to honor ingest-time GLB magic validation')
+  }
+  if (!glbModel.includes('kg_model_xr_orientation_ring') || !glbModel.includes('kg_model_xr_perimeter_markers')) {
+    throw new Error('Expected XR Mode model rendering to include a neutral spatial inspection stage')
+  }
+}
+
+export function testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate() {
+  const glbModel = readFileSync(resolve(process.cwd(), 'src/lib/three/GlbAssetModel.tsx'), 'utf8')
+  if (!glbModel.includes(`asset.format === 'gltf' && asset.validJson === false`)) {
+    throw new Error('Expected GLTF rendering to honor ingest-time JSON validation')
+  }
+  if (!glbModel.includes(`asset.format === 'gltf'`) || !glbModel.includes('new TextDecoder().decode(bytes)')) {
+    throw new Error('Expected GLTF rendering to parse JSON text payloads through GLTFLoader')
+  }
+  if (!glbModel.includes('deriveGltfBasePath(asset.sourceUrl)')) {
+    throw new Error('Expected GLTF rendering to preserve a source-relative base path for external GLTF resources')
+  }
+  if (!glbModel.includes('loader.parse(') || !glbModel.includes('gltf.scene || gltf.scenes?.[0]')) {
+    throw new Error('Expected GLTF rendering to add the loaded GLTF scene object')
+  }
+  if (!glbModel.includes('new THREE.AnimationMixer(scene)') || !glbModel.includes('mixerRef.current?.update(delta)')) {
+    throw new Error('Expected GLTF rendering to play and advance embedded model animations')
+  }
+  if (!glbModel.includes('kg_model_xr_city_grid') || !glbModel.includes('kg_model_xr_city_block_')) {
+    throw new Error('Expected XR model stage to expose an original city-grid inspection theme for GLTF assets')
+  }
+  if (!glbModel.includes('kg_model_xr_traffic_loop') || !glbModel.includes('kg_model_xr_traffic_')) {
+    throw new Error('Expected XR model stage to expose animated traffic affordances for GLTF assets')
   }
 }
 

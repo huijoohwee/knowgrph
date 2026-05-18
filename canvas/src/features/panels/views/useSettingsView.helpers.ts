@@ -67,6 +67,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   MAPS_GEO_DOC_AREA,
   MAPS_MAPLIBRE_DOC_AREA,
   'Workspace',
+  'Source File Management',
   'Markdown',
   'Flow Editor',
   'Canvas',
@@ -90,6 +91,8 @@ const SETTINGS_AREA_CANONICAL: Readonly<Record<string, string>> = {
   'ui density icons': 'UI Density: Icons',
   'graph data table': 'Graph Data Table',
   'import export': 'Import / Export',
+  'source file management': 'Source File Management',
+  'source files management': 'Source File Management',
   integrations: 'Integrations',
 }
 

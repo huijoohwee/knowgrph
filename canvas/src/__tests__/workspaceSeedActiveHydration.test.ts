@@ -6,7 +6,9 @@ import type { WorkspaceEntry, WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
+  readWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/sourceFilesRuntimeShared'
+import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
 import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
@@ -96,6 +98,37 @@ export async function testMaterializeActiveWorkspaceEntryReadsActiveFileWithoutL
     }
   } finally {
     restore()
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotCachesRecentActiveFileText() {
+  const activePath = '/docs/recent-active.md'
+  invalidateCachedWorkspaceActiveEntrySnapshot()
+  let readCalls = 0
+  try {
+    const first = await readWorkspaceActiveEntrySnapshot({
+      activePath,
+      fs: createMinimalFs({
+        readFileText: async path => {
+          readCalls += 1
+          return String(path || '').trim() === activePath ? '# recent active' : null
+        },
+      }),
+    })
+    const second = await readWorkspaceActiveEntrySnapshot({
+      activePath,
+      fs: createMinimalFs({
+        readFileText: async () => {
+          throw new Error('expected second active snapshot read to come from bounded cache')
+        },
+      }),
+    })
+    if (readCalls !== 1) throw new Error(`expected exactly one active-file fs read, got ${readCalls}`)
+    if (String(first[0]?.text || '') !== '# recent active' || String(second[0]?.text || '') !== '# recent active') {
+      throw new Error('expected active workspace snapshot cache to preserve the recent active file text')
+    }
+  } finally {
+    invalidateCachedWorkspaceActiveEntrySnapshot()
   }
 }
 

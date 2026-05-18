@@ -21,6 +21,7 @@ import {
   importWorkspaceLocalFiles,
   importWorkspaceLocalFolder,
   importWorkspaceUrl,
+  peekPendingWorkspaceLocalImport,
 } from '../workspaceImport'
 import type { WorkspaceImportResult } from '../workspaceImport/types'
 import type { WorkspaceImportActionsCtx } from './types'
@@ -84,9 +85,9 @@ export function shouldApplyImportedCanvasDocumentToGraph(args: {
 }): boolean {
   const path = String(args.path || '').trim().toLowerCase()
   const text = String(args.text || '')
-  if (!path.endsWith('.md') && !path.endsWith('.mdx')) return false
   if (!text.trim()) return false
   if (parseCanvasWorkspaceFrontmatterPreset(text)) return true
+  if (!path.endsWith('.md') && !path.endsWith('.mdx')) return false
   if (!text.startsWith('---')) return false
   if (/^\$schema:\s*["']kgc-pipeline\/v1["']/m.test(text)) return true
   if (/^widget_bundle\s*:/m.test(text)) return true
@@ -102,9 +103,12 @@ export async function resolveImportedCanvasDocumentApplyToGraph(args: {
     ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
     : []
   for (const path of createdPaths) {
-    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path }).catch(() => null)
-    const text = String((hydrated?.text || (await args.fs.readFileText(path).catch(() => ''))) || '')
+    const text = String((await args.fs.readFileText(path).catch(() => '')) || '')
     if (shouldApplyImportedCanvasDocumentToGraph({ path, text })) return true
+    if (peekPendingWorkspaceLocalImport(path)) continue
+    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path }).catch(() => null)
+    const hydratedText = String(hydrated?.text || '')
+    if (shouldApplyImportedCanvasDocumentToGraph({ path, text: hydratedText })) return true
   }
   return false
 }
@@ -167,7 +171,7 @@ export async function activateFirstImportedWorkspaceFile(args: {
     const [
       { workspaceBasename, workspaceDocumentKey },
       { normalizeMermaidMmdToMarkdown },
-      { hydrateWorkspaceFileFromPendingLocalImport },
+      { hydrateWorkspaceFileFromPendingLocalImport, peekPendingWorkspaceLocalImport },
     ] = await Promise.all([
       import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
       import('grph-shared/markdown/mermaidInput') as Promise<typeof import('grph-shared/markdown/mermaidInput')>,
@@ -179,7 +183,10 @@ export async function activateFirstImportedWorkspaceFile(args: {
     const firstPath = (await pickFirstCreatedFilePathForImportFocus(args.fs, createdPaths)) || ''
     if (!firstPath) return
 
-    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path: firstPath }).catch(() => null)
+    const pendingImport = peekPendingWorkspaceLocalImport(firstPath as WorkspacePath)
+    const hydrated = pendingImport?.kind === 'glb' || pendingImport?.kind === 'gltf'
+      ? null
+      : await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path: firstPath }).catch(() => null)
     const text = String((hydrated?.text || (await args.fs.readFileText(firstPath).catch(() => ''))) || '')
     const docKey = workspaceDocumentKey(firstPath)
     const name = docKey || workspaceBasename(firstPath) || firstPath
@@ -344,7 +351,7 @@ export function useWorkspaceImportActions(args: {
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
-          hydratePending: true,
+          hydratePending: false,
           applyToGraph,
         })
         if (createdPath) {
@@ -383,7 +390,7 @@ export function useWorkspaceImportActions(args: {
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
-          hydratePending: true,
+          hydratePending: false,
           applyToGraph,
         })
         if (createdPath) {

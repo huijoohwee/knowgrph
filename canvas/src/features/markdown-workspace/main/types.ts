@@ -8,24 +8,54 @@ import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/fro
 
 export type MarkdownWorkspacePaneVisibility = { json: boolean; markdown: boolean; viewer: boolean }
 
+export type MarkdownWorkspacePaneAvailability = {
+  bin: boolean
+  json: boolean
+  markdown: boolean
+  viewer: boolean
+  html: boolean
+}
+
 export const DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY: MarkdownWorkspacePaneVisibility = {
   json: false,
   markdown: false,
   viewer: true,
 }
 
+export const DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY: MarkdownWorkspacePaneAvailability = {
+  bin: false,
+  json: true,
+  markdown: true,
+  viewer: true,
+  html: true,
+}
+
+export function resolveMarkdownWorkspacePaneAvailability(args: {
+  modelAssetFormat?: 'glb' | 'gltf' | null
+}): MarkdownWorkspacePaneAvailability {
+  if (args.modelAssetFormat === 'glb') {
+    return { bin: true, json: false, markdown: false, viewer: false, html: false }
+  }
+  if (args.modelAssetFormat === 'gltf') {
+    return { bin: false, json: true, markdown: false, viewer: false, html: false }
+  }
+  return DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY
+}
+
 export function resolveMarkdownWorkspacePaneVisibility(args: {
   layoutMode: MarkdownWorkspaceLayoutMode
   splitPaneVisibility: MarkdownWorkspacePaneVisibility
+  paneAvailability?: MarkdownWorkspacePaneAvailability
 }): MarkdownWorkspacePaneVisibility {
   const isEditor = args.layoutMode === 'editor'
   const isSplit = args.layoutMode === 'split'
   const isViewer = args.layoutMode === 'viewer'
+  const availability = args.paneAvailability || DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY
 
   return {
-    json: (isEditor || isSplit) && args.splitPaneVisibility.json,
-    markdown: isEditor || (isSplit && args.splitPaneVisibility.markdown),
-    viewer: isViewer || (isSplit && args.splitPaneVisibility.viewer) || (isEditor && args.splitPaneVisibility.viewer),
+    json: availability.json && (isEditor || isSplit) && args.splitPaneVisibility.json,
+    markdown: availability.markdown && (isEditor || (isSplit && args.splitPaneVisibility.markdown)),
+    viewer: availability.viewer && (isViewer || (isSplit && args.splitPaneVisibility.viewer) || (isEditor && args.splitPaneVisibility.viewer)),
   }
 }
 

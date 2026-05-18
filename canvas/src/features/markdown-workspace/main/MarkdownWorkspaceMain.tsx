@@ -1,6 +1,7 @@
 import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
@@ -8,6 +9,7 @@ import { splitMarkdownLines } from '@/lib/markdown'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { extractYamlFrontmatterBlock, type WebpageFrontmatterMeta, type WebpageViewMode, type WebsiteImportFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
 import { buildWebpageLayoutWireframeAsciiFromMarkdown } from '@/lib/websites/webpageLayoutWireframe'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -19,6 +21,7 @@ import { useWebpageIframeView } from './webpage/useWebpageIframeView'
 import { MarkdownEditorPane } from './editor/MarkdownEditorPane'
 import {
   DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY,
+  resolveMarkdownWorkspacePaneAvailability,
   resolveMarkdownWorkspacePaneVisibility,
   type MarkdownWorkspaceMainProps,
 } from './types'
@@ -48,6 +51,33 @@ function sanitizeInvalidDataUrls(raw: string): string {
   const s = String(raw || '')
   if (!s.includes('data:image/') || !s.includes('<omitted>')) return s
   return s.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,<omitted>/g, 'data:,')
+}
+
+function decodeBase64DataUrlToText(dataUrl: string): string {
+  const comma = String(dataUrl || '').indexOf(',')
+  if (comma < 0) return ''
+  const encoded = String(dataUrl || '').slice(comma + 1).replace(/\s+/g, '')
+  if (!encoded) return ''
+  try {
+    const binary = atob(encoded)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    return new TextDecoder().decode(bytes)
+  } catch {
+    return ''
+  }
+}
+
+function prettyJsonOrRaw(text: string): string {
+  const raw = String(text || '')
+  if (!raw.trim()) return ''
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2)
+  } catch {
+    return raw
+  }
 }
 
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
@@ -111,6 +141,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const viewerInlineEditActiveRef = React.useRef(false)
 
   const frontmatterBlock = React.useMemo(() => extractYamlFrontmatterBlock(activeText), [activeText])
+  const modelAsset = React.useMemo(() => parseGlbAssetDocument(activeText), [activeText])
+  const modelAssetFormat = modelAsset?.format || null
+  const paneAvailability = React.useMemo(
+    () => resolveMarkdownWorkspacePaneAvailability({ modelAssetFormat }),
+    [modelAssetFormat],
+  )
   const webpageMeta = React.useMemo((): WebpageFrontmatterMeta | null => {
     return deriveWebpageFrontmatterMetaFromBlock(frontmatterBlock)
   }, [frontmatterBlock])
@@ -142,10 +178,40 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     const wasOpen = wasWorkspaceEditorOverlayOpenRef.current
     wasWorkspaceEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
     if (!workspaceEditorOverlayOpen || wasOpen) return
+    if (modelAssetFormat === 'gltf') {
+      setSplitPaneVisibility(prev => (
+        prev.json && !prev.markdown && !prev.viewer ? prev : { json: true, markdown: false, viewer: false }
+      ))
+      return
+    }
+    if (modelAssetFormat === 'glb') {
+      setSplitPaneVisibility(prev => (
+        !prev.json && !prev.markdown && !prev.viewer ? prev : { json: false, markdown: false, viewer: false }
+      ))
+      return
+    }
     setSplitPaneVisibility(prev => (
       prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }
     ))
-  }, [workspaceEditorOverlayOpen])
+  }, [modelAssetFormat, workspaceEditorOverlayOpen])
+
+  React.useEffect(() => {
+    if (!modelAssetFormat) return
+    if (layoutMode === 'editor' || layoutMode === 'split') return
+    setLayoutMode('editor')
+  }, [layoutMode, modelAssetFormat, setLayoutMode])
+
+  React.useEffect(() => {
+    if (modelAssetFormat === 'gltf') {
+      setSplitPaneVisibility(prev => (
+        prev.json && !prev.markdown && !prev.viewer ? prev : { json: true, markdown: false, viewer: false }
+      ))
+    } else if (modelAssetFormat === 'glb') {
+      setSplitPaneVisibility(prev => (
+        !prev.json && !prev.markdown && !prev.viewer ? prev : { json: false, markdown: false, viewer: false }
+      ))
+    }
+  }, [modelAssetFormat])
 
   const workspaceEditorMode = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
@@ -188,12 +254,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   )
 
   const paneVisibility = React.useMemo(
-    () => resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility }),
-    [layoutMode, splitPaneVisibility],
+    () => resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility, paneAvailability }),
+    [layoutMode, paneAvailability, splitPaneVisibility],
   )
   const jsonPaneVisible = paneVisibility.json
   const markdownPaneVisible = paneVisibility.markdown
   const viewerPaneVisible = paneVisibility.viewer
+  const binaryPaneVisible = paneAvailability.bin && (layoutMode === 'editor' || layoutMode === 'split')
 
   React.useEffect(() => {
     if (viewerKind === 'markdown' || viewerKind === 'json') return
@@ -239,6 +306,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)
   const jsonEditorText = React.useMemo(() => {
     if (!jsonPaneVisible) return ''
+    if (modelAsset?.format === 'gltf') {
+      if (modelAsset.dataUrl) return prettyJsonOrRaw(decodeBase64DataUrlToText(modelAsset.dataUrl))
+      return JSON.stringify({
+        kgAssetType: 'model',
+        kgAssetFormat: 'gltf',
+        kgAssetName: modelAsset.name,
+        kgAssetPendingLocalImport: modelAsset.pendingLocalImport === true,
+        kgAssetPendingLocalPath: modelAsset.pendingLocalImportPath || undefined,
+        kgAssetBytes: modelAsset.byteLength,
+      }, null, 2)
+    }
+    if (modelAsset?.format === 'glb') return ''
     if (isMarkdown) {
       const sourceText = String(deferredSourceEditorTextRaw || '')
       if (!sourceText.trim()) return ''
@@ -255,7 +334,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     } catch {
       return text
     }
-  }, [activeDocumentKey, deferredSourceEditorTextRaw, editorUri, isMarkdown, jsonPaneVisible])
+  }, [activeDocumentKey, deferredSourceEditorTextRaw, editorUri, isMarkdown, jsonPaneVisible, modelAsset])
 
   const needsMarkdownViewerText = !showWebpageHtml
   const sourceViewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
@@ -461,7 +540,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         editorRef={editorRef}
         onCaretLine={onEditorCaretLine}
         panelTypography={panelTypography}
-        readOnly={disableEditorMutations || isMarkdown}
+        readOnly={disableEditorMutations || isMarkdown || !!modelAsset}
         themeMode={themeMode}
         language="json"
         uri={editorVariantUri('json')}
@@ -481,8 +560,35 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       panelTypography,
       setActiveText,
       themeMode,
+      modelAsset,
     ],
   )
+
+  const binaryPane = modelAsset?.format === 'glb' ? (
+    <section className={`flex-1 min-h-0 min-w-0 overflow-auto p-3 ${panelTypography.panelTextClass}`} aria-label="Binary GLB Model">
+      <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+        <h2 className={panelTypography.keyLabelClass}>Binary GLB</h2>
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <dt className={UI_THEME_TOKENS.text.secondary}>Name</dt>
+          <dd className="min-w-0 break-all">{modelAsset.name}</dd>
+          <dt className={UI_THEME_TOKENS.text.secondary}>Format</dt>
+          <dd>GLB</dd>
+          {typeof modelAsset.byteLength === 'number' ? (
+            <>
+              <dt className={UI_THEME_TOKENS.text.secondary}>Bytes</dt>
+              <dd>{modelAsset.byteLength}</dd>
+            </>
+          ) : null}
+          {modelAsset.pendingLocalImport ? (
+            <>
+              <dt className={UI_THEME_TOKENS.text.secondary}>State</dt>
+              <dd>pending local file handle</dd>
+            </>
+          ) : null}
+        </dl>
+      </div>
+    </section>
+  ) : null
 
   const viewer = !viewerPaneVisible ? null : showWebpageHtml ? (
     <WebpageViewerPane
@@ -635,6 +741,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         setViewerMode: handleSetViewerMode,
         splitPaneVisibility,
         setSplitPaneVisibility,
+        paneAvailability,
         onSaveAs,
         onExportWorkspaceFile: handleExportWorkspaceFile,
         onExportMarkdown: handleExportMarkdown,
@@ -655,7 +762,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       layoutMode={layoutMode}
       renderMarkdownEditor={renderMarkdownEditorPane}
       renderJsonEditor={renderJsonEditorPane}
+      binaryPane={binaryPane}
+      binaryPaneVisible={binaryPaneVisible}
       splitPaneVisibility={splitPaneVisibility}
+      paneAvailability={paneAvailability}
       viewer={viewer}
       presentation={presentation}
       slidesGallery={slidesGallery}
