@@ -27,17 +27,18 @@ function buildFrontmatterFlowGraph(): GraphData {
   }
 }
 
-export function testFlowEditorOpenWidgetEligibilityExcludesRichMediaPanels() {
+export function testFlowEditorOpenWidgetEligibilityIncludesRichMediaPanels() {
   const graphData = buildFrontmatterFlowGraph()
   const nodes = graphData.nodes || []
+  const nodeById = new Map(nodes.map(node => [String(node.id || '').trim(), node] as const))
   const broadEligible = buildFlowWidgetEligibleNodeIdSet(nodes as never)
   const overlayEligible = buildFlowWidgetOverlayEligibleNodeIdSet(nodes as never)
 
   if (!broadEligible.has('p-media')) {
     throw new Error('expected RichMediaPanel to remain graph-eligible for frontmatter-flow/rich-media derivation')
   }
-  if (overlayEligible.has('p-media')) {
-    throw new Error('expected RichMediaPanel to be excluded from open widget overlay eligibility')
+  if (!overlayEligible.has('p-media')) {
+    throw new Error('expected RichMediaPanel to be open-widget eligible so runtime proof routes can mount its KTV rows and ports')
   }
   if (!overlayEligible.has('w-text')) {
     throw new Error('expected actual widget nodes to remain open-widget eligible')
@@ -45,14 +46,15 @@ export function testFlowEditorOpenWidgetEligibilityExcludesRichMediaPanels() {
 
   const excludedPanelIds = buildRichMediaPanelOverlayExcludeNodeIdSet({
     graphData,
+    nodeById,
     candidateRawIds: Array.from(overlayEligible),
   })
-  if (excludedPanelIds.has('p-media')) {
-    throw new Error('expected sanitized open widget ids to stop excluding rich-media panels from overlay materialization')
+  if (!excludedPanelIds.has('p-media')) {
+    throw new Error('expected open RichMediaPanel widgets to suppress duplicate rich-media overlay materialization')
   }
 }
 
-export function testDeriveOpenWidgetOverlayNodeIdsDropsRichMediaPanelsEvenIfStateLeaks() {
+export function testDeriveOpenWidgetOverlayNodeIdsKeepsRichMediaPanelsWhenExplicitlyOpened() {
   const graphData = buildFrontmatterFlowGraph()
   const nodeById = new Map((graphData.nodes || []).map(node => [String(node.id || '').trim(), node] as const))
   const ids = deriveOpenWidgetOverlayNodeIds({
@@ -62,8 +64,8 @@ export function testDeriveOpenWidgetOverlayNodeIdsDropsRichMediaPanelsEvenIfStat
     nodeById,
   })
 
-  if (ids.length !== 1 || ids[0] !== 'w-text') {
-    throw new Error(`expected overlay node id derivation to drop leaked RichMediaPanel widget ids, got ${JSON.stringify(ids)}`)
+  if (ids.length !== 2 || ids[0] !== 'p-media' || ids[1] !== 'w-text') {
+    throw new Error(`expected overlay node id derivation to preserve explicitly opened RichMediaPanel widget ids, got ${JSON.stringify(ids)}`)
   }
 }
 

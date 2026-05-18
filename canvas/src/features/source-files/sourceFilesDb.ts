@@ -170,7 +170,9 @@ export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
 }
 
 export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => {
-  const list = Array.isArray(files) ? files : []
+  const list = (Array.isArray(files) ? files : []).filter(file => {
+    return !String(file?.source?.path || '').trim().startsWith('workspace:')
+  })
   const now = normalizeNonNegativeInt(Date.now(), Date.now())
   const rows = list
     .map((payload, orderIndex) => {

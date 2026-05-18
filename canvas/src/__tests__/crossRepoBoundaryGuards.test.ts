@@ -45,7 +45,7 @@ export function testForbidSiblingRepoSourceImports() {
   }
 }
 
-export function testHostGympgrphIntegrationUsesPackageRootOnly() {
+export function testHostGympgrphIntegrationUsesDeclaredPackageEntrypointsOnly() {
   const files = listFilesRecursively(SRC_DIR)
     .filter(f => /\.(ts|tsx)$/.test(f))
     .filter(f => !f.includes(join('src', '__tests__')))
@@ -53,9 +53,9 @@ export function testHostGympgrphIntegrationUsesPackageRootOnly() {
     .filter(f => !f.includes(join('src', 'cli')))
   const violations: Array<{ file: string; pattern: string }> = []
   const patterns: RegExp[] = [
-    /\bfrom\s+['"]gympgrph\/[^'"]+['"]/,
-    /\bimport\(\s*['"]gympgrph\/[^'"]+['"]/,
-    /\brequire\(\s*['"]gympgrph\/[^'"]+['"]/,
+    /\bfrom\s+['"]gympgrph\/(?!map-preview['"]|testkit['"])[^'"]+['"]/,
+    /\bimport\(\s*['"]gympgrph\/(?!map-preview['"]|testkit['"])[^'"]+['"]/,
+    /\brequire\(\s*['"]gympgrph\/(?!map-preview['"]|testkit['"])[^'"]+['"]/,
   ]
   for (const file of files) {
     const st = statSync(file)
@@ -67,7 +67,7 @@ export function testHostGympgrphIntegrationUsesPackageRootOnly() {
   }
   if (violations.length) {
     const msg = violations.map(v => `${v.file} matches ${v.pattern}`).join('\n')
-    throw new Error(`Knowgrph must import gympgrph via package root only:\n${msg}`)
+    throw new Error(`Knowgrph must import gympgrph via declared package entrypoints only:\n${msg}`)
   }
 }
 

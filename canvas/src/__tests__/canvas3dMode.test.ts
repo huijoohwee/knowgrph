@@ -3,6 +3,7 @@ import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage } from '@/lib/persistence'
+import { readGeospatialOverlayEnabledPreference, writeGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 const BLOCK_SCHEMA = {
@@ -79,10 +80,11 @@ export function testCanvasViewSelectionBlocksVoxelDuringGeospatialMode() {
 export function testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted() {
   const storage = getLocalStorage()
   const prev = storage?.getItem(LS_KEYS.geospatialOverlayEnabled) ?? null
+  const prevVersion = storage?.getItem(LS_KEYS.geospatialOverlayPreferenceVersion) ?? null
   try {
     useGraphStore.getState().resetAll()
     useGraphStore.getState().setDocumentStructureBaselineLock(false)
-    storage?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+    writeGeospatialOverlayEnabledPreference(true)
     useGraphStore.getState().setSchema(BLOCK_SCHEMA)
     useGraphStore.getState().setCanvas2dRenderer('flowchart')
     useGraphStore.getState().setDocumentSemanticMode('document')
@@ -98,6 +100,34 @@ export function testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted
     } else {
       storage.setItem(LS_KEYS.geospatialOverlayEnabled, prev)
     }
+    if (prevVersion == null) {
+      storage.removeItem(LS_KEYS.geospatialOverlayPreferenceVersion)
+    } else {
+      storage.setItem(LS_KEYS.geospatialOverlayPreferenceVersion, prevVersion)
+    }
     useGraphStore.getState().resetAll()
+  }
+}
+
+export function testGeospatialOverlayPreferenceIgnoresLegacyUnversionedTrue() {
+  const storage = getLocalStorage()
+  if (!storage) return
+  const prev = storage.getItem(LS_KEYS.geospatialOverlayEnabled)
+  const prevVersion = storage.getItem(LS_KEYS.geospatialOverlayPreferenceVersion)
+  try {
+    storage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+    storage.removeItem(LS_KEYS.geospatialOverlayPreferenceVersion)
+    if (readGeospatialOverlayEnabledPreference()) {
+      throw new Error('Expected legacy unversioned geospatial=true storage to stay neutral on startup')
+    }
+    writeGeospatialOverlayEnabledPreference(true)
+    if (!readGeospatialOverlayEnabledPreference()) {
+      throw new Error('Expected current shared geospatial preference writer to persist intentional enabled state')
+    }
+  } finally {
+    if (prev == null) storage.removeItem(LS_KEYS.geospatialOverlayEnabled)
+    else storage.setItem(LS_KEYS.geospatialOverlayEnabled, prev)
+    if (prevVersion == null) storage.removeItem(LS_KEYS.geospatialOverlayPreferenceVersion)
+    else storage.setItem(LS_KEYS.geospatialOverlayPreferenceVersion, prevVersion)
   }
 }

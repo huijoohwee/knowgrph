@@ -142,6 +142,9 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       const hydratedList = await hydrateWorkspaceEntriesInlineText({
         fs,
         workspaceEntries: list,
+        forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
+          activePathOverride: currentActivePath,
+        }),
       })
       const pruned = pruneWorkspaceEntriesForInlineSnapshot(hydratedList)
       const semanticKey = buildWorkspaceEntriesSemanticKey({
@@ -169,6 +172,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
           forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
             activePathOverride: currentActivePath,
           }),
+          forceIncludeOnly: true,
           workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
         })
         if (merged !== store.sourceFiles) {
@@ -262,7 +266,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
     if (!args.active || !workspaceSeedSyncEnabled) return
     if (typeof window === 'undefined') return
     let stopped = false
-    let timer: ReturnType<typeof window.setTimeout> | null = null
+    let timer: number | null = null
     let idleStreak = 0
     const ensureSeedTick = async () => {
       if (stopped || seedSyncInFlightRef.current) return
@@ -274,10 +278,14 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
         const fs = await getFs()
         const changed = await fs.ensureSeed()
         if (changed) {
+          const activePath = runtime.activePathRef.current
           const list = await fs.listEntries()
           const hydratedList = await hydrateWorkspaceEntriesInlineText({
             fs,
             workspaceEntries: list,
+            forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
+              activePathOverride: activePath,
+            }),
           })
           const pruned = pruneWorkspaceEntriesForInlineSnapshot(hydratedList)
           const docsOnly = readWorkspaceSourceFilesDocsOnlySetting()
@@ -289,7 +297,6 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
             workspaceSeedSyncSignatureRef.current = signature
             effectiveChanged = true
           }
-          const activePath = runtime.activePathRef.current
           const last = runtime.lastLoadedRef.current
           const isDirty = !!(activePath && last?.path === activePath && last.text !== runtime.activeTextRef.current)
           if (!isDirty && workspaceAutoRefreshEnabled && effectiveChanged) {

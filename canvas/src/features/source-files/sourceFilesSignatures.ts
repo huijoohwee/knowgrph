@@ -23,11 +23,15 @@ type SourceFileLike = {
 
 const sourceFileTextHashCache = new WeakMap<object, string>()
 
-const shouldPersistEnabledForSourceFile = (entry: SourceFileLike): boolean => {
-  const sourcePath = String(entry?.source?.path || '').trim()
-  // Workspace-backed file selection is runtime UI state and should not churn persistence/sync pipelines.
-  if (sourcePath.startsWith('workspace:')) return false
-  return true
+const isWorkspaceBackedSourceFile = (entry: SourceFileLike): boolean => {
+  return String(entry?.source?.path || '').trim().startsWith('workspace:')
+}
+
+const readPersistableSourceFiles = (value: unknown): SourceFileLike[] => {
+  const items = Array.isArray(value) ? value : []
+  return items
+    .map(entry => entry as SourceFileLike)
+    .filter(entry => !isWorkspaceBackedSourceFile(entry))
 }
 
 export const getSourceFileTextHash = (entry: unknown): string => {
@@ -41,8 +45,8 @@ export const getSourceFileTextHash = (entry: unknown): string => {
 }
 
 export const areSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
-  const aa = Array.isArray(a) ? a : []
-  const bb = Array.isArray(b) ? b : []
+  const aa = readPersistableSourceFiles(a)
+  const bb = readPersistableSourceFiles(b)
   if (aa.length !== bb.length) return false
   for (let i = 0; i < aa.length; i += 1) {
     const x = aa[i] as SourceFileLike
@@ -51,15 +55,14 @@ export const areSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean 
     const yParsed = readSourceFileParsedState(y)
     if (String(x?.id || '') !== String(y?.id || '')) return false
     if (String(xParsed.parsedTextHash || '') !== String(yParsed.parsedTextHash || '')) return false
-    const compareEnabled = shouldPersistEnabledForSourceFile(x) || shouldPersistEnabledForSourceFile(y)
-    if (compareEnabled && String(x?.enabled || '') !== String(y?.enabled || '')) return false
+    if (String(x?.enabled || '') !== String(y?.enabled || '')) return false
     if (getSourceFileTextHash(x) !== getSourceFileTextHash(y)) return false
   }
   return true
 }
 
 export const buildSourceFilesPersistenceSignature = (value: unknown): string => {
-  const items = Array.isArray(value) ? value : []
+  const items = readPersistableSourceFiles(value)
   if (items.length < 1) return '[]'
   return items
     .map(entry => {
@@ -67,9 +70,7 @@ export const buildSourceFilesPersistenceSignature = (value: unknown): string => 
       const parsed = readSourceFileParsedState(item)
       const id = String(item?.id || '')
       const parsedTextHash = String(parsed.parsedTextHash || '')
-      const enabled = shouldPersistEnabledForSourceFile(item)
-        ? String(item?.enabled || '')
-        : 'transient'
+      const enabled = String(item?.enabled || '')
       const textHash = getSourceFileTextHash(item)
       return `${id}:${parsedTextHash}:${enabled}:${textHash}`
     })
@@ -141,13 +142,20 @@ export const buildSourceFilesGeospatialSelectionSignature = (value: unknown): st
   const items = Array.isArray(value) ? value : []
   return hashSignatureParts([
     'source-files-geospatial-selection',
-    buildSourceFilesCompositionSignature(items),
     ...items.flatMap(entry => {
       const item = entry as SourceFileLike
+      const parsed = readSourceFileParsedState(item)
+      const sourceKind = readSourceKind(item?.source)
       return [
         String(item?.id || '').trim(),
+        String(item?.name || '').trim(),
         item?.enabled === true ? '1' : '0',
         typeof item?.geoLayerEnabled === 'boolean' ? (item.geoLayerEnabled ? '1' : '0') : 'unset',
+        readCompositionStatusToken(item?.status),
+        String(parsed.parsedTextHash || '').trim(),
+        sourceKind,
+        sourceKind === 'url' ? String(item?.source?.url || '').trim() : '',
+        sourceKind === 'local' ? String(item?.source?.path || '').trim() : '',
       ]
     }),
   ])

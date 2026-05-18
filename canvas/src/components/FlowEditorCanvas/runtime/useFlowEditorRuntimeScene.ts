@@ -9,7 +9,7 @@ import {
   shouldAutoPlaceFlowEditorWidget,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked, type WorkspaceGraphMutationState } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import {
   emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent,
@@ -178,7 +178,7 @@ export function useFlowEditorRuntimeScene(args: {
   const getLiveNodeWorldPos = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
     if (!id) return null
-    const state = useGraphStore.getState() as {
+    const state = useGraphStore.getState() as WorkspaceGraphMutationState & {
       graphData?: GraphData | null
       flowWidgetDraggingNodeId?: string | null
     }

@@ -8,6 +8,7 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { subscribeGlobalCancelEvents } from '@/lib/browser/globalCancelEvents'
 import { getIconSizeClass } from '@/lib/ui'
+import type { UiIconScale } from '@/lib/ui'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -30,7 +31,7 @@ export function NodeOverlayEditorView(args: {
   toolbarSideClamp: boolean
   isRichMediaPanelWidget: boolean
   isVideoTranscriberWidget: boolean
-  uiIconScale: number
+  uiIconScale: UiIconScale | undefined
   uiIconStrokeWidth: number
   enableHandlesDisabled: boolean
   convertToLoopDisabled: boolean
@@ -76,7 +77,7 @@ export function NodeOverlayEditorView(args: {
   setSelectionSource: (source: 'canvas' | 'editor' | 'none') => void
   selectNode: (nodeId: string) => void
   setToolbarVisible: React.Dispatch<React.SetStateAction<boolean>>
-  spacePanUserSelectUnlockRef: React.RefObject<null | (() => void)>
+  spacePanUserSelectUnlockRef: React.MutableRefObject<null | (() => void)>
 }) {
   const {
     asideRef,

@@ -1,8 +1,43 @@
-# Goal: Enhance Knowgrph for E2E Rich Media Content Generation
+# Goal: 100% Knowgrph Codebase Refactoring For E2E Rich Media Generation
 
-Enhance Knowgrph into a Codex-compatible, end-to-end rich media generation system that can turn a user-provided brief into traceable text, image, video, and canvas artifacts. The work must improve the repo itself: runtime harness, provider abstraction, canvas graph output, validation, recovery, documentation, and runnable examples.
+Enhance Knowgrph into a Codex-compatible, end-to-end rich media generation system that can turn a user-provided brief into traceable text, image, video, and canvas artifacts while completing a full-codebase refactor. The work must improve the repo itself: runtime harness, provider abstraction, canvas graph output, validation, recovery, documentation, runnable examples, source boundaries, semantic-cache ownership, chunk budgets, and stale-code removal.
 
-The deliverable is not a single demo asset. The deliverable is a durable rich-media generation pipeline that can be run, resumed, judged, inspected, and extended.
+The deliverable is not a single demo asset or a cosmetic cleanup. The deliverable is a durable rich-media generation pipeline inside a fully refactored, measurable, and guard-railed Knowgrph codebase that can be run, resumed, judged, inspected, extended, built, and audited without source-of-truth drift.
+
+## 100% Refactoring Scope
+
+The refactor covers the full upstream repository rooted at:
+
+```text
+/Users/huijoohwee/Documents/GitHub/knowgrph
+```
+
+Execution topology is fixed for this goal:
+
+```text
+Dev SSOT: /Users/huijoohwee/Documents/GitHub/knowgrph
+Prod artifact mirror: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
+Cloudflare route: airvio.co/knowgrph
+```
+
+All source, config, tests, and docs must be corrected in Dev first. The Prod mirror and Cloudflare route receive only generated, synced, or explicitly documented artifacts after the upstream owner is correct.
+
+Completion requires every active source, test, script, config, parser, shared package, documentation, and generated-source owner in the upstream repo to satisfy the same rules. Downstream mirrors, publish directories, and schema mirrors may be updated only after the upstream owner is correct.
+
+The refactor is complete only when:
+
+- Active source files are under 600 lines each.
+- Active text/code chunks are under 500 KiB each.
+- Built production JavaScript and CSS chunks are under 500 KiB each.
+- Existing over-budget files are split at stable ownership boundaries instead of exempted permanently.
+- New files and changed files cannot regress the budget gates.
+- Duplicate implementations, stale aliases, compatibility shims, legacy remaps, hardcoded fixtures, and conflicting branches are removed rather than preserved.
+- Graph, workspace, geospatial, flow-editor, markdown, parser, provider, storage, and canvas cache keys reuse the shared semantic-key helper where semantic equivalence is the authority.
+- Expensive work is batched, cached, lazy-loaded, virtualized, deferred, or sharded at the source owner instead of patched downstream.
+- Re-render, re-calculation, stale replay, infinite-loop, and freeze risks are neutralized where state originates.
+- Focused tests, build checks, hygiene gates, and docs prove each completed slice.
+
+Until the full `hygiene:audit` is green, `hygiene:check` and `hygiene:chunks` are the anti-regression gates, and `hygiene:audit` is the backlog authority.
 
 ## Non-Negotiables
 
@@ -12,6 +47,65 @@ The deliverable is not a single demo asset. The deliverable is a durable rich-me
 - Codex must be a first-class execution surface. A reviewer must be able to run the E2E pipeline from Codex using the goal, CLI, MCP, or documented commands.
 - Baseline validation must work offline with deterministic mock providers. Real provider execution may require credentials, but the repo must remain testable without network or paid services.
 - Generated media and canvas artifacts must be provenance-linked to the goal, source brief, plan, tool calls, and verification checks.
+- Refactor fixes must land at the root/source/upstream owner. Do not layer local patches, downstream remaps, alias stacks, or backward-compatibility shims over stale behavior.
+- Every cleanup must remove the stale/conflicting path completely when the canonical replacement exists.
+- Files that remain above 600 lines after a slice must have an explicit next split target, not an implicit exemption.
+
+## Operating Hygiene Contract
+
+Every slice must stay lean, MVP-shaped, single-source-of-truth, mutually exclusive, collectively exhaustive, and single-responsibility.
+
+Code rules:
+
+- Keep active source files under 600 lines and active text/code chunks under 500 KiB.
+- Use meaningful names; abbreviations are allowed only for conventional loop indexes such as `i`, `j`, and `k`.
+- Comments explain why a decision exists, not what the next line already says.
+- Prefer early returns, shallow control flow, and explicit failure handling over deep nesting or silent fallback.
+- Centralize config, constants, storage keys, renderer ids, provider ids, path policy, and route policy.
+- Reuse shared utilities and declared package entrypoints before adding local helpers.
+- Choose data structures and abstractions that fit the real ownership boundary; do not introduce generic layers without repeated pressure.
+- Remove duplication, circular dependencies, hardcoded fixtures, hidden absolute paths, local alias remaps, and compatibility shims.
+
+Pipeline rules:
+
+- Batch, cache, chunk, virtualize, shard, lazy-load, or defer expensive work at the root owner.
+- Parallelize independent work where it is bounded and observable.
+- Release timers, listeners, object URLs, workers, database handles, and subscriptions promptly.
+- Treat async state as a race boundary: guard stale writes, latest-result ownership, duplicate in-flight work, resume replay, and cross-tab or multi-worker effects.
+
+Validation rules:
+
+- Test focused diffs only unless a broader run is required by the touched ownership cluster.
+- Avoid indefinite full-codebase runs; every validation command must have a bounded scope or known termination.
+- Resolve discovered issues in the upstream owner, then rerun the focused proof that catches the bug class.
+- Verify no regression through the closest hygiene, unit, integration, build, or docs-sync gate that covers the change.
+
+## Refactoring Workstreams
+
+The 100% refactor proceeds by ownership cluster, not by random line-count shaving:
+
+1. Flow Editor and FlowCanvas runtime: split layout, collision, edge routing, media overlay, zoom, and scene state into single-responsibility modules with bounded recalculation.
+2. GraphCanvas and 3D runtime: split scene, simulation, positioning, group geometry, minimap, and render-order logic around shared semantic keys and lazy-loaded runtime chunks.
+3. Markdown workspace and source-files pipeline: isolate bootstrap, indexing, source-file ingest, composed graph replay, storage sync, and stale-guard logic so one source controls active content.
+4. Rich media, provider, and parser pipeline: keep text/image/video contracts provider-agnostic, remove hardcoded demo assumptions, and split oversized parser/provider files by schema and execution concern.
+5. Geospatial and cross-package integration: use declared package entrypoints and shared utilities only; remove arbitrary subpath imports, duplicated constants, and downstream bridge drift.
+6. Tests and fixtures: split large tests by behavior, replace hardcoded path/story fixtures with neutral builders, and delete stale regression cases once the upstream bug class is impossible.
+7. Docs, goals, and publish/schema mirrors: update canonical upstream docs first, then regenerate or sync downstream copies from source.
+
+## Refactoring Acceptance Criteria
+
+The codebase refactor is complete only when:
+
+- `npm run hygiene:check` passes.
+- `npm run hygiene:chunks` passes after a production build.
+- `npm run hygiene:audit` passes for the full upstream repo.
+- Focused tests for each touched ownership cluster pass.
+- `npm run pages:build` passes without production assets over 500 KiB.
+- TypeScript and Python validation pass for touched TypeScript and parser surfaces.
+- No active implementation or test depends on legacy aliases, local compatibility remaps, stale fixtures, hidden absolute paths, or duplicated source-of-truth copies.
+- Cross-repo docs and API/schema mirrors are updated from the canonical upstream source after the upstream refactor is green.
+
+Post-task documentation must update the canonical upstream docs first, then any matching API reference or cross-repo schema mirror. The expected handoff surfaces are `todo-log.md`, `docs/`, and `huijoohwee.github.io/schema/AgenticRAG`.
 
 ## App Surface Contract
 

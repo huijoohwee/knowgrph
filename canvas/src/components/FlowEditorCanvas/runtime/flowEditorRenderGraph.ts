@@ -11,10 +11,8 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
-import {
-  buildFlowRunAllNodeSequence,
-  type FlowRunAllPhaseId,
-} from '@/lib/flowEditor/runAllSequenceSsot'
+import { buildFlowRunAllNodeSequence, type FlowRunAllPhaseId } from '@/lib/flowEditor/runAllSequenceSsot'
+import { readFlowEditorRuntimeCacheEntry, writeFlowEditorRuntimeCacheEntry } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeCache'
 
 export type FlowEditorRenderGraphLookup = {
   graph: GraphData | null
@@ -129,97 +127,73 @@ function buildOverlayNodeHandleSignature(
 function readCachedFlowEditorOverlayEdgeGraph(
   cacheKey: string,
 ): FlowEditorOverlayEdgeGraphLookup | null {
-  const cached = flowEditorOverlayEdgeGraphCache.get(cacheKey) || null
-  if (!cached) return null
-  flowEditorOverlayEdgeGraphCache.delete(cacheKey)
-  flowEditorOverlayEdgeGraphCache.set(cacheKey, cached)
-  return cached
+  return readFlowEditorRuntimeCacheEntry(flowEditorOverlayEdgeGraphCache, cacheKey)
 }
 
 function writeCachedFlowEditorOverlayEdgeGraph(
   cacheKey: string,
   value: FlowEditorOverlayEdgeGraphLookup,
 ): FlowEditorOverlayEdgeGraphLookup {
-  flowEditorOverlayEdgeGraphCache.delete(cacheKey)
-  flowEditorOverlayEdgeGraphCache.set(cacheKey, value)
-  while (flowEditorOverlayEdgeGraphCache.size > FLOW_EDITOR_OVERLAY_EDGE_GRAPH_CACHE_LIMIT) {
-    const oldestKey = flowEditorOverlayEdgeGraphCache.keys().next().value
-    if (!oldestKey) break
-    flowEditorOverlayEdgeGraphCache.delete(oldestKey)
-  }
-  return value
+  return writeFlowEditorRuntimeCacheEntry(
+    flowEditorOverlayEdgeGraphCache,
+    cacheKey,
+    value,
+    FLOW_EDITOR_OVERLAY_EDGE_GRAPH_CACHE_LIMIT,
+  )
 }
 
 function readCachedFlowEditorWidgetPlacementContext(
   cacheKey: string,
 ): FlowEditorWidgetPlacementContext | null {
-  const cached = flowEditorWidgetPlacementContextCache.get(cacheKey) || null
-  if (!cached) return null
-  flowEditorWidgetPlacementContextCache.delete(cacheKey)
-  flowEditorWidgetPlacementContextCache.set(cacheKey, cached)
-  return cached
+  return readFlowEditorRuntimeCacheEntry(flowEditorWidgetPlacementContextCache, cacheKey)
 }
 
 function writeCachedFlowEditorWidgetPlacementContext(
   cacheKey: string,
   value: FlowEditorWidgetPlacementContext,
 ): FlowEditorWidgetPlacementContext {
-  flowEditorWidgetPlacementContextCache.delete(cacheKey)
-  flowEditorWidgetPlacementContextCache.set(cacheKey, value)
-  while (flowEditorWidgetPlacementContextCache.size > FLOW_EDITOR_WIDGET_PLACEMENT_CONTEXT_CACHE_LIMIT) {
-    const oldestKey = flowEditorWidgetPlacementContextCache.keys().next().value
-    if (!oldestKey) break
-    flowEditorWidgetPlacementContextCache.delete(oldestKey)
-  }
-  return value
+  return writeFlowEditorRuntimeCacheEntry(
+    flowEditorWidgetPlacementContextCache,
+    cacheKey,
+    value,
+    FLOW_EDITOR_WIDGET_PLACEMENT_CONTEXT_CACHE_LIMIT,
+  )
 }
 
 function readCachedFlowEditorWorkflowRunPlan(
   cacheKey: string,
 ): FlowEditorWorkflowRunPlan | null {
-  const cached = flowEditorWorkflowRunPlanCache.get(cacheKey) || null
-  if (!cached) return null
-  flowEditorWorkflowRunPlanCache.delete(cacheKey)
-  flowEditorWorkflowRunPlanCache.set(cacheKey, cached)
-  return cached
+  return readFlowEditorRuntimeCacheEntry(flowEditorWorkflowRunPlanCache, cacheKey)
 }
 
 function writeCachedFlowEditorWorkflowRunPlan(
   cacheKey: string,
   value: FlowEditorWorkflowRunPlan,
 ): FlowEditorWorkflowRunPlan {
-  flowEditorWorkflowRunPlanCache.delete(cacheKey)
-  flowEditorWorkflowRunPlanCache.set(cacheKey, value)
-  while (flowEditorWorkflowRunPlanCache.size > FLOW_EDITOR_WORKFLOW_RUN_PLAN_CACHE_LIMIT) {
-    const oldestKey = flowEditorWorkflowRunPlanCache.keys().next().value
-    if (!oldestKey) break
-    flowEditorWorkflowRunPlanCache.delete(oldestKey)
-  }
-  return value
+  return writeFlowEditorRuntimeCacheEntry(
+    flowEditorWorkflowRunPlanCache,
+    cacheKey,
+    value,
+    FLOW_EDITOR_WORKFLOW_RUN_PLAN_CACHE_LIMIT,
+  )
 }
 
 function readCachedFlowEditorWorkflowNodeResolutionContext(
   cacheKey: string,
 ): FlowEditorWorkflowNodeResolutionContext | null {
-  const cached = flowEditorWorkflowNodeResolutionContextCache.get(cacheKey) || null
-  if (!cached) return null
-  flowEditorWorkflowNodeResolutionContextCache.delete(cacheKey)
-  flowEditorWorkflowNodeResolutionContextCache.set(cacheKey, cached)
-  return cached
+  return readFlowEditorRuntimeCacheEntry(flowEditorWorkflowNodeResolutionContextCache, cacheKey)
 }
 
 function writeCachedFlowEditorWorkflowNodeResolutionContext(
   cacheKey: string,
   value: FlowEditorWorkflowNodeResolutionContext,
 ): FlowEditorWorkflowNodeResolutionContext {
-  flowEditorWorkflowNodeResolutionContextCache.delete(cacheKey)
-  flowEditorWorkflowNodeResolutionContextCache.set(cacheKey, value)
-  while (flowEditorWorkflowNodeResolutionContextCache.size > FLOW_EDITOR_WORKFLOW_NODE_RESOLUTION_CONTEXT_CACHE_LIMIT) {
-    const oldestKey = flowEditorWorkflowNodeResolutionContextCache.keys().next().value
-    if (!oldestKey) break
-    flowEditorWorkflowNodeResolutionContextCache.delete(oldestKey)
-  }
-  return value
+  return writeFlowEditorRuntimeCacheEntry(
+    flowEditorWorkflowNodeResolutionContextCache,
+    cacheKey,
+    value,
+    FLOW_EDITOR_WORKFLOW_NODE_RESOLUTION_CONTEXT_CACHE_LIMIT,
+  )
 }
 
 export function getCachedFlowEditorRenderGraph(args: {
@@ -371,7 +345,7 @@ export function getCachedFlowEditorOverlayEdgeGraph(args: {
           bend: propsRecord?.['visual:curveBend'] == null ? 0.16 : Number(propsRecord['visual:curveBend']),
           orbitShift: propsRecord?.['visual:orbitShift'] == null ? 0.1 : Number(propsRecord['visual:orbitShift']),
           orbital: propsRecord?.['visual:curveInterpolator'] == null ? true : String(propsRecord['visual:curveInterpolator']).trim().toLowerCase() === 'orbital',
-          phase: source.localeCompare(target) <= 0 ? 1 : -1,
+          phase: (source.localeCompare(target) <= 0 ? 1 : -1) as 1 | -1,
         }
       : null
     edgeCurveById.set(id, heroRowCurve)

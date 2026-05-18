@@ -8,7 +8,6 @@ import {
 } from '@/lib/graph/markdownMetadata'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { StatusHelpers } from './useWorkspaceFileActions/types'
 
@@ -83,17 +82,13 @@ export function useCanvasMarkdownSync(args: {
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
 
   const graphLookupSemanticKey = React.useMemo(() => {
-    const nodeIdsKey = hashScopedStringArraySignature(
-      'canvas-markdown-sync-node-ids',
-      graphNodes.map(node => String(node?.id || '').trim()).filter(Boolean),
-    )
-    const edgeIdsKey = hashScopedStringArraySignature(
-      'canvas-markdown-sync-edge-ids',
-      graphEdges.map(edge => String(edge?.id || '').trim()).filter(Boolean),
-    )
     return buildScopedGraphSemanticKey('canvas-markdown-sync-graph', {
+      graphData: { type: 'Graph', nodes: graphNodes, edges: graphEdges } as GraphData,
       graphRevision: graphDataRevision,
-      graphSemanticKey: hashSignatureParts([nodeIdsKey, edgeIdsKey]),
+      graphSemanticKey: [
+        ...graphNodes.map(node => String(node?.id || '').trim()).filter(Boolean).map(id => `node:${id}`),
+        ...graphEdges.map(edge => String(edge?.id || '').trim()).filter(Boolean).map(id => `edge:${id}`),
+      ].join('\n'),
     })
   }, [graphDataRevision, graphEdges, graphNodes])
 

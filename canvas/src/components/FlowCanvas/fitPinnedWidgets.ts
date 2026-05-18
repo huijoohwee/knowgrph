@@ -11,7 +11,7 @@ import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/componen
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 
 export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/frontmatterLayoutConfig'
@@ -67,17 +67,17 @@ export function fitFlowEditorPinnedWidgets(args: {
   const nodeLookup = getCachedGraphLookup({
     cacheScope: 'flow-canvas-fit-pinned-widgets',
     graphData: { type: 'application/json', nodes, edges: [] },
-    graphSemanticKey: hashScopedStringArraySignature(
-      'flow-canvas-fit-pinned-widgets',
-      nodes.map(node => {
+    graphSemanticKey: buildScopedGraphSemanticKey('flow-canvas-fit-pinned-widgets', {
+      graphData: { type: 'application/json', nodes, edges: [] },
+      graphSemanticKey: nodes.map(node => {
         const props = (node?.properties || {}) as Record<string, unknown>
         const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? props['visual:width'] : ''
         const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? props['visual:height'] : ''
         const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : ''
         const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : ''
         return `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}:${x}:${y}:${width}:${height}`
-      }),
-    ),
+      }).join('\n'),
+    }),
   })
   const nodeById = nodeLookup?.nodeById || new Map<string, GraphNode>()
   if (nodeById.size === 0) {

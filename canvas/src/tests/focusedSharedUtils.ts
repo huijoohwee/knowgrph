@@ -1,6 +1,6 @@
 import {
   testForbidSiblingRepoSourceImports,
-  testHostGympgrphIntegrationUsesPackageRootOnly,
+  testHostGympgrphIntegrationUsesDeclaredPackageEntrypointsOnly,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
 import {
   testFetchRemoteTextPreflightHeadGuardsTooLarge,
@@ -25,7 +25,7 @@ type TestCase = { name: string; run: () => unknown | Promise<unknown> }
 
 const cases: TestCase[] = [
   { name: 'crossRepo: forbid sibling src imports', run: testForbidSiblingRepoSourceImports },
-  { name: 'crossRepo: gympgrph uses package root only', run: testHostGympgrphIntegrationUsesPackageRootOnly },
+  { name: 'crossRepo: gympgrph uses declared package entrypoints only', run: testHostGympgrphIntegrationUsesDeclaredPackageEntrypointsOnly },
   { name: 'fetchRemoteText: validate supports string+args', run: testFetchRemoteTextValidateSupportsStringAndArgs },
   { name: 'fetchRemoteText: preflight HEAD guards too large', run: testFetchRemoteTextPreflightHeadGuardsTooLarge },
   { name: 'fetchRemoteText: wrapper useProxy boolean', run: testFetchRemoteTextWrapperUseProxyBoolean },

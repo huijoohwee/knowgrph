@@ -2,26 +2,21 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
-import { LS_KEYS } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
-import { lsSetBool } from '@/lib/persistence'
 import {
   parseCanvasWorkspaceFrontmatterPreset,
   readCanvasWorkspaceFrontmatterPresetFromMeta,
   type CanvasWorkspaceFrontmatterPreset,
 } from '@/lib/markdown/frontmatter'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { writeGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function disableGeospatialForDocumentPreset(): void {
-  try {
-    lsSetBool(LS_KEYS.geospatialOverlayEnabled, false)
-  } catch {
-    void 0
-  }
+  writeGeospatialOverlayEnabledPreference(false)
   try {
     void setGeospatialModeEnabled(false).catch(() => void 0)
   } catch {
@@ -30,11 +25,7 @@ function disableGeospatialForDocumentPreset(): void {
 }
 
 function enableGeospatialForDocumentPreset(): void {
-  try {
-    lsSetBool(LS_KEYS.geospatialOverlayEnabled, true)
-  } catch {
-    void 0
-  }
+  writeGeospatialOverlayEnabledPreference(true)
   try {
     void setGeospatialModeEnabled(true).catch(() => void 0)
   } catch {

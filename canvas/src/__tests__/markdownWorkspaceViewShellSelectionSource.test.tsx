@@ -92,8 +92,9 @@ export async function testMarkdownWorkspaceViewShellFileSelectionClearsCanvasSel
     if (button.dataset.selectionPath !== '/knowgrph-maps-readme.md') {
       throw new Error(`expected workspace file selection to update selection path, got ${String(button.dataset.selectionPath || '')}`)
     }
-    if (button.dataset.selectionSource !== 'editor') {
-      throw new Error(`expected workspace file selection to override stale canvas selection authority, got ${String(button.dataset.selectionSource || '')}`)
+    const nextSelectionSource = String(button.dataset.selectionSource || '')
+    if (nextSelectionSource !== 'editor') {
+      throw new Error(`expected workspace file selection to override stale canvas selection authority, got ${nextSelectionSource}`)
     }
   } finally {
     try {

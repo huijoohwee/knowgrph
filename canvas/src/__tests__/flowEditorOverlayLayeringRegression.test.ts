@@ -69,13 +69,14 @@ export function testFlowEditorOverlayModeSuppressesCanvasGroupsWhenOverlayOwnsTh
 export function testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpen() {
   const surfacePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
   const overlaySurfacePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorOverlaySurface.tsx')
+  const overlayVisibilityPath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceVisibility.ts')
   let surfaceText = ''
   let overlaySurfaceText = ''
   try {
     surfaceText = fs.readFileSync(surfacePath, { encoding: 'utf8' })
-    overlaySurfaceText = fs.readFileSync(overlaySurfacePath, { encoding: 'utf8' })
+    overlaySurfaceText = `${fs.readFileSync(overlaySurfacePath, { encoding: 'utf8' })}\n${fs.readFileSync(overlayVisibilityPath, { encoding: 'utf8' })}`
   } catch {
-    throw new Error(`Expected to read ${surfacePath} and ${overlaySurfacePath}`)
+    throw new Error(`Expected to read ${surfacePath}, ${overlaySurfacePath}, and ${overlayVisibilityPath}`)
   }
   if (!overlaySurfaceText.includes('const overlayOnlyActive =')) {
     throw new Error('Expected Flow Editor overlay-only rendering to be gated by whether overlays exist')

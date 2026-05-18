@@ -23,6 +23,7 @@ import {
   hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
+  readWorkspaceActiveEntrySnapshot,
   resolveMaterializedWorkspaceActivePath,
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import {
@@ -294,7 +295,7 @@ export function SourceFilesPersistenceBootstrap() {
   React.useEffect(() => {
     if (!workspaceSeedSyncEnabled) return
     let cancelled = false
-    let timer: ReturnType<typeof window.setTimeout> | null = null
+    let timer: number | null = null
     let idleStreak = 0
     const ensureSeed = async (source: string) => {
       if (cancelled) return
@@ -476,32 +477,29 @@ export function SourceFilesPersistenceBootstrap() {
           workspaceMaterializeQueuedRef.current = false
           const fs = await getWorkspaceFs()
           reusableWorkspaceFsRef.current = fs
-          const workspaceEntries = await fs.listEntries()
-          const hydratedWorkspaceEntries = await hydrateWorkspaceEntriesInlineText({
+          const activePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: useMarkdownExplorerStore.getState().activePath })
+          if (!activePath) continue
+          const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({ activePathOverride: activePath })
+          const workspaceEntries = await readWorkspaceActiveEntrySnapshot({
             fs,
-            workspaceEntries,
+            activePath,
+            workspaceEntries: reusableWorkspaceEntriesRef.current,
           })
-          const signature = buildWorkspaceEntriesSemanticKey({
-            entries: hydratedWorkspaceEntries,
-            docsOnly: workspaceSourceFilesDocsOnly,
-          })
+          const hydratedWorkspaceEntries = await hydrateWorkspaceEntriesInlineText({ fs, workspaceEntries, forceIncludePaths })
+          const signature = buildWorkspaceEntriesSemanticKey({ entries: hydratedWorkspaceEntries, docsOnly: workspaceSourceFilesDocsOnly, forceIncludePaths, forceIncludeOnly: true })
           if (signature === lastWorkspaceEntriesSignatureRef.current) continue
           lastWorkspaceEntriesSignatureRef.current = signature
           const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
           reusableWorkspaceEntriesRef.current = readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries)
           reusableWorkspaceSourcesByPathRef.current = sourcesByPath
-          const activePath = resolveMaterializedWorkspaceActivePath({
-            explorerActivePath: useMarkdownExplorerStore.getState().activePath,
-          })
           const store = useGraphStore.getState()
           const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
           const merged = mergeWorkspaceEntriesIntoSourceFiles({
             existing,
             workspaceEntries: hydratedWorkspaceEntries,
             sourcesByPath,
-            forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
-              activePathOverride: activePath,
-            }),
+            forceIncludePaths,
+            forceIncludeOnly: true,
             workspaceDocsOnly: workspaceSourceFilesDocsOnly,
           })
           const runtimeMerged = pruneWorkspaceSourceFilesToActive({
@@ -650,13 +648,13 @@ export function SourceFilesPersistenceBootstrap() {
         }
       })
     }
-    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(
-      s => s.activePath,
-      activePath => {
-        syncNow(activePath)
-      },
-      { equalityFn: Object.is },
-    )
+    let lastObservedActivePath = useMarkdownExplorerStore.getState().activePath
+    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(state => {
+      const activePath = state.activePath
+      if (Object.is(activePath, lastObservedActivePath)) return
+      lastObservedActivePath = activePath
+      syncNow(activePath)
+    })
     return () => {
       unsubscribeActivePath()
     }

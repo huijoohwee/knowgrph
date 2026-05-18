@@ -15,8 +15,8 @@ import {
   hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
+  readWorkspaceActiveEntrySnapshot,
   resolveMaterializedWorkspaceActivePath,
-  resolveWorkspaceMaterializationEntries,
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
@@ -571,9 +571,7 @@ export function testWorkspaceBootstrapMaterializeNormalizesActiveWorkspacePathRe
     throw new Error(`expected workspace materialization active-path key helper to reuse canonical normalized path strings, got ${String(key)}`)
   }
 
-  const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({
-    explorerActivePath: 'workspace:/notes/demo.md/' as never,
-  })
+  const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({ explorerActivePath: 'workspace:/notes/demo.md/' as never })
   if (forceIncludePaths.length !== 1 || forceIncludePaths[0] !== '/notes/demo.md') {
     throw new Error('expected workspace materialization force-include helper to reuse the canonical normalized active workspace path')
   }
@@ -582,30 +580,32 @@ export function testWorkspaceBootstrapMaterializeNormalizesActiveWorkspacePathRe
 export async function testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCentralizeReuseRules() {
   const baseFs = createMemoryWorkspaceFs()
   let listEntriesCalls = 0
+  let readFileTextCalls = 0
   const fs: WorkspaceFs = {
     ...baseFs,
     listEntries: async () => {
       listEntriesCalls += 1
       return baseFs.listEntries()
     },
+    readFileText: async path => {
+      readFileTextCalls += 1
+      return baseFs.readFileText(path)
+    },
   }
   await fs.ensureSeed()
   const workspaceEntries = await fs.listEntries()
 
-  const reused = await resolveWorkspaceMaterializationEntries({
-    fs,
-    workspaceEntries,
-  })
-  if (reused !== workspaceEntries) {
-    throw new Error('expected shared workspace materialization entries helper to reuse the provided snapshot by identity')
+  const reused = await readWorkspaceActiveEntrySnapshot({ fs, activePath: WORKSPACE_README_SEED_PATH, workspaceEntries })
+  if (reused.length !== 1 || reused[0]?.path !== WORKSPACE_README_SEED_PATH) {
+    throw new Error(`expected shared workspace active snapshot helper to return only the active entry from a provided snapshot, got ${JSON.stringify(reused)}`)
   }
 
-  const relisted = await resolveWorkspaceMaterializationEntries({ fs })
-  if (!Array.isArray(relisted) || relisted.length === 0) {
-    throw new Error('expected shared workspace materialization entries helper to relist workspace entries when no snapshot is provided')
+  const activeOnly = await readWorkspaceActiveEntrySnapshot({ fs, activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH })
+  if (activeOnly.length !== 1 || activeOnly[0]?.path !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected shared workspace active snapshot helper to read only the requested active file when no snapshot is provided, got ${JSON.stringify(activeOnly)}`)
   }
-  if (listEntriesCalls !== 2) {
-    throw new Error(`expected shared workspace materialization entries helper to avoid extra relists when a snapshot is provided, got ${String(listEntriesCalls)} listEntries calls`)
+  if (listEntriesCalls !== 1 || readFileTextCalls !== 1) {
+    throw new Error(`expected active snapshot helper to avoid full relists and read only one active file, got ${String(listEntriesCalls)} listEntries and ${String(readFileTextCalls)} readFileText calls`)
   }
 
   const reusableSnapshot = readReusableWorkspaceEntriesSnapshot(workspaceEntries)
@@ -994,22 +994,16 @@ export async function testWorkspaceSeedProviderReadsDocsMirrorFromSourceFilesSta
         name: 'knowgrph-video-demo.md',
         text: '# remote source files state',
         enabled: true,
-        source: {
-          kind: 'local',
-          path: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`,
-        },
-        updatedAtMs: 1710000000000,
+        status: 'idle',
+        source: { kind: 'local', path: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md` },
       },
       {
         id: 'sf-outside-root',
         name: 'outside.md',
         text: '# outside root should be ignored',
         enabled: true,
-        source: {
-          kind: 'local',
-          path: `${KG_KNOWGRPH_DOCS_ROOT}/outside.md`,
-        },
-        updatedAtMs: 1710000001000,
+        status: 'idle',
+        source: { kind: 'local', path: `${KG_KNOWGRPH_DOCS_ROOT}/outside.md` },
       },
     ])
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
@@ -1051,11 +1045,8 @@ export async function testWorkspaceSeedProviderCollapsesRedundantDocsPrefixFromS
         name: 'docs/docs/knowgrph-video-demo.md',
         text: '# dedupe docs prefix',
         enabled: true,
-        source: {
-          kind: 'local',
-          path: 'docs/docs/knowgrph-video-demo.md',
-        },
-        updatedAtMs: 1710000002000,
+        status: 'idle',
+        source: { kind: 'local', path: 'docs/docs/knowgrph-video-demo.md' },
       },
     ])
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
@@ -1092,11 +1083,8 @@ export async function testWorkspaceSeedProviderResolvesRelativeDocsPathForAbsolu
         name: 'docs/knowgrph-video-demo.md',
         text: '# relative docs path should map',
         enabled: true,
-        source: {
-          kind: 'local',
-          path: 'docs/knowgrph-video-demo.md',
-        },
-        updatedAtMs: 1710000003000,
+        status: 'idle',
+        source: { kind: 'local', path: 'docs/knowgrph-video-demo.md' },
       },
     ])
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
@@ -1130,11 +1118,8 @@ export async function testWorkspaceSeedProviderTreatsSelectedFilePathAsSelectedF
         name: 'docs/knowgrph-video-demo.md',
         text: '# selected file path should still include sibling docs',
         enabled: true,
-        source: {
-          kind: 'local',
-          path: 'docs/knowgrph-video-demo.md',
-        },
-        updatedAtMs: 1710000004000,
+        status: 'idle',
+        source: { kind: 'local', path: 'docs/knowgrph-video-demo.md' },
       },
     ])
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries()
@@ -1317,11 +1302,8 @@ export async function testWorkspaceSeedProviderPrefersSourceFilesDocViewOverLarg
         name: 'knowgrph-video-demo.md',
         text: '',
         enabled: true,
-        source: {
-          kind: 'local',
-          path: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`,
-        },
-        updatedAtMs: 1710000008000,
+        status: 'idle',
+        source: { kind: 'local', path: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md` },
       },
     ])
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries()

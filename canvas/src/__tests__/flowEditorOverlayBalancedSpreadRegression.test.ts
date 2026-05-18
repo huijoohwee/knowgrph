@@ -74,7 +74,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('computeBalancedSpreadViewportMargins')) {
     throw new Error('expected overlay collision path to reuse shared 16:9 viewport margins instead of local hardcodes')
   }
-  if (!hookText.includes('height: Math.max(1, snapScreen(typicalSize.height + gapPx))')) {
+  if (!hookText.includes('height: Math.max(1, snapScreen(balancedLayoutSize.height + gapPx))')) {
     throw new Error('expected overlay collision grid cells to reserve full measured overlay height plus gap so dense frontmatter collectives cannot overlap by construction')
   }
   if (!hookText.includes('width: Math.max(120, floatingScaled.width, maxW)') || !hookText.includes('height: Math.max(160, floatingScaled.height, maxH)')) {

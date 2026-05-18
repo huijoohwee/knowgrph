@@ -65,6 +65,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted()
   })
+  await execTest(results, 'canvas.geospatialPreference.ignoresLegacyUnversionedTrue', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testGeospatialOverlayPreferenceIgnoresLegacyUnversionedTrue()
+  })
   await execTest(results, 'schema.tabEnterText', async () => {
     const mod = await modSchema()
     await mod.testSchemaTabEnterText()

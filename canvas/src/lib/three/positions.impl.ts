@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, resolveVoxelLayerSpacing, quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine } from '@/features/three/threeLayoutConfig'
 import { listVoxelLayers, resolveVoxelLayerKey } from '@/features/three/voxelLayers'
@@ -201,13 +201,13 @@ export function computePositions3d(
     const graphLookup = getCachedGraphLookup({
       cacheScope: 'three-positions-hub-orbit',
       graphData: { type: 'application/json', nodes, edges: [] },
-      graphSemanticKey: hashScopedStringArraySignature(
-        'three-positions-hub-orbit',
-        nodes.map(node => {
+      graphSemanticKey: buildScopedGraphSemanticKey('three-positions-hub-orbit', {
+        graphData: { type: 'application/json', nodes, edges: [] },
+        graphSemanticKey: nodes.map(node => {
           const props = (node?.properties || {}) as Record<string, unknown>
           return `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}:${String(props['kg:radarCluster'] || '').trim()}`
-        }),
-      ),
+        }).join('\n'),
+      }),
     })
     const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
     const hubIds: string[] = []

@@ -36,7 +36,7 @@ import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetL
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 
@@ -251,16 +251,16 @@ function Minimap() {
     const overlayNodeLookup = getCachedGraphLookup({
       cacheScope: 'minimap-flow-editor-overlay-subset',
       graphData: { type: 'application/json', nodes, edges: [] },
-      graphSemanticKey: hashScopedStringArraySignature(
-        'minimap-flow-editor-overlay-subset',
-        nodes.map(node => {
+      graphSemanticKey: buildScopedGraphSemanticKey('minimap-flow-editor-overlay-subset', {
+        graphData: { type: 'application/json', nodes, edges: [] },
+        graphSemanticKey: nodes.map(node => {
           const id = String(node?.id || '').trim()
           const type = String(node?.type || '').trim()
           const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : 0
           const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : 0
           return `${id}:${type}:${Math.round(x * 10)}:${Math.round(y * 10)}`
-        }),
-      ),
+        }).join('\n'),
+      }),
     })
     const nodeById = overlayNodeLookup?.nodeById || new Map<string, GraphNode>()
     const pinnedById = flowWidgetPinnedByNodeId || {}

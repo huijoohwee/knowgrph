@@ -12,7 +12,7 @@ import {
   resolveComposedApplyDeferralReason,
   shouldClearComposedGraphForEmptyState,
 } from '@/features/source-files/composedApplyGuards'
-import { resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
+import { resolvePreferredComposedSourceRawTextFromState, resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { buildSourceFilesCompositionSignature, getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
@@ -72,7 +72,10 @@ function buildComposedImportModesSignature(args: {
     explorerActivePath: args.explorerActivePath,
   })
   const preferredSourcePath = String(preferredSourceFile?.source?.path || preferredSourceFile?.name || '').trim()
-  const preferredSourceText = String(preferredSourceFile?.text || '')
+  const preferredSourceText = resolvePreferredComposedSourceRawTextFromState({
+    state: args.state,
+    explorerActivePath: args.explorerActivePath,
+  })
   const preferredSourceTextHash = String(preferredSourceFile?.parsedTextHash || '').trim()
     || (preferredSourceFile ? getSourceFileTextHash(preferredSourceFile) : '')
   const graphSemanticKey = buildScopedGraphSemanticKey('composed-import-modes', {
@@ -84,6 +87,8 @@ function buildComposedImportModesSignature(args: {
       graphSemanticKey,
       preferredSourcePath,
       preferredSourceTextHash,
+      String(args.state.canvasRenderMode || ''),
+      String(args.state.canvas2dRenderer || ''),
     ]),
     rawText: preferredSourceText,
   }

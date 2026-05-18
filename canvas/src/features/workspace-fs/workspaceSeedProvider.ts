@@ -7,12 +7,11 @@ import {
   buildKnowgrphStorageExportPath,
   type KnowgrphStorageExportResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
-
+import { readCachedWorkspaceDocsMirrorEntries, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500
 const WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
-
 const normalizeRelPath = (value: string): string => {
   return String(value || '')
     .trim()
@@ -20,7 +19,6 @@ const normalizeRelPath = (value: string): string => {
     .replace(/^\/+/, '')
     .replace(/\/+$/, '')
 }
-
 const normalizeBasename = (value: string): string => {
   const normalized = normalizeRelPath(value)
   if (!normalized) return ''
@@ -89,7 +87,15 @@ const resolveWorkspaceDocsRootFromSourceFilesSelection = async (): Promise<{
   }
 }
 
-const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExport = async (args: {
+const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExport = async (args: { baseUrl: string; workspaceId: string; selectedFolderPath: string }): Promise<WorkspaceDocsMirrorEntry[]> => {
+  const baseUrl = String(args.baseUrl || '').trim()
+  const workspaceId = String(args.workspaceId || '').trim()
+  const selectedFolderPath = normalizeMirrorRelPath(args.selectedFolderPath)
+  if (!baseUrl || !workspaceId) return []
+  return readCachedWorkspaceDocsMirrorEntries({ cacheKey: `${baseUrl}|${workspaceId}|${selectedFolderPath}`, load: () => readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExportUncached({ baseUrl, workspaceId, selectedFolderPath }) })
+}
+
+const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExportUncached = async (args: {
   baseUrl: string
   workspaceId: string
   selectedFolderPath: string
@@ -252,7 +258,7 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles = async
   if (sourceFiles.length === 0) return []
   const selectedFolderPath = normalizeMirrorRelPath(args.selectedFolderPath)
   const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
-  const maxFiles = Math.min(WORKSPACE_DOCS_MIRROR_MAX_FILES, 200)
+  const maxFiles = Math.min(WORKSPACE_DOCS_MIRROR_MAX_FILES, 16)
   for (let i = 0; i < sourceFiles.length && byRelPath.size < maxFiles; i += 1) {
     const sourceFile = sourceFiles[i]
     if (!sourceFile) continue
@@ -409,8 +415,8 @@ const stripWorkspaceDocsMirrorRootPrefix = (path: string): string => {
     return normalizeMirrorRelPath(normalized.slice(docsRootIndex + docsRootMarker.length + 1))
   }
   const parts = normalized.split('/').filter(Boolean)
-  let start = 0
-  while (start < parts.length && String(parts[start] || '').toLowerCase() === WORKSPACE_DOCS_MIRROR_ROOT_SEGMENT) {
+  if (parts.some((part, index) => index > 0 && String(part || '').toLowerCase() === WORKSPACE_DOCS_MIRROR_ROOT_SEGMENT)) return ''
+  let start = 0; while (start < parts.length && String(parts[start] || '').toLowerCase() === WORKSPACE_DOCS_MIRROR_ROOT_SEGMENT) {
     start += 1
   }
   if (start === 0) return normalized
@@ -423,7 +429,7 @@ const resolveSelectedFolderRelativeMirrorPath = (fullPath: string, selectedFolde
   if (!normalizedFullPath) return ''
   if (!normalizedSelectedFolderPath) {
     const trimmed = stripWorkspaceDocsMirrorRootPrefix(normalizedFullPath)
-    return trimmed || normalizedFullPath
+    return trimmed
   }
   if (normalizedFullPath === normalizedSelectedFolderPath) return ''
   const prefix = `${normalizedSelectedFolderPath}/`
@@ -536,6 +542,8 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
   const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
   const selectedFolderPath = normalizeMirrorRelPath(args.selectedFolderPath)
   const selectedFolderAbsRoot = normalizeAbsRoot(args.selectedFolderPath)
+  const fallbackWorkspaceId = String(args.storageDocFallback?.workspaceId || '').trim(), fallbackBaseUrl = String(args.storageDocFallback?.baseUrl || '').trim()
+  const storageFallbackConfigured = !!(fallbackWorkspaceId && fallbackBaseUrl)
   const buildLocalFsHydrationCandidates = (value: string): string[] => {
     const raw = String(value || '').trim()
     if (!raw) return []
@@ -577,20 +585,7 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
 
     let text = String(sourceFile.text || '')
     if (!text.trim()) {
-      const fsCandidates = buildLocalFsHydrationCandidates(sourcePathRaw)
-      for (let c = 0; c < fsCandidates.length; c += 1) {
-        const localFsUrl = buildLocalFsFetchPath(fsCandidates[c]!)
-        if (!localFsUrl) continue
-        const hydrated = await readTextViaFetch(localFsUrl)
-        if (!hydrated) continue
-        text = hydrated
-        break
-      }
-    }
-    if (!text.trim()) {
-      const fallbackWorkspaceId = String(args.storageDocFallback?.workspaceId || '').trim()
-      const fallbackBaseUrl = String(args.storageDocFallback?.baseUrl || '').trim()
-      if (fallbackWorkspaceId && fallbackBaseUrl) {
+      if (storageFallbackConfigured) {
         const canonicalCandidates = readCanonicalPathCandidatesForSourcePath(sourcePathRaw)
         for (let c = 0; c < canonicalCandidates.length; c += 1) {
           const canonicalPath = String(canonicalCandidates[c] || '').trim()
@@ -599,6 +594,16 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
           const requestUrl = buildKnowgrphStorageRequestUrl({ path: docPath, baseUrl: fallbackBaseUrl })
           if (!requestUrl) continue
           const hydrated = await readTextViaFetch(requestUrl)
+          if (!hydrated) continue
+          text = hydrated
+          break
+        }
+      } else {
+        const fsCandidates = buildLocalFsHydrationCandidates(sourcePathRaw)
+        for (let c = 0; c < fsCandidates.length; c += 1) {
+          const localFsUrl = buildLocalFsFetchPath(fsCandidates[c]!)
+          if (!localFsUrl) continue
+          const hydrated = await readTextViaFetch(localFsUrl)
           if (!hydrated) continue
           text = hydrated
           break
@@ -642,10 +647,16 @@ const readWorkspaceDocsMirrorEntriesFromLocalFolderHandle = async (args: {
 }): Promise<WorkspaceDocsMirrorEntry[]> => {
   let root = args.rootHandle
   const selectedFolderPath = normalizeMirrorRelPath(args.selectedFolderPath)
-  if (selectedFolderPath) {
-    const parts = selectedFolderPath.split('/').filter(Boolean)
-    for (let i = 0; i < parts.length; i += 1) {
-      root = await root.getDirectoryHandle(parts[i]!)
+  const selectedFolderPathCandidates = selectedFolderPath ? (selectedFolderPath.toLowerCase().startsWith('docs/') ? [selectedFolderPath] : [selectedFolderPath, `docs/${selectedFolderPath}`]) : []
+  for (let c = 0; c < selectedFolderPathCandidates.length; c += 1) {
+    let candidateRoot = args.rootHandle
+    try {
+      const parts = selectedFolderPathCandidates[c]!.split('/').filter(Boolean)
+      for (let i = 0; i < parts.length; i += 1) candidateRoot = await candidateRoot.getDirectoryHandle(parts[i]!)
+      root = candidateRoot
+      break
+    } catch {
+      if (c === selectedFolderPathCandidates.length - 1) return []
     }
   }
   const out: WorkspaceDocsMirrorEntry[] = []
@@ -734,7 +745,6 @@ const buildWorkspaceSeedAbsolutePathCandidates = (args: {
     new Set((args.relPathCandidates || []).map(path => normalizeRelPath(path)).filter(Boolean)),
   )
   const out = new Set<string>()
-  if (basename) out.add(`${root}/${basename}`)
   for (let i = 0; i < relPathCandidates.length; i += 1) {
     const relPath = relPathCandidates[i]!
     out.add(`${root}/${relPath}`)
@@ -742,19 +752,8 @@ const buildWorkspaceSeedAbsolutePathCandidates = (args: {
       out.add(`${root}/${relPath.slice('docs/'.length)}`)
     }
   }
+  if (basename) out.add(`${root}/${basename}`)
   return [...out]
-}
-
-const readTextViaFetch = async (url: string): Promise<string | null> => {
-  if (typeof fetch !== 'function') return null
-  try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const text = (await res.text()).trim()
-    return text || null
-  } catch {
-    return null
-  }
 }
 
 const readTextViaNodeFs = async (absolutePath: string): Promise<string | null> => {
@@ -1015,24 +1014,19 @@ const readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl = async (
 export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<WorkspaceDocsMirrorEntry[]> {
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()
   const knowgrphStorageBaseUrl = readWorkspaceInitializationKnowgrphStorageBaseUrl()
+  const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
   if (knowgrphStorageBaseUrl && sourceFilesSelection) {
-    const workspaceId = buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({
-      folderName: sourceFilesSelection.folderName,
-      accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null,
-      folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId,
-      selectedFolderPath: sourceFilesSelection.selectedFolderPath || null,
-    })
-    if (workspaceId) {
+    if (knowgrphStorageWorkspaceId) {
       const storageDatasets: WorkspaceDocsMirrorEntry[][] = []
       const viaKnowgrphStorageDb = await readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDbCache({
-        workspaceId,
+        workspaceId: knowgrphStorageWorkspaceId,
         selectedFolderPath: sourceFilesSelection.selectedFolderPath,
       })
       if (viaKnowgrphStorageDb.length > 0) storageDatasets.push(viaKnowgrphStorageDb)
       if (sourceFilesSelection.sourceFiles.length > 0) {
         const viaKnowgrphDocView = await readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles({
           baseUrl: knowgrphStorageBaseUrl,
-          workspaceId,
+          workspaceId: knowgrphStorageWorkspaceId,
           selectedFolderPath: sourceFilesSelection.selectedFolderPath,
           sourceFiles: sourceFilesSelection.sourceFiles,
         })
@@ -1040,7 +1034,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
       }
       const viaKnowgrphStorage = await readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExport({
         baseUrl: knowgrphStorageBaseUrl,
-        workspaceId,
+        workspaceId: knowgrphStorageWorkspaceId,
         selectedFolderPath: sourceFilesSelection.selectedFolderPath,
       })
       if (viaKnowgrphStorage.length > 0) storageDatasets.push(viaKnowgrphStorage)
@@ -1057,9 +1051,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
       const viaSourceFilesHydrated = await readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated({
         sourceFiles: sourceFilesSelection.sourceFiles,
         selectedFolderPath: sourceFilesSelection.selectedFolderPath,
-        storageDocFallback: workspaceId && knowgrphStorageBaseUrl
-          ? { workspaceId, baseUrl: knowgrphStorageBaseUrl }
-          : null,
+        storageDocFallback: knowgrphStorageWorkspaceId && knowgrphStorageBaseUrl ? { workspaceId: knowgrphStorageWorkspaceId, baseUrl: knowgrphStorageBaseUrl } : null,
       })
       if (viaSourceFilesHydrated.length > 0) return viaSourceFilesHydrated
     } else {
@@ -1070,6 +1062,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
       if (viaSourceFiles.length > 0) return viaSourceFiles
     }
   }
+  if (knowgrphStorageBaseUrl && sourceFilesSelection && knowgrphStorageWorkspaceId) return []
   if (sourceFilesSelection?.localMarkdownFolderHandle) {
     const viaHandle = await readWorkspaceDocsMirrorEntriesFromLocalFolderHandle({
       rootHandle: sourceFilesSelection.localMarkdownFolderHandle,

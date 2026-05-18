@@ -33,6 +33,7 @@ import {
 } from './markdownWorkspaceRuntime.stateSync'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import {
+  clearMarkdownWorkspaceIndexingInFlight, markMarkdownWorkspaceIndexingInFlight,
   clearRuntimeTimeout,
   findWorkspaceSourceFileByPath,
   resolveWorkspaceDirtyState,
@@ -85,8 +86,8 @@ export type MarkdownWorkspaceIndexingArgs = MarkdownWorkspaceRuntimeProgressStat
   repairedMissingWorkspaceFilesRef: React.MutableRefObject<Set<WorkspacePath>>
   lastIndexedByPathRef: React.MutableRefObject<Map<WorkspacePath, string>>
   indexJobRef: React.MutableRefObject<number>
-  indexingInFlight: boolean
   indexingInFlightRef: React.MutableRefObject<boolean>
+  indexingInFlightPathRef: React.MutableRefObject<WorkspacePath | null>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   setIndexingInFlight: React.Dispatch<React.SetStateAction<boolean>>
   setActiveTextProgrammatic: (text: string) => void
@@ -121,7 +122,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     const path = args.activePath
     if (!path || !args.activeEntry || args.activeEntryKind === 'folder') return
     // Prevent re-entrant indexing churn for the same active path while an index job is still running.
-    if (args.indexingInFlight && args.activePathRef.current === path) return
+    if (args.indexingInFlightRef.current && args.indexingInFlightPathRef.current === path) return
     if (
       resolveWorkspaceDirtyState({
         path,
@@ -134,6 +135,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     }
 
     const scheduledFor = path
+    const effectJobId = ++args.indexJobRef.current
     const cachedText = typeof args.activeEntryText === 'string' ? String(args.activeEntryText ?? '') : null
     const sourceUrl = String(args.activeDocumentSourceUrl || '').trim()
     const sourceFileName = workspaceBasename(path) || 'source.md'
@@ -158,7 +160,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
       void (async () => {
         let loadingLabelTimer: RuntimeTimeoutHandle | null = null
         try {
-          if (!cancelled && !args.indexingInFlightRef.current) args.setIndexingInFlight(true)
+          markMarkdownWorkspaceIndexingInFlight(args, scheduledFor, cancelled)
           try {
             loadingLabelTimer = scheduleRuntimeTimeout(() => {
               if (bytesTotalHint && bytesTotalHint > 0) {
@@ -313,10 +315,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             }
             if (!wasIndexedForPath(path, hash)) {
               const ext = workspaceExtLower(path)
-              const shouldRunWorkspaceSourceParsing = (
-                ext === '.geojson'
-                || ext === '.json'
-              )
+              const shouldRunWorkspaceSourceParsing = ext === '.geojson' || ext === '.json' || ext === '.html' || ext === '.htm'
               const shouldSkipHeavyWorkspaceSourceParsing = nextText.length > WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS
               if (shouldSkipHeavyWorkspaceSourceParsing) {
                 rememberIndexedForPath(path, hash)
@@ -343,7 +342,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 return
               }
 
-              const jobId = ++args.indexJobRef.current
+              const jobId = effectJobId
               const isStaleJob = () =>
                 cancelled || args.activePathRef.current !== scheduledFor || args.indexJobRef.current !== jobId
               if (bytesTotalHint && bytesTotalHint > 0) args.setStatusProgress(indexLabel, 1, 1, bytesTotalHint, bytesTotalHint)
@@ -569,7 +568,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             applyLoadFailedStatus(e)
           }
         } finally {
-          if (!cancelled && args.indexingInFlightRef.current) args.setIndexingInFlight(false)
+          clearMarkdownWorkspaceIndexingInFlight(args, scheduledFor, effectJobId)
           clearRuntimeTimeout(loadingLabelTimer)
         }
       })()
@@ -581,6 +580,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     return () => {
       cancelled = true
       cancelMarkdownWorkspaceIndexStart()
+      clearMarkdownWorkspaceIndexingInFlight(args, scheduledFor)
     }
   }, [
     applyIndexedStatus,
@@ -594,8 +594,8 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     args.activePath,
     args.contentMode,
     args.getFs,
-    args.indexingInFlight,
     args.indexingInFlightRef,
+    args.indexingInFlightPathRef,
     args.setActiveMarkdownDocument,
     args.setIndexingInFlight,
     args.setActiveTextProgrammatic,

@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { analyzeMarkdownGeodataSources } from '@/lib/markdown/markdownGeodataAnalysis'
+import {
+  analyzeMarkdownGeodataSources,
+  buildMarkdownGeodataAnalysisCacheSignature,
+  buildMarkdownGeodataCandidateProfile,
+} from '@/lib/markdown/markdownGeodataAnalysis'
 import { buildMarkdownGeoDatasetGraphSourcePath } from '@/features/geospatial/markdownGeoDatasetRequest'
 import { cloneMarkdownGeoAnalysis, cloneMarkdownGeoFeatureCollection } from '@/features/geospatial/markdownGeoClone'
 
@@ -102,6 +106,37 @@ export function testMarkdownGeodataAnalysisReusesSharedAnalyzerUpstream() {
     || clonedAnalysis.poiFeatureCollections === first.poiFeatureCollections
   ) {
     throw new Error('expected shared markdown geo cache clone helper to return fresh analysis wrapper objects')
+  }
+}
+
+export function testMarkdownGeodataAnalysisUsesCandidateSignatureBeforeFullTextHashing() {
+  const plainA = 'Plain source file without map data.\n'.repeat(120)
+  const plainB = 'Neutral source text without geo.\n'.repeat(120)
+  const plainProfile = buildMarkdownGeodataCandidateProfile(plainA)
+  if (plainProfile.mayContainEmbeddedGeoJson || plainProfile.mayContainPoiTables || !plainProfile.textSignature.startsWith('plain:')) {
+    throw new Error('expected plain markdown geodata candidate profiling to avoid full content hashing')
+  }
+
+  const plainASignature = buildMarkdownGeodataAnalysisCacheSignature({
+    markdownText: plainA,
+    sourceDocumentPath: 'workspace:/analysis/plain.md',
+  })
+  const plainBSignature = buildMarkdownGeodataAnalysisCacheSignature({
+    markdownText: plainB.padEnd(plainA.length, '.').slice(0, plainA.length),
+    sourceDocumentPath: 'workspace:/analysis/plain.md',
+  })
+  if (plainASignature !== plainBSignature) {
+    throw new Error('expected non-geospatial markdown signatures to be candidate-based instead of full-text-hash based')
+  }
+
+  const geoText = [
+    '```geojson',
+    '{"type":"FeatureCollection","features":[]}',
+    '```',
+  ].join('\n')
+  const geoProfile = buildMarkdownGeodataCandidateProfile(geoText)
+  if (!geoProfile.mayContainEmbeddedGeoJson || !geoProfile.textSignature.startsWith('geo:')) {
+    throw new Error('expected geospatial markdown candidate profiling to include a content hash only when map data markers exist')
   }
 }
 

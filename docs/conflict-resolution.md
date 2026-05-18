@@ -157,7 +157,9 @@ npm test
 
 Use focused tests when only one subsystem changed.
 
-`npm run conflict:check` bundles the publish sync drift check, merge-marker scan, and the sibling `AgenticRAG` schema map check when that repo is available.
+`npm run conflict:check` bundles changed-file hygiene budgets, semantic-key helper enforcement, Pages chunk budgets, the publish sync drift check, merge-marker scan, and the sibling `AgenticRAG` schema map check when that repo is available.
+
+Use `npm run hygiene:audit` before broad refactors to list all current source-budget debt. New source files must stay under 600 lines and 500 KiB; existing over-budget files must not grow while they are being split. Generated archives, dependency output, and published preview data stay outside the day-to-day gate.
 
 ---
 

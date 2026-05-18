@@ -30,6 +30,7 @@ import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 const DB_NAME = 'kg:workspace-fs'
+let lastDocsMirrorSyncSignature = ''
 
 type WorkspaceEntryRow = WorkspaceEntry
 type WorkspaceCollections = {
@@ -98,6 +99,20 @@ const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
 }
 
+const buildDocsMirrorSyncSignature = (
+  docsEntries: ReadonlyArray<{ relPath: string; text: string; updatedAtMs: number }>,
+): string => {
+  const rows = (Array.isArray(docsEntries) ? docsEntries : [])
+    .map(entry => {
+      const relPath = normalizeDocsMirrorRelPath(String(entry?.relPath || ''))
+      if (!relPath) return ''
+      return `${relPath}:${Number(entry?.updatedAtMs || 0)}:${String(entry?.text || '').length}`
+    })
+    .filter(Boolean)
+    .sort()
+  return rows.join('|')
+}
+
 const syncWorkspaceDocsMirrorEntries = async (
   collections: WorkspaceCollections,
   docsEntriesInput?: ReadonlyArray<{ relPath: string; text: string; updatedAtMs: number }>,
@@ -106,6 +121,8 @@ const syncWorkspaceDocsMirrorEntries = async (
     ? [...docsEntriesInput]
     : await readWorkspaceInitializationDocsMirrorEntries()
   if (docsEntries.length === 0) return false
+  const docsMirrorSignature = buildDocsMirrorSyncSignature(docsEntries)
+  if (docsMirrorSignature && docsMirrorSignature === lastDocsMirrorSyncSignature) return false
   const desiredEntriesByPath = new Map<WorkspacePath, WorkspaceEntry>()
   for (let i = 0; i < docsEntries.length; i += 1) {
     const entry = docsEntries[i]
@@ -173,6 +190,7 @@ const syncWorkspaceDocsMirrorEntries = async (
     })
     changed = true
   }
+  if (docsMirrorSignature) lastDocsMirrorSyncSignature = docsMirrorSignature
   return changed
 }
 
@@ -211,6 +229,7 @@ const getDb = async () => {
 }
 
 export function createWorkspaceRxdbFs(): WorkspaceFs {
+  lastDocsMirrorSyncSignature = ''
   const ensureRoot = async () => {
     const { collections } = await getDb()
     const existing = await collections.entries.findOne(WORKSPACE_ROOT_PATH).exec()

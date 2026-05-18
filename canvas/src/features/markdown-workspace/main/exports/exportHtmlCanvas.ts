@@ -1,7 +1,6 @@
 import { downloadBlob, saveBlobWithPicker } from '@/lib/graph/save'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { lsBool } from '@/lib/persistence'
-import { LS_KEYS } from '@/lib/config'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
@@ -65,13 +64,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
     const exportBaseName = String(args.exportBaseName || '').trim() || 'document'
     const store = useGraphStore.getState()
 
-    const geospatialEnabled = (() => {
-      try {
-        return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-      } catch {
-        return false
-      }
-    })()
+    const geospatialEnabled = readGeospatialOverlayEnabledPreference()
 
     const wants3dExport =
       store.canvasRenderMode === '3d' || (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')

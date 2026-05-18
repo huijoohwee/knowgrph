@@ -89,17 +89,21 @@ export function useMarkdownWorkspaceBootstrapState(args: {
   const repairedMissingWorkspaceFilesRef = React.useRef<Set<WorkspacePath>>(new Set())
   const lastIndexedByPathRef = React.useRef<Map<WorkspacePath, string>>(new Map())
   const indexJobRef = React.useRef(0)
+  const indexingInFlightRef = React.useRef(false)
+  const indexingInFlightPathRef = React.useRef<WorkspacePath | null>(null)
   const [indexingInFlight, setIndexingInFlightState] = React.useState(false)
   const setIndexingInFlight = React.useCallback<React.Dispatch<React.SetStateAction<boolean>>>(
     next => {
       setIndexingInFlightState(prev => {
         const resolved = typeof next === 'function' ? next(prev) : next
-        return resolved === true
+        const normalized = resolved === true
+        indexingInFlightRef.current = normalized
+        if (!normalized) indexingInFlightPathRef.current = null
+        return normalized
       })
     },
     [],
   )
-  const indexingInFlightRef = React.useRef(false)
   indexingInFlightRef.current = indexingInFlight
   React.useEffect(() => {
     setMarkdownWorkspaceIndexingInFlight(indexingInFlight === true)
@@ -170,6 +174,7 @@ export function useMarkdownWorkspaceBootstrapState(args: {
     indexingInFlight,
     setIndexingInFlight,
     indexingInFlightRef,
+    indexingInFlightPathRef,
     collapsedSnapshotRef,
     prevCollapsedRef,
     lastRequestedActivePathRef,

@@ -17,6 +17,7 @@ import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { getIconSizeClass } from '@/lib/ui'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 export type CanvasToolbarCallbacks = {
   onZoomIn?: () => void
@@ -117,13 +118,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     clampMainPanelPos,
   } = useMainPanelDrag()
 
-  const [geospatialEnabled, setGeospatialEnabled] = useState<boolean>(() => {
-    try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-    } catch {
-      return false
-    }
-  })
+  const [geospatialEnabled, setGeospatialEnabled] = useState<boolean>(() => readGeospatialOverlayEnabledPreference())
 
   const toolbarNavRef = useRef<HTMLElement>(null)
   useForbidBrowserZoomWheel(toolbarNavRef, true)

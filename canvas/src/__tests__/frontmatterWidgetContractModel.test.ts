@@ -117,10 +117,10 @@ export const testBuildFrontmatterWidgetContractRowSpecsBuildsHandleAndEnvelopeDe
   if (rows.envelopeRows.length !== 4) {
     throw new Error(`expected handle+data+compute envelope row specs, got ${rows.envelopeRows.length}`)
   }
-  if (!rows.envelopeRows.some(row => row.kind === 'data' && row.rowKey === 'flow-envelope-data')) {
+  if (!rows.envelopeRows.some(row => row.kind === 'data' && row.rowKey === 'flow-data')) {
     throw new Error('expected envelope row specs to include explicit data row descriptor when flow data is present')
   }
-  if (!rows.envelopeRows.some(row => row.kind === 'compute' && row.rowKey === 'flow-envelope-compute')) {
+  if (!rows.envelopeRows.some(row => row.kind === 'compute' && row.rowKey === 'flow-compute')) {
     throw new Error('expected envelope row specs to include explicit compute row descriptor when flow compute is present')
   }
 }

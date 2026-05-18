@@ -461,6 +461,7 @@ const loadWorkspaceSeedText = async (args: {
   basename: string
   relPaths: ReadonlyArray<string>
   fallbackText: string
+  docsMirrorEntries?: Awaited<ReturnType<typeof readWorkspaceInitializationDocsMirrorEntries>>
 }): Promise<{ text: string; isFallback: boolean }> => {
   const basename = normalizeInitializationSeedRelPath(args.basename)
   const relPathSet = new Set(
@@ -468,7 +469,7 @@ const loadWorkspaceSeedText = async (args: {
       .map(path => normalizeInitializationSeedRelPath(path))
       .filter(Boolean),
   )
-  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries()
+  const docsMirrorEntries = Array.isArray(args.docsMirrorEntries) ? args.docsMirrorEntries : await readWorkspaceInitializationDocsMirrorEntries()
   if (docsMirrorEntries.length > 0) {
     const byUpdatedDesc = [...docsMirrorEntries].sort((a, b) => Number(b.updatedAtMs || 0) - Number(a.updatedAtMs || 0))
     for (let i = 0; i < byUpdatedDesc.length; i += 1) {
@@ -529,14 +530,11 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
+  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries()
   const loaded = await Promise.all(
     WORKSPACE_SEED_SPECS.map(async seed => ({
       path: seed.path,
-      ...(await loadWorkspaceSeedText({
-        basename: seed.basename,
-        relPaths: seed.sourceRelPaths,
-        fallbackText: seed.fallbackText,
-      })),
+      ...(await loadWorkspaceSeedText({ basename: seed.basename, relPaths: seed.sourceRelPaths, fallbackText: seed.fallbackText, docsMirrorEntries })),
     })),
   )
   return loaded

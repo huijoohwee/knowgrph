@@ -94,6 +94,8 @@ export interface GraphStatePanelsMarkdown {
   floatingPanelHeightRatio: number;
   floatingPanelZIndex: number;
   bottomSurfaceTab: BottomSurfaceTab;
+  requestedHistorySubTab: string | null;
+  requestHistorySubTab: (subTab: string | null) => void;
   launchSpotlightMode: 'tour' | 'stats';
   enableLaunchSpotlight: boolean;
   statusPanelPinned: boolean;

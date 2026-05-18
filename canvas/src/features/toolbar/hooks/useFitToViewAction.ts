@@ -1,9 +1,8 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { LS_KEYS } from '@/lib/config'
-import { lsBool } from '@/lib/persistence'
 import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 export function useFitToViewAction() {
   const {
@@ -41,13 +40,7 @@ export function useFitToViewAction() {
       return
     }
 
-    const geospatialEnabled = (() => {
-      try {
-        return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-      } catch {
-        return false
-      }
-    })()
+    const geospatialEnabled = readGeospatialOverlayEnabledPreference()
 
     const allowGeospatialFit = geospatialEnabled
     if (allowGeospatialFit) {

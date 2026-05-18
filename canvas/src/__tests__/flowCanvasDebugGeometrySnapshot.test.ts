@@ -82,7 +82,7 @@ const installDomStubs = (dom: JSDOM) => {
   }
 
   dom.window.HTMLCanvasElement.prototype.getContext = function (type: string) {
-    if (type === '2d') return ctx as CanvasRenderingContext2D
+    if (type === '2d') return ctx as unknown as CanvasRenderingContext2D
     return null
   }
 }

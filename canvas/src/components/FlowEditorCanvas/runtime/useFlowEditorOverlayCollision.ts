@@ -466,6 +466,10 @@ export function useFlowEditorOverlayCollision(args: {
         : floatingScaled
       const useFrontmatterProxyCollisionSizing = isFrontmatterFlow && overlayOnlyModeEnabled
       const balancedLayoutSize = useFrontmatterProxyCollisionSizing ? floatingScaled : typicalSize
+      const resolveWidgetCollisionSize = (rect: { width: number; height: number } | null | undefined) => useFrontmatterProxyCollisionSizing ? floatingScaled : {
+        width: Math.max(floatingScaled.width, rect?.width ?? 0),
+        height: Math.max(floatingScaled.height, rect?.height ?? 0),
+      }
       const gapBase = typeof schema?.layout?.flow?.overlay?.collisionGapPx === 'number' ? schema.layout.flow.overlay.collisionGapPx : 12
       const configuredGapPx = Math.max(0, Math.min(80, Math.floor(widgetGrid.gridEnabled ? Math.max(gapBase, widgetGrid.gapPx) : gapBase)))
       const balancedViewportPreset = resolveBalancedViewportPreset({
@@ -563,13 +567,8 @@ export function useFlowEditorOverlayCollision(args: {
           const stored = posById[id]
           if (!stored || !Number.isFinite(stored.top) || !Number.isFinite(stored.left)) return null
           const rect = rectByNodeId.get(id) || null
-          return {
-            id,
-            left: stored.left,
-            top: stored.top,
-            width: rect?.width ?? floatingScaled.width,
-            height: rect?.height ?? floatingScaled.height,
-          }
+          const size = resolveWidgetCollisionSize(rect)
+          return { id, left: stored.left, top: stored.top, width: size.width, height: size.height }
         })
         .filter((item): item is { id: string; left: number; top: number; width: number; height: number } => !!item)
       const storedCollectiveViewportState = deriveCollectiveViewportState(storedCollectiveItems)
@@ -642,9 +641,7 @@ export function useFlowEditorOverlayCollision(args: {
           const row = rawCol < cols ? stack % rowsMax : stack - (cols - 1) * rowsMax
           const centeredCell = useBalancedCenteredLayout ? preferredBalancedCellsInVisibleViewport[stack] : null
           stack += 1
-          const pinnedCollisionSize = useFrontmatterProxyCollisionSizing
-            ? floatingScaled
-            : (rect ? { width: rect.width, height: rect.height } : floatingScaled)
+          const pinnedCollisionSize = resolveWidgetCollisionSize(rect)
           const fallback = centeredCell
             ? { left: centeredCell.left, top: centeredCell.top }
             : { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
@@ -685,14 +682,14 @@ export function useFlowEditorOverlayCollision(args: {
           : (() => {
               const left = stored.left
               const top = stored.top
-              const width = rect?.width ?? floatingScaled.width
-              const height = rect?.height ?? floatingScaled.height
+              const { width, height } = resolveWidgetCollisionSize(rect)
               const okX = left >= activeViewport.left - 12 && left <= Math.max(activeViewport.left - 12, activeViewport.right - Math.max(12, width))
               const okY = top >= activeViewport.top - 12 && top <= Math.max(activeViewport.top - 12, activeViewport.bottom - Math.max(12, height))
               return okX && okY ? stored : fallback
             })()
-        const clamped = clampToCollisionViewport(base, rect ? { width: rect.width, height: rect.height } : floatingScaled)
-        items.push({ id, top: clamped.top, left: clamped.left, movable: true, pinnedInCanvas: false, width: rect?.width, height: rect?.height })
+        const floatingCollisionSize = resolveWidgetCollisionSize(rect)
+        const clamped = clampToCollisionViewport(base, floatingCollisionSize)
+        items.push({ id, top: clamped.top, left: clamped.left, movable: true, pinnedInCanvas: false, width: floatingCollisionSize.width, height: floatingCollisionSize.height })
       }
       if (items.length === 0) {
         resetOverlayCollisionTransientState(true)

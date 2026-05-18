@@ -124,7 +124,7 @@ export function testFlowEditorOverlayZoomKeepsWidgetAndRichMediaCentersStable() 
   if (!runtimeSceneText.includes("if (bucketId === viewportBucketId) return `${bucketId}:visible-viewport`")) {
     throw new Error('expected flow editor runtime scene to keep viewport auto-seed signatures stable across zoom changes')
   }
-  if (!runtimeSceneText.includes('const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.viewportW}x${args.viewportH}|${bucketSignature}`')) {
+  if (!runtimeSceneText.includes('const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`')) {
     throw new Error('expected flow editor runtime scene layout signature to exclude zoom-key churn for overlay auto-seeding')
   }
   if (!mediaLoopText.includes('const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6')) {

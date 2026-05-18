@@ -62,7 +62,7 @@ export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidate
     const viewSelect = dom.window.document.querySelector('select[aria-label="Webpage view mode"]')
     if (viewSelect) throw new Error('expected Webpage view dropdown to be removed')
 
-    const labels = Array.from(dom.window.document.querySelectorAll('label'))
+    const labels = Array.from(dom.window.document.querySelectorAll('label')) as HTMLLabelElement[]
     const htmlLabel = labels.find(l => /\bHTML\b/i.test(String(l.textContent || ''))) || null
     if (!htmlLabel) throw new Error('expected HTML checkbox to exist in workspace panes group')
 

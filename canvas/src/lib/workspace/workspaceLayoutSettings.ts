@@ -1,4 +1,4 @@
-import { LS_KEYS } from '@/lib/config'
+import { LS_KEYS, type LsStorageKey } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 
 export type PrintOrientation = 'portrait' | 'landscape'
@@ -8,7 +8,7 @@ export type PrintInsetGroup = 'pageMarginMm' | 'rootPaddingMm'
 type WorkspaceTokenDef = {
   key: string
   cssVar: string
-  storageKey: string
+  storageKey: LsStorageKey
   defaultValue: number
   min: number
   max: number
@@ -16,7 +16,7 @@ type WorkspaceTokenDef = {
 
 type PrintTokenDef = {
   key: string
-  storageKey: string
+  storageKey: LsStorageKey
   orientation: PrintOrientation
   group: PrintInsetGroup
   side: InsetsSide
@@ -32,7 +32,7 @@ const clampNumber = (value: number, min: number, max: number): number => {
   return value
 }
 
-const readNumber = (storageKey: string, fallback: number, min: number, max: number): number =>
+const readNumber = (storageKey: LsStorageKey, fallback: number, min: number, max: number): number =>
   clampNumber(
     lsJson<number>(storageKey, fallback, raw =>
       typeof raw === 'number' && Number.isFinite(raw) ? raw : null,
@@ -41,7 +41,7 @@ const readNumber = (storageKey: string, fallback: number, min: number, max: numb
     max,
   )
 
-const writeNumber = (storageKey: string, value: number, min: number, max: number): number => {
+const writeNumber = (storageKey: LsStorageKey, value: number, min: number, max: number): number => {
   const next = clampNumber(Number(value), min, max)
   lsSetJson(storageKey, next)
   return next

@@ -1,9 +1,6 @@
 import React from 'react'
-
 import {
   deriveOpenWidgetOverlayNodeIds,
-  filterGraphByExcludedNodeIds,
-  FlowEditorWidgetOverlay,
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
@@ -12,10 +9,7 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
   hashScopedStringArraySignature,
@@ -23,7 +17,6 @@ import {
   normalizeStringArrayForSignature,
 } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
 import {
   buildRichMediaConnectedValueTargetNodeIdSet,
@@ -33,16 +26,18 @@ import {
   getCachedFlowEditorRenderGraph,
   getCachedFlowEditorWidgetPlacementContext,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-
+import { buildOverlayEditorElements } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements'
+import {
+  buildFlowCanvasGraphDataOverride,
+  buildFrontmatterOverlayHideSafety,
+  resolveOverlayOnlyActive,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceVisibility'
 const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
 const EMPTY_GRAPH_NODE_BY_ID = new Map<string, GraphNode>()
 const EMPTY_GRAPH_ELIGIBLE_NODE_IDS = new Set<string>()
-
 export function useFlowEditorOverlaySurface(args: {
   flowEditorSurfaceId: string
-  canInteract: boolean
   canEdit: boolean
   flowEditorViewActive: boolean
   flowEditorFrontmatterGraphAvailable: boolean
@@ -88,7 +83,6 @@ export function useFlowEditorOverlaySurface(args: {
 }) {
   const {
     flowEditorSurfaceId,
-    canInteract,
     canEdit,
     flowEditorViewActive,
     flowEditorFrontmatterGraphAvailable,
@@ -138,14 +132,12 @@ export function useFlowEditorOverlaySurface(args: {
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>('')
-  const frontmatterOverlayOnlyCoverageRef = React.useRef<{ key: string; untilMs: number } | null>(null)
 
   React.useEffect(() => {
     if (!flowEditorViewActive) {
       if (workspaceMutationBlocked) return
       lastStableOverlayEditorNodeIdsRef.current = []
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = ''
-      frontmatterOverlayOnlyCoverageRef.current = null
     }
   }, [flowEditorViewActive, workspaceMutationBlocked])
 
@@ -458,116 +450,52 @@ export function useFlowEditorOverlaySurface(args: {
   }, [scheduleOverlayCollisionResolve])
 
   const overlayEditorElements = React.useMemo(() => {
-    if (!overlayVisibilityActive) return []
-    const nodeById = renderGraphNodeById
-    const incidentEdgesByNodeId = renderGraphIncidentEdgesByNodeId
-    const graphMetaKind = renderGraphMetaKind
-    const graphMetaKey = buildGraphMetaKeyIgnoringPending(renderGraphDataOverride)
-    const resolveNode = (id: string) => {
-      const found = nodeById.get(id) || null
-      if (found) return found
-      const canonicalMatch = resolveGraphNodeByCanonicalId(renderGraphDataOverride, id)
-      if (canonicalMatch) return canonicalMatch
-      const stableCanonicalMatch = resolveGraphNodeByCanonicalId(lastStableRenderGraphDataOverrideRef.current, id)
-      if (stableCanonicalMatch) return stableCanonicalMatch
-      const pending = pendingOverlayNodeIdRef.current
-      if (pending && pending === id) return pendingOverlayNode
-      return null
-    }
-    return overlayEditorNodeIds
-      .map((id, stackIndex) => {
-        const node = resolveNode(id)
-        if (!node) return null
-        if (String(node.type || '') === 'Section') return null
-        const autoRevealKey = id === String(lastDroppedWidgetNodeIdRef.current || '') ? lastDroppedWidgetToken : 0
-        const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = connectedValuesByNodeId.get(id) || undefined
-        const portHandleEdges = incidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES
-        const overlayInstanceKey = [
-          'qe',
-          String(flowEditorSurfaceId || '').trim() || 'surface',
-          String(renderGraphSemanticKey || '').trim() || String(graphMetaKey || '').trim() || 'graph',
-          id,
-        ].join(':')
-        return (
-          <FlowEditorWidgetOverlay
-            key={overlayInstanceKey}
-            visible={overlayVisibilityActive}
-            active={canInteract}
-            interactionPassthrough={workspaceInteractionPassthrough}
-            flowEditorSurfaceId={flowEditorSurfaceId}
-            overlayCollectiveCount={overlayEditorNodeIds.length}
-            node={node}
-            graphMetaKind={graphMetaKind}
-            graphMetaKey={graphMetaKey}
-            portHandleEdges={portHandleEdges}
-            registryEntries={widgetRegistry}
-            connectedValuesBySchemaPath={connectedValuesBySchemaPath}
-            toolMode={toolMode}
-            pendingEdgeSourceId={pendingEdgeSourceId}
-            onBeginAddEdgeFromNode={beginAddEdgeFromNode}
-            onFinalizeAddEdgeToNode={finalizePendingEdge}
-            viewportW={viewportW}
-            viewportH={viewportH}
-            canvasWindowOffset={canvasWindowOffset}
-            zoomViewKey={zoomViewKey}
-            autoRevealKey={autoRevealKey}
-            stackIndex={stackIndex}
-            getLiveNodeWorldPos={getLiveNodeWorldPos}
-            getLiveZoomTransform={getLiveZoomTransform}
-            getLiveContainmentGroupAabbForNode={getLiveContainmentGroupAabbForNode}
-            onSetLabel={(label) => setNodeLabelById(id, label)}
-            onSetType={(type) => setNodeTypeById(id, type)}
-            onPatchProperties={(patch) => patchNodePropertiesById(id, patch)}
-            onSetProperties={(props) => setNodePropertiesById(id, props)}
-            onValidate={() => validateNodeById(id)}
-            onRun={() => {
-              void args.runWorkflowNode(id)
-            }}
-            onDuplicate={() => {
-              const pinnedMap = flowWidgetPinnedByNodeId || {}
-              const pinned = pinnedMap[id] === true
-              if (pinned) {
-                upsertUiToast({
-                  id: `flow-editor-node-duplicate-disabled-${id}`,
-                  kind: 'warning',
-                  message: 'Pinned widget blocks duplicate copy.',
-                  ttlMs: 2200,
-                })
-                return
-              }
-              duplicateNodeById(id)
-            }}
-            onRemove={() => removeNodeById(id)}
-            onClearOutput={() => clearNodeOutputById(id)}
-            onHelp={showNodeEditorHelp}
-            onConvertToLoopNode={() => convertNodeToLoopById(id)}
-            onEnableHandlesForAllInputs={enableHandlesForAllInputs}
-            onUpdateKvEntry={() => {
-              if (typeof window === 'undefined') return
-              const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({
-                node,
-                registry: widgetRegistry,
-                graphMetaKind,
-              })
-              const widgetIdentity = resolveNodeWidgetIdentity({ node, registryEntry: resolvedWidgetRegistryEntry })
-              const searchQuery = [
-                String(resolvedWidgetRegistryEntry?.id || '').trim(),
-                String(node.type || '').trim(),
-                widgetIdentity.widgetTypeId,
-                widgetIdentity.formId,
-              ].filter(Boolean).join(' ')
-              emitMainPanelOpen({
-                tab: 'workflowManager' as const,
-                workflowManagerTab: 'mapping' as const,
-                searchQuery,
-              })
-            }}
-            onPinnedInCanvasChange={handlePinnedInCanvasChange}
-            onRenameSchemaFieldId={({ prevId, nextId }) => renameSchemaFieldIdByNodeId(id, prevId, nextId)}
-          />
-        )
-      })
-      .filter(Boolean)
+    return buildOverlayEditorElements({
+      overlayVisibilityActive,
+      renderGraphNodeById,
+      renderGraphIncidentEdgesByNodeId,
+      renderGraphMetaKind,
+      renderGraphDataOverride,
+      lastStableRenderGraphDataOverride: lastStableRenderGraphDataOverrideRef.current,
+      pendingOverlayNodeIdRef,
+      pendingOverlayNode,
+      overlayEditorNodeIds,
+      connectedValuesByNodeId,
+      flowEditorSurfaceId,
+      renderGraphSemanticKey,
+      canEdit,
+      workspaceInteractionPassthrough,
+      widgetRegistry,
+      toolMode,
+      pendingEdgeSourceId,
+      viewportW,
+      viewportH,
+      canvasWindowOffset,
+      zoomViewKey,
+      lastDroppedWidgetNodeIdRef,
+      lastDroppedWidgetToken,
+      getLiveNodeWorldPos,
+      getLiveZoomTransform,
+      getLiveContainmentGroupAabbForNode,
+      beginAddEdgeFromNode,
+      finalizePendingEdge,
+      setNodeLabelById,
+      setNodeTypeById,
+      patchNodePropertiesById,
+      setNodePropertiesById,
+      validateNodeById,
+      runWorkflowNode,
+      duplicateNodeById,
+      removeNodeById,
+      clearNodeOutputById,
+      showNodeEditorHelp,
+      convertNodeToLoopById,
+      enableHandlesForAllInputs,
+      renameSchemaFieldIdByNodeId,
+      upsertUiToast,
+      flowWidgetPinnedByNodeId,
+      handlePinnedInCanvasChange,
+    })
   }, [
     beginAddEdgeFromNode,
     canEdit,
@@ -617,29 +545,14 @@ export function useFlowEditorOverlaySurface(args: {
     overlayEditorElements.length > 0
     || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)
   const frontmatterOverlayHideSafety = React.useMemo(() => {
-    const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
-    if (kind !== 'frontmatter-flow') {
-      return { kind, visibleNodeIds: [] as string[], hasFullOverlayCoverageForVisibleNodes: true, coverageGuardKey: '' }
-    }
-    const visibleNodeIds = Array.isArray(frontmatterVisibleSceneDisplay?.displayNodes)
-      ? frontmatterVisibleSceneDisplay.displayNodes.map(n => String(n?.id || '').trim()).filter(Boolean)
-      : []
-    const eligibleIds = renderGraphEligibleNodeIds
-    const overlayCoverageIdSet = new Set([
-      ...overlayEditorNodeIdsSnapshot,
-      ...frontmatterRichMediaOverlayNodeIdsSnapshot,
-    ])
-    const visibleFlowNodeIds = visibleNodeIds.filter(id => eligibleIds.size === 0 || eligibleIds.has(id))
-    const hasFullOverlayCoverageForVisibleNodes = visibleFlowNodeIds.every(id => overlayCoverageIdSet.has(id))
-    const visibleFlowNodeIdsKey = hashScopedStringArraySignature('visible-flow-nodes', visibleFlowNodeIds)
-    const coverageGuardKey = hashSignatureParts([
-      'frontmatter-overlay-only-coverage',
-      overlayTopologyLayoutSignature,
-      visibleFlowNodeIdsKey,
-    ])
-    return { kind, visibleNodeIds: visibleFlowNodeIds, hasFullOverlayCoverageForVisibleNodes, coverageGuardKey }
+    return buildFrontmatterOverlayHideSafety({
+      renderGraphDataOverride,
+      frontmatterVisibleSceneDisplay,
+      frontmatterRichMediaOverlayNodeIdsSnapshot,
+      overlayEditorNodeIdsSnapshot,
+      renderGraphEligibleNodeIds,
+    })
   }, [
-    overlayTopologyLayoutSignature,
     renderGraphDataOverride,
     frontmatterVisibleSceneDisplay,
     frontmatterRichMediaOverlayNodeIdsSnapshot,
@@ -647,67 +560,22 @@ export function useFlowEditorOverlaySurface(args: {
     renderGraphEligibleNodeIds,
   ])
 
-  const overlayOnlyActive =
-    (() => {
-      const baseActive = overlayVisibilityActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))
-      if (!baseActive) {
-        frontmatterOverlayOnlyCoverageRef.current = null
-        return false
-      }
-      if (geospatialWidgetPanelMode) return true
-      const frontmatterOverlayCoverageReady =
-        frontmatterOverlayHideSafety.kind === 'frontmatter-flow'
-        && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
-      if (workspaceMutationBlocked) {
-        // Frontmatter document scenes already route visible nodes through widget/rich-media
-        // overlays, so keep overlay-only authority when coverage is complete even if the
-        // workspace blocks mutations.
-        if (frontmatterOverlayCoverageReady) return true
-        // Keep base FlowCanvas interactive/visible while Workspace view mutations are active
-        // for non-frontmatter scenes that still rely on the runtime canvas graph.
-        frontmatterOverlayOnlyCoverageRef.current = null
-        return false
-      }
-      if (workspaceEditorOverlayOpen) {
-        // When frontmatter coverage is complete, disabling overlay-only mode here strands edges:
-        // the shared visible-node exclusion removes the corresponding FlowCanvas graph already.
-        // Keep overlays authoritative so widget/rich-media anchors and overlay-edge routing stay live.
-        if (frontmatterOverlayCoverageReady) return true
-        // Keep collective pan/zoom interaction on base FlowCanvas whenever Workspace view is open
-        // for non-frontmatter scenes that still render their graph on the canvas layer.
-        frontmatterOverlayOnlyCoverageRef.current = null
-        return false
-      }
-      if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {
-        if (!frontmatterOverlayCoverageReady) {
-          frontmatterOverlayOnlyCoverageRef.current = null
-          return false
-        }
-        return true
-      }
-      return true
-    })()
+  const overlayOnlyActive = resolveOverlayOnlyActive({
+    overlayVisibilityActive,
+    hasOverlayEditors,
+    geospatialWidgetPanelMode,
+    frontmatterOverlayHideSafety,
+    workspaceMutationBlocked,
+    workspaceEditorOverlayOpen,
+  })
 
   const flowCanvasGraphDataOverride = React.useMemo(() => {
-    if (!renderGraphDataOverride) return null
-    const isFrontmatterFlow = frontmatterOverlayHideSafety.kind === 'frontmatter-flow'
-    if (isFrontmatterFlow) {
-      const useVisibleCoverageExclusion =
-        renderGraphPlacementContext?.isFrontmatterFlow === true
-        && frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
-      const excludedNodeIds =
-        useVisibleCoverageExclusion
-          ? frontmatterOverlayHideSafety.visibleNodeIds
-          : overlayEditorNodeIdsSnapshot
-      return filterGraphByExcludedNodeIds({
-        graphData: renderGraphDataOverride,
-        excludedNodeIds,
-      })
-    }
-    const overlayExcludedNodeIds = overlayOnlyActive ? overlayEditorNodeIdsSnapshot : []
-    return filterGraphByExcludedNodeIds({
-      graphData: renderGraphDataOverride,
-      excludedNodeIds: overlayExcludedNodeIds,
+    return buildFlowCanvasGraphDataOverride({
+      renderGraphDataOverride,
+      frontmatterOverlayHideSafety,
+      renderGraphPlacementContext,
+      overlayEditorNodeIdsSnapshot,
+      overlayOnlyActive,
     })
   }, [
     frontmatterOverlayHideSafety.kind,

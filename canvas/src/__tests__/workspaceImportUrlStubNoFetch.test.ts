@@ -1,5 +1,6 @@
+import path from 'node:path'
+
 import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
-import { KNOWGRPH_VIDEO_DEMO_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 
@@ -39,7 +40,7 @@ export async function testWorkspaceImportUrlAcceptsAbsoluteFsPathViaViteFsFetch(
     } as Response
   }) as unknown as typeof fetch
   try {
-    const inputPath = resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
+    const inputPath = path.resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'synthetic-local-import.md')
     const normalizedFsPath = inputPath.replace(/\\/g, '/')
     const res = await fetchWorkspaceUrlContent(inputPath, { mode: 'import' })
     if (calledUrl !== `/@fs${normalizedFsPath}`) {
@@ -48,7 +49,7 @@ export async function testWorkspaceImportUrlAcceptsAbsoluteFsPathViaViteFsFetch(
     if (res.normalizedUrl !== inputPath) {
       throw new Error(`expected absolute filesystem import to preserve the original source path, got ${String(res.normalizedUrl)}`)
     }
-    if (res.name !== KNOWGRPH_VIDEO_DEMO_BASENAME) {
+    if (res.name !== 'synthetic-local-import.md') {
       throw new Error(`expected absolute filesystem import to derive the source basename, got ${String(res.name)}`)
     }
     if (res.text !== '# Local Demo\n') {

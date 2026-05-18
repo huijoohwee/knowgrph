@@ -1,9 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { useShallow } from 'zustand/react/shallow'
 
 import {
-  EMPTY_WIDGET_REGISTRY,
   deriveFlowEditorViewGraph,
   type ToolMode,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
@@ -20,10 +18,9 @@ import { useFlowEditorSelectionBookkeeping } from '@/components/FlowEditorCanvas
 import { useFlowEditorNodeDraftActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorNodeDraftActions'
 import { useFlowEditorGraphActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions'
 import { useFlowEditorWorkflowActions } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions'
+import { useFlowEditorRuntimeStoreState } from '@/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState'
 import FlowEditorCanvasSurface from '@/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface'
 import { useContainerDims } from '@/hooks/useContainerDims'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -33,9 +30,6 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { hashSignatureParts } from '@/lib/hash/signature'
-
-const EMPTY_STRING_ARRAY: string[] = []
-const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
 
 export default function FlowEditorCanvasRuntime(
   {
@@ -64,56 +58,17 @@ export default function FlowEditorCanvasRuntime(
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
 
-  const baseGraphData = useGraphStore(s => s.graphData)
-  const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
-  const graphContentRevision = useGraphStore(s => s.graphContentRevision || 0)
-  const resolvedThemeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const {
-    canvasRenderMode,
-    canvas2dRenderer,
-    documentSemanticMode,
-    frontmatterModeEnabled,
-    renderMediaAsNodes,
-    mediaPanelDensity,
-    collapsedGroupIds,
-    markdownDocumentName,
-    markdownDocumentSourceUrl,
-  } = useGraphStore(
-    useShallow(s => ({
-      canvasRenderMode: s.canvasRenderMode,
-      canvas2dRenderer: s.canvas2dRenderer,
-      documentSemanticMode: s.documentSemanticMode,
-      frontmatterModeEnabled: s.frontmatterModeEnabled,
-      renderMediaAsNodes: s.renderMediaAsNodes,
-      mediaPanelDensity: s.mediaPanelDensity,
-      collapsedGroupIds: s.collapsedGroupIds,
-      markdownDocumentName: s.markdownDocumentName,
-      markdownDocumentSourceUrl: s.markdownDocumentSourceUrl,
-    })),
-  )
-  const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
-  const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : EMPTY_STRING_ARRAY))
-  const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
-  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId ?? EMPTY_BOOL_RECORD)
-  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const selectNode = useGraphStore(s => s.selectNode)
-  const selectEdge = useGraphStore(s => s.selectEdge)
-  const selectGroup = useGraphStore(s => s.selectGroup)
-  const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
-  const addNode = useGraphStore(s => s.addNode)
-  const updateNode = useGraphStore(s => s.updateNode)
-  const updateEdge = useGraphStore(s => s.updateEdge)
-  const addEdge = useGraphStore(s => s.addEdge)
-  const createUserSubgraph = useGraphStore(s => s.createUserSubgraph)
-  const updateUserSubgraph = useGraphStore(s => s.updateUserSubgraph)
-  const removeUserSubgraph = useGraphStore(s => s.removeUserSubgraph)
-  const addNodesToUserSubgraph = useGraphStore(s => s.addNodesToUserSubgraph)
-  const removeNodesFromUserSubgraph = useGraphStore(s => s.removeNodesFromUserSubgraph)
-  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
-  const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
-  const schema = useGraphStore(s => s.schema)
-  const setSchema = useGraphStore(s => s.setSchema)
-  const toggleGroupCollapsed = useGraphStore(s => s.toggleGroupCollapsed)
+    addEdge, addNode, addNodesToUserSubgraph, baseGraphData, baseGraphDataRevision,
+    baseWidgetRegistry, canvasRenderMode, canvas2dRenderer, collapsedGroupIds, createUserSubgraph,
+    documentSemanticMode, documentStructureBaselineLock, documentWidgetRegistry, effectiveWidgetRegistry,
+    flowWidgetPinnedByNodeId, frontmatterModeEnabled, graphContentRevision, markdownDocumentName,
+    markdownDocumentSourceUrl, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
+    removeUserSubgraph, renderMediaAsNodes, resolvedThemeMode, schema, selectEdge, selectGroup,
+    selectNode, selectedEdgeId, selectedNodeId, selectedNodeIds, setGraphDataPreservingLayout,
+    setOpenWidgetNodeIds, setSchema, setSelectionSource, toggleGroupCollapsed, updateEdge, updateNode,
+    updateOpenWidgetNodeIds, updateUserSubgraph, upsertUiToast, workspaceMutationBlocked,
+  } = useFlowEditorRuntimeStoreState()
   const setSelectionSourceForActions = React.useCallback(
     (source: 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown' | 'system') => {
       setSelectionSource(source === 'canvas' || source === 'toolbar' ? source : 'editor')
@@ -141,7 +96,6 @@ export default function FlowEditorCanvasRuntime(
     return `${name}::${sourceUrl}`
   }, [markdownDocumentName, markdownDocumentSourceUrl])
   const flowEditorViewActive = editorRuntimeActive
-  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
   const canInteract = editorRuntimeActive
   const canEdit = editorRuntimeActive && !documentStructureBaselineLock
   const { canvasWindowOffset, canvasWindowOffsetRef, inspectorPortalHost, setCanvasWindowOffsetFromRect } = useFlowEditorSurfaceAnchors({
@@ -199,15 +153,6 @@ export default function FlowEditorCanvasRuntime(
     zoomViewKeyRef.current = zoomViewKey
   }, [zoomViewKey])
 
-  const documentWidgetRegistry = useGraphStore(s =>
-    Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : EMPTY_WIDGET_REGISTRY,
-  )
-  const effectiveWidgetRegistry = useGraphStore(s =>
-    Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_WIDGET_REGISTRY,
-  )
-  const baseWidgetRegistry = useGraphStore(s =>
-    Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_WIDGET_REGISTRY,
-  )
   const widgetRegistry = React.useMemo(
     () => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry }),
     [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry],
@@ -217,11 +162,8 @@ export default function FlowEditorCanvasRuntime(
   const lastDroppedWidgetNodeIdRef = React.useRef<string | null>(null)
   const [lastDroppedWidgetToken, setLastDroppedWidgetToken] = React.useState<number>(0)
 
-  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY)
   const openWidgetNodeIdsRef = React.useRef(openWidgetNodeIds)
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
-  const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
-  const setOpenWidgetNodeIds = useGraphStore(s => s.setOpenWidgetNodeIds)
 
   React.useEffect(() => {
     openWidgetNodeIdsRef.current = openWidgetNodeIds
@@ -550,7 +492,6 @@ export default function FlowEditorCanvasRuntime(
     flowCanvasGraphDataOverride,
   } = useFlowEditorOverlaySurface({
     flowEditorSurfaceId,
-    canInteract,
     canEdit,
     flowEditorViewActive,
     flowEditorFrontmatterGraphAvailable,

@@ -285,6 +285,10 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Overlay edge composition** (`useFlowEditorOverlayEdges.ts` + `flowEditorRenderGraph.ts`):
   - `edgeCurveById` precomputed in the shared overlay graph; renderer consumes shared curve hints.
   - Frontmatter shot hero/CTA edges apply `frontmatterShotEdgeCrowdingLift` for long vertical transitions.
+- **Overlay surface ownership** (`useFlowEditorOverlaySurface.tsx` + `flowEditorOverlaySurfaceElements.tsx` + `flowEditorOverlaySurfaceVisibility.ts`):
+  - The hook owns memoized graph inputs, the visibility helper owns overlay-only/frontmatter exclusion policy, and the element helper owns JSX overlay composition plus connected rich-media values.
+- **Runtime facade ownership** (`FlowEditorCanvas.runtime.tsx` + `useFlowEditorRuntimeStoreState.ts`):
+  - The runtime facade wires hooks and surface props; the store-state helper owns broad graph/store selector plumbing.
 - **Rich media panel handle anchoring** (`handles.ts`):
   - Panel input/output handles are reordered by `richMediaActiveTab` so the active medium gets the most central port slot.
 - **Invariants**:

@@ -410,7 +410,8 @@ export function testBytePlusVideoWidgetPipelineRendersInRichMediaPanel() {
 
 export function testFlowCanvasUsesConnectedValuesForRichMediaPanelOverlays() {
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlay = readFileSync(overlayPath, 'utf8')
+  const overlayElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
+  const overlay = `${readFileSync(overlayPath, 'utf8')}\n${readFileSync(overlayElementsPath, 'utf8')}`
   const dataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
   const dataflow = readFileSync(dataflowPath, 'utf8')
   const mediaNodePath = resolve(process.cwd(), 'src', 'lib', 'render', 'effectiveMediaNode.ts')

@@ -10,10 +10,9 @@ import {
   readCanvasViewportSizeFromDom,
   wrapPngBlobAsSvgMarkup,
 } from '@/lib/graph/svgSnapshot'
-import { LS_KEYS } from '@/lib/config'
-import { lsBool } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
@@ -109,13 +108,7 @@ export function useSnapshotExportHandlers({
       try {
         const storage = verifyWorkflowPresetStorage()
         const suggested = storage.lastApplied ? String(storage.lastApplied.datasetFileName || '') : undefined
-        const geospatialEnabled = (() => {
-          try {
-            return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-          } catch {
-            return false
-          }
-        })()
+        const geospatialEnabled = readGeospatialOverlayEnabledPreference()
         const store = useGraphStore.getState()
         try {
           store.flushComposedPositionWritesNow()

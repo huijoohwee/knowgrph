@@ -2,8 +2,7 @@ import { exportSvgSnapshot } from '@/lib/graph/file'
 import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
-import { lsBool } from '@/lib/persistence'
-import { LS_KEYS } from '@/lib/config'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import type { UiToastInput } from '@/hooks/store/types'
 import { writeKgcCompanionOutputText } from '@/features/chat/chatHistoryWorkspace.output'
 
@@ -68,13 +67,7 @@ export async function exportCanvasSvg(args: {
     }
     const fallbackSize = readCanvasViewportSizeFromDom()
     const store = args.getStore()
-    const geospatialEnabled = (() => {
-      try {
-        return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-      } catch {
-        return false
-      }
-    })()
+    const geospatialEnabled = readGeospatialOverlayEnabledPreference()
     const workspaceEditorEnabled = store.workspaceViewMode === 'editor'
     const wants3dExport =
       store.canvasRenderMode === '3d' || (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')

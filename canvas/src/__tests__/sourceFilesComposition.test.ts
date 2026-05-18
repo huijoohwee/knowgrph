@@ -345,8 +345,8 @@ export function testSourceFilesPersistenceSignatureHashesContentNotLengthOnly() 
   }
 }
 
-export function testWorkspaceSourceFileEnabledToggleStaysTransientForPersistence() {
-  const workspaceDisabled = [
+export function testWorkspaceSourceFileRuntimeStateStaysTransientForPersistence() {
+  const workspaceOriginal = [
     {
       id: 'ws-1',
       name: 'knowgrph-video-demo.md',
@@ -356,17 +356,12 @@ export function testWorkspaceSourceFileEnabledToggleStaysTransientForPersistence
       source: { kind: 'local', path: 'workspace:/docs/knowgrph-video-demo.md' },
     },
   ]
-  const workspaceEnabled = [
-    {
-      ...workspaceDisabled[0],
-      enabled: true,
-    },
-  ]
-  if (buildSourceFilesPersistenceSignature(workspaceDisabled) !== buildSourceFilesPersistenceSignature(workspaceEnabled)) {
-    throw new Error('expected workspace source-file enabled toggles to stay transient for persistence signature')
+  const workspaceUpdated = [{ ...workspaceOriginal[0], enabled: true, text: '# Demo updated during workspace switching' }]
+  if (buildSourceFilesPersistenceSignature(workspaceOriginal) !== buildSourceFilesPersistenceSignature(workspaceUpdated)) {
+    throw new Error('expected workspace source-file runtime state to stay transient for persistence signature')
   }
-  if (!areSourceFilesEqualByIdAndHash(workspaceDisabled, workspaceEnabled)) {
-    throw new Error('expected workspace source-file enabled toggles to be ignored by persistence equality guards')
+  if (!areSourceFilesEqualByIdAndHash(workspaceOriginal, workspaceUpdated)) {
+    throw new Error('expected workspace source-file runtime state to be ignored by persistence equality guards')
   }
 }
 
@@ -543,8 +538,8 @@ export async function testComposedUnchangedLayersReapplyActiveSourceFrontmatterP
     state.clearSourceFiles()
     state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
 
-    const mapsPath = 'workspace:/docs/knowgrph-maps-places.md'
-    const videoPath = 'workspace:/docs/knowgrph-video-demo.md'
+    const mapsPath = 'docs/knowgrph-maps-places.md'
+    const videoPath = 'docs/knowgrph-video-demo.md'
     const mapsText = [
       '---',
       'title: "Maps"',

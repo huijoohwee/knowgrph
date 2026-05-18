@@ -1,32 +1,118 @@
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
 } from '@/features/workspace-fs/workspaceFs'
 
-const DEFAULT_DOCS_SSOT_ROOT_SEGMENTS = ['..', '..', 'huijoohwee', 'docs'] as const
+const DEFAULT_DOCS_SSOT_CACHE_DIR = path.join(os.tmpdir(), 'knowgrph-docs-ssot-fixtures')
+const DEFAULT_DOCS_SSOT_STORAGE_BASE_URL = 'https://airvio.co'
+const DEFAULT_DOCS_SSOT_WORKSPACE_ID = 'kgws:canonical-docs'
+const DEFAULT_DOCS_SSOT_CANONICAL_PREFIX = 'huijoohwee/docs'
+const DOCS_SSOT_REQUEST_TIMEOUT_SECONDS = '20'
 
 export const KNOWGRPH_VIDEO_DEMO_BASENAME = TEST_VALIDATION_WORKSPACE_SEED_BASENAME
 export const KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH = LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH
+
+const fetchedFixtureTextByBasename = new Map<string, string>()
+const fetchedFixturePathByBasename = new Map<string, string>()
+
+const readEnvString = (name: string, fallback = ''): string => {
+  const value = String(process.env[name] || '').trim()
+  return value || fallback
+}
+
+const normalizeDocsFixtureBasename = (basename: string): string => {
+  const name = String(basename || '').trim()
+  if (!name) throw new Error('expected docs fixture basename')
+  if (name !== path.basename(name) || name.includes('/') || name.includes('\\')) {
+    throw new Error(`expected docs fixture basename, got ${name}`)
+  }
+  return name
+}
+
+const resolveDocsSsotCacheDir = (): string =>
+  readEnvString('KG_TEST_DOCS_SSOT_CACHE_DIR', DEFAULT_DOCS_SSOT_CACHE_DIR)
+
+const resolveDocsSsotStorageBaseUrl = (): string =>
+  readEnvString('KG_TEST_DOCS_SSOT_STORAGE_BASE_URL', DEFAULT_DOCS_SSOT_STORAGE_BASE_URL)
+
+const resolveDocsSsotWorkspaceId = (): string =>
+  readEnvString('KG_TEST_DOCS_SSOT_WORKSPACE_ID', DEFAULT_DOCS_SSOT_WORKSPACE_ID)
+
+const resolveDocsSsotCanonicalPrefix = (): string =>
+  readEnvString('KG_TEST_DOCS_SSOT_CANONICAL_PREFIX', DEFAULT_DOCS_SSOT_CANONICAL_PREFIX).replace(/^\/+|\/+$/g, '')
+
+const buildDocsSsotCanonicalPath = (basename: string): string => {
+  const prefix = resolveDocsSsotCanonicalPrefix()
+  return prefix ? `${prefix}/${basename}` : basename
+}
+
+const buildDocsSsotDocViewUrl = (basename: string): string => {
+  const baseUrl = resolveDocsSsotStorageBaseUrl().replace(/\/+$/g, '')
+  const workspaceId = resolveDocsSsotWorkspaceId()
+  const canonicalPath = buildDocsSsotCanonicalPath(basename)
+  if (!baseUrl || !workspaceId || !canonicalPath) {
+    throw new Error('expected docs SSOT storage base URL, workspace ID, and canonical path')
+  }
+  return `${baseUrl}/api/storage/doc/${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
+}
+
+const fetchDocsSsotFixtureText = (basename: string): string => {
+  const url = buildDocsSsotDocViewUrl(basename)
+  try {
+    return execFileSync(
+      'curl',
+      ['-sS', '--fail', '--max-time', DOCS_SSOT_REQUEST_TIMEOUT_SECONDS, url],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    throw new Error(`failed to fetch docs SSOT fixture ${basename} from Cloudflare D1-backed storage route ${url}: ${message}`)
+  }
+}
+
+const ensureDocsSsotFixtureCache = (basename: string): string => {
+  const cachePath = path.resolve(resolveDocsSsotCacheDir(), basename)
+  if (fetchedFixturePathByBasename.get(basename) === cachePath && fs.existsSync(cachePath)) {
+    return cachePath
+  }
+
+  const text = fetchDocsSsotFixtureText(basename)
+  if (!text.trim()) {
+    throw new Error(`expected docs SSOT fixture ${basename} to contain markdown text`)
+  }
+
+  fs.mkdirSync(path.dirname(cachePath), { recursive: true })
+  const tempPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`
+  fs.writeFileSync(tempPath, text, 'utf8')
+  fs.renameSync(tempPath, cachePath)
+  fetchedFixtureTextByBasename.set(basename, text)
+  fetchedFixturePathByBasename.set(basename, cachePath)
+  return cachePath
+}
 
 export function resolveKnowgrphVideoDemoFixturePath(): string {
   return resolveDocsSsotFixturePath(KNOWGRPH_VIDEO_DEMO_BASENAME)
 }
 
 export function resolveDocsSsotRootPath(): string {
-  const envRoot = String(process.env.KG_TEST_DOCS_SSOT_ROOT || '').trim()
-  if (envRoot) return envRoot
-  return path.resolve(process.cwd(), ...DEFAULT_DOCS_SSOT_ROOT_SEGMENTS)
+  return resolveDocsSsotCacheDir()
 }
 
 export function resolveDocsSsotFixturePath(basename: string): string {
-  const name = String(basename || '').trim()
-  if (!name) throw new Error('expected docs fixture basename')
-  return path.resolve(resolveDocsSsotRootPath(), name)
+  const name = normalizeDocsFixtureBasename(basename)
+  return ensureDocsSsotFixtureCache(name)
 }
 
 export function readDocsSsotFixtureText(basename: string): string {
-  const fixturePath = resolveDocsSsotFixturePath(basename)
-  return fs.readFileSync(fixturePath, 'utf8')
+  const name = normalizeDocsFixtureBasename(basename)
+  const cached = fetchedFixtureTextByBasename.get(name)
+  if (typeof cached === 'string') return cached
+  const fixturePath = resolveDocsSsotFixturePath(name)
+  const text = fs.readFileSync(fixturePath, 'utf8')
+  fetchedFixtureTextByBasename.set(name, text)
+  return text
 }

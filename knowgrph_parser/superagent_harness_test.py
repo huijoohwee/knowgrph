@@ -5,6 +5,7 @@ import unittest
 
 from .superagent_harness import (
     HarnessError,
+    RICH_MEDIA_SURFACE_ROUTE,
     RunBudget,
     ToolRegistry,
     build_default_tool_registry,
@@ -68,6 +69,18 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertTrue(state["verification"]["passed"])
             self.assertTrue(os.path.exists(os.path.join(out, "trace.jsonl")))
             self.assertTrue(os.path.exists(os.path.join(out, "final-report.md")))
+            proof_path = os.path.join(out, "harness-proof.json")
+            self.assertTrue(os.path.exists(proof_path))
+            with open(proof_path, "r", encoding="utf-8") as handle:
+                proof = json.load(handle)
+            self.assertEqual(proof["schema_version"], "knowgrph.superagent.proof.v1")
+            self.assertEqual(proof["harness_contract"]["codex_integration"]["mcp_tool"], "knowgrph.superagent.run")
+            self.assertEqual(proof["harness_contract"]["codex_integration"]["surface_route"], RICH_MEDIA_SURFACE_ROUTE)
+            self.assertTrue(proof["evidence"]["verification"]["passed"])
+            self.assertGreaterEqual(proof["evidence"]["trace_event_counts"]["tool.call"], 1)
+            self.assertIn("synthesize_report", proof["evidence"]["completed_task_ids"])
+            proof_artifacts = {artifact["artifact_id"] for artifact in proof["evidence"]["artifacts"]}
+            self.assertIn("harness_proof_manifest", proof_artifacts)
             canvas_path = os.path.join(out, "artifacts", "canvas", "canvas.graph.json")
             self.assertTrue(os.path.exists(canvas_path))
             with open(canvas_path, "r", encoding="utf-8") as handle:

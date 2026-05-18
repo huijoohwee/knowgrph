@@ -1,8 +1,9 @@
 import React from 'react'
 import { LS_KEYS } from '@/lib/config'
-import { getLocalStorage, lsBool, resolveBrowserStorageKey } from '@/lib/persistence'
+import { resolveBrowserStorageKey } from '@/lib/persistence'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { readGeospatialOverlayEnabledPreference, writeGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 export function useCanvasGeospatialRuntime(): boolean {
   const geospatialHostViewportSnapshotRef = React.useRef<null | {
@@ -13,13 +14,7 @@ export function useCanvasGeospatialRuntime(): boolean {
     zoomToSelectionMode: boolean
   }>(null)
 
-  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
-    try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-    } catch {
-      return false
-    }
-  })
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => readGeospatialOverlayEnabledPreference())
   const lastHandledGeospatialModeEnabledRef = React.useRef(geospatialModeEnabled)
 
   React.useEffect(() => {
@@ -28,7 +23,7 @@ export function useCanvasGeospatialRuntime(): boolean {
     const handler = (ev: StorageEvent) => {
       if (!ev || ev.key !== storageKey) return
       try {
-        const nextEnabled = lsBool(LS_KEYS.geospatialOverlayEnabled, true)
+        const nextEnabled = readGeospatialOverlayEnabledPreference()
         lastHandledGeospatialModeEnabledRef.current = nextEnabled
         setGeospatialModeEnabled(prev => (prev === nextEnabled ? prev : nextEnabled))
       } catch {
@@ -55,13 +50,13 @@ export function useCanvasGeospatialRuntime(): boolean {
           if (typeof gm.setGeospatialModeEnabled === 'function') {
             gm.setGeospatialModeEnabled(true)
           } else {
-            getLocalStorage()?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+            writeGeospatialOverlayEnabledPreference(true)
             lastHandledGeospatialModeEnabledRef.current = true
             setGeospatialModeEnabled(prev => (prev === true ? prev : true))
           }
         })
         .catch(() => {
-          getLocalStorage()?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+          writeGeospatialOverlayEnabledPreference(true)
           lastHandledGeospatialModeEnabledRef.current = true
           setGeospatialModeEnabled(prev => (prev === true ? prev : true))
         })

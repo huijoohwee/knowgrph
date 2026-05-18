@@ -41,12 +41,15 @@ export async function runBootstrapSourceFileHydration(): Promise<void> {
 export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string> {
   const startup = await resolveInitialWorkspaceStartupState()
   const fs = await getWorkspaceFs()
+  const startupActivePath = resolveMaterializedWorkspaceActivePath({
+    activePathOverride: startup.activePath,
+  })
   const hydratedEntries = await hydrateWorkspaceEntriesInlineText({
     fs,
     workspaceEntries: startup.workspaceEntries,
-  })
-  const startupActivePath = resolveMaterializedWorkspaceActivePath({
-    activePathOverride: startup.activePath,
+    forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
+      activePathOverride: startupActivePath,
+    }),
   })
   const startupSourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
   const store = useGraphStore.getState()
@@ -58,6 +61,7 @@ export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: startupActivePath,
     }),
+    forceIncludeOnly: true,
     workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
   })
   if (merged !== existing) {

@@ -21,7 +21,6 @@ import {
   UI_LABELS,
   UI_SELECTORS,
 } from '@/lib/config'
-import { lsBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelView'
@@ -29,6 +28,7 @@ import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTyp
 import { requestGeospatialTraversalRun, setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
@@ -253,13 +253,7 @@ export function ToolbarToolMenu({
   const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
   const setFloatingPanelZIndex = useGraphStore(s => s.setFloatingPanelZIndex)
 
-  const [geospatialModeEnabled, setGeospatialModeEnabledState] = React.useState<boolean>(() => {
-    try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-    } catch {
-      return false
-    }
-  })
+  const [geospatialModeEnabled, setGeospatialModeEnabledState] = React.useState<boolean>(() => readGeospatialOverlayEnabledPreference())
   const [isEnablingGeospatial, setIsEnablingGeospatial] = React.useState(false)
   const [geospatialEnableError, setGeospatialEnableError] = React.useState<string | null>(null)
 

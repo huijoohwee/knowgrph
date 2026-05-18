@@ -122,7 +122,13 @@ export async function applyWorkspaceImportToCanvas(args: {
   const fs = args.fs
   const workspaceEntries = Array.isArray(args.opts?.workspaceEntries) ? args.opts.workspaceEntries : await fs.listEntries()
   const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args.opts?.sourcesByPath)
-  const merged = mergeWorkspaceEntriesIntoSourceFiles({ existing, workspaceEntries, sourcesByPath })
+  const merged = mergeWorkspaceEntriesIntoSourceFiles({
+    existing,
+    workspaceEntries,
+    sourcesByPath,
+    forceIncludePaths: createdPaths,
+    forceIncludeOnly: true,
+  })
 
   const indexByWorkspaceSourcePath = new Map<string, number>()
   for (let i = 0; i < merged.length; i += 1) {

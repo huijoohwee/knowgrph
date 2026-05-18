@@ -15,7 +15,6 @@ import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/s
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const workspaceRoot = path.resolve(repoRoot, '..')
@@ -31,16 +30,13 @@ const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
 const resolvedD3Entry = nodeRequire.resolve('d3')
-const resolvedMaplibreEntry = nodeRequire.resolve('maplibre-gl')
+const resolvedMaplibreEntry = path.resolve(__dirname, 'node_modules/maplibre-gl/src/index.ts')
 const resolvedZustandCompatEntry = path.resolve(__dirname, 'src/lib/vendor/zustandCompat.ts')
 const resolvedGympgrphSrc = path.resolve(__dirname, '../gympgrph/src/index.ts')
 const resolvedGympgrphMapPreviewSrc = path.resolve(__dirname, '../gympgrph/src/mapPreview.ts')
 const resolvedGympgrphTestkitSrc = path.resolve(__dirname, '../gympgrph/src/testkit.ts')
-
-const MARKDOWN_PIPELINE_INPUT_REL_PATH =
-  String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
-const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
-  String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
+const MARKDOWN_PIPELINE_INPUT_REL_PATH = String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
+const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
@@ -58,19 +54,14 @@ const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
 const STRIPE_CHECKOUT_SESSION_CREATE_PATH = '/__stripe_checkout_session'
 const STRIPE_MAX_REQUEST_BYTES = 16 * 1024
 const chatLogsDir = path.resolve(repoRoot, 'logs')
-
 const normalizeHost = (value: unknown): string => String(value || '').trim().toLowerCase()
-
 const readSingleHeader = (value: unknown): string => {
   if (typeof value === 'string') return value.trim()
   if (Array.isArray(value)) return String(value[0] || '').trim()
   return ''
 }
-
 const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HOSTS.has(normalizeHost(value))
-
 const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
-
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
   if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
@@ -83,7 +74,6 @@ const parseAllowedChatProxyHosts = (): Set<string> => {
   if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   return out
 }
-
 const toLogSafeText = (value: unknown): string => {
   return String(value || '')
     .replace(/\r\n/g, '\n')
@@ -137,27 +127,30 @@ const stripEntitiesBadSourcemapsPlugin = {
   },
 }
 
-const stripMermaidArchitectureDetectorPlugin = {
-  name: 'knowgrph-strip-mermaid-architecture-detector',
-  enforce: 'pre' as const,
-  transform(code: string, id: string) {
-    if (!id) return null
-    if (!id.replace(/\\/g, '/').endsWith('/mermaid/dist/mermaid.core.mjs')) return null
-    let next = code
-    next = next.replace(
+const stripMermaidArchitectureDetectorPlugin = { name: 'knowgrph-strip-mermaid-architecture-detector', enforce: 'pre' as const, transform(code: string, id: string) {
+  if (!String(id || '').replace(/\\/g, '/').endsWith('/mermaid/dist/mermaid.core.mjs')) return null
+  const next = code
+    .replace(
       'registerLazyLoadedDiagrams(detector_default, detector_default3, architectureDetector_default);',
       'registerLazyLoadedDiagrams(detector_default, detector_default3);',
     )
-    return next === code ? null : next
-  },
-}
-
+    .replace('const { diagram: diagram2 } = await import("./chunks/mermaid.core/architectureDiagram-VXUJARFQ.mjs");', 'throw new Error("Mermaid architecture diagrams are disabled in knowgrph runtime");')
+  return next === code ? null : next
+} }
+const stripMermaidCoseBilkentLayoutPlugin = { name: 'knowgrph-strip-mermaid-cose-bilkent-layout', enforce: 'pre' as const, transform(code: string, id: string) {
+  const moduleId = String(id || '').replace(/\\/g, '/')
+  if (!moduleId.includes('/mermaid/dist/chunks/mermaid.core/') || !code.includes('cose-bilkent')) return null
+  const next = code
+    .replace(/,\s*\.\.\.true\s*\?\s*\[\s*\{\s*name:\s*"cose-bilkent",[\s\S]*?import\("\.\/cose-bilkent-[^"]+\.mjs"\)[\s\S]*?\}\s*\]\s*:\s*\[\]/, '')
+    .replace(/finalConfig\.layout\s*=\s*"cose-bilkent";/g, 'finalConfig.layout = "dagre";')
+    .replace(/fallback:\s*"cose-bilkent"/g, 'fallback: "dagre"')
+  return next === code ? null : next
+} }
 function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const current = String(env.PYTHONPATH || '').trim()
   const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
   return { ...env, PYTHONPATH: next }
 }
-
 const probePythonCandidate = (candidate: string): Promise<boolean> => {
   return new Promise((resolve) => {
     try {
@@ -1852,8 +1845,9 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Chat proxy requires HTTPS for non-local upstream hosts' }))
       return
     }
+    const bytePlusUpstreamSelected = bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname)
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
-    const requiresBytePlusKey = !localGatewayOnly && (bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname))
+    const requiresBytePlusKey = !localGatewayOnly && bytePlusUpstreamSelected
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
     const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
@@ -1875,10 +1869,19 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Missing BytePlus API key for chat proxy upstream' }))
       return
     }
-    let suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length) || '/v1/chat/completions'
-    if (providerHeader === 'openai') {
+    let suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length)
+    if (!suffix) suffix = bytePlusUpstreamSelected ? '/api/v3/chat/completions' : '/v1/chat/completions'
+    if (providerHeader === 'openai' && !bytePlusUpstreamSelected) {
       if (suffix === '/api/v3/chat/completions') suffix = '/v1/chat/completions'
       if (suffix === '/api/v3/models') suffix = '/v1/models'
+    }
+    if (bytePlusUpstreamSelected) {
+      suffix = suffix.startsWith('/') ? suffix : `/${suffix}`
+      if (suffix === '/api/v3' || suffix === '/api/v3/') suffix = '/api/v3/chat/completions'
+      if (suffix === '/v1/chat/completions' || suffix === '/v1/chat/completions/') suffix = '/api/v3/chat/completions'
+      if (suffix === '/v1/models' || suffix === '/v1/models/' || suffix === '/models' || suffix === '/models/') suffix = '/api/v3/models'
+      if (suffix === '/images/generations' || suffix === '/images/generations/') suffix = '/api/v3/images/generations'
+      if (suffix.startsWith('/contents/generations/tasks')) suffix = `/api/v3${suffix}`
     }
     const upstreamPath = suffix.startsWith('/') ? suffix : `/${suffix}`
     const upstreamUrl = new URL(`${upstreamPath}${parsedReq.search || ''}`, upstreamBase)
@@ -5372,7 +5375,6 @@ export default defineConfig(({ command }) => ({
       'mermaid',
       'maplibre-gl',
       'dagre',
-      'elkjs',
       '@react-three/fiber',
     ],
     exclude: ['gympgrph', 'grph-shared', 'entities'],
@@ -5400,11 +5402,7 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename: string, deps: string[]) =>
         deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
     },
-    // The remaining large bundles are lazy feature runtimes or vendor payloads
-    // (ELK worker, MapLibre, Markdown, 3D scene) that stay isolated from the
-    // initial route. Keep the warning limit aligned to that post-split ceiling
-    // so new regressions still surface without flagging expected lazy chunks.
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         ...(process.env.KG_LOW_MEM_BUILD === '1'
@@ -5459,16 +5457,9 @@ export default defineConfig(({ command }) => ({
                 ) {
                   return 'markdown-ast'
                 }
-                // Let Mermaid and layout-elk keep their own internal lazy split points
-                // instead of collapsing the whole runtime into one oversized vendor chunk.
-                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'
-                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.core/')) return 'mermaid-elk-runtime'
-                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/mermaid-layout-elk.core.mjs')) return 'mermaid-elk-entry'
-                if (moduleId.includes('/node_modules/elkjs/lib/elk-worker.min.js')) return 'elk-worker'
-                if (moduleId.includes('/node_modules/elkjs/lib/elk-worker.js')) return 'elk-worker'
-                if (moduleId.includes('/node_modules/elkjs/lib/elk-api.js')) return 'elk-api'
-                if (moduleId.includes('/node_modules/elkjs/lib/main.js')) return 'elk-main'
-                if (moduleId.includes('/node_modules/elkjs/lib/elk.bundled.js')) return 'elk-bundled'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return `mermaid-core-${String(moduleId.split('/').pop() || 'chunk').replace(/\.mjs(?:\?.*)?$/, '').replace(/[^a-zA-Z0-9_-]/g, '-')}`
+                if (moduleId.includes('/node_modules/mermaid/dist/')) return 'mermaid'
+                if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
                 if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
                 if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
                 if (moduleId.includes('/node_modules/three/src/renderers/')) return 'three-renderers'
@@ -5492,7 +5483,11 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
-                if (moduleId.includes('/src/')) return undefined
+                if (moduleId.includes('/src/lib/config-copy/') || moduleId.includes('/src/lib/config.ts')) return 'config-copy'
+                if (moduleId.includes('/src/lib/config.ls') || moduleId.includes('/src/lib/persistence')) return 'config-storage'
+                if (moduleId.includes('/src/hooks/useGraphStore.ts') || moduleId.includes('/src/hooks/store/')) return 'graph-store'
+                if (moduleId.includes('/src/components/GraphHoverTooltip')) return 'graph-hover-tooltip'
+                if (moduleId.includes('/src/components/RichMediaPanel')) return 'rich-media-panel'
                 if (moduleId.includes('/src/pages/Canvas.tsx') || moduleId.includes('/src/components/CanvasViewport.tsx')) return 'canvas-shell'
                 if (moduleId.includes('/src/features/canvas/') || moduleId.includes('/src/lib/canvas/')) return 'canvas-runtime'
                 if (moduleId.includes('/src/components/GraphCanvasRoot/')) return 'graph-canvas-root'
@@ -5519,6 +5514,10 @@ export default defineConfig(({ command }) => ({
                 ) {
                   return 'canvas-3d-shell'
                 }
+                if (moduleId.includes('/src/lib/three/positions.impl.ts')) return 'canvas-3d-positions'
+                if (moduleId.includes('/src/features/three/layout.ts') || moduleId.includes('/src/features/three/threeLayoutConfig.ts') || moduleId.includes('/src/features/three/positions.ts')) return 'canvas-3d-layout'
+                if (moduleId.includes('/src/features/three/voxel') || moduleId.includes('/src/features/three/Voxel')) return 'canvas-3d-voxel'
+                if (moduleId.includes('/src/features/three/animation.ts') || moduleId.includes('/src/features/three/selection.ts') || moduleId.includes('/src/features/three/sphereConstraint.ts') || moduleId.includes('/src/features/three/zOrder.ts') || moduleId.includes('/src/features/three/renderOrder.ts')) return 'canvas-3d-runtime'
                 if (
                   moduleId.includes('/src/lib/three/Scene.impl.tsx') ||
                   moduleId.includes('/src/features/three/Scene.tsx') ||
@@ -5710,6 +5709,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     stripEntitiesBadSourcemapsPlugin,
     stripMermaidArchitectureDetectorPlugin,
+    stripMermaidCoseBilkentLayoutPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

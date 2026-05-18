@@ -693,7 +693,6 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayElsRef.current.set(node.id, el)
             }}
             className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}
-            style={{ position: 'absolute' }}
             title={node.title}
             url={node.url}
             srcDoc={node.srcDoc}

@@ -32,7 +32,7 @@ import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 type GroupDatum = GraphGroup
 const readMouseEventDetail = (event: MouseEvent): number => {
   const detail = (event as unknown as { detail?: unknown }).detail
@@ -106,10 +106,10 @@ export const createGroupsLayer = (args: {
   const displayNodeLookup = getCachedGraphLookup({
     cacheScope: 'graph-canvas-groups-display-nodes',
     graphData: { type: 'application/json', nodes: displayNodes, edges: [] },
-    graphSemanticKey: hashScopedStringArraySignature(
-      'graph-canvas-groups-display-nodes',
-      displayNodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
-    ),
+    graphSemanticKey: buildScopedGraphSemanticKey('graph-canvas-groups-display-nodes', {
+      graphData: { type: 'application/json', nodes: displayNodes, edges: [] },
+      graphSemanticKey: displayNodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`).join('\n'),
+    }),
     // Group dragging mutates live node refs, so this path must rebind to the current graph objects.
     preferCurrentGraphDataRefs: true,
   })

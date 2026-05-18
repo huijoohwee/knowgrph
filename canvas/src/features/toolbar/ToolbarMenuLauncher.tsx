@@ -21,6 +21,7 @@ import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-file
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
+import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -52,13 +53,7 @@ export function ToolbarMenuLauncher({
     } | null
   >(null)
 
-  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
-    try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
-    } catch {
-      return false
-    }
-  })
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => readGeospatialOverlayEnabledPreference())
 
   const {
     isToolMenuOpen,

@@ -27,17 +27,20 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   workspaceEntries: WorkspaceEntry[]
   sourcesByPath: WorkspaceSourceIndex
   forceIncludePaths?: string[]
+  forceIncludeOnly?: boolean
   workspaceDocsOnly?: boolean
 }): SourceFile[] {
   const existing = Array.isArray(args.existing) ? args.existing : []
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const sourcesByPath = args.sourcesByPath || {}
   const forceInclude = new Set((Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : []).map(path => String(path || '').trim()).filter(Boolean))
+  const forceIncludeOnly = args.forceIncludeOnly === true && forceInclude.size > 0
   const workspaceDocsOnly = args.workspaceDocsOnly === true
   const docsMirrorCanonicalSeedSourcePathSet = new Set<string>(
     entries
       .filter(entry => entry?.kind === 'file')
       .map(entry => String(entry.path || '').trim())
+      .filter(path => !forceIncludeOnly || forceInclude.has(path))
       .filter(path => path.startsWith('/docs/'))
       .map(path => {
         const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -70,6 +73,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (!e || e.kind !== 'file') continue
     const path = String(e.path || '').trim()
     if (!path) continue
+    if (forceIncludeOnly && !forceInclude.has(path)) continue
     if (workspaceDocsOnly && !path.startsWith('/docs/') && !forceInclude.has(path)) continue
 
     const seedSourcePath = resolveWorkspaceSeedSourcePath(path)

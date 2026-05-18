@@ -29,33 +29,6 @@ type ElkGraph = {
 type ElkLayoutChild = { id?: unknown; x?: unknown; y?: unknown }
 type ElkLayoutResult = { children?: unknown }
 
-type ElkInstance = { layout: (graph: ElkGraph) => Promise<unknown> }
-type ElkConstructor = new (opts?: { workerUrl?: string }) => ElkInstance
-
-let elkInstancePromise: Promise<ElkInstance> | null = null
-
-async function getElkInstance(args?: { requireWorker?: boolean }): Promise<ElkInstance> {
-  if (elkInstancePromise) return elkInstancePromise
-  elkInstancePromise = (async () => {
-    const mod = (await import('elkjs/lib/elk-api.js')) as unknown as { default?: unknown }
-    const ElkCtor = (mod?.default ?? mod) as ElkConstructor
-    let workerUrl: string | null = null
-    try {
-      const workerMod = (await import('elkjs/lib/elk-worker.min.js?url')) as unknown as { default?: unknown }
-      workerUrl = typeof workerMod?.default === 'string' ? workerMod.default : null
-    } catch {
-      workerUrl = null
-    }
-
-    if (workerUrl) return new ElkCtor({ workerUrl })
-    if (args?.requireWorker) {
-      throw new Error('elk worker unavailable')
-    }
-    return new ElkCtor()
-  })()
-  return elkInstancePromise
-}
-
 export async function buildElkLayout(args: {
   graphData: Pick<GraphData, 'nodes' | 'edges'>
   config: FlowConfig
@@ -158,9 +131,8 @@ export async function buildElkLayout(args: {
   const layout =
     typeof args.layout === 'function'
       ? args.layout
-      : async (g: ElkGraph) => {
-          const elk = await getElkInstance({ requireWorker: true })
-          return elk.layout(g)
+      : async () => {
+          throw new Error('ELK layout runtime is not bundled')
         }
   const layoutPromise = layout(graph)
   const timed = await Promise.race([

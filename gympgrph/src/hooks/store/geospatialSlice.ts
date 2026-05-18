@@ -1,4 +1,5 @@
 import { emitGeospatialModeChanged } from 'grph-shared/geospatial/events'
+import { DEFAULT_GEOSPATIAL_OVERLAY_ENABLED, GEOSPATIAL_OVERLAY_PREFERENCE_VERSION } from 'grph-shared/geospatial/constants'
 import { LS_KEYS } from '../../lib/config.js'
 import { DEFAULT_GEOSPATIAL_VIEW_MODE, normalizeGeospatialViewMode } from '../../features/geospatial/basemapStyle.js'
 import type { GeospatialFitRequest, GeospatialInteractionMode, GeospatialViewMode } from './types.js'
@@ -44,6 +45,12 @@ const writeString = (key: string, value: string): void => {
   } catch {
     void 0
   }
+}
+
+const readGeospatialModeEnabledPreference = (): boolean => {
+  const enabled = readBool(LS_KEYS.geospatialOverlayEnabled, DEFAULT_GEOSPATIAL_OVERLAY_ENABLED)
+  if (!enabled) return false
+  return readString(LS_KEYS.geospatialOverlayPreferenceVersion, '') === GEOSPATIAL_OVERLAY_PREFERENCE_VERSION
 }
 
 const readNumber = (key: string, fallback: number): number => {
@@ -100,7 +107,7 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
   | 'geospatialDatasetTimeoutMs'
   | 'geospatialDatasetMaxBytes'
 > => {
-  const geospatialModeEnabled = readBool(LS_KEYS.geospatialOverlayEnabled, true)
+  const geospatialModeEnabled = readGeospatialModeEnabledPreference()
   const readPersistedViewMode = (): GeospatialViewMode => {
     return normalizeGeospatialViewMode(readString(LS_KEYS.geospatialViewMode, DEFAULT_GEOSPATIAL_VIEW_MODE))
   }
@@ -137,6 +144,7 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
     set(prev => {
       if (prev.geospatialModeEnabled === next) return prev
       writeBool(LS_KEYS.geospatialOverlayEnabled, next)
+      writeString(LS_KEYS.geospatialOverlayPreferenceVersion, GEOSPATIAL_OVERLAY_PREFERENCE_VERSION)
       emitGeospatialModeChanged({ enabled: next, viewMode: prev.geospatialViewMode })
       return { ...prev, geospatialModeEnabled: next }
     })

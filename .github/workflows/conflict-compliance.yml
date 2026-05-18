@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: knowgrph
+          fetch-depth: 0
 
       - name: Checkout huijoohwee publish mirror
         uses: actions/checkout@v4

@@ -84,6 +84,13 @@ const readStorageCanonicalPathCandidatesForDocument = (args: {
   sourcePath: string
 }): string[] => {
   const out = new Set<string>()
+  const pushWorkspaceCanonical = (value: string) => {
+    const normalized = normalizeString(value).replace(/\\/g, '/')
+    if (!normalized.startsWith('workspace:/')) return
+    const lower = normalized.toLowerCase()
+    if (!lower.endsWith('.md') && !lower.endsWith('.markdown') && !lower.endsWith('.mdx') && !lower.endsWith('.mmd')) return
+    out.add(normalized)
+  }
   const push = (value: string) => {
     const normalized = normalizeStorageCanonicalPathCandidate(value)
     if (!normalized) return
@@ -92,9 +99,11 @@ const readStorageCanonicalPathCandidatesForDocument = (args: {
     if (lower.includes('/huijoohwee/docs/huijoohwee/docs/')) return
     out.add(normalized)
   }
+  pushWorkspaceCanonical(args.documentCanonicalPath)
   push(args.documentCanonicalPath)
   const sourcePath = normalizeString(args.sourcePath)
   if (sourcePath.startsWith('workspace:/docs/')) {
+    pushWorkspaceCanonical(sourcePath)
     const rel = sourcePath.slice('workspace:/docs/'.length).replace(/^\/+/, '')
     if (rel) {
       push(`huijoohwee/docs/${rel}`)

@@ -3,7 +3,7 @@ import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
   computeBalancedSpreadLayout,
   computeBalancedSpreadSpacingPx,
@@ -25,16 +25,16 @@ export const applyCollectiveGraphLayout = (args: {
   const graphLookup = getCachedGraphLookup({
     cacheScope: 'graph-canvas-collective-fit',
     graphData: { type: 'application/json', nodes, edges },
-    graphSemanticKey: hashScopedStringArraySignature(
-      'graph-canvas-collective-fit',
-      [
+    graphSemanticKey: buildScopedGraphSemanticKey('graph-canvas-collective-fit', {
+      graphData: { type: 'application/json', nodes, edges },
+      graphSemanticKey: [
         ...nodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
         ...edges.map(edge => {
           const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(edge)
           return `${String(edge?.id || '').trim()}:${sourceId}:${targetId}`
         }),
-      ],
-    ),
+      ].join('\n'),
+    }),
   })
   const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
   const adjacencyByNodeId = buildNodeAdjacencyFromIncidentEdges({

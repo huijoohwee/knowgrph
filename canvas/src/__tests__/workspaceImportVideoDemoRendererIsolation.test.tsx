@@ -346,7 +346,7 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
         const canvasEdgePaths = doc.querySelectorAll('path.kg-edge-path[data-edge-id]').length
         const edgePaths = overlayEdgePaths + canvasEdgePaths
         const edgeSurfacePresent = !!doc.querySelector('svg.absolute.inset-0.pointer-events-none')
-        const mountedIds = Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget]')).map(el =>
+        const mountedIds = (Array.from(doc.querySelectorAll('[data-kg-widget]')) as HTMLElement[]).map(el =>
           String(el.getAttribute('data-kg-widget') || '').trim(),
         )
         lastSnapshot = JSON.stringify({

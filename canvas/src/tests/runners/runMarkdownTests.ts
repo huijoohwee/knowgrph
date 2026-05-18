@@ -11,7 +11,6 @@ const modMarkdownWorkspaceRemotionViewerRenders = () => import('@/__tests__/mark
 const modMarkdownGeoIntegrationTripDemo = () => import('@/__tests__/markdownGeoIntegrationTripDemo.test')
 const modMarkdownPoiImagesRegistry = () => import('@/__tests__/markdownPoiImagesRegistry.test')
 const modMarkdownApplyWithoutFrontmatter = () => import('@/__tests__/markdownApplyWithoutFrontmatter.test')
-const modMermaidElkLayoutSupport = () => import('@/__tests__/mermaidElkLayoutSupport.test')
 const modWebpageLayoutAscii = () => import('@/__tests__/webpageLayoutAscii.test')
 const modWebpageMarkdownPostprocessRemotionPricing = () => import('@/__tests__/webpageMarkdownPostprocessRemotionPricing.test')
 const modWebpageMarkdownPostprocessCardGrid = () => import('@/__tests__/webpageMarkdownPostprocessCardGrid.test')
@@ -211,10 +210,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.edgeless.layoutDerivesBlocks', async () => {
     const mod = await modMarkdownEdgelessLayout()
     await mod.testMarkdownEdgelessLayoutDerivesBlocksWithStableIds()
-  })
-  await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', async () => {
-    const mod = await modMermaidElkLayoutSupport()
-    await mod.testMermaidElkLayoutRegistersLoadersBeforeInit()
   })
   await execTest(results, 'markdownWorkspace.sourceUrlSync', async () => {
     const mod = await modMarkdownWorkspaceSourceUrlSync()

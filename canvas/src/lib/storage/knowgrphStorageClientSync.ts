@@ -15,7 +15,7 @@ import {
   type KnowgrphStorageCursorRecord,
   type KnowgrphStorageOutboxRecord,
   type KnowgrphStorageMutation,
-  type KnowgrphStoragePushResponse,
+  type KnowgrphStoragePullResponse, type KnowgrphStorageExportResponse, type KnowgrphStoragePushResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import {
   getKnowgrphStorageDb,
@@ -603,7 +603,7 @@ const autoRebaseKeepLocalConflict = async (args: {
   mutation: KnowgrphStorageMutation
   nowMs: number
 }): Promise<boolean> => {
-  const serverReportedRevision = Number(args.acknowledgement.currentServerRevision)
+  const serverReportedRevision = Number(args.acknowledgement.serverRevision)
   const normalizedServerReportedRevision = Number.isFinite(serverReportedRevision) && serverReportedRevision >= 0
     ? Math.floor(serverReportedRevision)
     : null
@@ -1169,18 +1169,18 @@ export const startKnowgrphStorageSyncLoop = (
 
 export const exportKnowgrphStorageWorkspace = async (
   args: Pick<KnowgrphStorageSyncNowArgs, 'workspaceId' | 'baseUrl' | 'fetchImpl'>,
-) => {
+): Promise<KnowgrphStorageExportResponse> => {
   const workspaceId = normalizeString(args.workspaceId)
   if (!workspaceId) throw new Error('workspaceId is required for storage export')
   const fetchImpl = getClientFetch(args.fetchImpl)
   const apiOrigin = buildApiOriginKey(args.baseUrl)
   const response = await fetchImpl(resolveApiUrl(buildKnowgrphStorageExportPath(workspaceId), args.baseUrl), { method: 'GET' })
-  const json = await parseStorageResponseJson<Record<string, unknown>>(response, {
+  const json = await parseStorageResponseJson<KnowgrphStorageExportResponse | { ok?: false; error?: string }>(response, {
     requestLabel: 'knowgrph storage export',
     apiOrigin,
   })
   if (!response.ok || !json || json.ok !== true) {
     throw new Error(`knowgrph storage export failed: ${String((json as { error?: unknown })?.error || 'request failed')}`)
   }
-  return json
+  return json as KnowgrphStorageExportResponse
 }

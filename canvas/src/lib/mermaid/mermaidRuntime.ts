@@ -8,12 +8,11 @@ export type MermaidRuntimeRenderResult = {
 export type MermaidRuntimeApi = {
   initialize: (config: Record<string, unknown>) => void
   render: (id: string, code: string) => Promise<MermaidRuntimeRenderResult | string>
-  registerLayoutLoaders?: (loaders: unknown) => void
 }
 
 type MermaidRenderInitStrategy = 'auto' | 'standard'
 
-type MermaidRuntimeBranch = 'standard' | 'elk'
+type MermaidRuntimeBranch = 'standard'
 
 const isMermaidApi = (val: unknown): val is MermaidRuntimeApi => {
   if (!val || typeof val !== 'object') return false
@@ -29,32 +28,9 @@ const getTestMermaidApi = (): MermaidRuntimeApi | null => {
 
 let mermaidModulePromise: Promise<MermaidRuntimeApi> | null = null
 let lastStandardInitKey = ''
-let lastElkInitKey = ''
 
-const readMermaidDiagramHeader = (code: string): string => {
-  const lines = String(code || '').split(/\r?\n/)
-  for (let i = 0; i < lines.length; i += 1) {
-    const trimmed = String(lines[i] || '').trim()
-    if (!trimmed) continue
-    if (trimmed.startsWith('%%{') && trimmed.endsWith('}%%')) continue
-    if (trimmed.startsWith('%%')) continue
-    return trimmed.toLowerCase()
-  }
-  return ''
-}
-
-export const supportsMermaidElkLayout = (code: string): boolean => {
-  const header = readMermaidDiagramHeader(code)
-  return header.startsWith('graph ') || header.startsWith('flowchart ')
-}
-
-export const resolveMermaidRuntimeBranch = (config: MermaidInitConfig, code = ''): MermaidRuntimeBranch => {
-  const layout = String((config as Record<string, unknown>)?.layout || '').trim().toLowerCase()
-  if (layout === 'elk') return supportsMermaidElkLayout(code) ? 'elk' : 'standard'
-  const flowchart = (config as Record<string, unknown>)?.flowchart
-  if (!flowchart || typeof flowchart !== 'object' || Array.isArray(flowchart)) return 'standard'
-  const defaultRenderer = String((flowchart as Record<string, unknown>)?.defaultRenderer || '').trim().toLowerCase()
-  return defaultRenderer === 'elk' && supportsMermaidElkLayout(code) ? 'elk' : 'standard'
+export const resolveMermaidRuntimeBranch = (_config: MermaidInitConfig, _code = ''): MermaidRuntimeBranch => {
+  return 'standard'
 }
 
 export const cleanupMermaidRenderArtifacts = (renderId: string): void => {
@@ -105,25 +81,9 @@ export const ensureStandardMermaidInitialized = async (config: MermaidInitConfig
   return mermaid
 }
 
-export const ensureElkMermaidInitialized = async (config: MermaidInitConfig): Promise<MermaidRuntimeApi> => {
-  const mermaid = await loadMermaidRuntimeApi()
-  const { ensureMermaidElkLayoutRegistered } = await import('@/lib/mermaid/mermaidElkRuntime')
-  await ensureMermaidElkLayoutRegistered(mermaid)
-  const key = JSON.stringify(config || {})
-  if (key !== lastElkInitKey) {
-    try {
-      mermaid.initialize({ startOnLoad: false, ...config })
-    } finally {
-      lastElkInitKey = key
-    }
-  }
-  return mermaid
-}
-
 export const ensureMermaidInitialized = async (config: MermaidInitConfig, code = ''): Promise<MermaidRuntimeApi> => {
-  return resolveMermaidRuntimeBranch(config, code) === 'elk'
-    ? ensureElkMermaidInitialized(config)
-    : ensureStandardMermaidInitialized(config)
+  void code
+  return ensureStandardMermaidInitialized(config)
 }
 
 export const renderMermaidWithRuntime = async (args: {

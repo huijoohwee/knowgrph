@@ -366,13 +366,13 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     const modRichMediaOpenWidgetExclusion = await import('../__tests__/flowEditorRichMediaPanelOpenWidgetExclusionRegression.test')
     await execTest(
       results,
-      'ui.flowEditor.richMediaPanel.openWidgetEligibility.excludesPanels',
-      modRichMediaOpenWidgetExclusion.testFlowEditorOpenWidgetEligibilityExcludesRichMediaPanels,
+      'ui.flowEditor.richMediaPanel.openWidgetEligibility.includesPanels',
+      modRichMediaOpenWidgetExclusion.testFlowEditorOpenWidgetEligibilityIncludesRichMediaPanels,
     )
     await execTest(
       results,
-      'ui.flowEditor.richMediaPanel.overlayIds.dropLeakedPanels',
-      modRichMediaOpenWidgetExclusion.testDeriveOpenWidgetOverlayNodeIdsDropsRichMediaPanelsEvenIfStateLeaks,
+      'ui.flowEditor.richMediaPanel.overlayIds.keepExplicitPanels',
+      modRichMediaOpenWidgetExclusion.testDeriveOpenWidgetOverlayNodeIdsKeepsRichMediaPanelsWhenExplicitlyOpened,
     )
     await execTest(
       results,

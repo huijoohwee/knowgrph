@@ -9,7 +9,7 @@ import { buildNodeNeighborSetFromIncidentEdges } from '@/components/GraphCanvas/
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -384,9 +384,9 @@ const getInitializationGraphLookup = (args: {
   return getCachedGraphLookup({
     cacheScope,
     graphData: { type: 'application/json', nodes, edges },
-    graphSemanticKey: hashScopedStringArraySignature(
-      cacheScope,
-      [
+    graphSemanticKey: buildScopedGraphSemanticKey(cacheScope, {
+      graphData: { type: 'application/json', nodes, edges },
+      graphSemanticKey: [
         ...nodes.map(node => {
           const id = String(node?.id || '').trim()
           const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : ''
@@ -397,8 +397,8 @@ const getInitializationGraphLookup = (args: {
           const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(edge)
           return `${String(edge?.id || '').trim()}:${sourceId}:${targetId}:${String(edge?.label || '').trim()}`
         }),
-      ],
-    ),
+      ].join('\n'),
+    }),
   })
 }
 

@@ -1,6 +1,5 @@
 import { emitGeospatialModeChanged } from 'grph-shared/geospatial/events'
-import { LS_KEYS } from '@/lib/config'
-import { lsBool, lsSetBool } from '@/lib/persistence'
+import { readGeospatialOverlayEnabledPreference, writeGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 const toErrorMessage = (err: unknown): string => {
   if (err && typeof err === 'object' && 'message' in err) {
@@ -15,15 +14,11 @@ function publishGeospatialModeEnabled(enabled: boolean, opts?: { emitAlways?: bo
   const next = enabled === true
   let previous = next
   try {
-    previous = lsBool(LS_KEYS.geospatialOverlayEnabled, next)
+    previous = readGeospatialOverlayEnabledPreference()
   } catch {
     previous = next
   }
-  try {
-    lsSetBool(LS_KEYS.geospatialOverlayEnabled, next)
-  } catch {
-    void 0
-  }
+  writeGeospatialOverlayEnabledPreference(next)
   if (opts?.emitAlways === true || previous !== next) {
     try {
       emitGeospatialModeChanged({ enabled: next })

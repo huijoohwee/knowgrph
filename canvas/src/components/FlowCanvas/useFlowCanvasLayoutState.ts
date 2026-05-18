@@ -25,7 +25,7 @@ import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/wi
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 type UseFlowCanvasLayoutStateArgs = {
   active: boolean
@@ -366,15 +366,16 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       cacheScope: 'flow-canvas-layout-state-flow-zoom',
       graphData: { type: 'application/json', nodes: nodesForFlowZoom, edges: [] },
       graphRevision: graphDataRevision,
-      graphSemanticKey: hashScopedStringArraySignature(
-        'flow-canvas-layout-state-flow-zoom',
-        nodesForFlowZoom.map(node => {
+      graphSemanticKey: buildScopedGraphSemanticKey('flow-canvas-layout-state-flow-zoom', {
+        graphData: { type: 'application/json', nodes: nodesForFlowZoom, edges: [] },
+        graphRevision: graphDataRevision,
+        graphSemanticKey: nodesForFlowZoom.map(node => {
           const id = String(node?.id || '').trim()
           const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : ''
           const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : ''
           return `${id}:${String(node?.type || '').trim()}:${x}:${y}`
-        }),
-      ),
+        }).join('\n'),
+      }),
     })
   }, [graphDataRevision, nodesForFlowZoom])
 

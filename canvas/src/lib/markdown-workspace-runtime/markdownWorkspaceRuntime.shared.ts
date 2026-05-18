@@ -39,6 +39,29 @@ export function clearRuntimeTimeout(timer: RuntimeTimeoutHandle | null | undefin
   if (timer != null) clearTimeout(timer)
 }
 
+export type MarkdownWorkspaceIndexingFlightBindings = {
+  activePathRef: MutableRefObject<WorkspacePath | null>
+  indexJobRef: MutableRefObject<number>
+  indexingInFlightRef: MutableRefObject<boolean>
+  indexingInFlightPathRef: MutableRefObject<WorkspacePath | null>
+  setIndexingInFlight: (next: boolean) => void
+}
+
+export function markMarkdownWorkspaceIndexingInFlight(args: MarkdownWorkspaceIndexingFlightBindings, scheduledFor: WorkspacePath, cancelled: boolean): void {
+  if (cancelled || args.activePathRef.current !== scheduledFor) return
+  args.indexingInFlightRef.current = true
+  args.indexingInFlightPathRef.current = scheduledFor
+  args.setIndexingInFlight(true)
+}
+
+export function clearMarkdownWorkspaceIndexingInFlight(args: MarkdownWorkspaceIndexingFlightBindings, scheduledFor: WorkspacePath, jobId?: number): void {
+  if (typeof jobId === 'number' && args.indexJobRef.current !== jobId) return
+  if (args.indexingInFlightPathRef.current !== scheduledFor) return
+  args.indexingInFlightRef.current = false
+  args.indexingInFlightPathRef.current = null
+  args.setIndexingInFlight(false)
+}
+
 export function emitMarkdownLayoutRequest(mode: MarkdownLayoutRequestMode): void {
   const normalizedMode = mode === 'split' ? 'split' : 'editor'
   if (typeof window === 'undefined') return

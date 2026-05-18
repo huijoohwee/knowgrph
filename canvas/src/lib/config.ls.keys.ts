@@ -197,6 +197,7 @@ export const LS_KEYS = {
   flowEditorManagerNodeSpec: 'kg:ui:flowEditorManager:spec:node',
   flowEditorManagerWorkflowSpec: 'kg:ui:flowEditorManager:spec:workflow',
   geospatialOverlayEnabled: GEOSPATIAL_LS_KEYS.geospatialOverlayEnabled,
+  geospatialOverlayPreferenceVersion: GEOSPATIAL_LS_KEYS.geospatialOverlayPreferenceVersion,
   geospatialAutoEnableOnGeoImport: 'kg:ui:geospatial:autoEnableOnGeoImport',
 
   grabMapsDirectionsEndpointUrl: 'kg:maps:grabmaps:directions:endpointUrl',

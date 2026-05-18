@@ -50,7 +50,6 @@
     "sandbox:export-test-file-01": "node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs ./sandbox/export-canvas-html.ts --input ../../sandbox/test-data/test-file-01.md --output ../../sandbox/test-data/test-file-01.canvas-2d.html --mode 2d && node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs ./sandbox/export-canvas-html.ts --input ../../sandbox/test-data/test-file-01.md --output ../../sandbox/test-data/test-file-01.canvas-3d.html --mode 3d"
   },
   "dependencies": {
-    "@mermaid-js/layout-elk": "^0.2.0",
     "@react-three/fiber": "^8.17.8",
     "@turf/bbox": "^7.2.0",
     "@turf/helpers": "^7.2.0",
@@ -59,7 +58,6 @@
     "d3": "^7.9.0",
     "dagre": "^0.8.5",
     "dayjs": "^1.11.19",
-    "elkjs": "^0.10.0",
     "entities": "^6.0.1",
     "grph-shared": "file:../grph-shared",
     "gympgrph": "file:../gympgrph",
@@ -88,7 +86,6 @@
     "tailwind-merge": "^3.0.2",
     "three": "^0.170.0",
     "unified": "^11.0.5",
-    "web-worker": "^1.5.0",
     "zustand": "^5.0.3"
   },
   "overrides": {

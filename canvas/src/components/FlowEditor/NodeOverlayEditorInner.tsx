@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { NodeOverlayEditorView } from '@/components/FlowEditor/NodeOverlayEditorView'
 import { useNodeOverlayDragHandlers } from '@/components/FlowEditor/useNodeOverlayDragHandlers'
 import { useNodeOverlayPlacementRuntime } from '@/components/FlowEditor/useNodeOverlayPlacementRuntime'
+import { useNodeOverlayRichMediaToolbar } from '@/components/FlowEditor/useNodeOverlayRichMediaToolbar'
 import {
   FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE,
   FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED,
@@ -22,7 +23,6 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -337,6 +337,23 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     })
   }, [])
 
+  const setWidgetSelectionSource = React.useCallback((source: 'canvas' | 'editor' | 'none') => {
+    setSelectionSource(source === 'none' ? 'unknown' : source)
+  }, [setSelectionSource])
+
+  const {
+    isRichMediaPanelWidget,
+    richMediaPanelToolbarProps,
+    richMediaWidgetPreview,
+  } = useNodeOverlayRichMediaToolbar({
+    node,
+    minimized,
+    hideFields,
+    connectedValuesBySchemaPath,
+    onPatchProperties,
+    onToggleHideFields: handleToggleHideFields,
+  })
+
   const drag = useNodeOverlayDragHandlers({
     nodeId,
     active,
@@ -349,7 +366,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     applyOverlayPosition: placement.applyOverlayPosition,
     persistFloatingPlacement: placement.persistFloatingPlacement,
     persistWorldPos: placement.persistWorldPos,
-    setSelectionSource,
+    setSelectionSource: setWidgetSelectionSource,
     selectNode,
     setToolbarVisible,
     canvasWindowOffsetRef: placement.canvasWindowOffsetRef,
@@ -399,13 +416,13 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       toolbarVisible={toolbarVisible}
       toolbarDock={placement.toolbarDock}
       toolbarSideClamp={placement.toolbarSideClamp}
-      isRichMediaPanelWidget={false}
+      isRichMediaPanelWidget={isRichMediaPanelWidget}
       isVideoTranscriberWidget={isVideoTranscriberWidget}
       uiIconScale={uiIconScale}
       uiIconStrokeWidth={uiIconStrokeWidth}
       enableHandlesDisabled={enableHandlesDisabled}
       convertToLoopDisabled={convertToLoopDisabled}
-      richMediaPanelToolbarProps={{}}
+      richMediaPanelToolbarProps={richMediaPanelToolbarProps}
       onRun={onRun}
       onDuplicate={onDuplicate}
       onClearOutput={onClearOutput}
@@ -431,7 +448,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       onValidate={onValidate}
       onRegistrySelectionChange={handleRegistrySelectionChange}
       onRenameSchemaFieldId={onRenameSchemaFieldId}
-      richMediaWidgetPreview={null}
+      richMediaWidgetPreview={richMediaWidgetPreview}
       registryEntry={registryEntry}
       registryEntries={registryEntries}
       connectedValuesBySchemaPath={connectedValuesBySchemaPath}
@@ -444,7 +461,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
       pendingEdgeSourceId={pendingEdgeSourceId}
       onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
       onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
-      setSelectionSource={setSelectionSource}
+      setSelectionSource={setWidgetSelectionSource}
       selectNode={selectNode}
       setToolbarVisible={setToolbarVisible}
       spacePanUserSelectUnlockRef={spacePanUserSelectUnlockRef}
@@ -455,8 +472,6 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
 })
 
 const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner(props: NodeOverlayEditorProps) {
-  const nodeTypeId = String(props.node.type || '').trim()
-  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return null
   return <NodeOverlayEditorWidgetInner {...props} />
 })
 

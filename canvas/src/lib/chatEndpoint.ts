@@ -158,9 +158,24 @@ const toProxyPathFromLocalUrl = (url: URL): string => {
   return `${CHAT_PROXY_PATH_PREFIX}${basePath}${url.search || ''}`
 }
 
+const normalizeBytePlusBaseRequestPath = (path: string): string => {
+  const raw = String(path || '').trim()
+  if (!raw) return raw
+  const splitAt = raw.search(/[?#]/)
+  const pathname = splitAt >= 0 ? raw.slice(0, splitAt) : raw
+  const suffix = splitAt >= 0 ? raw.slice(splitAt) : ''
+  if (/\/api\/v3\/?$/i.test(pathname)) {
+    return `${pathname.replace(/\/api\/v3\/?$/i, '/api/v3/chat/completions')}${suffix}`
+  }
+  return raw
+}
+
 const replaceCompletionsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/api\/v3\/?$/i.test(normalized)) {
+    return normalized.replace(/\/api\/v3\/?$/i, '/api/v3/models')
+  }
   if (/\/api\/llm\/chat\/completions\/?$/i.test(normalized)) {
     return normalized.replace(/\/api\/llm\/chat\/completions\/?$/i, '/api/models')
   }
@@ -179,6 +194,9 @@ const replaceCompletionsPath = (path: string): string => {
 const toModelsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/api\/v3\/?$/i.test(normalized)) {
+    return normalized.replace(/\/api\/v3\/?$/i, '/api/v3/models')
+  }
   if (/\/api\/llm\/chat\/completions\/?$/i.test(normalized)) {
     return normalized.replace(/\/api\/llm\/chat\/completions\/?$/i, '/api/models')
   }
@@ -336,14 +354,23 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   const raw = toCleanInput(value)
   if (!raw) return null
   if (raw.startsWith('/')) {
-    if (raw.startsWith(CHAT_PROXY_PATH_PREFIX)) return raw
-    return `${CHAT_PROXY_PATH_PREFIX}${raw.startsWith('/') ? raw : `/${raw}`}`
+    if (raw.startsWith(CHAT_PROXY_PATH_PREFIX)) {
+      return `${CHAT_PROXY_PATH_PREFIX}${normalizeBytePlusBaseRequestPath(stripProxyPrefix(raw))}`
+    }
+    return `${CHAT_PROXY_PATH_PREFIX}${normalizeBytePlusBaseRequestPath(raw.startsWith('/') ? raw : `/${raw}`)}`
   }
   const absolute = coerceHttpUrl(raw)
   if (!absolute) return null
   try {
     const parsed = new URL(absolute)
     if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
+      if (isTrustedBytePlusHost(parsed.hostname)) {
+        if (parsed.pathname === '/' || parsed.pathname === '') {
+          parsed.pathname = CHAT_BYTEPLUS_COMPLETIONS_PATH
+        } else {
+          parsed.pathname = normalizeBytePlusBaseRequestPath(parsed.pathname)
+        }
+      }
       return toProxyPathFromLocalUrl(parsed)
     }
     return null

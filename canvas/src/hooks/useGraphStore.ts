@@ -191,6 +191,9 @@ export const useGraphStore = create<GraphState>()(
     const keywordSchema = buildKeywordSchemaPreset(schema)
     set({
       graphData: { nodes: [], edges: [], type: 'application/json' },
+      graphDataRevision: 0,
+      graphContentRevision: 0,
+      docLocationRevision: 0,
       schema,
       schemaBySemanticMode: { document: schema, keyword: keywordSchema },
       layoutPositionCacheByMode: {},
@@ -212,6 +215,9 @@ export const useGraphStore = create<GraphState>()(
       flowWidgetPosByNodeIdByGraphMetaKey: {},
       flowWidgetWorldPosByNodeId: {},
       flowWidgetWorldPosByNodeIdByGraphMetaKey: {},
+      zoomState: null,
+      zoomStateByKey: {},
+      zoomRequest: null,
       designLayerState: { order: [], hiddenById: {} },
       designLayerStateByGraphMetaKey: {},
       designFramePosById: {},

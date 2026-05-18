@@ -188,7 +188,7 @@ export async function testFlowEditorActiveSurfaceObstacleCollectionIgnoresTinyPa
       height: 160,
     })
 
-    const overlays = Array.from(surface.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+    const overlays = Array.from(surface.querySelectorAll(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)) as HTMLElement[]
     const entries = collectCanonicalFlowEditorOverlayRectEntries(overlays)
     if (entries.length !== 1 || entries[0]?.id !== 'widget-a') {
       throw new Error(`expected tiny parked rich-media placeholder to be ignored, got ${JSON.stringify(entries.map(entry => entry.id))}`)

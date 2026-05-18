@@ -322,13 +322,13 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoTextEditorText.includes("renderLineHighlight: settings.monacoRenderLineHighlightEnabled ? 'line' : 'none'")) {
     throw new Error('expected MonacoTextEditor to wire renderLineHighlight through MainPanel capability settings')
   }
-  if (!monacoTextEditorText.includes('glyphMargin: settings.monacoGlyphMarginEnabled')) {
+  if (!monacoTextEditorText.includes('glyphMargin: args.forceLineNumberColumn || settings.monacoGlyphMarginEnabled')) {
     throw new Error('expected MonacoTextEditor to wire glyphMargin through MainPanel capability settings')
   }
   if (!monacoTextEditorText.includes('overviewRulerLanes: settings.monacoOverviewRulerLanesEnabled ? 2 : 0')) {
     throw new Error('expected MonacoTextEditor to wire overviewRulerLanes through MainPanel capability settings')
   }
-  if (!monacoTextEditorText.includes('lineDecorationsWidth: settings.monacoLineDecorationsWidthEnabled ? 10 : 0')) {
+  if (!monacoTextEditorText.includes('lineDecorationsWidth: args.forceLineNumberColumn ? 10 : (settings.monacoLineDecorationsWidthEnabled ? 10 : 0)')) {
     throw new Error('expected MonacoTextEditor to wire lineDecorationsWidth through MainPanel capability settings')
   }
   if (!monacoTextEditorText.includes("renderWhitespace: settings.monacoRenderWhitespaceEnabled ? 'selection' : 'none'")) {
@@ -487,14 +487,11 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
 
   const mermaidRuntimeText = readFileSync(resolve(root, 'src', 'lib', 'mermaid', 'mermaidRuntime.ts'), 'utf8')
-  if (!mermaidRuntimeText.includes("return header.startsWith('graph ') || header.startsWith('flowchart ')")) {
-    throw new Error('expected mermaid runtime to constrain elk support to graph or flowchart families')
+  if (mermaidRuntimeText.includes("import('@/lib/mermaid/mermaidElkRuntime')") || mermaidRuntimeText.includes('@mermaid-js/layout-elk')) {
+    throw new Error('expected Mermaid runtime to exclude the oversized ELK renderer bundle')
   }
-  if (!mermaidRuntimeText.includes("const layout = String((config as Record<string, unknown>)?.layout || '').trim().toLowerCase()")) {
-    throw new Error('expected mermaid runtime to branch standard vs elk by explicit layout config')
-  }
-  if (!mermaidRuntimeText.includes("await import('@/lib/mermaid/mermaidElkRuntime')")) {
-    throw new Error('expected mermaid runtime to lazy-load elk registration only for explicit elk layouts')
+  if (!mermaidRuntimeText.includes("return 'standard'")) {
+    throw new Error('expected Mermaid runtime to use the standard renderer branch')
   }
 
   const threeGraphText = readFileSync(resolve(root, 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
@@ -525,8 +522,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!viteConfigText.includes("nodeRequire.resolve('three/src/Three.js')")) {
     throw new Error('expected vite config to resolve three through its source barrel so coarse subchunks can split cleanly')
   }
-  if (!viteConfigText.includes("nodeRequire.resolve('maplibre-gl')")) {
-    throw new Error('expected vite config to resolve maplibre through its stable package entry')
+  if (!viteConfigText.includes("node_modules/maplibre-gl/src/index.ts")) {
+    throw new Error('expected vite config to resolve maplibre through its source entry so subchunks can split cleanly')
   }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'")) {
     throw new Error('expected vite config to split three examples into a separate coarse lazy chunk')
@@ -618,11 +615,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!viteConfigText.includes("(?:assets\\/)?mermaid-[^/]+\\.(?:js|css)$")) {
     throw new Error('expected vite modulePreload filtering to exclude relative and assets-prefixed mermaid chunk deps')
   }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'")) {
-    throw new Error('expected vite config to split mermaid elk render internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk-core'")) {
-    throw new Error('expected vite config to keep mermaid elk core isolated from its render internals')
+  if (viteConfigText.includes('@mermaid-js/layout-elk') || viteConfigText.includes("return 'mermaid-elk-core'")) {
+    throw new Error('expected vite config to exclude Mermaid ELK chunks from production output')
   }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/ui/')) return 'maplibre-ui'")) {
     throw new Error('expected vite config to split maplibre ui internals into a separate coarse chunk')

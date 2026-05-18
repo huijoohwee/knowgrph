@@ -8,6 +8,16 @@ python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagen
 
 The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts scenes from neutral frontmatter or markdown body text, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. Real media providers can be added behind the same typed tool registry without changing the run loop.
 
+## Module Ownership
+
+- `superagent_harness.py`: run loop, state transitions, CLI facade, and public imports.
+- `superagent_contracts.py`: dataclasses, error taxonomy, layout constants, registry, and trace writer.
+- `superagent_plan.py`: agent contracts, task plan, and goal parsing.
+- `superagent_tools.py`: workspace, text, image, video, canvas, and report tools.
+- `superagent_verifier.py`: deterministic artifact, graph, layout, trace, and provenance checks.
+- `superagent_renderers.py`: markdown, SVG, HTML, canvas graph, workspace, and report rendering helpers.
+- `superagent_utils.py`: trace reading, payload summaries, run ids, and goal-file loading.
+
 The canvas worker now emits both a standalone graph artifact and a Knowgrph workspace markdown artifact for the app route:
 
 ```text
@@ -35,6 +45,7 @@ A completed run writes:
 - `trace.jsonl`
 - `goal.json`
 - `final-report.md`
+- `harness-proof.json`
 - `artifacts/input/brief.md`
 - `artifacts/text/scene-plan.md`
 - `artifacts/image/reference-frame.svg`
@@ -65,6 +76,8 @@ python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagen
 
 ## Codex And MCP
 
-Codex can run the harness directly from `/goal` using the CLI above. MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact.
+Codex can run the harness directly from `/goal` using `superagent` or the equivalent `run-goal` CLI alias. The local setup guide is [knowgrph-codex-goal-setup.md](knowgrph-codex-goal-setup.md), and the repo-owned goal loop is also available as `npm run goal:run`.
+
+MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact.
 
 Baseline validation is offline and deterministic. It does not require network access, provider credentials, or a specific pre-existing demo document.

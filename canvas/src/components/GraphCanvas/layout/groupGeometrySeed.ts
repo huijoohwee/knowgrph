@@ -5,7 +5,7 @@ import { getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { DEFAULT_GROUP_PADDING } from '@/lib/graph/layoutDefaults'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { prepareGroupHierarchy } from '@/components/GraphCanvas/layout/groupHierarchyPrep'
 
 type SizedItem = {
@@ -203,10 +203,10 @@ export const applyGroupGeometrySeedLayout = (args: {
   const nodeLookup = getCachedGraphLookup({
     cacheScope: 'graph-canvas-group-geometry-seed-nodes',
     graphData: { type: 'application/json', nodes, edges: [] },
-    graphSemanticKey: hashScopedStringArraySignature(
-      'graph-canvas-group-geometry-seed-nodes',
-      nodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
-    ),
+    graphSemanticKey: buildScopedGraphSemanticKey('graph-canvas-group-geometry-seed-nodes', {
+      graphData: { type: 'application/json', nodes, edges: [] },
+      graphSemanticKey: nodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`).join('\n'),
+    }),
   })
   const nodeById = nodeLookup?.nodeById || new Map<string, GraphNode>()
   const {

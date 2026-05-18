@@ -127,6 +127,8 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'useCanvasGeospatialRuntime.ts')
   const toolbarLauncherPath = path.resolve(process.cwd(), 'src', 'features', 'toolbar', 'ToolbarMenuLauncher.tsx')
   const toolbarToolMenuPath = path.resolve(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const geospatialPreferencePath = path.resolve(process.cwd(), 'src', 'lib', 'geospatial', 'geospatialModePreference.ts')
+  const sharedGeospatialConstantsPath = path.resolve(process.cwd(), '..', 'grph-shared', 'src', 'geospatial', 'constants.ts')
 
   const uiSliceText = readUtf8(uiSlicePath)
   const uiSettingsSliceText = readUtf8(uiSettingsSlicePath)
@@ -136,6 +138,8 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   const runtimeText = readUtf8(runtimePath)
   const toolbarLauncherText = readUtf8(toolbarLauncherPath)
   const toolbarToolMenuText = readUtf8(toolbarToolMenuPath)
+  const geospatialPreferenceText = readUtf8(geospatialPreferencePath)
+  const sharedGeospatialConstantsText = readUtf8(sharedGeospatialConstantsPath)
 
   if (!configRenderText.includes("export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'flowEditor'")) {
     throw new Error('Expected startup 2D renderer baseline to default to Flow Editor at the shared renderer config')
@@ -155,23 +159,44 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   if (!uiSliceText.includes('documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, false)')) {
     throw new Error('Expected View Lock startup default to be OFF at the shared UI slice')
   }
-  if (!geospatialSliceText.includes('readBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
-    throw new Error('Expected geospatial startup default to keep the shared overlay state ON')
+  if (
+    !sharedGeospatialConstantsText.includes('export const DEFAULT_GEOSPATIAL_OVERLAY_ENABLED = false as const')
+    || !sharedGeospatialConstantsText.includes("export const GEOSPATIAL_OVERLAY_PREFERENCE_VERSION = 'neutral-v1' as const")
+    || !sharedGeospatialConstantsText.includes('geospatialOverlayPreferenceVersion:')
+  ) {
+    throw new Error('Expected shared geospatial constants to keep overlay startup neutral instead of map-first')
+  }
+  if (
+    !geospatialPreferenceText.includes('DEFAULT_GEOSPATIAL_OVERLAY_ENABLED')
+    || !geospatialPreferenceText.includes('GEOSPATIAL_OVERLAY_PREFERENCE_VERSION')
+    || !geospatialPreferenceText.includes('readGeospatialOverlayEnabledPreference')
+    || !geospatialPreferenceText.includes('writeGeospatialOverlayEnabledPreference')
+    || !geospatialPreferenceText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, DEFAULT_GEOSPATIAL_OVERLAY_ENABLED)')
+    || !geospatialPreferenceText.includes('LS_KEYS.geospatialOverlayPreferenceVersion')
+  ) {
+    throw new Error('Expected Canvas geospatial preference reads to centralize on the shared neutral overlay default')
+  }
+  if (
+    !geospatialSliceText.includes('DEFAULT_GEOSPATIAL_OVERLAY_ENABLED, GEOSPATIAL_OVERLAY_PREFERENCE_VERSION')
+    || !geospatialSliceText.includes('readGeospatialModeEnabledPreference()')
+    || !geospatialSliceText.includes('writeString(LS_KEYS.geospatialOverlayPreferenceVersion, GEOSPATIAL_OVERLAY_PREFERENCE_VERSION)')
+  ) {
+    throw new Error('Expected geospatial startup default to reuse the shared neutral overlay preference')
   }
   if (!geospatialSliceText.includes('DEFAULT_GEOSPATIAL_VIEW_MODE') || !geospatialSliceText.includes('normalizeGeospatialViewMode')) {
     throw new Error("Expected geospatial startup fallback view mode to prefer the shared default geospatial view-mode SSOT")
   }
-  if (!toolbarContextText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
-    throw new Error('Expected toolbar startup state to reuse the shared geospatial-enabled default without false-first drift')
+  if (!toolbarContextText.includes('readGeospatialOverlayEnabledPreference()')) {
+    throw new Error('Expected toolbar startup state to reuse the shared neutral geospatial preference without default drift')
   }
-  if (!runtimeText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
-    throw new Error('Expected canvas geospatial runtime to reuse the shared geospatial-enabled default without false-first drift')
+  if (!runtimeText.includes('readGeospatialOverlayEnabledPreference()')) {
+    throw new Error('Expected canvas geospatial runtime to reuse the shared neutral geospatial preference without default drift')
   }
-  if (!toolbarLauncherText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
-    throw new Error('Expected toolbar launcher startup state to reuse the shared geospatial-enabled default')
+  if (!toolbarLauncherText.includes('readGeospatialOverlayEnabledPreference()')) {
+    throw new Error('Expected toolbar launcher startup state to reuse the shared neutral geospatial preference')
   }
-  if (!toolbarToolMenuText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
-    throw new Error('Expected floating toolbar startup state to reuse the shared geospatial-enabled default')
+  if (!toolbarToolMenuText.includes('readGeospatialOverlayEnabledPreference()')) {
+    throw new Error('Expected floating toolbar startup state to reuse the shared neutral geospatial preference')
   }
 }
 

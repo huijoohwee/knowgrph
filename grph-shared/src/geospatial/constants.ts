@@ -3,8 +3,12 @@ export const GEOSPATIAL_MODE_CHANGED_EVENT = 'kg:geospatialModeChanged' as const
 export const GEOSPATIAL_STYLE_URL_CHANGED_EVENT = 'kg:geospatialStyleUrlChanged' as const
 export const GEOSPATIAL_POINT_STYLE_CHANGED_EVENT = 'kg:geospatialPointStyleChanged' as const
 
+export const DEFAULT_GEOSPATIAL_OVERLAY_ENABLED = false as const
+export const GEOSPATIAL_OVERLAY_PREFERENCE_VERSION = 'neutral-v1' as const
+
 export const GEOSPATIAL_LS_KEYS = {
   geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
+  geospatialOverlayPreferenceVersion: 'kg:ui:geospatial:overlayPreferenceVersion',
   geospatialViewMode: 'kg:ui:geospatial:viewMode',
   geospatialStyleUrl: 'kg:ui:geospatial:styleUrl',
   grabMapsBasemapStyleUrl: 'kg:maps:grabmaps:basemap:styleUrl',

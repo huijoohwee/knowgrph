@@ -1,7 +1,6 @@
 import React from 'react'
-
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked, type WorkspaceGraphMutationState } from '@/features/workspace-table/workspaceTableSsot'
 import {
   readScopedFlowWidgetNodeValue,
   resolveFlowWidgetStateGraphKey,
@@ -22,6 +21,7 @@ import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } fro
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
+import type { GraphSchema } from '@/lib/graph/schema'
 
 export function useNodeOverlayPlacementRuntime(args: {
   node: { x?: unknown; y?: unknown }
@@ -76,7 +76,7 @@ export function useNodeOverlayPlacementRuntime(args: {
   const worldDragOverrideRef = React.useRef<{ x: number; y: number } | null>(null)
   const viewportRef = React.useRef<{ width: number; height: number }>({ width: viewportW, height: viewportH })
   const canvasWindowOffsetRef = React.useRef<{ left: number; top: number }>({ left: 0, top: 0 })
-  const schemaRef = React.useRef(schema)
+  const schemaRef = React.useRef<GraphSchema | null>(schema && typeof schema === 'object' && !Array.isArray(schema) ? schema as GraphSchema : null)
   const floatingRef = React.useRef(floating)
   const anchoredPosRef = React.useRef<{ top: number; left: number }>({ top: 48, left: 16 })
   const scaledSizeRef = React.useRef<{ width: number; height: number }>({ width: WIDGET_BASE_SIZE.width, height: WIDGET_BASE_SIZE.height })
@@ -167,7 +167,7 @@ export function useNodeOverlayPlacementRuntime(args: {
   }, [canvasWindowOffset])
 
   React.useEffect(() => {
-    schemaRef.current = schema
+    schemaRef.current = schema && typeof schema === 'object' && !Array.isArray(schema) ? schema as GraphSchema : null
   }, [schema])
 
   useIsomorphicLayoutEffect(() => {
@@ -239,11 +239,11 @@ export function useNodeOverlayPlacementRuntime(args: {
   const persistWorldPos = React.useCallback(
     (pos: { x: number; y: number }) => {
       if (!nodeId) return
-      const state = useGraphStore.getState() as {
+      const state = useGraphStore.getState() as WorkspaceGraphMutationState & {
         flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
         flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-        zoomState?: { k?: number; x?: number; y?: number } | null
-        zoomStateByKey?: Record<string, { k?: number; x?: number; y?: number }> | null
+        zoomState?: { k: number; x: number; y: number } | null
+        zoomStateByKey?: Record<string, { k: number; x: number; y: number } | null | undefined> | null
         graphData?: unknown
       }
       if (isWorkspaceGraphMutationBlocked(state)) {

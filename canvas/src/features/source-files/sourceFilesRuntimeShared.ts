@@ -14,9 +14,10 @@ import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   isInitializationWorkspacePath,
-  resolveWorkspaceStartupActivePath,
+  WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { readEnvString } from '@/lib/config.env'
@@ -24,6 +25,19 @@ import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncC
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+const STORAGE_DOC_FALLBACK_TIMEOUT_MS = 8000
+const STORAGE_DOC_FALLBACK_CACHE_TTL_MS = 5 * 60 * 1000
+const STORAGE_DOC_FALLBACK_NEGATIVE_CACHE_TTL_MS = 30 * 1000
+const STORAGE_DOC_FALLBACK_CACHE_MAX_ENTRIES = 64
+const STORAGE_DOC_FALLBACK_CACHE_MAX_CHARS = 1024 * 1024
+
+type StorageDocTextCacheEntry = {
+  text: string
+  expiresAtMs: number
+}
+
+const storageDocTextCache = new Map<string, StorageDocTextCacheEntry>()
+const storageDocTextInFlight = new Map<string, Promise<string>>()
 
 const buildKnowgrphStorageRequestUrl = (args: { path: string; baseUrl: string }): string => {
   const safePath = normalizeString(args.path)
@@ -47,7 +61,72 @@ const readStorageCanonicalPathCandidatesForActivePath = (activePath: WorkspacePa
     ? sourcePath.slice(docsPrefix.length).replace(/^\/+/, '')
     : (normalized.startsWith('/docs/') ? normalized.slice('/docs/'.length).replace(/^\/+/, '') : '')
   if (!rel) return []
-  return [`huijoohwee/docs/${rel}`, `docs/${rel}`]
+  const out = new Set<string>()
+  if (sourcePath.startsWith('workspace:/')) out.add(sourcePath)
+  if (normalized.startsWith('/')) out.add(`workspace:${normalized}`)
+  out.add(`huijoohwee/docs/${rel}`)
+  out.add(`docs/${rel}`)
+  return [...out]
+}
+
+const readStorageDocTextViaFetch = async (requestUrl: string): Promise<string> => {
+  if (typeof fetch !== 'function') return ''
+  const url = normalizeString(requestUrl)
+  if (!url) return ''
+  const now = Date.now()
+  const cached = storageDocTextCache.get(url)
+  if (cached && cached.expiresAtMs > now) {
+    storageDocTextCache.delete(url)
+    storageDocTextCache.set(url, cached)
+    return cached.text
+  }
+  if (cached) storageDocTextCache.delete(url)
+  const inFlight = storageDocTextInFlight.get(url)
+  if (inFlight) return inFlight
+  const promise = (async (): Promise<string> => {
+    const text = await readStorageDocTextViaFetchUncached(url)
+    if (!text || text.length <= STORAGE_DOC_FALLBACK_CACHE_MAX_CHARS) {
+      storageDocTextCache.set(url, {
+        text,
+        expiresAtMs: Date.now() + (text ? STORAGE_DOC_FALLBACK_CACHE_TTL_MS : STORAGE_DOC_FALLBACK_NEGATIVE_CACHE_TTL_MS),
+      })
+      while (storageDocTextCache.size > STORAGE_DOC_FALLBACK_CACHE_MAX_ENTRIES) {
+        const oldest = storageDocTextCache.keys().next().value
+        if (!oldest) break
+        storageDocTextCache.delete(oldest)
+      }
+    }
+    return text
+  })()
+  storageDocTextInFlight.set(url, promise)
+  try {
+    return await promise
+  } finally {
+    storageDocTextInFlight.delete(url)
+  }
+}
+
+const readStorageDocTextViaFetchUncached = async (url: string): Promise<string> => {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null
+  const timeout = controller && typeof setTimeout === 'function'
+    ? setTimeout(() => {
+        try {
+          controller.abort()
+        } catch {
+          void 0
+        }
+      }, STORAGE_DOC_FALLBACK_TIMEOUT_MS)
+    : null
+  try {
+    const response = await fetch(url, controller ? { signal: controller.signal } : undefined)
+    if (!response.ok) return ''
+    const text = String(await response.text())
+    return text.trim() ? text : ''
+  } catch {
+    return ''
+  } finally {
+    if (timeout != null) clearTimeout(timeout)
+  }
 }
 
 const readWorkspaceStorageDocFallbackText = async (
@@ -98,16 +177,10 @@ const readWorkspaceStorageDocFallbackText = async (
         const docPath = `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
         const requestUrl = buildKnowgrphStorageRequestUrl({ path: docPath, baseUrl })
         if (!requestUrl) continue
-        try {
-          const response = await fetch(requestUrl)
-          if (!response.ok) continue
-          const text = String(await response.text())
-          if (text.trim()) {
-            fallbackByActivePath?.set(normalizedPath, text)
-            return text
-          }
-        } catch {
-          void 0
+        const text = await readStorageDocTextViaFetch(requestUrl)
+        if (text.trim()) {
+          fallbackByActivePath?.set(normalizedPath, text)
+          return text
         }
       }
     }
@@ -186,31 +259,67 @@ export function buildMaterializedWorkspaceForceIncludePaths(args?: {
   return activePath ? [activePath] : []
 }
 
-export async function resolveWorkspaceMaterializationEntries(args: {
-  fs: Awaited<ReturnType<typeof getWorkspaceFs>>
-  workspaceEntries?: WorkspaceEntry[]
-}): Promise<WorkspaceEntry[]> {
-  return Array.isArray(args.workspaceEntries) ? args.workspaceEntries : await args.fs.listEntries()
-}
-
 export function readReusableWorkspaceEntriesSnapshot(
   workspaceEntries: WorkspaceEntry[] | null | undefined,
 ): WorkspaceEntry[] | undefined {
   return Array.isArray(workspaceEntries) && workspaceEntries.length > 0 ? workspaceEntries : undefined
 }
 
+export const readWorkspaceActiveEntrySnapshot = async (args: {
+  fs: WorkspaceFs
+  activePath: WorkspacePath
+  workspaceEntries?: WorkspaceEntry[]
+}): Promise<WorkspaceEntry[]> => {
+  const activePath = normalizeWorkspacePath(args.activePath)
+  const provided = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
+  const existingEntry = provided.find(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath) || null
+  if (existingEntry && typeof existingEntry.text === 'string' && existingEntry.text.trim()) return [existingEntry]
+  let text = existingEntry && typeof existingEntry.text === 'string' ? existingEntry.text : ''
+  if (!text.trim()) {
+    try {
+      const fsText = await args.fs.readFileText(activePath)
+      text = typeof fsText === 'string' && fsText.trim()
+        ? fsText
+        : await readWorkspaceStorageDocFallbackText(activePath)
+    } catch {
+      text = await readWorkspaceStorageDocFallbackText(activePath)
+    }
+  }
+  const pathParts = activePath.replace(/^\/+/, '').split('/').filter(Boolean)
+  const name = pathParts[pathParts.length - 1] || ''
+  const parentPath = pathParts.length > 1
+    ? normalizeWorkspacePath(pathParts.slice(0, -1).join('/'))
+    : '/'
+  return [{
+    ...(existingEntry || {}),
+    path: activePath,
+    parentPath,
+    kind: 'file',
+    name: String(existingEntry?.name || name),
+    text,
+    updatedAtMs: typeof existingEntry?.updatedAtMs === 'number' ? existingEntry.updatedAtMs : Date.now(),
+  }]
+}
+
 export async function hydrateWorkspaceEntriesInlineText(args: {
   fs: WorkspaceFs
   workspaceEntries: WorkspaceEntry[]
+  forceIncludePaths?: WorkspacePath[]
 }): Promise<WorkspaceEntry[]> {
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   if (entries.length === 0) return entries
+  const forceIncludePathSet = new Set(
+    (Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : [])
+      .map(path => normalizeWorkspacePath(String(path || '').trim()))
+      .filter(Boolean),
+  )
   let changed = false
   const storageFallbackByPath = new Map<string, string>()
   const next = await Promise.all(
     entries.map(async entry => {
       if (!entry || entry.kind !== 'file') return entry
       if (typeof entry.text === 'string' && entry.text.trim().length > 0) return entry
+      if (forceIncludePathSet.size > 0 && !forceIncludePathSet.has(normalizeWorkspacePath(entry.path))) return entry
       const text = await args.fs.readFileText(entry.path)
       const fallbackText = typeof text === 'string' && text.trim()
         ? text
@@ -299,21 +408,20 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     }
   }
   const fs = args?.fs || (await getWorkspaceFs())
-  const workspaceEntries = await resolveWorkspaceMaterializationEntries({
+  const workspaceEntries = await readWorkspaceActiveEntrySnapshot({
     fs,
+    activePath,
     workspaceEntries: args?.workspaceEntries,
   })
-  const workspaceEntriesForMerge = !shouldApplyToGraph
-    ? workspaceEntries.filter(entry => entry?.kind === 'file' && entry.path === activePath)
-    : workspaceEntries
   const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)
   const merged = mergeWorkspaceEntriesIntoSourceFiles({
     existing,
-    workspaceEntries: workspaceEntriesForMerge,
+    workspaceEntries,
     sourcesByPath,
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: activePath,
     }),
+    forceIncludeOnly: true,
     workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
   })
   const normalizedMerged = !shouldApplyToGraph
@@ -356,17 +464,18 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
-  const workspaceEntries = await fs.listEntries()
-  const workspaceFilePaths = workspaceEntries
-    .filter(entry => entry.kind === 'file')
-    .map(entry => entry.path)
-  const desiredActivePath = resolveWorkspaceStartupActivePath({
-    workspaceFilePaths,
-    activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
-    preferValidationSeedForDefaultFamily: false,
-    forceValidationSeedIfPresent: preferCustomValidationSeed,
-  })
   const currentActivePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath })
+  let desiredActivePath = preferCustomValidationSeed
+    ? TEST_VALIDATION_WORKSPACE_SEED_PATH
+    : currentActivePath
+  let workspaceEntries = desiredActivePath
+    ? await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath })
+    : []
+  const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && String(entry.text || '').trim())
+  if (!hasDesiredActiveText && !preferCustomValidationSeed) {
+    desiredActivePath = WORKSPACE_README_SEED_PATH
+    workspaceEntries = await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath })
+  }
   const snapshot = buildInitialWorkspaceStartupSnapshot({
     currentActivePath,
     desiredActivePath,

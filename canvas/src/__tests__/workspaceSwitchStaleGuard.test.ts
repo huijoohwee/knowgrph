@@ -30,11 +30,23 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   if (!indexingText.includes('if (isStaleJob()) return')) {
     throw new Error('Expected markdown workspace indexing to short-circuit stale jobs before mutating state')
   }
+  if (!indexingText.includes('indexingInFlightPathRef')) {
+    throw new Error('Expected markdown workspace indexing to track the active path that owns the in-flight indexing job')
+  }
+  if (!indexingText.includes('args.indexingInFlightPathRef.current === scheduledFor')) {
+    throw new Error('Expected markdown workspace indexing cleanup to release cancelled in-flight jobs by owner path')
+  }
+  if (indexingText.includes('args.indexingInFlight,') || indexingText.includes('indexingInFlight,\\n    args.indexingInFlightRef')) {
+    throw new Error('Expected markdown workspace indexing effect not to depend on indexingInFlight state and self-cancel started jobs')
+  }
   if (!indexingText.includes('await maybeAutoEnableGeospatialModeForGraphData') || !indexingText.includes('if (isStaleJob()) return')) {
     throw new Error('Expected geospatial auto-enable path to be protected by stale-job guard')
   }
   const bootstrapPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceBootstrapState.ts')
   const bootstrapText = readUtf8(bootstrapPath)
+  if (!bootstrapText.includes('const indexingInFlightPathRef = React.useRef<WorkspacePath | null>(null)')) {
+    throw new Error('Expected markdown workspace bootstrap state to keep indexing in-flight ownership scoped by active path')
+  }
   if (!bootstrapText.includes("const setMarkdownWorkspaceIndexingInFlight = useGraphStore(s => s.setMarkdownWorkspaceIndexingInFlight)")) {
     throw new Error('Expected markdown workspace bootstrap state to publish indexing status into the shared graph store')
   }

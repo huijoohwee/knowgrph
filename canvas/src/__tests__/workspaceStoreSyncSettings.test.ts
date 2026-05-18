@@ -4,6 +4,7 @@ import { uiWorkspaceSettingsRegistry } from '@/features/settings/registry-ui.wor
 import { readWorkspaceImportDefaultSourceUrlSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 const DASH_D1_URL = 'https://dash.cloudflare.com/170e89fdb8679ff2fcc2900e25ed04f4/workers/d1'
+const LOCAL_DOCS_ROOT_SAMPLE = ['', 'Users', 'huijoohwee', 'Documents', 'GitHub', 'huijoohwee', 'docs'].join('/')
 
 export function testWorkspaceImportDefaultSourceUrlPrefersStorageBaseUrlForLocalPathAndDashboardUrl() {
   const { restore } = initJsdomHarness()
@@ -19,7 +20,7 @@ export function testWorkspaceImportDefaultSourceUrlPrefersStorageBaseUrlForLocal
   }
   try {
     store.setCanvasWorkspaceSyncMode('manual')
-    setting.write('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs')
+    setting.write(LOCAL_DOCS_ROOT_SAMPLE)
     const afterLocalPath = readWorkspaceImportDefaultSourceUrlSetting()
     if (afterLocalPath !== 'https://airvio.co') {
       throw new Error(`expected local-path import default source URL to normalize to storage base URL, got ${afterLocalPath}`)

@@ -80,6 +80,9 @@ The workflow added in this repo is:
 Use this exact workflow/status check as a required merge gate. It runs:
 
 - `npm run conflict:check`
+- changed-file hygiene budget regression checks (`<600` lines/file and `<500 KiB` text chunks for new files; no growth for existing over-budget files)
+- built JS/CSS chunk budgets after Pages build (`<500 KiB` per asset)
+- graph cache semantic keys must use `canvas/src/lib/graph/semanticKey.ts`
 - publish mirror drift detection
 - merge-marker detection
 - sibling `AgenticRAG` schema map validation when available

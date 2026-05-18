@@ -6,11 +6,11 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   const flowEditorRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const flowEditorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'resolveWidgetRegistry.ts')
   const runtimeText = readFileSync(flowEditorRuntimePath, 'utf8')
   const sharedText = readFileSync(flowEditorSharedPath, 'utf8')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
-  const registryHelperText = readFileSync(registryHelperPath, 'utf8')
+  const frontmatterOverlayNodeIdsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'frontmatterOverlayNodeIds.ts'), 'utf8')
+  const registryHelperText = readFileSync(resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'resolveWidgetRegistry.ts'), 'utf8')
 
   if (!sharedText.includes('filterGraphToFlowWidgetEligible')) {
     throw new Error('expected FlowEditorCanvas shared graph derivation to filter view graph using flow widget eligibility filtering')
@@ -24,25 +24,25 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!overlaySurfaceText.includes('if (isFrontmatterFlow) {')) {
     throw new Error('expected overlay node derivation to branch explicitly for frontmatter-flow overlay ownership')
   }
-  if (!sharedText.includes('readWidgetRegistryMetadataEntries')) {
+  if (!frontmatterOverlayNodeIdsText.includes('readWidgetRegistryMetadataEntries')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to reuse the shared widget-registry metadata reader SSOT')
   }
-  if (!sharedText.includes('const canonicalBuiltInNodeIds = new Set<string>()')) {
+  if (!frontmatterOverlayNodeIdsText.includes('const canonicalBuiltInNodeIds = new Set<string>()')) {
     throw new Error('expected frontmatter-flow overlay derivation to track canonical built-in widget/media ids before fallback')
   }
-  if (!sharedText.includes('if (!node || !isCanonicalFrontmatterBuiltInWidgetNode(node)) continue')) {
+  if (!frontmatterOverlayNodeIdsText.includes('if (!node || !isCanonicalFrontmatterBuiltInWidgetNode(node)) continue')) {
     throw new Error('expected registry-backed frontmatter overlay ids to stay constrained to canonical built-in widget/media nodes')
   }
-  if (!sharedText.includes('isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: entry })')) {
+  if (!frontmatterOverlayNodeIdsText.includes('isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: { formId } })')) {
     throw new Error('expected registry-backed frontmatter overlay ids to require exact node-owned form identity')
   }
-  if (!sharedText.includes('if (allowedFlowNodeIds.size === 0) return []')) {
+  if (!frontmatterOverlayNodeIdsText.includes('if (allowedFlowNodeIds.size === 0) return []')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to avoid synthetic fallback when registry ids are missing')
   }
-  if (!sharedText.includes('for (const id of eligibleIds) allowedFlowNodeIds.add(id)')) {
+  if (!frontmatterOverlayNodeIdsText.includes('for (const id of eligibleIds) allowedFlowNodeIds.add(id)')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to fall back to eligible node ids')
   }
-  if (!sharedText.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
+  if (!frontmatterOverlayNodeIdsText.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
     throw new Error('expected shared frontmatter-flow overlay derivation to exclude non-flow ids from overlay editors')
   }
   if (!registryHelperText.includes('export function isNodeOwnedFrontmatterWidgetRegistryEntry(')) {
@@ -186,7 +186,7 @@ export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartM
 }
 
 export function testFrontmatterWidgetOverlayPointerCaptureSkipsInteractiveControls() {
-  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const text = readFileSync(nodeOverlayEditorPath, 'utf8')
 
   if (!text.includes("const isInteractiveControl = !!el?.closest('input,textarea,select,button,[contenteditable=\"true\"]')")) {
@@ -637,8 +637,8 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
 
 export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets() {
   const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
-  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
-  const text = `${readFileSync(placementAuthorityPath, 'utf8')}\n${readFileSync(sharedPath, 'utf8')}`
+  const frontmatterOverlayPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'frontmatterOverlayNodeIds.ts')
+  const text = `${readFileSync(placementAuthorityPath, 'utf8')}\n${readFileSync(frontmatterOverlayPath, 'utf8')}`
 
   if (!text.includes('function isCanonicalFrontmatterBuiltInWidgetNode')) {
     throw new Error('expected FlowEditorCanvas to centralize canonical built-in frontmatter widget detection')
@@ -989,10 +989,10 @@ export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMini
   if (!renderStateText.includes('graphData: graphDataForRender')) {
     throw new Error('expected FlowEditor render graph derivation to use unified graphDataForRender source')
   }
-  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) return []')) {
+  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {') || !overlaySurfaceText.includes('return []')) {
     throw new Error('expected widget overlays to remain view-scoped instead of edit-lock scoped to avoid View Lock-induced renderer mutation')
   }
-  if (!overlaySurfaceText.includes('visible={flowEditorViewActive}') || !overlaySurfaceText.includes('active={canEdit}')) {
+  if (!overlaySurfaceText.includes('visible={overlayVisibilityActive}') || !overlaySurfaceText.includes('active={canEdit}')) {
     throw new Error('expected widget overlays to stay visible in Flow Editor view while becoming read-only under View Lock')
   }
   if (runtimeText.includes('frontmatterDocumentModeActive') || renderStateText.includes('frontmatterDocumentModeActive')) {
@@ -1049,10 +1049,10 @@ export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgains
   if (!renderStateText.includes('const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData')) {
     throw new Error('expected knowgrph-video-demo Flow Editor render state to keep draft graph visibility scoped to active Flow Editor view')
   }
-  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) return []')) {
+  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) {') || !overlaySurfaceText.includes('return []')) {
     throw new Error('expected knowgrph-video-demo widget overlays to stay view-scoped so inactive Flow Canvas/Flowchart mounts cannot keep or blank widget overlays')
   }
-  if (!overlaySurfaceText.includes('visible={flowEditorViewActive}') || !overlaySurfaceText.includes('active={canEdit}')) {
+  if (!overlaySurfaceText.includes('visible={overlayVisibilityActive}') || !overlaySurfaceText.includes('active={canEdit}')) {
     throw new Error('expected knowgrph-video-demo widget overlays to remain visible in Flow Editor view while decoupling visibility from editability')
   }
   if (!selectionBookkeepingText.includes('if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return')) {
@@ -1071,7 +1071,7 @@ export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgains
 }
 
 export function testWidgetInitUsesLayoutHydrationAndRafClampCommit() {
-  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const text = readFileSync(nodeOverlayEditorPath, 'utf8')
 
   if (!text.includes('useIsomorphicLayoutEffect(() => {') || !text.includes('resolveFloatingPos(widgetPos, defaultFloatingPos)')) {
@@ -1133,7 +1133,7 @@ export function testFlowEditorWidgetPinDescriptionsAreActionClear() {
   if (!panelText.includes('title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}')) {
     throw new Error('expected widget pin button title to reflect explicit action for current state')
   }
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayDragHandlers.ts')
   const overlayText = readFileSync(overlayPath, 'utf8')
   if (!overlayText.includes('if (pinnedInCanvas) return')) {
     throw new Error('expected widget header drag to be disabled only when pinned and enabled when unpinned')
@@ -1253,7 +1253,7 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
   const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
@@ -1298,7 +1298,7 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
 export function testFlowEditorPinnedWidgetForbidsAccidentalDuplicateCopy() {
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const overlayText = readFileSync(overlayPath, 'utf8')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')

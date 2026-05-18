@@ -5,7 +5,6 @@ import {
   SESSION_KEYS,
   STORAGE_CHANNELS,
 } from './config.ls.keys'
-
 export {
   LS_KEYS,
   LS_KEY_VIEWPORT_LAST,
@@ -253,6 +252,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   flowEditorManagerNodeSpec: 'ui.mainPanel',
   flowEditorManagerWorkflowSpec: 'ui.mainPanel',
   geospatialOverlayEnabled: 'ui.geospatial',
+  geospatialOverlayPreferenceVersion: 'ui.geospatial',
   geospatialAutoEnableOnGeoImport: 'ui.geospatial',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',

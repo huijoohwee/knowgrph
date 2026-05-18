@@ -138,7 +138,7 @@ export function testSourceFilesBootstrapResyncsOnlyOnActivePathChanges() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const text = readFileSync(bootstrapPath, 'utf8')
 
-  if (!(text.includes('useMarkdownExplorerStore.subscribe(') && text.includes('s => s.activePath'))) {
+  if (!(text.includes('useMarkdownExplorerStore.subscribe(') && text.includes('lastObservedActivePath'))) {
     throw new Error('expected source files bootstrap to continue resyncing on active path changes')
   }
   if (text.includes('s => s.activePath && syncNow()')) {
@@ -187,9 +187,8 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceFsSeedChanges() {
   if (!text.includes('await fs.ensureSeed()')) {
     throw new Error('expected source files bootstrap to periodically call ensureSeed for dynamic external docs seed reflection')
   }
-  if (!text.includes('const workspaceEntries = await fs.listEntries()')) {
-    throw new Error('expected source files bootstrap workspace-fs event handler to refresh workspace entry snapshot from fs listEntries')
-  }
+  if (text.includes('const workspaceEntries = await fs.listEntries()')) throw new Error('expected source files bootstrap workspace-fs event handler to avoid full listEntries scans on the source-files rematerialization hot path')
+  if (!text.includes('const workspaceEntries = await readWorkspaceActiveEntrySnapshot({')) throw new Error('expected source files bootstrap workspace-fs event handler to refresh only the active workspace entry snapshot')
   if (!text.includes('const merged = mergeWorkspaceEntriesIntoSourceFiles({')) {
     throw new Error('expected source files bootstrap workspace-fs event handler to merge latest workspace entries into sourceFiles before rematerialization')
   }
@@ -550,7 +549,7 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
   if (!text.includes('String(existingWorkspaceSourceForPath?.parsedTextHash || \'\') === hash')) {
     throw new Error('expected markdown workspace runtime semantic no-op guard to compare parsed workspace source hash against active text hash')
   }
-  if (!text.includes('const shouldRunWorkspaceSourceParsing = (')) {
+  if (!text.includes('const shouldRunWorkspaceSourceParsing = ext ===')) {
     throw new Error('expected markdown workspace runtime indexing to centralize parse eligibility before expensive workspace source parse paths')
   }
   if (text.includes('|| isInitializationWorkspacePath(path)')) {
@@ -587,8 +586,8 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!runtimeSharedText.includes('export function buildMaterializedWorkspaceForceIncludePaths(args?:')) {
     throw new Error('expected workspace bootstrap materialization to centralize active workspace force-include path derivation in the shared runtime helper')
   }
-  if (!runtimeSharedText.includes('export async function resolveWorkspaceMaterializationEntries(args:')) {
-    throw new Error('expected workspace bootstrap materialization to centralize workspace snapshot reuse vs relist decisions in the shared runtime helper')
+  if (!runtimeSharedText.includes('export const readWorkspaceActiveEntrySnapshot = async (args:')) {
+    throw new Error('expected workspace bootstrap materialization to centralize active-entry snapshot reuse in the shared runtime helper')
   }
   if (!runtimeSharedText.includes('export function readReusableWorkspaceEntriesSnapshot(')) {
     throw new Error('expected workspace bootstrap materialization to centralize reusable workspace snapshot gating in the shared runtime helper')
@@ -611,7 +610,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('buildMaterializedWorkspaceActivePathKey({')) {
     throw new Error('expected source files bootstrap to reuse the shared active workspace path key helper before rematerialization dedupe')
   }
-  if (!bootstrapStartupText.includes('readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries)')) {
+  if (!bootstrapStartupText.includes('readReusableWorkspaceEntriesSnapshot(hydratedEntries)')) {
     throw new Error('expected source files bootstrap to reuse the shared workspace snapshot helper before deciding whether startup entries should be passed into materialization')
   }
   if (!runtimeSharedText.includes('resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)')) {
@@ -620,7 +619,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapStartupText.includes('resolveWorkspaceSourceIndexSnapshot(undefined)')) {
     throw new Error('expected source files bootstrap startup hydration to reuse the shared source-index snapshot helper')
   }
-  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles().catch(() => {')) {
+  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({')) {
     throw new Error('expected active-path rematerialization to delegate apply-to-graph policy to shared materialization logic')
   }
   if (!runtimeSharedText.includes('const shouldApplyToGraph = args?.applyToGraph === true || isInitializationWorkspacePath(activePath)')) {
@@ -707,7 +706,7 @@ export function testWorkspaceRefreshSetSourceFilesImmediatelySchedulesComposeApp
   if (!text.includes('setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))')) {
     throw new Error('expected markdown workspace runtime refresh to skip no-op workspace entry state writes')
   }
-  if (!text.includes('const pruned = pruneWorkspaceEntriesForInlineSnapshot(list)')) {
+  if (!text.includes('const pruned = pruneWorkspaceEntriesForInlineSnapshot(hydratedList)')) {
     throw new Error('expected markdown workspace runtime refresh to centralize oversized inline workspace-entry pruning in the shared runtime helper')
   }
   if (!text.includes('setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))')) {
@@ -793,7 +792,7 @@ export function testWorkspaceManualRefreshActionsSuppressFollowUpFsEventRefresh(
 export function testWorkspaceInlineTextOwnershipIsCentralized() {
   const helperPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceInlineText.ts')
   const runtimeIoPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
-  const runtimeImplPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const runtimeImplPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceBootstrapState.ts')
   const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const importApplyPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'applyWorkspaceImportToCanvas.ts')
   const helperText = readFileSync(helperPath, 'utf8')
@@ -1084,12 +1083,11 @@ export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisab
   if (!text.includes('const next = pruneWorkspaceSourceFilesToActive({')) {
     throw new Error('expected workspace active materialization fast path to reuse a shared workspace-source pruning helper')
   }
-  if (!text.includes('const workspaceEntriesForMerge = !shouldApplyToGraph')) {
+  if (!text.includes('const workspaceEntries = await readWorkspaceActiveEntrySnapshot({')) {
     throw new Error('expected workspace active materialization non-graph path to limit merge workload to active workspace entry snapshots')
   }
-  if (!text.includes('workspaceEntries.filter(entry => entry?.kind === \'file\' && entry.path === activePath)')) {
-    throw new Error('expected workspace active materialization non-graph path to avoid full workspace merge churn during file switching')
-  }
+  if (text.includes('workspaceEntries.filter(entry => entry?.kind === \'file\' && entry.path === activePath)')) throw new Error('expected workspace active materialization non-graph path to avoid downstream filtering aliases and read the active entry at the source')
+  if (!text.includes('forceIncludeOnly: true')) throw new Error('expected workspace active materialization non-graph path to enforce active-only source-file merging upstream')
   if (!text.includes('const normalizedMerged = !shouldApplyToGraph') || !text.includes('pruneWorkspaceSourceFilesToActive({')) {
     throw new Error('expected workspace active materialization non-graph path to prune workspace-backed source files to active-only runtime state')
   }
@@ -1126,7 +1124,7 @@ export function testMarkdownDocumentSettersStayDecoupledFromWorkspaceViewMode() 
   if (graphSliceText.includes('get().setWorkspaceViewMode(viewMode)')) {
     throw new Error('expected setActiveMarkdownDocument to stop mutating workspace view mode directly')
   }
-  if (!importEffectsText.includes('state.setWorkspaceViewMode(workspaceViewMode)')) {
+  if (!importEffectsText.includes('openMarkdownWorkspaceEditorPane(state)')) {
     throw new Error('expected toolbar markdown imports to own explicit workspace mode changes at the caller')
   }
   if (!ingestText.includes("store.setWorkspaceViewMode('editor')")) {

@@ -103,7 +103,7 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     if (!nodeId) continue
     const node = nodeById.get(nodeId)
     if (!node || !isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
-    if (!isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: entry })) continue
+    if (!isNodeOwnedFrontmatterWidgetRegistryEntry({ node, registryEntry: { formId } })) continue
     allowedFlowNodeIds.add(nodeId)
   }
   if (allowedFlowNodeIds.size === 0 && canonicalBuiltInNodeIds.size === 0) {

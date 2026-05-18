@@ -5,7 +5,7 @@ import { hashText } from '@/features/parsers/hash'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { buildSourceFilesGeospatialSelectionSignature } from '@/features/source-files/sourceFilesSignatures'
-import { analyzeMarkdownGeodataSources } from '@/lib/markdown/markdownGeodataAnalysis'
+import { analyzeMarkdownGeodataSources, buildMarkdownGeodataAnalysisCacheSignature } from '@/lib/markdown/markdownGeodataAnalysis'
 import { normalizeComposedSourcePath } from '@/features/source-files/composedSourceSelection'
 import { resolveGeospatialSourceContext } from '@/features/source-files/geospatialSourceContext'
 import { buildMarkdownGeoFeatureCollectionGraphSourceHash } from './markdownGeoContentSignature'
@@ -91,7 +91,15 @@ const buildGeospatialOverlayGraphCacheKey = (args: {
     'geospatial-overlay-graph-data',
     baseGraphKey,
     sourceDocumentPath,
-    markdownText ? hashText(markdownText) : '',
+    markdownText
+      ? buildMarkdownGeodataAnalysisCacheSignature({
+          markdownText,
+          sourceDocumentPath,
+          embeddedGeoLimit: 8,
+          poiTableLimit: 3,
+          poiRowLimit: 400,
+        })
+      : '',
     buildSourceFilesGeospatialSelectionSignature(args.sourceFiles),
   ])
 }

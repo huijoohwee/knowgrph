@@ -1,6 +1,12 @@
 type WorkspaceViewMode = 'canvas' | 'editor'
 type EditorWorkspacePane = 'markdown' | 'graphTable'
 
+export type WorkspaceGraphMutationState = {
+  workspaceViewMode: WorkspaceViewMode
+  workspaceCanvasPaneOpen: boolean
+  markdownWorkspaceIndexingInFlight?: boolean
+}
+
 type WorkspaceEditorOpenStore = {
   workspaceViewMode: WorkspaceViewMode
   editorWorkspacePane: EditorWorkspacePane
@@ -18,11 +24,7 @@ export function isWorkspaceEditorOverlayOpen(args: {
   return args.workspaceViewMode === 'editor'
 }
 
-export function isWorkspaceGraphMutationBlocked(args: {
-  workspaceViewMode: WorkspaceViewMode
-  workspaceCanvasPaneOpen: boolean
-  markdownWorkspaceIndexingInFlight?: boolean
-}): boolean {
+export function isWorkspaceGraphMutationBlocked(args: WorkspaceGraphMutationState): boolean {
   return isWorkspaceEditorOverlayOpen(args) || args.markdownWorkspaceIndexingInFlight === true
 }
 

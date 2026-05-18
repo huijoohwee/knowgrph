@@ -1,4 +1,4 @@
-import { computeBoundsFromCollections } from 'gympgrph'
+import { computeBoundsFromCollections } from 'gympgrph/map-preview'
 import { hashText } from '@/features/parsers/hash'
 import { cloneMarkdownGeoParseResult } from './markdownGeoClone'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
