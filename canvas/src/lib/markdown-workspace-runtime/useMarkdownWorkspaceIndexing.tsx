@@ -13,7 +13,6 @@ import {
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
   isPendingLocalImportStubText,
@@ -48,10 +47,10 @@ import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownW
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceSourceFileInlineText, upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
+import { resolveMarkdownWorkspaceFrontmatterLanding } from './markdownWorkspaceFrontmatterLanding'
 export { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
 
 const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000
-
 export type MarkdownWorkspaceIndexingArgs = MarkdownWorkspaceRuntimeProgressStatusBindings & {
   active: boolean
   viewerInlineEditActive: boolean
@@ -238,14 +237,15 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             })
             const previouslyIndexedHash = args.lastIndexedByPathRef.current.get(path)
             const alreadyIndexedForTextHash = typeof previouslyIndexedHash === 'string' && previouslyIndexedHash === textHash
-            const shouldApplyFrontmatterDrivenDocumentLanding =
-              !!args.activeDocumentKey
-              && nextText.trim().length > 0
-              && false
-              && nextText.length <= WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS
-              && !alreadyIndexedForTextHash
-            if (!alreadyIndexedForTextHash) {
-              if (shouldApplyFrontmatterDrivenDocumentLanding) {
+            const graphState = useGraphStore.getState()
+            const frontmatterLanding = resolveMarkdownWorkspaceFrontmatterLanding({
+              activeDocumentKey: args.activeDocumentKey, nextText,
+              maxChars: WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS,
+              alreadyIndexedForTextHash,
+              currentMarkdownDocumentName: graphState.markdownDocumentName, currentMarkdownDocumentText: graphState.markdownDocumentText,
+            })
+            if (!alreadyIndexedForTextHash || frontmatterLanding.shouldApply) {
+              if (frontmatterLanding.shouldApply) {
                 pushWorkspaceTextToActiveMarkdownDocument({
                   activeDocumentKey: args.activeDocumentKey,
                   activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
@@ -254,6 +254,8 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                   applyViewPreset: true,
                   applyToGraph: true,
                   forceApplyToGraph: true,
+                  canvasWorkspacePreset: frontmatterLanding.preset,
+                  normalizeWebpageFrontmatterToMarkdown: false,
                 })
               } else {
                 pushWorkspaceTextToActiveMarkdownDocument({

@@ -265,7 +265,7 @@ export interface GraphStatePanelsMarkdown {
     applyViewPreset?: boolean
     recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
     applyToGraph?: boolean
-    forceApplyToGraph?: boolean
+    forceApplyToGraph?: boolean; canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
     normalizeMermaidMmd?: boolean
   }) => Promise<boolean>
   applyMarkdownDocumentToGraph: (

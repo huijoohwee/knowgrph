@@ -261,6 +261,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
         autoEnableFrontmatter: false,
         applyViewPreset: false,
         applyToGraph: true,
+        canvasWorkspacePreset: presetContext.preset,
         normalizeWebpageFrontmatterToMarkdown: false,
       })
     }
@@ -282,6 +283,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
           autoEnableFrontmatter: false,
           applyViewPreset: false,
           applyToGraph: false,
+          canvasWorkspacePreset: presetContext.preset,
           normalizeWebpageFrontmatterToMarkdown: false,
         })
       } finally {

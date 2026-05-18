@@ -2,6 +2,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
@@ -25,6 +26,8 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   applyViewPreset?: boolean
   applyToGraph?: boolean
   forceApplyToGraph?: boolean
+  canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
+  normalizeWebpageFrontmatterToMarkdown?: boolean
 }): void => {
   void applyActiveMarkdownDocumentPayload({
     setActiveMarkdownDocument: args.setActiveMarkdownDocument,
@@ -35,7 +38,8 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
     applyViewPreset: args.applyViewPreset ?? false,
     applyToGraph: args.applyToGraph,
     forceApplyToGraph: args.forceApplyToGraph,
-    normalizeWebpageFrontmatterToMarkdown: true,
+    canvasWorkspacePreset: args.canvasWorkspacePreset,
+    normalizeWebpageFrontmatterToMarkdown: args.normalizeWebpageFrontmatterToMarkdown ?? true,
   })
 }
 

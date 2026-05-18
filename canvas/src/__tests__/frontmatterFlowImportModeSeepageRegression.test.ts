@@ -626,17 +626,14 @@ export function testInitializationWorkspaceSelectionPromotesAtomicGraphAndPreset
   const indexingText = fs.readFileSync(indexingPath, 'utf8')
   const runtimeIoText = fs.readFileSync(runtimeIoPath, 'utf8')
 
-  if (!documentActionsText.includes('args?.applyViewPreset !== false && !args?.applyToGraph && text.trim()')) {
-    throw new Error('expected active markdown document switching to defer raw frontmatter preset replay when graph apply is requested')
+  if (!documentActionsText.includes('const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true') || !documentActionsText.includes('hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text)')) {
+    throw new Error('expected active markdown document switching to resolve and reuse frontmatter presets for graph applies')
   }
-  if (!indexingText.includes('const shouldApplyFrontmatterDrivenDocumentLanding =')) {
-    throw new Error('expected workspace indexing to centralize frontmatter-driven landing behind an explicit switch contract')
+  if (!indexingText.includes('const frontmatterLanding = resolveMarkdownWorkspaceFrontmatterLanding({') || indexingText.includes('&& false')) {
+    throw new Error('expected workspace indexing to enable bounded frontmatter-driven landing behind an explicit switch contract')
   }
-  if (!indexingText.includes('&& false')) {
-    throw new Error('expected source-file switching runtime to hard-disable frontmatter-driven graph landing applies to prevent switch-time freeze churn')
-  }
-  if (!indexingText.includes('applyViewPreset: true') || !indexingText.includes('applyToGraph: true') || !indexingText.includes('forceApplyToGraph: true')) {
-    throw new Error('expected frontmatter-driven landing to atomically reapply both graph payload and canvas/document preset state')
+  if (!indexingText.includes('applyViewPreset: true') || !indexingText.includes('applyToGraph: true') || !indexingText.includes('forceApplyToGraph: true') || !indexingText.includes('canvasWorkspacePreset: frontmatterLanding.preset') || !indexingText.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
+    throw new Error('expected frontmatter-driven landing to atomically apply graph, preset, and original Source Files markdown to Canvas')
   }
   if (!indexingText.includes('} else {')) {
     throw new Error('expected initialization-file landing to skip only the passive preset-suppressed refresh branch')

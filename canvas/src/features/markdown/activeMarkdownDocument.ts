@@ -1,5 +1,5 @@
 import type { RecentFileEntry } from '@/hooks/store/types'
-import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
+import { normalizeWebpageFrontmatterView, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 export type ActiveMarkdownDocumentPayload = {
   name: string
@@ -12,6 +12,7 @@ export type ActiveMarkdownDocumentPayload = {
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
   applyToGraph?: boolean
   forceApplyToGraph?: boolean
+  canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
 }
 
 export function buildActiveMarkdownDocumentPayload(args: {
@@ -24,6 +25,7 @@ export function buildActiveMarkdownDocumentPayload(args: {
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
   applyToGraph?: boolean
   forceApplyToGraph?: boolean
+  canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
   normalizeWebpageFrontmatterToMarkdown?: boolean
 }): ActiveMarkdownDocumentPayload {
   const name = String(args.name || '').trim()
@@ -43,6 +45,7 @@ export function buildActiveMarkdownDocumentPayload(args: {
     ...(args.recent ? { recent: args.recent } : {}),
     ...(typeof args.applyToGraph === 'boolean' ? { applyToGraph: args.applyToGraph } : {}),
     ...(typeof args.forceApplyToGraph === 'boolean' ? { forceApplyToGraph: args.forceApplyToGraph } : {}),
+    ...(args.canvasWorkspacePreset !== undefined ? { canvasWorkspacePreset: args.canvasWorkspacePreset } : {}),
   }
 }
 
@@ -57,6 +60,7 @@ export function applyActiveMarkdownDocumentPayload(args: {
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
   applyToGraph?: boolean
   forceApplyToGraph?: boolean
+  canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
   normalizeWebpageFrontmatterToMarkdown?: boolean
 }): Promise<boolean> | null {
   const payload = buildActiveMarkdownDocumentPayload(args)

@@ -1,4 +1,5 @@
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 export type MarkdownWorkspaceRuntimeGetFs = () => Promise<WorkspaceFs>
 
@@ -8,5 +9,8 @@ export type MarkdownWorkspaceRuntimeSetActiveDocument = (args: {
   normalizeMermaidMmd?: boolean
   autoEnableFrontmatter?: boolean
   applyViewPreset?: boolean
+  applyToGraph?: boolean
+  forceApplyToGraph?: boolean
+  canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
   sourceUrl?: string | null
 }) => Promise<boolean>

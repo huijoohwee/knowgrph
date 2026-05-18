@@ -488,7 +488,7 @@ export function testParsedGraphStateOwnershipIsCentralized() {
 export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInsteadOfDirectGraphOverride() {
   const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const text = readFileSync(runtimePath, 'utf8')
-
+  const landingText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceFrontmatterLanding.ts'), 'utf8')
   if (!text.includes('const shouldReuseExistingWorkspaceSourceFile =')) {
     throw new Error('expected markdown workspace runtime to centralize reuse of an already-parsed workspace source file')
   }
@@ -534,11 +534,11 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
   if (!text.includes('const alreadyIndexedForTextHash = typeof previouslyIndexedHash === \'string\' && previouslyIndexedHash === textHash')) {
     throw new Error('expected markdown workspace runtime to centralize frontmatter landing dedupe on indexed semantic text hash reuse')
   }
-  if (!text.includes('if (!alreadyIndexedForTextHash) {')) {
-    throw new Error('expected markdown workspace runtime to skip redundant active markdown document push for already-indexed path/hash semantic no-op')
+  if (!text.includes('if (!alreadyIndexedForTextHash || frontmatterLanding.shouldApply) {')) {
+    throw new Error('expected markdown workspace runtime to skip redundant active document push except required frontmatter Canvas relanding')
   }
-  if (!text.includes('&& !alreadyIndexedForTextHash')) {
-    throw new Error('expected markdown workspace runtime to avoid repeat frontmatter graph-apply landing when active path hash is already indexed')
+  if (!landingText.includes('args.alreadyIndexedForTextHash && currentDocumentMatches') || !landingText.includes('readCanvasWorkspacePresetSwitchContext(nextText)')) {
+    throw new Error('expected markdown workspace frontmatter landing helper to reuse bounded detection and avoid repeated active-document graph apply')
   }
   if (!text.includes('const workspaceSourceAlreadyIndexedForSameHash = !!(')) {
     throw new Error('expected markdown workspace runtime indexing to centralize semantic no-op guard for already-indexed workspace source path/hash')

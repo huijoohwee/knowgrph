@@ -115,6 +115,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
     applyToGraph?: boolean
     forceApplyToGraph?: boolean
+    canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
     normalizeMermaidMmd?: boolean
   }): Promise<boolean> => {
     const name = String(args?.name || '').trim()
@@ -122,7 +123,10 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     const rawText = String(args?.text || '')
     const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
     const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true
-    const parsedTextPreset = shouldResolveCanvasPreset ? parseCanvasWorkspaceFrontmatterPreset(text) : null
+    const hasProvidedCanvasPreset = Object.prototype.hasOwnProperty.call(args || {}, 'canvasWorkspacePreset')
+    const parsedTextPreset = shouldResolveCanvasPreset
+      ? (hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text))
+      : null
     const strictFlowEditorPreset = isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
 
     get().setMarkdownDocument(name, text, {
