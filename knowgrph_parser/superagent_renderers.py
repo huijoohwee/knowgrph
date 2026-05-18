@@ -21,6 +21,7 @@ from .superagent_contracts import (
     RICH_MEDIA_SURFACE_ROUTE,
 )
 from .superagent_proof_manifest import render_harness_proof_manifest_report_lines
+from .superagent_responsive import build_responsive_layout_metadata, render_responsive_frontmatter_lines
 from .superagent_utils import clip_sentence, normalize_space
 
 def split_frontmatter(text: str) -> Tuple[JsonDict, str]:
@@ -195,6 +196,7 @@ def render_workspace_flow_markdown(
         "  width: 1920",
         "  height: 1080",
         "  aspectRatio: \"16:9\"",
+        *render_responsive_frontmatter_lines(),
         "frontmatterFlowSettings:",
         "  direction: LR",
         "  edgeType: smoothstep",
@@ -484,6 +486,7 @@ def balanced_layout_metadata() -> JsonDict:
     return {
         "frame": dict(BALANCED_LAYOUT_FRAME),
         "nodes": {node_id: dict(layout) for node_id, layout in BALANCED_WIDGET_LAYOUT.items()},
+        "responsive": build_responsive_layout_metadata(),
         "edgeRouting": {
             "strategy": "fan-in-readable",
             "sourceAnchor": "bottom",

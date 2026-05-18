@@ -20,6 +20,7 @@ Canonical companion for the clean end-state topology shared with `singabldr`.
 | Release flow | Build and validate in `knowgrph`, sync only Knowgrph surfaces into `huijoohwee`, then push the publish repo for Cloudflare Pages. | `knowgrph` | `huijoohwee` | `airvio.co/knowgrph` |
 | Drift control | Fix stale paths, route leakage, and runtime drift at the Knowgrph source or shared publish config root; never patch generated outputs downstream. | `knowgrph` | `huijoohwee` | `airvio.co/knowgrph` |
 | Goal hygiene | Keep goal-driven refactors lean, source-owned, sub-600-line, sub-500-KiB, and free of downstream alias/remap shims before publishing. | `knowgrph/goal` | `huijoohwee/content/knowgrph` | `airvio.co/knowgrph` |
+| Responsive parity | Own mobile-first responsive behavior in Dev source and generated workspace metadata; publish only synced artifacts after mobile/tablet/desktop/wide proof passes. | `knowgrph/goal`, `knowgrph/docs/**`, `knowgrph/canvas/**` | `huijoohwee/content/knowgrph` | `airvio.co/knowgrph` |
 
 ## Companion
 

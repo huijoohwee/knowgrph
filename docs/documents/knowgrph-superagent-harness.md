@@ -24,7 +24,7 @@ The canvas worker now emits both a standalone graph artifact and a Knowgrph work
 MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges
 ```
 
-That workspace document uses frontmatter-flow metadata with `TextGeneration`, `ImageGeneration`, `VideoGeneration`, and `RichMediaPanel` nodes, plus the canonical widget form ids, port handles, balanced 16:9 layout metadata, and edge route hints required by the editor widget surface and the Rich Media Panel render surface.
+That workspace document uses frontmatter-flow metadata with `TextGeneration`, `ImageGeneration`, `VideoGeneration`, and `RichMediaPanel` nodes, plus the canonical widget form ids, port handles, mobile-first responsive proof metadata, balanced 16:9 layout metadata, and edge route hints required by the editor widget surface and the Rich Media Panel render surface.
 
 ## Runtime Concepts
 
@@ -52,6 +52,7 @@ A completed run writes:
 - `artifacts/video/storyboard-video.html`
 - `artifacts/canvas/canvas.graph.json`
 - `artifacts/canvas/canvas-preview.html`
+- `artifacts/responsive/responsive-proof.json`
 - `artifacts/workspace/rich-media-flow.md`
 
 ## Resume And Recovery
@@ -80,4 +81,4 @@ Codex can run the harness directly from `/goal` using `superagent` or the equiva
 
 MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact.
 
-Baseline validation is offline and deterministic. It does not require network access, provider credentials, or a specific pre-existing demo document.
+Baseline validation is offline and deterministic. It does not require network access, provider credentials, or a specific pre-existing demo document. The static responsive proof covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.

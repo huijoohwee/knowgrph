@@ -120,6 +120,7 @@ artifacts/image/reference-frame.svg
 artifacts/video/storyboard-video.html
 artifacts/canvas/canvas.graph.json
 artifacts/canvas/canvas-preview.html
+artifacts/responsive/responsive-proof.json
 artifacts/workspace/rich-media-flow.md
 ```
 
@@ -127,11 +128,12 @@ The workspace artifact contains frontmatter-flow metadata with:
 
 - `TextGeneration`, `ImageGeneration`, `VideoGeneration`, and `RichMediaPanel` nodes.
 - Canonical widget form ids and typed port handles.
+- Mobile-first responsive proof metadata for 320x640, 390x844, 768x1024, 1366x768, and 1920x1080 classes.
 - A balanced 1920x1080 layout frame.
 - Edge route hints between text, image, video, and rich-media widgets.
 - Provenance back to the harness run id, goal, verification result, and artifacts.
 
-`harness-proof.json` is the judge-facing manifest: it records the Codex/MCP integration route, agent contracts, tool registry, plan dependencies, stop rules, retry policy, trace event counts, verification checks, recovery events, and artifact existence.
+`harness-proof.json` is the judge-facing manifest: it records the Codex/MCP integration route, agent contracts, tool registry, plan dependencies, stop rules, retry policy, responsive proof classes, trace event counts, verification checks, recovery events, and artifact existence.
 
 ## MCP Server
 

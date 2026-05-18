@@ -16,6 +16,7 @@ export type CanvasViewOptionId =
   | 'surface:menu'
   | 'surface:2d'
   | 'surface:3d'
+  | 'surface:xr'
   | 'surface:voxel'
   | 'animation:menu'
   | 'animation:force'

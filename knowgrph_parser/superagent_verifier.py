@@ -1,7 +1,7 @@
 import os
 from typing import List, Optional, Tuple
 
-from .common import read_text, utc_now_iso
+from .common import read_text, utc_now_iso, write_json
 from .superagent_contracts import (
     BALANCED_LAYOUT_ID,
     ERROR_FATAL,
@@ -11,6 +11,7 @@ from .superagent_contracts import (
     RICH_MEDIA_SURFACE_ROUTE,
 )
 from .superagent_plan import build_plan
+from .superagent_responsive import build_responsive_verification_checks, responsive_evidence_from_checks
 from .superagent_utils import read_trace_events
 
 def tool_judge_verify(payload: JsonDict) -> JsonDict:
@@ -171,6 +172,7 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
             "detail": workspace_path,
         }
     )
+    checks.extend(build_responsive_verification_checks(layout_meta, workspace_text))
 
     trace_path = os.path.join(str(payload["output_dir"]), "trace.jsonl")
     trace_events = read_trace_events(trace_path)
@@ -204,4 +206,26 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
     }
     if not verification["passed"]:
         raise HarnessError("Verification failed", ERROR_FATAL, {"checks": checks})
-    return {"verification": verification, "artifacts": []}
+    responsive_path = os.path.join(str(payload["output_dir"]), "artifacts", "responsive", "responsive-proof.json")
+    write_json(
+        responsive_path,
+        {
+            "schema_version": "knowgrph.superagent.responsive-proof.v1",
+            "run_id": str(payload["run_id"]),
+            "checked_at": verification["checked_at"],
+            "responsive": responsive_evidence_from_checks(checks),
+        },
+    )
+    return {
+        "verification": verification,
+        "artifacts": [
+            {
+                "artifact_id": "responsive_verification",
+                "kind": "proof",
+                "path": responsive_path,
+                "media_type": "application/json",
+                "source_step_id": str(payload["step_id"]),
+                "metadata": {"schema_version": "knowgrph.superagent.responsive-proof.v1"},
+            }
+        ],
+    }

@@ -12,6 +12,7 @@ from .superagent_harness import (
     read_trace_events,
     run_harness,
 )
+from .superagent_responsive import REQUIRED_RESPONSIVE_WIDGET_IDS, required_responsive_proof_class_ids
 
 
 GOAL_TEXT = """
@@ -81,6 +82,12 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertIn("synthesize_report", proof["evidence"]["completed_task_ids"])
             proof_artifacts = {artifact["artifact_id"] for artifact in proof["evidence"]["artifacts"]}
             self.assertIn("harness_proof_manifest", proof_artifacts)
+            self.assertIn("responsive_verification", proof_artifacts)
+            self.assertEqual(
+                proof["harness_contract"]["responsive"]["proof_class_ids"],
+                required_responsive_proof_class_ids(),
+            )
+            self.assertTrue(proof["evidence"]["responsive"]["passed"])
             canvas_path = os.path.join(out, "artifacts", "canvas", "canvas.graph.json")
             self.assertTrue(os.path.exists(canvas_path))
             with open(canvas_path, "r", encoding="utf-8") as handle:
@@ -91,6 +98,15 @@ class SuperAgentHarnessTests(unittest.TestCase):
             )
             self.assertEqual(graph["metadata"]["layout"]["frame"]["width"], 1920)
             self.assertEqual(graph["metadata"]["layout"]["frame"]["height"], 1080)
+            responsive = graph["metadata"]["layout"]["responsive"]
+            self.assertEqual(
+                [proof_class["id"] for proof_class in responsive["proofClasses"]],
+                required_responsive_proof_class_ids(),
+            )
+            for proof_class in responsive["proofClasses"]:
+                self.assertTrue(proof_class["controls"]["safeAreaAware"])
+                self.assertTrue(set(REQUIRED_RESPONSIVE_WIDGET_IDS).issubset(proof_class["widgets"]))
+                self.assertTrue(set(["e-text-panel", "e-image-panel", "e-video-panel"]).issubset(proof_class["edgePolicy"]["reachableEdgeIds"]))
             node_types = {node["type"] for node in graph["nodes"]}
             self.assertIn("TextGeneration", node_types)
             self.assertIn("ImageGeneration", node_types)
@@ -125,6 +141,11 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertIn("width: 1920", workspace_text)
             self.assertIn("height: 1080", workspace_text)
             self.assertIn("frontmatterFlowSettings:", workspace_text)
+            self.assertIn("kgSuperAgentResponsive:", workspace_text)
+            self.assertIn("strategy: mobile-first", workspace_text)
+            self.assertIn("mobile-320x640", workspace_text)
+            self.assertIn("tablet-768x1024", workspace_text)
+            self.assertIn("wide-1920x1080", workspace_text)
             self.assertIn("balancedViewportPreset: widgetFrontmatter", workspace_text)
             self.assertIn("layoutRoute: \"balanced-16x9:fan-in-readable\"", workspace_text)
             self.assertIn("TextGeneration", workspace_text)
@@ -139,6 +160,13 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertIn("surface:route", check_ids)
             self.assertIn("layout:balanced_16x9_widgets", check_ids)
             self.assertIn("layout:balanced_16x9_edges", check_ids)
+            self.assertIn("responsive:proof_classes", check_ids)
+            self.assertIn("responsive:widget_reachability", check_ids)
+            self.assertIn("responsive:edge_reachability", check_ids)
+            self.assertIn("responsive:touch_controls", check_ids)
+            self.assertIn("responsive:workspace_metadata", check_ids)
+            responsive_proof_path = os.path.join(out, "artifacts", "responsive", "responsive-proof.json")
+            self.assertTrue(os.path.exists(responsive_proof_path))
             trace_events = {event["event"] for event in read_trace_events(os.path.join(out, "trace.jsonl"))}
             self.assertIn("task.dispatch", trace_events)
             self.assertIn("tool.call", trace_events)

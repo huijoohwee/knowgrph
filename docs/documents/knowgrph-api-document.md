@@ -32,8 +32,14 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 
 - CLI: `python3 -m knowgrph_parser superagent` or `python3 -m knowgrph_parser run-goal`
 - MCP tool: `knowgrph.superagent.run`
-- Purpose: run the bounded rich-media goal loop with typed provider contracts, trace persistence, artifact provenance, resume, verification, and deterministic mock providers.
+- Purpose: run the bounded rich-media goal loop with typed provider contracts, trace persistence, artifact provenance, resume, verification, deterministic mock providers, and mobile-first responsive workspace metadata.
 - Implementation: [superagent_harness.py](../../knowgrph_parser/superagent_harness.py) and [server.js](../../mcp/server.js)
+
+Responsive output contract:
+
+- Workspace artifacts should expose widget bounds, fit strategy, edge anchors, overflow handling, and panel behavior for mobile, tablet, desktop, wide-canvas, and 1920x1080 proof classes.
+- API or MCP wrappers must return responsive verification status alongside artifact paths so callers can tell whether generated Text, Image, Video, and Rich Media Panel widgets remain reachable on narrow screens.
+- Dev, preview, Prod mirror, and Cloudflare production must consume the same responsive metadata; do not patch mobile behavior in downstream route handlers or generated publish files.
 
 ### YouTube transcript conversion
 
@@ -47,4 +53,4 @@ These middleware endpoints exist for local development and preview builds. For p
 - Proxy remote media safely
 - Trigger pipeline tasks where appropriate
 
-Production API work must keep root-owned configuration, path policy, and provider dispatch as the single source of truth. Fix stale behavior in Dev, then sync the mirror and schema/API docs from the canonical source.
+Production API work must keep root-owned configuration, path policy, provider dispatch, and responsive workspace metadata as the single source of truth. Fix stale behavior in Dev, then sync the mirror and schema/API docs from the canonical source.

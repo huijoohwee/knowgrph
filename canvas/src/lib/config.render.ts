@@ -51,7 +51,7 @@ export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefine
   return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id)
 }
 
-export const CANVAS_3D_MODES = ['3d', 'voxel'] as const
+export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const
 
 export type Canvas3dModeId = (typeof CANVAS_3D_MODES)[number]
 

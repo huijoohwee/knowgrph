@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { Box, Columns2, Cuboid } from 'lucide-react'
+import { Box, Columns2, Cuboid, Glasses } from 'lucide-react'
 import type { Canvas3dModeId } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getVoxelModeInapplicableReason, isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
@@ -110,6 +110,15 @@ export function Canvas3dModeSelect({
           title: '3D Mode',
           label: '3D',
           Icon: Box,
+          disabled: !!threeDisabledReason,
+          disabledReason: threeDisabledReason?.reason,
+          enableHint: threeDisabledReason?.hint,
+        },
+        {
+          id: 'xr',
+          title: 'XR Mode',
+          label: 'XR',
+          Icon: Glasses,
           disabled: !!threeDisabledReason,
           disabledReason: threeDisabledReason?.reason,
           enableHint: threeDisabledReason?.hint,

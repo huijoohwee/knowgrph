@@ -6,6 +6,7 @@
 - [ ] Affordances; preserve user interactions; forbid breaking UI gestures
 - [ ] Clarity; communicate state explicitly; forbid implicit behavior
 - [ ] Consistency; align UI and schema semantics; forbid divergent vocabularies
+- [ ] Mobile-first; design narrow screens first; forbid desktop-only acceptance
 - [ ] Neutrality; support any domain content; forbid domain-specific UI assumptions
 - [ ] Performance; keep interactions responsive; forbid unthrottled hot-path work
 - [ ] Stability; cleanup listeners and timers; forbid memory leaks
@@ -20,6 +21,7 @@
 | Interaction    | Preserve affordance contracts  | - [ ] Keep gestures stable; forbid hidden breaking changes                  |
 | Observability  | Make state legible             | - [ ] Surface selection/filters/modes; forbid invisible mode changes        |
 | Performance    | Maintain frame budget          | - [ ] Debounce/throttle hot events; forbid per-mousemove heavy computation  |
+| Responsive     | Preserve primary workflows     | - [ ] Start from mobile viewport contracts; forbid desktop-only controls    |
 | Neutrality     | Avoid domain coupling          | - [ ] Drive labels and semantics via config; forbid dataset-specific UX     |
 | Accessibility  | Support inclusive usage        | - [ ] Use semantic roles/labels; forbid inaccessible controls               |
 
@@ -30,6 +32,19 @@
 **Component Stack**: Canvas Page → Canvas Renderer → Panels → Editors → Tooling
 
 **Interaction Flow**: Input → Selection → Inspection → Edit → Persist → Render refresh
+
+**Responsive Baseline**: Mobile viewport → tablet split view → desktop multi-panel canvas → wide-canvas inspection. Wider layouts may reveal more simultaneous surfaces, but the mobile path owns the primary task order.
+
+## Mobile-First Responsive Contract
+
+| Surface | Mobile-First Directive | Forbidden Drift |
+|---------|------------------------|-----------------|
+| MainPanel Integrations | Collapse provider setup into a touch-safe setup flow with reachable inputs, validation states, and actions. | Desktop-only forms, hidden submit actions, route-specific mobile patches |
+| FloatingPanel Chat UI | Stay usable above the virtual keyboard and preserve visible context while tool traces or streamed output update. | Scroll traps, keyboard overlap, unbounded auto-scroll, duplicate chat shells |
+| Editor Workspace | Keep Markdown/source review readable with the toolbar, bottom surface, and canvas stacked or sheeted predictably. | Overlapping fixed bars, inaccessible editor controls, second preview mounts |
+| Canvas | Preserve pan, zoom, fit, selection, quick edit, and inspect actions through touch and pointer input. | Component-local breakpoints, hardcoded coordinates, resize-observer loops |
+| Rich Media Panel | Keep media playback, fallback states, and metadata inspection reachable inside safe-area-aware bounds. | Offscreen-only controls, silent clipping, desktop-only playback affordances |
+| Generated Widgets | Emit responsive bounds, min sizes, fit strategy, edge anchors, and overflow behavior as metadata. | One-off fixed scenes, stale desktop coordinates, hidden edge handles |
 
 ---
 

@@ -1,8 +1,8 @@
-# Goal: 100% Knowgrph Codebase Refactoring For E2E Rich Media Generation
+# Goal: 100% Knowgrph Mobile-First Refactoring For E2E Rich Media Generation
 
-Enhance Knowgrph into a Codex-compatible, end-to-end rich media generation system that can turn a user-provided brief into traceable text, image, video, and canvas artifacts while completing a full-codebase refactor. The work must improve the repo itself: runtime harness, provider abstraction, canvas graph output, validation, recovery, documentation, runnable examples, source boundaries, semantic-cache ownership, chunk budgets, and stale-code removal.
+Enhance Knowgrph into a Codex-compatible, mobile-first, end-to-end rich media generation system that can turn a user-provided brief into traceable text, image, video, and canvas artifacts while completing a full-codebase refactor. The work must improve the repo itself: runtime harness, provider abstraction, responsive canvas graph output, validation, recovery, documentation, runnable examples, source boundaries, semantic-cache ownership, chunk budgets, and stale-code removal.
 
-The deliverable is not a single demo asset or a cosmetic cleanup. The deliverable is a durable rich-media generation pipeline inside a fully refactored, measurable, and guard-railed Knowgrph codebase that can be run, resumed, judged, inspected, extended, built, and audited without source-of-truth drift.
+The deliverable is not a single demo asset, a desktop-only canvas, or a cosmetic cleanup. The deliverable is a durable rich-media generation pipeline inside a fully refactored, measurable, and guard-railed Knowgrph codebase that can be run, resumed, judged, inspected, extended, built, audited, and used from narrow mobile screens through desktop and Cloudflare production without source-of-truth drift.
 
 ## 100% Refactoring Scope
 
@@ -35,6 +35,8 @@ The refactor is complete only when:
 - Graph, workspace, geospatial, flow-editor, markdown, parser, provider, storage, and canvas cache keys reuse the shared semantic-key helper where semantic equivalence is the authority.
 - Expensive work is batched, cached, lazy-loaded, virtualized, deferred, or sharded at the source owner instead of patched downstream.
 - Re-render, re-calculation, stale replay, infinite-loop, and freeze risks are neutralized where state originates.
+- User-facing surfaces are mobile-first: narrow viewports must get the primary interaction path first, then progressively expand into tablet, desktop, and wide-canvas layouts.
+- Responsive layout behavior is driven by shared viewport, density, panel, and widget placement policy, not by component-local breakpoints, duplicated CSS constants, or route-specific overrides.
 - Focused tests, build checks, hygiene gates, and docs prove each completed slice.
 
 Until the full `hygiene:audit` is green, `hygiene:check` and `hygiene:chunks` are the anti-regression gates, and `hygiene:audit` is the backlog authority.
@@ -72,6 +74,7 @@ Pipeline rules:
 - Parallelize independent work where it is bounded and observable.
 - Release timers, listeners, object URLs, workers, database handles, and subscriptions promptly.
 - Treat async state as a race boundary: guard stale writes, latest-result ownership, duplicate in-flight work, resume replay, and cross-tab or multi-worker effects.
+- Treat resize, orientation change, drawer transitions, virtual keyboard resize, safe-area insets, and panel open/close transitions as first-class race boundaries.
 
 Validation rules:
 
@@ -90,7 +93,8 @@ The 100% refactor proceeds by ownership cluster, not by random line-count shavin
 4. Rich media, provider, and parser pipeline: keep text/image/video contracts provider-agnostic, remove hardcoded demo assumptions, and split oversized parser/provider files by schema and execution concern.
 5. Geospatial and cross-package integration: use declared package entrypoints and shared utilities only; remove arbitrary subpath imports, duplicated constants, and downstream bridge drift.
 6. Tests and fixtures: split large tests by behavior, replace hardcoded path/story fixtures with neutral builders, and delete stale regression cases once the upstream bug class is impossible.
-7. Docs, goals, and publish/schema mirrors: update canonical upstream docs first, then regenerate or sync downstream copies from source.
+7. Mobile-first responsive app shell: make MainPanel, FloatingPanel, Editor Workspace, Canvas, Rich Media Panel, toolbars, status surfaces, and generated widgets usable from a 320px-wide viewport before expanding to desktop.
+8. Docs, goals, and publish/schema mirrors: update canonical upstream docs first, then regenerate or sync downstream copies from source.
 
 ## Refactoring Acceptance Criteria
 
@@ -103,9 +107,10 @@ The codebase refactor is complete only when:
 - `npm run pages:build` passes without production assets over 500 KiB.
 - TypeScript and Python validation pass for touched TypeScript and parser surfaces.
 - No active implementation or test depends on legacy aliases, local compatibility remaps, stale fixtures, hidden absolute paths, or duplicated source-of-truth copies.
+- Mobile, tablet, desktop, and wide-canvas behavior is controlled by one responsive policy layer with focused regression proof for narrow viewport interaction, canvas fit, widget visibility, edge readability, panel stacking, and Cloudflare route parity.
 - Cross-repo docs and API/schema mirrors are updated from the canonical upstream source after the upstream refactor is green.
 
-Post-task documentation must update the canonical upstream docs first, then any matching API reference or cross-repo schema mirror. The expected handoff surfaces are `todo-log.md`, `docs/`, and `huijoohwee.github.io/schema/AgenticRAG`.
+Post-task documentation must update the canonical upstream docs first, then any matching API reference, responsive contract note, or cross-repo schema mirror. The expected handoff surfaces are `todo-log.md`, `docs/`, and `huijoohwee.github.io/schema/AgenticRAG`.
 
 ## App Surface Contract
 
@@ -117,13 +122,35 @@ MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas ->
 
 This means the pipeline must not stop at backend artifact creation. It must produce artifacts and metadata that can move from integration configuration, through FloatingPanel chat-driven orchestration, into the editor workspace, onto the canvas, into flow widgets, through readable edges, and finally into the Rich Media Panel render surface.
 
-The visual canvas contract is a balanced landscape layout:
+The visual canvas contract is mobile-first and responsive:
 
-- Treat 1920x1080 as the canonical logical presentation frame for generated rich media frontmatter-flow artifacts.
-- Keep Text, Image, Video, and Rich Media Panel widgets visible, proportionally sized, and non-overlapping inside the 16:9 frame.
+- Treat 320x640, 390x844, 768x1024, 1366x768, and 1920x1080 as required responsive proof classes for generated rich media frontmatter-flow artifacts.
+- Treat 1920x1080 as the canonical logical presentation frame, then derive mobile/tablet/desktop fits from the same layout metadata instead of maintaining separate hardcoded scenes.
+- On mobile, prioritize one primary task at a time: integration setup, chat orchestration, editor review, canvas inspection, widget detail, and Rich Media Panel playback must stack or sheet predictably without hidden controls.
+- Keep Text, Image, Video, and Rich Media Panel widgets visible, proportionally sized, and non-overlapping inside the active viewport or reachable through explicit fit/overview controls.
 - Keep data-flow edges readable and routed between the widgets and Rich Media Panel ports without crossing directly through the center of widget content when a better route is available.
-- Preserve the layout in metadata so it can be inspected, replayed, and adapted to other viewport sizes without hardcoding a demo document or absolute path.
-- Use this layout as a validation target, not as a one-off fixed scene. Other briefs must be able to reuse the same balanced layout rules.
+- Preserve responsive layout metadata so it can be inspected, replayed, and adapted across viewport sizes without hardcoding a demo document or absolute path.
+- Use these layouts as validation targets, not as one-off fixed scenes. Other briefs must be able to reuse the same mobile-first balanced layout rules.
+
+## Mobile-First Responsive Design Contract
+
+Mobile-first means the narrowest useful viewport owns the baseline interaction contract. Wider layouts may reveal more simultaneous surfaces, but they must not be the only place where core work is possible.
+
+Required behavior:
+
+- MainPanel Integrations must collapse to a narrow, touch-safe setup flow with reachable provider fields, validation states, and action buttons.
+- FloatingPanel Chat UI must remain usable above mobile keyboards, preserve conversation context, and avoid scroll traps when streamed output or tool traces update.
+- Editor Workspace must provide readable Markdown, source-file, and generated workspace review without overlapping the toolbar, bottom surface, or canvas.
+- Canvas must preserve pan, zoom, fit-to-content, selection, quick editor, and inspect actions through touch and pointer input without mounting duplicate preview surfaces.
+- Rich Media Panel must support mobile playback and inspection with declared aspect ratio, visible fallback states, and no offscreen-only controls.
+- Generated Text, Image, Video, and Rich Media Panel widgets must expose responsive bounds, min sizes, fit strategy, edge anchor policy, and overflow behavior in metadata.
+- Toolbar, status, toast, modal, menu, drawer, and panel shells must share responsive tokens for safe areas, hit targets, z-index, density, and motion.
+- Cloudflare production at `airvio.co/knowgrph` must use the same responsive source behavior as Dev and Prod mirror artifacts; no route-specific mobile fixes are allowed downstream.
+
+Forbidden behavior:
+
+- Desktop-only acceptance, hidden mobile controls, viewport-specific hardcoded coordinates, route-specific CSS overrides, duplicate mobile component trees, downstream publish patches, and legacy aliases that keep stale layout behavior alive.
+- Silent clipping, inaccessible fixed-position controls, unbounded resize observers, per-frame React state churn, layout jumps during panel transitions, or canvas redraw loops triggered by mobile keyboard/orientation changes.
 
 ## User-Supplied Validation Input
 
@@ -145,7 +172,7 @@ Given a neutral brief and optional existing canvas graph, Knowgrph should:
 4. Generate or mock image artifacts: reference frames, prompt metadata, dimensions, media type, and provenance.
 5. Generate or mock video artifacts: storyboard or rendered video output, reference media links, duration, aspect ratio, and provenance.
 6. Compose a canvas graph containing typed text, image, video, Rich Media Panel, verification, and report nodes with data-flow/provenance edges.
-7. Emit a Knowgrph frontmatter-flow workspace artifact that can travel the app route: MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges.
+7. Emit a Knowgrph frontmatter-flow workspace artifact that can travel the app route: MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Mobile-first responsive layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges, including the balanced 16:9 (1920x1080) proof class.
 8. Persist state, trace, observations, artifacts, recovery events, and a final report.
 9. Verify media references, canvas topology, Rich Media Panel wiring, trace completeness, restartability, and neutrality.
 10. Stop deterministically when acceptance criteria pass, a recorded blocker is reached, or configured budgets are exhausted.
@@ -219,12 +246,12 @@ The canvas must be treated as a graph of typed nodes and edges, not as one fixed
 - Rich Media Panel nodes must receive text, image, and video output through explicit widget ports (`output`, `imageUrl`, `videoUrl`) rather than hidden side effects.
 - Verification/report nodes must show validation status and final output links.
 - Edges must express data flow, dependency, provenance, verification, or recovery relationships.
-- Frontmatter-flow widget layout must use a balanced 16:9 logical frame (`1920x1080`) with Text, Image, Video, and Rich Media Panel widgets positioned as a readable composition, not a stacked or offscreen cluster.
+- Frontmatter-flow widget layout must use mobile-first responsive metadata plus a balanced 16:9 logical frame (`1920x1080`) with Text, Image, Video, and Rich Media Panel widgets positioned as a readable composition, not an unreachable stacked or offscreen cluster.
 - Edges connecting Text, Image, and Video widgets to the Rich Media Panel must be inspectable, connected to explicit handles, and retained in the generated graph and workspace markdown.
 - Missing, failed, degraded, or pending media must be represented explicitly rather than hidden.
 
 The generated canvas artifact should be loadable or inspectable by existing Knowgrph surfaces where feasible, and must always be available as a standalone graph artifact.
-When Knowgrph frontmatter-flow is available, also emit a workspace markdown artifact that declares `kgCanvas2dRenderer: "flowEditor"`, canonical widget form ids, widget handles, the balanced 16:9 widget layout metadata, and the Rich Media Panel node needed by the Editor Workspace Canvas Widgets, Edges, and Rich Media Panel surface.
+When Knowgrph frontmatter-flow is available, also emit a workspace markdown artifact that declares `kgCanvas2dRenderer: "flowEditor"`, canonical widget form ids, widget handles, responsive breakpoint/fallback metadata, the balanced 16:9 widget layout metadata, and the Rich Media Panel node needed by the Editor Workspace Canvas Widgets, Edges, and Rich Media Panel surface.
 
 ## Tooling And Entry Points
 
@@ -252,6 +279,8 @@ Validation must be layered:
 - Canvas tests proving text, image, video, verification, and report nodes exist with valid data-flow/provenance edges.
 - Workspace/widget tests proving the generated frontmatter-flow artifact contains canonical TextGeneration, ImageGeneration, VideoGeneration, and RichMediaPanel widgets connected to the Rich Media Panel ports.
 - Layout tests proving generated frontmatter-flow positions fit a balanced 16:9 (`1920x1080`) logical frame with visible Text, Image, Video, and Rich Media Panel widgets plus readable connecting edges.
+- Responsive tests proving mobile, tablet, desktop, and wide-canvas proof classes preserve reachable controls, visible widgets, readable edges, stable fit behavior, and non-overlapping panel surfaces.
+- Touch and resize tests proving pan/zoom, selection, drawer/panel transitions, keyboard resize, safe-area insets, and orientation changes do not trigger stale writes, duplicate canvas mounts, or unbounded recalculation.
 - Media tests proving generated or mocked image/video artifacts exist, have declared media types, and are referenced by the canvas graph.
 
 If visual or browser validation is available, include a smoke test that loads a generated canvas or preview and confirms that text, image, and video nodes are represented without missing references. Do not require external network access for baseline tests.
@@ -268,7 +297,9 @@ The goal is complete only when:
 - Real provider hooks are documented and do not break offline tests when credentials are absent.
 - The canvas graph captures generated media and provenance through typed nodes and edges.
 - The generated workspace artifact exposes the same media through the MainPanel Integrations -> FloatingPanel Chat UI -> Editor Workspace -> Canvas -> Balanced 16:9 (1920x1080) Layout for Widgets (Text, Image, Video) AND Rich Media Panel AND Edges path.
-- Live UI or browser verification confirms the route can open MainPanel Integrations, FloatingPanel Chat UI, Editor Workspace, Canvas, visible widgets, Rich Media Panel, and their edges without relying on the validation document being hardcoded in the repo.
+- The generated workspace artifact exposes mobile-first responsive metadata for widget bounds, fit strategy, edge anchors, panel behavior, safe-area offsets, and overflow handling.
+- Live UI or browser verification confirms the route can open MainPanel Integrations, FloatingPanel Chat UI, Editor Workspace, Canvas, visible widgets, Rich Media Panel, and their edges on mobile, tablet, desktop, and wide-canvas proof classes without relying on the validation document being hardcoded in the repo.
+- Cloudflare production verification confirms `airvio.co/knowgrph` preserves the same mobile-first responsive behavior after the Dev source and Prod mirror are synced.
 - Test validation can run with the user-supplied validation path above as a runtime input, while the repo remains free of hardcoded dependencies on that absolute path or its demo content.
 - Failure and resume behavior are tested.
 - Termination is deterministic and recorded.
@@ -283,10 +314,11 @@ The goal is complete only when:
 4. Add worker role contracts for text, image, video, canvas, verifier, and synthesizer tasks.
 5. Add checkpoint/resume and bounded recovery.
 6. Add canvas graph and preview artifacts for generated media.
-7. Add neutral integration example and tests.
-8. Add optional real-provider adapter hooks.
-9. Add Codex-facing instructions, MCP or API entrypoint, and reviewer documentation.
-10. Run the neutral E2E example and, when supplied by the user, run external/demo briefs only as runtime inputs.
+7. Add mobile-first responsive layout metadata, panel stacking policy, touch-safe controls, and viewport proof tests.
+8. Add neutral integration example and tests.
+9. Add optional real-provider adapter hooks.
+10. Add Codex-facing instructions, MCP or API entrypoint, and reviewer documentation.
+11. Run the neutral E2E example and, when supplied by the user, run external/demo briefs only as runtime inputs.
 
 ## Final Output Contract
 
@@ -297,7 +329,8 @@ At the end of a successful run, produce:
 - An image artifact or deterministic mock image artifact.
 - A video artifact or deterministic mock video/storyboard artifact.
 - A canvas graph artifact containing text, image, video, verification, and report nodes with provenance.
-- A Knowgrph frontmatter-flow workspace artifact containing text/image/video widgets wired into a Rich Media Panel with a balanced 16:9 (`1920x1080`) layout and inspectable edges.
+- A Knowgrph frontmatter-flow workspace artifact containing text/image/video widgets wired into a Rich Media Panel with mobile-first responsive metadata, a balanced 16:9 (`1920x1080`) proof layout, and inspectable edges.
+- A responsive verification artifact covering mobile, tablet, desktop, and wide-canvas proof classes.
 - A run trace artifact that can be inspected independently.
 - Clear commands or Codex instructions for rerunning the neutral example and for running user-supplied briefs.
 

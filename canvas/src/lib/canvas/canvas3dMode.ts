@@ -14,6 +14,7 @@ type VoxelModeApplicabilityArgs = {
 export type VoxelModeInapplicableReason = 'renderer' | 'semantic' | 'layout' | 'geospatial' | null
 
 export function normalizeCanvas3dMode(raw: unknown): Canvas3dModeId {
+  if (raw === 'xr') return 'xr'
   return raw === 'voxel' ? 'voxel' : '3d'
 }
 

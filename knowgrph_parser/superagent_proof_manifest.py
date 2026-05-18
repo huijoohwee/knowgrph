@@ -3,6 +3,7 @@ import os
 from typing import Any, Dict, List
 
 from .common import utc_now_iso, write_json
+from .superagent_responsive import required_responsive_proof_class_ids, responsive_evidence_from_checks
 
 
 JsonDict = Dict[str, Any]
@@ -106,6 +107,7 @@ def build_harness_proof_manifest(
     verification = state.get("verification") if isinstance(state.get("verification"), dict) else {}
     memory = state.get("memory") if isinstance(state.get("memory"), dict) else {}
     trace_events = _read_trace_events(trace_path) if os.path.exists(trace_path) else []
+    verification_checks = verification.get("checks") if isinstance(verification.get("checks"), list) else []
     artifact_manifest = []
     for artifact in artifacts:
         path = str(artifact.get("path") or "")
@@ -159,6 +161,11 @@ def build_harness_proof_manifest(
                 else None,
                 "strategy": "bounded retry for retryable tool errors, checkpoint state before retry",
             },
+            "responsive": {
+                "strategy": "mobile-first",
+                "proof_class_ids": required_responsive_proof_class_ids(),
+                "metadata_owner": "canvas graph layout + workspace frontmatter",
+            },
         },
         "evidence": {
             "completed_task_ids": [str(task_id) for task_id in (state.get("completed_task_ids") or [])],
@@ -167,9 +174,10 @@ def build_harness_proof_manifest(
             "verification": {
                 "passed": bool(verification.get("passed")),
                 "checked_at": verification.get("checked_at"),
-                "check_count": len(verification.get("checks") or []) if isinstance(verification.get("checks"), list) else 0,
-                "checks": verification.get("checks") if isinstance(verification.get("checks"), list) else [],
+                "check_count": len(verification_checks),
+                "checks": verification_checks,
             },
+            "responsive": responsive_evidence_from_checks(verification_checks),
             "recovery_events": [event for event in (memory.get("recovery_events") or []) if isinstance(event, dict)],
             "artifacts": artifact_manifest,
             "files": {

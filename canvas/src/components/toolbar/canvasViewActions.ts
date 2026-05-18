@@ -158,6 +158,15 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setCanvas3dMode('3d')
     return
   }
+  if (id === 'surface:xr') {
+    if (geospatialEnabled) {
+      onOpenGeospatialMode()
+      return
+    }
+    setCanvasRenderMode('3d')
+    setCanvas3dMode('xr')
+    return
+  }
   if (id === 'animation:force' || id === 'animation:orbit') {
     const semanticApplicable =
       frontmatterModeEnabled ||

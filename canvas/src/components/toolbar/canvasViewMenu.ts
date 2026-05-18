@@ -1,4 +1,4 @@
-import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Grid3x3, Hexagon, Image as ImageIcon, Map, Palette, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, Palette, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { isD3Like2dRenderer } from '@/lib/config.render'
@@ -227,6 +227,19 @@ export const buildCanvasViewOptions = (
           enableHint: state.layoutMode === 'radial' ? 'Switch layout mode to Block' : undefined,
         },
         {
+          id: 'surface:xr',
+          title: 'XR Mode',
+          label: 'XR',
+          Icon: Glasses,
+          disabled: state.geospatialEnabled || state.layoutMode === 'radial',
+          disabledReason: state.geospatialEnabled
+            ? 'Disabled in Geospatial Mode'
+            : state.layoutMode === 'radial'
+              ? 'XR Mode is disabled in Radial Layout'
+              : undefined,
+          enableHint: state.layoutMode === 'radial' ? 'Switch layout mode to Block' : undefined,
+        },
+        {
           id: 'surface:voxel',
           title: 'Voxel Mode',
           label: 'Voxel',
@@ -336,6 +349,7 @@ export const getCanvasViewTriggerState = (
   if (state.geospatialEnabled) return { id: 'view:geospatial', title: UI_COPY.geospatialModeOnTitle, label: 'Geo' }
   if (state.canvasRenderMode === '3d') {
     if (state.canvas3dMode === 'voxel') return { id: 'surface:voxel', title: 'Voxel Mode', label: 'Voxel' }
+    if (state.canvas3dMode === 'xr') return { id: 'surface:xr', title: 'XR Mode', label: 'XR' }
     return { id: 'surface:3d', title: '3D Mode', label: '3D' }
   }
   const activeRenderer = rendererOptions.find(o => o.id === state.canvas2dRenderer) || rendererOptions[0]
