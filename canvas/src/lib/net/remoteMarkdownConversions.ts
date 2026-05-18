@@ -2,6 +2,7 @@ import { unwrapUserProvidedText } from '@/lib/url'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { buildPdfConvertQueryParamsFromStore } from '@/lib/pdf/pdfImportClientPrefs'
 import { convertWebpageUrlToMarkdownViaBrowser } from '@/lib/websites/webpageClientConvert'
+import { fetchYouTubeTranscriptConversion } from './youtubeTranscriptConversion'
 
 export type RemoteMarkdownConversionOk = {
   ok: true
@@ -114,28 +115,14 @@ export async function convertPdfFileToMarkdown(file: File): Promise<RemoteMarkdo
 }
 
 export async function fetchYouTubeTranscriptMarkdown(rawUrl: string, opts?: { lang?: string }): Promise<RemoteMarkdownConversionResult | null> {
-  const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
-  if (!cleaned) return null
-  try {
-    const qs = new URLSearchParams({ url: cleaned, emit: 'json' })
-    const lang = typeof opts?.lang === 'string' ? opts.lang.trim() : ''
-    if (lang && lang !== 'en') qs.set('lang', lang)
-    const res = await fetch(`/__youtube_transcript?${qs.toString()}`, {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-    })
-    const json = (await res.json()) as { ok?: unknown; markdown?: unknown; error?: unknown; name?: unknown; transcriptJsonText?: unknown }
-    if (json && json.ok === true && typeof json.markdown === 'string') {
-      const name = typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'youtube-transcript.md'
-      const transcriptJsonText = typeof json.transcriptJsonText === 'string' ? json.transcriptJsonText : undefined
-      return { ok: true as const, name, markdown: json.markdown, transcriptJsonText }
-    }
-    const err = typeof json?.error === 'string' && json.error.trim() ? json.error.trim() : ''
-    if (err) return { ok: false as const, error: err }
-    if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}` }
-    return { ok: false as const, error: 'YouTube conversion failed' }
-  } catch {
-    return null
+  const converted = await fetchYouTubeTranscriptConversion(rawUrl, opts)
+  if (!converted) return null
+  if (converted.ok === false) return converted
+  return {
+    ok: true as const,
+    name: converted.name,
+    markdown: converted.markdown,
+    transcriptJsonText: converted.transcriptJsonText || undefined,
   }
 }
 

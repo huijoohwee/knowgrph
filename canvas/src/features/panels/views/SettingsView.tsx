@@ -23,7 +23,11 @@ import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProvide
 import { INTEGRATIONS_SECTION_META, MAPS_SECTION_META, MCP_SECTION_META, type SectionMeta } from './settingsView.constants'
 import { useSettingsChatAssist } from './useSettingsChatAssist'
 import { SettingsSections, type SettingsSectionDescriptor } from './SettingsSections'
-import { SourceFileManagementSettingsPanel } from './SourceFileManagementSettingsPanel'
+import {
+  matchesSourceFileManagementQuery,
+  SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT,
+  SourceFileManagementSettingsRows,
+} from './SourceFileManagementSettingsRows'
 import { useSettingsRowBundles } from './useSettingsRowBundles'
 import { useSettingsSync } from './useSettingsSync'
 import { useSettingsWorkspaceActions } from './useSettingsWorkspaceActions'
@@ -328,6 +332,23 @@ export default function SettingsView({
       || MCP_SECTION_META[area],
     showDensityPresets: area === 'UI Density: Panels',
   })), [collapsedByArea, groupByArea, normalizedQuery])
+  const shouldRenderSourceFileManagementRows = React.useCallback((area: string) => {
+    return mode === 'all'
+      && area === 'Source File Management'
+      && matchesSourceFileManagementQuery(normalizedQuery)
+  }, [mode, normalizedQuery])
+  const getSettingsAreaIntroItemCount = React.useCallback((area: string) => {
+    return shouldRenderSourceFileManagementRows(area) ? SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT : 0
+  }, [shouldRenderSourceFileManagementRows])
+  const renderSettingsAreaIntro = React.useCallback((area: string) => {
+    if (!shouldRenderSourceFileManagementRows(area)) return null
+    return (
+      <SourceFileManagementSettingsRows
+        normalizedQuery={normalizedQuery}
+        values={values}
+      />
+    )
+  }, [normalizedQuery, shouldRenderSourceFileManagementRows, values])
   return (
     <article className="min-h-full flex flex-col space-y-0">
       <input
@@ -414,12 +435,6 @@ export default function SettingsView({
             <WorkspaceTableModeControl />
           </section>
         )}
-        {mode === 'all' && (
-          <SourceFileManagementSettingsPanel
-            normalizedQuery={normalizedQuery}
-            values={values}
-          />
-        )}
         <SettingsSections
           applyUiPanelDensityPreset={applyUiPanelDensityPreset}
           descriptors={sectionDescriptors}
@@ -429,6 +444,8 @@ export default function SettingsView({
           rowRefs={settingsRowRefs}
           rowStatus={settingsRowStatus}
           rowUi={settingsRowUi}
+          getAreaIntroItemCount={getSettingsAreaIntroItemCount}
+          renderAreaIntro={renderSettingsAreaIntro}
           setExpanded={setExpanded}
           stickyOffsetClassName={SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS}
           toggleArea={toggleArea}

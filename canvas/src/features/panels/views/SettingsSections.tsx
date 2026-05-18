@@ -26,6 +26,8 @@ type SettingsSectionsProps = {
   rowRefs: SettingsRowRefs
   rowStatus: SettingsRowStatusState
   rowUi: SettingsRowUi
+  getAreaIntroItemCount?: (area: string) => number
+  renderAreaIntro?: (area: string) => React.ReactNode
   setExpanded: React.Dispatch<React.SetStateAction<string | null>>
   stickyOffsetClassName: string
   toggleArea: (area: string, nextCollapsed?: boolean) => void
@@ -41,26 +43,30 @@ export function SettingsSections({
   rowRefs,
   rowStatus,
   rowUi,
+  getAreaIntroItemCount,
+  renderAreaIntro,
   setExpanded,
   stickyOffsetClassName,
   toggleArea,
   values,
 }: SettingsSectionsProps) {
   return descriptors.map(({ area, collapsed, entries, sectionMeta, showDensityPresets }) => {
+    const areaIntro = renderAreaIntro?.(area)
+    const itemCount = entries.length + Math.max(0, getAreaIntroItemCount?.(area) || 0)
 
     return (
       <CollapsibleSection
         key={area}
         title={
           <Tooltip
-            content={buildSettingsAreaTooltip(area, String(entries.length))}
+            content={buildSettingsAreaTooltip(area, String(itemCount))}
             maxWidthPx={250}
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
             <span className="inline-flex items-center gap-1">
               <span>{area}</span>
               <span className={`text-xs uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} ml-1`}>
-                {entries.length} items
+                {itemCount} items
               </span>
             </span>
           </Tooltip>
@@ -73,6 +79,7 @@ export function SettingsSections({
         }}
       >
         <ul>
+          {areaIntro}
           {showDensityPresets ? (
             <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
               <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>

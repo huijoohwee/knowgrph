@@ -16,6 +16,7 @@ import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { readEdgeOpacity2d } from '@/lib/graph/layoutDefaults'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { isFlowchartCrossEdge } from '@/lib/flowchart/source'
+import { readNodeLabelFontSize2d } from '@/components/GraphCanvas/labelLayout2d'
 
 type UseGraphCanvasStylesProps = {
   gRef?: MutableRefObject<d3.Selection<SVGGElement, unknown, null, undefined> | null>;
@@ -145,7 +146,7 @@ export function applyGraphCanvasStyles2d({
 
   if (labelsSelRef.current) {
     labelsSelRef.current
-      .attr('font-size', lp.nodeFontSizePx)
+      .attr('font-size', (d: GraphNode) => readNodeLabelFontSize2d(d, lp.nodeFontSizePx))
       .attr('data-kg-label-fill', (d: GraphNode) => getNodeLabelColor(d, schema))
       .attr('fill', (d: GraphNode) => getNodeLabelColor(d, schema))
       .attr('stroke', haloColor)

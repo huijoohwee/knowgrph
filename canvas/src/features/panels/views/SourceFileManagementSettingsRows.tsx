@@ -1,4 +1,5 @@
 import React from 'react'
+import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { requestMarkdownExplorerSourceFilesOpen } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { LS_KEYS } from '@/lib/config'
@@ -6,6 +7,7 @@ import { readEnvString } from '@/lib/config.env'
 import { lsRemove } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 
 const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'source file management',
@@ -14,17 +16,33 @@ const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'cloudflare d1',
   'kgws canonical docs',
   'manual import local files',
+  'd1 docs contract',
+  'storage defaults',
+  'source mix',
   'workspace sync source files docs only',
+  'workspace sync source files debounce ms',
   'workspace import default source url',
 ].join(' ')
 
-const matchesSourceFileManagementQuery = (query: string): boolean => {
+export const SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 5
+
+const SOURCE_FILE_MANAGEMENT_ROW_ANCHORS = {
+  actions: buildSettingsRowAnchorId('source-file-management-row', 'actions'),
+  contract: buildSettingsRowAnchorId('source-file-management-row', 'contract'),
+  counts: buildSettingsRowAnchorId('source-file-management-row', 'counts'),
+  sources: buildSettingsRowAnchorId('source-file-management-row', 'sources'),
+  storage: buildSettingsRowAnchorId('source-file-management-row', 'storage'),
+} as const
+const SOURCE_FILE_ROW_VALUE_CLASS_NAME = 'flex flex-1 flex-wrap items-center gap-1'
+const SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME = `min-w-0 ${UI_THEME_TOKENS.text.secondary}`
+
+export const matchesSourceFileManagementQuery = (query: string): boolean => {
   const terms = query.split(/\s+/).map(term => term.trim()).filter(Boolean)
   if (terms.length === 0) return true
   return terms.every(term => SOURCE_FILE_MANAGEMENT_SEARCH_INDEX.includes(term))
 }
 
-type SourceFileManagementSettingsPanelProps = {
+type SourceFileManagementSettingsRowsProps = {
   normalizedQuery: string
   values: Record<string, string | number | boolean>
 }
@@ -44,10 +62,39 @@ const readBooleanValue = (
   return fallback
 }
 
-export function SourceFileManagementSettingsPanel({
+function SourceFileValuePill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex min-h-6 max-w-full items-center rounded-full border px-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+      <span className="truncate">{children}</span>
+    </span>
+  )
+}
+
+function SourceFileSettingsActionButton({
+  children,
+  disabled,
+  onClick,
+  primary,
+}: {
+  children: React.ReactNode
+  disabled?: boolean
+  onClick: () => void
+  primary?: boolean
+}) {
+  const className = primary
+    ? `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
+    : `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+  return (
+    <button type="button" className={className} disabled={disabled} onClick={onClick}>
+      {children}
+    </button>
+  )
+}
+
+export function SourceFileManagementSettingsRows({
   normalizedQuery,
   values,
-}: SourceFileManagementSettingsPanelProps) {
+}: SourceFileManagementSettingsRowsProps) {
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
@@ -157,71 +204,96 @@ export function SourceFileManagementSettingsPanel({
 
   if (!shouldShow) return null
 
-  const statClassName = `rounded-lg border px-2 py-1 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
-  const labelClassName = `text-[10px] uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`
-  const valueClassName = `text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`
-  const secondaryTextClassName = `text-xs ${UI_THEME_TOKENS.text.secondary}`
-  const chipClassName = `inline-flex min-h-6 items-center rounded-full border px-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`
-
   return (
-    <section className={`border-b p-2 ${UI_THEME_TOKENS.panel.border}`} aria-label="Source File Management">
-      <div className={`rounded-xl border p-3 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h2 className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Source File Management</h2>
-            <p className={`mt-1 max-w-3xl ${secondaryTextClassName}`}>
+    <>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.actions}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.actions}
+          keyNode={<span className="font-semibold">Source File Management</span>}
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>actions</span>}
+          valueNode={(
+            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+              <SourceFileSettingsActionButton primary onClick={openSourceFiles}>
+                Open Source Files
+              </SourceFileSettingsActionButton>
+              <SourceFileSettingsActionButton onClick={() => { void recomposeSourceFiles() }}>
+                Recompose now
+              </SourceFileSettingsActionButton>
+              <SourceFileSettingsActionButton disabled={isRestoringDefaults} onClick={() => { void restoreDefaultSourceFiles() }}>
+                {isRestoringDefaults ? 'Restoring...' : 'Restore D1/docs defaults'}
+              </SourceFileSettingsActionButton>
+            </div>
+          )}
+          align="start"
+        />
+      </li>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.contract}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.contract}
+          keyNode="D1/docs contract"
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>policy</span>}
+          valueNode={(
+            <div className={SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME}>
               Automated defaults hydrate Source Files from the D1/docs storage path. Import local files remains an explicit manual action, not a hidden bootstrap path.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <button type="button" className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`} onClick={openSourceFiles}>
-              Open Source Files
-            </button>
-            <button type="button" className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`} onClick={() => { void recomposeSourceFiles() }}>
-              Recompose now
-            </button>
-            <button
-              type="button"
-              className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-              disabled={isRestoringDefaults}
-              onClick={() => { void restoreDefaultSourceFiles() }}
-            >
-              {isRestoringDefaults ? 'Restoring...' : 'Restore D1/docs defaults'}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className={statClassName}>
-            <div className={labelClassName}>Total</div>
-            <div className={valueClassName}>{summary.total}</div>
-          </div>
-          <div className={statClassName}>
-            <div className={labelClassName}>Enabled</div>
-            <div className={valueClassName}>{summary.enabled}</div>
-          </div>
-          <div className={statClassName}>
-            <div className={labelClassName}>Parsed</div>
-            <div className={valueClassName}>{summary.parsed}</div>
-          </div>
-          <div className={statClassName}>
-            <div className={labelClassName}>Errors</div>
-            <div className={valueClassName}>{summary.errors}</div>
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1">
-          <span className={chipClassName}>D1 workspace: {storageWorkspaceId}</span>
-          <span className={chipClassName}>Storage base: {storageBaseUrl}</span>
-          <span className={chipClassName}>Docs only: {docsOnly ? 'on' : 'off'}</span>
-          <span className={chipClassName}>Seed sync: {seedSync ? 'on' : 'off'}</span>
-          <span className={chipClassName}>Auto refresh: {autoRefresh ? 'on' : 'off'}</span>
-          {defaultSourceUrl ? <span className={chipClassName}>Default source: {defaultSourceUrl}</span> : null}
-          <span className={chipClassName}>Workspace-backed: {summary.workspaceBacked}</span>
-          <span className={chipClassName}>Manual local: {summary.manualLocal}</span>
-          <span className={chipClassName}>URL imports: {summary.remoteUrl}</span>
-        </div>
-      </div>
-    </section>
+            </div>
+          )}
+          align="start"
+        />
+      </li>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.counts}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.counts}
+          keyNode="Source Files"
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>summary</span>}
+          valueNode={(
+            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+              <SourceFileValuePill>Total: {summary.total}</SourceFileValuePill>
+              <SourceFileValuePill>Enabled: {summary.enabled}</SourceFileValuePill>
+              <SourceFileValuePill>Parsed: {summary.parsed}</SourceFileValuePill>
+              <SourceFileValuePill>Errors: {summary.errors}</SourceFileValuePill>
+            </div>
+          )}
+          align="start"
+        />
+      </li>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.storage}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.storage}
+          keyNode="Storage defaults"
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>D1</span>}
+          valueNode={(
+            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+              <SourceFileValuePill>Workspace: {storageWorkspaceId}</SourceFileValuePill>
+              <SourceFileValuePill>Base: {storageBaseUrl}</SourceFileValuePill>
+              <SourceFileValuePill>Docs only: {docsOnly ? 'on' : 'off'}</SourceFileValuePill>
+              <SourceFileValuePill>Seed sync: {seedSync ? 'on' : 'off'}</SourceFileValuePill>
+              <SourceFileValuePill>Auto refresh: {autoRefresh ? 'on' : 'off'}</SourceFileValuePill>
+            </div>
+          )}
+          align="start"
+        />
+      </li>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.sources}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.sources}
+          keyNode="Source mix"
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>origin</span>}
+          valueNode={(
+            <div className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+              <SourceFileValuePill>Workspace-backed: {summary.workspaceBacked}</SourceFileValuePill>
+              <SourceFileValuePill>Manual local: {summary.manualLocal}</SourceFileValuePill>
+              <SourceFileValuePill>URL imports: {summary.remoteUrl}</SourceFileValuePill>
+              {defaultSourceUrl ? <SourceFileValuePill>Default source: {defaultSourceUrl}</SourceFileValuePill> : null}
+            </div>
+          )}
+          align="start"
+        />
+      </li>
+    </>
   )
 }

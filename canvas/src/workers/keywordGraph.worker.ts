@@ -7,7 +7,7 @@ type DeriveKeywordGraphRequest = {
   documentText: string
   sourceLabel?: string
   sourceTextHash?: string
-  tuning?: { edgesPerNode?: number; maxEdgesCap?: number }
+  tuning?: { edgesPerNode?: number; maxEdgesCap?: number; maxNodes?: number }
 }
 
 type DeriveKeywordGraphResponse = {
@@ -37,6 +37,7 @@ ctx.onmessage = (e: MessageEvent<DeriveKeywordGraphRequest>) => {
           ? {
               edgesPerNode: typeof msg.tuning.edgesPerNode === 'number' ? msg.tuning.edgesPerNode : undefined,
               maxEdgesCap: typeof msg.tuning.maxEdgesCap === 'number' ? msg.tuning.maxEdgesCap : undefined,
+              maxNodes: typeof msg.tuning.maxNodes === 'number' ? msg.tuning.maxNodes : undefined,
             }
           : undefined,
     })

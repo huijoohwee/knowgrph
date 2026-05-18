@@ -89,3 +89,92 @@ export const testKeywordModeCarriesSourceLayerHashForNoStaleViews = () => {
   const keyB = buildGraphMetaKey(b)
   if (keyA === keyB) throw new Error('expected graph meta key to change when sourceLayerHash changes')
 }
+
+export const testKeywordModeExtractsKeyphrasesAndWordCloudMetadata = () => {
+  const { graph } = deriveKeywordGraphFromText({
+    documentId: 'doc:test',
+    documentText: [
+      'Agent labs coordinate enterprise code migration. Agent labs use playbooks for code migration.',
+      'Secure deployment and custom SSO make agent labs useful for enterprise teams.',
+      'Code migration playbooks reduce manual review for enterprise code migration.',
+    ].join('\n'),
+  })
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const byKey = new Map<string, Record<string, unknown>>()
+  for (const node of nodes) {
+    const props = (node.properties || {}) as Record<string, unknown>
+    const key = typeof props['keyword:key'] === 'string' ? props['keyword:key'] : ''
+    if (key) byKey.set(key, props)
+  }
+  const agentLabs = byKey.get('agent labs')
+  if (!agentLabs) throw new Error('expected repeated multi-word keyphrase node')
+  if (agentLabs['keyword:extractor'] !== 'document-keyphrase') throw new Error('expected document keyphrase extractor marker')
+  const phraseLength = agentLabs['keyword:phraseLength']
+  if (typeof phraseLength !== 'number' || phraseLength < 2) throw new Error('expected multi-word phrase length metadata')
+  const score = agentLabs['keyword:score']
+  if (typeof score !== 'number' || !Number.isFinite(score) || score <= 0) throw new Error('expected positive keyphrase score')
+  const rank = agentLabs['keyword:rank']
+  if (typeof rank !== 'number' || !Number.isFinite(rank) || rank <= 0) throw new Error('expected keyphrase rank')
+  if (agentLabs['visual:wordCloud'] !== true) throw new Error('expected word-cloud node marker')
+  for (const field of ['visual:fontSize', 'visual:xIndex', 'visual:yIndex', 'visual:labelRotation']) {
+    const value = agentLabs[field]
+    if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`expected finite ${field}`)
+  }
+  const fontSize = agentLabs['visual:fontSize']
+  if (typeof fontSize !== 'number' || fontSize < 15 || fontSize > 54) throw new Error('expected bounded word-cloud font size')
+  const meta = (graph.metadata || {}) as Record<string, unknown>
+  if (meta.keywordCloudLayout !== 'semantic-spiral') throw new Error('expected keyword cloud layout metadata')
+  const candidateCount = meta.keywordCandidateCount
+  if (typeof candidateCount !== 'number' || !Number.isFinite(candidateCount) || candidateCount <= 0) {
+    throw new Error('expected keyword candidate count metadata')
+  }
+}
+
+export const testKeywordModeCompactsLargeGraphsForCanvasPerformance = () => {
+  const documentText = Array.from({ length: 360 }, (_, i) => {
+    const a = `Topic${i}`
+    const b = `Signal${(i + 17) % 360}`
+    return `${a} coordinates ${b}. ${a} supports migration plan ${i % 23}.`
+  }).join('\n')
+  const { graph } = deriveKeywordGraphFromText({ documentId: 'doc:large', documentText })
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const edges = Array.isArray(graph.edges) ? graph.edges : []
+  if (nodes.length > 220) throw new Error('large keyword graphs should be compacted before canvas rendering')
+  if (edges.length > nodes.length * 4) throw new Error('large keyword graph edges should respect compact node count')
+  const meta = (graph.metadata || {}) as Record<string, unknown>
+  const pruned = meta.keywordNodePrunedCount
+  if (typeof pruned !== 'number' || pruned <= 0) throw new Error('expected keyword node pruning metadata')
+  const wordCloudNodes = nodes.filter(node => ((node.properties || {}) as Record<string, unknown>)['visual:wordCloud'] === true)
+  if (wordCloudNodes.length === 0) throw new Error('compacted keyword graph should still include word-cloud nodes')
+}
+
+export const testKeywordModeCapsMergedSourceNodesForCanvasPerformance = () => {
+  const { graph: keywordGraph } = deriveKeywordGraphFromText({
+    documentId: 'doc:test',
+    documentText: 'Agent labs coordinate code migration. Agent labs improve deployment review.',
+  })
+  const baseGraph = {
+    type: 'Graph',
+    nodes: Array.from({ length: 260 }, (_, i) => ({
+      id: `source:${i}`,
+      label: `Source ${i} agent labs migration deployment`,
+      type: 'Element',
+      properties: { text: `Agent labs migration deployment source ${i}` },
+      metadata: {},
+    })),
+    edges: [],
+  }
+  const merged = mergeKeywordGraphWithSourceNodes({
+    baseGraphData: baseGraph as unknown as typeof keywordGraph,
+    keywordGraph,
+    sourceId: 'doc:test',
+  })
+  const sourceNodes = (merged.nodes || []).filter(node => String(node.type || '') === 'KeywordSource')
+  if (sourceNodes.length === 0) throw new Error('expected high-signal keyword source nodes')
+  if (sourceNodes.length > 96) throw new Error('keyword source nodes should be capped for large source graphs')
+  const sourceMentionEdges = (merged.edges || []).filter(edge => ((edge.properties || {}) as Record<string, unknown>)['keyword:kind'] === 'sourceMention')
+  if (sourceMentionEdges.length === 0) throw new Error('expected source mention edges for retained source nodes')
+  const meta = (merged.metadata || {}) as Record<string, unknown>
+  const pruned = meta.keywordSourceNodePrunedCount
+  if (typeof pruned !== 'number' || pruned <= 0) throw new Error('expected source-node pruning metadata')
+}

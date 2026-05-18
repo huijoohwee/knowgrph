@@ -7,6 +7,8 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { applyCanvasRenderBudget, resolveCanvasRenderBudgetSurface } from '@/lib/graph/canvasRenderBudget'
+import { withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
 import { useActiveGraphData } from './useActiveGraphData.impl'
 import { deriveFlowchartFrontmatterActiveViewGraph, deriveGraphDataForActiveView } from './activeViewGraph'
 
@@ -28,6 +30,7 @@ const INACTIVE_RENDER_SLICE = {
   collapsedGroupIds: [] as string[],
   canvasRenderMode: '2d' as '2d' | '3d',
   canvas2dRenderer: 'd3' as Canvas2dRendererId,
+  graphDataRevision: 0,
 } as const
 
 const EMPTY_STRING_ARRAY: string[] = []
@@ -47,6 +50,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
             collapsedGroupIds: (s.collapsedGroupIds ?? EMPTY_STRING_ARRAY) as string[],
             canvasRenderMode: (s.canvasRenderMode || '2d') as '2d' | '3d',
             canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
+            graphDataRevision: typeof s.graphDataRevision === 'number' ? s.graphDataRevision : 0,
           })
         : () => INACTIVE_RENDER_SLICE,
     [enabled],
@@ -61,6 +65,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     collapsedGroupIds,
     canvasRenderMode,
     canvas2dRenderer,
+    graphDataRevision,
   } = useGraphStore(useShallow(selector))
   const frontmatterOnlyPolicyActive = React.useMemo(
     () => isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer }),
@@ -146,10 +151,41 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     documentStructureBaselineLock,
   ])
 
+  const budgetSurface = React.useMemo(
+    () => resolveCanvasRenderBudgetSurface({ canvasRenderMode, canvas2dRenderer }),
+    [canvas2dRenderer, canvasRenderMode],
+  )
+  const topologyComputed = React.useMemo(() => {
+    return withGraphTopologyMetadata({
+      graphData: computed,
+      graphRevision: graphDataRevision,
+      stage: 'active-view',
+      annotate: true,
+    })
+  }, [computed, graphDataRevision])
+
+  const budgetedComputed = React.useMemo(() => {
+    return applyCanvasRenderBudget({
+      graphData: topologyComputed,
+      graphRevision: graphDataRevision,
+      surface: budgetSurface,
+      documentSemanticMode: effectiveDocumentSemanticMode,
+    })
+  }, [budgetSurface, effectiveDocumentSemanticMode, graphDataRevision, topologyComputed])
+
+  const renderComputed = React.useMemo(() => {
+    return withGraphTopologyMetadata({
+      graphData: budgetedComputed,
+      graphRevision: graphDataRevision,
+      stage: 'render',
+      annotate: true,
+    })
+  }, [budgetedComputed, graphDataRevision])
+
   React.useEffect(() => {
     if (!enabled) return
-    lastRef.current = computed
-  }, [computed, enabled])
+    lastRef.current = renderComputed
+  }, [enabled, renderComputed])
 
-  return enabled ? computed : lastRef.current
+  return enabled ? renderComputed : lastRef.current
 }

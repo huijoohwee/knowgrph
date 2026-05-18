@@ -22,18 +22,56 @@ BALANCED_LAYOUT_FRAME = {
     "width": 1920,
     "height": 1080,
     "aspectRatio": "16:9",
+    "centroid": {"x": 960, "y": 540, "tolerance": 1},
 }
 BALANCED_WIDGET_LAYOUT = {
-    "text-plan": {"x": 160, "y": 180, "width": 360, "height": 250, "role": "textWidget"},
-    "image-reference": {"x": 780, "y": 180, "width": 360, "height": 250, "role": "imageWidget"},
-    "video-storyboard": {"x": 1400, "y": 180, "width": 360, "height": 250, "role": "videoWidget"},
-    "rich-media-panel": {"x": 700, "y": 660, "width": 520, "height": 292, "role": "richMediaPanel"},
-    "goal": {"x": 60, "y": 40, "width": 260, "height": 96, "role": "provenance"},
-    "brief": {"x": 420, "y": 40, "width": 280, "height": 96, "role": "brief"},
-    "verification": {"x": 160, "y": 800, "width": 360, "height": 140, "role": "verification"},
-    "report": {"x": 1400, "y": 800, "width": 360, "height": 140, "role": "report"},
+    "text-plan": {
+        "x": 160,
+        "y": 326,
+        "width": 360,
+        "height": 250,
+        "role": "textWidget",
+        "xIndex": -1,
+        "yIndex": -1,
+        "zIndex": 0,
+    },
+    "image-reference": {
+        "x": 780,
+        "y": 326,
+        "width": 360,
+        "height": 250,
+        "role": "imageWidget",
+        "xIndex": 0,
+        "yIndex": -1,
+        "zIndex": 0,
+    },
+    "video-storyboard": {
+        "x": 1400,
+        "y": 326,
+        "width": 360,
+        "height": 250,
+        "role": "videoWidget",
+        "xIndex": 1,
+        "yIndex": -1,
+        "zIndex": 0,
+    },
+    "rich-media-panel": {
+        "x": 700,
+        "y": 660,
+        "width": 520,
+        "height": 292,
+        "role": "richMediaPanel",
+        "xIndex": 0,
+        "yIndex": 1,
+        "zIndex": 1,
+    },
+    "goal": {"x": 60, "y": 40, "width": 260, "height": 96, "role": "provenance", "xIndex": -2, "yIndex": -2, "zIndex": -1},
+    "brief": {"x": 420, "y": 40, "width": 280, "height": 96, "role": "brief", "xIndex": -1, "yIndex": -2, "zIndex": -1},
+    "verification": {"x": 160, "y": 800, "width": 360, "height": 140, "role": "verification", "xIndex": -1, "yIndex": 2, "zIndex": 0},
+    "report": {"x": 1400, "y": 800, "width": 360, "height": 140, "role": "report", "xIndex": 1, "yIndex": 2, "zIndex": 0},
 }
 RICH_MEDIA_PANEL_EDGE_IDS = {"e-text-panel", "e-image-panel", "e-video-panel"}
+RICH_MEDIA_PANEL_EDGE_LANES = {"e-text-panel": -1, "e-image-panel": 0, "e-video-panel": 1}
 
 
 @dataclass

@@ -12,7 +12,21 @@ import {
   splitSentencesWithOffsets,
   isVerbLike,
   normalizeEntityKey,
+  type TextEntity,
 } from '@/lib/graph/textAnalysis'
+import {
+  compressCommunityLabels,
+  computeLabelPropagationCommunities,
+  type WeightedNeighbor,
+} from './keywordCommunities'
+import {
+  buildKeywordCandidateMentions,
+  extractDocumentKeywordCandidates,
+  type DocumentKeywordCandidate,
+} from './keywordExtraction'
+import { computeKeywordCloudPlacements } from './keywordCloudLayout'
+import { readKeywordGraphMaxNodes, selectRetainedKeywordEntityKeys } from './keywordGraphRetention'
+import { withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
 
 export type KeywordGraphSource = {
   documentId: string
@@ -22,6 +36,7 @@ export type KeywordGraphSource = {
   tuning?: {
     edgesPerNode?: number
     maxEdgesCap?: number
+    maxNodes?: number
   }
 }
 
@@ -64,7 +79,7 @@ const prettyLabel = (key: string): string => {
     .join(' ')
 }
 
-export const KEYWORD_GRAPH_ALGO_VERSION = 4
+export const KEYWORD_GRAPH_ALGO_VERSION = 7
 
 const STOPWORD_SET = new Set<string>(NLTK_STOPWORDS_EN.map(s => String(s || '').trim().toLowerCase()).filter(Boolean))
 
@@ -79,186 +94,33 @@ const isUsefulEntityKey = (rawKey: string): boolean => {
   return true
 }
 
-type WeightedNeighbor = { id: string; w: number }
-
-const computeLabelPropagationCommunities = (args: {
-  nodeIds: string[]
-  neighbors: Map<string, WeightedNeighbor[]>
-  iterations: number
-}): Map<string, string> => {
-  const nodeIds = [...args.nodeIds].map(id => String(id || '').trim()).filter(Boolean)
-  nodeIds.sort((a, b) => a.localeCompare(b))
-
-  const labels = new Map<string, string>()
-  for (let i = 0; i < nodeIds.length; i += 1) labels.set(nodeIds[i]!, nodeIds[i]!)
-
-  const iters = Math.max(1, Math.min(32, Math.floor(args.iterations)))
-  for (let iter = 0; iter < iters; iter += 1) {
-    let changed = false
-    for (let i = 0; i < nodeIds.length; i += 1) {
-      const id = nodeIds[i]!
-      const neigh = args.neighbors.get(id) || []
-      if (neigh.length === 0) continue
-
-      const weightByLabel = new Map<string, number>()
-      for (let j = 0; j < neigh.length; j += 1) {
-        const nb = neigh[j]!
-        const nbId = String(nb.id || '').trim()
-        if (!nbId) continue
-        const nbLabel = labels.get(nbId) || nbId
-        const w = typeof nb.w === 'number' && Number.isFinite(nb.w) && nb.w > 0 ? nb.w : 0
-        if (w <= 0) continue
-        weightByLabel.set(nbLabel, (weightByLabel.get(nbLabel) || 0) + w)
-      }
-      if (weightByLabel.size === 0) continue
-
-      let bestLabel = labels.get(id) || id
-      let bestW = -1
-      weightByLabel.forEach((w, l) => {
-        if (w > bestW) {
-          bestW = w
-          bestLabel = l
-          return
-        }
-        if (w === bestW && l.localeCompare(bestLabel) < 0) {
-          bestLabel = l
-        }
-      })
-
-      const cur = labels.get(id) || id
-      if (bestLabel !== cur) {
-        labels.set(id, bestLabel)
-        changed = true
-      }
+const mergeTextEntities = (...groups: Array<Array<{ text: string; label: string; start: number; end: number }>>): TextEntity[] => {
+  const seen = new Set<string>()
+  const out: TextEntity[] = []
+  for (let g = 0; g < groups.length; g += 1) {
+    const group = groups[g] || []
+    for (let i = 0; i < group.length; i += 1) {
+      const e = group[i]!
+      const key = normalizeEntityKey(e.text)
+      if (!isUsefulEntityKey(key)) continue
+      const start = typeof e.start === 'number' && Number.isFinite(e.start) ? e.start : -1
+      const end = typeof e.end === 'number' && Number.isFinite(e.end) ? e.end : start
+      if (start < 0) continue
+      const sig = `${key}@${start}`
+      if (seen.has(sig)) continue
+      seen.add(sig)
+      out.push({ text: e.text, label: e.label as TextEntity['label'], start, end })
     }
-    if (!changed) break
   }
-
-  return labels
-}
-
-const compressCommunityLabels = (args: {
-  labelsByNodeId: Map<string, string>
-  neighbors: Map<string, WeightedNeighbor[]>
-  maxCommunities: number
-}): Map<string, number> => {
-  const max = Math.max(2, Math.min(64, Math.floor(args.maxCommunities)))
-  const labelsByNodeId = new Map(args.labelsByNodeId)
-
-  if (args.neighbors.size === 0) {
-    const ids = Array.from(labelsByNodeId.keys()).map(id => String(id || '').trim()).filter(Boolean)
-    ids.sort((a, b) => a.localeCompare(b))
-    const out = new Map<string, number>()
-    for (let i = 0; i < ids.length; i += 1) {
-      out.set(ids[i]!, (i % max) + 1)
-    }
-    return out
-  }
-
-  const buildNodesByLabel = () => {
-    const out = new Map<string, string[]>()
-    labelsByNodeId.forEach((label, nodeId) => {
-      const arr = out.get(label) || []
-      arr.push(nodeId)
-      out.set(label, arr)
-    })
-    out.forEach(arr => arr.sort((a, b) => a.localeCompare(b)))
-    return out
-  }
-
-  let nodesByLabel = buildNodesByLabel()
-
-  const totalCommunityWeight = (label: string): number => {
-    const nodes = nodesByLabel.get(label) || []
-    const nodeSet = new Set(nodes)
-    let w = 0
-    for (let i = 0; i < nodes.length; i += 1) {
-      const id = nodes[i]!
-      const neigh = args.neighbors.get(id) || []
-      for (let j = 0; j < neigh.length; j += 1) {
-        const nb = neigh[j]!
-        if (!nodeSet.has(nb.id)) continue
-        w += nb.w
-      }
-    }
-    return w
-  }
-
-  while (nodesByLabel.size > max) {
-    const labels = Array.from(nodesByLabel.entries()).map(([label, nodes]) => ({ label, size: nodes.length }))
-    labels.sort((a, b) => a.size - b.size || a.label.localeCompare(b.label))
-    const smallest = labels[0]
-    if (!smallest) break
-    const smallLabel = smallest.label
-    const smallNodes = nodesByLabel.get(smallLabel) || []
-    if (smallNodes.length === 0) {
-      nodesByLabel.delete(smallLabel)
-      continue
-    }
-
-    let changed = false
-    for (let i = 0; i < smallNodes.length; i += 1) {
-      const id = smallNodes[i]!
-      const neigh = args.neighbors.get(id) || []
-      let bestTarget: string | null = null
-      let bestW = -1
-      for (let j = 0; j < neigh.length; j += 1) {
-        const nb = neigh[j]!
-        const nbLabel = labelsByNodeId.get(nb.id) || null
-        if (!nbLabel || nbLabel === smallLabel) continue
-        if (!nodesByLabel.has(nbLabel)) continue
-        const w = nb.w
-        if (w > bestW) {
-          bestW = w
-          bestTarget = nbLabel
-        } else if (w === bestW && bestTarget && nbLabel.localeCompare(bestTarget) < 0) {
-          bestTarget = nbLabel
-        }
-      }
-      if (bestTarget) {
-        labelsByNodeId.set(id, bestTarget)
-        changed = true
-      }
-    }
-
-    if (!changed) {
-      const candidates = Array.from(nodesByLabel.entries())
-        .filter(([label]) => label !== smallLabel)
-        .map(([label, nodes]) => ({ label, size: nodes.length }))
-        .sort((a, b) => b.size - a.size || a.label.localeCompare(b.label))
-      const target = candidates[0]?.label || null
-      if (target) {
-        for (let i = 0; i < smallNodes.length; i += 1) {
-          labelsByNodeId.set(smallNodes[i]!, target)
-        }
-      } else {
-        break
-      }
-    }
-
-    nodesByLabel = buildNodesByLabel()
-  }
-
-  const communities = Array.from(nodesByLabel.entries()).map(([label, nodes]) => ({
-    label,
-    size: nodes.length,
-    weight: totalCommunityWeight(label),
-  }))
-  communities.sort((a, b) => b.weight - a.weight || b.size - a.size || a.label.localeCompare(b.label))
-
-  const idByLabel = new Map<string, number>()
-  for (let i = 0; i < communities.length; i += 1) {
-    idByLabel.set(communities[i]!.label, i + 1)
-  }
-
-  const out = new Map<string, number>()
-  labelsByNodeId.forEach((label, nodeId) => {
-    const cid = idByLabel.get(label)
-    if (cid != null) out.set(nodeId, cid)
-  })
   return out
 }
 
+const readCandidateBoost = (candidate: DocumentKeywordCandidate | undefined): number => {
+  if (!candidate) return 0
+  const frequency = typeof candidate.frequency === 'number' && Number.isFinite(candidate.frequency) ? candidate.frequency : 0
+  const score = typeof candidate.score === 'number' && Number.isFinite(candidate.score) ? candidate.score : 0
+  return Math.max(1, Math.min(24, Math.log1p(frequency) * 2 + score * 6))
+}
 
 export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordGraphResult => {
   const docId = String(source.documentId || 'doc')
@@ -269,13 +131,19 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     : hashText(text)
   const sourceLayerHash = `kw:v${KEYWORD_GRAPH_ALGO_VERSION}:${rawSourceHash}`
   
-  const textEntities = extractMentionsRobust(analysisText)
+  const keywordCandidates = extractDocumentKeywordCandidates(analysisText)
+  const keywordCandidateByKey = new Map<string, DocumentKeywordCandidate>()
+  for (let i = 0; i < keywordCandidates.length; i += 1) keywordCandidateByKey.set(keywordCandidates[i]!.key, keywordCandidates[i]!)
+  const textEntities = mergeTextEntities(
+    extractMentionsRobust(analysisText),
+    buildKeywordCandidateMentions(keywordCandidates),
+  )
   const mentions: Mention[] = textEntities.map(e => ({
     key: normalizeEntityKey(e.text),
     label: e.text,
     start: e.start,
     end: e.end,
-    ner: e.label
+    ner: e.label,
   })).sort((a, b) => {
     const am = (a.start + a.end) / 2
     const bm = (b.start + b.end) / 2
@@ -297,6 +165,23 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     const id = `kw:entity:${hashText(key)}`
     entityByKey.set(key, { id, label: m.label || prettyLabel(key) || key, count: 1, ner: m.ner })
   }
+
+  keywordCandidateByKey.forEach((candidate, key) => {
+    if (!isUsefulEntityKey(key)) return
+    const boost = readCandidateBoost(candidate)
+    const existing = entityByKey.get(key)
+    if (existing) {
+      existing.count += boost
+      if (candidate.score > 0 && candidate.label.length > existing.label.length) existing.label = candidate.label
+      return
+    }
+    entityByKey.set(key, {
+      id: `kw:entity:${hashText(key)}`,
+      label: candidate.label || prettyLabel(key) || key,
+      count: Math.max(1, candidate.frequency + boost),
+      ner: 'ENTITY',
+    })
+  })
 
   const pairCounts = new Map<string, number>()
   const entityBlockCounts = new Map<string, number>()
@@ -417,6 +302,28 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     const role: 'subject' | 'object' | 'entity' = subj > obj ? 'subject' : obj > subj ? 'object' : 'entity'
     roleByEntityKey.set(key, role)
   })
+  const rawEntityCount = entityByKey.size
+  const maxKeywordNodes = readKeywordGraphMaxNodes(source.tuning?.maxNodes)
+  const retainedEntityKeys = selectRetainedKeywordEntityKeys(
+    Array.from(entityByKey.entries()).map(([key, value]) => {
+      const candidate = keywordCandidateByKey.get(key)
+      const roleCounts = roleCountsByEntityKey.get(key) || { subject: 0, object: 0 }
+      return {
+        key,
+        count: value.count,
+        candidateScore: candidate?.score,
+        candidateRank: candidate?.rank,
+        phraseLength: candidate?.phraseLength,
+        roleWeight: roleCounts.subject + roleCounts.object,
+      }
+    }),
+    maxKeywordNodes,
+  )
+  if (retainedEntityKeys.size < entityByKey.size) {
+    entityByKey.forEach((_, key) => {
+      if (!retainedEntityKeys.has(key)) entityByKey.delete(key)
+    })
+  }
 
   pairCounts.forEach((_, pairKey) => {
     const parts = pairKey.split('|')
@@ -441,6 +348,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     const nodeSize = keywordNodeSizeFromCount(count)
     const role = roleByEntityKey.get(key) || 'entity'
     const fill = KEYWORD_ROLE_COLORS[role]
+    const candidate = keywordCandidateByKey.get(key)
     nodes.push({
       id: v.id,
       label: v.label,
@@ -451,6 +359,13 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         'keyword:role': role,
         'keyword:ner': v.ner as unknown as JSONValue,
         'keyword:frequency': count as unknown as JSONValue,
+        ...(candidate ? {
+          'keyword:score': candidate.score as unknown as JSONValue,
+          'keyword:rank': candidate.rank as unknown as JSONValue,
+          'keyword:phraseLength': candidate.phraseLength as unknown as JSONValue,
+          'keyword:spread': candidate.spread as unknown as JSONValue,
+          'keyword:extractor': 'document-keyphrase' as unknown as JSONValue,
+        } : {}),
         count: count as unknown as JSONValue,
         'visual:importance': count as unknown as JSONValue,
         'visual:nodeSize': nodeSize as unknown as JSONValue,
@@ -546,13 +461,15 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   const prunedEdges = (() => {
     const nodeCount = nodes.length
     const edgesPerNodeRaw = source.tuning?.edgesPerNode
-    const edgesPerNode = typeof edgesPerNodeRaw === 'number' && Number.isFinite(edgesPerNodeRaw)
+    const requestedEdgesPerNode = typeof edgesPerNodeRaw === 'number' && Number.isFinite(edgesPerNodeRaw)
       ? clampNumber(Math.floor(edgesPerNodeRaw), 1, 60)
       : 6
+    const edgesPerNode = nodeCount > 180 ? Math.min(requestedEdgesPerNode, 4) : requestedEdgesPerNode
     const maxEdgesCapRaw = source.tuning?.maxEdgesCap
-    const maxEdgesCap = typeof maxEdgesCapRaw === 'number' && Number.isFinite(maxEdgesCapRaw)
+    const requestedMaxEdgesCap = typeof maxEdgesCapRaw === 'number' && Number.isFinite(maxEdgesCapRaw)
       ? clampNumber(Math.floor(maxEdgesCapRaw), 0, 25_000)
       : 2400
+    const maxEdgesCap = nodeCount > 180 ? Math.min(requestedMaxEdgesCap, 1200) : requestedMaxEdgesCap
     const maxEdges = Math.max(60, Math.min(maxEdgesCap, nodeCount * edgesPerNode))
     if (edges.length <= maxEdges) return edges
     const scored = edges
@@ -622,7 +539,35 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     }
   })
 
-  const graph: GraphData = {
+  const cloudPlacements = computeKeywordCloudPlacements(nodes.map((n, index) => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    const importance = typeof props['visual:importance'] === 'number' && Number.isFinite(props['visual:importance'])
+      ? (props['visual:importance'] as number)
+      : typeof props.count === 'number' && Number.isFinite(props.count)
+        ? (props.count as number)
+        : 0
+    return {
+      id: String(n.id),
+      label: String(n.label || ''),
+      weight: importance,
+      rank: typeof props['keyword:rank'] === 'number' && Number.isFinite(props['keyword:rank']) ? (props['keyword:rank'] as number) : index + 1,
+    }
+  }))
+  nodes.forEach((n) => {
+    const p = cloudPlacements.get(String(n.id))
+    if (!p) return
+    n.properties = {
+      ...(n.properties || {}),
+      'visual:wordCloud': true as unknown as JSONValue,
+      'visual:fontSize': p.fontSizePx as unknown as JSONValue,
+      'visual:labelRotation': p.rotateDeg as unknown as JSONValue,
+      'visual:xIndex': p.xIndex as unknown as JSONValue,
+      'visual:yIndex': p.yIndex as unknown as JSONValue,
+      'visual:opacity': p.opacity as unknown as JSONValue,
+    }
+  })
+
+  const graphBase: GraphData = {
     type: 'Graph',
     context: '',
     metadata: {
@@ -631,12 +576,24 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
       source: docId,
       sourceLayerHash: sourceLayerHash as unknown as JSONValue,
       sourceLabel: (source.sourceLabel || '') as unknown as JSONValue,
+      keywordCandidateCount: keywordCandidates.length as unknown as JSONValue,
+      keywordCloudLayout: 'semantic-spiral' as unknown as JSONValue,
+      rawKeywordNodeCount: rawEntityCount as unknown as JSONValue,
+      keywordNodeCount: nodes.length as unknown as JSONValue,
+      keywordNodeLimit: maxKeywordNodes as unknown as JSONValue,
+      keywordNodePrunedCount: Math.max(0, rawEntityCount - nodes.length) as unknown as JSONValue,
     },
     nodes,
     edges: prunedEdges,
   }
 
+  const graph = withGraphTopologyMetadata({
+    graphData: graphBase,
+    stage: 'keyword',
+    annotate: true,
+  }) || graphBase
+
   return { graph, nodeCountsById }
 }
 
-export const keywordGraphCache = new LRUCache<string, KeywordGraphResult>(30)
+export const keywordGraphCache = new LRUCache<string, KeywordGraphResult>(12)

@@ -4,6 +4,7 @@ from .superagent_contracts import (
     BALANCED_LAYOUT_FRAME,
     BALANCED_WIDGET_LAYOUT,
     JsonDict,
+    RICH_MEDIA_PANEL_EDGE_LANES,
     RICH_MEDIA_PANEL_EDGE_IDS,
 )
 
@@ -161,6 +162,8 @@ def _build_viewport_proof(viewport: JsonDict) -> JsonDict:
             "readable": True,
             "anchorPolicy": "explicit-handles",
             "reachableEdgeIds": sorted(RICH_MEDIA_PANEL_EDGE_IDS),
+            "laneIndexByEdgeId": dict(RICH_MEDIA_PANEL_EDGE_LANES),
+            "avoidWidgetContent": True,
         },
         "controls": {
             "fitOverview": True,
@@ -232,6 +235,11 @@ def _widget_policy(node_id: str, strategy: str, rect: Tuple[float, float, float,
     return {
         "reachable": True,
         "role": layout["role"],
+        "index": {
+            "x": int(layout.get("xIndex") or 0),
+            "y": int(layout.get("yIndex") or 0),
+            "z": int(layout.get("zIndex") or 0),
+        },
         "strategy": strategy,
         "rect": {"x": round(x, 2), "y": round(y, 2), "width": round(width, 2), "height": round(height, 2)},
         "minSize": {"width": min(280, int(layout["width"])), "height": min(220, int(layout["height"]))},

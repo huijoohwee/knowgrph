@@ -108,7 +108,37 @@ function buildYouTubeTranscriptGraphData(transcript: Record<string, JSONValue>):
   const sourceUrl = typeof transcript.source_url === 'string' ? transcript.source_url.trim() : ''
   const title = typeof transcript.title === 'string' ? transcript.title.trim() : ''
   const thumbnail_url = typeof transcript.thumbnail_url === 'string' ? transcript.thumbnail_url.trim() : ''
-  const { thumbnail_url: _legacyThumbnailUrl, ...transcriptProperties } = transcript
+  const scalarKeys = [
+    'type',
+    'title',
+    'video_id',
+    'source_url',
+    'requested_language_code',
+    'requested_language',
+    'selected_language_code',
+    'selected_language',
+    'is_generated',
+    'is_translatable',
+    'start_s',
+    'end_s',
+    'duration_s',
+    'segment_count',
+    'generated_at_ms',
+  ]
+  const transcriptProperties: Record<string, JSONValue> = {}
+  for (let i = 0; i < scalarKeys.length; i += 1) {
+    const key = scalarKeys[i]!
+    const value = transcript[key]
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      transcriptProperties[key] = value
+    }
+  }
+  const segments = Array.isArray(transcript.segments) ? transcript.segments : []
+  if (segments.length > 0 && typeof transcriptProperties.segment_count !== 'number') {
+    transcriptProperties.segment_count = segments.length as unknown as JSONValue
+  }
+  const translationLanguages = Array.isArray(transcript.translation_languages) ? transcript.translation_languages : []
+  transcriptProperties.translation_language_count = translationLanguages.length as unknown as JSONValue
 
   const id = (() => {
     if (videoId) return `youtube:${videoId}`
@@ -168,7 +198,7 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
     const state = useGraphStore.getState()
     const markdownName = ensureMarkdownFileName(converted.displayName)
     state.setWorkspaceViewMode('editor')
-    void state.setActiveMarkdownDocument({
+    await state.setActiveMarkdownDocument({
       name: markdownName,
       text: markdownForEditors,
       normalizeMermaidMmd: false,

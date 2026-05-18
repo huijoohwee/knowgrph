@@ -13,6 +13,7 @@ import { DesignWireframeSettings } from '@/features/toolbar/ui/DesignWireframeSe
 import { FlowchartRendererSettings } from '@/features/toolbar/ui/FlowchartRendererSettings'
 import { RadarGalaxyRendererSettings } from '@/features/toolbar/ui/RadarGalaxyRendererSettings'
 import { EdgeTypesRendererSettings } from '@/features/toolbar/ui/EdgeTypesRendererSettings'
+import { RendererGraphTopologySummary } from '@/features/toolbar/ui/RendererGraphTopologySummary'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readGlobalEdgeType, type GlobalEdgeType, withGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { LayoutModeRendererSettings } from '@/features/toolbar/ui/LayoutModeRendererSettings'
@@ -182,6 +183,7 @@ export function ToolbarToolMenuRendererView(props: {
 
   return (
     <div className="flex flex-col gap-2">
+      <RendererGraphTopologySummary />
       <React.Suspense fallback={null}>
         <WorkspaceTableModeControlLazy />
       </React.Suspense>

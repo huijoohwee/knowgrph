@@ -9,6 +9,7 @@ from .superagent_contracts import (
     ERROR_RETRYABLE,
     HarnessError,
     JsonDict,
+    RICH_MEDIA_PANEL_EDGE_LANES,
     RICH_MEDIA_PANEL_EDGE_IDS,
     RICH_MEDIA_SURFACE_ROUTE,
     ToolDefinition,
@@ -417,11 +418,14 @@ def tool_canvas_write(payload: JsonDict) -> JsonDict:
     ]
     for edge in edges:
         if edge.get("id") in RICH_MEDIA_PANEL_EDGE_IDS:
+            edge_id = str(edge.get("id") or "")
             edge.setdefault("properties", {})["layoutRoute"] = {
                 "frame": BALANCED_LAYOUT_ID,
                 "strategy": "fan-in-readable",
                 "sourceAnchor": "bottom",
                 "targetAnchor": "top",
+                "laneIndex": int(RICH_MEDIA_PANEL_EDGE_LANES.get(edge_id, 0)),
+                "avoidWidgetContent": True,
             }
     graph = {
         "type": "Graph",

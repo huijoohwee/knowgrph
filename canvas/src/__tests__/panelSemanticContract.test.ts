@@ -119,29 +119,47 @@ export const testMainPanelLazyLoadsInactiveHeavyTabs = () => {
 export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
   const root = process.cwd()
   const settingsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsView.tsx')
-  const sourceFilePanelPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SourceFileManagementSettingsPanel.tsx')
+  const sourceFileRowsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SourceFileManagementSettingsRows.tsx')
   const collapseStatePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'useMarkdownExplorerSectionCollapseState.ts')
   const schemaPath = path.resolve(root, 'src', 'features', 'settings', 'settings-flow.schema.json')
 
   const settingsViewText = readUtf8(settingsViewPath)
-  const sourceFilePanelText = readUtf8(sourceFilePanelPath)
+  const sourceFileRowsText = readUtf8(sourceFileRowsPath)
   const collapseStateText = readUtf8(collapseStatePath)
   const schemaText = readUtf8(schemaPath)
 
-  if (!settingsViewText.includes('<SourceFileManagementSettingsPanel')) {
-    throw new Error('Expected MainPanel Settings to render the Source File Management panel')
+  if (settingsViewText.includes('<SourceFileManagementSettingsPanel')) {
+    throw new Error('Expected MainPanel Settings to remove the legacy standalone Source File Management panel')
   }
-  if (!sourceFilePanelText.includes('Restore D1/docs defaults') || !sourceFilePanelText.includes('Open Source Files')) {
-    throw new Error('Expected Source File Management settings panel to expose D1/docs restore and Source Files open actions')
+  if (!settingsViewText.includes('<SourceFileManagementSettingsRows')) {
+    throw new Error('Expected MainPanel Settings to render Source File Management rows inside the Settings section')
   }
-  if (!sourceFilePanelText.includes('scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })')) {
-    throw new Error('Expected Source File Management settings panel to recompose D1/workspace-backed Source Files explicitly')
+  if (!settingsViewText.includes('getAreaIntroItemCount={getSettingsAreaIntroItemCount}')) {
+    throw new Error('Expected MainPanel Settings section counts to include Source File Management lead rows')
   }
-  if (!sourceFilePanelText.includes('Import local files remains an explicit manual action')) {
-    throw new Error('Expected Source File Management settings panel to document the manual-only local import boundary')
+  if (!sourceFileRowsText.includes('SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 5')) {
+    throw new Error('Expected Source File Management lead row count to stay owned by the rows module')
   }
-  if (sourceFilePanelText.includes('importLocalFiles') || sourceFilePanelText.includes('openFilePicker')) {
-    throw new Error('Expected Source File Management settings panel to avoid hidden Import local files actions')
+  if (!sourceFileRowsText.includes("from '@/features/panels/ui/KeyTypeValueRow'")) {
+    throw new Error('Expected Source File Management settings to reuse the MainPanel Key/Type/Value row primitive')
+  }
+  if (!sourceFileRowsText.includes('buildSettingsRowAnchorId')) {
+    throw new Error('Expected Source File Management settings to reuse the shared settings row anchor helper')
+  }
+  if (sourceFileRowsText.includes('rounded-xl') || sourceFileRowsText.includes('grid grid-cols-2')) {
+    throw new Error('Expected Source File Management settings to avoid the legacy standalone card/stat-grid layout')
+  }
+  if (!sourceFileRowsText.includes('Restore D1/docs defaults') || !sourceFileRowsText.includes('Open Source Files')) {
+    throw new Error('Expected Source File Management settings rows to expose D1/docs restore and Source Files open actions')
+  }
+  if (!sourceFileRowsText.includes('scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })')) {
+    throw new Error('Expected Source File Management settings rows to recompose D1/workspace-backed Source Files explicitly')
+  }
+  if (!sourceFileRowsText.includes('Import local files remains an explicit manual action')) {
+    throw new Error('Expected Source File Management settings rows to document the manual-only local import boundary')
+  }
+  if (sourceFileRowsText.includes('importLocalFiles') || sourceFileRowsText.includes('openFilePicker')) {
+    throw new Error('Expected Source File Management settings rows to avoid hidden Import local files actions')
   }
   if (!collapseStateText.includes('requestMarkdownExplorerSourceFilesOpen')) {
     throw new Error('Expected markdown explorer collapse state to expose a source-owned Source Files open request')

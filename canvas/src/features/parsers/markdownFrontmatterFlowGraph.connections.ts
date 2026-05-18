@@ -32,6 +32,15 @@ function asBoolean(v: unknown): boolean | null {
   return null
 }
 
+function asFiniteNumber(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
 function cleanIdPart(v: unknown): string {
   return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
 }
@@ -188,6 +197,8 @@ export function parseConnections(meta: Record<string, unknown>): { edges: GraphE
     const socketType = asString(row.type)
     const edgeLabel = asString(row.label)
     const animated = asBoolean(row.animated) === true
+    const layoutRoute = asString(row.layoutRoute)
+    const layoutLane = asFiniteNumber(row.layoutLane)
     const endpoints = extractConnectionEndpoints(row)
     if (!endpoints) continue
     const uniq = buildEdgeUniqKey({ source: endpoints.source, fromPort: endpoints.fromPort, target: endpoints.target, toPort: endpoints.toPort })
@@ -201,6 +212,8 @@ export function parseConnections(meta: Record<string, unknown>): { edges: GraphE
       [FLOW_EDGE_TARGET_PORT_KEY]: endpoints.toPort,
       [FLOW_EDGE_DISPLAY_LABEL_KEY]: buildDisplayLabel(endpoints.fromPort, endpoints.toPort, socketType),
       ...(socketType ? ({ 'flow:socketType': socketType } as unknown as Record<string, JSONValue>) : {}),
+      ...(layoutRoute ? ({ layoutRoute } as unknown as Record<string, JSONValue>) : {}),
+      ...(layoutLane != null ? ({ layoutLane: Math.floor(layoutLane) } as unknown as Record<string, JSONValue>) : {}),
     }
     edges.push({
       id,

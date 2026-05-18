@@ -48,7 +48,7 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
   baseGraphData: GraphData
   keywordGraph: GraphData
   sourceId: string
-  tuning?: { mentionEdgesPerSourceNode?: number }
+  tuning?: { mentionEdgesPerSourceNode?: number; maxSourceNodes?: number }
 }): GraphData => {
   const baseNodes = Array.isArray(args.baseGraphData.nodes) ? args.baseGraphData.nodes : []
   const keywordNodes = Array.isArray(args.keywordGraph.nodes) ? args.keywordGraph.nodes : []
@@ -108,6 +108,49 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
   })()
 
   const existingIds = new Set<string>(keywordNodes.map(n => String(n?.id)))
+  const maxSourceNodes = (() => {
+    const raw = args.tuning?.maxSourceNodes
+    const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.floor(raw) : 96
+    return Math.max(24, Math.min(300, n))
+  })()
+  const maxMentionsPerSourceNode = (() => {
+    const raw = args.tuning?.mentionEdgesPerSourceNode
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(30, Math.floor(raw)))
+    return 6
+  })()
+  const sourceMentionCandidates = (() => {
+    if (keywordEntityByToken.size === 0 || maxMentionsPerSourceNode <= 0) {
+      return [] as Array<{ origId: string; srcId: string; node: (typeof baseNodes)[number]; counts: Map<string, number>; score: number; index: number }>
+    }
+    const out: Array<{ origId: string; srcId: string; node: (typeof baseNodes)[number]; counts: Map<string, number>; score: number; index: number }> = []
+    const pickTexts = (node: unknown): string[] => pickKeywordTextFromNode(node as { label?: unknown; type?: unknown; properties?: unknown })
+    for (let i = 0; i < baseNodes.length; i += 1) {
+      const n = baseNodes[i]
+      if (!n) continue
+      const origId = String((n as { id?: unknown }).id || '').trim()
+      if (!origId) continue
+      const texts = pickTexts(n)
+      const counts = new Map<string, number>()
+      for (let t = 0; t < texts.length; t += 1) {
+        const s = String(texts[t] || '')
+        if (!s) continue
+        const words = s.toLowerCase().match(/[a-z0-9][a-z0-9_-]{1,}/g) || []
+        for (let w = 0; w < words.length; w += 1) {
+          const ids = keywordEntityByToken.get(words[w]!)
+          if (!ids) continue
+          for (let k = 0; k < ids.length; k += 1) counts.set(ids[k]!, (counts.get(ids[k]!) || 0) + 1)
+        }
+      }
+      if (counts.size === 0) continue
+      let score = 0
+      counts.forEach(count => { score += count })
+      out.push({ origId, srcId: `doc:${origId}`, node: n, counts, score, index: i })
+    }
+    out.sort((a, b) => b.score - a.score || b.counts.size - a.counts.size || a.index - b.index || a.origId.localeCompare(b.origId))
+    return out.slice(0, maxSourceNodes)
+  })()
+  const keepAllSourceNodes = baseNodes.length <= maxSourceNodes
+  const selectedSourceNodeIds = new Set(sourceMentionCandidates.map(candidate => candidate.srcId))
 
   const mergedSourceNodes = (() => {
     const out: typeof baseNodes = []
@@ -118,6 +161,7 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
       if (!origId) continue
       const id = `doc:${origId}`
       if (existingIds.has(id)) continue
+      if (!keepAllSourceNodes && !selectedSourceNodeIds.has(id)) continue
       const props = (n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties))
         ? ({ ...(n.properties as Record<string, unknown>) } as Record<string, unknown>)
         : ({} as Record<string, unknown>)
@@ -139,46 +183,19 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
   })()
 
   const mentionEdges = (() => {
-    if (keywordEntityByToken.size === 0) return [] as typeof keywordEdges
-    const maxMentions = (() => {
-      const raw = args.tuning?.mentionEdgesPerSourceNode
-      if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(30, Math.floor(raw)))
-      return 6
-    })()
+    if (sourceMentionCandidates.length === 0 || maxMentionsPerSourceNode <= 0) return [] as typeof keywordEdges
     const edges: typeof keywordEdges = []
-    const pickTexts = (node: unknown): string[] => pickKeywordTextFromNode(node as { label?: unknown; type?: unknown; properties?: unknown })
-    for (let i = 0; i < baseNodes.length; i += 1) {
-      const n = baseNodes[i]
-      if (!n) continue
-      const origId = String((n as { id?: unknown }).id || '').trim()
-      if (!origId) continue
-      const srcId = `doc:${origId}`
-      const texts = pickTexts(n)
-      const counts = new Map<string, number>()
-      for (let t = 0; t < texts.length; t += 1) {
-        const s = String(texts[t] || '')
-        if (!s) continue
-        const words = s.toLowerCase().match(/[a-z0-9][a-z0-9_-]{1,}/g) || []
-        for (let w = 0; w < words.length; w += 1) {
-          const token = words[w]!
-          const ids = keywordEntityByToken.get(token)
-          if (!ids) continue
-          for (let k = 0; k < ids.length; k += 1) {
-            const kid = ids[k]!
-            counts.set(kid, (counts.get(kid) || 0) + 1)
-          }
-        }
-      }
-      if (counts.size === 0) continue
-      const top = Array.from(counts.entries())
+    for (let i = 0; i < sourceMentionCandidates.length; i += 1) {
+      const candidate = sourceMentionCandidates[i]!
+      const top = Array.from(candidate.counts.entries())
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .slice(0, maxMentions)
+        .slice(0, maxMentionsPerSourceNode)
       for (let j = 0; j < top.length; j += 1) {
         const [kid, c] = top[j]!
-        const id = `kw:mention:${hashText(`${srcId}|${kid}`)}`
+        const id = `kw:mention:${hashText(`${candidate.srcId}|${kid}`)}`
         edges.push({
           id,
-          source: srcId,
+          source: candidate.srcId,
           target: kid,
           label: 'mentions',
           properties: {
@@ -258,6 +275,9 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
     baselineGraphMetaKey,
     ...(baselineDatasetKey ? { baselineDatasetKey } : {}),
     ...(baselineSourceLayerHash ? { baselineSourceLayerHash } : {}),
+    keywordSourceNodeCount: mergedSourceNodes.length,
+    keywordSourceNodeLimit: maxSourceNodes,
+    keywordSourceNodePrunedCount: Math.max(0, baseNodes.length - mergedSourceNodes.length),
   } as GraphData['metadata']
 
   if (mergedSourceNodes.length === 0 && mergedMediaNodes.length === 0 && mentionEdges.length === 0) {

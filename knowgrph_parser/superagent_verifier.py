@@ -4,9 +4,11 @@ from typing import List, Optional, Tuple
 from .common import read_text, utc_now_iso, write_json
 from .superagent_contracts import (
     BALANCED_LAYOUT_ID,
+    BALANCED_WIDGET_LAYOUT,
     ERROR_FATAL,
     HarnessError,
     JsonDict,
+    RICH_MEDIA_PANEL_EDGE_LANES,
     RICH_MEDIA_PANEL_EDGE_IDS,
     RICH_MEDIA_SURFACE_ROUTE,
 )
@@ -90,6 +92,7 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
     frame_ok = frame.get("id") == BALANCED_LAYOUT_ID and frame_w == 1920 and frame_h == 1080 and frame.get("aspectRatio") == "16:9"
     inside_frame = True
     non_overlapping = True
+    indices_ok = True
     for node_id, rect in rects.items():
         if not rect:
             inside_frame = False
@@ -97,6 +100,19 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
         x, y, w, h = rect
         if x < 0 or y < 0 or x + w > 1920 or y + h > 1080:
             inside_frame = False
+        node = node_by_id.get(node_id)
+        props = node.get("properties") if isinstance(node, dict) and isinstance(node.get("properties"), dict) else {}
+        layout = BALANCED_WIDGET_LAYOUT.get(node_id) or {}
+        expected_indices = {
+            "visual:xIndex": layout.get("xIndex"),
+            "visual:yIndex": layout.get("yIndex"),
+            "visual:zIndex": layout.get("zIndex"),
+        }
+        for key, expected in expected_indices.items():
+            if expected is None:
+                continue
+            if props.get(key) != expected:
+                indices_ok = False
     rect_items = [(node_id, rect) for node_id, rect in rects.items() if rect]
     for i in range(len(rect_items)):
         a_id, a = rect_items[i]
@@ -110,11 +126,26 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
                 break
         if not non_overlapping:
             break
+    centroid_ok = False
+    centroid_detail: JsonDict = {}
+    if len(rect_items) == len(required_layout_node_ids):
+        center_x = sum(float(rect[0]) + float(rect[2]) / 2 for _, rect in rect_items) / len(rect_items)
+        center_y = sum(float(rect[1]) + float(rect[3]) / 2 for _, rect in rect_items) / len(rect_items)
+        target = frame.get("centroid") if isinstance(frame.get("centroid"), dict) else {}
+        target_x = float(target.get("x") or 960)
+        target_y = float(target.get("y") or 540)
+        tolerance = float(target.get("tolerance") or 1)
+        centroid_ok = abs(center_x - target_x) <= tolerance and abs(center_y - target_y) <= tolerance
+        centroid_detail = {
+            "x": round(center_x, 2),
+            "y": round(center_y, 2),
+            "target": {"x": target_x, "y": target_y, "tolerance": tolerance},
+        }
     checks.append(
         {
             "id": "layout:balanced_16x9_widgets",
-            "passed": bool(frame_ok and inside_frame and non_overlapping),
-            "detail": {"frame": frame, "rects": rects},
+            "passed": bool(frame_ok and inside_frame and non_overlapping and indices_ok and centroid_ok),
+            "detail": {"frame": frame, "rects": rects, "centroid": centroid_detail, "indices": indices_ok},
         }
     )
     routed_panel_edges = {
@@ -127,6 +158,13 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
         props = edge.get("properties") if isinstance(edge.get("properties"), dict) else {}
         route = props.get("layoutRoute") if isinstance(props.get("layoutRoute"), dict) else {}
         if route.get("frame") != BALANCED_LAYOUT_ID or route.get("strategy") != "fan-in-readable":
+            edge_routes_ok = False
+            break
+        lane = RICH_MEDIA_PANEL_EDGE_LANES.get(str(edge.get("id") or ""))
+        if lane is not None and route.get("laneIndex") != lane:
+            edge_routes_ok = False
+            break
+        if route.get("avoidWidgetContent") is not True:
             edge_routes_ok = False
             break
     checks.append(
@@ -161,7 +199,11 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
         "balancedViewportPreset: widgetFrontmatter",
         "balancedHeroRowCount: 3",
         "position: {key: position, type: object",
+        "visual:xIndex",
+        "visual:yIndex",
+        "visual:zIndex",
         f'layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable"',
+        "layoutLane: 0",
         "sourceHandle: text_out",
         "targetHandle: videoUrl",
     ]

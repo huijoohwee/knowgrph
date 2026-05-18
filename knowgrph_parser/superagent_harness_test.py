@@ -12,6 +12,7 @@ from .superagent_harness import (
     read_trace_events,
     run_harness,
 )
+from .superagent_contracts import BALANCED_WIDGET_LAYOUT, RICH_MEDIA_PANEL_EDGE_LANES
 from .superagent_responsive import REQUIRED_RESPONSIVE_WIDGET_IDS, required_responsive_proof_class_ids
 
 
@@ -178,6 +179,8 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertIn("RichMediaPanel", node_types)
             node_by_id = {node["id"]: node for node in graph["nodes"]}
             required_layout = ["text-plan", "image-reference", "video-storyboard", "rich-media-panel"]
+            center_sum_x = 0.0
+            center_sum_y = 0.0
             for node_id in required_layout:
                 node = node_by_id[node_id]
                 props = node["properties"]
@@ -186,6 +189,13 @@ class SuperAgentHarnessTests(unittest.TestCase):
                 self.assertLessEqual(node["x"] + props["visual:width"], 1920)
                 self.assertLessEqual(node["y"] + props["visual:height"], 1080)
                 self.assertEqual(props["layoutFrame"], "balanced-16x9")
+                self.assertEqual(props["visual:xIndex"], BALANCED_WIDGET_LAYOUT[node_id]["xIndex"])
+                self.assertEqual(props["visual:yIndex"], BALANCED_WIDGET_LAYOUT[node_id]["yIndex"])
+                self.assertEqual(props["visual:zIndex"], BALANCED_WIDGET_LAYOUT[node_id]["zIndex"])
+                center_sum_x += node["x"] + props["visual:width"] / 2
+                center_sum_y += node["y"] + props["visual:height"] / 2
+            self.assertAlmostEqual(center_sum_x / len(required_layout), 960, delta=1)
+            self.assertAlmostEqual(center_sum_y / len(required_layout), 540, delta=1)
             panel_edges = {
                 edge.get("targetHandle")
                 for edge in graph["edges"]
@@ -196,6 +206,8 @@ class SuperAgentHarnessTests(unittest.TestCase):
                 if edge["id"] in {"e-text-panel", "e-image-panel", "e-video-panel"}:
                     self.assertEqual(edge["properties"]["layoutRoute"]["frame"], "balanced-16x9")
                     self.assertEqual(edge["properties"]["layoutRoute"]["strategy"], "fan-in-readable")
+                    self.assertEqual(edge["properties"]["layoutRoute"]["laneIndex"], RICH_MEDIA_PANEL_EDGE_LANES[edge["id"]])
+                    self.assertTrue(edge["properties"]["layoutRoute"]["avoidWidgetContent"])
             workspace_path = os.path.join(out, "artifacts", "workspace", "rich-media-flow.md")
             self.assertTrue(os.path.exists(workspace_path))
             with open(workspace_path, "r", encoding="utf-8") as handle:
@@ -212,6 +224,10 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertIn("wide-1920x1080", workspace_text)
             self.assertIn("balancedViewportPreset: widgetFrontmatter", workspace_text)
             self.assertIn("layoutRoute: \"balanced-16x9:fan-in-readable\"", workspace_text)
+            self.assertIn("layoutLane: 0", workspace_text)
+            self.assertIn("visual:xIndex", workspace_text)
+            self.assertIn("visual:yIndex", workspace_text)
+            self.assertIn("visual:zIndex", workspace_text)
             self.assertIn("TextGeneration", workspace_text)
             self.assertIn("ImageGeneration", workspace_text)
             self.assertIn("VideoGeneration", workspace_text)

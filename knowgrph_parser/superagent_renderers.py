@@ -17,6 +17,7 @@ from .superagent_contracts import (
     BALANCED_LAYOUT_ID,
     BALANCED_WIDGET_LAYOUT,
     JsonDict,
+    RICH_MEDIA_PANEL_EDGE_LANES,
     RICH_MEDIA_PANEL_EDGE_IDS,
     RICH_MEDIA_SURFACE_ROUTE,
 )
@@ -177,8 +178,12 @@ def render_workspace_flow_markdown(
     def flow_visual_lines(node_id: str) -> List[str]:
         layout = balanced_layout_entry(node_id)
         return [
+            f'      layoutFrame: {{key: layoutFrame, type: string, value: "{BALANCED_LAYOUT_ID}"}}',
             f'      "visual:width": {{key: visual:width, type: number, value: {int(layout["width"])}}}',
             f'      "visual:height": {{key: visual:height, type: number, value: {int(layout["height"])}}}',
+            f'      "visual:xIndex": {{key: visual:xIndex, type: number, value: {int(layout.get("xIndex") or 0)}}}',
+            f'      "visual:yIndex": {{key: visual:yIndex, type: number, value: {int(layout.get("yIndex") or 0)}}}',
+            f'      "visual:zIndex": {{key: visual:zIndex, type: number, value: {int(layout.get("zIndex") or 0)}}}',
             f'      layoutRole: {{key: layoutRole, type: string, value: "{str(layout["role"])}"}}',
         ]
 
@@ -245,9 +250,9 @@ def render_workspace_flow_markdown(
         '      "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "richMediaPanel"}',
         '      richMediaActiveTab: {key: richMediaActiveTab, type: string, value: "auto"}',
         "  edges:",
-        f'    - {{ id: e-text-panel, source: w-text-plan, sourceHandle: text_out, target: p-rich-media, targetHandle: output, animated: true, layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable" }}',
-        f'    - {{ id: e-image-panel, source: w-image-reference, sourceHandle: imageUrl, target: p-rich-media, targetHandle: imageUrl, animated: true, layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable" }}',
-        f'    - {{ id: e-video-panel, source: w-video-storyboard, sourceHandle: videoUrl, target: p-rich-media, targetHandle: videoUrl, animated: true, layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable" }}',
+        f'    - {{ id: e-text-panel, source: w-text-plan, sourceHandle: text_out, target: p-rich-media, targetHandle: output, animated: true, layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable", layoutLane: -1 }}',
+        f'    - {{ id: e-image-panel, source: w-image-reference, sourceHandle: imageUrl, target: p-rich-media, targetHandle: imageUrl, animated: true, layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable", layoutLane: 0 }}',
+        f'    - {{ id: e-video-panel, source: w-video-storyboard, sourceHandle: videoUrl, target: p-rich-media, targetHandle: videoUrl, animated: true, layoutRoute: "{BALANCED_LAYOUT_ID}:fan-in-readable", layoutLane: 1 }}',
         "---",
         "",
         f"# {title}",
@@ -479,18 +484,42 @@ def balanced_layout_props(node_id: str, properties: JsonDict) -> JsonDict:
     next_props.setdefault("layoutRole", str(layout.get("role") or "node"))
     next_props.setdefault("visual:width", int(layout.get("width") or 320))
     next_props.setdefault("visual:height", int(layout.get("height") or 180))
+    next_props.setdefault("visual:xIndex", int(layout.get("xIndex") or 0))
+    next_props.setdefault("visual:yIndex", int(layout.get("yIndex") or 0))
+    next_props.setdefault("visual:zIndex", int(layout.get("zIndex") or 0))
     return next_props
+
+
+def balanced_layout_centroid() -> JsonDict:
+    node_ids = ["text-plan", "image-reference", "video-storyboard", "rich-media-panel"]
+    centers = []
+    for node_id in node_ids:
+        layout = balanced_layout_entry(node_id)
+        centers.append({
+            "id": node_id,
+            "x": float(layout["x"]) + float(layout["width"]) / 2,
+            "y": float(layout["y"]) + float(layout["height"]) / 2,
+        })
+    return {
+        "x": round(sum(center["x"] for center in centers) / len(centers), 2),
+        "y": round(sum(center["y"] for center in centers) / len(centers), 2),
+        "target": dict(BALANCED_LAYOUT_FRAME["centroid"]),
+        "nodeIds": node_ids,
+    }
 
 
 def balanced_layout_metadata() -> JsonDict:
     return {
         "frame": dict(BALANCED_LAYOUT_FRAME),
         "nodes": {node_id: dict(layout) for node_id, layout in BALANCED_WIDGET_LAYOUT.items()},
+        "centroid": balanced_layout_centroid(),
         "responsive": build_responsive_layout_metadata(),
         "edgeRouting": {
             "strategy": "fan-in-readable",
             "sourceAnchor": "bottom",
             "targetAnchor": "top",
             "edgeIds": sorted(RICH_MEDIA_PANEL_EDGE_IDS),
+            "lanes": dict(RICH_MEDIA_PANEL_EDGE_LANES),
+            "avoidWidgetContent": True,
         },
     }

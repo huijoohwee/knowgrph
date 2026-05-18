@@ -7,13 +7,19 @@ import { DEFAULT_GRAPHRAG_TEXT_CENTRALITY_CONFIG, parseGraphRagTextCentralityCon
 import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
-import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
+import { buildMarkdownJsonLd } from './markdownJsonLd'
 import { tryParseMarkdownFrontmatterFlowGraph } from './markdownFrontmatterFlowGraph'
 import { tryParseMarkdownPanelFlowGraph } from './markdownPanelFlowGraph'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermaidFrontmatterGeometry'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
+import {
+  buildMarkdownLargeDocumentGraph,
+  readMarkdownLargeDocumentProfile,
+  shouldUseSummaryGraphForMarkdown,
+} from './markdownLargeDocumentGraph'
+import { withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -141,54 +147,16 @@ const markdownSpec: ParserSpec = {
   },
   parse: (name, text) => {
     const raw = String(text || '')
+    const largeProfile = readMarkdownLargeDocumentProfile(raw)
+    const summaryOnlyLargeGraph = largeProfile.reason && shouldUseSummaryGraphForMarkdown(raw)
+      ? buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
+      : null
+    if (summaryOnlyLargeGraph) return summaryOnlyLargeGraph
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
     const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
     if (frontmatterFlow) return frontmatterFlow
-    const maxChars = 500000
-    if (raw.length > maxChars) {
-      if (panelFlow) return panelFlow
-      const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
-      const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
-      const nodeId = `md:large:${slugify(stem)}`
-      const label = stem || baseName || 'Markdown Document'
-      const previewLimit = 32000
-      const preview = raw.slice(0, previewLimit)
-      const graphData: GraphData = {
-        type: 'Graph',
-        context: 'markdown-large',
-        nodes: [
-          {
-            id: nodeId,
-            label,
-            type: 'Document',
-            properties: {
-              format: 'text/markdown',
-              path: baseName,
-              length: raw.length,
-              preview,
-            },
-            metadata: {
-              truncated: raw.length > previewLimit,
-            },
-          },
-        ],
-        edges: [],
-        metadata: {
-          ingestionMetrics: {
-            kind: 'markdown-large',
-            originalLength: raw.length,
-            previewLength: preview.length,
-            truncated: raw.length > preview.length,
-          },
-        },
-      }
-      return {
-        graphData,
-        warnings: [
-          'Very large markdown document ingested as a summary-only graph for performance.',
-        ],
-      }
-    }
+    if (largeProfile.reason && !panelFlow) return buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
+    if (largeProfile.reason && panelFlow) return panelFlow
     const t0 = Date.now()
     const jsonld = buildMarkdownJsonLd(name, text)
     const t1 = Date.now()
@@ -219,52 +187,16 @@ const markdownSpec: ParserSpec = {
   },
   parseAsync: async (name, text) => {
     const raw = String(text || '')
+    const largeProfile = readMarkdownLargeDocumentProfile(raw)
+    const summaryOnlyLargeGraph = largeProfile.reason && shouldUseSummaryGraphForMarkdown(raw)
+      ? buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
+      : null
+    if (summaryOnlyLargeGraph) return summaryOnlyLargeGraph
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
     const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
     if (frontmatterFlow) return frontmatterFlow
-    const maxChars = 500000
-    if (raw.length > maxChars) {
-      if (panelFlow) return panelFlow
-      const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
-      const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
-      const nodeId = `md:large:${slugify(stem)}`
-      const label = stem || baseName || 'Markdown Document'
-      const previewLimit = 32000
-      const preview = raw.slice(0, previewLimit)
-      const graphData: GraphData = {
-        type: 'Graph',
-        context: 'markdown-large',
-        nodes: [
-          {
-            id: nodeId,
-            label,
-            type: 'Document',
-            properties: {
-              format: 'text/markdown',
-              path: baseName,
-              length: raw.length,
-              preview,
-            },
-            metadata: {
-              truncated: raw.length > previewLimit,
-            },
-          },
-        ],
-        edges: [],
-        metadata: {
-          ingestionMetrics: {
-            kind: 'markdown-large',
-            originalLength: raw.length,
-            previewLength: preview.length,
-            truncated: raw.length > preview.length,
-          },
-        },
-      }
-      return {
-        graphData,
-        warnings: ['Very large markdown document ingested as a summary-only graph for performance.'],
-      }
-    }
+    if (largeProfile.reason && !panelFlow) return buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
+    if (largeProfile.reason && panelFlow) return panelFlow
 
     const t0 = Date.now()
     const jsonld = buildMarkdownJsonLd(name, text)
@@ -388,7 +320,24 @@ const graphragTextSpec: ParserSpec = {
   },
 }
 
-export const builtInParsers: ParserSpec[] = [
+const withParserTopologyResult = (result: { graphData: GraphData; warnings: string[] }): { graphData: GraphData; warnings: string[] } => {
+  const graphData = withGraphTopologyMetadata({
+    graphData: result.graphData,
+    stage: 'parser',
+    annotate: true,
+  }) || result.graphData
+  return graphData === result.graphData ? result : { ...result, graphData }
+}
+
+const withParserTopology = (spec: ParserSpec): ParserSpec => ({
+  ...spec,
+  parse: (name, text) => withParserTopologyResult(spec.parse(name, text)),
+  parseAsync: spec.parseAsync
+    ? async (name, text) => withParserTopologyResult(await spec.parseAsync!(name, text))
+    : undefined,
+})
+
+const rawBuiltInParsers: ParserSpec[] = [
   markdownSpec,
   graphragTextSpec,
   pythonSpec,
@@ -397,3 +346,5 @@ export const builtInParsers: ParserSpec[] = [
   jsonLdSpec,
   autoGraphSpec,
 ]
+
+export const builtInParsers: ParserSpec[] = rawBuiltInParsers.map(withParserTopology)

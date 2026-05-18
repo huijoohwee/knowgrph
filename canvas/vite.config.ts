@@ -5161,7 +5161,7 @@ async function runKnowgrphParserConvertYoutubeToPayload(opts: {
   return new Promise((resolve) => {
     const timeoutMs = (() => {
       const raw = Number(process.env.KG_YOUTUBE_TRANSCRIPT_TIMEOUT_MS || '')
-      const fallback = 20 * 60_000
+      const fallback = 120_000
       const min = 10_000
       const max = 60 * 60_000
       if (!Number.isFinite(raw)) return fallback

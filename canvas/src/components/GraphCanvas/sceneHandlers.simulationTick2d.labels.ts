@@ -8,6 +8,7 @@ import { getEdgeEndpointFromPorts } from '@/components/GraphCanvas/portHandles'
 import { aabbOverlaps, aabbOverlapsAny } from '@/lib/ui/labels/aabb'
 import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 import { computeGroupLabelRelaxTuning2d, type Physics2dTuning } from '@/lib/graph/physics2dTuning'
+import { isWordCloudLabelNode2d, readNodeLabelFontSize2d, readNodeLabelRotation2d } from '@/components/GraphCanvas/labelLayout2d'
 
 export type LabelRelaxState2d = {
   groupLabelNudgeById: Map<string, { dx: number; dy: number }>
@@ -281,6 +282,7 @@ export function renderLabels2d(args: {
     const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : null
     if (x == null || y == null) {
       setDisplayIfChanged(el, 'none')
+      setAttrIfChanged(el, 'transform', '')
       return
     }
     const nodeId = String((d as unknown as { id?: unknown }).id ?? '')
@@ -306,6 +308,9 @@ export function renderLabels2d(args: {
       const n = raw != null ? Number(raw) : Number.NaN
       return Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1
     })()
+    const nodeFontSize = readNodeLabelFontSize2d(d, labelFontSize)
+    const labelRotation = readNodeLabelRotation2d(d)
+    const rotationScale = labelRotation === 0 ? 1 : 1 + Math.min(0.28, Math.abs(labelRotation) / 180)
     const sx = t.applyX(x)
     const sy = t.applyY(y)
     const k =
@@ -314,7 +319,8 @@ export function renderLabels2d(args: {
       (t as unknown as { k: number }).k > 0
         ? (t as unknown as { k: number }).k
         : 1
-    const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6
+    const charWidthPx = estimateLabelCharWidthPx(nodeFontSize)
+    const estWidthPx = Math.max(0, charCount) * charWidthPx * k
     const baseDxAttr = el.getAttribute('data-base-dx')
     const baseDx = (() => {
       const parsed = baseDxAttr != null ? Number(baseDxAttr) : Number.NaN
@@ -333,14 +339,20 @@ export function renderLabels2d(args: {
       setAttrIfChanged(el, 'text-anchor', String(el.getAttribute('data-base-anchor') || 'middle'))
       setAttrIfChanged(el, 'dx', String(baseDx))
       setAttrIfChanged(el, 'dy', String(baseDy))
+      setAttrIfChanged(el, 'transform', labelRotation ? `rotate(${labelRotation} ${x + baseDx} ${y + baseDy})` : '')
       return
     }
     const candidates: Array<{ anchor: 'start' | 'end' | 'middle'; dx: number }> = []
+    const isWordCloudNode = isWordCloudLabelNode2d(d)
 
     const abs = Math.abs(baseDx)
-    candidates.push({ anchor: 'start', dx: abs })
-    candidates.push({ anchor: 'end', dx: -abs })
-    candidates.push({ anchor: 'middle', dx: baseDx })
+    if (isWordCloudNode) {
+      candidates.push({ anchor: 'middle', dx: baseDx })
+    } else {
+      candidates.push({ anchor: 'start', dx: abs })
+      candidates.push({ anchor: 'end', dx: -abs })
+      candidates.push({ anchor: 'middle', dx: baseDx })
+    }
 
     let best = candidates[0]
     let bestOverflow = Number.POSITIVE_INFINITY
@@ -385,7 +397,7 @@ export function renderLabels2d(args: {
     const shiftPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, shiftPxRaw))
     const dxAdjusted = best.dx + (k > 0 ? shiftPx / k : 0)
 
-    const estHalfHeightPx = Math.max(1, lineCount) * labelFontSize * k * 0.6
+    const estHalfHeightPx = Math.max(1, lineCount) * nodeFontSize * k * 0.6
     const top = sy + baseDy * k - estHalfHeightPx
     const bottom = sy + baseDy * k + estHalfHeightPx
     const overflowTop = Math.max(0, padPx - top)
@@ -394,11 +406,11 @@ export function renderLabels2d(args: {
     const shiftYPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, shiftYPxRaw))
     const dyAdjusted = baseDy + (k > 0 ? shiftYPx / k : 0)
 
-    const halfW = Math.max(2, (Math.max(0, charCount) * labelFontSize * 0.6) / 2)
-    const halfH = Math.max(2, (Math.max(1, lineCount) * labelFontSize * 0.6) / 2)
+    const halfW = Math.max(2, (Math.max(0, charCount) * charWidthPx * rotationScale) / 2)
+    const halfH = Math.max(2, (Math.max(1, lineCount) * nodeFontSize * 0.6 * rotationScale) / 2)
 
-    const yStep = Math.max(10, Math.min(28, labelFontSize * 1.45))
-    const xStep = Math.max(12, Math.min(36, labelFontSize * 1.8))
+    const yStep = Math.max(10, Math.min(36, nodeFontSize * 1.45))
+    const xStep = Math.max(12, Math.min(48, nodeFontSize * 1.8))
     const placeCandidates: Array<{ anchor: 'start' | 'end' | 'middle'; dx: number; dy: number }> = [
       { anchor: best.anchor, dx: dxAdjusted, dy: dyAdjusted },
       { anchor: best.anchor, dx: dxAdjusted, dy: dyAdjusted - yStep },
@@ -407,6 +419,7 @@ export function renderLabels2d(args: {
       { anchor: best.anchor, dx: dxAdjusted - xStep, dy: dyAdjusted },
       { anchor: 'middle', dx: 0, dy: dyAdjusted },
     ]
+    if (isWordCloudNode) placeCandidates.splice(1)
 
     if (maxPlacedNodeLabels > 0 && nodeLabelRects.length >= maxPlacedNodeLabels) {
       setDisplayIfChanged(el, 'none')
@@ -416,6 +429,7 @@ export function renderLabels2d(args: {
 
     const overlapsBlockers = (rect: AabbRect) => {
       if (aabbOverlapsAny(rect, groupLabelBlockers)) return true
+      if (isWordCloudNode) return false
       for (let bi = 0; bi < bodyBlockers.length; bi += 1) {
         const b = bodyBlockers[bi]!
         if (b.id === nodeId) continue
@@ -452,6 +466,9 @@ export function renderLabels2d(args: {
     setAttrIfChanged(el, 'text-anchor', placedAnchor)
     setAttrIfChanged(el, 'dx', String(placedDx))
     setAttrIfChanged(el, 'dy', String(placedDy))
+    const rotationX = x + (placedAnchor === 'start' ? placedDx + halfW : placedAnchor === 'end' ? placedDx - halfW : placedDx)
+    const rotationY = y + placedDy
+    setAttrIfChanged(el, 'transform', labelRotation ? `rotate(${labelRotation} ${rotationX} ${rotationY})` : '')
     nodeLabelRects.push(placedRect)
   })
 

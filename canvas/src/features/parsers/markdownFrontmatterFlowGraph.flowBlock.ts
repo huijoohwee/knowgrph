@@ -808,7 +808,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const sourceEp = parseFlowEdgeEndpoint(row.source, row.sourceHandle)
     const targetEp = parseFlowEdgeEndpoint(row.target, row.targetHandle)
     if (!sourceEp || !targetEp) continue
-    const labelRaw = asString(row.label)
+    const labelRaw = asString(row.label), layoutRoute = asString(row.layoutRoute), layoutLane = asFiniteNumber(row.layoutLane)
     const label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : ''
     const conn: Record<string, unknown> = {
       id: asString(row.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
@@ -818,7 +818,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       to_port: targetEp.portKey,
       ...(label ? { label } : {}),
       ...(asBoolean(row.animated) === true ? { animated: true } : {}),
-      ...(asString(row.type) ? { type: asString(row.type) } : {}),
+      ...(asString(row.type) ? { type: asString(row.type) } : {}), ...(layoutRoute ? { layoutRoute } : {}), ...(layoutLane != null ? { layoutLane: Math.floor(layoutLane) } : {}),
     }
     normalizedConnections.push(conn)
   }

@@ -4,7 +4,7 @@ import type { GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import { truncateTextWithEllipsis, truncateTextWithWordEllipsis, estimateMaxCharsForWidthPx } from '@/components/GraphCanvas/layout/utils'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
-import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
+import { getNodeLabelFullText2d, isWordCloudLabelNode2d, readNodeLabelFontSize2d } from '@/components/GraphCanvas/labelLayout2d'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { getNodeLabelColor } from '@/components/GraphCanvas/helpers'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
@@ -39,11 +39,22 @@ export const createLabelsLayer = (args: {
   const labelFill = labelPresentation.color || 'var(--kg-canvas-label-fill)';
   const haloColor = labelPresentation.haloColor || 'var(--kg-canvas-label-halo)';
   const haloWidth = labelPresentation.haloWidthPx
+  const isWordCloudNode = (d: GraphNode): boolean => isWordCloudLabelNode2d(d)
+  const getLabelOpacityForNode = (d: GraphNode): number => {
+    const props = (d.properties || {}) as Record<string, unknown>
+    const raw = props['visual:opacity']
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : Number.NaN
+    if (!Number.isFinite(n)) return 1
+    return Math.max(0.35, Math.min(1, n))
+  }
+  const getLabelFontSizeForNode = (d: GraphNode): number => readNodeLabelFontSize2d(d, labelFontSize)
   const getBaseDxForNode = (d: GraphNode) => {
+    if (isWordCloudNode(d)) return 0
     if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
     return schema.labelStyles?.offset?.dx ?? 12
   }
   const getBaseAnchorForNode = (d: GraphNode) => {
+    if (isWordCloudNode(d)) return 'middle'
     if (getNodeRenderShape2d(d, schema) !== 'circle') return 'middle'
     const dx = getBaseDxForNode(d)
     return dx >= 0 ? 'start' : 'end'
@@ -56,16 +67,21 @@ export const createLabelsLayer = (args: {
     .append('text')
     .attr('class', 'node-label')
     .attr('data-node-id', (d: GraphNode) => String(d.id))
-    .attr('font-size', labelFontSize)
+    .attr('data-kg-word-cloud', (d: GraphNode) => (isWordCloudNode(d) ? '1' : '0'))
+    .attr('font-size', (d: GraphNode) => getLabelFontSizeForNode(d))
     .attr('font-family', labelFontFamily)
+    .attr('font-weight', (d: GraphNode) => (isWordCloudNode(d) ? '700' : null))
+    .attr('letter-spacing', '0')
     .attr('data-kg-label-fill', (d: GraphNode) => getNodeLabelColor(d, schema))
     .attr('fill', (d: GraphNode) => getNodeLabelColor(d, schema))
+    .attr('fill-opacity', (d: GraphNode) => getLabelOpacityForNode(d))
     .attr('data-lod-hidden', '0')
     .attr('data-zoom-lod-hidden', '0')
     .attr('dx', (d: GraphNode) => {
        return getBaseDxForNode(d)
     })
     .attr('dy', (d: GraphNode) => {
+        if (isWordCloudNode(d)) return 0
         if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
         return schema.labelStyles?.offset?.dy ?? 4
     })
@@ -74,6 +90,7 @@ export const createLabelsLayer = (args: {
        return String(getBaseDxForNode(d))
     })
     .attr('data-base-dy', (d: GraphNode) => {
+        if (isWordCloudNode(d)) return '0'
         if (getNodeRenderShape2d(d, schema) !== 'circle') return '0'
         return String(schema.labelStyles?.offset?.dy ?? 4);
     })
@@ -83,6 +100,7 @@ export const createLabelsLayer = (args: {
     .attr('paint-order', 'stroke')
     .attr('stroke', haloColor)
     .attr('stroke-width', haloWidth)
+    .attr('stroke-opacity', (d: GraphNode) => getLabelOpacityForNode(d))
     .attr('stroke-linejoin', 'round')
     .style('user-select', 'none')
     .style('pointer-events', 'all')
@@ -94,10 +112,10 @@ export const createLabelsLayer = (args: {
     label.sort((a, b) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id))))
   }
 
-  const maxChars = Math.max(10, Math.min(72, estimateMaxCharsForWidthPx(260, labelFontSize)));
-    
   label.each(function (d: GraphNode) {
     const el = d3.select(this)
+    const nodeFontSize = getLabelFontSizeForNode(d)
+    const maxChars = Math.max(10, Math.min(72, estimateMaxCharsForWidthPx(260, nodeFontSize)))
     const baseLabelFull = String(getNodeLabelFullText2d(d) || '')
     const labelFullAttr = baseLabelFull.length > 600 ? `${baseLabelFull.slice(0, 599)}…` : baseLabelFull
     const baseLabel = truncateTextWithWordEllipsis(baseLabelFull, 80)

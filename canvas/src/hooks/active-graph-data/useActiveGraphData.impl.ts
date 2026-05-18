@@ -21,8 +21,8 @@ import {
   WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS,
 } from './workspaceStructuredGraph'
 
-const keywordSourceTextCache = new LRUCache<string, { text: string; hash: string }>(40)
-const keywordPreviewGraphCache = new LRUCache<string, GraphData>(20)
+const keywordSourceTextCache = new LRUCache<string, { text: string; hash: string }>(24)
+const keywordPreviewGraphCache = new LRUCache<string, GraphData>(8)
 
 const INACTIVE_GRAPH_SLICE = {
   baseGraphDataRaw: null as GraphData | null,

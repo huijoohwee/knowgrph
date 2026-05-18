@@ -176,7 +176,7 @@ The visual canvas contract is mobile-first and responsive:
 - Treat 320x640, 390x844, 768x1024, 1366x768, and 1920x1080 as required responsive proof classes for generated rich media frontmatter-flow artifacts.
 - Treat 1920x1080 as the canonical logical presentation frame, then derive mobile/tablet/desktop fits from the same layout metadata instead of maintaining separate hardcoded scenes.
 - On mobile, prioritize one primary task at a time: integration setup, chat orchestration, editor review, canvas inspection, widget detail, and Rich Media Panel playback must stack or sheet predictably without hidden controls.
-- Keep Text, Image, Video, and Rich Media Panel widgets visible, proportionally sized, and non-overlapping inside the active viewport or reachable through explicit fit/overview controls.
+- Keep Text, Image, Video, and Rich Media Panel widgets visible, proportionally sized, non-overlapping, x/y/z-indexed, and centroid-centered inside the active viewport or reachable through explicit fit/overview controls.
 - Keep data-flow edges readable and routed between the widgets and Rich Media Panel ports without crossing directly through the center of widget content when a better route is available.
 - Preserve responsive layout metadata so it can be inspected, replayed, and adapted across viewport sizes without hardcoding a demo document or absolute path.
 - Use these layouts as validation targets, not as one-off fixed scenes. Other briefs must be able to reuse the same mobile-first balanced layout rules.
@@ -314,7 +314,7 @@ The canvas must be treated as a graph of typed nodes and edges, not as one fixed
 - Rich Media Panel nodes must receive text, image, and video output through explicit widget ports (`output`, `imageUrl`, `videoUrl`) rather than hidden side effects.
 - Verification/report nodes must show validation status and final output links.
 - Edges must express data flow, dependency, provenance, verification, or recovery relationships.
-- Frontmatter-flow widget layout must use mobile-first responsive metadata plus a balanced 16:9 logical frame (`1920x1080`) with Text, Image, Video, and Rich Media Panel widgets positioned as a readable composition, not an unreachable stacked or offscreen cluster.
+- Frontmatter-flow widget layout must use mobile-first responsive metadata plus a balanced 16:9 logical frame (`1920x1080`) with Text, Image, Video, and Rich Media Panel widgets x/y/z-indexed and positioned as a readable centroid-centered composition, not an unreachable stacked or offscreen cluster.
 - Edges connecting Text, Image, and Video widgets to the Rich Media Panel must be inspectable, connected to explicit handles, and retained in the generated graph and workspace markdown.
 - Missing, failed, degraded, or pending media must be represented explicitly rather than hidden.
 - XR Mode must reuse the same graph artifact and explicit widget/edge/provenance data rather than generating a separate XR-only demo scene.
@@ -348,7 +348,7 @@ Validation must be layered:
 - Trace tests proving every final artifact links back to run, step, tool, and input provenance.
 - Canvas tests proving text, image, video, verification, and report nodes exist with valid data-flow/provenance edges.
 - Workspace/widget tests proving the generated frontmatter-flow artifact contains canonical TextGeneration, ImageGeneration, VideoGeneration, and RichMediaPanel widgets connected to the Rich Media Panel ports.
-- Layout tests proving generated frontmatter-flow positions fit a balanced 16:9 (`1920x1080`) logical frame with visible Text, Image, Video, and Rich Media Panel widgets plus readable connecting edges.
+- Layout tests proving generated frontmatter-flow positions fit a balanced 16:9 (`1920x1080`) logical frame with centroid-centered Text, Image, Video, and Rich Media Panel widgets, explicit x/y/z-index metadata, and readable connecting edges.
 - Responsive tests proving mobile, tablet, desktop, and wide-canvas proof classes preserve reachable controls, visible widgets, readable edges, stable fit behavior, and non-overlapping panel surfaces.
 - Touch and resize tests proving pan/zoom, selection, drawer/panel transitions, keyboard resize, safe-area insets, and orientation changes do not trigger stale writes, duplicate canvas mounts, or unbounded recalculation.
 - Source-file management tests proving automated default D1/docs hydration and manual source-file actions share one SourceFile pipeline while preserving local edits, provenance, dedupe, and conflict behavior.

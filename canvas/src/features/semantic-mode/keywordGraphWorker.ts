@@ -7,7 +7,7 @@ export type KeywordGraphWorkerArgs = {
   documentText: string
   sourceLabel?: string
   sourceTextHash?: string
-  tuning?: { edgesPerNode?: number; maxEdgesCap?: number }
+  tuning?: { edgesPerNode?: number; maxEdgesCap?: number; maxNodes?: number }
   timeoutMs?: number
   signal?: AbortSignal
 }

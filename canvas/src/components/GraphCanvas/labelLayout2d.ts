@@ -19,7 +19,31 @@ const getLabelFontSizePx = (schema: GraphSchema, args?: { documentSemanticMode?:
   return readLabelPresentation2d({ schema, documentSemanticMode: args?.documentSemanticMode }).nodeFontSizePx
 }
 
+export const readNodeLabelFontSize2d = (node: GraphNode | null | undefined, fallbackPx: number): number => {
+  const fallback = typeof fallbackPx === 'number' && Number.isFinite(fallbackPx) ? fallbackPx : 16
+  const props = (node?.properties || {}) as Record<string, unknown>
+  const raw = props['visual:fontSize'] ?? props['visual:labelFontSize']
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : Number.NaN
+  if (!Number.isFinite(n) || n <= 0) return fallback
+  return Math.max(10, Math.min(54, n))
+}
+
+export const readNodeLabelRotation2d = (node: GraphNode | null | undefined, fallbackDeg = 0): number => {
+  const fallback = typeof fallbackDeg === 'number' && Number.isFinite(fallbackDeg) ? fallbackDeg : 0
+  const props = (node?.properties || {}) as Record<string, unknown>
+  const raw = props['visual:labelRotation'] ?? props['visual:rotation']
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : Number.NaN
+  if (!Number.isFinite(n)) return fallback
+  return Math.max(-70, Math.min(70, n))
+}
+
+export const isWordCloudLabelNode2d = (node: GraphNode | null | undefined): boolean => {
+  const props = (node?.properties || {}) as Record<string, unknown>
+  return props['visual:wordCloud'] === true
+}
+
 const getLabelOffsets2d = (node: GraphNode, schema: GraphSchema): { dx: number; dy: number; anchor: 'start' | 'end' | 'middle' } => {
+  if (isWordCloudLabelNode2d(node)) return { dx: 0, dy: 0, anchor: 'middle' }
   const shape = getNodeRenderShape2d(node, schema)
   if (shape !== 'circle') return { dx: 0, dy: 0, anchor: 'middle' }
   const dxRaw = schema.labelStyles?.offset?.dx
@@ -38,7 +62,7 @@ export const getNodeLabelFullText2d = (node: GraphNode): string => {
 }
 
 export const computeVisibleLabelLines2d = (node: GraphNode, schema: GraphSchema, args?: { documentSemanticMode?: 'document' | 'keyword' }): VisibleLabelLines2d => {
-  const fontSizePx = getLabelFontSizePx(schema, args)
+  const fontSizePx = readNodeLabelFontSize2d(node, getLabelFontSizePx(schema, args))
   const lineHeightPx = fontSizePx * 1.2
   const { dx, dy, anchor } = getLabelOffsets2d(node, schema)
 

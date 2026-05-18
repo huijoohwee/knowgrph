@@ -239,6 +239,15 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
   if (transcriptProps.thumbnail_url !== undefined) {
     throw new Error('Expected YouTube import graph node properties to omit legacy thumbnail_url')
   }
+  if (transcriptProps.segments !== undefined) {
+    throw new Error('Expected YouTube import graph node properties to omit full transcript segments')
+  }
+  if (transcriptProps.oembed !== undefined) {
+    throw new Error('Expected YouTube import graph node properties to omit nested oembed payload')
+  }
+  if (transcriptProps.segment_count !== 2) {
+    throw new Error('Expected YouTube import graph node properties to keep scalar segment_count')
+  }
   if (transcriptProps.image !== undefined) {
     throw new Error('Expected image to stay unset when transcript has no thumbnail_url')
   }
