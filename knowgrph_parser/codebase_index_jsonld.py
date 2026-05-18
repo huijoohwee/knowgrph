@@ -52,6 +52,9 @@ def build_jsonld(
             "@type": node_type,
             "name": name,
         }
+        chunk_text_value = raw_data.get("chunk_text")
+        if isinstance(chunk_text_value, str) and chunk_text_value.strip():
+            node_obj["chunk_text"] = chunk_text_value
         raw_path = raw_data.get("path")
         if isinstance(raw_path, str) and raw_path:
             if ignore_match(raw_path):

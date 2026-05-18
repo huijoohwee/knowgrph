@@ -209,9 +209,16 @@ def write_jsonld(
     return jsonld_path
 
 
-def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -> Tuple[str, str]:
+def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str, input_path: str) -> Tuple[str, str]:
     orchestrator_config = os.path.join(BASE_DIR, CODEBASE_INDEX_ORCHESTRATOR_CONFIG_REL)
-    index_path = os.path.join(BASE_DIR, CODEBASE_INDEX_JSONLD_REL)
+    configured_index_path = os.getenv("KG_CODEBASE_INDEX_JSONLD_PATH", "").strip()
+    index_path = (
+        os.path.abspath(configured_index_path)
+        if os.path.isabs(configured_index_path)
+        else os.path.abspath(os.path.join(BASE_DIR, configured_index_path))
+        if configured_index_path
+        else os.path.join(output_dir, "codebase-index-viz.jsonld")
+    )
     embeddings_example = os.getenv("KG_EMBEDDINGS_BACKEND_FILE", DEFAULT_EMBEDDINGS_BACKEND_FILE)
     started = time.perf_counter()
     status = "ok"
@@ -222,8 +229,14 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
                 "-m",
                 "knowgrph_parser",
                 "parse-codebase-index",
+                "--input",
+                input_path,
+                "--output",
+                index_path,
                 "-c",
                 orchestrator_config,
+                "--runtime-events-log",
+                runtime_events_log_path,
             ],
             check=True,
         )
@@ -247,6 +260,10 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
             "-m",
             "knowgrph_parser",
             "embed-codebase-index",
+            "--input",
+            index_path,
+            "--output",
+            index_path,
             "--backend",
             "file",
             "--backend-file",
@@ -262,6 +279,8 @@ def run_codebase_index_pipeline(output_dir: str, runtime_events_log_path: str) -
             "-m",
             "knowgrph_parser",
             "test-embedding-sanity",
+            "--input",
+            index_path,
             "--dimensions",
             "4",
         ],
@@ -311,7 +330,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             term_iri_base=term_iri_base,
             predicate_default=predicate_default,
         )
-        run_codebase_index_pipeline(output_dir, runtime_events_log_path)
+        run_codebase_index_pipeline(output_dir, runtime_events_log_path, input_path)
         return 0
 
     raise SystemExit(f"Unknown mode: {arguments.mode}")

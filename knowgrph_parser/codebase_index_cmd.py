@@ -29,7 +29,7 @@ def ensure_output_dir(path: str) -> None:
 
 
 def main(argv: Optional[Sequence[str]] = None, *, base_dir: str, parser_script_path: str) -> int:
-    input_default = os.path.join(base_dir, "test-data", "knowgrph-workflow.json")
+    input_default = os.path.join(base_dir, "data", "outputs", "knowgrph-workflow.json")
     output_default = os.path.join(base_dir, "data", "outputs", "codebase-index-viz.jsonld")
     runtime_events_log_default = os.path.join(base_dir, "data", "outputs", "runtime-events.jsonl")
     orchestrator_config_default = os.path.join(base_dir, "orchestrator-config", "knowgrph-universal-orchestrator-config.yaml")

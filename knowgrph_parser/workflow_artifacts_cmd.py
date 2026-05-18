@@ -18,7 +18,7 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: str) -> int:
     parser.add_argument(
         "--input",
         "-i",
-        default=os.path.join(base_dir, "test-data", "knowgrph-workflow.json"),
+        default=os.path.join(base_dir, "data", "outputs", "knowgrph-workflow.json"),
     )
     parser.add_argument(
         "--output-dir",
@@ -122,4 +122,3 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: str) -> int:
     print(f"Wrote {edges_csv_path}")
     print(f"Wrote {summary_json_path}")
     return 0
-

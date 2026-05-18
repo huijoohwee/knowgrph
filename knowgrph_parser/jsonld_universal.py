@@ -30,6 +30,13 @@ def load_json(path: str) -> Any:
 def normalize_context(raw: Any) -> Dict[str, Any]:
     if isinstance(raw, dict):
         return raw
+    if isinstance(raw, list):
+        merged: Dict[str, Any] = {}
+        for entry in raw:
+            entry_context = normalize_context(entry)
+            if entry_context:
+                merged.update(entry_context)
+        return merged
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
@@ -38,6 +45,15 @@ def normalize_context(raw: Any) -> Dict[str, Any]:
         except Exception:
             return {}
     return {}
+
+
+def is_explicit_edge_item(item: Dict[str, Any]) -> bool:
+    item_type = item.get("@type") or item.get("type")
+    if isinstance(item_type, list):
+        item_type = item_type[0] if item_type else ""
+    if str(item_type or "").strip().lower() != "edge":
+        return False
+    return bool(item.get("source") and item.get("target"))
 
 
 def as_graph_items(root: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -76,7 +92,7 @@ def build_nodes(items: List[Dict[str, Any]], context: Dict[str, Any]) -> Tuple[L
             item_type = item_type[0]
         node_type = strip_kg(item_type) or "Entity"
 
-        if KG_SUBJECT in item and KG_PREDICATE in item and KG_OBJECT in item:
+        if (KG_SUBJECT in item and KG_PREDICATE in item and KG_OBJECT in item) or is_explicit_edge_item(item):
             edge_items.append(item)
             continue
 
@@ -159,9 +175,26 @@ def build_edges(items: List[Dict[str, Any]], context: Dict[str, Any], node_index
 
 def build_reified_edges(edge_items: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> None:
     for item in edge_items:
-        subj = strip_kg(item.get("kg:subject"))
-        pred = strip_kg(item.get("kg:predicate"))
-        obj = strip_kg(item.get("kg:object"))
+        if is_explicit_edge_item(item):
+            subj = strip_kg(item.get("source"))
+            pred = strip_kg(item.get("relation") or item.get("label") or item.get("predicate") or item.get("type"))
+            obj = strip_kg(item.get("target"))
+            props = item.get("properties")
+            data: Dict[str, Any] = {"type": pred or "relatedTo"}
+            if isinstance(props, dict):
+                data.update(props)
+            metadata = item.get("metadata")
+            if isinstance(metadata, dict):
+                data["metadata"] = metadata
+            edge_id = strip_kg(item.get("@id") or item.get("id"))
+            if edge_id:
+                data["id"] = edge_id
+            if subj and obj:
+                edges.append({"source": subj, "target": obj, "data": data})
+            continue
+        subj = strip_kg(item.get(KG_SUBJECT))
+        pred = strip_kg(item.get(KG_PREDICATE))
+        obj = strip_kg(item.get(KG_OBJECT))
         if not subj or not pred or not obj:
             continue
         edges.append({"source": subj, "target": obj, "data": {"type": pred}})
