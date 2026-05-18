@@ -13,6 +13,7 @@ import type {
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownFrontmatter } from '@/lib/markdown'
+import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
@@ -270,7 +271,7 @@ export interface GraphStatePanelsMarkdown {
   applyMarkdownDocumentToGraph: (
     name: string,
     text: string,
-    opts?: { force?: boolean },
+    opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null },
   ) => Promise<boolean>;
   setJsonSourceDocument: (name: string | null, text: string | null) => void;
   setMarkdownDocumentSourceUrl: (url: string | null) => void;

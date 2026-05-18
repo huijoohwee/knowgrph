@@ -4,19 +4,11 @@ import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from 
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import {
-  isFrontmatterOnlyDoc,
-  normalizeWebpageFrontmatterView,
-  parseCanvasWorkspaceFrontmatterPreset,
-  parseWebpageFrontmatterMeta,
-} from '@/lib/markdown/frontmatter'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
-import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import { isCanvas2dRendererId, type Canvas2dRendererId } from '@/lib/config.render'
 import {
-  fetchWorkspaceUrlContent,
   hydrateWorkspaceFileFromPendingLocalImport,
   importWorkspaceLocalFiles,
   importWorkspaceLocalFolder,
@@ -229,16 +221,6 @@ export async function activateFirstImportedWorkspaceFile(args: {
   }
 }
 
-function looksLikeJsShellText(text: string): boolean {
-  const t = String(text || '')
-  if (!t.trim()) return false
-  if (/failed\s+to\s+load\s+posts/i.test(t)) return true
-  if (/enable-javascript\.com/i.test(t)) return true
-  if (/requires\s+java\s*script/i.test(t)) return true
-  if (/page not foundlatesttopdiscussions/i.test(t.replace(/\s+/g, ''))) return true
-  return false
-}
-
 export function useWorkspaceImportActions(args: {
   core: {
     importJobRef: React.MutableRefObject<number>
@@ -248,7 +230,7 @@ export function useWorkspaceImportActions(args: {
   ctx: WorkspaceImportActionsCtx
 }) {
   const { importJobRef, status, focusAfterImport } = args.core
-  const { getFs, refresh, openedPath, activeDocumentKey, setActiveText, setEntries, lastLoadedRef, setActiveMarkdownDocument } = args.ctx
+  const { getFs, refresh } = args.ctx
 
   const hydratePendingImportedPaths = React.useCallback(async (fs: WorkspaceFs, createdPaths: string[]) => {
     for (const path of createdPaths || []) {
@@ -476,77 +458,6 @@ export function useWorkspaceImportActions(args: {
           await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
         }
 
-        const hydrateWebpageStub = async () => {
-          if (!createdPath) return
-          if (!sourceUrl) return
-          if (importJobRef.current !== jobId) return
-          if (selectedCanvas2dRenderer === 'design') return
-          try {
-            const current = await (await getFs()).readFileText(createdPath)
-            if (!current) return
-            const meta = parseWebpageFrontmatterMeta(current)
-            if (!meta || !meta.url) return
-            if (meta.url !== sourceUrl) return
-            if (meta.hydrate === false) return
-
-            const body = String(current || '').replace(/^---[\s\S]*?\n---\n?/m, '').trim()
-            const bodyHasHydrationStubHint =
-              /fetching\s+content\s+in\s+background/i.test(body) ||
-              /import\s+runs\s+without\s+your\s+browser\s+cookies/i.test(body)
-            const needsHydration =
-              meta.view === 'markdown' &&
-              (isFrontmatterOnlyDoc(current) || looksLikeJsShellText(body) || bodyHasHydrationStubHint || body.length < 220)
-            if (!needsHydration) return
-
-            status.setStatusProgress('Fetching')
-
-            const fetched = await fetchWorkspaceUrlContent(sourceUrl, {
-              mode: 'refresh',
-              viewHint: 'markdown',
-              onProgress: p => {
-                const pct = Math.max(0, Math.min(100, Math.floor(Number.isFinite(p) ? p : 0)))
-                const phaseLabel = status.buildWebpageImportStageLabel(pct)
-                status.setStatusProgress(phaseLabel, pct, 100)
-              },
-            })
-            if (importJobRef.current !== jobId) return
-            if (!fetched || !String(fetched.text || '').trim()) {
-              status.setStatusWarning('Webpage content unavailable', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
-              return
-            }
-            const nextText = normalizeWebpageFrontmatterView(fetched.text, 'markdown')
-            if (isFrontmatterOnlyDoc(nextText)) {
-              status.setStatusWarning('Webpage content unavailable', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
-              return
-            }
-
-            status.setStatusProgress('Writing')
-            await writeWorkspaceFileAndSync({
-              path: createdPath,
-              text: nextText,
-              getFs,
-              lastLoadedRef,
-              setEntries,
-              synchronizeActiveDocument: openedPath === createdPath,
-              setActiveText,
-              activeDocumentKey,
-              activeDocumentSourceUrl: fetched.normalizedUrl,
-              setActiveMarkdownDocument,
-              resetParsedState: true,
-            })
-
-            status.setStatusInfo('Webpage content loaded', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
-          } catch (e) {
-            if (importJobRef.current !== jobId) return
-            const msgRaw = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
-            const msg = msgRaw.trim().slice(0, 220)
-            const label = msg ? `Webpage content unavailable: ${msg}` : 'Webpage content unavailable'
-            status.setStatusWarning(label, { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
-            useGraphStore.getState().pushUiLog({ kind: 'warning', message: `Import URL hydration failed: ${label}`, source: 'workspace:importUrl' })
-          }
-        }
-
-        void hydrateWebpageStub()
         status.setStatusInfo(summary.imported > 1 ? `Imported ${summary.imported}${summary.suffix}${summary.failureSuffix}` : `Imported URL${summary.suffix}${summary.failureSuffix}`)
         useGraphStore.getState().pushUiLog({
           kind: summary.failed > 0 ? 'warning' : 'success',
@@ -560,7 +471,7 @@ export function useWorkspaceImportActions(args: {
         useGraphStore.getState().pushUiLog({ kind: 'error', message: `Import URL failed: ${msg}`, source: 'workspace:importUrl' })
       }
     },
-    [activeDocumentKey, finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, lastLoadedRef, openedPath, setActiveMarkdownDocument, setActiveText, setEntries, status],
+    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, status],
   )
 
   return { handleImportLocalFiles, handleImportLocalFolder, handleImportUrl }

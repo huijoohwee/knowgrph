@@ -1,8 +1,7 @@
 import React from 'react'
 import { flushSync } from 'react-dom'
-import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { shouldPrimeStrictFlowEditorModeForWorkspaceText } from '@/lib/markdown-workspace-runtime/workspaceSwitchPreset'
+import { applyCanvasWorkspacePresetForSwitch } from '@/lib/markdown-workspace-runtime/workspaceSwitchPreset'
 import {
   expandMarkdownSourceFolderAncestors,
   normalizeMarkdownSourceFolderPath,
@@ -67,16 +66,7 @@ export function useMarkdownSourceFilesSelection(args: {
         const state = useGraphStore.getState()
         const sourceFile = (state.sourceFiles || []).find(file => String(file?.id || '').trim() === fileId) || null
         const sourceText = sourceFile && typeof sourceFile.text === 'string' ? sourceFile.text : ''
-        if (shouldPrimeStrictFlowEditorModeForWorkspaceText(sourceText)) {
-          flushSync(() => {
-            if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
-            state.setCanvasRenderMode('2d')
-            state.setCanvas2dRenderer('flowEditor')
-            state.setDocumentSemanticMode('document')
-            state.setFrontmatterModeEnabled(true)
-          })
-          void setGeospatialModeEnabled(false).catch(() => void 0)
-        }
+        if (sourceText) flushSync(() => applyCanvasWorkspacePresetForSwitch({ text: sourceText }))
       }
       const parentPath = resolveMarkdownSourceParentFolderPath(args.path)
       React.startTransition(() => {

@@ -1,4 +1,5 @@
 import { GLB_ASSET_DATA_URL_PREFIX, GLB_ASSET_MIME_TYPE, GLTF_ASSET_DATA_URL_PREFIX, GLTF_ASSET_MIME_TYPE } from '@/lib/assets/glbAssetDocument'
+import { inspectGlbBytes, inspectGltfJson } from '@/lib/assets/gltfFormat'
 
 type PendingModelAssetFormat = 'glb' | 'gltf'
 
@@ -13,7 +14,9 @@ type PendingGlbAssetPayload = {
   mimeType: string
   byteLength: number
   validMagic?: boolean
+  validContainer?: boolean
   validJson?: boolean
+  validGltfAsset?: boolean
   format: PendingModelAssetFormat
 }
 
@@ -42,24 +45,9 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return out
 }
 
-function hasGlbMagic(buffer: ArrayBuffer): boolean {
-  if (!buffer || buffer.byteLength < 4) return false
-  const bytes = new Uint8Array(buffer, 0, 4)
-  return bytes[0] === 0x67 && bytes[1] === 0x6c && bytes[2] === 0x54 && bytes[3] === 0x46
-}
-
-function hasValidJson(text: string): boolean {
-  try {
-    JSON.parse(String(text || ''))
-    return true
-  } catch {
-    return false
-  }
-}
-
 function inferPendingModelAssetFormat(file: File): PendingModelAssetFormat {
   const lower = String(file?.name || '').trim().toLowerCase()
-  const type = String(file?.type || '').trim().toLowerCase()
+  const type = String(file?.type || '').trim().toLowerCase().split(';')[0]
   if (lower.endsWith('.gltf') || type === GLTF_ASSET_MIME_TYPE || type === 'application/json') return 'gltf'
   return 'glb'
 }
@@ -90,20 +78,26 @@ export async function readPendingGlbAssetPayload(path: unknown): Promise<Pending
     const text = await pending.file.text()
     const bytes = new TextEncoder().encode(text)
     const buffer = bytesToArrayBuffer(bytes)
+    const inspection = inspectGltfJson(text)
     return {
       dataUrl: `${GLTF_ASSET_DATA_URL_PREFIX}${arrayBufferToBase64(buffer)}`,
       mimeType: GLTF_ASSET_MIME_TYPE,
       byteLength: buffer.byteLength,
-      validJson: hasValidJson(text),
+      validJson: inspection.validJson,
+      validGltfAsset: inspection.validGltfAsset,
       format: 'gltf',
     }
   }
   const buffer = await pending.file.arrayBuffer()
+  const inspection = inspectGlbBytes(buffer)
   return {
     dataUrl: `${GLB_ASSET_DATA_URL_PREFIX}${arrayBufferToBase64(buffer)}`,
     mimeType: GLB_ASSET_MIME_TYPE,
     byteLength: buffer.byteLength,
-    validMagic: hasGlbMagic(buffer),
+    validMagic: inspection.validMagic,
+    validContainer: inspection.validContainer,
+    validJson: inspection.validJson,
+    validGltfAsset: inspection.validGltfAsset,
     format: 'glb',
   }
 }

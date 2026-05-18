@@ -3,11 +3,13 @@ import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMark
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
-import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { extractYamlFrontmatterHeaderBlock } from '@/lib/markdown/frontmatter'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
-import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
+import {
+  clearRuntimeTimeout,
+  resolveWorkspaceDirtyState,
+  scheduleRuntimeTimeout,
+  type RuntimeTimeoutHandle,
+} from './markdownWorkspaceRuntime.shared'
 import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
 import { resolveMarkdownWorkspaceBootstrapActivePath } from './markdownWorkspaceSelectionBootstrap'
 import { resolveMarkdownWorkspaceCanonicalSelection } from './markdownWorkspaceSelectionCanonicalPath'
@@ -24,8 +26,10 @@ import {
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import {
+  applyCanvasWorkspacePresetForSwitch,
+  buildCanvasWorkspacePresetSwitchSemanticKey,
   hasCanvasWorkspacePresetForSwitch,
-  shouldPrimeStrictFlowEditorModeForWorkspaceText,
+  readCanvasWorkspacePresetSwitchContext,
 } from './workspaceSwitchPreset'
 import { buildWorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
@@ -56,6 +60,8 @@ export type MarkdownWorkspaceSelectionArgs = {
   clearStatus: () => void
   setHighlightedLineRange: (value: null) => void
 }
+
+const FRONTMATTER_SWITCH_GRAPH_APPLY_DELAY_MS = 80
 
 function buildWorkspaceDocumentSwitchSignature(args: {
   activeDocumentKey: string
@@ -185,32 +191,46 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
 
   const lastFrontmatterSwitchApplySigRef = React.useRef<string>('')
   const frontmatterSwitchApplyInFlightSigRef = React.useRef<string>('')
+  const frontmatterSwitchGraphApplyTimerRef = React.useRef<RuntimeTimeoutHandle | null>(null)
+  const frontmatterSwitchGraphApplySigRef = React.useRef<string>('')
   const lastFrontmatterSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
-  const primeStrictFrontmatterFlowEditorMode = React.useCallback((text: string) => {
-    if (!shouldPrimeStrictFlowEditorModeForWorkspaceText(text)) return
-    const state = useGraphStore.getState()
-    if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
-    state.setCanvasRenderMode('2d')
-    state.setCanvas2dRenderer('flowEditor')
-    state.setDocumentSemanticMode('document')
-    state.setFrontmatterModeEnabled(true)
-    void setGeospatialModeEnabled(false).catch(() => void 0)
+  const cancelFrontmatterSwitchGraphApply = React.useCallback(() => {
+    clearRuntimeTimeout(frontmatterSwitchGraphApplyTimerRef.current)
+    frontmatterSwitchGraphApplyTimerRef.current = null
+    frontmatterSwitchGraphApplySigRef.current = ''
+    lastFrontmatterSwitchApplySigRef.current = ''
+    frontmatterSwitchApplyInFlightSigRef.current = ''
+    lastFrontmatterSwitchApplyAttemptRef.current = { sig: '', atMs: 0 }
   }, [])
+  React.useEffect(() => cancelFrontmatterSwitchGraphApply, [cancelFrontmatterSwitchGraphApply])
   React.useEffect(() => {
-    if (activeEntryKind === 'folder') return
-    if (!activeDocumentKey) return
+    if (activeEntryKind === 'folder') {
+      cancelFrontmatterSwitchGraphApply()
+      return
+    }
+    if (!activeDocumentKey) {
+      cancelFrontmatterSwitchGraphApply()
+      return
+    }
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
-    if (!nextText.trim()) return
-    const frontmatterBlock = extractYamlFrontmatterHeaderBlock(nextText)
-    if (!frontmatterBlock) return
-    if (!hasCanvasWorkspacePresetForSwitch(nextText)) return
+    if (!nextText.trim()) {
+      cancelFrontmatterSwitchGraphApply()
+      return
+    }
+    const presetContext = readCanvasWorkspacePresetSwitchContext(nextText)
+    if (!presetContext) {
+      cancelFrontmatterSwitchGraphApply()
+      return
+    }
 
-    const nextSig = hashSignatureParts([
-      'markdown-workspace-frontmatter-switch-apply',
+    const nextSig = buildCanvasWorkspacePresetSwitchSemanticKey({
       activeDocumentKey,
-      frontmatterBlock.rawBlock,
-      activeEntry?.updatedAtMs ?? 0,
-    ])
+      rawBlock: presetContext.rawBlock,
+      updatedAtMs: activeEntry?.updatedAtMs,
+    })
+    if (frontmatterSwitchGraphApplySigRef.current && frontmatterSwitchGraphApplySigRef.current !== nextSig) {
+      cancelFrontmatterSwitchGraphApply()
+    }
     const nowMs = Date.now()
     const lastAttempt = lastFrontmatterSwitchApplyAttemptRef.current
     if (
@@ -224,7 +244,34 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     lastFrontmatterSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
     frontmatterSwitchApplyInFlightSigRef.current = nextSig
     lastFrontmatterSwitchApplySigRef.current = nextSig
-    primeStrictFrontmatterFlowEditorMode(nextText)
+    applyCanvasWorkspacePresetForSwitch({ preset: presetContext.preset })
+
+    const applyGraphAfterPreset = () => {
+      if (frontmatterSwitchGraphApplySigRef.current !== nextSig) return
+      frontmatterSwitchGraphApplyTimerRef.current = null
+      if (!args.activeRef.current || String(args.activeTextRef.current || '') !== nextText) {
+        cancelFrontmatterSwitchGraphApply()
+        return
+      }
+      void applyActiveMarkdownDocumentPayload({
+        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+        name: activeDocumentKey,
+        text: nextText,
+        sourceUrl: activeDocumentSourceUrl,
+        autoEnableFrontmatter: false,
+        applyViewPreset: false,
+        applyToGraph: true,
+        normalizeWebpageFrontmatterToMarkdown: false,
+      })
+    }
+
+    clearRuntimeTimeout(frontmatterSwitchGraphApplyTimerRef.current)
+    frontmatterSwitchGraphApplyTimerRef.current = scheduleRuntimeTimeout(
+      applyGraphAfterPreset,
+      FRONTMATTER_SWITCH_GRAPH_APPLY_DELAY_MS,
+    )
+    frontmatterSwitchGraphApplySigRef.current = nextSig
+
     void (async () => {
       try {
         await applyActiveMarkdownDocumentPayload({
@@ -233,8 +280,8 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
           text: nextText,
           sourceUrl: activeDocumentSourceUrl,
           autoEnableFrontmatter: false,
-          applyViewPreset: true,
-          applyToGraph: true,
+          applyViewPreset: false,
+          applyToGraph: false,
           normalizeWebpageFrontmatterToMarkdown: false,
         })
       } finally {
@@ -249,7 +296,9 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeEntry,
     activeEntryKind,
     activeEntryText,
-    primeStrictFrontmatterFlowEditorMode,
+    cancelFrontmatterSwitchGraphApply,
+    args.activeRef,
+    args.activeTextRef,
     args.setActiveMarkdownDocument,
   ])
 

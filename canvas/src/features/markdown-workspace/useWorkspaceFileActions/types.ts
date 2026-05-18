@@ -2,6 +2,7 @@ import type React from 'react'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { Canvas2dRendererId } from '@/lib/config.render'
+import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 export type WorkspaceRefreshSnapshot = {
   entries: WorkspaceEntry[]
@@ -37,7 +38,11 @@ export type UseWorkspaceFileActionsArgs = {
     forceApplyToGraph?: boolean
     normalizeMermaidMmd?: boolean
   }) => Promise<boolean>
-  applyMarkdownDocumentToGraph: (name: string, text: string, opts?: { force?: boolean }) => Promise<boolean>
+  applyMarkdownDocumentToGraph: (
+    name: string,
+    text: string,
+    opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null },
+  ) => Promise<boolean>
 }
 
 export type WorkspaceImportActionsCtx = Pick<

@@ -76,6 +76,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   includeImages?: boolean
   websiteImportMeta?: { importId: string; nodeId: string; outputDirRel?: string } | null
   canvasPreset?: CanvasWorkspaceFrontmatterPreset | null
+  preserveBodyFidelity?: boolean
 }): string {
   const url = String(args.url || '').trim()
   const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
@@ -116,7 +117,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
     if (end < 0) return t
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
-  const normalizedBody = normalizeWebpageCardAndListBlocks(body)
+  const normalizedBody = args.preserveBodyFidelity ? body : normalizeWebpageCardAndListBlocks(body)
   const title = String(args.title || '').replace(/\s+/g, ' ').trim()
   const diag = String(args.diag || '').trim()
   const bodyText = String(normalizedBody || '').trim()

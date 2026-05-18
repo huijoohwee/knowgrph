@@ -6,6 +6,7 @@ import {
   GLTF_ASSET_BASE64_FENCE,
   GLTF_ASSET_MIME_TYPE,
 } from '@/lib/assets/glbAssetDocument'
+import { inspectGlbBytes, inspectGltfJson } from '@/lib/assets/gltfFormat'
 
 export { GLB_ASSET_DATA_URL_PREFIX, GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE }
 
@@ -85,21 +86,6 @@ function chunkBase64(value: string): string[] {
   return out
 }
 
-function hasGlbMagic(buffer: ArrayBuffer): boolean {
-  if (!buffer || buffer.byteLength < 4) return false
-  const bytes = new Uint8Array(buffer, 0, 4)
-  return bytes[0] === 0x67 && bytes[1] === 0x6c && bytes[2] === 0x54 && bytes[3] === 0x46
-}
-
-function hasValidJson(text: string): boolean {
-  try {
-    JSON.parse(String(text || ''))
-    return true
-  } catch {
-    return false
-  }
-}
-
 export function buildGlbAssetMarkdown(args: {
   name: string
   sourceKind: 'local' | 'url'
@@ -110,6 +96,7 @@ export function buildGlbAssetMarkdown(args: {
   const bytes = Math.max(0, Number(args.buffer?.byteLength || 0))
   const base64 = arrayBufferToBase64(args.buffer)
   const sourceUrl = String(args.sourceUrl || '').trim()
+  const inspection = inspectGlbBytes(args.buffer)
   return [
     '---',
     'kgAssetType: "model"',
@@ -119,7 +106,21 @@ export function buildGlbAssetMarkdown(args: {
     `kgAssetSource: ${yamlQuote(args.sourceKind)}`,
     `kgAssetMimeType: ${yamlQuote(GLB_ASSET_MIME_TYPE)}`,
     `kgAssetBytes: ${bytes}`,
-    `kgAssetValidGlbMagic: ${hasGlbMagic(args.buffer) ? 'true' : 'false'}`,
+    `kgAssetValidGlbMagic: ${inspection.validMagic ? 'true' : 'false'}`,
+    `kgAssetValidGlbContainer: ${inspection.validContainer ? 'true' : 'false'}`,
+    `kgAssetValidGlbChunkOrder: ${inspection.validChunkOrder ? 'true' : 'false'}`,
+    `kgAssetValidGlbChunkAlignment: ${inspection.validChunkAlignment ? 'true' : 'false'}`,
+    `kgAssetValidGlbJsonPadding: ${inspection.validJsonPadding ? 'true' : 'false'}`,
+    `kgAssetValidGlbBinPadding: ${inspection.validBinPadding ? 'true' : 'false'}`,
+    `kgAssetValidGlbBinReference: ${inspection.validBinReference ? 'true' : 'false'}`,
+    `kgAssetValidGltfJson: ${inspection.validJson ? 'true' : 'false'}`,
+    `kgAssetValidGltfAsset: ${inspection.validGltfAsset ? 'true' : 'false'}`,
+    inspection.assetVersion ? `kgAssetGltfVersion: ${yamlQuote(inspection.assetVersion)}` : '',
+    `kgAssetExternalResourceCount: ${inspection.externalResourceUris.length}`,
+    `kgAssetEmbeddedResourceCount: ${inspection.embeddedResourceDataUriCount}`,
+    inspection.jsonChunkLength ? `kgAssetGlbJsonChunkBytes: ${inspection.jsonChunkLength}` : '',
+    inspection.binChunkLength ? `kgAssetGlbBinChunkBytes: ${inspection.binChunkLength}` : '',
+    inspection.unknownChunkCount ? `kgAssetGlbUnknownChunkCount: ${inspection.unknownChunkCount}` : '',
     sourceUrl ? `kgAssetUrl: ${yamlQuote(sourceUrl)}` : '',
     'kgCanvasSurfaceMode: "3d"',
     'kgCanvasRenderMode: "3d"',
@@ -152,6 +153,7 @@ export function buildGltfAssetMarkdown(args: {
   const bytes = new TextEncoder().encode(text).byteLength
   const base64 = textToBase64(text)
   const sourceUrl = String(args.sourceUrl || '').trim()
+  const inspection = inspectGltfJson(text)
   return [
     '---',
     'kgAssetType: "model"',
@@ -161,7 +163,11 @@ export function buildGltfAssetMarkdown(args: {
     `kgAssetSource: ${yamlQuote(args.sourceKind)}`,
     `kgAssetMimeType: ${yamlQuote(GLTF_ASSET_MIME_TYPE)}`,
     `kgAssetBytes: ${bytes}`,
-    `kgAssetValidGltfJson: ${hasValidJson(text) ? 'true' : 'false'}`,
+    `kgAssetValidGltfJson: ${inspection.validJson ? 'true' : 'false'}`,
+    `kgAssetValidGltfAsset: ${inspection.validGltfAsset ? 'true' : 'false'}`,
+    inspection.assetVersion ? `kgAssetGltfVersion: ${yamlQuote(inspection.assetVersion)}` : '',
+    `kgAssetExternalResourceCount: ${inspection.externalResourceUris.length}`,
+    `kgAssetEmbeddedResourceCount: ${inspection.embeddedResourceDataUriCount}`,
     sourceUrl ? `kgAssetUrl: ${yamlQuote(sourceUrl)}` : '',
     'kgCanvasSurfaceMode: "3d"',
     'kgCanvasRenderMode: "3d"',

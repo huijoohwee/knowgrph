@@ -58,23 +58,12 @@ export function MarkdownWorkspaceLayout(props: {
 
       {props.layoutMode === 'editor' ? (
         <section className="flex-1 min-h-0 flex" aria-label="Monaco editors">
-          {binaryPaneVisible ? (
-            <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Binary Model">
-              {props.binaryPane}
-            </section>
-          ) : null}
-          {binaryPaneVisible && paneVisibility.json ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
-          {paneVisibility.json ? (
-            <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
-              {props.renderJsonEditor()}
-            </section>
-          ) : null}
-          {paneVisibility.json && paneVisibility.markdown ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
-          {paneVisibility.markdown ? (
-            <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor">
-              {props.renderMarkdownEditor()}
-            </section>
-          ) : null}
+          {effectiveSplitPanes.map((pane, index) => (
+            <React.Fragment key={pane.key || `pane-${index}`}>
+              {index > 0 ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
+              {pane}
+            </React.Fragment>
+          ))}
         </section>
       ) : props.layoutMode === 'viewer' ? (
         props.viewer

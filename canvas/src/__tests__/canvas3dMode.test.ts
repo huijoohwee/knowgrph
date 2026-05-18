@@ -4,6 +4,9 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage } from '@/lib/persistence'
 import { readGeospatialOverlayEnabledPreference, writeGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
+import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
+import { loadModelAssetRenderPayload } from '@/lib/assets/modelAssetPayload'
+import { buildGltfAssetMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -108,8 +111,9 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
     throw new Error('Expected XR Mode to avoid surfacing the unavailable XR label as the model-rendering state')
   }
   const glbModel = readFileSync(resolve(process.cwd(), 'src/lib/three/GlbAssetModel.tsx'), 'utf8')
-  if (!glbModel.includes('asset.validMagic === false')) {
-    throw new Error('Expected GLB rendering to honor ingest-time GLB magic validation')
+  const payloadHelper = readFileSync(resolve(process.cwd(), 'src/lib/assets/modelAssetPayload.ts'), 'utf8')
+  if (!payloadHelper.includes('asset.validMagic === false')) {
+    throw new Error('Expected GLB rendering to honor ingest-time GLB magic validation through the shared payload helper')
   }
   if (!glbModel.includes('kg_model_xr_orientation_ring') || !glbModel.includes('kg_model_xr_perimeter_markers')) {
     throw new Error('Expected XR Mode model rendering to include a neutral spatial inspection stage')
@@ -118,13 +122,14 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
 
 export function testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate() {
   const glbModel = readFileSync(resolve(process.cwd(), 'src/lib/three/GlbAssetModel.tsx'), 'utf8')
-  if (!glbModel.includes(`asset.format === 'gltf' && asset.validJson === false`)) {
+  const payloadHelper = readFileSync(resolve(process.cwd(), 'src/lib/assets/modelAssetPayload.ts'), 'utf8')
+  if (!payloadHelper.includes(`asset.format === 'gltf' && asset.validJson === false`)) {
     throw new Error('Expected GLTF rendering to honor ingest-time JSON validation')
   }
-  if (!glbModel.includes(`asset.format === 'gltf'`) || !glbModel.includes('new TextDecoder().decode(bytes)')) {
-    throw new Error('Expected GLTF rendering to parse JSON text payloads through GLTFLoader')
+  if (!payloadHelper.includes(`asset.format === 'gltf'`) || !payloadHelper.includes('new TextDecoder().decode(bytes)')) {
+    throw new Error('Expected GLTF rendering to parse JSON text payloads through the shared model payload helper')
   }
-  if (!glbModel.includes('deriveGltfBasePath(asset.sourceUrl)')) {
+  if (!payloadHelper.includes('deriveModelAssetResourceBasePath(asset.sourceUrl)')) {
     throw new Error('Expected GLTF rendering to preserve a source-relative base path for external GLTF resources')
   }
   if (!glbModel.includes('loader.parse(') || !glbModel.includes('gltf.scene || gltf.scenes?.[0]')) {
@@ -136,9 +141,52 @@ export function testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate() {
   if (!glbModel.includes('kg_model_xr_city_grid') || !glbModel.includes('kg_model_xr_city_block_')) {
     throw new Error('Expected XR model stage to expose an original city-grid inspection theme for GLTF assets')
   }
+  if (!glbModel.includes('kg_model_xr_streaming_ring') || !glbModel.includes('kg_model_xr_focus_target')) {
+    throw new Error('Expected XR model stage to expose streaming horizon and focus affordances for model inspection')
+  }
+  if (!glbModel.includes('kg_model_xr_lane_marker_') || !glbModel.includes('kg_model_xr_avenue_')) {
+    throw new Error('Expected XR model stage to expose dense road and lane-marker visual structure')
+  }
   if (!glbModel.includes('kg_model_xr_traffic_loop') || !glbModel.includes('kg_model_xr_traffic_')) {
     throw new Error('Expected XR model stage to expose animated traffic affordances for GLTF assets')
   }
+}
+
+export async function testXrModeGltfIngestParseRenderPipelineUsesNeutralPayload() {
+  const sourceUrl = 'https://assets.example.invalid/scene-pack/neutral-city.gltf?rev=7#model'
+  const gltfJson = JSON.stringify({
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ name: 'neutral_city_probe' }],
+  })
+  const text = buildGltfAssetMarkdown({
+    name: 'neutral-city.gltf',
+    sourceKind: 'url',
+    sourceUrl,
+    text: gltfJson,
+  })
+  const asset = parseGlbAssetDocument(text)
+  if (!asset) throw new Error('Expected imported GLTF manifest to parse as a model asset')
+  const payload = await loadModelAssetRenderPayload(asset)
+  if (payload.format !== 'gltf') throw new Error(`Expected render payload format gltf, got ${payload.format}`)
+  if (payload.basePath !== 'https://assets.example.invalid/scene-pack/') {
+    throw new Error(`Expected GLTF base path to preserve the source directory, got ${payload.basePath}`)
+  }
+  if (typeof payload.loaderInput !== 'string' || !payload.loaderInput.includes('neutral_city_probe')) {
+    throw new Error('Expected GLTF payload helper to expose parseable JSON text for GLTFLoader')
+  }
+  const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
+  const loaded = await new Promise<{ scene?: unknown; scenes?: unknown[] }>((resolveLoaded, rejectLoaded) => {
+    new GLTFLoader().parse(
+      payload.loaderInput,
+      payload.basePath,
+      gltf => resolveLoaded(gltf),
+      err => rejectLoaded(err instanceof Error ? err : new Error(String(err || 'GLTF parse failed'))),
+    )
+  })
+  const scene = loaded.scene || loaded.scenes?.[0]
+  if (!scene) throw new Error('Expected GLTFLoader to parse the neutral GLTF payload into a renderable scene')
 }
 
 export function testCanvasViewSelectionBlocksVoxelDuringGeospatialMode() {

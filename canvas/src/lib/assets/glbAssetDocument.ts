@@ -15,7 +15,20 @@ export type GlbAssetDocument = {
   mimeType: string
   byteLength?: number
   validMagic?: boolean
+  validContainer?: boolean
+  validChunkOrder?: boolean
+  validChunkAlignment?: boolean
+  validGlbJsonPadding?: boolean
+  validGlbBinPadding?: boolean
+  validGlbBinReference?: boolean
   validJson?: boolean
+  validGltfAsset?: boolean
+  gltfVersion?: string
+  externalResourceCount?: number
+  embeddedResourceCount?: number
+  glbJsonChunkLength?: number
+  glbBinChunkLength?: number
+  glbUnknownChunkCount?: number
   pendingLocalImport?: boolean
   pendingLocalImportPath?: string
   sourceUrl?: string
@@ -113,7 +126,20 @@ export function parseGlbAssetDocument(rawText: unknown): GlbAssetDocument | null
   const mimeType = readYamlFrontmatterValue(block.rawBlock, 'kgAssetMimeType').trim() || (dataUrl ? inferMimeTypeFromDataUrl(dataUrl) : defaultMime)
   const byteLength = readNumberValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetBytes'))
   const validMagic = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbMagic'))
+  const validContainer = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbContainer'))
+  const validChunkOrder = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbChunkOrder'))
+  const validChunkAlignment = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbChunkAlignment'))
+  const validGlbJsonPadding = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbJsonPadding'))
+  const validGlbBinPadding = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbBinPadding'))
+  const validGlbBinReference = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGlbBinReference'))
   const validJson = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGltfJson'))
+  const validGltfAsset = readBooleanValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetValidGltfAsset'))
+  const gltfVersion = readYamlFrontmatterValue(block.rawBlock, 'kgAssetGltfVersion').trim()
+  const externalResourceCount = readNumberValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetExternalResourceCount'))
+  const embeddedResourceCount = readNumberValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetEmbeddedResourceCount'))
+  const glbJsonChunkLength = readNumberValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetGlbJsonChunkBytes'))
+  const glbBinChunkLength = readNumberValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetGlbBinChunkBytes'))
+  const glbUnknownChunkCount = readNumberValue(readYamlFrontmatterValue(block.rawBlock, 'kgAssetGlbUnknownChunkCount'))
 
   return {
     name,
@@ -122,7 +148,20 @@ export function parseGlbAssetDocument(rawText: unknown): GlbAssetDocument | null
     mimeType,
     byteLength,
     validMagic,
+    validContainer,
+    validChunkOrder,
+    validChunkAlignment,
+    validGlbJsonPadding,
+    validGlbBinPadding,
+    validGlbBinReference,
     validJson,
+    validGltfAsset,
+    ...(gltfVersion ? { gltfVersion } : {}),
+    externalResourceCount,
+    embeddedResourceCount,
+    glbJsonChunkLength,
+    glbBinChunkLength,
+    glbUnknownChunkCount,
     ...(pendingLocalImport ? { pendingLocalImport: true } : {}),
     ...(pendingLocalImportPath ? { pendingLocalImportPath } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),

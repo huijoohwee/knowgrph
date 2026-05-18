@@ -62,6 +62,7 @@ export type MarkdownTokenRendererProps = {
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
   deferMermaidRender?: boolean
+  markdownLargeDocumentMode?: boolean
 }
 
 const CODEBLOCK_BOX_DRAWING_RE = /[┌┐└┘┬┴┼│─╔╗╚╝╦╩╬║═]/
@@ -123,10 +124,11 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     forbidCopy,
     onInlineEditStateChange,
     deferMermaidRender,
+    markdownLargeDocumentMode,
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
-  const blockControlsEnabled = nestingLevel <= 0
+  const blockControlsEnabled = nestingLevel <= 0 && !markdownLargeDocumentMode
 
   let stickyHeadingCascadeBaseDepth = 7
   for (const t of tokens) {
@@ -170,6 +172,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       forbidCopy: !!forbidCopy,
       onInlineEditStateChange,
       deferMermaidRender: !!deferMermaidRender,
+      markdownLargeDocumentMode: !!markdownLargeDocumentMode,
     }),
     [
       activeDocumentPath,
@@ -185,6 +188,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       forbidCopy,
       onInlineEditStateChange,
       deferMermaidRender,
+      markdownLargeDocumentMode,
       mermaidFrontmatterConfig,
       onInsertLineAfter,
       onMoveHeadingSection,

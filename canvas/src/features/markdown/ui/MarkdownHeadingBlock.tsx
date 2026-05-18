@@ -83,6 +83,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     baseTopPx,
     markdownPresentationMode: opts.markdownPresentationMode,
   })
+  const stickyHeadingEnabled = !opts.markdownLargeDocumentMode
 
   const stickyStyle = {
     top: `${topPx}px`,
@@ -91,7 +92,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   } as React.CSSProperties
   const mergedStyle = {
     ...(highlightStyle || {}),
-    scrollMarginTop: `${Math.max(0, topPx + heightPx + 8)}px`,
+    scrollMarginTop: stickyHeadingEnabled ? `${Math.max(0, topPx + heightPx + 8)}px` : '8px',
   } as React.CSSProperties
   const headingTypographyClass = ['font-semibold', baseSize, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
@@ -122,6 +123,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     uiPanelTextFontClass: opts.uiPanelTextFontClass,
     uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
     markdownPresentationMode: opts.markdownPresentationMode,
+    markdownLargeDocumentMode: opts.markdownLargeDocumentMode,
     fragmentOptions:
       opts.markdownPresentationMode && fragmentsEnabled
         ? {
@@ -296,17 +298,18 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   return (
     <div
       className={[
-        'sticky',
-        stickyTopClass,
-        UI_THEME_TOKENS.panel.bg,
-        'backdrop-blur-md',
+        stickyHeadingEnabled ? 'sticky' : 'relative',
+        stickyHeadingEnabled ? stickyTopClass : '',
+        stickyHeadingEnabled ? UI_THEME_TOKENS.panel.bg : '',
+        stickyHeadingEnabled ? 'backdrop-blur-md' : '',
         'mb-0 border-b-0',
-      ].join(' ')}
-      style={stickyStyle}
+      ].filter(Boolean).join(' ')}
+      style={stickyHeadingEnabled ? stickyStyle : undefined}
+      data-kg-sticky-heading={stickyHeadingEnabled ? '1' : '0'}
     >
       <MarkdownBlockContainer
         as={Tag}
-        className={`${UI_THEME_TOKENS.panel.bg} backdrop-blur-md h-full py-0.5 ${cls} ${MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS} group min-w-0 relative ${gutterReserved ? `${MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS} ${MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS}` : ''} ${isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-60` : ''}`}
+        className={`${stickyHeadingEnabled ? `${UI_THEME_TOKENS.panel.bg} backdrop-blur-md h-full py-0.5` : 'py-1'} ${cls} ${MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS} group min-w-0 relative ${gutterReserved ? `${MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS} ${MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS}` : ''} ${isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-60` : ''}`}
         highlightClass={highlightClass}
         highlightStyle={mergedStyle}
         startLine={startLine}

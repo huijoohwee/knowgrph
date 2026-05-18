@@ -415,7 +415,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     )
   }
 
-  const standaloneHref = isStandaloneLinkParagraph(t as unknown as Token) || isStandaloneTextUrlParagraph(t as unknown as Token)
+  const standaloneHref = opts.markdownLargeDocumentMode ? null : isStandaloneLinkParagraph(t as unknown as Token) || isStandaloneTextUrlParagraph(t as unknown as Token)
   if (standaloneHref && isSafeHref(standaloneHref) && isAbsoluteWebUrl(standaloneHref)) {
     const renderStandaloneMedia = (type: string, children: React.ReactNode) => (
       <MediaWrapper
@@ -510,7 +510,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     )
   }
 
-  const standaloneWebpageHref = getStandaloneWebpageHrefFromImageToken(p.tokens)
+  const standaloneWebpageHref = opts.markdownLargeDocumentMode ? null : getStandaloneWebpageHrefFromImageToken(p.tokens)
   if (standaloneWebpageHref && isSafeHref(standaloneWebpageHref) && isAbsoluteWebUrl(standaloneWebpageHref)) {
     const normalizedHref = normalizeWebpageLikeUrl(standaloneWebpageHref)
     const youtube = buildYouTubeEmbedUrl(normalizedHref)

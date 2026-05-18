@@ -10,6 +10,7 @@ export type InlineRenderOpts = {
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   markdownPresentationMode: boolean
+  markdownLargeDocumentMode?: boolean
   fragmentOptions?: {
     enabled: boolean
     currentStep: number

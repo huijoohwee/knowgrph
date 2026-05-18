@@ -8,7 +8,6 @@ import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFil
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { parseCanvasWorkspaceFrontmatterPreset, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
-import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import {
   syncGraphFieldsWithGraphData,
@@ -20,6 +19,7 @@ type PendingMarkdownApplyRequest = {
   name: string
   text: string
   force: boolean
+  preset?: CanvasWorkspaceFrontmatterPreset | null
 }
 
 let markdownApplyInFlight = false
@@ -167,7 +167,10 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         }))
       }
       try {
-        return await get().applyMarkdownDocumentToGraph(name, text, { force: args?.forceApplyToGraph !== false })
+        return await get().applyMarkdownDocumentToGraph(name, text, {
+          force: args?.forceApplyToGraph !== false,
+          preset: parsedTextPreset,
+        })
       } catch {
         return false
       }
@@ -175,7 +178,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     return true
   },
 
-  applyMarkdownDocumentToGraph: async (name: string, text: string, opts?: { force?: boolean }) => {
+  applyMarkdownDocumentToGraph: async (name: string, text: string, opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null }) => {
     const runApply = async (request: PendingMarkdownApplyRequest): Promise<boolean> => {
       const nextName = String(request.name || '').trim()
       const nextText = String(request.text || '')
@@ -224,7 +227,9 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         String(exactSourceFile.text || '') === nextText &&
         exactSourceFile.parsedGraphData
       )
-      const parsedTextPreset = parseCanvasWorkspaceFrontmatterPreset(nextText)
+      const parsedTextPreset = request.preset === undefined
+        ? parseCanvasWorkspaceFrontmatterPreset(nextText)
+        : request.preset
       const strictFlowEditorPreset = isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
       if (canReuseParsedSourceGraph) {
         const reusedGraph = exactSourceFile.parsedGraphData as GraphData
@@ -234,15 +239,6 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           rawText: nextText,
           preset: parsedTextPreset || undefined,
         })
-        if (strictFlowEditorPreset) {
-          const nextState = get()
-          if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)
-          nextState.setCanvasRenderMode('2d')
-          nextState.setCanvas2dRenderer('flowEditor')
-          void setGeospatialModeEnabled(false).catch(() => void 0)
-          nextState.setDocumentSemanticMode('document')
-          nextState.setFrontmatterModeEnabled(true)
-        }
         get().setGraphData(reusedGraph)
         const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
         applyFrontmatterFlowImportModes(reusedGraph)
@@ -285,15 +281,6 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         rawText: nextText,
         preset: parsedTextPreset || undefined,
       })
-      if (strictFlowEditorPreset) {
-        const nextState = get()
-        if (nextState.documentStructureBaselineLock === true) nextState.setDocumentStructureBaselineLock(false)
-        nextState.setCanvasRenderMode('2d')
-        nextState.setCanvas2dRenderer('flowEditor')
-        void setGeospatialModeEnabled(false).catch(() => void 0)
-        nextState.setDocumentSemanticMode('document')
-        nextState.setFrontmatterModeEnabled(true)
-      }
       if (parsedGraph) {
         get().setGraphData(parsedGraph)
         const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
@@ -335,6 +322,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       name: String(name || ''),
       text: String(text || ''),
       force: opts?.force === true,
+      preset: opts?.preset,
     }
     if (markdownApplyInFlight) {
       queuedMarkdownApplyRequest = request

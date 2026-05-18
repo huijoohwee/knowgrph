@@ -22,6 +22,7 @@ export function useWebpageIframeView(args: {
     websiteImportMeta: args.websiteImportMeta && args.websiteImportMeta.importId && args.websiteImportMeta.nodeId ? args.websiteImportMeta : null,
     includeImages: args.webpageMeta?.includeImages,
     htmlOverride,
+    scriptPolicy: args.webpageMeta?.scriptPolicy || null,
     siteRootRel: args.webpageMeta?.siteRootRel || null,
     onStatusProgress: args.onStatusProgress,
     onStatusWithAutoClear: args.onStatusWithAutoClear,

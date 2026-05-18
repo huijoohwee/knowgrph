@@ -18,9 +18,11 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { WebpageViewerPane } from './webpage/WebpageViewerPane'
 import { deriveWebpageFrontmatterMetaFromBlock, deriveWebsiteImportFrontmatterMetaFromBlock, shouldRenderWebpageIframe } from './webpage/webpageMeta'
 import { useWebpageIframeView } from './webpage/useWebpageIframeView'
+import { usePendingGltfJson } from './usePendingGltfJson'
 import { MarkdownEditorPane } from './editor/MarkdownEditorPane'
 import {
   DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY,
+  resolveMarkdownWorkspaceInitialPaneVisibility,
   resolveMarkdownWorkspacePaneAvailability,
   resolveMarkdownWorkspacePaneVisibility,
   type MarkdownWorkspaceMainProps,
@@ -173,45 +175,35 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       setViewerMode('read')
     }
   }, [layoutMode, viewerKind, viewerMode])
-  const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
+  const appliedWorkspacePanePresetKeyRef = React.useRef('')
   React.useEffect(() => {
-    const wasOpen = wasWorkspaceEditorOverlayOpenRef.current
-    wasWorkspaceEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
-    if (!workspaceEditorOverlayOpen || wasOpen) return
-    if (modelAssetFormat === 'gltf') {
-      setSplitPaneVisibility(prev => (
-        prev.json && !prev.markdown && !prev.viewer ? prev : { json: true, markdown: false, viewer: false }
-      ))
+    if (!workspaceEditorOverlayOpen) {
+      appliedWorkspacePanePresetKeyRef.current = ''
       return
     }
-    if (modelAssetFormat === 'glb') {
-      setSplitPaneVisibility(prev => (
-        !prev.json && !prev.markdown && !prev.viewer ? prev : { json: false, markdown: false, viewer: false }
-      ))
-      return
-    }
+    const presetKey = [
+      activeDocumentKey,
+      modelAssetFormat || '',
+      webpageMeta?.url || '',
+    ].join('\n')
+    if (appliedWorkspacePanePresetKeyRef.current === presetKey) return
+    appliedWorkspacePanePresetKeyRef.current = presetKey
+    const nextVisibility = resolveMarkdownWorkspaceInitialPaneVisibility({
+      modelAssetFormat,
+      webpageView: webpageMeta?.view || null,
+    })
     setSplitPaneVisibility(prev => (
-      prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }
+      prev.json === nextVisibility.json && prev.markdown === nextVisibility.markdown && prev.viewer === nextVisibility.viewer
+        ? prev
+        : nextVisibility
     ))
-  }, [modelAssetFormat, workspaceEditorOverlayOpen])
+  }, [activeDocumentKey, modelAssetFormat, webpageMeta?.url, webpageMeta?.view, workspaceEditorOverlayOpen])
 
   React.useEffect(() => {
     if (!modelAssetFormat) return
     if (layoutMode === 'editor' || layoutMode === 'split') return
     setLayoutMode('editor')
   }, [layoutMode, modelAssetFormat, setLayoutMode])
-
-  React.useEffect(() => {
-    if (modelAssetFormat === 'gltf') {
-      setSplitPaneVisibility(prev => (
-        prev.json && !prev.markdown && !prev.viewer ? prev : { json: true, markdown: false, viewer: false }
-      ))
-    } else if (modelAssetFormat === 'glb') {
-      setSplitPaneVisibility(prev => (
-        !prev.json && !prev.markdown && !prev.viewer ? prev : { json: false, markdown: false, viewer: false }
-      ))
-    }
-  }, [modelAssetFormat])
 
   const workspaceEditorMode = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
@@ -261,6 +253,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const markdownPaneVisible = paneVisibility.markdown
   const viewerPaneVisible = paneVisibility.viewer
   const binaryPaneVisible = paneAvailability.bin && (layoutMode === 'editor' || layoutMode === 'split')
+  const { pendingGltfJsonKey, pendingGltfJson } = usePendingGltfJson({ activeDocumentKey, jsonPaneVisible, modelAsset })
 
   React.useEffect(() => {
     if (viewerKind === 'markdown' || viewerKind === 'json') return
@@ -308,6 +301,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     if (!jsonPaneVisible) return ''
     if (modelAsset?.format === 'gltf') {
       if (modelAsset.dataUrl) return prettyJsonOrRaw(decodeBase64DataUrlToText(modelAsset.dataUrl))
+      if (pendingGltfJson.key === pendingGltfJsonKey && pendingGltfJson.status === 'ready' && pendingGltfJson.text) {
+        return prettyJsonOrRaw(pendingGltfJson.text)
+      }
       return JSON.stringify({
         kgAssetType: 'model',
         kgAssetFormat: 'gltf',
@@ -315,6 +311,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         kgAssetPendingLocalImport: modelAsset.pendingLocalImport === true,
         kgAssetPendingLocalPath: modelAsset.pendingLocalImportPath || undefined,
         kgAssetBytes: modelAsset.byteLength,
+        kgAssetJsonStatus: pendingGltfJson.key === pendingGltfJsonKey ? pendingGltfJson.status : 'pending',
       }, null, 2)
     }
     if (modelAsset?.format === 'glb') return ''
@@ -334,7 +331,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     } catch {
       return text
     }
-  }, [activeDocumentKey, deferredSourceEditorTextRaw, editorUri, isMarkdown, jsonPaneVisible, modelAsset])
+  }, [activeDocumentKey, deferredSourceEditorTextRaw, editorUri, isMarkdown, jsonPaneVisible, modelAsset, pendingGltfJson, pendingGltfJsonKey])
 
   const needsMarkdownViewerText = !showWebpageHtml
   const sourceViewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText

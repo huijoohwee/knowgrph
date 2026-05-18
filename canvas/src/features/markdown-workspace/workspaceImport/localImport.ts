@@ -41,12 +41,12 @@ function isPdfFile(file: File): boolean {
 
 function isGlbFile(file: File): boolean {
   if (isGlbAssetName(file.name)) return true
-  return String(file.type || '').toLowerCase() === 'model/gltf-binary'
+  return String(file.type || '').toLowerCase().split(';')[0] === 'model/gltf-binary'
 }
 
 function isGltfFile(file: File): boolean {
   if (isGltfAssetName(file.name)) return true
-  const type = String(file.type || '').toLowerCase()
+  const type = String(file.type || '').toLowerCase().split(';')[0]
   return type === 'model/gltf+json' || type === 'application/json+gltf'
 }
 

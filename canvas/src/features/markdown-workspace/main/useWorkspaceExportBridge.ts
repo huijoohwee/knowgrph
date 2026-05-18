@@ -79,10 +79,11 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     await exportCanvasGlb({
       exportBaseName,
       activeDocumentPath: activeDocumentKey,
+      activeText: String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText),
       pushUiToast,
       getStore: () => useGraphStore.getState(),
     })
-  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
+  }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, pushUiToast, viewerTextOverride])
 
   const handleExportGltf = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -91,10 +92,11 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     await exportCanvasGltf({
       exportBaseName,
       activeDocumentPath: activeDocumentKey,
+      activeText: String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText),
       pushUiToast,
       getStore: () => useGraphStore.getState(),
     })
-  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
+  }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, pushUiToast, viewerTextOverride])
 
   const handleExportHtmlViewer = React.useCallback(async () => {
     flushGraphWritebackForExport()

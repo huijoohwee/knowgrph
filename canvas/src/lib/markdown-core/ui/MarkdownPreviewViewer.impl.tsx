@@ -30,6 +30,10 @@ import {
   buildMarkdownFrontmatterPreviewRenderOpts,
 } from '@/features/markdown/ui/markdownFrontmatterPreview'
 import { MarkdownFrontmatterPreviewBlocks } from '@/features/markdown/ui/MarkdownFrontmatterPreviewBlocks'
+import {
+  deriveMarkdownPreviewDocumentMode,
+  getMarkdownPreviewScrollStyle,
+} from './markdownPreviewViewerMode'
 
 const MARKDOWN_INLINE_EMBED_MAX_CHARS = 120_000
 const MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS = 120_000
@@ -170,6 +174,10 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     if (key !== 'c' && key !== 'x') return
     event.preventDefault()
   }, [forbidCopy])
+  const { sourceMarkdownLength, markdownLargeDocumentMode } = React.useMemo(
+    () => deriveMarkdownPreviewDocumentMode({ sourceMarkdownText, tokens }),
+    [sourceMarkdownText, tokens],
+  )
 
   const resetUserSelectLockIfNeeded = React.useCallback(() => {
     try {
@@ -207,10 +215,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     }
     return frontmatterMetaProp
   }, [frontmatterMetaProp])
-  const shouldDeferMermaidRender = React.useMemo(() => {
-    const sourceLength = typeof sourceMarkdownText === 'string' ? sourceMarkdownText.length : 0
-    return sourceLength > MARKDOWN_MERMAID_DEFER_DOC_CHARS
-  }, [sourceMarkdownText])
+  const shouldDeferMermaidRender = sourceMarkdownLength > MARKDOWN_MERMAID_DEFER_DOC_CHARS
   const [deferMermaidRender, setDeferMermaidRender] = React.useState<boolean>(shouldDeferMermaidRender)
   React.useEffect(() => {
     if (!shouldDeferMermaidRender) {
@@ -516,15 +521,16 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     [stickyHeadingTopPx],
   )
 
-  const effectiveStickyHeadingTopPx = providedStickyHeadingTopPx
+  const effectiveStickyHeadingTopPx = markdownLargeDocumentMode ? 0 : providedStickyHeadingTopPx
 
   const stickyHeadingScrollPaddingTopPx = React.useMemo(() => {
+    if (markdownLargeDocumentMode) return 0
     return computeStickyHeadingScrollPaddingTopPx({
       tokens,
       baseTopPx: effectiveStickyHeadingTopPx,
       markdownPresentationMode: false,
     })
-  }, [effectiveStickyHeadingTopPx, tokens])
+  }, [effectiveStickyHeadingTopPx, markdownLargeDocumentMode, tokens])
 
   const body = React.useMemo(
     () => (
@@ -564,6 +570,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         forbidCopy={forbidCopy}
         onInlineEditStateChange={onInlineEditStateChange}
         deferMermaidRender={deferMermaidRender}
+        markdownLargeDocumentMode={markdownLargeDocumentMode}
       />
     ),
     [
@@ -601,6 +608,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       forbidCopy,
       onInlineEditStateChange,
       deferMermaidRender,
+      markdownLargeDocumentMode,
     ],
   )
 
@@ -680,21 +688,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         onCopy={blockCopy}
         onCut={blockCopy}
         onKeyDown={blockCopyKeyDown}
-        style={
-          (
-            scrollClass === 'overflow-auto'
-              ? ({
-                  scrollbarGutter: 'stable',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  ...(stickyHeadingScrollPaddingTopPx > 0 ? { scrollPaddingTop: `${stickyHeadingScrollPaddingTopPx}px` } : null),
-                } as React.CSSProperties)
-              : ({
-                  scrollbarGutter: 'stable',
-                  ...(stickyHeadingScrollPaddingTopPx > 0 ? { scrollPaddingTop: `${stickyHeadingScrollPaddingTopPx}px` } : null),
-                } as React.CSSProperties)
-          )
-        }
+        style={getMarkdownPreviewScrollStyle(scrollClass, stickyHeadingScrollPaddingTopPx)}
         className={[
           'relative flex-1 min-h-0', // Removed py-2 to ensure sticky headers snap perfectly to top
           scrollClass,
@@ -702,6 +696,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
           UI_THEME_TOKENS.text.primary,
         ].join(' ')}
         data-testid="markdown-preview-root"
+        data-kg-large-markdown-viewer={markdownLargeDocumentMode ? '1' : undefined}
         aria-label="Markdown Preview Content"
       >
         {embeddedMarkdownBase64 ? (

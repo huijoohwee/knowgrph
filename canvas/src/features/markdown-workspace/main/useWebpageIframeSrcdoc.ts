@@ -87,6 +87,23 @@ function rewriteLocalHtmlForCodebaseAssets(args: {
   return next
 }
 
+function resolveDirectHtmlProxyScriptPolicy(args: {
+  url: string
+  explicitPolicy?: 'strip' | 'allow' | null
+}): 'strip' | 'allow' {
+  if (args.explicitPolicy === 'allow') return 'allow'
+  if (args.explicitPolicy === 'strip') return 'strip'
+  try {
+    const u = new URL(args.url)
+    const host = String(u.hostname || '').toLowerCase()
+    if (host === 'aljazeera.com' || host.endsWith('.aljazeera.com')) return 'strip'
+  } catch {
+    void 0
+  }
+  const storePolicy = useGraphStore.getState().webpageViewerScriptPolicy
+  return storePolicy === 'strip' ? 'strip' : 'allow'
+}
+
 export function useWebpageIframeSrcdoc(args: {
   enabled: boolean
   url: string
@@ -94,6 +111,7 @@ export function useWebpageIframeSrcdoc(args: {
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
   includeImages?: boolean
   htmlOverride?: string | null
+  scriptPolicy?: 'strip' | 'allow' | null
   siteRootRel?: string | null
   onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
@@ -122,6 +140,7 @@ export function useWebpageIframeSrcdoc(args: {
       String(args.view || ''),
       String(debouncedUrl || '').trim(),
       String(args.siteRootRel || ''),
+      String(args.scriptPolicy || ''),
       String(args.websiteImportMeta?.importId || ''),
       String(args.websiteImportMeta?.nodeId || ''),
       String(args.websiteImportMeta?.outputDirRel || ''),
@@ -203,6 +222,11 @@ export function useWebpageIframeSrcdoc(args: {
       }
 
       const override = typeof debouncedHtmlOverride === 'string' && debouncedHtmlOverride.trim() ? debouncedHtmlOverride : null
+      if (args.view === 'html' && override == null && !args.websiteImportMeta && isHttpUrl(url)) {
+        const scriptPolicy = resolveDirectHtmlProxyScriptPolicy({ url, explicitPolicy: args.scriptPolicy })
+        const nextSrc = `/__webpage_proxy?url=${encodeURIComponent(url)}&kg_script_policy=${encodeURIComponent(scriptPolicy)}`
+        return { kind: 'proxy' as const, src: nextSrc }
+      }
 
       onStatusProgressRef.current?.('Loading HTML')
       const rawHtml = await (async () => {
@@ -245,10 +269,6 @@ export function useWebpageIframeSrcdoc(args: {
         return p
       })()
 
-      if (args.view === 'html' && override == null && !args.websiteImportMeta && isHttpUrl(url)) {
-        const nextSrc = `/__webpage_proxy?url=${encodeURIComponent(url)}&kg_script_policy=${encodeURIComponent(scriptPolicy)}`
-        return { kind: 'proxy' as const, src: nextSrc }
-      }
       const siteRootRel = String(args.siteRootRel || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
       const localDirRel = (() => {
         const normalized = url.split(/[?#]/)[0].replace(/\\/g, '/').replace(/^\/+/, '')
@@ -341,6 +361,7 @@ export function useWebpageIframeSrcdoc(args: {
     debouncedUrl,
     args.view,
     args.siteRootRel,
+    args.scriptPolicy,
     args.includeImages,
     args.websiteImportMeta,
     args.websiteImportMeta?.importId,

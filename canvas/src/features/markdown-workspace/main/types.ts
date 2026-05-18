@@ -42,6 +42,17 @@ export function resolveMarkdownWorkspacePaneAvailability(args: {
   return DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY
 }
 
+export function resolveMarkdownWorkspaceInitialPaneVisibility(args: {
+  modelAssetFormat?: 'glb' | 'gltf' | null
+  webpageView?: WebpageViewMode | null
+}): MarkdownWorkspacePaneVisibility {
+  if (args.modelAssetFormat === 'glb') return { json: false, markdown: false, viewer: false }
+  if (args.modelAssetFormat === 'gltf') return { json: true, markdown: false, viewer: false }
+  if (args.webpageView === 'json') return { json: true, markdown: false, viewer: false }
+  if (args.webpageView === 'html') return { json: false, markdown: false, viewer: true }
+  return { json: false, markdown: true, viewer: false }
+}
+
 export function resolveMarkdownWorkspacePaneVisibility(args: {
   layoutMode: MarkdownWorkspaceLayoutMode
   splitPaneVisibility: MarkdownWorkspacePaneVisibility

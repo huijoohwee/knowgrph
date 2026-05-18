@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
+import { resolveMarkdownWorkspaceInitialPaneVisibility } from '@/features/markdown-workspace/main/types'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 const tick = async () => {
@@ -78,4 +79,26 @@ export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidate
   } finally {
     restore()
   }
+}
+
+export function testMarkdownWorkspaceInitialPaneVisibilityFollowsImportView() {
+  const cases = [
+    { view: 'json' as const, expected: { json: true, markdown: false, viewer: false } },
+    { view: 'markdown' as const, expected: { json: false, markdown: true, viewer: false } },
+    { view: 'html' as const, expected: { json: false, markdown: false, viewer: true } },
+  ]
+  for (const item of cases) {
+    const actual = resolveMarkdownWorkspaceInitialPaneVisibility({ webpageView: item.view })
+    if (
+      actual.json !== item.expected.json ||
+      actual.markdown !== item.expected.markdown ||
+      actual.viewer !== item.expected.viewer
+    ) {
+      throw new Error(`expected ${item.view} import to land on matching workspace pane`)
+    }
+  }
+  const gltf = resolveMarkdownWorkspaceInitialPaneVisibility({ modelAssetFormat: 'gltf', webpageView: 'html' })
+  if (!gltf.json || gltf.markdown || gltf.viewer) throw new Error('expected GLTF imports to prefer the JSON pane')
+  const glb = resolveMarkdownWorkspaceInitialPaneVisibility({ modelAssetFormat: 'glb', webpageView: 'html' })
+  if (glb.json || glb.markdown || glb.viewer) throw new Error('expected GLB imports to keep text panes closed')
 }

@@ -1,5 +1,38 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { applyCanvasWorkspacePresetForSwitch } from '@/lib/markdown-workspace-runtime/workspaceSwitchPreset'
+
+export const testCanvasWorkspacePresetForSwitchClearsStaleBaselineLock = () => {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas3dMode('3d')
+  useGraphStore.getState().setDocumentStructureBaselineLock(true)
+
+  const changed = applyCanvasWorkspacePresetForSwitch({
+    text: [
+      '---',
+      'title: "XR Surface Preset"',
+      'kgCanvasSurfaceMode: "3d"',
+      'kgCanvas3dMode: "xr"',
+      '---',
+      '',
+      '# XR Surface Preset',
+    ].join('\n'),
+  })
+
+  const state = useGraphStore.getState()
+  if (changed !== true) throw new Error('expected workspace switch preset to apply explicit XR canvas frontmatter')
+  if (state.documentStructureBaselineLock !== false) {
+    throw new Error('expected explicit XR canvas frontmatter to clear stale baseline lock')
+  }
+  if (state.canvasRenderMode !== '3d') {
+    throw new Error(`expected explicit XR canvas frontmatter to switch to 3d, got ${String(state.canvasRenderMode)}`)
+  }
+  if (state.canvas3dMode !== 'xr') {
+    throw new Error(`expected explicit XR canvas frontmatter to switch to XR mode, got ${String(state.canvas3dMode)}`)
+  }
+}
 
 export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
   const workspaceActionPath = path.resolve(
@@ -38,14 +71,34 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
     'graphDataDocumentActions.ts',
   )
   const documentActionText = fs.readFileSync(documentActionPath, 'utf8')
-  const strictPresetIndex = documentActionText.indexOf('if (strictFlowEditorPreset) {')
-  const strictRendererIndex = documentActionText.indexOf("nextState.setCanvas2dRenderer('flowEditor')")
-  const strictGeoDisableIndex = documentActionText.indexOf('void setGeospatialModeEnabled(false).catch(() => void 0)')
-  if (strictPresetIndex < 0 || strictRendererIndex < 0 || strictGeoDisableIndex < 0) {
-    throw new Error('Expected strict Flow Editor frontmatter import path to disable Geospatial Mode for Source Files selections')
+  if (documentActionText.includes("nextState.setCanvas2dRenderer('flowEditor')")
+    || documentActionText.includes('void setGeospatialModeEnabled(false).catch(() => void 0)')) {
+    throw new Error('Expected active markdown graph apply to avoid stale Flow Editor-only geospatial patches')
   }
-  if (!(strictPresetIndex < strictRendererIndex && strictRendererIndex < strictGeoDisableIndex)) {
-    throw new Error('Expected strict Flow Editor preset path to disable Geospatial Mode immediately after renderer selection')
+
+  const presetPath = path.resolve(process.cwd(), 'src', 'features', 'parsers', 'canvasFrontmatterPreset.ts')
+  const presetText = fs.readFileSync(presetPath, 'utf8')
+  if (!presetText.includes('function disableGeospatialForDocumentPreset(): void')
+    || !presetText.includes('readGeospatialOverlayEnabledPreferenceRaw()')
+    || !presetText.includes("(!raw || raw === '0' || raw === 'false')")
+    || !presetText.includes('void setGeospatialModeEnabled(false).catch(() => void 0)')) {
+    throw new Error('Expected shared canvas frontmatter preset application to disable Geospatial Mode without repeated no-op toggles')
+  }
+
+  const seedScriptPath = path.resolve(process.cwd(), '..', 'scripts', 'seed-storage-docs-to-cloudflare.mjs')
+  const seedScriptText = fs.readFileSync(seedScriptPath, 'utf8')
+  if (!seedScriptText.includes("SUPPORTED_DOCS_FILE_EXTENSIONS = new Set(['.md', '.gltf', '.glb'])")
+    || !seedScriptText.includes("docType: ext === '.gltf' ? 'gltf' : 'markdown'")
+    || !seedScriptText.includes("docType: 'glb'")) {
+    throw new Error('Expected D1 docs seeding to include Markdown, GLTF, and GLB source files')
+  }
+
+  const workspaceSeedProviderPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceSeedProvider.ts')
+  const workspaceSeedProviderText = fs.readFileSync(workspaceSeedProviderPath, 'utf8')
+  if (!workspaceSeedProviderText.includes("WORKSPACE_SOURCE_MIRROR_EXT_SET = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])")
+    || workspaceSeedProviderText.includes('MARKDOWN_MIRROR_EXT_SET')
+    || workspaceSeedProviderText.includes('isMarkdownMirrorFileName')) {
+    throw new Error('Expected D1 docs mirror materialization to include GLTF/GLB without stale Markdown-only filters')
   }
 
   const geospatialBridgePath = path.resolve(

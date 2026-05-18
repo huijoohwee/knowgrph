@@ -73,6 +73,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate()
   })
+  await execTest(results, 'canvas.xrMode.gltfIngestParseRenderPipeline', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeGltfIngestParseRenderPipelineUsesNeutralPayload()
+  })
   await execTest(results, 'canvas.viewSelection.voxelGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewSelectionBlocksVoxelDuringGeospatialMode()

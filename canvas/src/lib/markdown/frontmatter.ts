@@ -192,9 +192,7 @@ export function readCanvasWorkspaceFrontmatterPresetFromMeta(
   return coerceCanvasWorkspaceFrontmatterPreset(meta)
 }
 
-export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWorkspaceFrontmatterPreset | null {
-  const block = extractYamlFrontmatterHeaderBlock(rawText)
-  if (!block) return null
+export function parseCanvasWorkspaceFrontmatterPresetBlock(block: YamlFrontmatterHeaderBlock): CanvasWorkspaceFrontmatterPreset | null {
   const cacheKey = hashStringToHexCached('markdown-frontmatter:preset', block.rawBlock)
   if (frontmatterPresetCache.has(cacheKey)) {
     return frontmatterPresetCache.get(cacheKey) || null
@@ -234,6 +232,12 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
     if (typeof oldestKey === 'string') frontmatterPresetCache.delete(oldestKey)
   }
   return preset
+}
+
+export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWorkspaceFrontmatterPreset | null {
+  const block = extractYamlFrontmatterHeaderBlock(rawText)
+  if (!block) return null
+  return parseCanvasWorkspaceFrontmatterPresetBlock(block)
 }
 
 export type WebpageViewMode = 'markdown' | 'json' | 'html'

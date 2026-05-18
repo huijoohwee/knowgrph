@@ -23,7 +23,10 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES, WORKSPACE_IMPORT_DEFER_LOCAL_GLB_BYTES } from '@/lib/config'
 import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
+import { GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE, parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
+import { inspectGlbBytes } from '@/lib/assets/gltfFormat'
+import { resolveModelAssetExportBlob } from '@/lib/assets/modelAssetExport'
+import { buildGlbAssetMarkdown, buildGltfAssetMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
 import {
   KNOWGRPH_VIDEO_DEMO_BASENAME,
   KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
@@ -38,6 +41,56 @@ const createFile = (name: string, text: string) => {
 const createBinaryFile = (name: string, bytes: Uint8Array, type = 'application/octet-stream') => {
   const blob = new Blob([bytes], { type })
   return new File([blob], name, { type })
+}
+
+function createGlbBytes(args?: {
+  json?: Record<string, unknown>
+  bin?: Uint8Array
+  order?: 'json-bin' | 'bin-json'
+  jsonPaddingByte?: number
+  binPaddingByte?: number
+  unknownBetweenJsonAndBin?: boolean
+}): Uint8Array {
+  const json = JSON.stringify(args?.json || {
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [] }],
+    nodes: [],
+  })
+  const jsonRaw = new TextEncoder().encode(json)
+  const jsonLength = Math.ceil(jsonRaw.byteLength / 4) * 4
+  const binRaw = args?.bin || null
+  const binLength = binRaw ? Math.ceil(binRaw.byteLength / 4) * 4 : 0
+  const unknownLength = args?.unknownBetweenJsonAndBin ? 4 : 0
+  const totalLength = 12 + 8 + jsonLength + (unknownLength ? 8 + unknownLength : 0) + (binRaw ? 8 + binLength : 0)
+  const bytes = new Uint8Array(totalLength)
+  const view = new DataView(bytes.buffer)
+  view.setUint32(0, 0x46546c67, true)
+  view.setUint32(4, 2, true)
+  view.setUint32(8, totalLength, true)
+  const writeChunk = (offset: number, chunkType: number, payload: Uint8Array, paddedLength: number, paddingByte: number) => {
+    view.setUint32(offset, paddedLength, true)
+    view.setUint32(offset + 4, chunkType, true)
+    bytes.set(payload, offset + 8)
+    bytes.fill(paddingByte, offset + 8 + payload.byteLength, offset + 8 + paddedLength)
+    return offset + 8 + paddedLength
+  }
+  const jsonChunkType = 0x4e4f534a
+  const binChunkType = 0x004e4942
+  const unknownChunkType = 0x54534554
+  if (args?.order === 'bin-json' && binRaw) {
+    const next = writeChunk(12, binChunkType, binRaw, binLength, args?.binPaddingByte ?? 0x00)
+    writeChunk(next, jsonChunkType, jsonRaw, jsonLength, args?.jsonPaddingByte ?? 0x20)
+  } else {
+    let next = writeChunk(12, jsonChunkType, jsonRaw, jsonLength, args?.jsonPaddingByte ?? 0x20)
+    if (unknownLength) next = writeChunk(next, unknownChunkType, new Uint8Array([1, 2, 3, 4]), unknownLength, 0x00)
+    if (binRaw) writeChunk(next, binChunkType, binRaw, binLength, args?.binPaddingByte ?? 0x00)
+  }
+  return bytes
+}
+
+function createMinimalGlbBytes(): Uint8Array {
+  return createGlbBytes()
 }
 
 export async function testWorkspaceImportLocalFilesCreatesExpectedEntries() {
@@ -443,6 +496,141 @@ export function testWorkspaceExportMenuIncludesGlbAction() {
   const glb = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'glb')
   if (!glb) throw new Error('expected workspace export menu to include GLB')
   if (!glb.menuLabel.includes('.glb')) throw new Error(`expected GLB export menu label to name .glb, got ${glb.menuLabel}`)
+}
+
+export async function testWorkspaceModelAssetExportPreservesImportedGltfJson() {
+  const gltf = JSON.stringify({
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [] }],
+    nodes: [],
+    buffers: [{ byteLength: 4, uri: 'geometry.bin' }],
+    images: [{ uri: 'data:image/png;base64,AAAA' }],
+  })
+  const text = buildGltfAssetMarkdown({
+    name: 'spec-scene.gltf',
+    sourceKind: 'local',
+    text: gltf,
+  })
+  const asset = parseGlbAssetDocument(text)
+  if (!asset) throw new Error('expected GLTF import manifest to parse')
+  if (asset.validGltfAsset !== true || asset.gltfVersion !== '2.0') {
+    throw new Error('expected GLTF import manifest to record a valid glTF 2.x asset')
+  }
+  if (asset.externalResourceCount !== 1 || asset.embeddedResourceCount !== 1) {
+    throw new Error('expected GLTF import manifest to preserve external and embedded resource metadata')
+  }
+
+  const exported = await resolveModelAssetExportBlob({
+    text,
+    requestedFormat: 'gltf',
+    fallbackBaseName: 'fallback',
+  })
+  if (!exported) throw new Error('expected imported GLTF manifest to export as a raw .gltf blob')
+  if (exported.name !== 'spec-scene.gltf') throw new Error(`expected original .gltf export name, got ${exported.name}`)
+  if (exported.blob.type !== GLTF_ASSET_MIME_TYPE) throw new Error(`expected GLTF MIME type, got ${exported.blob.type}`)
+  const exportedText = await exported.blob.text()
+  if (exportedText !== gltf) throw new Error('expected .gltf export to preserve the imported JSON payload')
+  if (exportedText.includes('kgAssetType') || exportedText.includes('kgAssetFormat')) {
+    throw new Error('expected .gltf export to avoid writing workspace manifest metadata into the asset file')
+  }
+}
+
+export async function testWorkspaceModelAssetExportPreservesImportedGlbContainer() {
+  const glbBytes = createGlbBytes({
+    json: {
+      asset: { version: '2.0' },
+      scene: 0,
+      scenes: [{ nodes: [] }],
+      nodes: [],
+      buffers: [{ byteLength: 3 }],
+    },
+    bin: new Uint8Array([1, 2, 3]),
+  })
+  const glbBuffer = new ArrayBuffer(glbBytes.byteLength)
+  new Uint8Array(glbBuffer).set(glbBytes)
+  const text = buildGlbAssetMarkdown({
+    name: 'spec-scene.glb',
+    sourceKind: 'local',
+    buffer: glbBuffer,
+  })
+  const asset = parseGlbAssetDocument(text)
+  if (!asset) throw new Error('expected GLB import manifest to parse')
+  if (asset.validMagic !== true || asset.validContainer !== true || asset.validGltfAsset !== true) {
+    throw new Error('expected GLB import manifest to record a valid glTF 2.x binary container')
+  }
+
+  const exported = await resolveModelAssetExportBlob({
+    text,
+    requestedFormat: 'glb',
+    fallbackBaseName: 'fallback',
+  })
+  if (!exported) throw new Error('expected imported GLB manifest to export as a raw .glb blob')
+  if (exported.name !== 'spec-scene.glb') throw new Error(`expected original .glb export name, got ${exported.name}`)
+  if (exported.blob.type !== GLB_ASSET_MIME_TYPE) throw new Error(`expected GLB MIME type, got ${exported.blob.type}`)
+  const exportedBytes = new Uint8Array(await exported.blob.arrayBuffer())
+  if (exportedBytes.byteLength !== glbBytes.byteLength) {
+    throw new Error(`expected GLB export byte length ${glbBytes.byteLength}, got ${exportedBytes.byteLength}`)
+  }
+  for (let i = 0; i < glbBytes.byteLength; i += 1) {
+    if (exportedBytes[i] !== glbBytes[i]) throw new Error(`expected GLB export byte ${i} to be preserved`)
+  }
+  const inspection = inspectGlbBytes(exportedBytes)
+  if (!inspection.validContainer || inspection.assetVersion !== '2.0') {
+    throw new Error('expected exported GLB bytes to remain a valid glTF 2.x binary container')
+  }
+}
+
+export function testWorkspaceModelAssetGlbInspectionRejectsInvalidChunkOrderAndPadding() {
+  const wrongOrder = inspectGlbBytes(createGlbBytes({
+    json: {
+      asset: { version: '2.0' },
+      buffers: [{ byteLength: 3 }],
+    },
+    bin: new Uint8Array([1, 2, 3]),
+    order: 'bin-json',
+  }))
+  if (wrongOrder.validContainer || wrongOrder.validChunkOrder) {
+    throw new Error('expected GLB inspector to reject BIN-before-JSON chunk order')
+  }
+
+  const wrongJsonPaddingJson = {
+    asset: { version: '2.0' },
+    extras: { forcePadding: 'x' },
+  }
+  while (new TextEncoder().encode(JSON.stringify(wrongJsonPaddingJson)).byteLength % 4 === 0) {
+    wrongJsonPaddingJson.extras.forcePadding += 'x'
+  }
+  const wrongJsonPadding = inspectGlbBytes(createGlbBytes({
+    json: wrongJsonPaddingJson,
+    jsonPaddingByte: 0x00,
+  }))
+  if (wrongJsonPadding.validContainer || wrongJsonPadding.validJson) {
+    throw new Error('expected GLB inspector to reject JSON chunk padding that is not trailing Space chars')
+  }
+
+  const wrongBinReference = inspectGlbBytes(createGlbBytes({
+    json: {
+      asset: { version: '2.0' },
+      buffers: [{ byteLength: 3, uri: 'external.bin' }],
+    },
+    bin: new Uint8Array([1, 2, 3]),
+  }))
+  if (wrongBinReference.validContainer || wrongBinReference.validBinReference) {
+    throw new Error('expected GLB inspector to reject BIN chunk without a first uri-less JSON buffer')
+  }
+
+  const unknownBeforeBin = inspectGlbBytes(createGlbBytes({
+    json: {
+      asset: { version: '2.0' },
+      buffers: [{ byteLength: 3 }],
+    },
+    bin: new Uint8Array([1, 2, 3]),
+    unknownBetweenJsonAndBin: true,
+  }))
+  if (unknownBeforeBin.validContainer || unknownBeforeBin.validChunkOrder) {
+    throw new Error('expected GLB inspector to reject unknown chunks inserted before a BIN chunk')
+  }
 }
 
 export async function testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen() {

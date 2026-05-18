@@ -1,13 +1,13 @@
 import type { UiToastInput } from '@/hooks/store/types'
 import { downloadBlob, saveBlobWithPicker } from '@/lib/graph/save'
 import { writeKgcCompanionOutputBlob } from '@/features/chat/chatHistoryWorkspace.output'
-
-const GLB_MIME_TYPE = 'model/gltf-binary'
-const GLTF_MIME_TYPE = 'model/gltf+json'
+import { GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE } from '@/lib/assets/glbAssetDocument'
+import { normalizeCapturedModelAssetBlob, resolveModelAssetExportBlob } from '@/lib/assets/modelAssetExport'
 
 export async function exportCanvasGltf(args: {
   exportBaseName: string
   activeDocumentPath?: string | null
+  activeText?: string
   pushUiToast: (toast: UiToastInput) => void
   getStore: () => {
     captureThreeGltfSnapshot: () => Promise<Blob | null>
@@ -15,8 +15,12 @@ export async function exportCanvasGltf(args: {
 }): Promise<void> {
   try {
     const baseName = String(args.exportBaseName || '').trim() || 'document'
-    const suggested = `${baseName}.gltf`
-    const rawGltf = await args.getStore().captureThreeGltfSnapshot()
+    const activeAsset = await resolveModelAssetExportBlob({
+      text: args.activeText,
+      requestedFormat: 'gltf',
+      fallbackBaseName: baseName,
+    }).catch(() => null)
+    const rawGltf = activeAsset?.blob || await args.getStore().captureThreeGltfSnapshot()
     if (!rawGltf) {
       args.pushUiToast({
         id: 'export-gltf-missing-canvas',
@@ -26,13 +30,20 @@ export async function exportCanvasGltf(args: {
       return
     }
 
-    const gltfBlob = String(rawGltf.type || '').trim() === GLTF_MIME_TYPE
-      ? rawGltf
-      : new Blob([await rawGltf.text()], { type: GLTF_MIME_TYPE })
+    const gltfBlob = activeAsset?.blob || await normalizeCapturedModelAssetBlob({ blob: rawGltf, format: 'gltf' })
+    if (!gltfBlob) {
+      args.pushUiToast({
+        id: 'export-gltf-invalid',
+        kind: 'error',
+        message: 'GLTF export failed: invalid glTF JSON asset.',
+      })
+      return
+    }
+    const suggested = activeAsset?.name || `${baseName}.gltf`
     const saved = await saveBlobWithPicker(gltfBlob, suggested, {
       description: 'GLTF Files',
       accept: {
-        [GLTF_MIME_TYPE]: ['.gltf'],
+        [GLTF_ASSET_MIME_TYPE]: ['.gltf'],
         'application/json': ['.gltf'],
       },
     })
@@ -62,6 +73,7 @@ export async function exportCanvasGltf(args: {
 export async function exportCanvasGlb(args: {
   exportBaseName: string
   activeDocumentPath?: string | null
+  activeText?: string
   pushUiToast: (toast: UiToastInput) => void
   getStore: () => {
     captureThreeGlbSnapshot: () => Promise<Blob | null>
@@ -69,8 +81,12 @@ export async function exportCanvasGlb(args: {
 }): Promise<void> {
   try {
     const baseName = String(args.exportBaseName || '').trim() || 'document'
-    const suggested = `${baseName}.glb`
-    const rawGlb = await args.getStore().captureThreeGlbSnapshot()
+    const activeAsset = await resolveModelAssetExportBlob({
+      text: args.activeText,
+      requestedFormat: 'glb',
+      fallbackBaseName: baseName,
+    }).catch(() => null)
+    const rawGlb = activeAsset?.blob || await args.getStore().captureThreeGlbSnapshot()
     if (!rawGlb) {
       args.pushUiToast({
         id: 'export-glb-missing-canvas',
@@ -80,13 +96,20 @@ export async function exportCanvasGlb(args: {
       return
     }
 
-    const glbBlob = String(rawGlb.type || '').trim() === GLB_MIME_TYPE
-      ? rawGlb
-      : new Blob([await rawGlb.arrayBuffer()], { type: GLB_MIME_TYPE })
+    const glbBlob = activeAsset?.blob || await normalizeCapturedModelAssetBlob({ blob: rawGlb, format: 'glb' })
+    if (!glbBlob) {
+      args.pushUiToast({
+        id: 'export-glb-invalid',
+        kind: 'error',
+        message: 'GLB export failed: invalid binary glTF container.',
+      })
+      return
+    }
+    const suggested = activeAsset?.name || `${baseName}.glb`
     const saved = await saveBlobWithPicker(glbBlob, suggested, {
       description: 'GLB Files',
       accept: {
-        [GLB_MIME_TYPE]: ['.glb'],
+        [GLB_ASSET_MIME_TYPE]: ['.glb'],
         'application/octet-stream': ['.glb'],
       },
     })

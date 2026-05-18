@@ -40,7 +40,7 @@ const ensureNoUnknownArgs = () => {
 
 const printHelp = () => {
   console.log(`
-Seed huijoohwee/docs markdown into Cloudflare D1 through knowgrph storage Worker.
+Seed huijoohwee/docs Source Files into Cloudflare D1 through knowgrph storage Worker.
 
 Usage:
   node ./scripts/seed-storage-docs-to-cloudflare.mjs [options]
@@ -64,9 +64,11 @@ const workspaceId = normalizeString(getArgValue('--workspace-id')) || 'kgws:cano
 const deviceId = normalizeString(getArgValue('--device-id')) || 'seed:canonical-docs'
 const dryRun = hasFlag('--dry-run')
 
+const SUPPORTED_DOCS_FILE_EXTENSIONS = new Set(['.md', '.gltf', '.glb'])
+
 const contentHash = (text) => createHash('sha256').update(text).digest('hex')
 
-const walkMarkdownFiles = async (rootDir) => {
+const walkDocsSourceFiles = async (rootDir) => {
   const out = []
   const walk = async (dir) => {
     const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -77,7 +79,7 @@ const walkMarkdownFiles = async (rootDir) => {
         continue
       }
       if (!entry.isFile()) continue
-      if (!entry.name.toLowerCase().endsWith('.md')) continue
+      if (!SUPPORTED_DOCS_FILE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) continue
       out.push(absolute)
     }
   }
@@ -89,17 +91,33 @@ const walkMarkdownFiles = async (rootDir) => {
 const toPosixRel = (rootDir, filePath) =>
   path.relative(rootDir, filePath).split(path.sep).filter(Boolean).join('/')
 
+const readDocsSourceFileContent = async (filePath) => {
+  const ext = path.extname(filePath).toLowerCase()
+  if (ext === '.glb') {
+    const bytes = await fs.readFile(filePath)
+    return {
+      contentMd: bytes.toString('base64'),
+      contentHash: contentHash(bytes),
+      docType: 'glb',
+    }
+  }
+  const text = await fs.readFile(filePath, 'utf8')
+  return {
+    contentMd: String(text || ''),
+    contentHash: contentHash(String(text || '')),
+    docType: ext === '.gltf' ? 'gltf' : 'markdown',
+  }
+}
+
 const buildMutation = async (args) => {
   const stats = await fs.stat(args.filePath)
-  const text = await fs.readFile(args.filePath, 'utf8')
-  const normalizedText = String(text || '')
+  const fileContent = await readDocsSourceFileContent(args.filePath)
   const relPath = toPosixRel(args.docsRoot, args.filePath)
   const canonicalPath = `huijoohwee/docs/${relPath}`
-  const hash = contentHash(normalizedText)
   const revision = Math.max(1, Math.floor(stats.mtimeMs))
   const documentId = `docs:${contentHash(canonicalPath).slice(0, 24)}`
   const graphId = `docs-graph:${contentHash(canonicalPath).slice(0, 24)}`
-  const mutationId = `seed:${Date.now()}:${contentHash(`${canonicalPath}:${hash}`).slice(0, 12)}`
+  const mutationId = `seed:${Date.now()}:${contentHash(`${canonicalPath}:${fileContent.contentHash}`).slice(0, 12)}`
   return {
     mutationId,
     workspaceId: args.workspaceId,
@@ -112,12 +130,12 @@ const buildMutation = async (args) => {
       workspaceId: args.workspaceId,
       canonicalPath,
       title: path.basename(relPath),
-      docType: 'markdown',
+      docType: fileContent.docType,
       lang: null,
       graphId,
       sourceKind: 'markdown',
-      contentMd: normalizedText,
-      contentHash: hash,
+      contentMd: fileContent.contentMd,
+      contentHash: fileContent.contentHash,
       parserVersion: 'seed-storage-docs-to-cloudflare:v1',
       revision,
       updatedAtMs: Math.floor(stats.mtimeMs),
@@ -284,14 +302,14 @@ const run = async () => {
   if (!rootStats || !rootStats.isDirectory()) {
     throw new Error(`Docs root does not exist or is not a directory: ${docsRoot}`)
   }
-  const markdownFiles = await walkMarkdownFiles(docsRoot)
-  if (markdownFiles.length === 0) {
-    throw new Error(`No markdown files found under docs root: ${docsRoot}`)
+  const docsSourceFiles = await walkDocsSourceFiles(docsRoot)
+  if (docsSourceFiles.length === 0) {
+    throw new Error(`No supported source files found under docs root: ${docsRoot}`)
   }
   const mutations = []
-  for (let i = 0; i < markdownFiles.length; i += 1) {
+  for (let i = 0; i < docsSourceFiles.length; i += 1) {
     const mutation = await buildMutation({
-      filePath: markdownFiles[i],
+      filePath: docsSourceFiles[i],
       docsRoot,
       workspaceId,
     })
@@ -300,7 +318,7 @@ const run = async () => {
   console.log(`[knowgrph] docs-root=${docsRoot}`)
   console.log(`[knowgrph] workspace-id=${workspaceId}`)
   console.log(`[knowgrph] base-url=${baseUrl}`)
-  console.log(`[knowgrph] markdown-files=${markdownFiles.length}`)
+  console.log(`[knowgrph] source-files=${docsSourceFiles.length}`)
   if (dryRun) {
     console.log('[knowgrph] dry-run enabled; no remote push executed')
     console.log('[knowgrph] sample canonical paths:')

@@ -3,8 +3,6 @@ import { flushSync } from 'react-dom'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
 import {
@@ -13,7 +11,7 @@ import {
 } from './markdownWorkspaceRuntime.stateSync'
 import type { FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import { applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
-import { shouldPrimeStrictFlowEditorModeForWorkspaceText } from './workspaceSwitchPreset'
+import { applyCanvasWorkspacePresetForSwitch } from './workspaceSwitchPreset'
 import { buildWorkspaceEntriesIndex, getWorkspaceFileEntry, hasWorkspaceFileEntry } from './workspaceEntriesIndex'
 
 export function useMarkdownWorkspaceViewShell(args: {
@@ -80,17 +78,7 @@ export function useMarkdownWorkspaceViewShell(args: {
       const normalized = normalizeWorkspacePath(path)
       const entry = getWorkspaceFileEntry(entriesIndex, normalized)
       const entryText = entry && typeof entry.text === 'string' ? entry.text : ''
-      if (shouldPrimeStrictFlowEditorModeForWorkspaceText(entryText)) {
-        flushSync(() => {
-          const state = useGraphStore.getState()
-          if (state.documentStructureBaselineLock === true) state.setDocumentStructureBaselineLock(false)
-          state.setCanvasRenderMode('2d')
-          state.setCanvas2dRenderer('flowEditor')
-          state.setDocumentSemanticMode('document')
-          state.setFrontmatterModeEnabled(true)
-        })
-        void setGeospatialModeEnabled(false).catch(() => void 0)
-      }
+      if (entryText) flushSync(() => applyCanvasWorkspacePresetForSwitch({ text: entryText }))
       React.startTransition(() => {
         setSelectionSource('editor')
         setActivePathSafe(normalized)

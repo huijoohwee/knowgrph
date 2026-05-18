@@ -44,6 +44,16 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
   const frontmatterOnlyDoc = args?.frontmatterOnlyDoc === true
   const rawText = String(args?.rawText || '')
 
+  try {
+    const schema = store.schema
+    const layout = schema?.layout
+    if (layout?.mode !== 'block') {
+      store.setSchema({ ...schema, layout: { ...(layout || {}), mode: 'block' } })
+    }
+  } catch {
+    void 0
+  }
+
   if (graphData) {
     try {
       const presetApplied = applyFrontmatterFlowImportModes(graphData)
@@ -87,15 +97,6 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
     }
   }
 
-  try {
-    const schema = store.schema
-    const layout = schema?.layout
-    if (layout?.mode !== 'block') {
-      store.setSchema({ ...schema, layout: { ...(layout || {}), mode: 'block' } })
-    }
-  } catch {
-    void 0
-  }
 }
 
 export async function applyWorkspaceImportToCanvas(args: {

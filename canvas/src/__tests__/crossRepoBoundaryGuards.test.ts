@@ -313,6 +313,48 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
   }
 }
 
+export function testForbidHardcodedRuntimeValidationInputInRepo() {
+  const runtimeInputPath = String(process.env.KG_TEST_VALIDATION_FORBID_HARDCODE_IN_REPO || '').trim()
+  if (!runtimeInputPath) return
+
+  const normalizedInputPath = runtimeInputPath.replace(/\\/g, '/')
+  const pathParts = normalizedInputPath.split('/').filter(Boolean)
+  const basename = pathParts[pathParts.length - 1] || ''
+  const pathTail = pathParts.slice(-3).join('/')
+  const forbiddenNeedles = Array.from(new Set([normalizedInputPath, pathTail, basename].filter(v => v.length >= 4)))
+  if (!forbiddenNeedles.length) return
+
+  const ignoreDirNames = new Set([
+    'node_modules',
+    'dist',
+    'build',
+    'coverage',
+    '.git',
+    '.trae',
+    'data',
+  ])
+  const files = listFilesRecursively(KNOWGRPH_ROOT, { ignoreDirNames })
+    .filter(f => /\.(ts|tsx|js|jsx|json|md|mjs|cjs|py|yml|yaml|toml|gltf)$/.test(f))
+
+  const violations: Array<{ file: string; needle: string }> = []
+  for (const file of files) {
+    const st = statSync(file)
+    if (!st.isFile()) continue
+    const text = readFileSync(file, 'utf8').replace(/\\/g, '/')
+    for (const needle of forbiddenNeedles) {
+      if (text.includes(needle)) {
+        violations.push({ file, needle })
+        break
+      }
+    }
+  }
+
+  if (violations.length) {
+    const msg = violations.map(v => `${v.file} contains ${JSON.stringify(v.needle)}`).join('\n')
+    throw new Error(`Runtime validation inputs must stay external and must not be hardcoded in the repo under test:\n${msg}`)
+  }
+}
+
 export function testCanvasViewportMountsOnlyActiveRendererSurface() {
   const viewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const canvasPagePath = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')

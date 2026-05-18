@@ -14,6 +14,14 @@ export function readGeospatialOverlayEnabledPreference(): boolean {
   }
 }
 
+export function readGeospatialOverlayEnabledPreferenceRaw(): string {
+  try {
+    return String(getLocalStorage()?.getItem(LS_KEYS.geospatialOverlayEnabled) || '').trim()
+  } catch {
+    return ''
+  }
+}
+
 export function writeGeospatialOverlayEnabledPreference(enabled: boolean): void {
   try {
     lsSetBool(LS_KEYS.geospatialOverlayEnabled, enabled === true)

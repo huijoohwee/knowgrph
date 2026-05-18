@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Canvas3dModeId } from '@/lib/config'
 import type { GlbAssetDocument } from '@/lib/assets/glbAssetDocument'
-import { readPendingGlbAssetPayload } from '@/lib/assets/glbAssetRuntime'
+import { loadModelAssetRenderPayload } from '@/lib/assets/modelAssetPayload'
 
 type GlbFit = {
   position: [number, number, number]
@@ -27,46 +27,18 @@ type StageTrafficParticle = {
   color: string
 }
 
+type StageHorizonTile = {
+  key: string
+  angle: number
+  radius: number
+  height: number
+  color: string
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
   if (value > max) return max
   return value
-}
-
-function decodeBase64DataUrl(dataUrl: string): Uint8Array | null {
-  const comma = dataUrl.indexOf(',')
-  if (comma < 0) return null
-  const encoded = dataUrl.slice(comma + 1)
-  if (!encoded) return null
-  const binary = atob(encoded)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes
-}
-
-function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const out = new ArrayBuffer(bytes.byteLength)
-  new Uint8Array(out).set(bytes)
-  return out
-}
-
-function deriveGltfBasePath(sourceUrl: string | undefined): string {
-  const raw = String(sourceUrl || '').trim()
-  if (!raw) return ''
-  try {
-    const u = new URL(raw, window.location.href)
-    u.hash = ''
-    u.search = ''
-    const pathname = String(u.pathname || '')
-    u.pathname = pathname.includes('/') ? pathname.slice(0, pathname.lastIndexOf('/') + 1) : '/'
-    return u.toString()
-  } catch {
-    const normalized = raw.replace(/\\/g, '/')
-    const slash = normalized.lastIndexOf('/')
-    return slash >= 0 ? normalized.slice(0, slash + 1) : ''
-  }
 }
 
 function disposeObject3d(object: THREE.Object3D): void {
@@ -128,17 +100,17 @@ function computeGlbFit(object: THREE.Object3D | null): GlbFit {
 
 function buildStageBlocks(fit: GlbFit): StageBlock[] {
   const span = fit.stageSpan
-  const cell = span / 8
+  const cell = span / 10
   const floorY = fit.floorY
-  const colors = ['#0f766e', '#2563eb', '#9333ea', '#f97316', '#0891b2', '#7c3aed']
+  const colors = ['#0f766e', '#1d4ed8', '#7e22ce', '#ea580c', '#0891b2', '#6d28d9']
   const blocks: StageBlock[] = []
-  for (let gx = -3; gx <= 3; gx += 1) {
-    for (let gz = -3; gz <= 3; gz += 1) {
-      if (gx === 0 || gz === 0) continue
-      const seed = Math.abs(gx * 17 + gz * 31)
-      const width = cell * (0.72 + (seed % 3) * 0.12)
-      const depth = cell * (0.66 + (seed % 4) * 0.09)
-      const height = cell * (0.22 + (seed % 5) * 0.12)
+  for (let gx = -5; gx <= 5; gx += 1) {
+    for (let gz = -5; gz <= 5; gz += 1) {
+      if (gx === 0 || gz === 0 || gx % 3 === 0 || gz % 3 === 0) continue
+      const seed = Math.abs(gx * 19 + gz * 37)
+      const width = cell * (0.58 + (seed % 3) * 0.11)
+      const depth = cell * (0.56 + (seed % 4) * 0.08)
+      const height = cell * (0.28 + (seed % 8) * 0.09)
       blocks.push({
         key: `${gx}:${gz}`,
         position: [gx * cell, floorY + height * 0.5, gz * cell],
@@ -150,10 +122,25 @@ function buildStageBlocks(fit: GlbFit): StageBlock[] {
   return blocks
 }
 
+function buildStageHorizonTiles(fit: GlbFit): StageHorizonTile[] {
+  const colors = ['#60a5fa', '#38bdf8', '#a78bfa', '#f59e0b']
+  const tiles: StageHorizonTile[] = []
+  for (let i = 0; i < 24; i += 1) {
+    tiles.push({
+      key: `horizon:${i}`,
+      angle: (i / 24) * Math.PI * 2,
+      radius: fit.stageSpan * (0.55 + (i % 3) * 0.018),
+      height: fit.stageSpan * (0.018 + (i % 5) * 0.004),
+      color: colors[i % colors.length] || '#60a5fa',
+    })
+  }
+  return tiles
+}
+
 function buildStageTrafficParticles(): StageTrafficParticle[] {
   const colors = ['#22c55e', '#38bdf8', '#f59e0b', '#f472b6']
   const particles: StageTrafficParticle[] = []
-  for (let i = 0; i < 16; i += 1) {
+  for (let i = 0; i < 24; i += 1) {
     particles.push({
       key: `traffic:${i}`,
       axis: i % 2 === 0 ? 'x' : 'z',
@@ -208,28 +195,82 @@ function ModelAssetXrTraffic({ fit, visible }: { fit: GlbFit; visible: boolean }
   )
 }
 
+function ModelAssetXrStreamingRing({ fit, visible }: { fit: GlbFit; visible: boolean }) {
+  const meshRefs = React.useRef<Record<string, THREE.Mesh | null>>({})
+  const tiles = React.useMemo(() => buildStageHorizonTiles(fit), [fit])
+  useFrame(({ clock }) => {
+    if (!visible) return
+    const t = clock.getElapsedTime()
+    for (const tile of tiles) {
+      const mesh = meshRefs.current[tile.key]
+      if (!mesh) continue
+      const pulse = 1 + Math.sin(t * 0.9 + tile.angle * 3) * 0.18
+      mesh.scale.y = pulse
+      const material = mesh.material as THREE.Material | undefined
+      if (material) material.opacity = 0.18 + (pulse - 0.82) * 0.18
+    }
+  })
+  if (!visible) return null
+  return (
+    <group name="kg_model_xr_streaming_ring">
+      {tiles.map(tile => (
+        <mesh
+          key={tile.key}
+          ref={el => {
+            meshRefs.current[tile.key] = el
+          }}
+          name={`kg_model_xr_horizon_tile_${tile.key.replace(':', '_')}`}
+          position={[Math.cos(tile.angle) * tile.radius, fit.floorY + tile.height * 0.5, Math.sin(tile.angle) * tile.radius]}
+          rotation={[0, -tile.angle, 0]}
+        >
+          <boxGeometry args={[fit.stageSpan * 0.012, tile.height, fit.stageSpan * 0.045]} />
+          <meshStandardMaterial color={tile.color} emissive={tile.color} emissiveIntensity={0.16} transparent opacity={0.2} roughness={0.58} metalness={0.08} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 function ModelAssetXrStage({ fit, visible }: { fit: GlbFit; visible: boolean }) {
   if (!visible) return null
   const markerOffset = fit.stageSpan * 0.28
-  const roadWidth = fit.stageSpan * 0.08
+  const roadWidth = fit.stageSpan * 0.045
   const stageBlocks = buildStageBlocks(fit)
+  const avenueOffsets = [-0.36, -0.18, 0, 0.18, 0.36].map(v => v * fit.stageSpan)
+  const laneOffsets = [-0.018, 0.018].map(v => v * fit.stageSpan)
   return (
     <group name="kg_model_xr_stage">
       <gridHelper
-        args={[fit.stageSpan, 24, '#5b8cff', '#334155']}
+        args={[fit.stageSpan, 36, '#60a5fa', '#1e293b']}
         position={[0, fit.floorY - 0.02, 0]}
         material-transparent={true}
-        material-opacity={0.28}
+        material-opacity={0.2}
       />
       <group name="kg_model_xr_city_grid">
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.005, 0]} receiveShadow>
-          <planeGeometry args={[fit.stageSpan, roadWidth]} />
-          <meshStandardMaterial color="#0f172a" transparent opacity={0.42} roughness={0.88} metalness={0.04} />
-        </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[0, fit.floorY + 0.006, 0]} receiveShadow>
-          <planeGeometry args={[fit.stageSpan, roadWidth]} />
-          <meshStandardMaterial color="#172554" transparent opacity={0.32} roughness={0.88} metalness={0.04} />
-        </mesh>
+        {avenueOffsets.map((offset, index) => (
+          <React.Fragment key={`avenue-${index}`}>
+            <mesh name={`kg_model_xr_avenue_x_${index}`} rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.005, offset]} receiveShadow>
+              <planeGeometry args={[fit.stageSpan, roadWidth]} />
+              <meshStandardMaterial color="#0f172a" transparent opacity={0.48} roughness={0.88} metalness={0.04} />
+            </mesh>
+            <mesh name={`kg_model_xr_avenue_z_${index}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[offset, fit.floorY + 0.006, 0]} receiveShadow>
+              <planeGeometry args={[fit.stageSpan, roadWidth]} />
+              <meshStandardMaterial color="#172554" transparent opacity={0.36} roughness={0.88} metalness={0.04} />
+            </mesh>
+          </React.Fragment>
+        ))}
+        {laneOffsets.map((offset, index) => (
+          <React.Fragment key={`lane-${index}`}>
+            <mesh name={`kg_model_xr_lane_marker_x_${index}`} rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.032, offset]}>
+              <planeGeometry args={[fit.stageSpan * 0.96, fit.stageSpan * 0.0028]} />
+              <meshStandardMaterial color="#f8fafc" emissive="#f59e0b" emissiveIntensity={0.18} transparent opacity={0.36} roughness={0.44} metalness={0.04} />
+            </mesh>
+            <mesh name={`kg_model_xr_lane_marker_z_${index}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[offset, fit.floorY + 0.034, 0]}>
+              <planeGeometry args={[fit.stageSpan * 0.96, fit.stageSpan * 0.0028]} />
+              <meshStandardMaterial color="#f8fafc" emissive="#38bdf8" emissiveIntensity={0.18} transparent opacity={0.32} roughness={0.44} metalness={0.04} />
+            </mesh>
+          </React.Fragment>
+        ))}
         {stageBlocks.map(block => (
           <mesh key={block.key} name={`kg_model_xr_city_block_${block.key}`} position={block.position}>
             <boxGeometry args={block.size} />
@@ -246,9 +287,14 @@ function ModelAssetXrStage({ fit, visible }: { fit: GlbFit; visible: boolean }) 
         ))}
       </group>
       <ModelAssetXrTraffic fit={fit} visible={visible} />
+      <ModelAssetXrStreamingRing fit={fit} visible={visible} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY - 0.04, 0]} receiveShadow>
         <planeGeometry args={[fit.stageSpan, fit.stageSpan]} />
         <meshStandardMaterial color="#111827" transparent opacity={0.08} roughness={0.95} metalness={0.02} />
+      </mesh>
+      <mesh name="kg_model_xr_focus_target" position={[0, fit.floorY + fit.stageSpan * 0.045, 0]}>
+        <dodecahedronGeometry args={[fit.stageSpan * 0.025, 0]} />
+        <meshStandardMaterial color="#e0f2fe" emissive="#38bdf8" emissiveIntensity={0.34} transparent opacity={0.78} roughness={0.42} metalness={0.08} />
       </mesh>
       <mesh name="kg_model_xr_orientation_ring" rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.02, 0]}>
         <torusGeometry args={[fit.stageSpan * 0.18, fit.stageSpan * 0.0028, 8, 96]} />
@@ -297,27 +343,12 @@ export function GlbAssetModel({
 
     const load = async () => {
       try {
-        if (asset.format === 'glb' && asset.validMagic === false) throw new Error('Invalid GLB magic')
-        if (asset.format === 'gltf' && asset.validJson === false) throw new Error('Invalid GLTF JSON')
-        const resolved = asset.dataUrl
-          ? { dataUrl: asset.dataUrl, validMagic: asset.validMagic, validJson: asset.validJson }
-          : asset.pendingLocalImportPath
-            ? await readPendingGlbAssetPayload(asset.pendingLocalImportPath)
-            : null
-        if (!resolved) throw new Error('Missing model asset data')
-        if (asset.format === 'glb' && resolved.validMagic === false) throw new Error('Invalid GLB magic')
-        if (asset.format === 'gltf' && resolved.validJson === false) throw new Error('Invalid GLTF JSON')
-        const bytes = decodeBase64DataUrl(resolved.dataUrl)
-        if (!bytes) throw new Error('Invalid model data URL')
-        const loaderInput = asset.format === 'gltf'
-          ? new TextDecoder().decode(bytes)
-          : bytesToArrayBuffer(bytes)
-        const basePath = asset.format === 'gltf' ? deriveGltfBasePath(asset.sourceUrl) : ''
+        const payload = await loadModelAssetRenderPayload(asset)
         const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
         const loader = new GLTFLoader()
         loader.parse(
-          loaderInput,
-          basePath,
+          payload.loaderInput,
+          payload.basePath,
           gltf => {
             const scene = gltf.scene || gltf.scenes?.[0] || null
             if (!scene) {

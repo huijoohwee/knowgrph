@@ -21,6 +21,13 @@ export function htmlFallbackToMarkdownAllText(html: string): string {
     return s
   }
 
+  const readAttr = (tag: string, name: string): string => {
+    const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const attrPattern = "\\b" + n + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'=<>`]+))"
+    const m = String(tag || '').match(new RegExp(attrPattern, 'i'))
+    return decodeHtmlEntitiesBasic(String(m?.[1] || m?.[2] || m?.[3] || '')).trim()
+  }
+
   const src = normalizeBrokenHeadingTags(String(html || '').replace(/\r/g, ''))
   const stripTags = (s: string) => decodeHtmlEntitiesBasic(String(s || '').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
 
@@ -29,7 +36,20 @@ export function htmlFallbackToMarkdownAllText(html: string): string {
   out = out.replace(/<script\b[\s\S]*?<\/script>/gi, '')
   out = out.replace(/<style\b[\s\S]*?<\/style>/gi, '')
   out = out.replace(/<!--[\s\S]*?-->/g, '')
+  out = out.replace(/<img\b[^>]*>/gi, tag => {
+    const srcAttr = readAttr(String(tag || ''), 'src') || readAttr(String(tag || ''), 'data-src')
+    if (!srcAttr) return ''
+    const alt = stripTags(readAttr(String(tag || ''), 'alt') || readAttr(String(tag || ''), 'title'))
+    return `\n![${alt}](${srcAttr})\n`
+  })
+  out = out.replace(/<a\b[^>]*\bhref\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)[^>]*>([\s\S]*?)<\/a\s*>/gi, (match, inner) => {
+    const href = readAttr(String(match || ''), 'href')
+    const label = stripTags(String(inner || '')) || href
+    if (!href) return label
+    return `[${label}](${href})`
+  })
   out = out.replace(/<br\s*\/?>/gi, '\n')
+  out = out.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_, inner) => `\n- ${stripTags(String(inner || ''))}\n`)
   out = out.replace(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi, (_, inner) => `\n# ${stripTags(String(inner || ''))}\n`)
   out = out.replace(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi, (_, inner) => `\n## ${stripTags(String(inner || ''))}\n`)
   out = out.replace(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi, (_, inner) => `\n### ${stripTags(String(inner || ''))}\n`)

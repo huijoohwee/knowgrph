@@ -262,7 +262,14 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
 
 export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
   const { dom, restore } = initJsdomHarness()
+  const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
+  const state = useGraphStore.getState()
+  const prevMode = state.richMediaPanelMode
   try {
+    state.setRichMediaPanelMode('snapshot')
+    ;(globalThis as unknown as { fetch?: unknown }).fetch = (async (input: unknown) => {
+      throw new Error(`expected HTML editor workspace to mount direct proxy iframe without prefetching ${String(input || '')}`)
+    }) as unknown
     const doc = dom.window.document
     const container = doc.createElement('div')
     doc.body.appendChild(container)
@@ -318,42 +325,30 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
       })
     for (let i = 0; i < 5; i += 1) await tick()
 
-    const textarea = doc.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
-    if (!textarea) throw new Error('expected editor textarea')
-    if (textarea.readOnly) throw new Error('expected HTML view editor to remain editable')
-    if (textarea.value !== text) throw new Error('expected HTML view editor to render Markdown SSOT text')
+    await waitUntil(() => Boolean(doc.querySelector('section[aria-label="Webpage Viewer"] iframe')), 2400)
+    const iframe = doc.querySelector('section[aria-label="Webpage Viewer"] iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected HTML view to render webpage iframe inside editor workspace')
+    const src = String(iframe.getAttribute('src') || '')
+    if (!src.startsWith('/__webpage_proxy?url=')) {
+      throw new Error(`expected HTML editor workspace iframe to use webpage proxy, got ${src}`)
+    }
+    if (doc.querySelector('[data-kg-webpage-snapshot="1"]')) {
+      throw new Error('expected HTML editor workspace to render source HTML, not a snapshot placeholder')
+    }
+    const viewerPane = doc.querySelector('section[aria-label="Viewer"] section[aria-label="Webpage Viewer"]')
+    if (!viewerPane) throw new Error('expected editor layout to keep the selected HTML viewer pane mounted')
 
     root.unmount()
   } finally {
+    state.setRichMediaPanelMode(prevMode)
+    ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
     restore()
   }
 }
 
 export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
   resetWorkspaceUrlContentCacheForTests()
-  const imported = await fetchWorkspaceUrlContent(BYTEPLUS_TEST_URL, { mode: 'import' })
-  if (imported.normalizedUrl !== BYTEPLUS_TEST_URL) {
-    throw new Error('expected normalizedUrl to equal input URL for Import URL pipeline')
-  }
-  if (!imported.name || !imported.name.endsWith('.md')) {
-    throw new Error('expected Import URL pipeline to derive a .md file name')
-  }
-  const frontmatterPrefix = imported.text.split('\n').slice(0, 12).join('\n')
-  if (!frontmatterPrefix.includes(`kgWebpageUrl: "${BYTEPLUS_TEST_URL}"`)) {
-    throw new Error('expected frontmatter to include kgWebpageUrl with BytePlus URL')
-  }
-  if (!frontmatterPrefix.includes('kgWebpageView: "html"')) {
-    throw new Error('expected frontmatter to set kgWebpageView: "html"')
-  }
-  if (frontmatterPrefix.includes('kgWebpageScriptPolicy:')) {
-    throw new Error('expected Import URL stub to keep Script: Auto (omit kgWebpageScriptPolicy)')
-  }
-  if (frontmatterPrefix.includes('kgWebpageIncludeImages:')) {
-    throw new Error('expected Import URL stub to omit explicit kgWebpageIncludeImages and auto-route image inclusion')
-  }
-  if (frontmatterPrefix.includes('kgWebpageFidelityLevel:')) {
-    throw new Error('expected Import URL stub to keep Fid: Auto (omit kgWebpageFidelityLevel)')
-  }
+  const importUrl = `${BYTEPLUS_TEST_URL}?import-e2e=1`
   const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
   const htmlBody =
     `<!doctype html><html><head><base href="${WEBPAGE_TEST_URL}"></head><body><h1>BytePlus ECS Python SDK</h1><p>Section 1</p><p>Section 2</p></body></html>`
@@ -364,6 +359,9 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
       const method = (typeof methodRaw === 'string' ? methodRaw : 'GET').toUpperCase()
 
       const url = input instanceof URL ? input.toString() : typeof input === 'string' ? input : ''
+      if (url.includes('/__fetch_remote')) {
+        throw new Error(`expected webpage import to avoid __fetch_remote, got ${url}`)
+      }
       if (url.includes('/__webpage_proxy') && method === 'HEAD') {
         const res = {
           ok: true,
@@ -386,14 +384,47 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
       return res as unknown as Response
     }) as unknown
 
-    const refreshed = await fetchWorkspaceUrlContent(BYTEPLUS_TEST_URL, { mode: 'refresh' })
-    if (refreshed.normalizedUrl !== BYTEPLUS_TEST_URL) {
+    const imported = await fetchWorkspaceUrlContent(importUrl, { mode: 'import' })
+    if (imported.normalizedUrl !== importUrl) {
+      throw new Error('expected normalizedUrl to equal input URL for Import URL pipeline')
+    }
+    if (!imported.name || !imported.name.endsWith('.md')) {
+      throw new Error('expected Import URL pipeline to derive a .md file name')
+    }
+    const frontmatterPrefix = imported.text.split('\n').slice(0, 12).join('\n')
+    if (!frontmatterPrefix.includes(`kgWebpageUrl: "${importUrl}"`)) {
+      throw new Error('expected frontmatter to include kgWebpageUrl with BytePlus URL')
+    }
+    if (!frontmatterPrefix.includes('kgWebpageView: "html"')) {
+      throw new Error('expected frontmatter to set kgWebpageView: "html"')
+    }
+    if (frontmatterPrefix.includes('kgWebpageScriptPolicy:')) {
+      throw new Error('expected Import URL to keep Script: Auto (omit kgWebpageScriptPolicy)')
+    }
+    if (frontmatterPrefix.includes('kgWebpageIncludeImages:')) {
+      throw new Error('expected Import URL to omit explicit kgWebpageIncludeImages and auto-route image inclusion')
+    }
+    if (frontmatterPrefix.includes('kgWebpageFidelityLevel:')) {
+      throw new Error('expected Import URL to keep Fid: Auto (omit kgWebpageFidelityLevel)')
+    }
+    if (imported.text.includes('Fetching content in background')) {
+      throw new Error('expected Import URL to write parsed content without a background placeholder')
+    }
+    if (isFrontmatterOnlyDoc(imported.text)) {
+      throw new Error('expected Import URL to have non-empty body, not frontmatter-only')
+    }
+    if (!imported.text.includes('ECS Python SDK')) {
+      throw new Error('expected Import URL body to include heading derived from HTML')
+    }
+
+    const refreshed = await fetchWorkspaceUrlContent(importUrl, { mode: 'refresh' })
+    if (refreshed.normalizedUrl !== importUrl) {
       throw new Error('expected normalizedUrl to equal input URL for refresh mode')
     }
     if (!refreshed.name || !refreshed.name.endsWith('.md')) {
       throw new Error('expected refresh mode to derive a .md file name')
     }
-    if (!refreshed.text.includes(`kgWebpageUrl: "${BYTEPLUS_TEST_URL}"`)) {
+    if (!refreshed.text.includes(`kgWebpageUrl: "${importUrl}"`)) {
       throw new Error('expected refresh markdown to include kgWebpageUrl with BytePlus URL')
     }
     if (!refreshed.text.includes('kgWebpageView: "html"')) {
@@ -402,7 +433,7 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
     if (isFrontmatterOnlyDoc(refreshed.text)) {
       throw new Error('expected refresh markdown to have non-empty body, not frontmatter-only')
     }
-    if (!refreshed.text.includes('BytePlus ECS Python SDK')) {
+    if (!refreshed.text.includes('ECS Python SDK')) {
       throw new Error('expected refresh markdown to include heading derived from HTML')
     }
     if (!refreshed.text.includes('Section 1') || !refreshed.text.includes('Section 2')) {

@@ -521,9 +521,9 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modUrlImportApiNativeJsonLd()
     await mod.testUrlImportApiNativeJsonLdPrefersApiNativeForMudah()
   })
-  await execTest(results, 'markdown.urlImport.apiNative.jsonLd.importModeDoesNotFetch', async () => {
+  await execTest(results, 'markdown.urlImport.apiNative.jsonLd.importModeWebpageProxy', async () => {
     const mod = await modUrlImportApiNativeJsonLd()
-    await mod.testUrlImportApiNativeJsonLdImportModeDoesNotBlockOnHtmlFetch()
+    await mod.testUrlImportApiNativeJsonLdImportModeUsesSharedWebpageProxy()
   })
   await execTest(results, 'markdown.urlImport.refresh.markdown.parsesMudahText', async () => {
     const mod = await modUrlImportApiNativeJsonLd()
@@ -537,13 +537,13 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modHtmlFallbackStripSvgAndFlex()
     await mod.testHtmlFallbackStripsInlineSvgAndKeepsHeadingText()
   })
-  await execTest(results, 'markdown.urlImport.stub.authWall.xHome', async () => {
+  await execTest(results, 'markdown.urlImport.authWall.xHome.noHydrationStub', async () => {
     const mod = await modUrlImportAuthWallStub()
-    await mod.testUrlImportAuthWallStubSkipsHydrationForXHome()
+    await mod.testUrlImportAuthWallImportAvoidsHydrationStubForXHome()
   })
-  await execTest(results, 'markdown.urlImport.stub.authWall.linkedinFeed', async () => {
+  await execTest(results, 'markdown.urlImport.authWall.linkedinFeed.noHydrationStub', async () => {
     const mod = await modUrlImportAuthWallStub()
-    await mod.testUrlImportAuthWallStubSkipsHydrationForLinkedInFeed()
+    await mod.testUrlImportAuthWallImportAvoidsHydrationStubForLinkedInFeed()
   })
   await execTest(results, 'markdown.webpagePostprocess.remotionPricingBlobAscii', async () => {
     const mod = await modWebpageMarkdownPostprocessRemotionPricing()

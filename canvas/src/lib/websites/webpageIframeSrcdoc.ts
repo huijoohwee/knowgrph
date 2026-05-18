@@ -246,7 +246,8 @@ export async function fetchWebpageHtmlViaProxy(args: {
     key,
     async (signal) => {
       const fetchFn = typeof args.fetchImpl === 'function' ? args.fetchImpl : fetch
-      const res = await fetchFn(`/__fetch_remote?url=${encodeURIComponent(u)}`, { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
+      const qs = new URLSearchParams({ url: u, kg_script_policy: 'strip' })
+      const res = await fetchFn(`/__webpage_proxy?${qs.toString()}`, { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await fetchBoundedText(res, 5_000_000, args.onProgress)
     },

@@ -72,22 +72,47 @@ export async function testUrlImportApiNativeJsonLdPrefersApiNativeForMudah() {
   }
 }
 
-export async function testUrlImportApiNativeJsonLdImportModeDoesNotBlockOnHtmlFetch() {
+export async function testUrlImportApiNativeJsonLdImportModeUsesSharedWebpageProxy() {
+  const html = [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<title>Mudah.my</title>',
+    '</head>',
+    '<body>',
+    '<main><h1>Welcome to Mudah.my</h1><p>Import mode parses content during the first URL ingestion pass.</p></main>',
+    '</body>',
+    '</html>',
+  ].join('')
+
   const g = globalThis as unknown as { fetch?: unknown }
   const prevFetch = g.fetch
+  const calls: string[] = []
   try {
-    g.fetch = (async () => {
-      throw new Error('fetch should not be called in import mode')
+    g.fetch = (async (input: unknown) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : ''
+      calls.push(url)
+      if (url.startsWith('/__fetch_remote?url=')) throw new Error('expected import mode to avoid legacy remote fetch route')
+      return {
+        ok: url.startsWith('/__webpage_proxy?'),
+        status: url.startsWith('/__webpage_proxy?') ? 200 : 404,
+        headers: { get: () => null },
+        text: async () => (url.startsWith('/__webpage_proxy?') ? html : 'not found'),
+      } as unknown as Response
     }) as unknown
     const res = await fetchWorkspaceUrlContent('https://www.mudah.my/', { mode: 'import', viewHint: 'markdown' })
     if (!res || typeof res.text !== 'string') throw new Error('missing content')
-    if (!res.text.includes('kgWebpageUrl: "https://www.mudah.my/"')) throw new Error('expected stub frontmatter')
+    if (!res.text.includes('kgWebpageUrl: "https://www.mudah.my/"')) throw new Error('expected frontmatter')
+    if (res.text.includes('Fetching content in background')) throw new Error('expected no background hydration placeholder')
+    if (!res.text.includes('Import mode parses content during the first URL ingestion pass')) throw new Error('expected imported content')
+    if (!calls.some(url => url.startsWith('/__webpage_proxy?'))) throw new Error('expected webpage proxy fetch')
   } finally {
     g.fetch = prevFetch
   }
 }
 
 export async function testUrlImportRefreshMarkdownParsesMudahTextFromHtml() {
+  const sourceUrl = 'https://www.mudah.my/refresh-markdown'
   const html = [
     '<!doctype html>',
     '<html>',
@@ -109,7 +134,7 @@ export async function testUrlImportRefreshMarkdownParsesMudahTextFromHtml() {
   try {
     g.fetch = (async (input: unknown) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : ''
-      if (url.startsWith('/__fetch_remote?url=')) {
+      if (url.startsWith('/__webpage_proxy?')) {
         return {
           ok: true,
           status: 200,
@@ -125,7 +150,7 @@ export async function testUrlImportRefreshMarkdownParsesMudahTextFromHtml() {
       } as unknown as Response
     }) as unknown
 
-    const res = await fetchWorkspaceUrlContent('https://www.mudah.my/', { mode: 'refresh', viewHint: 'markdown' })
+    const res = await fetchWorkspaceUrlContent(sourceUrl, { mode: 'refresh', viewHint: 'markdown' })
     const body = res.text.replace(/^---[\s\S]*?\n---\n?/m, '')
     if (!body.includes('Welcome to Mudah.my')) throw new Error('expected main heading preserved')
     if (!body.includes('millions of unique visitors')) throw new Error('expected paragraph preserved')

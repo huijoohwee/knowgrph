@@ -254,6 +254,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["policy.boundary.forbidGympgrphHookUsage","@/__tests__/crossRepoBoundaryGuards.test","testForbidGympgrphHookUsageInHost"],
   ["policy.boundary.forbidFlowLibs","@/__tests__/crossRepoBoundaryGuards.test","testForbidReactFlowAndLiteGraphDependencies"],
   ["policy.boundary.forbidHardcodedSandboxAbsolutePaths","@/__tests__/crossRepoBoundaryGuards.test","testForbidHardcodedSandboxAbsolutePaths"],
+  ["policy.boundary.forbidHardcodedRuntimeValidationInput","@/__tests__/crossRepoBoundaryGuards.test","testForbidHardcodedRuntimeValidationInputInRepo"],
   ["policy.boundary.canvasViewportMountsOnlyActiveRendererSurface","@/__tests__/crossRepoBoundaryGuards.test","testCanvasViewportMountsOnlyActiveRendererSurface"],
   ["policy.boundary.forbidTopLevelElkImport","@/__tests__/crossRepoBoundaryGuards.test","testForbidTopLevelElkImportInFlowLayout"],
   ["policy.persistence.forbidMagicLocalStorageKeys","@/__tests__/crossRepoBoundaryGuards.test","testForbidMagicLocalStorageKeysOutsideCentralConstants"],

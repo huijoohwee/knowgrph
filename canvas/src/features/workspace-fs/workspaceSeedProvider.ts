@@ -46,14 +46,35 @@ const readWorkspaceInitializationKnowgrphStorageBaseUrl = (): string => {
   return String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
 }
 
-const MARKDOWN_MIRROR_EXT_SET = new Set(['.md', '.markdown', '.mdx', '.mmd'])
+const WORKSPACE_SOURCE_MIRROR_EXT_SET = new Set(['.md', '.markdown', '.mdx', '.mmd', '.gltf', '.glb'])
 
-const isMarkdownMirrorFileName = (name: string): boolean => {
+const isWorkspaceSourceMirrorFileName = (name: string): boolean => {
   const normalized = String(name || '').trim().toLowerCase()
   if (!normalized) return false
   const dot = normalized.lastIndexOf('.')
   if (dot <= 0) return false
-  return MARKDOWN_MIRROR_EXT_SET.has(normalized.slice(dot))
+  return WORKSPACE_SOURCE_MIRROR_EXT_SET.has(normalized.slice(dot))
+}
+
+const shouldEncodeWorkspaceSourceMirrorAsBase64 = (name: string): boolean =>
+  String(name || '').trim().toLowerCase().endsWith('.glb')
+
+const encodeArrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  const chunks: string[] = []
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, offset + chunkSize)
+    chunks.push(String.fromCharCode(...chunk))
+  }
+  return btoa(chunks.join(''))
+}
+
+const readWorkspaceSourceMirrorFileText = async (file: File, name: string): Promise<string> => {
+  if (shouldEncodeWorkspaceSourceMirrorAsBase64(name)) {
+    return encodeArrayBufferToBase64(await file.arrayBuffer())
+  }
+  return String(await file.text())
 }
 
 const resolveWorkspaceDocsRootFromSourceFilesSelection = async (): Promise<{
@@ -156,9 +177,9 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExportUncached = async (a
           : canonicalPathRaw,
       )
       if (!canonicalPath) continue
-      if (!isMarkdownMirrorFileName(canonicalPath)) continue
+      if (!isWorkspaceSourceMirrorFileName(canonicalPath)) continue
       const relPath = resolveSelectedFolderRelativeMirrorPath(canonicalPath, selectedFolderPath)
-      if (!relPath || !isMarkdownMirrorFileName(relPath)) continue
+      if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
       const updatedAtMs = Number.isFinite(Number(document.updatedAtMs))
         ? Math.floor(Number(document.updatedAtMs))
         : Date.now()
@@ -222,7 +243,7 @@ const readCanonicalPathCandidatesForSourcePath = (sourcePathRaw: string): string
   const candidates = new Set<string>()
   const push = (value: string) => {
     const next = normalizeCanonicalPath(value)
-    if (!next || !isMarkdownMirrorFileName(next)) return
+    if (!next || !isWorkspaceSourceMirrorFileName(next)) return
     if (next.toLowerCase().includes('/huijoohwee/docs/huijoohwee/docs/')) return
     if (next.toLowerCase().startsWith('docs/huijoohwee/docs/')) return
     candidates.add(next)
@@ -267,14 +288,14 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles = async
     const sourcePathRaw = String(sourceFile.source?.path || sourceFile.name || '').trim()
     if (isWorkspaceBackedSourcePath(sourcePathRaw)) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourcePathRaw)
-    if (!pathCandidate || !isMarkdownMirrorFileName(pathCandidate)) continue
+    if (!pathCandidate || !isWorkspaceSourceMirrorFileName(pathCandidate)) continue
     const canonicalCandidates = readCanonicalPathCandidatesForSourcePath(sourcePathRaw)
     const relPath = (() => {
       const fromSourcePath = resolveSelectedFolderRelativeMirrorPath(pathCandidate, selectedFolderPath)
-      if (fromSourcePath && isMarkdownMirrorFileName(fromSourcePath)) return fromSourcePath
+      if (fromSourcePath && isWorkspaceSourceMirrorFileName(fromSourcePath)) return fromSourcePath
       const fallbackCanonical = canonicalCandidates.length > 0 ? String(canonicalCandidates[0] || '') : ''
       const fromCanonical = resolveSelectedFolderRelativeMirrorPath(fallbackCanonical, selectedFolderPath)
-      if (fromCanonical && isMarkdownMirrorFileName(fromCanonical)) return fromCanonical
+      if (fromCanonical && isWorkspaceSourceMirrorFileName(fromCanonical)) return fromCanonical
       return ''
     })()
     if (!relPath) continue
@@ -341,9 +362,9 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDbCache = async (args: {
       const row = documents[i]
       if (!row) continue
       const canonicalPath = normalizeSourceFileMirrorPath(String(row.get('canonicalPath') || ''))
-      if (!canonicalPath || !isMarkdownMirrorFileName(canonicalPath)) continue
+      if (!canonicalPath || !isWorkspaceSourceMirrorFileName(canonicalPath)) continue
       const relPath = resolveSelectedFolderRelativeMirrorPath(canonicalPath, selectedFolderPath)
-      if (!relPath || !isMarkdownMirrorFileName(relPath)) continue
+      if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
       let text = String(row.get('contentMd') || '')
       if (!text.trim()) {
         const documentId = String(row.get('id') || '').trim()
@@ -480,9 +501,9 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecords = (args: {
     if (!text.trim()) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourceFile.source?.path || sourceFile.name || '')
     if (!pathCandidate) continue
-    if (!isMarkdownMirrorFileName(pathCandidate)) continue
+    if (!isWorkspaceSourceMirrorFileName(pathCandidate)) continue
     const relPath = resolveSelectedFolderRelativeMirrorPath(pathCandidate, selectedFolderPath)
-    if (!relPath || !isMarkdownMirrorFileName(relPath)) continue
+    if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
     const updatedAtMsRaw = Number(sourceFile.updatedAtMs)
     const updatedAtMs = Number.isFinite(updatedAtMsRaw) ? Math.floor(updatedAtMsRaw) : Date.now()
     const next: WorkspaceDocsMirrorEntry = { relPath, text, updatedAtMs }
@@ -515,9 +536,9 @@ const hasIncompleteSourceFilesMirrorText = (args: {
     if (isWorkspaceBackedSourcePath(sourceFile.source?.path || sourceFile.name || '')) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourceFile.source?.path || sourceFile.name || '')
     if (!pathCandidate) continue
-    if (!isMarkdownMirrorFileName(pathCandidate)) continue
+    if (!isWorkspaceSourceMirrorFileName(pathCandidate)) continue
     const relPath = resolveSelectedFolderRelativeMirrorPath(pathCandidate, selectedFolderPath)
-    if (!relPath || !isMarkdownMirrorFileName(relPath)) continue
+    if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
     const text = String(sourceFile.text || '')
     if (!text.trim()) return true
   }
@@ -579,9 +600,9 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
     if (isWorkspaceBackedSourcePath(sourcePathRaw)) continue
     const pathCandidate = normalizeSourceFileMirrorPath(sourcePathRaw)
     if (!pathCandidate) continue
-    if (!isMarkdownMirrorFileName(pathCandidate)) continue
+    if (!isWorkspaceSourceMirrorFileName(pathCandidate)) continue
     const relPath = resolveSelectedFolderRelativeMirrorPath(pathCandidate, selectedFolderPath)
-    if (!relPath || !isMarkdownMirrorFileName(relPath)) continue
+    if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
 
     let text = String(sourceFile.text || '')
     if (!text.trim()) {
@@ -675,11 +696,11 @@ const readWorkspaceDocsMirrorEntriesFromLocalFolderHandle = async (args: {
         continue
       }
       if (entry.kind !== 'file') continue
-      if (!isMarkdownMirrorFileName(name)) continue
+      if (!isWorkspaceSourceMirrorFileName(name)) continue
       try {
         const file = await (entry as FileSystemFileHandle).getFile()
         if (!file || !Number.isFinite(file.size) || file.size > WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES) continue
-        const text = String(await file.text())
+        const text = await readWorkspaceSourceMirrorFileText(file, name)
         if (!text.trim()) continue
         const relPath = normalizeMirrorRelPath(relBase ? `${relBase}/${name}` : name)
         if (!relPath) continue
@@ -711,7 +732,7 @@ const readWorkspaceDocsMirrorEntriesFromLocalFolderCache = async (args: {
       .map(path => normalizeMirrorRelPath(path))
       .filter(Boolean)
       .filter(path => (!prefix ? true : path === selectedFolderPath || path.startsWith(prefix)))
-      .filter(path => isMarkdownMirrorFileName(path))
+      .filter(path => isWorkspaceSourceMirrorFileName(path))
       .slice(0, WORKSPACE_DOCS_MIRROR_MAX_FILES)
     const out: WorkspaceDocsMirrorEntry[] = []
     for (let i = 0; i < candidates.length; i += 1) {
@@ -947,7 +968,6 @@ const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
     if (!root) return []
     const out: WorkspaceDocsMirrorEntry[] = []
     const queue = [root]
-    const extSet = new Set(['.md', '.markdown', '.mdx', '.mmd'])
     while (queue.length > 0 && out.length < WORKSPACE_DOCS_MIRROR_MAX_FILES) {
       const dir = queue.shift()
       if (!dir) continue
@@ -969,11 +989,13 @@ const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
         }
         if (!entry.isFile()) continue
         const ext = String(path.extname(entry.name) || '').toLowerCase()
-        if (!extSet.has(ext)) continue
+        if (!WORKSPACE_SOURCE_MIRROR_EXT_SET.has(ext)) continue
         try {
           const stat = await fs.stat(absPath)
           if (!stat.isFile() || stat.size > WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES) continue
-          const text = String(await fs.readFile(absPath, 'utf8'))
+          const text = shouldEncodeWorkspaceSourceMirrorAsBase64(entry.name)
+            ? (await fs.readFile(absPath)).toString('base64')
+            : String(await fs.readFile(absPath, 'utf8'))
           if (!text.trim()) continue
           const relPath = normalizeMirrorRelPath(path.relative(root, absPath))
           if (!relPath) continue
