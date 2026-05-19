@@ -1,8 +1,10 @@
 import React from 'react'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
 import { uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { extractMarkdownAnnotationsFromText } from '@/lib/markdown/markdownSigil'
+import { countMarkdownTextHighlightLineMatches } from '@/lib/markdown/markdownTextHighlights'
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +14,27 @@ import {
 
 export const readMarkdownToolbarHighlightCount = (markdown: string): number => {
   return extractMarkdownAnnotationsFromText(markdown, 100, 120_000).length
+}
+
+const readSelectedHighlightLabel = (
+  graphData: ReturnType<typeof useActiveGraphRenderData>,
+  selectedNodeId: string | null,
+  selectedEdgeId: string | null,
+): string => {
+  const nodeId = selectedNodeId ? String(selectedNodeId).trim() : ''
+  const edgeId = selectedEdgeId ? String(selectedEdgeId).trim() : ''
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const edges = Array.isArray(graphData?.edges) ? graphData.edges : []
+  if (nodeId) {
+    const node = nodes.find(item => String(item?.id || '').trim() === nodeId)
+    const props = (node?.properties || {}) as Record<string, unknown>
+    return String(props['markdown:highlight:text'] || props['keyword:key'] || node?.label || '').trim()
+  }
+  if (edgeId) {
+    const edge = edges.find(item => String(item?.id || '').trim() === edgeId)
+    return String(edge?.label || '').trim()
+  }
+  return ''
 }
 
 export function MarkdownWorkspacePresentationNavMenu(props: {
@@ -55,9 +78,19 @@ export function MarkdownWorkspaceDisplayMenu(props: {
   highlightCount?: number
 }) {
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || '')
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId || null)
+  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId || null)
+  const renderGraphData = useActiveGraphRenderData(true)
+  const selectedHighlightLabel = React.useMemo(
+    () => readSelectedHighlightLabel(renderGraphData, selectedNodeId, selectedEdgeId),
+    [renderGraphData, selectedEdgeId, selectedNodeId],
+  )
   const storeHighlightCount = React.useMemo(
-    () => readMarkdownToolbarHighlightCount(markdownDocumentText),
-    [markdownDocumentText],
+    () => Math.max(
+      readMarkdownToolbarHighlightCount(markdownDocumentText),
+      selectedHighlightLabel ? countMarkdownTextHighlightLineMatches(markdownDocumentText, selectedHighlightLabel) : 0,
+    ),
+    [markdownDocumentText, selectedHighlightLabel],
   )
   const highlightCount = typeof props.highlightCount === 'number' && Number.isFinite(props.highlightCount)
     ? Math.max(0, Math.floor(props.highlightCount))

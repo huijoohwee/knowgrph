@@ -96,7 +96,7 @@ export const resolveMarkdownNavigationMetadata = (
 
   const base = (node.metadata as Record<string, unknown>) || null
   const type = String(node.type || '')
-  if (type !== 'MermaidNode' && type !== 'InternalLink') return base
+  if (type !== 'MermaidNode' && type !== 'InternalLink' && type !== 'Keyword') return base
 
   const nodeId = String(node.id || '').trim()
   if (!nodeId) return base
@@ -104,6 +104,39 @@ export const resolveMarkdownNavigationMetadata = (
   const nodeById = graphLookup?.nodeById || null
   const incidentEdgesByNodeId = graphLookup?.incidentEdgesByNodeId || null
   if (!nodeById || !incidentEdgesByNodeId) return base
+
+  if (type === 'Keyword') {
+    const incidentEdges = incidentEdgesByNodeId.get(nodeId) || []
+    const candidates: Array<{ meta: Record<string, unknown>; score: number }> = []
+    for (let i = 0; i < incidentEdges.length; i += 1) {
+      const e = incidentEdges[i]
+      if (!e) continue
+      const props = (e.properties && typeof e.properties === 'object' && !Array.isArray(e.properties))
+        ? (e.properties as Record<string, unknown>)
+        : {}
+      const label = String(e.label || '').trim()
+      const kind = String(props['keyword:kind'] || '').trim()
+      if (label !== 'mentions' && kind !== 'sourceMention') continue
+      const sourceId = String(e.source || '').trim()
+      const targetId = String(e.target || '').trim()
+      const sourceNodeId = targetId === nodeId ? sourceId : sourceId === nodeId ? targetId : ''
+      if (!sourceNodeId) continue
+      const sourceNode = nodeById.get(sourceNodeId)
+      if (!sourceNode) continue
+      const sourceMeta = (sourceNode.metadata as Record<string, unknown>) || null
+      if (!getDocumentLocationFromMetadata(sourceMeta)) continue
+      const countRaw = props.count
+      const count = typeof countRaw === 'number' && Number.isFinite(countRaw)
+        ? countRaw
+        : typeof countRaw === 'string'
+          ? Number(countRaw)
+          : 0
+      candidates.push({ meta: sourceMeta, score: Number.isFinite(count) ? count : 0 })
+    }
+    candidates.sort((a, b) => b.score - a.score)
+    if (candidates[0]?.meta) return candidates[0].meta
+    return base
+  }
 
   const resolvePointsToTargets = (sourceNodeId: string): GraphNode[] => {
     const incidentEdges = incidentEdgesByNodeId.get(sourceNodeId) || []

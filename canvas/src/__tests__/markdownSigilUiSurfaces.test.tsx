@@ -5,6 +5,8 @@ import { MarkdownWorkspaceDisplayMenu, readMarkdownToolbarHighlightCount } from 
 import { readRendererHighlightTokens } from '@/features/toolbar/ui/RendererGraphTopologySummary'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
+import { getDocumentLocationFromMetadata, resolveMarkdownNavigationMetadata } from '@/lib/graph/markdownMetadata'
+import { findMarkdownTextHighlightLineRange } from '@/lib/markdown/markdownTextHighlights'
 import { MarkdownSigilText, renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 export const testMarkdownSigilInlineTextRendersEmbeddedAnnotations = () => {
@@ -95,5 +97,86 @@ export const testRendererSummaryReadsGenericHighlightTokens = () => {
   }
   if (tokens[1]?.background !== '#FEF3C7' || tokens[1]?.color !== '#D85A30') {
     throw new Error('expected renderer highlight token to read visual highlight colors')
+  }
+}
+
+export const testRendererSummaryIncludesSelectedTextHighlightToken = () => {
+  const tokens = readRendererHighlightTokens({
+    nodes: [
+      {
+        id: 'kw:agent',
+        label: 'Agent Labs',
+        type: 'Keyword',
+        properties: {
+          'keyword:key': 'agent labs',
+          'keyword:frequency': 4,
+          'visual:fill': '#DBEAFE',
+          'visual:labelColor': '#1D4ED8',
+        },
+      },
+    ],
+    edges: [],
+    metadata: {},
+  } as unknown as GraphData, { selectedNodeId: 'kw:agent' })
+  if (tokens.length !== 1) throw new Error(`expected one selected renderer token, got ${tokens.length}`)
+  if (tokens[0]?.source !== 'selection') throw new Error('expected selected renderer token source')
+  if (tokens[0]?.label !== 'agent labs') throw new Error('expected selected renderer token to use keyword key')
+  if (tokens[0]?.background !== '#DBEAFE' || tokens[0]?.color !== '#1D4ED8') {
+    throw new Error('expected selected renderer token to reuse visual colors')
+  }
+}
+
+export const testMarkdownTextHighlightFindsSelectedKeywordLine = () => {
+  const range = findMarkdownTextHighlightLineRange([
+    '# Transcript',
+    'Opening context without the term.',
+    'Agent Labs ships a local renderer validation path.',
+    'Closing context without the term.',
+  ].join('\n'), 'agent labs')
+  if (!range) throw new Error('expected text highlight range')
+  if (range.start !== 3 || range.end !== 3 || range.count !== 1) {
+    throw new Error(`expected line 3 single-match highlight, got ${JSON.stringify(range)}`)
+  }
+}
+
+export const testKeywordNavigationMetadataResolvesMentionSourceLine = () => {
+  const sourceNode = {
+    id: 'doc:line-3',
+    label: 'Agent Labs ships a local renderer validation path.',
+    type: 'KeywordSource',
+    metadata: { documentPath: 'workspace/transcript.md', lineStart: 3, lineEnd: 3 },
+  }
+  const keywordNode = {
+    id: 'kw:agent',
+    label: 'Agent Labs',
+    type: 'Keyword',
+    properties: { 'keyword:key': 'agent labs' },
+    metadata: { derived: true, kind: 'keyword' },
+  }
+  const edge = {
+    id: 'kw:mention:1',
+    source: 'doc:line-3',
+    target: 'kw:agent',
+    label: 'mentions',
+    properties: { count: 2, 'keyword:kind': 'sourceMention' },
+  }
+  const meta = resolveMarkdownNavigationMetadata({
+    node: keywordNode as never,
+    edge: null,
+    graphLookup: {
+      nodeById: new Map([
+        ['doc:line-3', sourceNode as never],
+        ['kw:agent', keywordNode as never],
+      ]),
+      incidentEdgesByNodeId: new Map([
+        ['kw:agent', [edge as never]],
+        ['doc:line-3', [edge as never]],
+      ]),
+    },
+  })
+  const location = getDocumentLocationFromMetadata(meta)
+  if (!location) throw new Error('expected keyword mention source location')
+  if (location.documentPath !== 'workspace/transcript.md' || location.lineStart !== 3 || location.lineEnd !== 3) {
+    throw new Error(`expected keyword mention source line 3, got ${JSON.stringify(location)}`)
   }
 }

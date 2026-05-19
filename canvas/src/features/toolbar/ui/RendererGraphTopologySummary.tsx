@@ -1,5 +1,6 @@
 import React from 'react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import { readGraphTopologySummary, withGraphTopologyMetadata, type GraphTopologySummary } from '@/lib/graph/graphTopology'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -45,9 +46,51 @@ const readString = (record: Record<string, unknown>, key: string): string => {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export const readRendererHighlightTokens = (graphData: GraphData | null | undefined): RendererHighlightToken[] => {
+export const readRendererHighlightTokens = (
+  graphData: GraphData | null | undefined,
+  selection?: { selectedNodeId?: string | null; selectedEdgeId?: string | null },
+): RendererHighlightToken[] => {
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const edges = Array.isArray(graphData?.edges) ? graphData.edges : []
   const byKey = new Map<string, RendererHighlightToken>()
+  const selectedNodeId = String(selection?.selectedNodeId || '').trim()
+  const selectedEdgeId = String(selection?.selectedEdgeId || '').trim()
+  if (selectedNodeId) {
+    const node = nodes.find(item => String(item?.id || '').trim() === selectedNodeId)
+    const props = (node?.properties || {}) as Record<string, unknown>
+    const label = String(readString(props, 'markdown:highlight:text') || readString(props, 'keyword:key') || node?.label || '').trim()
+    if (label) {
+      const color = readString(props, 'visual:labelColor') || readString(props, 'visual:stroke')
+      const background = readString(props, 'visual:fill') || readString(props, 'fill')
+      byKey.set(`${label.toLowerCase()}|${color}|${background}`, {
+        id: `selection:${selectedNodeId}`,
+        label,
+        color,
+        background,
+        defaultHighlight: true,
+        count: readNumber(props, 'keyword:frequency') || 1,
+        frequency: readNumber(props, 'keyword:frequency'),
+        source: 'selection',
+      })
+    }
+  } else if (selectedEdgeId) {
+    const edge = edges.find(item => String(item?.id || '').trim() === selectedEdgeId)
+    const props = (edge?.properties || {}) as Record<string, unknown>
+    const label = String(edge?.label || '').trim()
+    if (label) {
+      const color = readString(props, 'visual:stroke')
+      byKey.set(`${label.toLowerCase()}|${color}|`, {
+        id: `selection:${selectedEdgeId}`,
+        label,
+        color,
+        background: '',
+        defaultHighlight: true,
+        count: readNumber(props, 'count') || 1,
+        frequency: readNumber(props, 'count'),
+        source: 'selection',
+      })
+    }
+  }
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     if (!node) continue
@@ -92,6 +135,8 @@ export const readRendererHighlightTokens = (graphData: GraphData | null | undefi
 
 export function RendererGraphTopologySummary() {
   const graphData = useActiveGraphRenderData()
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId || null)
+  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId || null)
   const topologyGraph = React.useMemo(() => {
     if (!graphData) return null
     if (readGraphTopologySummary(graphData)) return graphData
@@ -103,7 +148,10 @@ export function RendererGraphTopologySummary() {
     : {}
   const prunedNodes = readNumber(metadata, 'canvasRenderNodePrunedCount')
   const prunedEdges = readNumber(metadata, 'canvasRenderEdgePrunedCount')
-  const rendererHighlights = React.useMemo(() => readRendererHighlightTokens(topologyGraph), [topologyGraph])
+  const rendererHighlights = React.useMemo(
+    () => readRendererHighlightTokens(topologyGraph, { selectedNodeId, selectedEdgeId }),
+    [selectedEdgeId, selectedNodeId, topologyGraph],
+  )
   const rendererHighlightCount = readNumber(metadata, 'markdownSigilHighlightCount') || readNumber(metadata, 'keywordHighlightedCount')
 
   if (!summary) return null

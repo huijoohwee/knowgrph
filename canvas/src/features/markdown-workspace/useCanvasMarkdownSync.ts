@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import {
@@ -9,6 +10,7 @@ import {
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { findMarkdownTextHighlightLineRange } from '@/lib/markdown/markdownTextHighlights'
 import type { StatusHelpers } from './useWorkspaceFileActions/types'
 
 const EMPTY_GRAPH_NODES: GraphNode[] = []
@@ -80,32 +82,40 @@ export function useCanvasMarkdownSync(args: {
   const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
   const graphDataRevision = useGraphStore(s => (s.graphDataRevision || 0) as number)
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
+  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || '')
+  const renderGraphData = useActiveGraphRenderData(active)
+  const syncGraphNodes = (Array.isArray(renderGraphData?.nodes) && renderGraphData.nodes.length > 0)
+    ? (renderGraphData.nodes as GraphNode[])
+    : graphNodes
+  const syncGraphEdges = (Array.isArray(renderGraphData?.edges) && renderGraphData.edges.length > 0)
+    ? (renderGraphData.edges as GraphEdge[])
+    : graphEdges
 
   const graphLookupSemanticKey = React.useMemo(() => {
     return buildScopedGraphSemanticKey('canvas-markdown-sync-graph', {
-      graphData: { type: 'Graph', nodes: graphNodes, edges: graphEdges } as GraphData,
+      graphData: { type: 'Graph', nodes: syncGraphNodes, edges: syncGraphEdges } as GraphData,
       graphRevision: graphDataRevision,
       graphSemanticKey: [
-        ...graphNodes.map(node => String(node?.id || '').trim()).filter(Boolean).map(id => `node:${id}`),
-        ...graphEdges.map(edge => String(edge?.id || '').trim()).filter(Boolean).map(id => `edge:${id}`),
+        ...syncGraphNodes.map(node => String(node?.id || '').trim()).filter(Boolean).map(id => `node:${id}`),
+        ...syncGraphEdges.map(edge => String(edge?.id || '').trim()).filter(Boolean).map(id => `edge:${id}`),
       ].join('\n'),
     })
-  }, [graphDataRevision, graphEdges, graphNodes])
+  }, [graphDataRevision, syncGraphEdges, syncGraphNodes])
 
   const graphLookup = React.useMemo(() => {
-    if (graphNodes.length === 0 && graphEdges.length === 0) return null
+    if (syncGraphNodes.length === 0 && syncGraphEdges.length === 0) return null
     return getCachedGraphLookup({
       cacheScope: 'canvas-markdown-sync-graph',
       graphData: {
         type: 'Graph',
-        nodes: graphNodes,
-        edges: graphEdges,
+        nodes: syncGraphNodes,
+        edges: syncGraphEdges,
       } as GraphData,
       graphRevision: graphDataRevision,
       graphSemanticKey: graphLookupSemanticKey,
       preferCurrentGraphDataRefs: true,
     })
-  }, [graphDataRevision, graphEdges, graphLookupSemanticKey, graphNodes])
+  }, [graphDataRevision, graphLookupSemanticKey, syncGraphEdges, syncGraphNodes])
 
   const graphLookupRef = React.useRef(graphLookup)
   React.useEffect(() => {
@@ -121,7 +131,7 @@ export function useCanvasMarkdownSync(args: {
 
     const nodeId = selectedNodeId ? String(selectedNodeId) : ''
     const edgeId = !nodeId && selectedEdgeId ? String(selectedEdgeId) : ''
-    const sig = nodeId ? `node:${nodeId}` : edgeId ? `edge:${edgeId}` : ''
+    const sig = nodeId ? `node:${nodeId}:${graphLookupSemanticKey}` : edgeId ? `edge:${edgeId}:${graphLookupSemanticKey}` : ''
     if (!sig) return
     if (lastCanvasSyncSigRef.current === sig) return
     lastCanvasSyncSigRef.current = sig
@@ -135,37 +145,45 @@ export function useCanvasMarkdownSync(args: {
       graphLookup: lookup,
     })
     const location = getDocumentLocationFromMetadata(meta)
-    if (!location) {
+    const fallbackRange = !location && node
+      ? findMarkdownTextHighlightLineRange(markdownDocumentText, ((node.properties || {}) as Record<string, unknown>)['keyword:key'] || node.label)
+      : null
+    if (!location && !fallbackRange) {
       return
     }
 
-    const docKey = normalizeDocumentPathKey(location.documentPath)
-    const targetPath = findWorkspacePathForDocumentKey(entries, docKey)
-    if (!targetPath) {
-      setStatusError(`Missing file: ${docKey}`, { ttlMs: 3500, dismissible: true })
-      return
-    }
+    const fallbackDocKey = activePath ? workspaceDocumentKey(activePath) : ''
+    const docKey = location ? normalizeDocumentPathKey(location.documentPath) : normalizeDocumentPathKey(fallbackDocKey)
+    if (docKey) {
+      const targetPath = findWorkspacePathForDocumentKey(entries, docKey)
+      if (!targetPath) {
+        setStatusError(`Missing file: ${docKey}`, { ttlMs: 3500, dismissible: true })
+        return
+      }
 
-    const normalizedTarget = normalizeWorkspacePath(targetPath)
-    if (useGraphStore.getState().selectionSource !== 'canvas') return
-    if (activePath !== normalizedTarget) {
-      setExpandedPaths(prev => {
-        const next = new Set(prev)
-        for (const ancestor of ancestorPathsForWorkspacePath(normalizedTarget)) next.add(ancestor)
-        return next
-      })
-      setActivePathSafe(normalizedTarget)
+      const normalizedTarget = normalizeWorkspacePath(targetPath)
+      if (useGraphStore.getState().selectionSource !== 'canvas') return
+      if (activePath !== normalizedTarget) {
+        setExpandedPaths(prev => {
+          const next = new Set(prev)
+          for (const ancestor of ancestorPathsForWorkspacePath(normalizedTarget)) next.add(ancestor)
+          return next
+        })
+        setActivePathSafe(normalizedTarget)
+      }
     }
-    revealLineInEditor(location.lineStart, location.lineEnd)
+    revealLineInEditor(location?.lineStart ?? fallbackRange!.start, location?.lineEnd ?? fallbackRange!.end)
   }, [
     active,
     activePath,
     entries,
+    graphLookupSemanticKey,
     revealLineInEditor,
     selectedEdgeId,
     selectedNodeId,
     selectionSource,
     docLocationRevision,
+    markdownDocumentText,
     setActivePathSafe,
     setExpandedPaths,
     setStatusError,
