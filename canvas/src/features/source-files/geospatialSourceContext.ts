@@ -17,36 +17,61 @@ export type GeospatialSourceContextResolution = {
 
 const isMarkdownLikeName = (value: string): boolean => /\.(md|markdown|mmd)$/i.test(String(value || '').trim())
 
+type EligibleGeospatialSourceFileProfile = {
+  file: SourceFile
+  sourcePath: string
+  basename: string
+}
+
 const basenameLike = (value: string): string => {
   const normalizedPath = normalizeComposedSourcePath(value)
   const parts = normalizedPath.split('/').filter(Boolean)
   return parts.length > 0 ? String(parts[parts.length - 1] || '') : ''
 }
 
-const findUniqueEligibleGeospatialSourceFileByNormalizedPath = (
+const buildEligibleGeospatialSourceFileProfiles = (
   sourceFiles: SourceFile[],
+): EligibleGeospatialSourceFileProfile[] => {
+  const profiles: EligibleGeospatialSourceFileProfile[] = []
+  for (const file of sourceFiles) {
+    if (!isGeospatialSourceFileEligible(file)) continue
+    const sourcePath = readComposedSourceFilePath(file)
+    profiles.push({
+      file,
+      sourcePath,
+      basename: basenameLike(sourcePath),
+    })
+  }
+  return profiles
+}
+
+const findUniqueEligibleGeospatialSourceFileByNormalizedPath = (
+  profiles: EligibleGeospatialSourceFileProfile[],
   normalizedPath: string,
 ): SourceFile | null => {
   if (!normalizedPath) return null
-  const matches = sourceFiles.filter(file => {
-    if (!isGeospatialSourceFileEligible(file)) return false
-    return readComposedSourceFilePath(file) === normalizedPath
-  })
-  return matches.length === 1 ? matches[0] || null : null
+  let match: SourceFile | null = null
+  for (const profile of profiles) {
+    if (profile.sourcePath !== normalizedPath) continue
+    if (match) return null
+    match = profile.file
+  }
+  return match
 }
 
 const findUniqueEligibleGeospatialSourceFileByBasename = (
-  sourceFiles: SourceFile[],
+  profiles: EligibleGeospatialSourceFileProfile[],
   basename: string,
 ): SourceFile | null => {
   if (!basename) return null
-  const matches = sourceFiles.filter(file => {
-    if (!isGeospatialSourceFileEligible(file)) return false
-    const sourcePath = readComposedSourceFilePath(file)
-    if (!sourcePath || !isMarkdownLikeName(sourcePath)) return false
-    return basenameLike(sourcePath) === basename
-  })
-  return matches.length === 1 ? matches[0] || null : null
+  let match: SourceFile | null = null
+  for (const profile of profiles) {
+    if (!profile.sourcePath || !isMarkdownLikeName(profile.sourcePath)) continue
+    if (profile.basename !== basename) continue
+    if (match) return null
+    match = profile.file
+  }
+  return match
 }
 
 export function resolvePreferredGeospatialSourceFile(args: {
@@ -55,29 +80,31 @@ export function resolvePreferredGeospatialSourceFile(args: {
   graphId?: string | null
 }): SourceFile | null {
   const files = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
+  const profiles = buildEligibleGeospatialSourceFileProfiles(files)
   const directPathNormalized = normalizeComposedSourcePath(String(args.sourceDocumentPath || ''))
   const graphIdHint = normalizeComposedSourcePath(String(args.graphId || ''))
 
-  const exactDirectPathMatch = findUniqueEligibleGeospatialSourceFileByNormalizedPath(files, directPathNormalized)
+  const exactDirectPathMatch = findUniqueEligibleGeospatialSourceFileByNormalizedPath(profiles, directPathNormalized)
   if (exactDirectPathMatch) return exactDirectPathMatch
 
-  const exactGraphIdMatch = findUniqueEligibleGeospatialSourceFileByNormalizedPath(files, graphIdHint)
+  const exactGraphIdMatch = findUniqueEligibleGeospatialSourceFileByNormalizedPath(profiles, graphIdHint)
   if (exactGraphIdMatch) return exactGraphIdMatch
 
-  const directBasenameMatch = findUniqueEligibleGeospatialSourceFileByBasename(files, basenameLike(directPathNormalized))
+  const directBasenameMatch = findUniqueEligibleGeospatialSourceFileByBasename(profiles, basenameLike(directPathNormalized))
   if (directBasenameMatch) return directBasenameMatch
 
-  const graphIdBasenameMatch = findUniqueEligibleGeospatialSourceFileByBasename(files, basenameLike(graphIdHint))
+  const graphIdBasenameMatch = findUniqueEligibleGeospatialSourceFileByBasename(profiles, basenameLike(graphIdHint))
   if (graphIdBasenameMatch) return graphIdBasenameMatch
 
-  const eligibleMarkdownFiles = files.filter(file => {
-    if (!isGeospatialSourceFileEligible(file)) return false
-    const sourcePath = readComposedSourceFilePath(file)
-    const text = String(file?.text || '')
+  const eligibleMarkdownFiles = profiles.flatMap(profile => {
+    const sourcePath = profile.sourcePath
+    const text = String(profile.file?.text || '')
     const candidateProfile = buildMarkdownGeodataCandidateProfile(text)
     return !!sourcePath
       && isMarkdownLikeName(sourcePath)
       && (candidateProfile.mayContainEmbeddedGeoJson || candidateProfile.mayContainPoiTables)
+      ? [profile.file]
+      : []
   })
   return eligibleMarkdownFiles.length === 1 ? eligibleMarkdownFiles[0] || null : null
 }

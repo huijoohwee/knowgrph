@@ -7,6 +7,7 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
   const markdownGeoSourcePath = resolve(process.cwd(), 'src', 'features', 'geospatial', 'markdownGeoSourcePath.ts')
   const markdownGeoSourceContractPath = resolve(process.cwd(), 'src', 'features', 'geospatial', 'markdownGeoSourceContract.ts')
   const geospatialSourceContextPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'geospatialSourceContext.ts')
+  const geospatialSourceEligibilityPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'geospatialSourceEligibility.ts')
   const canvasViewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const mainPanelPath = resolve(process.cwd(), 'src', 'features', 'panels', 'MainPanel.tsx')
 
@@ -15,6 +16,7 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
   const markdownGeoSourcePathText = readFileSync(markdownGeoSourcePath, 'utf8')
   const markdownGeoSourceContractText = readFileSync(markdownGeoSourceContractPath, 'utf8')
   const geospatialSourceContextText = readFileSync(geospatialSourceContextPath, 'utf8')
+  const geospatialSourceEligibilityText = readFileSync(geospatialSourceEligibilityPath, 'utf8')
   const canvasViewportText = readFileSync(canvasViewportPath, 'utf8')
   const mainPanelText = readFileSync(mainPanelPath, 'utf8')
 
@@ -38,7 +40,8 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
     || !geospatialOverlayText.includes('featureCollection: req.featureCollection')
     || !geospatialOverlayText.includes('sourcePath: req.sourceDescriptor.sourcePath')
     || !geospatialOverlayText.includes('const resolvedOverlayContext = resolveGeospatialSourceContext(args)')
-    || !geospatialOverlayText.includes('const cacheKey = buildGeospatialOverlayGraphCacheKey(args)')
+    || !geospatialOverlayText.includes('const cacheKey = buildGeospatialOverlayGraphCacheKey({')
+    || !geospatialOverlayText.includes('markdownAnalysisCacheSignature: directAnalysisCacheSignature')
     || !geospatialOverlayText.includes('const cached = readCachedGeospatialOverlayGraphData(cacheKey)')
     || geospatialOverlayText.includes('const resolveGeospatialOverlayContext = (args: {')
     || geospatialOverlayText.includes('#markdown-table-geodata-')
@@ -78,7 +81,9 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
   }
 
   if (
-    !geospatialSourceContextText.includes('export const isGeospatialSourceFileEligible = (file: SourceFile | null | undefined): boolean => {')
+    !geospatialSourceEligibilityText.includes('export const isGeospatialSourceFileEligible = (file: GeospatialSourceFileLike | null | undefined): boolean => {')
+    || !geospatialSourceContextText.includes("export { isGeospatialSourceFileEligible } from './geospatialSourceEligibility'")
+    || !geospatialSourceContextText.includes('const buildEligibleGeospatialSourceFileProfiles = (')
     || !geospatialSourceContextText.includes('export function resolvePreferredGeospatialSourceFile(args: {')
     || !geospatialSourceContextText.includes('export function resolveGeospatialSourceContext(args: {')
     || !geospatialSourceContextText.includes('const findUniqueEligibleGeospatialSourceFileByNormalizedPath = (')
@@ -87,8 +92,12 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
     throw new Error('expected shared geospatial source-context helper to centralize geo eligibility and semantic source-file matching')
   }
 
-  if (!canvasViewportText.includes('graphRevision: graphDataRevision')) {
-    throw new Error('expected CanvasViewport geospatial overlay call to pass graph revision into the shared semantic cache helper')
+  if (
+    !canvasViewportText.includes('graphRevision: graphDataRevision')
+    || !canvasViewportText.includes('sourceFilesGeospatialSelectionSignature')
+    || !canvasViewportText.includes('buildSourceFilesGeospatialSelectionSignature(sourceFiles)')
+  ) {
+    throw new Error('expected CanvasViewport geospatial overlay call to pass graph revision and stabilize Source Files through the shared geospatial selection signature')
   }
 
   if (
