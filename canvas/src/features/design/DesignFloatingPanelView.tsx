@@ -6,8 +6,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { getIconSizeClass } from '@/lib/ui'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
@@ -61,16 +63,18 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
 
   return (
     <section className="h-full flex flex-col" aria-label="Design panel">
-      <header className={cn('flex items-center justify-between gap-2 w-full select-none', UI_THEME_TOKENS.panel.divider)}>
+      <header className={cn(uiToolbarRowScrollClassName, 'justify-between gap-2 w-full select-none', UI_THEME_TOKENS.panel.divider)}>
         <div className="flex min-w-0 items-center gap-2 px-1 py-1">
           <div className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Design</div>
           {lastLabel ? <div className={cn('min-w-0 truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{lastLabel}</div> : null}
         </div>
-        <nav className="flex items-center gap-1" aria-label="Design panel controls">
+        <nav className={`${uiToolbarRowScrollClassName} gap-1`} aria-label="Design panel controls">
           <button
             type="button"
             className={cn(
-              'App-toolbar__btn flex items-center gap-1',
+              'App-toolbar__btn',
+              UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+              'gap-1',
               canvasPointerMode2d === 'select' ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
               UI_THEME_TOKENS.button.hoverBg,
               panelTypography.microLabelClass,
@@ -89,7 +93,9 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
           <button
             type="button"
             className={cn(
-              'App-toolbar__btn flex items-center gap-1',
+              'App-toolbar__btn',
+              UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+              'gap-1',
               canvasPointerMode2d === 'pan' ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
               UI_THEME_TOKENS.button.hoverBg,
               panelTypography.microLabelClass,
@@ -108,7 +114,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
           <span className={cn('mx-1 h-4 w-px', UI_THEME_TOKENS.panel.border)} aria-hidden={true} />
           <button
             type="button"
-            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            className={cn('App-toolbar__btn', UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME, 'justify-center', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
             onClick={() => {
               if (!active) return
               undoDesignHistory()
@@ -121,7 +127,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
           </button>
           <button
             type="button"
-            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            className={cn('App-toolbar__btn', UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME, 'justify-center', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
             onClick={() => {
               if (!active) return
               redoDesignHistory()
@@ -136,7 +142,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
             Snap:{snapGrid.enabled ? 'On' : 'Off'}
           </span>
         </nav>
-        <nav className="flex items-center gap-1" aria-label="Design panel tabs">
+        <nav className={`${uiToolbarRowScrollClassName} gap-1`} aria-label="Design panel tabs">
           {tabs.map(t => {
             const Icon = t.icon
             const isActive = tab === t.id
@@ -145,7 +151,9 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
                 key={t.id}
                 type="button"
                 className={cn(
-                  'App-toolbar__btn flex items-center gap-1',
+                  'App-toolbar__btn',
+                  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+                  'gap-1',
                   isActive ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
                   UI_THEME_TOKENS.button.hoverBg,
                   panelTypography.microLabelClass,

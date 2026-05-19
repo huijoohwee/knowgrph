@@ -1,0 +1,17 @@
+export const UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME = 'kg-responsive-element-row flex items-center'
+
+export const UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME = 'kg-responsive-element-row inline-flex items-center'
+
+export const UI_RESPONSIVE_ICON_TEXT_ROW_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center gap-1.5`
+
+export const UI_RESPONSIVE_MENU_ROW_CLASSNAME = `kg-menu-row w-full ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME}`
+
+export const UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME = `${UI_RESPONSIVE_MENU_ROW_CLASSNAME} min-h-[var(--kg-touch-target)]`
+
+export const UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME = `kg-launch-menu-item w-full ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME}`
+
+export const UI_RESPONSIVE_ACTION_ROW_CLASSNAME = `kg-data-view-action ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`
+
+export const UI_RESPONSIVE_BLOCK_MENU_ROW_CLASSNAME = `kg-menu-row w-full ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME}`
+
+export const UI_RESPONSIVE_LABEL_ROW_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1 text-xs select-none`

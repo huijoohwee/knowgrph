@@ -10,6 +10,7 @@ import { uiImportGeoSettingsRegistry } from './registry-ui.import-geo'
 import { uiFlowchartSettingsRegistry } from './registry-ui.flowchart'
 import { uiMonacoSettingsRegistry } from './registry-ui.monaco'
 import { uiGrabMapsSettingsRegistry } from './registry-ui.grabmaps'
+import { uiApiNativeBrowserMcpSettingsRegistry } from './registry-ui.api-native-browser'
 import { uiWorkspaceSettingsRegistry } from './registry-ui.workspace'
 
 export const uiSettingsRegistry: SettingMeta[] = [
@@ -18,6 +19,7 @@ export const uiSettingsRegistry: SettingMeta[] = [
   ...uiMarkdownSettingsRegistry,
   ...uiImportGeoSettingsRegistry,
   ...uiGrabMapsSettingsRegistry,
+  ...uiApiNativeBrowserMcpSettingsRegistry,
   ...uiFlowchartSettingsRegistry,
   ...uiMonacoSettingsRegistry,
   ...uiWorkspaceSettingsRegistry,

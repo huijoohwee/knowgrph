@@ -14,6 +14,8 @@ import { getCellTextByKind } from '@/features/graph-table/ui/fast-grid/canvasGri
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 export const GraphTableDomTableView = React.memo(function GraphTableDomTableView(props: {
   tableId: GraphTableId
@@ -89,7 +91,9 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
               return (
                 <tr key={`g:${item.label}:${idx}`} className={UI_THEME_TOKENS.table.rowBg}>
                   <td colSpan={2 + dataCols.length} className={`border-b px-2 py-1 font-semibold ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.secondary}`}>
-                    <span className={UI_TEXT_TRUNCATE}>{item.label} ({item.count})</span>
+                    <span className={UI_TEXT_TRUNCATE} title={readMarkdownSigilDisplayText(item.label)}>
+                      {renderMarkdownSigilInlineText(item.label)} ({item.count})
+                    </span>
                   </td>
                 </tr>
               )
@@ -125,9 +129,10 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                 {dataCols.map(col => {
                   const raw = (row as any)[col.id]
                   const text = getCellTextByKind(raw, col.dataKind)
+                  const displayText = readMarkdownSigilDisplayText(text)
                   return (
                     <td key={col.id} className={`border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.primary}`}>
-                      <span className={UI_TEXT_TRUNCATE}>{text}</span>
+                      <span className={UI_TEXT_TRUNCATE} title={displayText}>{renderMarkdownSigilInlineText(text)}</span>
                     </td>
                   )
                 })}

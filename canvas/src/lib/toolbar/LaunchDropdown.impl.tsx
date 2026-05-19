@@ -7,6 +7,7 @@ import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/li
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
+import { UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import {
   type WorkspaceUrlImportCanvasRendererId,
@@ -225,7 +226,8 @@ export function LaunchDropdown({
   }, [pushUiToast])
 
   const menuItemClass = cn(
-    'kg-launch-menu-item w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden rounded text-sm',
+    UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME,
+    'gap-2 rounded text-sm',
     UI_THEME_TOKENS.text.primary,
     UI_THEME_TOKENS.button.hoverBg,
   )

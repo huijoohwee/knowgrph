@@ -11,6 +11,7 @@ import {
 } from '@/features/workspace-table/workspaceTableSsot'
 import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type EditorWorkspaceSelectProps = {
@@ -200,7 +201,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           <li className="list-none">
             <button
               type="button"
-              className={`kg-menu-row w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={toggleWorkspaceSyncMode}
               title={
                 canvasWorkspaceSyncMode === 'realtime'

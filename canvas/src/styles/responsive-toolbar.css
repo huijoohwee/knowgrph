@@ -10,7 +10,27 @@
   .kg-collapsible-toolbar-overflow-items menu,
   .kg-collapsible-toolbar-overflow-items ul,
   .kg-collapsible-toolbar-overflow-items fieldset {
+    min-inline-size: 0;
     min-width: 0;
+    inline-size: 100%;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .kg-collapsible-toolbar-overflow-items .kg-row-scroll,
+  .kg-collapsible-toolbar-overflow-items > .kg-row-scroll {
+    min-inline-size: 0;
+    inline-size: 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .kg-collapsible-toolbar-overflow-items .kg-workspace-pane-toggles-item {
+    flex: 0 0 100%;
+    min-inline-size: 0;
+    min-width: 0;
+    width: 100%;
     max-width: 100%;
   }
 
@@ -38,6 +58,17 @@
 
   .kg-row-scroll > * {
     flex-shrink: 0;
+  }
+
+  .kg-responsive-element-row {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .kg-responsive-element-row svg {
+    flex: 0 0 auto;
   }
 
   .kg-icon-button,
@@ -94,6 +125,14 @@
   .kg-embedded-workspace-shell,
   .kg-embedded-workspace-main,
   .kg-embedded-workspace-left,
+  .kg-markdown-workspace-main,
+  .kg-markdown-workspace-editor-panes,
+  .kg-markdown-workspace-split-panes,
+  .kg-markdown-workspace-pane,
+  .kg-markdown-editor-pane,
+  .kg-monaco-editor-root,
+  .kg-monaco-editor-shell,
+  .kg-monaco-editor-host,
   .kg-graph-table-header,
   .kg-graph-table-nav,
   .kg-graph-table-toolbar,
@@ -101,6 +140,14 @@
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
+  }
+
+  .kg-monaco-textarea-fallback {
+    max-width: 100%;
+    min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
   }
 
   .kg-graph-table-menu-form {
@@ -205,6 +252,31 @@
     overflow: hidden;
   }
 
+  .kg-workspace-pane-toggle {
+    min-height: var(--kg-touch-target, 44px);
+    max-width: min(10rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 2rem));
+    align-items: center;
+    padding-inline: 0.25rem;
+  }
+
+  .kg-workspace-pane-toggles .kg-workspace-pane-toggle--viewer {
+    min-width: 5.25rem;
+    scroll-margin-inline: 0.5rem;
+  }
+
+  .kg-workspace-pane-toggle-input {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+  }
+
+  .kg-workspace-pane-toggle-label {
+    display: inline-block;
+    min-width: 0;
+    max-width: 7.5rem;
+  }
+
   .kg-graph-table-kanban-lane {
     width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 2rem));
   }
@@ -219,6 +291,14 @@
   }
 
   @media (pointer: coarse), (max-width: 768px) {
+    .kg-canvas-toolbar-dock {
+      top: auto;
+      bottom: calc(var(--kg-safe-bottom) + 0.5rem);
+      align-items: flex-end;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
     .kg-workspace-overlay-canvas-toolbar {
       top: auto;
       bottom: calc(var(--kg-safe-bottom) + 0.5rem);
@@ -227,6 +307,43 @@
 
     .kg-markdown-workspace-shell {
       flex-direction: column;
+    }
+
+    .kg-markdown-workspace-main {
+      min-height: min(56dvh, calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 8rem));
+    }
+
+    .kg-markdown-workspace-editor-panes,
+    .kg-markdown-workspace-split-panes {
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .kg-markdown-workspace-pane {
+      flex: 1 0 min(50dvh, 22rem);
+      min-height: min(42dvh, 18rem);
+    }
+
+    .kg-markdown-workspace-editor-panes .kg-markdown-workspace-pane:first-of-type,
+    .kg-markdown-workspace-split-panes .kg-markdown-workspace-pane:first-of-type {
+      flex-basis: min(56dvh, 24rem);
+    }
+
+    .kg-markdown-workspace-pane-divider {
+      width: auto;
+      height: 1px;
+      min-height: 1px;
+      align-self: stretch;
+    }
+
+    .kg-monaco-editor-root,
+    .kg-monaco-editor-shell,
+    .kg-monaco-editor-host,
+    .kg-monaco-textarea-fallback {
+      min-height: min(42dvh, 18rem);
     }
 
     .kg-markdown-workspace-explorer {
@@ -299,9 +416,10 @@
 
     .kg-workspace-pane-toggles {
       width: 100%;
+      gap: 0.375rem;
     }
 
-    .kg-workspace-pane-toggles label {
+    .kg-workspace-pane-toggle {
       flex: 0 0 auto;
     }
 

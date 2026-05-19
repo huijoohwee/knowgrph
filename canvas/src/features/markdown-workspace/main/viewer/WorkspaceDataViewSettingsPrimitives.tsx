@@ -3,6 +3,7 @@ import { Check, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type SettingsRowProps = {
   icon: React.ReactNode
@@ -15,7 +16,7 @@ export function SettingsRow(props: SettingsRowProps) {
   return (
     <button
       type="button"
-      className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+      className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
       onClick={props.onClick}
     >
       <span className={['w-5 h-5 shrink-0 flex items-center justify-center', UI_THEME_TOKENS.icon.color].join(' ')}>{props.icon}</span>

@@ -8,7 +8,9 @@ import { DataViewStatusChip, DataViewTagChip } from '../MarkdownDataViewChips'
 import { isInteractiveEventTarget, useDismissableMenu } from './kanbanMenu'
 import { KanbanCell } from './KanbanCell'
 import { KanbanTypeBadge } from './KanbanTypeBadge'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 export type KanbanCardProps = {
   row: MarkdownDataViewRow
@@ -198,7 +200,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                     <button
                       ref={firstMenuItemRef}
                       type="button"
-                      className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                       role="menuitem"
                       onClick={() => {
                         props.onActivateRow?.(props.row.id)
@@ -213,7 +215,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                   <li className="list-none relative">
                     <button
                       type="button"
-                      className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                       role="menuitem"
                       aria-haspopup="menu"
                       aria-expanded={moveMenuOpen}
@@ -243,7 +245,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                           <li key={`${props.row.id}:move:${t}:${index}`} className="list-none">
                             <button
                               type="button"
-                              className={['kg-menu-row w-full min-w-0 max-w-full overflow-hidden text-left px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                              className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'text-left px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                               role="menuitem"
                               onClick={() => {
                                 if (!props.canMutate) return
@@ -261,20 +263,20 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                   </li>
                   <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
                   <li className="list-none">
-                    <button type="button" className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
+                    <button type="button" className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
                       <ArrowUp className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                       <span className={UI_TEXT_TRUNCATE}>Insert Before</span>
                     </button>
                   </li>
                   <li className="list-none">
-                    <button type="button" className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
+                    <button type="button" className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
                       <ArrowDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                       <span className={UI_TEXT_TRUNCATE}>Insert After</span>
                     </button>
                   </li>
                   <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
                   <li className="list-none">
-                    <button type="button" className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
+                    <button type="button" className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
                       <Trash2 className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                       <span className={UI_TEXT_TRUNCATE}>Delete Card</span>
                     </button>
@@ -295,7 +297,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
         {tags.length ? (
           <section className="flex items-center gap-2 mb-2" aria-label="Tags">
             <List className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-            <ul className="flex flex-wrap gap-1 list-none p-0 m-0" aria-label="Tag list">
+            <ul className={`${uiToolbarRowScrollClassName} gap-1 list-none p-0 m-0`} aria-label="Tag list">
               {tags.map((t, index) => (
                 <li key={`${props.row.id}:tag:${t}:${index}`} className="list-none">
                   <DataViewTagChip value={t} />

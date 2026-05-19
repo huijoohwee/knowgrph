@@ -25,29 +25,31 @@ export function MarkdownWorkspaceLayout(props: {
     forceMarkdownEditorInEditorMode: props.forceMarkdownEditorInEditorMode,
   })
   const binaryPaneVisible = props.binaryPaneVisible === true
+  const paneClassName = 'kg-markdown-workspace-pane flex-1 min-w-0 min-h-0 flex flex-col'
+  const paneDividerClassName = 'kg-markdown-workspace-pane-divider w-px self-stretch bg-[color:var(--kg-border)] border-0'
   const splitPanes = [
     binaryPaneVisible ? (
-      <section key="bin" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Binary Model">
+      <section key="bin" className={paneClassName} aria-label="Binary Model">
         {props.binaryPane}
       </section>
     ) : null,
     paneVisibility.json ? (
-      <section key="json" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
+      <section key="json" className={paneClassName} aria-label="JSON Editor">
         {props.renderJsonEditor()}
       </section>
     ) : null,
     paneVisibility.markdown ? (
-      <section key="markdown" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor">
+      <section key="markdown" className={paneClassName} aria-label="Markdown Editor">
         {props.renderMarkdownEditor()}
       </section>
     ) : null,
     paneVisibility.viewer ? (
-      <section key="viewer" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Viewer">
+      <section key="viewer" className={paneClassName} aria-label="Viewer">
         {props.viewer}
       </section>
     ) : null,
     paneVisibility.html && props.htmlViewer ? (
-      <section key="html" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="HTML Viewer">
+      <section key="html" className={paneClassName} aria-label="HTML Viewer">
         {props.htmlViewer}
       </section>
     ) : null,
@@ -61,14 +63,14 @@ export function MarkdownWorkspaceLayout(props: {
       ]
 
   return (
-    <main className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor and Viewer">
+    <main className="kg-markdown-workspace-main flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor and Viewer">
       <MarkdownWorkspaceToolbar {...props.toolbarProps} />
 
       {props.layoutMode === 'editor' ? (
-        <section className="flex-1 min-h-0 flex" aria-label="Monaco editors">
+        <section className="kg-markdown-workspace-editor-panes flex-1 min-w-0 min-h-0 flex" aria-label="Monaco editors">
           {effectiveSplitPanes.map((pane, index) => (
             <React.Fragment key={pane.key || `pane-${index}`}>
-              {index > 0 ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
+              {index > 0 ? <hr className={paneDividerClassName} aria-hidden="true" /> : null}
               {pane}
             </React.Fragment>
           ))}
@@ -82,10 +84,10 @@ export function MarkdownWorkspaceLayout(props: {
       ) : props.layoutMode === 'slides-gallery' ? (
         props.slidesGallery
       ) : (
-        <section className="flex-1 min-h-0 flex kg-workspace-surface-shell" aria-label="Split view">
+        <section className="kg-markdown-workspace-split-panes flex-1 min-w-0 min-h-0 flex kg-workspace-surface-shell" aria-label="Split view">
           {effectiveSplitPanes.map((pane, index) => (
             <React.Fragment key={pane.key || `pane-${index}`}>
-              {index > 0 ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0 kg-workspace-split-divider" aria-hidden="true" /> : null}
+              {index > 0 ? <hr className={`${paneDividerClassName} kg-workspace-split-divider`} aria-hidden="true" /> : null}
               {pane}
             </React.Fragment>
           ))}

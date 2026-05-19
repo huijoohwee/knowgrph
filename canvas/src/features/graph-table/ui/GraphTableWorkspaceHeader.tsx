@@ -18,6 +18,7 @@ import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceMode
 import { UI_COPY } from '@/lib/config'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { UI_TEXT_TRUNCATE, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 const GRAPH_TABLE_VIEW_MODE_OPTIONS: Array<{ value: GraphTableViewMode; label: string }> = [
@@ -95,7 +96,7 @@ export function GraphTableWorkspaceHeader(props: {
               isActive={props.viewMode !== 'table'}
               onChange={props.setViewMode}
             />
-            <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-[10px]">
+            <label className={`${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1.5 text-[10px]`}>
               <input
                 type="checkbox"
                 className="shrink-0 rounded"
@@ -104,7 +105,7 @@ export function GraphTableWorkspaceHeader(props: {
               />
               <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}</span>
             </label>
-            <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-[10px]">
+            <label className={`${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1.5 text-[10px]`}>
               <input
                 type="checkbox"
                 className="shrink-0 rounded"

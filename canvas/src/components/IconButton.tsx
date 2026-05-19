@@ -2,6 +2,10 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import {
+  UI_RESPONSIVE_ICON_TEXT_ROW_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 type BaseButtonProps = Omit<
@@ -61,7 +65,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     );
 
     const inner = hasMultipleChildren ? (
-      <span className="inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-1.5 overflow-hidden">
+      <span className={UI_RESPONSIVE_ICON_TEXT_ROW_CLASSNAME}>
         {children}
       </span>
     ) : (
@@ -108,7 +112,8 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           onClick?.(e)
         }}
         className={cn(
-          'kg-icon-button group relative select-none rounded inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden',
+          'kg-icon-button group relative select-none rounded justify-center',
+          UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
           paddingClass,
           isDisabled
             ? `${UI_THEME_TOKENS.button.disabledText} cursor-not-allowed pointer-events-none`

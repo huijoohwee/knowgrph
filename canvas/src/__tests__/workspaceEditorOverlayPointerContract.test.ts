@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { resolveWorkspacePreviewWidthFromPointerDrag } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
-import { resolveWorkspaceCanvasMinVisibleStripPx, resolveWorkspaceEditorPaneMinWidthPx, resolveWorkspacePaneMaxWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import {
+  WORKSPACE_EDITOR_CANVAS_GUTTER_CSS,
+  WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
+  resolveWorkspaceCanvasMinVisibleStripPx,
+  resolveWorkspaceEditorPaneDefaultWidthPx,
+  resolveWorkspaceEditorPaneMinWidthPx,
+  resolveWorkspacePaneMaxWidthPx,
+} from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 function readMarkdownDesignOverlaySourceText(): string {
   const base = resolve(process.cwd(), 'src')
@@ -234,7 +241,7 @@ export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
     } else {
       ;(window as unknown as { innerWidth: number }).innerWidth = 1510
     }
-    const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: 320, rightGutterPx: 48 })
+    const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: 320, rightGutterPx: WORKSPACE_EDITOR_CANVAS_GUTTER_PX })
     const minCanvasStrip = resolveWorkspaceCanvasMinVisibleStripPx()
     const clamped = resolveWorkspacePreviewWidthFromPointerDrag({
       startWidthPx: 982,
@@ -277,13 +284,26 @@ export function testWorkspaceEditorOverlayMobileWidthBoundsStayResizable() {
     }
 
     const minWidth = resolveWorkspaceEditorPaneMinWidthPx()
-    const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: minWidth, rightGutterPx: 48 })
+    const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: minWidth, rightGutterPx: WORKSPACE_EDITOR_CANVAS_GUTTER_PX })
     const minCanvasStrip = resolveWorkspaceCanvasMinVisibleStripPx()
+    const defaultWidth = resolveWorkspaceEditorPaneDefaultWidthPx({ minPx: minWidth, maxPx: maxWidth })
     if (minWidth >= maxWidth) {
       throw new Error(`expected mobile workspace editor pane to keep a resizable range, got min=${minWidth} max=${maxWidth}`)
     }
+    if (minWidth < 240) {
+      throw new Error(`expected mobile workspace editor pane minimum to prioritize editability at 240px or wider, got ${minWidth}`)
+    }
+    if (minCanvasStrip !== WORKSPACE_EDITOR_CANVAS_GUTTER_PX) {
+      throw new Error(`expected mobile workspace editor pane to reserve only the canonical canvas gutter, got ${minCanvasStrip}px`)
+    }
     if (320 - maxWidth < minCanvasStrip) {
       throw new Error(`expected mobile max width to preserve ${minCanvasStrip}px of canvas, got ${320 - maxWidth}px`)
+    }
+    if (defaultWidth !== maxWidth) {
+      throw new Error(`expected mobile workspace editor pane to open at editable max width ${maxWidth}, got ${defaultWidth}`)
+    }
+    if (WORKSPACE_EDITOR_CANVAS_GUTTER_CSS !== `${WORKSPACE_EDITOR_CANVAS_GUTTER_PX / 16}rem`) {
+      throw new Error(`expected workspace canvas gutter CSS to derive from the canonical pixel gutter, got ${WORKSPACE_EDITOR_CANVAS_GUTTER_CSS}`)
     }
 
     const narrowed = resolveWorkspacePreviewWidthFromPointerDrag({

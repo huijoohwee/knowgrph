@@ -10,6 +10,7 @@ import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib
 import { buildMarkdownFileTreeContextMenuItems } from './markdownFileTreeContextMenuItems'
 import { MarkdownFileTreeRowButton } from './MarkdownFileTreeRowButton'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type Node = {
   entry: WorkspaceEntry
@@ -231,7 +232,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
               <li key={item.key} className="list-none">
                 <button
                   type="button"
-                  className={`kg-menu-row w-full min-w-0 max-w-full overflow-hidden text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${
+                  className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${
                     item.tone === 'danger' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.button.text
                   } ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={item.onSelect}

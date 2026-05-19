@@ -1926,7 +1926,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L94; canvas/src/hooks/store/store-types/graph-state-files.ts:L88; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L12"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L20; canvas/src/hooks/store/store-types/graph-state-files.ts:L88; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L12"
   },
   "maps.grabmaps.apiKey": {
     "area": "GrabMaps Directions Request",
@@ -1944,7 +1944,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L104; canvas/src/hooks/store/store-types/graph-state-files.ts:L89; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L28"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L30; canvas/src/hooks/store/store-types/graph-state-files.ts:L89; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L28"
   },
   "maps.grabmaps.directions.endpointUrl": {
     "area": "GrabMaps Directions Request",
@@ -1962,7 +1962,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L113; canvas/src/hooks/store/store-types/graph-state-files.ts:L90; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L45"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L39; canvas/src/hooks/store/store-types/graph-state-files.ts:L90; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L45"
   },
   "maps.grabmaps.directions.originLng": {
     "area": "GrabMaps Directions Request",
@@ -1980,7 +1980,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L122; canvas/src/hooks/store/store-types/graph-state-files.ts:L97; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L62"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L48; canvas/src/hooks/store/store-types/graph-state-files.ts:L97; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L62"
   },
   "maps.grabmaps.directions.originLat": {
     "area": "GrabMaps Directions Request",
@@ -1998,7 +1998,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L131; canvas/src/hooks/store/store-types/graph-state-files.ts:L98; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L64"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L57; canvas/src/hooks/store/store-types/graph-state-files.ts:L98; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L64"
   },
   "maps.grabmaps.directions.destinationLng": {
     "area": "GrabMaps Directions Request",
@@ -2016,7 +2016,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L140; canvas/src/hooks/store/store-types/graph-state-files.ts:L99; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L66"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L66; canvas/src/hooks/store/store-types/graph-state-files.ts:L99; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L66"
   },
   "maps.grabmaps.directions.destinationLat": {
     "area": "GrabMaps Directions Request",
@@ -2034,7 +2034,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L149; canvas/src/hooks/store/store-types/graph-state-files.ts:L100; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L68"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L75; canvas/src/hooks/store/store-types/graph-state-files.ts:L100; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L68"
   },
   "maps.grabmaps.directions.overview": {
     "area": "GrabMaps Directions Request",
@@ -2052,7 +2052,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L158; canvas/src/hooks/store/store-types/graph-state-files.ts:L91; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L47"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L84; canvas/src/hooks/store/store-types/graph-state-files.ts:L91; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L47"
   },
   "maps.grabmaps.directions.latFirst": {
     "area": "GrabMaps Directions Request",
@@ -2070,7 +2070,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L168; canvas/src/hooks/store/store-types/graph-state-files.ts:L92; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L49"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L94; canvas/src/hooks/store/store-types/graph-state-files.ts:L92; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L49"
   },
   "maps.grabmaps.directions.alternatives": {
     "area": "GrabMaps Directions Request",
@@ -2088,7 +2088,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L177; canvas/src/hooks/store/store-types/graph-state-files.ts:L93; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L51"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L103; canvas/src/hooks/store/store-types/graph-state-files.ts:L93; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L51"
   },
   "maps.grabmaps.directions.steps": {
     "area": "GrabMaps Directions Request",
@@ -2106,7 +2106,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L186; canvas/src/hooks/store/store-types/graph-state-files.ts:L94; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L53"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L112; canvas/src/hooks/store/store-types/graph-state-files.ts:L94; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L53"
   },
   "maps.grabmaps.directions.language": {
     "area": "GrabMaps Directions Request",
@@ -2124,7 +2124,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L195; canvas/src/hooks/store/store-types/graph-state-files.ts:L95; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L55"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L121; canvas/src/hooks/store/store-types/graph-state-files.ts:L95; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L55"
   },
   "maps.grabmaps.directions.units": {
     "area": "GrabMaps Directions Request",
@@ -2142,7 +2142,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L204; canvas/src/hooks/store/store-types/graph-state-files.ts:L96; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L57"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L130; canvas/src/hooks/store/store-types/graph-state-files.ts:L96; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L57"
   },
   "maps.grabmaps.directions.waypoints": {
     "area": "GrabMaps Directions Request",
@@ -2160,7 +2160,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L214; canvas/src/hooks/store/store-types/graph-state-files.ts:L101; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L70"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L140; canvas/src/hooks/store/store-types/graph-state-files.ts:L101; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L70"
   },
   "maps.grabmaps.directions.annotations": {
     "area": "GrabMaps Directions Request",
@@ -2178,7 +2178,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L223; canvas/src/hooks/store/store-types/graph-state-files.ts:L102; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L72"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L149; canvas/src/hooks/store/store-types/graph-state-files.ts:L102; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L72"
   },
   "maps.grabmaps.directions.extraParams": {
     "area": "GrabMaps Directions Request",
@@ -2196,7 +2196,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L232; canvas/src/hooks/store/store-types/graph-state-files.ts:L103; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L74"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L158; canvas/src/hooks/store/store-types/graph-state-files.ts:L103; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L74"
   },
   "maps.grabmaps.basemap.styleUrl": {
     "area": "GrabMaps",
@@ -2214,7 +2214,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L241; canvas/src/hooks/store/store-types/graph-state-files.ts:L104; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L76"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L167; canvas/src/hooks/store/store-types/graph-state-files.ts:L104; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L76"
   },
   "maps.grabmaps.mcp.serverKey": {
     "area": "GrabMaps MCP Configuration",
@@ -2228,7 +2228,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L250"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L176"
   },
   "maps.grabmaps.mcp.command": {
     "area": "GrabMaps MCP Configuration",
@@ -2242,7 +2242,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L256"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L182"
   },
   "maps.grabmaps.mcp.args": {
     "area": "GrabMaps MCP Configuration",
@@ -2256,7 +2256,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L262"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L188"
   },
   "maps.grabmaps.mcp.env": {
     "area": "GrabMaps MCP Configuration",
@@ -2270,7 +2270,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L268"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L194"
   },
   "maps.grabmaps.mcp.startupTimeoutMs": {
     "area": "GrabMaps MCP Configuration",
@@ -2284,7 +2284,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L274"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L200"
   },
   "maps.grabmaps.mcp.discovery.chatModel": {
     "area": "GrabMaps MCP Configuration",
@@ -2298,7 +2298,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L282"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L208"
   },
   "maps.grabmaps.mcp.searchPlaces.query": {
     "area": "GrabMaps MCP Configuration",
@@ -2312,7 +2312,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L289"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L215"
   },
   "maps.grabmaps.mcp.searchPlaces.country": {
     "area": "GrabMaps MCP Configuration",
@@ -2326,7 +2326,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L295"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L221"
   },
   "maps.grabmaps.mcp.searchPlaces.lat": {
     "area": "GrabMaps MCP Configuration",
@@ -2340,7 +2340,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L301"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L227"
   },
   "maps.grabmaps.mcp.searchPlaces.lon": {
     "area": "GrabMaps MCP Configuration",
@@ -2354,7 +2354,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L309"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L235"
   },
   "maps.grabmaps.mcp.searchPlaces.radius": {
     "area": "GrabMaps MCP Configuration",
@@ -2368,7 +2368,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L317"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L243"
   },
   "maps.grabmaps.mcp.searchPlaces.limit": {
     "area": "GrabMaps MCP Configuration",
@@ -2382,7 +2382,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L325"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L251"
   },
   "maps.grabmaps.mcp.getDirections.origin": {
     "area": "GrabMaps MCP Configuration",
@@ -2396,7 +2396,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L333"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L259"
   },
   "maps.grabmaps.mcp.getDirections.destination": {
     "area": "GrabMaps MCP Configuration",
@@ -2410,7 +2410,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L339"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L265"
   },
   "maps.grabmaps.mcp.getDirections.waypoints": {
     "area": "GrabMaps MCP Configuration",
@@ -2424,7 +2424,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L345"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L271"
   },
   "maps.grabmaps.mcp.nearbySearch.lat": {
     "area": "GrabMaps MCP Configuration",
@@ -2438,7 +2438,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L351"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L277"
   },
   "maps.grabmaps.mcp.nearbySearch.lon": {
     "area": "GrabMaps MCP Configuration",
@@ -2452,7 +2452,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L359"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L285"
   },
   "maps.grabmaps.mcp.nearbySearch.radius": {
     "area": "GrabMaps MCP Configuration",
@@ -2466,7 +2466,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L367"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L293"
   },
   "maps.grabmaps.mcp.nearbySearch.limit": {
     "area": "GrabMaps MCP Configuration",
@@ -2480,7 +2480,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L375"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L301"
   },
   "maps.grabmaps.mcp.nearbySearch.rankBy": {
     "area": "GrabMaps MCP Configuration",
@@ -2494,7 +2494,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L383"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L309"
   },
   "maps.grabmaps.mcp.nearbySearch.language": {
     "area": "GrabMaps MCP Configuration",
@@ -2508,7 +2508,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L390"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L316"
   },
   "maps.grabmaps.mcp.nearbySearch.category": {
     "area": "GrabMaps MCP Configuration",
@@ -2522,7 +2522,175 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L396"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L322"
+  },
+  "browser.apiNative.mcp.serverKey": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "MCP server key inside mcpServers for the browser/API runtime",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L21"
+  },
+  "browser.apiNative.mcp.command": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "MCP launcher command for the browser/API runtime",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L27"
+  },
+  "browser.apiNative.mcp.args": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "MCP launcher args JSON array for the browser/API runtime",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L33"
+  },
+  "browser.apiNative.mcp.env": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "MCP launcher env JSON object for the browser/API runtime",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L39"
+  },
+  "browser.apiNative.mcp.startupTimeoutMs": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "MCP startup timeout in milliseconds",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L45"
+  },
+  "browser.apiNative.mcp.runtimeUrl": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Local browser API runtime URL for Knowgrph MCP bridge calls",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L53"
+  },
+  "browser.apiNative.mcp.defaultIntent": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Default natural-language browser task intent",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L59"
+  },
+  "browser.apiNative.mcp.targetUrl": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Default target URL for browser/API route resolution",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L65"
+  },
+  "browser.apiNative.mcp.dryRun": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Default browser API execution dry-run flag",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L71"
+  },
+  "browser.apiNative.mcp.confirmUnsafe": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Unsafe browser API execution confirmation flag",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L77"
+  },
+  "browser.apiNative.mcp.confirmThirdPartyTerms": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Third-party terms confirmation flag for policy-sensitive browser API routes",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L83"
+  },
+  "browser.apiNative.mcp.confirmCookieImport": {
+    "area": "API-Native Browser MCP Configuration",
+    "responsibility": "Cookie import confirmation flag for auth cookie storage access",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.api-native-browser.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.api-native-browser.ts:L89"
   },
   "flowchart.dataSource": {
     "area": "—",

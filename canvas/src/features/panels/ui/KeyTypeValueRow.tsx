@@ -4,6 +4,7 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const rowTextCellClassName = 'flex min-w-0 max-w-full overflow-hidden'
 const rowLabelCellClassName = `${rowTextCellClassName} text-ellipsis whitespace-nowrap`
@@ -11,6 +12,10 @@ const keyIconSliderInputGridClassName = 'grid-cols-[minmax(0,0.9fr)_minmax(1rem,
 const keyIconValueGridClassName = 'grid-cols-[minmax(0,1fr)_minmax(1.25rem,1.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.2fr)]'
 const keyValueGridClassName = 'grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
 const keyTypeValueGridClassName = 'grid-cols-[minmax(0,0.92fr)_minmax(3.75rem,0.62fr)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.05fr)_minmax(5rem,6.75rem)_minmax(0,1.25fr)]'
+
+const renderPanelTextNode = (node: React.ReactNode): React.ReactNode => {
+  return typeof node === 'string' ? renderMarkdownSigilInlineText(node) : node
+}
 
 export interface KeyTypeValueRowProps {
   keyNode: React.ReactNode
@@ -76,6 +81,9 @@ export function KeyTypeValueRow({
     density === 'compact' ? uiPanelRowDensityCompactClass : uiPanelRowDensityDefaultClass
   const cursorClass = onClick ? 'cursor-pointer' : ''
   const activeClass = isActive ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight
+  const renderedKeyNode = renderPanelTextNode(keyNode)
+  const renderedTypeNode = renderPanelTextNode(typeNode)
+  const renderedValueNode = renderPanelTextNode(valueNode)
 
   if (layout === 'keyIconSliderInput') {
     const rootClassName = [
@@ -94,14 +102,14 @@ export function KeyTypeValueRow({
     return (
       <dl className={rootClassName} onClick={onClick}>
         <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
-          {keyNode}
+          {renderedKeyNode}
         </dt>
         <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`} />
         <dd className={`${rowLabelCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
-          {typeNode}
+          {renderedTypeNode}
         </dd>
         <dd className={`${rowTextCellClassName} items-stretch justify-start gap-2 sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
-          {valueNode}
+          {renderedValueNode}
         </dd>
       </dl>
     )
@@ -124,13 +132,13 @@ export function KeyTypeValueRow({
     return (
       <dl className={rootClassName} onClick={onClick}>
         <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
-          {keyNode}
+          {renderedKeyNode}
         </dt>
         <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
-          {typeNode}
+          {renderedTypeNode}
         </dd>
         <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
-          {valueNode}
+          {renderedValueNode}
         </dd>
       </dl>
     )
@@ -153,10 +161,10 @@ export function KeyTypeValueRow({
     return (
       <dl className={rootClassName} onClick={onClick}>
         <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
-          {keyNode}
+          {renderedKeyNode}
         </dt>
         <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
-          {valueNode}
+          {renderedValueNode}
         </dd>
       </dl>
     )
@@ -182,13 +190,13 @@ export function KeyTypeValueRow({
       onClick={onClick}
     >
       <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
-        {keyNode}
+        {renderedKeyNode}
       </dt>
       <dd className={`${rowLabelCellClassName} items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
-        {typeNode}
+        {renderedTypeNode}
       </dd>
       <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
-        {valueNode}
+        {renderedValueNode}
       </dd>
     </dl>
   )

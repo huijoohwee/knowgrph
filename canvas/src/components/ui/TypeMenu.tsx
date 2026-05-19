@@ -3,6 +3,7 @@ import { Check } from 'lucide-react'
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type TypeMenuOption<T extends string> = {
   key: T
@@ -43,7 +44,7 @@ export function TypeMenu<T extends string>(props: TypeMenuProps<T>) {
               type="button"
               className={
                 [
-                  'kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 rounded text-xs',
+                  `${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 px-2 py-2 rounded text-xs`,
                   disabled ? UI_THEME_TOKENS.text.tertiary : UI_THEME_TOKENS.button.hoverBg,
                 ].join(' ')
               }

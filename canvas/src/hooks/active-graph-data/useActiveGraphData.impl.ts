@@ -6,6 +6,8 @@ import type { GraphState } from '@/hooks/useGraphStore'
 import { keywordGraphCache, KEYWORD_GRAPH_ALGO_VERSION } from '@/lib/semantic-mode/keywordGraphCache'
 import { hashText } from '@/features/parsers/hash'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashSignatureParts } from '@/lib/hash/signature'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
@@ -13,16 +15,57 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useApiGraphFlowchartGraphData } from '@/features/flowchart/apiGraphFlowchart'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
-import { buildKeywordSourceTextFromBaselineGraph, markdownToPlainText, stripFrontmatter } from './keywordSourceText'
+import {
+  buildKeywordSourceTextFromBaselineGraph,
+  collectKeywordSourceMarkdownAnnotationsFromBaselineGraph,
+  markdownToPlainText,
+  mergeKeywordSourceMarkdownAnnotations,
+  stripFrontmatter,
+} from './keywordSourceText'
 import { mergeKeywordGraphWithSourceNodes } from './keywordGraphMerge'
+import { extractMarkdownAnnotationsFromText, type MarkdownAnnotation } from '@/lib/markdown/markdownSigil'
 import {
   parseWorkspaceFrontmatterMermaidGraphDataCached,
   parseWorkspaceJsonGraphDataCached,
   WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS,
 } from './workspaceStructuredGraph'
 
-const keywordSourceTextCache = new LRUCache<string, { text: string; hash: string }>(24)
+const keywordSourceTextCache = new LRUCache<string, {
+  text: string
+  hash: string
+  annotations: MarkdownAnnotation[]
+  annotationHash: string
+}>(24)
 const keywordPreviewGraphCache = new LRUCache<string, GraphData>(8)
+
+const hashKeywordAnnotations = (annotations: MarkdownAnnotation[]): string => {
+  if (!Array.isArray(annotations) || annotations.length === 0) return ''
+  return hashSignatureParts([
+    'keyword-annotations',
+    ...annotations.map(annotation => [
+      String(annotation.text || '').replace(/\s+/g, ' ').trim().toLowerCase(),
+      annotation.color || '',
+      annotation.background || '',
+      annotation.highlighted === true ? '1' : '0',
+    ].join('|')),
+  ])
+}
+
+const readKeywordGraphNodeBudget = (args: { edgesPerNode: number; maxEdgesCap: number }): number => {
+  const rawEdgesPerNode = Number(args.edgesPerNode)
+  const rawEdgeCap = Number(args.maxEdgesCap)
+  const edgesPerNode = Number.isFinite(rawEdgesPerNode) ? Math.max(1, Math.min(60, Math.floor(rawEdgesPerNode))) : 6
+  const edgeCap = Number.isFinite(rawEdgeCap) ? Math.max(0, Math.min(25_000, Math.floor(rawEdgeCap))) : 2400
+  return Math.max(80, Math.min(220, Math.floor(edgeCap / edgesPerNode)))
+}
+
+const readKeywordSourceNodeBudget = (args: { mentionEdgesPerSourceNode: number; maxEdgesCap: number }): number => {
+  const rawMentionEdges = Number(args.mentionEdgesPerSourceNode)
+  const rawEdgeCap = Number(args.maxEdgesCap)
+  const mentionEdges = Number.isFinite(rawMentionEdges) ? Math.max(1, Math.min(30, Math.floor(rawMentionEdges))) : 6
+  const edgeCap = Number.isFinite(rawEdgeCap) ? Math.max(0, Math.min(25_000, Math.floor(rawEdgeCap))) : 2400
+  return Math.max(24, Math.min(96, Math.floor(edgeCap / (mentionEdges * 3))))
+}
 
 const INACTIVE_GRAPH_SLICE = {
   baseGraphDataRaw: null as GraphData | null,
@@ -126,40 +169,64 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     if (!baseGraphData) return null
     if (effectiveMode !== 'keyword') return null
 
-    const baseMetaKey = buildGraphMetaKey(baseGraphData)
-    const baseLayerHash = (() => {
-      const meta = (baseGraphData.metadata || null) as Record<string, unknown> | null
-      const h = meta && typeof meta.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
-      return h || ''
-    })()
-
     const meta = baseGraphData.metadata && typeof baseGraphData.metadata === 'object' && !Array.isArray(baseGraphData.metadata)
       ? (baseGraphData.metadata as Record<string, unknown>)
       : null
+    const baseMetaKey = buildGraphMetaKey(baseGraphData)
+    const baseLayerHash = typeof meta?.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
+    const sourceLayerOrderHash = typeof meta?.sourceLayerOrderHash === 'string' ? meta.sourceLayerOrderHash.trim() : ''
+    const graphSemanticKey = typeof meta?.graphSemanticKey === 'string' ? meta.graphSemanticKey.trim() : ''
     const sourceLayerComposition = typeof meta?.sourceLayerComposition === 'string' ? String(meta.sourceLayerComposition) : ''
     const isComposed = sourceLayerComposition === 'compose' || Array.isArray(meta?.sourceLayers)
     const preferredMarkdownText = typeof markdownText === 'string' && markdownText.trim() ? markdownText : ''
     const prefersMarkdown = !isComposed && preferredMarkdownText.length > 0
+    const maxKeywordNodes = readKeywordGraphNodeBudget({
+      edgesPerNode: keywordGraphEdgesPerNode,
+      maxEdgesCap: keywordGraphMaxEdgesCap,
+    })
+    const maxSourceNodes = readKeywordSourceNodeBudget({
+      mentionEdgesPerSourceNode: keywordGraphMentionEdgesPerSourceNode,
+      maxEdgesCap: keywordGraphMaxEdgesCap,
+    })
+    const markdownBody = prefersMarkdown ? stripFrontmatter(preferredMarkdownText) : ''
+    const markdownHash = prefersMarkdown ? hashText(markdownBody) : ''
+    const graphSourceKey = buildScopedGraphSemanticKey('keyword-source-text', {
+      graphData: baseGraphData,
+      graphRevision: revision,
+      graphSemanticKey,
+      sourceLayerHash: baseLayerHash,
+      sourceLayerOrderHash,
+    })
+    const cacheKeyForText = hashSignatureParts([
+      'keyword-source-text',
+      graphSourceKey || baseLayerHash || baseMetaKey || `rev:${String(revision)}`,
+      prefersMarkdown ? `md:${markdownHash}` : 'graph',
+      `L${keywordSourceMaxLines}`,
+      `C${keywordSourceMaxChars}`,
+    ])
+    const cachedText = keywordSourceTextCache.get(cacheKeyForText)
 
-    const cacheKeyForText = `${baseLayerHash || baseMetaKey || `rev:${String(revision)}`}:L${keywordSourceMaxLines}:C${keywordSourceMaxChars}`
-    const cachedText = prefersMarkdown ? null : keywordSourceTextCache.get(cacheKeyForText)
-
-    const sourceText = (() => {
-      if (!prefersMarkdown) {
-        return cachedText
-          ? cachedText.text
-          : buildKeywordSourceTextFromBaselineGraph(baseGraphData, { maxLines: keywordSourceMaxLines, maxChars: keywordSourceMaxChars })
-      }
-      const mdPlain = markdownToPlainText(stripFrontmatter(preferredMarkdownText))
+    const sourceEntry = cachedText || (() => {
       const baseline = buildKeywordSourceTextFromBaselineGraph(baseGraphData, { maxLines: keywordSourceMaxLines, maxChars: keywordSourceMaxChars })
-      const combined = [mdPlain, baseline].filter(Boolean).join('\n')
-      if (combined.length <= keywordSourceMaxChars) return combined
-      return combined.slice(0, keywordSourceMaxChars)
+      const baselineAnnotations = collectKeywordSourceMarkdownAnnotationsFromBaselineGraph(baseGraphData)
+      const markdownAnnotations = prefersMarkdown ? extractMarkdownAnnotationsFromText(markdownBody, 512, keywordSourceMaxChars) : []
+      const annotations = mergeKeywordSourceMarkdownAnnotations([markdownAnnotations, baselineAnnotations])
+      const annotationHash = hashKeywordAnnotations(annotations)
+      const text = (() => {
+        if (!prefersMarkdown) return baseline
+        const mdPlain = markdownToPlainText(markdownBody)
+        const combined = [mdPlain, baseline].filter(Boolean).join('\n')
+        if (combined.length <= keywordSourceMaxChars) return combined
+        return combined.slice(0, keywordSourceMaxChars)
+      })()
+      const plainTextHash = hashText(text)
+      const hash = hashSignatureParts(['keyword-source', plainTextHash, annotationHash])
+      return { text, hash, annotations, annotationHash }
     })()
-    const sourceTextHash = prefersMarkdown
-      ? hashText(sourceText)
-      : (cachedText ? cachedText.hash : (baseLayerHash || hashText(sourceText)))
-    if (!prefersMarkdown && !cachedText) keywordSourceTextCache.set(cacheKeyForText, { text: sourceText, hash: sourceTextHash })
+    if (!cachedText) keywordSourceTextCache.set(cacheKeyForText, sourceEntry)
+
+    const sourceText = sourceEntry.text
+    const sourceTextHash = sourceEntry.hash
 
     const docId = baseMetaKey
       ? `graph:${hashText(baseMetaKey)}`
@@ -167,17 +234,20 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         ? `md:${hashText(markdownName.trim())}`
         : `graph:${hashText(String(revision))}`
 
-    const tuningKey = `e${keywordGraphEdgesPerNode}-m${keywordGraphMaxEdgesCap}-me${keywordGraphMentionEdgesPerSourceNode}-L${keywordSourceMaxLines}-C${keywordSourceMaxChars}`
+    const tuningKey = `e${keywordGraphEdgesPerNode}-m${keywordGraphMaxEdgesCap}-n${maxKeywordNodes}-me${keywordGraphMentionEdgesPerSourceNode}-sn${maxSourceNodes}-L${keywordSourceMaxLines}-C${keywordSourceMaxChars}-a${sourceEntry.annotationHash || '0'}`
     const cacheKey = `keyword:v${KEYWORD_GRAPH_ALGO_VERSION}:${docId}:${sourceTextHash}:${tuningKey}`
     return {
       cacheKey,
       docId,
       sourceText,
       sourceTextHash,
+      markdownAnnotations: sourceEntry.annotations,
       tuning: {
         edgesPerNode: keywordGraphEdgesPerNode,
         maxEdgesCap: keywordGraphMaxEdgesCap,
+        maxNodes: maxKeywordNodes,
         mentionEdgesPerSourceNode: keywordGraphMentionEdgesPerSourceNode,
+        maxSourceNodes,
       },
     }
   }, [
@@ -269,9 +339,11 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
           documentText: snippet,
           sourceLabel: markdownName || undefined,
           sourceTextHash: inputs.sourceTextHash,
+          markdownAnnotations: inputs.markdownAnnotations,
           tuning: {
             edgesPerNode: inputs.tuning.edgesPerNode,
             maxEdgesCap: inputs.tuning.maxEdgesCap,
+            maxNodes: inputs.tuning.maxNodes,
           },
           timeoutMs: 20_000,
           signal: controller.signal,
@@ -283,7 +355,10 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
           baseGraphData: base,
           keywordGraph: g,
           sourceId: inputs.docId,
-          tuning: { mentionEdgesPerSourceNode: inputs.tuning.mentionEdgesPerSourceNode },
+          tuning: {
+            mentionEdgesPerSourceNode: inputs.tuning.mentionEdgesPerSourceNode,
+            maxSourceNodes: inputs.tuning.maxSourceNodes,
+          },
         })
         keywordPreviewGraphCache.set(inputs.cacheKey, merged)
         pipelinePerfEnd({ name: 'derive', stage: 'keyword:preview', t0, detail: { cacheKey: inputs.cacheKey } })
@@ -348,9 +423,11 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
           documentText: inputs.sourceText,
           sourceLabel: markdownName || undefined,
           sourceTextHash: inputs.sourceTextHash,
+          markdownAnnotations: inputs.markdownAnnotations,
           tuning: {
             edgesPerNode: inputs.tuning.edgesPerNode,
             maxEdgesCap: inputs.tuning.maxEdgesCap,
+            maxNodes: inputs.tuning.maxNodes,
           },
           timeoutMs: 90_000,
           signal: controller.signal,
@@ -364,7 +441,10 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
           baseGraphData: base,
           keywordGraph: derivedGraph,
           sourceId: inputs.docId,
-          tuning: { mentionEdgesPerSourceNode: inputs.tuning.mentionEdgesPerSourceNode },
+          tuning: {
+            mentionEdgesPerSourceNode: inputs.tuning.mentionEdgesPerSourceNode,
+            maxSourceNodes: inputs.tuning.maxSourceNodes,
+          },
         })
         keywordGraphCache.set(inputs.cacheKey, { graph, nodeCountsById: new Map() })
         pipelinePerfEnd({

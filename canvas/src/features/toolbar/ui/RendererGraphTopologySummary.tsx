@@ -1,6 +1,8 @@
 import React from 'react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import type { GraphData } from '@/lib/graph/types'
 import { readGraphTopologySummary, withGraphTopologyMetadata, type GraphTopologySummary } from '@/lib/graph/graphTopology'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const formatCount = (value: unknown): string => {
@@ -27,6 +29,67 @@ const compactCounts = (items: GraphTopologySummary['topEdgeLabels']): string => 
   return text || 'none'
 }
 
+type RendererHighlightToken = {
+  id: string
+  label: string
+  color: string
+  background: string
+  defaultHighlight: boolean
+  count: number
+  frequency: number
+  source: string
+}
+
+const readString = (record: Record<string, unknown>, key: string): string => {
+  const value = record[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export const readRendererHighlightTokens = (graphData: GraphData | null | undefined): RendererHighlightToken[] => {
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const byKey = new Map<string, RendererHighlightToken>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!node) continue
+    const props = (node.properties || {}) as Record<string, unknown>
+    const keywordMarked = props['keyword:highlight'] === true
+    const markdownMarked = props['markdown:highlight'] === true
+    const visualMarked = props['visual:highlight'] === true
+    if (!keywordMarked && !markdownMarked && !visualMarked) continue
+    const label = (
+      readString(props, 'markdown:highlight:text')
+      || String(node.label || readString(props, 'keyword:key') || '').trim()
+    )
+    if (!label) continue
+    const count = readNumber(props, 'keyword:highlight:count') || readNumber(props, 'markdown:highlight:count') || 1
+    const frequency = readNumber(props, 'keyword:frequency')
+    const color = readString(props, 'keyword:highlight:color') || readString(props, 'visual:labelColor') || readString(props, 'visual:stroke')
+    const background = readString(props, 'keyword:highlight:background') || readString(props, 'visual:fill') || readString(props, 'fill')
+    const source = keywordMarked ? 'keyword' : markdownMarked ? 'markdown' : 'visual'
+    const key = `${label.toLowerCase()}|${color}|${background}`
+    const existing = byKey.get(key)
+    if (existing) {
+      existing.count += count
+      existing.frequency += frequency
+      existing.defaultHighlight = existing.defaultHighlight || props['keyword:highlight:default'] === true || (markdownMarked && !background)
+      continue
+    }
+    byKey.set(key, {
+      id: String(node.id || label),
+      label,
+      color,
+      background,
+      defaultHighlight: props['keyword:highlight:default'] === true || (markdownMarked && !background),
+      count,
+      frequency,
+      source,
+    })
+  }
+  return Array.from(byKey.values())
+    .sort((a, b) => b.count - a.count || b.frequency - a.frequency || a.label.localeCompare(b.label))
+    .slice(0, 8)
+}
+
 export function RendererGraphTopologySummary() {
   const graphData = useActiveGraphRenderData()
   const topologyGraph = React.useMemo(() => {
@@ -40,6 +103,8 @@ export function RendererGraphTopologySummary() {
     : {}
   const prunedNodes = readNumber(metadata, 'canvasRenderNodePrunedCount')
   const prunedEdges = readNumber(metadata, 'canvasRenderEdgePrunedCount')
+  const rendererHighlights = React.useMemo(() => readRendererHighlightTokens(topologyGraph), [topologyGraph])
+  const rendererHighlightCount = readNumber(metadata, 'markdownSigilHighlightCount') || readNumber(metadata, 'keywordHighlightedCount')
 
   if (!summary) return null
 
@@ -76,6 +141,37 @@ export function RendererGraphTopologySummary() {
       <div className={`mt-1 text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
         Labels: {compactCounts(summary.topEdgeLabels)}
       </div>
+      {rendererHighlights.length > 0 ? (
+        <div className="mt-2">
+          <div className={`mb-1 text-[11px] font-medium ${UI_THEME_TOKENS.text.secondary}`}>
+            Highlights{rendererHighlightCount > rendererHighlights.length ? ` ${formatCount(rendererHighlightCount)}` : ''}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {rendererHighlights.map(token => {
+              const style: React.CSSProperties = {}
+              if (token.background) style.backgroundColor = token.background
+              if (token.color) style.color = token.color
+              if (token.background) style.borderColor = token.background
+              const fallbackClass = token.background || token.color
+                ? `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.primary}`
+                : token.defaultHighlight
+                  ? 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                  : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`
+              return (
+                <span
+                  key={token.id}
+                  className={`max-w-full truncate rounded-sm border px-1.5 py-0.5 text-[11px] leading-4 ${fallbackClass}`}
+                  style={style}
+                  title={`${token.source}: ${token.label}`}
+                  data-kg-renderer-highlight-chip="1"
+                >
+                  {renderMarkdownSigilInlineText(token.label)}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

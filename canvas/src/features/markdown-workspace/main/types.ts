@@ -2,7 +2,6 @@ import type React from 'react'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
-import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 
@@ -99,9 +98,7 @@ export type MarkdownWorkspaceMainProps = {
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
-  isEditing: boolean
   isMarkdown: boolean
-  onFormatAction: (action: MarkdownFormatAction) => void
 
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void

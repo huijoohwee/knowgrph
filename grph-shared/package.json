@@ -189,6 +189,11 @@
       "import": "./dist/geospatial/sgpAdministrativeAreas.js",
       "default": "./dist/geospatial/sgpAdministrativeAreas.js"
     },
+    "./browser/apiNativeBrowserMcpSsot": {
+      "types": "./dist/browser/apiNativeBrowserMcpSsot.d.ts",
+      "import": "./dist/browser/apiNativeBrowserMcpSsot.js",
+      "default": "./dist/browser/apiNativeBrowserMcpSsot.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

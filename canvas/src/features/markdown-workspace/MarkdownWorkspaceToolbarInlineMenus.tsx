@@ -1,24 +1,18 @@
 import React from 'react'
-import { usePanelTypography, type PanelTypography } from '@/lib/ui/panelTypography'
-import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
 import { uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { extractMarkdownAnnotationsFromText } from '@/lib/markdown/markdownSigil'
 import {
-  Bold,
   ChevronLeft,
   ChevronRight,
-  Code,
-  Edit3,
   Eye,
-  Heading2,
-  Italic,
-  Link,
-  List,
-  ListOrdered,
-  Quote,
-  Strikethrough,
   WrapText,
 } from 'lucide-react'
+
+export const readMarkdownToolbarHighlightCount = (markdown: string): number => {
+  return extractMarkdownAnnotationsFromText(markdown, 100, 120_000).length
+}
 
 export function MarkdownWorkspacePresentationNavMenu(props: {
   canNavigateSlides: boolean
@@ -52,147 +46,45 @@ export function MarkdownWorkspacePresentationNavMenu(props: {
   )
 }
 
-export function MarkdownWorkspaceFormattingMenu(props: {
-  toolbarButtonClassName: string
-  isEditing: boolean
-  isMarkdown: boolean
-  onFormatAction: (action: MarkdownFormatAction) => void
-}) {
-  const panelTypography = usePanelTypography()
-  return (
-    <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Formatting">
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Heading"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('heading2')}
-        >
-          <Heading2 className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Bold"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('bold')}
-        >
-          <Bold className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Italic"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('italic')}
-        >
-          <Italic className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Strikethrough"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('strike')}
-        >
-          <Strikethrough className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Inline code"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('inlineCode')}
-        >
-          <Code className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Link"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('link')}
-        >
-          <Link className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Bulleted list"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('bulletList')}
-        >
-          <List className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Numbered list"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('numberedList')}
-        >
-          <ListOrdered className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Quote"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('blockquote')}
-        >
-          <Quote className="w-4 h-4" strokeWidth={1.6} />
-        </button>
-      </li>
-      <li className="list-none">
-        <button
-          type="button"
-          className={props.toolbarButtonClassName}
-          title="Normalize ASCII blocks"
-          disabled={!props.isEditing || !props.isMarkdown}
-          onClick={() => props.onFormatAction('normalizeAsciiBlocks')}
-        >
-          <span className={`${panelTypography.microLabelClass} kg-truncate-chip`}>ASCII</span>
-        </button>
-      </li>
-    </menu>
-  )
-}
-
 export function MarkdownWorkspaceDisplayMenu(props: {
   toolbarButtonClassName: string
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
   markdownWordWrap: boolean
   setMarkdownWordWrap: (next: boolean) => void
+  highlightCount?: number
 }) {
+  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || '')
+  const storeHighlightCount = React.useMemo(
+    () => readMarkdownToolbarHighlightCount(markdownDocumentText),
+    [markdownDocumentText],
+  )
+  const highlightCount = typeof props.highlightCount === 'number' && Number.isFinite(props.highlightCount)
+    ? Math.max(0, Math.floor(props.highlightCount))
+    : storeHighlightCount
+  const highlightCountLabel = highlightCount >= 100 ? '99+' : String(highlightCount)
+  const highlightToggleTitle = highlightCount > 0
+    ? `Toggle text highlight (${highlightCountLabel})`
+    : 'Toggle text highlight'
+
   return (
     <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Display">
       <li className="list-none">
         <button
           type="button"
-          className={props.toolbarButtonClassName}
+          className={`${props.toolbarButtonClassName} relative`}
           aria-pressed={props.markdownTextHighlight}
-          title="Toggle text highlight"
+          aria-label={highlightToggleTitle}
+          title={highlightToggleTitle}
+          data-kg-sigil-highlight-count={highlightCount}
           onClick={() => props.setMarkdownTextHighlight(!props.markdownTextHighlight)}
         >
           <Eye className="w-4 h-4" strokeWidth={1.6} />
+          {highlightCount > 0 ? (
+            <span className="pointer-events-none absolute -right-1 -top-1 min-w-[1rem] rounded-sm border border-yellow-200 bg-yellow-50 px-0.5 text-center text-[9px] leading-3 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/70 dark:text-yellow-300">
+              {highlightCountLabel}
+            </span>
+          ) : null}
         </button>
       </li>
       <li className="list-none">

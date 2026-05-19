@@ -2,6 +2,8 @@ import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { computeWorkspaceBacklinks, summarizeWorkspaceBacklinksBySource } from '@/features/markdown-explorer/backlinks'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 export type MarkdownBacklinksPanelProps = {
   uiPanelTextFontClass: string
@@ -60,6 +62,7 @@ export function MarkdownBacklinksPanel(props: MarkdownBacklinksPanelProps) {
 
               const source = backlinkByName.get(b.sourceDocKey)
               const label = source?.name || b.sourceLabel
+              const displayLabel = readMarkdownSigilDisplayText(label)
               const countLabel = String(b.count)
 
               return (
@@ -71,7 +74,7 @@ export function MarkdownBacklinksPanel(props: MarkdownBacklinksPanelProps) {
                       if (!source?.id) return
                       onSourceFileSelect?.(source.id)
                     }}
-                    title={label}
+                    title={displayLabel}
                   >
                     <span
                       className={[
@@ -80,7 +83,7 @@ export function MarkdownBacklinksPanel(props: MarkdownBacklinksPanelProps) {
                         uiPanelTextFontClass,
                       ].join(' ')}
                     >
-                      {label}
+                      {renderMarkdownSigilInlineText(label)}
                     </span>
                     <span className={`text-[10px] px-1 py-px rounded ${UI_THEME_TOKENS.badge.chip} ${UI_THEME_TOKENS.text.tertiary}`}>
                       {countLabel}

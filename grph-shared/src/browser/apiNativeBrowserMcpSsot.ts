@@ -1,0 +1,35 @@
+export const API_NATIVE_BROWSER_MCP_DOC_AREA = 'API-Native Browser MCP Configuration'
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_SERVER_KEY = 'api-native-browser'
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_COMMAND = 'npx'
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_PACKAGE = 'unbrowse'
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_ARGS = [
+  '-y',
+  API_NATIVE_BROWSER_DEFAULT_MCP_PACKAGE,
+  'mcp',
+] as const
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_ENV = {} as const
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_STARTUP_TIMEOUT_MS = 60000
+
+export const API_NATIVE_BROWSER_DEFAULT_RUNTIME_URL = 'http://localhost:6969'
+
+export const API_NATIVE_BROWSER_DEFAULT_INTENT = 'resolve a browser task into a reusable first-party API route'
+
+export const API_NATIVE_BROWSER_DEFAULT_TARGET_URL = ''
+
+export const API_NATIVE_BROWSER_DEFAULT_DRY_RUN = true
+
+export const API_NATIVE_BROWSER_DEFAULT_CONFIRM_UNSAFE = false
+
+export const API_NATIVE_BROWSER_DEFAULT_CONFIRM_THIRD_PARTY_TERMS = false
+
+export const API_NATIVE_BROWSER_DEFAULT_CONFIRM_COOKIE_IMPORT = false
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_ARGS_JSON = JSON.stringify(API_NATIVE_BROWSER_DEFAULT_MCP_ARGS, null, 2)
+
+export const API_NATIVE_BROWSER_DEFAULT_MCP_ENV_JSON = JSON.stringify(API_NATIVE_BROWSER_DEFAULT_MCP_ENV, null, 2)

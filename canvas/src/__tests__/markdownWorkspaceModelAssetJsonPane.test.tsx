@@ -68,9 +68,7 @@ export async function testMarkdownWorkspacePendingGltfJsonPaneLoadsOriginalJson(
           setMarkdownTextHighlight={() => {}}
           onToggleFullscreen={() => {}}
           presentationApiRef={{ current: null } as never}
-          isEditing={true}
           isMarkdown={true}
-          onFormatAction={() => {}}
           activeText={pendingGltfStub({ path: pendingPath, name: 'large-scene.gltf', bytes: gltf.length })}
           setActiveText={() => {}}
           activeDocumentKey={pendingPath}

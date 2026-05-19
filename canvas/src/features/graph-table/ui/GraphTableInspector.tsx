@@ -24,6 +24,8 @@ import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { useShallow } from 'zustand/react/shallow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
@@ -327,6 +329,7 @@ export function GraphTableInspector({
   const isEmpty = !row
   const headerKind = row ? row.tableId : 'selection'
   const headerLabel = row ? row.rowId : SELECTION_INSPECTOR_EMPTY_TEXT
+  const headerDisplayLabel = readMarkdownSigilDisplayText(headerLabel)
   const RootTag: ElementType = scrollMode === 'internal' ? 'section' : 'div'
   const TitleTag: ElementType = scrollMode === 'internal' ? 'section' : 'div'
   const FieldsTag: ElementType = scrollMode === 'internal' ? 'section' : 'div'
@@ -345,7 +348,9 @@ export function GraphTableInspector({
       <header className={`${uiToolbarRowScrollJustifyBetweenClassName} px-3 py-2 border-b gap-2 ${UI_THEME_TOKENS.panel.divider}`}>
         <TitleTag className="min-w-0" aria-label="Record title">
           <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{headerKind}</p>
-          <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{headerLabel}</p>
+          <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`} title={headerDisplayLabel}>
+            {renderMarkdownSigilInlineText(headerLabel)}
+          </p>
         </TitleTag>
         <nav className={`${uiToolbarRowScrollJustifyEndClassName} gap-1.5`} aria-label="Inspector actions">
           <button

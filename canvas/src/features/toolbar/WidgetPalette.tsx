@@ -23,6 +23,8 @@ import {
 } from '@/lib/flowEditor/widgetDrag'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
 import { getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 function defaultLabelForEntry(entry: WidgetRegistryEntry): string {
   return getWidgetRegistryEntryLabel({
@@ -60,7 +62,8 @@ export default function WidgetPalette(args: {
             <li className={`px-2 py-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>No enabled entries.</li>
           ) : (
             entries.map(entry => {
-              const label = defaultLabelForEntry(entry)
+              const rawLabel = defaultLabelForEntry(entry)
+              const label = readMarkdownSigilDisplayText(rawLabel)
               const disabled = !dragEnabled
               return (
                 <li key={entry.id}>
@@ -92,7 +95,7 @@ export default function WidgetPalette(args: {
                       clearActiveFlowWidgetPointerDragSession()
                     }}
                   >
-                    <span className={`block ${UI_THEME_TOKENS.text.primary}`}>{label}</span>
+                    <span className={`block ${UI_THEME_TOKENS.text.primary}`}>{renderMarkdownSigilInlineText(rawLabel)}</span>
                     <span className={`block ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>
                       {entry.widgetTypeId}/{entry.formId}
                     </span>

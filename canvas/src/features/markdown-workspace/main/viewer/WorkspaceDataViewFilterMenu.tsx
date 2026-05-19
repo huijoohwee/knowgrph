@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewFilterRule, WorkspaceDataViewFilterOp } from './workspaceDataViewConfig'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type FilterTarget = {
@@ -126,7 +127,8 @@ export function WorkspaceDataViewFilterMenu(props: {
                     key={o}
                     type="button"
                     className={[
-                      'kg-data-view-action max-w-full text-[10px] px-2 py-1 rounded border',
+                      UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+                      'text-[10px] px-2 py-1 rounded border',
                       draftValue === o ? [UI_THEME_TOKENS.button.primarySolid, UI_THEME_TOKENS.button.activeBorder].join(' ') : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
                     ].join(' ')}
                     onClick={() => setDraftValue(o)}
@@ -167,7 +169,7 @@ export function WorkspaceDataViewFilterMenu(props: {
               <li key={c.id} className="list-none">
                 <button
                   type="button"
-                  className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                   onClick={() => onPickColumn(c)}
                 >
                   {iconFor(c)}
@@ -180,7 +182,7 @@ export function WorkspaceDataViewFilterMenu(props: {
           <div className={['my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
           <button
             type="button"
-            className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={onAddGroup}
           >
             <Plus className={icon14} aria-hidden="true" />

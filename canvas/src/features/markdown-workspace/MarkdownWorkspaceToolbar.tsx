@@ -4,13 +4,11 @@ import {
   LayoutPanelTop,
   Maximize2,
   X,
-  Quote,
 } from 'lucide-react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
-import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './WorkspaceModeSelect'
@@ -18,6 +16,10 @@ import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/fro
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import {
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_LABEL_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import {
   uiToolbarRowScrollInlineClassName,
   uiToolbarRowScrollJustifyEndClassName,
@@ -33,7 +35,6 @@ import {
 import type { MarkdownWorkspaceDerivedViewerMode } from './main/viewer/MarkdownWorkspaceDerivedViewer'
 import {
   MarkdownWorkspaceDisplayMenu,
-  MarkdownWorkspaceFormattingMenu,
   MarkdownWorkspacePresentationNavMenu,
 } from '@/features/markdown-workspace/MarkdownWorkspaceToolbarInlineMenus'
 
@@ -67,10 +68,6 @@ export type MarkdownWorkspaceToolbarProps = {
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
-  isEditing: boolean
-  isMarkdown: boolean
-  onFormatAction: (action: MarkdownFormatAction) => void
-
   webpageSignalSummary?: {
     nav: number
     cta: number
@@ -85,7 +82,7 @@ export type MarkdownWorkspaceToolbarProps = {
   onContentFormatChange?: (format: 'markdown' | 'json') => void | Promise<void>
 }
 
-const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
 
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
@@ -113,9 +110,6 @@ export function MarkdownWorkspaceToolbar({
   onExportSvg,
   onToggleFullscreen,
   presentationApiRef,
-  isEditing,
-  isMarkdown,
-  onFormatAction,
   webpageSignalSummary,
   webpageWorkspaceMeta,
   onWebpageChangeView,
@@ -136,15 +130,6 @@ export function MarkdownWorkspaceToolbar({
     () => paneAvailability || DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY,
     [paneAvailability],
   )
-  const inlineFloatingFormattingOwnsViewerSurface =
-    layoutMode === 'viewer'
-    && viewerKind === 'markdown'
-    && viewerMode === 'read'
-  const showWorkspaceFormattingMenu =
-    (layoutMode !== 'split' || Boolean(effectiveSplitPanes.viewer))
-    && !inlineFloatingFormattingOwnsViewerSurface
-    && isEditing
-    && isMarkdown
   const showMarkdownDisplayMenu = viewerKind === 'markdown' && (viewerMode === 'read' || !viewerMode)
   const workspacePanesControlId = React.useId()
   const webpageControls = React.useMemo(() => {
@@ -169,13 +154,22 @@ export function MarkdownWorkspaceToolbar({
     Number(current.viewer && effectivePaneAvailability.viewer) +
     Number(current.html && effectivePaneAvailability.html && webpageControls?.view === 'html')
   ), [effectivePaneAvailability.html, effectivePaneAvailability.json, effectivePaneAvailability.markdown, effectivePaneAvailability.viewer, webpageControls])
+  const resolveViewerEditPaneVisibility = React.useCallback((current: MarkdownWorkspacePaneVisibility): MarkdownWorkspacePaneVisibility => {
+    if ((current.markdown && effectivePaneAvailability.markdown) || (current.json && effectivePaneAvailability.json)) return current
+    if (contentFormat === 'json' && effectivePaneAvailability.json) return { ...current, json: true }
+    if (contentFormat === 'markdown' && effectivePaneAvailability.markdown) return { ...current, markdown: true }
+    if (effectivePaneAvailability.markdown) return { ...current, markdown: true }
+    if (effectivePaneAvailability.json) return { ...current, json: true }
+    return current
+  }, [contentFormat, effectivePaneAvailability.json, effectivePaneAvailability.markdown])
   const toggleSplitPane = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
     if (!setSplitPaneVisibility) return
     const current = effectiveSplitPanes
     const enabledCount = visiblePaneCount(current)
     if (current[key] && enabledCount <= 1) return
-    setSplitPaneVisibility({ ...current, [key]: !current[key] })
-  }, [effectiveSplitPanes, setSplitPaneVisibility, visiblePaneCount])
+    const next = { ...current, [key]: !current[key] }
+    setSplitPaneVisibility(key === 'viewer' && next.viewer ? resolveViewerEditPaneVisibility(next) : next)
+  }, [effectiveSplitPanes, resolveViewerEditPaneVisibility, setSplitPaneVisibility, visiblePaneCount])
   const handleSplitPaneToggle = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
     if (!setSplitPaneVisibility) return
     if (!effectivePaneAvailability[key]) return
@@ -272,9 +266,10 @@ export function MarkdownWorkspaceToolbar({
   }, [panelTypography.microLabelClass, webpageSignalSummary])
 
   const paneToggleLabelClass = (available: boolean): string =>
-    `inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden text-xs select-none ${available ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`
+    `kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} ${available ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`
   const paneToggleTitle = (label: string, available: boolean): string =>
     available ? label : `${label} not applicable for this Source File`
+  const paneToggleTextClassName = `kg-workspace-pane-toggle-label ${UI_TEXT_TRUNCATE}`
 
   return (
       <WorkspaceHeaderRow className="kg-toolbar min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
@@ -311,46 +306,28 @@ export function MarkdownWorkspaceToolbar({
         ) : null}
 
         <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Layout mode">
-          <li className="list-none">
+          <li className="kg-workspace-pane-toggles-item list-none">
             <fieldset
               id={workspacePanesControlId}
               className={`kg-workspace-pane-toggles ${uiToolbarRowScrollInlineClassName} gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
               aria-label="Workspace panes"
               title="Workspace panes"
             >
-              <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden text-xs cursor-pointer select-none">
+              <label className={`kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`} title="Explorer pane">
                 <input
+                  className="kg-workspace-pane-toggle-input"
                   type="checkbox"
+                  aria-label="Show Explorer pane"
                   checked={explorerOpen}
                   onChange={() => setExplorerOpen(!explorerOpen)}
                 />
-                <span className={UI_TEXT_TRUNCATE}>Explorer</span>
+                <span className={paneToggleTextClassName}>Explorer</span>
               </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.bin)} title={paneToggleTitle('bin', effectivePaneAvailability.bin)}>
+              <label className={paneToggleLabelClass(effectivePaneAvailability.markdown)} title={paneToggleTitle('Markdown editor pane', effectivePaneAvailability.markdown)}>
                 <input
+                  className="kg-workspace-pane-toggle-input"
                   type="checkbox"
-                  checked={effectivePaneAvailability.bin}
-                  disabled
-                  aria-disabled="true"
-                />
-                <span className={UI_TEXT_TRUNCATE}>bin</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.json)} title={paneToggleTitle('JSON', effectivePaneAvailability.json)}>
-                <input
-                  type="checkbox"
-                  checked={effectivePaneAvailability.json && effectiveSplitPanes.json}
-                  disabled={!effectivePaneAvailability.json}
-                  aria-disabled={!effectivePaneAvailability.json}
-                  onChange={() => {
-                    if (!effectivePaneAvailability.json) return
-                    handleContentPaneToggle('json')
-                  }}
-                />
-                <span className={UI_TEXT_TRUNCATE}>JSON</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.markdown)} title={paneToggleTitle('Markdown', effectivePaneAvailability.markdown)}>
-                <input
-                  type="checkbox"
+                  aria-label="Show Markdown editor pane"
                   checked={effectivePaneAvailability.markdown && effectiveSplitPanes.markdown}
                   disabled={!effectivePaneAvailability.markdown}
                   aria-disabled={!effectivePaneAvailability.markdown}
@@ -359,11 +336,13 @@ export function MarkdownWorkspaceToolbar({
                     handleContentPaneToggle('markdown')
                   }}
                 />
-                <span className={UI_TEXT_TRUNCATE}>Markdown</span>
+                <span className={paneToggleTextClassName}>Markdown</span>
               </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.viewer)} title={paneToggleTitle('Viewer', effectivePaneAvailability.viewer)}>
+              <label className={`${paneToggleLabelClass(effectivePaneAvailability.viewer)} kg-workspace-pane-toggle--viewer`} title={paneToggleTitle('Viewer preview pane', effectivePaneAvailability.viewer)}>
                 <input
+                  className="kg-workspace-pane-toggle-input"
                   type="checkbox"
+                  aria-label="Show Viewer preview pane"
                   checked={effectivePaneAvailability.viewer && effectiveSplitPanes.viewer}
                   disabled={!effectivePaneAvailability.viewer}
                   aria-disabled={!effectivePaneAvailability.viewer}
@@ -372,26 +351,56 @@ export function MarkdownWorkspaceToolbar({
                     handleSplitPaneToggle('viewer')
                   }}
                 />
-                <span className={UI_TEXT_TRUNCATE}>Viewer</span>
+                <span className={paneToggleTextClassName}>Viewer</span>
+              </label>
+              <label className={paneToggleLabelClass(effectivePaneAvailability.bin)} title={paneToggleTitle('bin', effectivePaneAvailability.bin)}>
+                <input
+                  className="kg-workspace-pane-toggle-input"
+                  type="checkbox"
+                  aria-label="Show binary model pane"
+                  checked={effectivePaneAvailability.bin}
+                  disabled
+                  aria-disabled="true"
+                />
+                <span className={paneToggleTextClassName}>bin</span>
+              </label>
+              <label className={paneToggleLabelClass(effectivePaneAvailability.json)} title={paneToggleTitle('JSON', effectivePaneAvailability.json)}>
+                <input
+                  className="kg-workspace-pane-toggle-input"
+                  type="checkbox"
+                  aria-label="Show JSON editor pane"
+                  checked={effectivePaneAvailability.json && effectiveSplitPanes.json}
+                  disabled={!effectivePaneAvailability.json}
+                  aria-disabled={!effectivePaneAvailability.json}
+                  onChange={() => {
+                    if (!effectivePaneAvailability.json) return
+                    handleContentPaneToggle('json')
+                  }}
+                />
+                <span className={paneToggleTextClassName}>JSON</span>
               </label>
               <label className={paneToggleLabelClass(htmlPaneAvailable)} title={paneToggleTitle('HTML', htmlPaneAvailable)}>
                 <input
+                  className="kg-workspace-pane-toggle-input"
                   type="checkbox"
+                  aria-label="Show HTML viewer pane"
                   checked={htmlPaneChecked}
                   disabled={!htmlPaneAvailable}
                   aria-disabled={!htmlPaneAvailable}
                   onChange={handleHtmlPaneToggle}
                 />
-                <span className={UI_TEXT_TRUNCATE}>HTML</span>
+                <span className={paneToggleTextClassName}>HTML</span>
               </label>
               {typeof canvasOpen === 'boolean' && typeof setCanvasOpen === 'function' ? (
-                <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden text-xs cursor-pointer select-none">
+                <label className={`kg-workspace-pane-toggle ${UI_RESPONSIVE_LABEL_ROW_CLASSNAME} cursor-pointer`} title="Canvas pane">
                   <input
+                    className="kg-workspace-pane-toggle-input"
                     type="checkbox"
+                    aria-label="Show Canvas pane"
                     checked={canvasOpen}
                     onChange={() => setCanvasOpen(!canvasOpen)}
                   />
-                  <span className={UI_TEXT_TRUNCATE}>Canvas</span>
+                  <span className={paneToggleTextClassName}>Canvas</span>
                 </label>
               ) : null}
             </fieldset>
@@ -424,14 +433,6 @@ export function MarkdownWorkspaceToolbar({
           toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
           presentationApiRef={presentationApiRef}
         />
-        {showWorkspaceFormattingMenu ? (
-          <MarkdownWorkspaceFormattingMenu
-            toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
-            isEditing={isEditing}
-            isMarkdown={isMarkdown}
-            onFormatAction={onFormatAction}
-          />
-        ) : null}
         {showMarkdownDisplayMenu ? (
           <MarkdownWorkspaceDisplayMenu
             toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}

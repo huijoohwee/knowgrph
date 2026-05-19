@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, EyeOff, Filter, Trash2, Copy, ArrowUp, ArrowDown
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type ColumnHeaderMenuFilterOp = string
 
@@ -48,7 +49,7 @@ export type ColumnHeaderMenuProps = {
 
 const itemBtn = (disabled?: boolean): string => {
   return [
-    'kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 rounded text-xs',
+    `${UI_RESPONSIVE_MENU_ROW_CLASSNAME} gap-2 px-2 py-2 rounded text-xs`,
     disabled ? UI_THEME_TOKENS.text.tertiary : UI_THEME_TOKENS.button.hoverBg,
   ].join(' ')
 }

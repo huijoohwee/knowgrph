@@ -1,4 +1,5 @@
 import { deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
+import type { MarkdownAnnotation } from '@/lib/markdown/markdownSigil'
 
 type DeriveKeywordGraphRequest = {
   type: 'deriveKeywordGraph'
@@ -7,6 +8,7 @@ type DeriveKeywordGraphRequest = {
   documentText: string
   sourceLabel?: string
   sourceTextHash?: string
+  markdownAnnotations?: MarkdownAnnotation[]
   tuning?: { edgesPerNode?: number; maxEdgesCap?: number; maxNodes?: number }
 }
 
@@ -32,6 +34,7 @@ ctx.onmessage = (e: MessageEvent<DeriveKeywordGraphRequest>) => {
       documentText: String(msg.documentText || ''),
       sourceLabel: typeof msg.sourceLabel === 'string' ? msg.sourceLabel : undefined,
       sourceTextHash: typeof msg.sourceTextHash === 'string' ? msg.sourceTextHash : undefined,
+      markdownAnnotations: Array.isArray(msg.markdownAnnotations) ? msg.markdownAnnotations : undefined,
       tuning:
         msg.tuning && typeof msg.tuning === 'object' && !Array.isArray(msg.tuning)
           ? {

@@ -62,11 +62,11 @@ export const testPanelShellUsesResponsiveRowScrolling = () => {
   }
 
   const iconButton = readUtf8(iconButtonPath)
-  if (!iconButton.includes('kg-icon-button') || !iconButton.includes('overflow-hidden')) {
+  if (!iconButton.includes('kg-icon-button') || !iconButton.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')) {
     throw new Error('Expected IconButton to use the shared clipped icon-button surface')
   }
-  if (!iconButton.includes('min-w-0 max-w-full') || !iconButton.includes('gap-1.5') || !iconButton.includes('flex-nowrap')) {
-    throw new Error('Expected IconButton text/icon groups to keep mobile-safe dimensions')
+  if (!iconButton.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !iconButton.includes('UI_RESPONSIVE_ICON_TEXT_ROW_CLASSNAME')) {
+    throw new Error('Expected IconButton text/icon groups to use the shared responsive element-row primitive')
   }
 
   const responsiveCss = readUtf8(responsiveCssPath)
@@ -80,7 +80,7 @@ export const testPanelShellUsesResponsiveRowScrolling = () => {
   if (!responsiveCss.includes('.kg-row-scroll,') || !responsiveCss.includes('.kg-responsive-row-scroll')) {
     throw new Error('Expected responsive CSS to centralize always-on and mobile-only row scrolling')
   }
-  if (!responsiveCss.includes('.kg-icon-button,') || !responsiveCss.includes('.App-toolbar__btn')) {
+  if (!responsiveCss.includes('.kg-responsive-element-row') || !responsiveCss.includes('.kg-icon-button,') || !responsiveCss.includes('.App-toolbar__btn')) {
     throw new Error('Expected shared responsive CSS to own icon and toolbar button clipping')
   }
   if (!responsiveCss.includes('text-overflow: ellipsis') || !responsiveCss.includes('white-space: nowrap')) {
@@ -152,7 +152,7 @@ export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
   if (!graphTableToolbar.includes('kg-graph-table-toolbar') || !graphTableToolbar.includes('kg-graph-table-menu-form')) {
     throw new Error('Expected GraphTableToolbar controls and menus to use shared responsive classes')
   }
-  if (!graphTableToolbar.includes('UI_TEXT_TRUNCATE') || !graphTableToolbar.includes('flex-nowrap items-center')) {
+  if (!graphTableToolbar.includes('UI_TEXT_TRUNCATE') || !graphTableToolbar.includes('UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME')) {
     throw new Error('Expected GraphTableToolbar labels to ellipsize instead of pushing icons to new rows')
   }
 
@@ -197,7 +197,11 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const dataViewDialogPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsDialog.tsx')
   const dataViewFilterPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewFilterMenu.tsx')
   const dataViewChipsPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewChips.tsx')
+  const dataViewAddColumnPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewAddColumnMenu.tsx')
+  const dataViewTablePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewTableView.tsx')
+  const kanbanCardPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanCard.tsx')
   const fileTreePath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownFileTree.tsx')
+  const floatingMenuStylesPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'floatingMenuStyles.ts')
 
   const responsiveCss = readUtf8(responsiveCssPath)
   if (!responsiveCss.includes('.kg-toolbar-dropdown-menu') || !responsiveCss.includes('.kg-column-header-menu')) {
@@ -209,37 +213,30 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!responsiveCss.includes('transform: none !important') || !responsiveCss.includes('.kg-menu-row svg')) {
     throw new Error('Expected mobile submenus and menu icons to avoid offscreen transforms and icon wrapping')
   }
-
   const overlay = readUtf8(overlayPath)
   if (!overlay.includes('clampOverlayTopLeftFullyInViewport') || !overlay.includes('maxWidth') || !overlay.includes('overscrollBehavior')) {
     throw new Error('Expected AnchorOverlay to clamp dropdowns inside the viewport')
   }
-
   const toolbarDropdown = readUtf8(toolbarDropdownPath)
-  if (!toolbarDropdown.includes('kg-toolbar-dropdown-menu') || !toolbarDropdown.includes('kg-toolbar-dropdown-submenu')) {
+  if (!toolbarDropdown.includes('kg-toolbar-dropdown-menu') || !toolbarDropdown.includes('kg-toolbar-dropdown-submenu') || !toolbarDropdown.includes('UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME')) {
     throw new Error('Expected toolbar dropdowns and submenus to use shared responsive menu classes')
   }
-
   const launchDropdown = readUtf8(launchDropdownPath)
-  if (!launchDropdown.includes('kg-launch-menu-item w-full min-w-0 max-w-full flex flex-nowrap')) {
+  if (!launchDropdown.includes('UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME')) {
     throw new Error('Expected launch menu rows to keep icons and labels on one clipped row')
   }
-
   const columnHeaderMenu = readUtf8(columnHeaderMenuPath)
   if (!columnHeaderMenu.includes('kg-column-header-menu') || !columnHeaderMenu.includes('kg-column-header-submenu')) {
     throw new Error('Expected column header menus to use bounded menu and submenu primitives')
   }
-
   const typeMenu = readUtf8(typeMenuPath)
-  if (!typeMenu.includes('kg-type-menu') || !typeMenu.includes('kg-menu-row')) {
+  if (!typeMenu.includes('kg-type-menu') || !typeMenu.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME')) {
     throw new Error('Expected type menus to reuse shared menu row clipping')
   }
-
   const dataViewHeader = readUtf8(dataViewHeaderPath)
-  if (!dataViewHeader.includes('kg-data-view-header-controls') || !dataViewHeader.includes('kg-data-view-actions')) {
+  if (!dataViewHeader.includes('kg-data-view-header-controls') || !dataViewHeader.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME')) {
     throw new Error('Expected Data View header controls to stay inside viewport bounds')
   }
-
   const dataViewDialog = readUtf8(dataViewDialogPath)
   if (!dataViewDialog.includes('kg-data-view-settings-layout') || !dataViewDialog.includes('kg-data-view-settings-nav')) {
     throw new Error('Expected Data View settings dialog to stack navigation and content on mobile')
@@ -247,20 +244,33 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!dataViewDialog.includes('uiToolbarResponsiveRowScrollClassName')) {
     throw new Error('Expected Data View settings nav to use the toolbar-owned mobile row-scroll helper')
   }
-
   const dataViewFilter = readUtf8(dataViewFilterPath)
   if (!dataViewFilter.includes('kg-data-view-filter-menu') || !dataViewFilter.includes('UI_TEXT_TRUNCATE')) {
     throw new Error('Expected Data View filter menus to stay bounded and ellipsized')
   }
-
   const dataViewChips = readUtf8(dataViewChipsPath)
-  if (!dataViewChips.includes('inline-flex min-w-0 max-w-full flex-nowrap') || !dataViewChips.includes('shrink-0')) {
+  if (!dataViewChips.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !dataViewChips.includes('shrink-0')) {
     throw new Error('Expected Data View chips to prevent long tag and icon overflow')
   }
-
+  const dataViewAddColumn = readUtf8(dataViewAddColumnPath)
+  if (!dataViewAddColumn.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME') || !dataViewAddColumn.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME')) {
+    throw new Error('Expected Data View add-column menu to reuse responsive menu and action rows')
+  }
+  const dataViewTable = readUtf8(dataViewTablePath)
+  if (!dataViewTable.includes('uiToolbarRowScrollClassName') || dataViewTable.includes('flex flex-wrap gap-1')) {
+    throw new Error('Expected Data View table chip rows to use toolbar-owned same-row scrolling')
+  }
+  const kanbanCard = readUtf8(kanbanCardPath)
+  if (!kanbanCard.includes('uiToolbarRowScrollClassName') || kanbanCard.includes('flex flex-wrap gap-1 list-none')) {
+    throw new Error('Expected Kanban tag rows to use toolbar-owned same-row scrolling')
+  }
   const fileTree = readUtf8(fileTreePath)
-  if (!fileTree.includes('clampOverlayTopLeftFullyInViewport') || !fileTree.includes('kg-data-view-floating-menu fixed')) {
+  if (!fileTree.includes('clampOverlayTopLeftFullyInViewport') || !fileTree.includes('kg-data-view-floating-menu fixed') || !fileTree.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME')) {
     throw new Error('Expected workspace file context menus to clamp within mobile viewports')
+  }
+  const floatingMenuStyles = readUtf8(floatingMenuStylesPath)
+  if (!floatingMenuStyles.includes('uiToolbarRowScrollClassName') || !floatingMenuStyles.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')) {
+    throw new Error('Expected floating toolbars to reuse row-scroll and responsive inline elements')
   }
 }
 

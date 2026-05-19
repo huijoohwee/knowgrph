@@ -1,4 +1,6 @@
 import React, { act } from 'react'
+import fs from 'node:fs'
+import path from 'node:path'
 import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
@@ -22,7 +24,11 @@ import {
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
 import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
-import { assertMapsHubOmitsGrabMapsMcpConfig, assertMcpHubSurfacesGrabMapsMcpConfig } from '@/__tests__/helpers/mainPanelMcpExpectations'
+import {
+  assertMapsHubOmitsGrabMapsMcpConfig,
+  assertMcpHubSurfacesApiNativeBrowserMcpConfig,
+  assertMcpHubSurfacesGrabMapsMcpConfig,
+} from '@/__tests__/helpers/mainPanelMcpExpectations'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
   void raf
@@ -730,6 +736,102 @@ export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
     restoreDom()
     restoreWindow()
   }
+}
+
+export async function testMcpHubSurfacesApiNativeBrowserMcpConfig() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(McpHubView), anyWindow.requestAnimationFrame, 4)
+
+    assertMcpHubSurfacesApiNativeBrowserMcpConfig(container)
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export function testKnowgrphMcpServerExposesApiNativeBrowserBridge() {
+  const serverText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'server.js'), 'utf8')
+  const runtimeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'browser-api-runtime.js'), 'utf8')
+  const nativeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'browser-api-native-operations.js'), 'utf8')
+  ;[
+    'knowgrph.browser_api.run',
+    'BROWSER_API_TOOL',
+    'callBrowserApiRuntime',
+  ].forEach(token => {
+    if (!serverText.includes(token)) {
+      throw new Error(`expected Knowgrph MCP server to expose browser bridge token ${JSON.stringify(token)}`)
+    }
+  })
+  ;[
+    'knowgrph.browser_api.run',
+    'KNOWGRPH_BROWSER_API_RUNTIME_URL',
+    'KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME',
+    'API_NATIVE_BROWSER_DEFAULT_RUNTIME_URL',
+    'cookieImport',
+    'confirmCookieImport',
+    'runtimePath',
+    '/v1/search',
+    '/v1/search/domain',
+    '/v1/intent/resolve',
+    '/v1/auth/login',
+    '/v1/auth/steal',
+    '/v1/skills',
+    '/v1/skills/${encodeURIComponent(requiredSkillId)}/execute',
+    '/v1/skills/${encodeURIComponent(requiredSkillId)}/verify',
+    '/v1/skills/${encodeURIComponent(requiredSkillId)}/issues',
+    '/v1/feedback',
+    '/v1/stats/summary',
+    'dry_run',
+    'confirm_unsafe',
+    'confirm_third_party_terms',
+    'confirm_cookie_import',
+  ].forEach(token => {
+    if (!runtimeText.includes(token)) {
+      throw new Error(`expected Knowgrph MCP browser bridge to expose ${JSON.stringify(token)}`)
+    }
+  })
+  const retiredCookieImportName = ['auth', 'Steal'].join('')
+  if (runtimeText.includes(retiredCookieImportName)) {
+    throw new Error('expected Knowgrph MCP browser bridge to expose cookieImport instead of the retired cookie import operation name')
+  }
+  ;[
+    'go',
+    'snap',
+    'click',
+    'fill',
+    'screenshot',
+    'markdown',
+    'cookies',
+    'eval',
+    'sync',
+    'sessions',
+    'nativeBrowserPathForOperation',
+    '/v1/browser/${encodeURIComponent(operation)}',
+    '/v1/sessions',
+  ].forEach(token => {
+    if (!nativeText.includes(token)) {
+      throw new Error(`expected Knowgrph MCP native browser bridge module to expose ${JSON.stringify(token)}`)
+    }
+  })
 }
 
 export async function testPaymentsHubOmitsGlobalResetSection() {

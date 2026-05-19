@@ -9,6 +9,8 @@ import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const mediaStatsPanelClassName = `mt-2 border ${UI_THEME_TOKENS.table.cellBorder} rounded ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-auto`
 const mediaToggleShellClassName = `inline-flex rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.button.neutralSubtle}`
@@ -288,20 +290,23 @@ export default function MediaNodesSection({
                   UI_THEME_TOKENS.text.primary,
                 ].join(' ')}
               >
-                {rows.map(row => (
-                  <tr key={row.id} className={`border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}>
-                    <td className="px-2 py-1 truncate">{row.type}</td>
-                    <td className="px-2 py-1 truncate">{row.label}</td>
-                    <td className="px-2 py-1">
-                      <span className="inline-flex items-center gap-1">
-                        <span className={`uppercase tracking-wide text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
-                          {row.media.kind}
+                {rows.map(row => {
+                  const label = readMarkdownSigilDisplayText(row.label)
+                  return (
+                    <tr key={row.id} className={`border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}>
+                      <td className="px-2 py-1 truncate">{row.type}</td>
+                      <td className="px-2 py-1 truncate" title={label}>{renderMarkdownSigilInlineText(row.label)}</td>
+                      <td className="px-2 py-1">
+                        <span className="inline-flex items-center gap-1">
+                          <span className={`uppercase tracking-wide text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+                            {row.media.kind}
+                          </span>
+                          <span className={`inline-flex h-2 w-2 rounded-full ${UI_THEME_TOKENS.status.neutralDot}`} />
                         </span>
-                        <span className={`inline-flex h-2 w-2 rounded-full ${UI_THEME_TOKENS.status.neutralDot}`} />
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

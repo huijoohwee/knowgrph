@@ -1,4 +1,10 @@
 import type { GraphData } from '@/lib/graph/types'
+import {
+  extractMarkdownAnnotationsFromText,
+  hasMarkdownAnnotationSyntax,
+  stripMarkdownAnnotationSigilsToText,
+  type MarkdownAnnotation,
+} from '@/lib/markdown/markdownSigil'
 
 const KEYWORD_SOURCE_EDGE_LABELS = new Set<string>([
   'hasSection',
@@ -10,6 +16,26 @@ const KEYWORD_SOURCE_EDGE_LABELS = new Set<string>([
   'linksTo',
   'mentions',
 ])
+
+const KEYWORD_TEXT_KEYS = [
+  'text',
+  'content',
+  'title',
+  'name',
+  'summary',
+  'caption',
+  'alt',
+  'path',
+  'filepath',
+  'filePath',
+  'file',
+  'filename',
+  'url',
+  'href',
+  'slug',
+  'keywords',
+  'tags',
+] as const
 
 export function stripFrontmatter(markdown: string): string {
   const s = String(markdown || '')
@@ -25,9 +51,7 @@ export function stripFrontmatter(markdown: string): string {
 export function markdownToPlainText(markdown: string): string {
   const raw = String(markdown || '')
   if (!raw.trim()) return ''
-  let text = raw
-  text = text.replace(/```[\s\S]*?```/g, ' ')
-  text = text.replace(/`[^`]*`/g, ' ')
+  let text = stripMarkdownAnnotationSigilsToText(raw)
   text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
   text = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
   text = text.replace(/^\s{0,3}#{1,6}\s+/gm, '')
@@ -38,39 +62,26 @@ export function markdownToPlainText(markdown: string): string {
   return text.trim()
 }
 
+const normalizeKeywordSourceTextValue = (raw: string): string => {
+  const source = String(raw || '')
+  if (!hasMarkdownAnnotationSyntax(source)) return source.trim()
+  return stripMarkdownAnnotationSigilsToText(source).replace(/\s+/g, ' ').trim()
+}
+
 export const pickKeywordTextFromNode = (n: { id?: unknown; label?: unknown; type?: unknown; properties?: unknown }): string[] => {
-  const label = typeof n.label === 'string' ? n.label.trim() : ''
+  const label = typeof n.label === 'string' ? normalizeKeywordSourceTextValue(n.label) : ''
   const props = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties)
     ? (n.properties as Record<string, unknown>)
     : null
   const id = typeof n.id === 'string' ? n.id.trim() : ''
-  const textKeys = [
-    'text',
-    'content',
-    'title',
-    'name',
-    'summary',
-    'caption',
-    'alt',
-    'path',
-    'filepath',
-    'filePath',
-    'file',
-    'filename',
-    'url',
-    'href',
-    'slug',
-    'keywords',
-    'tags',
-  ]
   const out: string[] = []
   if (label) out.push(label)
   if (props) {
-    for (let i = 0; i < textKeys.length; i += 1) {
-      const key = textKeys[i]!
+    for (let i = 0; i < KEYWORD_TEXT_KEYS.length; i += 1) {
+      const key = KEYWORD_TEXT_KEYS[i]!
       const v = props[key]
       if (typeof v === 'string') {
-        const t = v.trim()
+        const t = normalizeKeywordSourceTextValue(v)
         if (!t) continue
         if (t === label) continue
         out.push(t)
@@ -78,7 +89,7 @@ export const pickKeywordTextFromNode = (n: { id?: unknown; label?: unknown; type
       }
       if (Array.isArray(v)) {
         for (let j = 0; j < v.length; j += 1) {
-          const s = typeof v[j] === 'string' ? String(v[j]).trim() : ''
+          const s = typeof v[j] === 'string' ? normalizeKeywordSourceTextValue(String(v[j])) : ''
           if (!s) continue
           if (s === label) continue
           out.push(s)
@@ -91,6 +102,73 @@ export const pickKeywordTextFromNode = (n: { id?: unknown; label?: unknown; type
     if (hasAlpha) out.push(id)
   }
   return out
+}
+
+const mergeMarkdownAnnotations = (groups: MarkdownAnnotation[][], maxAnnotations = 512): MarkdownAnnotation[] => {
+  const max = Math.max(0, Math.min(512, Math.floor(maxAnnotations)))
+  if (max <= 0) return []
+  const seen = new Set<string>()
+  const out: MarkdownAnnotation[] = []
+  for (let g = 0; g < groups.length; g += 1) {
+    const group = groups[g] || []
+    for (let i = 0; i < group.length; i += 1) {
+      const annotation = group[i]
+      if (!annotation) continue
+      const text = String(annotation.text || '').replace(/\s+/g, ' ').trim()
+      if (!text) continue
+      const color = typeof annotation.color === 'string' ? annotation.color.trim() : ''
+      const background = typeof annotation.background === 'string' ? annotation.background.trim() : ''
+      const key = `${text.toLowerCase()}|${color}|${background}|${annotation.highlighted === true ? '1' : '0'}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({ ...annotation, text })
+      if (out.length >= max) return out
+    }
+  }
+  return out
+}
+
+export const mergeKeywordSourceMarkdownAnnotations = mergeMarkdownAnnotations
+
+export const collectKeywordSourceMarkdownAnnotationsFromBaselineGraph = (
+  graph: GraphData,
+  opts?: { maxAnnotations?: number },
+): MarkdownAnnotation[] => {
+  const max = Math.max(0, Math.min(512, Math.floor(opts?.maxAnnotations ?? 512)))
+  if (max <= 0) return []
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const groups: MarkdownAnnotation[][] = []
+  let count = 0
+  const collect = (value: unknown) => {
+    if (count >= max) return
+    if (typeof value !== 'string') return
+    const raw = value.trim()
+    if (!raw || !hasMarkdownAnnotationSyntax(raw)) return
+    const annotations = extractMarkdownAnnotationsFromText(raw, max - count)
+    if (annotations.length === 0) return
+    groups.push(annotations)
+    count += annotations.length
+  }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i] as { label?: unknown; properties?: unknown } | null | undefined
+    if (!n) continue
+    collect(n.label)
+    const props = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties)
+      ? (n.properties as Record<string, unknown>)
+      : null
+    if (!props) continue
+    for (let k = 0; k < KEYWORD_TEXT_KEYS.length; k += 1) {
+      const value = props[KEYWORD_TEXT_KEYS[k]!]
+      if (Array.isArray(value)) {
+        for (let j = 0; j < value.length; j += 1) collect(value[j])
+      } else {
+        collect(value)
+      }
+      if (count >= max) break
+    }
+    if (count >= max) break
+  }
+  return mergeMarkdownAnnotations(groups, max)
 }
 
 const WORKSPACE_GRAPH_CONTEXT = 'workspace:graph'

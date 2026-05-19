@@ -1,5 +1,6 @@
 import React from 'react'
 import { Search } from 'lucide-react'
+import { UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
 
@@ -34,7 +35,7 @@ export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(p
   }, [search, searchExpanded])
 
   return (
-    <label className="kg-explorer-search-control flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden" aria-label="Search files">
+    <label className={`kg-explorer-search-control ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-1`} aria-label="Search files">
       <input
         ref={searchInputRef}
         value={search}

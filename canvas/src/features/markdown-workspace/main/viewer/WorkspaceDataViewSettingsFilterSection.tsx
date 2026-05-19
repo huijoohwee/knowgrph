@@ -5,6 +5,10 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import { WorkspaceDataViewFilterMenu } from './WorkspaceDataViewFilterMenu'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewFilterGroup } from './workspaceDataViewConfig'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import {
+  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function buildColumnNameById(columns: readonly MarkdownDataViewColumn[]): Map<string, string> {
@@ -56,7 +60,7 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
                 const opLabel = r.op === 'equals' ? '=' : r.op === 'includes' ? 'includes' : 'contains'
                 const value = String(r.value ?? '').trim()
                 return (
-                  <div key={r.id} className={['flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-2 py-1 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+                  <div key={r.id} className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-1 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
                     <div className="min-w-0 flex-1">
                       <div className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{colName}</div>
                       <div className={['text-[11px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>
@@ -81,7 +85,7 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
         <div className={`${uiToolbarRowScrollClassName} gap-2`}>
           <details ref={addDetailsRef} className="relative">
             <summary
-              className={['kg-data-view-action list-none cursor-pointer inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'list-none cursor-pointer gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             >
               <Plus className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
               <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Add filter</span>
@@ -103,7 +107,7 @@ export function WorkspaceDataViewSettingsFilterSection(props: {
 
           <button
             type="button"
-            className={['kg-data-view-action ml-auto inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'ml-auto gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={clearAll}
             disabled={totalRules === 0}
           >

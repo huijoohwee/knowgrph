@@ -5,19 +5,18 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
   resolveWorkspaceEditorPaneMinWidthPx,
   resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
-const WORKSPACE_PREVIEW_RIGHT_GUTTER_PX = 48
-
 function resolveWorkspacePreviewWidthBounds() {
   const minPx = resolveWorkspaceEditorPaneMinWidthPx()
   const maxPx = resolveWorkspacePaneMaxWidthPx({
     minPx,
-    rightGutterPx: WORKSPACE_PREVIEW_RIGHT_GUTTER_PX,
+    rightGutterPx: WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
   })
   return { minPx, maxPx }
 }

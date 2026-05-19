@@ -7,6 +7,7 @@ import net from "node:net";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { BROWSER_API_TOOL, callBrowserApiRuntime } from "./browser-api-runtime.js";
 
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000");
 const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000");
@@ -348,6 +349,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      BROWSER_API_TOOL,
     ],
   };
 });
@@ -525,6 +527,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         .join("\n");
 
       return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
+    }
+
+    if (toolName === "knowgrph.browser_api.run") {
+      return await callBrowserApiRuntime(args, { maxOutputChars: MAX_OUTPUT_CHARS });
     }
 
     throw new Error(`Unknown tool: ${toolName}`);

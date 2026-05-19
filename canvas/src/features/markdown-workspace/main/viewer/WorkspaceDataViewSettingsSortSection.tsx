@@ -6,6 +6,7 @@ import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewSortDirection, WorkspaceDataViewSortRule } from './workspaceDataViewConfig'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function makeId(): string {
@@ -71,7 +72,7 @@ export function WorkspaceDataViewSettingsSortSection(props: {
         <div className="flex min-w-0 max-w-full items-center justify-end">
           <button
             type="button"
-            className={['kg-data-view-action inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={() => props.onChangeView({ ...props.view, sortRules: [] })}
             disabled={props.view.sortRules.length === 0}
           >

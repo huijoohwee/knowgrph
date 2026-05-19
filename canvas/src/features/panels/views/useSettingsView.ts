@@ -93,6 +93,15 @@ import {
 } from './mapsApiDocs'
 import { GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES } from './grabmapsDirectionsApiDocs'
 import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, getGrabMapsMcpApiRowAnchorId } from './grabmapsMcpApiDocs'
+import {
+  API_NATIVE_BROWSER_MCP_AGENT_CONFIG_KEY,
+  API_NATIVE_BROWSER_MCP_BRIDGE_CONFIG_KEY,
+  API_NATIVE_BROWSER_MCP_DOC_AREA,
+  API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
+  buildApiNativeBrowserMcpAgentConfigJson,
+  buildBrowserBridgeMcpConfigJson,
+  getApiNativeBrowserMcpApiRowAnchorId,
+} from './apiNativeBrowserMcpApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
 import { buildIntegrationVirtualSettingMeta } from '@/features/integrations/integrationVirtualSettings'
@@ -976,13 +985,35 @@ export function useSettingsView({
 
     const mapsAndMcpDocEntries = [...MAPS_API_DOC_ENTRIES, ...GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES]
     const mapsDocEntries = mapsAndMcpDocEntries.filter(entry => !isMcpOwnedSetting(entry.meta.key, entry.details.area))
-    const mcpDocEntries = [...mapsAndMcpDocEntries.filter(entry => isMcpOwnedSetting(entry.meta.key, entry.details.area)), ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES]
+    const mcpDocEntries = [
+      ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
+      ...mapsAndMcpDocEntries.filter(entry => isMcpOwnedSetting(entry.meta.key, entry.details.area)),
+      ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
+    ]
     const mapsVirtualEntries: SettingsEntry[] = mapsDocEntries.map(entry => (
       buildDocMappedEntry(entry, values, getMapsApiRowAnchorId(entry.meta.key))
     ))
-    const mcpVirtualEntries: SettingsEntry[] = mcpDocEntries.map(entry => (
-      buildDocMappedEntry(entry, values, getGrabMapsMcpApiRowAnchorId(entry.meta.key))
-    ))
+    const mcpVirtualEntries: SettingsEntry[] = mcpDocEntries.map(entry => {
+      const mappedEntry = buildDocMappedEntry(
+        entry,
+        values,
+        normalizeSettingsAreaLabel(entry.details.area) === API_NATIVE_BROWSER_MCP_DOC_AREA
+          ? getApiNativeBrowserMcpApiRowAnchorId(entry.meta.key)
+          : getGrabMapsMcpApiRowAnchorId(entry.meta.key),
+      )
+      const agentConfigJson =
+        entry.meta.key === API_NATIVE_BROWSER_MCP_AGENT_CONFIG_KEY
+          ? buildApiNativeBrowserMcpAgentConfigJson(values)
+          : entry.meta.key === API_NATIVE_BROWSER_MCP_BRIDGE_CONFIG_KEY
+            ? buildBrowserBridgeMcpConfigJson(values)
+            : ''
+      if (!agentConfigJson) return mappedEntry
+      return {
+        ...mappedEntry,
+        index: normalizeText([mappedEntry.index, agentConfigJson].join(' ')),
+        valueDisplayOverride: agentConfigJson,
+      }
+    })
 
     const hiddenConcreteIntegrationKeys = mode === 'integrations'
       ? new Set<string>([

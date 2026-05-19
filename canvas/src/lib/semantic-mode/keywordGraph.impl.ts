@@ -27,12 +27,15 @@ import { computeKeywordCloudPlacements } from './keywordCloudLayout'
 import { readKeywordGraphMaxNodes, selectRetainedKeywordEntityKeys } from './keywordGraphRetention'
 import { withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
 import { KEYWORD_GRAPH_ALGO_VERSION, type KeywordGraphResult } from './keywordGraphCache'
+import type { MarkdownAnnotation } from '@/lib/markdown/markdownSigil'
+import { countHighlightedKeywordNodes, readKeywordAnnotationPropertiesByKey } from './keywordGraphAnnotations'
 
 export type KeywordGraphSource = {
   documentId: string
   documentText: string
   sourceLabel?: string
   sourceTextHash?: string
+  markdownAnnotations?: MarkdownAnnotation[]
   tuning?: {
     edgesPerNode?: number
     maxEdgesCap?: number
@@ -123,6 +126,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     ? source.sourceTextHash.trim()
     : hashText(text)
   const sourceLayerHash = `kw:v${KEYWORD_GRAPH_ALGO_VERSION}:${rawSourceHash}`
+  const annotationPropertiesByKey = readKeywordAnnotationPropertiesByKey(source.markdownAnnotations, isUsefulEntityKey)
   
   const keywordCandidates = extractDocumentKeywordCandidates(analysisText)
   const keywordCandidateByKey = new Map<string, DocumentKeywordCandidate>()
@@ -342,6 +346,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     const role = roleByEntityKey.get(key) || 'entity'
     const fill = KEYWORD_ROLE_COLORS[role]
     const candidate = keywordCandidateByKey.get(key)
+    const annotationProperties = annotationPropertiesByKey.get(key)
     nodes.push({
       id: v.id,
       label: v.label,
@@ -365,6 +370,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
         'visual:fill': fill as unknown as JSONValue,
         fill: fill as unknown as JSONValue,
         tags: [role === 'object' ? 'execution' : 'idea'] as unknown as JSONValue,
+        ...(annotationProperties || {}),
       },
       metadata: {
         derived: true,
@@ -575,6 +581,7 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
       keywordNodeCount: nodes.length as unknown as JSONValue,
       keywordNodeLimit: maxKeywordNodes as unknown as JSONValue,
       keywordNodePrunedCount: Math.max(0, rawEntityCount - nodes.length) as unknown as JSONValue,
+      keywordHighlightedCount: countHighlightedKeywordNodes(nodes) as unknown as JSONValue,
     },
     nodes,
     edges: prunedEdges,

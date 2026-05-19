@@ -9,6 +9,8 @@ import { dispatchRuntimeFitToViewSoon, dispatchRuntimeZoomActionSoon } from '@/l
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { cn } from '@/lib/utils'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 import type { DesignLayerNode } from '@/features/design/designLayersState'
 
@@ -223,6 +225,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
             {filtered.map(n => {
               const hidden = designLayerState?.hiddenById?.[n.id] === true
               const selected = selectedNodeId === n.id
+              const label = readMarkdownSigilDisplayText(n.label)
               return (
                 <li key={n.id} className={cn('border-b last:border-b-0', UI_THEME_TOKENS.panel.border)}>
                   <div className={cn('px-2 py-2 flex items-center gap-2', selected ? 'bg-blue-50 dark:bg-blue-900/20' : '')}>
@@ -249,10 +252,13 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
                         selected ? cn(UI_THEME_TOKENS.button.activeText) : cn(UI_THEME_TOKENS.text.primary),
                       )}
                       onClick={() => handleSelect(n.id)}
-                      aria-label={n.label}
+                      aria-label={label}
+                      title={label}
                       disabled={!active}
                     >
-                      <span className={cn('block min-w-0 truncate text-xs font-semibold', hidden ? 'opacity-50' : '')}>{n.label}</span>
+                      <span className={cn('block min-w-0 truncate text-xs font-semibold', hidden ? 'opacity-50' : '')}>
+                        {renderMarkdownSigilInlineText(n.label)}
+                      </span>
                       <span className={cn('block min-w-0 truncate text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary, hidden ? 'opacity-50' : '')}>
                         {n.type ? `${n.type} · ${n.id}` : n.id}
                       </span>

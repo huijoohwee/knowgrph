@@ -54,9 +54,6 @@ export async function testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks() 
           setSplitPaneVisibility={setVisibility}
           onToggleFullscreen={() => {}}
           presentationApiRef={{ current: null }}
-          isEditing={false}
-          isMarkdown={true}
-          onFormatAction={() => {}}
           contentFormat={format}
           onContentFormatChange={next => {
             formatCalls.push(next)
@@ -106,6 +103,75 @@ export async function testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks() 
   }
 }
 
+export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    function Harness() {
+      const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor' | 'viewer' | 'presentation' | 'slides-gallery'>('editor')
+      const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
+        json: false,
+        markdown: false,
+        viewer: false,
+        html: false,
+      })
+
+      return (
+        <MarkdownWorkspaceToolbar
+          explorerOpen={true}
+          setExplorerOpen={() => {}}
+          canvasOpen={false}
+          setCanvasOpen={() => {}}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+          markdownWordWrap={true}
+          setMarkdownWordWrap={() => {}}
+          markdownTextHighlight={false}
+          setMarkdownTextHighlight={() => {}}
+          splitPaneVisibility={visibility}
+          setSplitPaneVisibility={setVisibility}
+          onToggleFullscreen={() => {}}
+          presentationApiRef={{ current: null }}
+          contentFormat="markdown"
+        />
+      )
+    }
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<Harness />)
+      await tick()
+    })
+
+    const viewerInput = checkboxFor(dom.window.document, 'Viewer')
+    const markdownInput = checkboxFor(dom.window.document, 'Markdown')
+    if (viewerInput.checked || markdownInput.checked) {
+      throw new Error('expected Viewer and Markdown panes to start closed in the editability regression')
+    }
+
+    await act(async () => {
+      viewerInput.click()
+      await tick()
+    })
+
+    if (!checkboxFor(dom.window.document, 'Viewer').checked) {
+      throw new Error('expected Viewer checkbox to turn on from the mobile pane toggle')
+    }
+    if (!checkboxFor(dom.window.document, 'Markdown').checked) {
+      throw new Error('expected Viewer toggle to keep an editable Markdown pane visible')
+    }
+
+    await act(async () => {
+      root.unmount()
+      await tick()
+    })
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidated() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   const state = useGraphStore.getState()
@@ -143,9 +209,7 @@ export async function testMarkdownWorkspaceToolbarWebpageViewControlsConsolidate
           setMarkdownTextHighlight={() => {}}
           onToggleFullscreen={() => {}}
           presentationApiRef={presentationApiRef as never}
-          isEditing={true}
           isMarkdown={true}
-          onFormatAction={() => {}}
           webpageWorkspaceMeta={{ url: sourceUrl, view: 'html', fidelityLevel: 4 } as never}
           onWebpageChangeView={(view) => {
             viewCalls = [...viewCalls, String(view)]
@@ -268,9 +332,7 @@ export async function testMarkdownWorkspaceToolbarViewerAndHtmlRenderTogetherAft
           setMarkdownTextHighlight={() => {}}
           onToggleFullscreen={() => {}}
           presentationApiRef={presentationApiRef as never}
-          isEditing={true}
           isMarkdown={true}
-          onFormatAction={() => {}}
           webpageWorkspaceMeta={{ url: sourceUrl, view, fidelityLevel: 4 } as never}
           onWebpageChangeView={next => {
             if (next === 'html' || next === 'markdown') setView(next)

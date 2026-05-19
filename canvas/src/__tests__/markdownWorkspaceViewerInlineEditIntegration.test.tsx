@@ -169,9 +169,7 @@ export async function testMarkdownWorkspaceViewerInlineEditInteractionDoesNotFre
           setMarkdownTextHighlight: () => void 0,
           onToggleFullscreen: () => void 0,
           presentationApiRef: { current: null },
-          isEditing: false,
           isMarkdown: true,
-          onFormatAction: () => void 0,
           activeText: ['Viewer edit line one', '', 'Viewer edit line two'].join('\n'),
           setActiveText: () => void 0,
           activeDocumentKey: '/viewer-edit-test.md',
@@ -268,9 +266,7 @@ export async function testMarkdownWorkspaceViewerUsesInlineFloatingFormattingSso
         setMarkdownTextHighlight: () => void 0,
         onToggleFullscreen: () => void 0,
         presentationApiRef: { current: null },
-        isEditing: false,
         isMarkdown: true,
-        onFormatAction: () => void 0,
         activeText: ['Viewer edit line one', '', 'Viewer edit line two'].join('\n'),
         setActiveText: () => void 0,
         activeDocumentKey: '/viewer-edit-test.md',
@@ -371,9 +367,7 @@ export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader()
           setMarkdownTextHighlight: () => void 0,
           onToggleFullscreen: () => void 0,
           presentationApiRef: { current: null },
-          isEditing: true,
           isMarkdown: true,
-          onFormatAction: () => void 0,
           activeText: ['Editor line one', '', 'Editor line two'].join('\n'),
           setActiveText: () => void 0,
           activeDocumentKey: '/editor-mode-test.md',
@@ -447,9 +441,7 @@ export async function testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkd
           setMarkdownTextHighlight: () => void 0,
           onToggleFullscreen: () => void 0,
           presentationApiRef: { current: null },
-          isEditing: true,
           isMarkdown: true,
-          onFormatAction: () => void 0,
           activeText: '',
           setActiveText: () => void 0,
           activeDocumentKey: '/empty-init-test.md',
@@ -485,7 +477,7 @@ export async function testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkd
   }
 }
 
-export async function testMarkdownWorkspaceSplitOmitsDocumentSelectorInHeader() {
+export async function testMarkdownWorkspaceSplitConsolidatesViewerFormattingIntoFloatingToolbar() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('div')
@@ -509,9 +501,7 @@ export async function testMarkdownWorkspaceSplitOmitsDocumentSelectorInHeader() 
           setMarkdownTextHighlight: () => void 0,
           onToggleFullscreen: () => void 0,
           presentationApiRef: { current: null },
-          isEditing: true,
           isMarkdown: true,
-          onFormatAction: () => void 0,
           activeText: ['Split line one', '', 'Split line two'].join('\n'),
           setActiveText: () => void 0,
           activeDocumentKey: '/split-mode-test.md',
@@ -529,17 +519,34 @@ export async function testMarkdownWorkspaceSplitOmitsDocumentSelectorInHeader() 
     })
 
     const splitView = container.querySelector('section[aria-label="Split view"]') as HTMLElement | null
-    if (!splitView) throw new Error('expected split layout to render JSON/Markdown editor panes plus viewer')
-    const splitJsonEditorPane = splitView.querySelector('section[aria-label="JSON Editor"]') as HTMLElement | null
-    if (!splitJsonEditorPane) throw new Error('expected split layout to include JSON Editor pane')
-    const splitMarkdownEditorPane = splitView.querySelector('section[aria-label="Markdown Editor"]') as HTMLElement | null
-    if (!splitMarkdownEditorPane) throw new Error('expected split layout to include Markdown Editor pane')
+    if (!splitView) throw new Error('expected split layout to render workspace panes')
     const splitViewerPane = splitView.querySelector('section[aria-label="Viewer"]') as HTMLElement | null
     if (!splitViewerPane) throw new Error('expected split layout to include WYSIWYG viewer pane')
     const splitFormattingMenu = container.querySelector('menu[aria-label="Formatting"]') as HTMLElement | null
-    if (!splitFormattingMenu) throw new Error('expected split header to keep formatting visible when the Viewer pane is checked')
+    if (splitFormattingMenu) throw new Error('expected split header to defer duplicate formatting actions to the viewer floating toolbar when Viewer is checked')
     const derivedViewsMenu = container.querySelector('menu[aria-label="Derived views"]') as HTMLElement | null
     if (derivedViewsMenu) throw new Error('expected split header to omit Monaco document selector and avoid duplicate mode switching')
+
+    const floatingToolbarText = readFileSync(
+      resolve(process.cwd(), 'src/lib/markdown-core/ui/markdownBlockContainerCore.bubbleToolbarOverlay.tsx'),
+      'utf8',
+    )
+    const expectedToolbarTitles = [
+      'Heading',
+      'Bold',
+      'Italic',
+      'Strikethrough',
+      'Inline Code',
+      'Link',
+      'Bulleted List',
+      'Numbered List',
+      'Quote',
+    ]
+    for (const title of expectedToolbarTitles) {
+      if (!floatingToolbarText.includes(`title="${title}"`)) {
+        throw new Error(`expected split viewer floating toolbar to expose ${title}`)
+      }
+    }
   } finally {
     try {
       await act(async () => {
@@ -576,9 +583,7 @@ export async function testMarkdownWorkspaceSplitButtonOpensPaneSelector() {
           setMarkdownTextHighlight: () => void 0,
           onToggleFullscreen: () => void 0,
           presentationApiRef: { current: null },
-          isEditing: true,
           isMarkdown: true,
-          onFormatAction: () => void 0,
           activeText: ['Split line one', '', 'Split line two'].join('\n'),
           setActiveText: () => void 0,
           activeDocumentKey: '/split-selector-test.md',
@@ -647,9 +652,7 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickWordSelect
           setMarkdownTextHighlight: () => void 0,
           onToggleFullscreen: () => void 0,
           presentationApiRef: { current: null },
-          isEditing: false,
           isMarkdown: true,
-          onFormatAction: () => void 0,
           activeText: ['Viewer edit line one', '', 'Viewer edit line two'].join('\n'),
           setActiveText: () => void 0,
           activeDocumentKey: '/viewer-edit-test.md',
@@ -719,9 +722,7 @@ export async function testMarkdownWorkspaceViewerInlineEditEditorDoubleClickDoes
         setMarkdownTextHighlight: () => void 0,
         onToggleFullscreen: () => void 0,
         presentationApiRef: { current: null },
-        isEditing: false,
         isMarkdown: true,
-        onFormatAction: () => void 0,
         activeText: ['Viewer edit line one', '', 'Viewer edit line two'].join('\n'),
         setActiveText: () => void 0,
         activeDocumentKey: '/viewer-edit-test.md',

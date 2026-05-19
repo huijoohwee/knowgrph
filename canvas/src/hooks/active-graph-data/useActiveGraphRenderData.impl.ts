@@ -9,6 +9,7 @@ import type { Canvas2dRendererId } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { applyCanvasRenderBudget, resolveCanvasRenderBudgetSurface } from '@/lib/graph/canvasRenderBudget'
 import { withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
+import { applyMarkdownSigilHighlightsToGraphData } from '@/lib/graph/markdownSigilGraphHighlights'
 import { useActiveGraphData } from './useActiveGraphData.impl'
 import { deriveFlowchartFrontmatterActiveViewGraph, deriveGraphDataForActiveView } from './activeViewGraph'
 
@@ -173,14 +174,21 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     })
   }, [budgetSurface, effectiveDocumentSemanticMode, graphDataRevision, topologyComputed])
 
+  const highlightedComputed = React.useMemo(() => {
+    return applyMarkdownSigilHighlightsToGraphData({
+      graphData: budgetedComputed,
+      graphRevision: graphDataRevision,
+    })
+  }, [budgetedComputed, graphDataRevision])
+
   const renderComputed = React.useMemo(() => {
     return withGraphTopologyMetadata({
-      graphData: budgetedComputed,
+      graphData: highlightedComputed,
       graphRevision: graphDataRevision,
       stage: 'render',
       annotate: true,
     })
-  }, [budgetedComputed, graphDataRevision])
+  }, [graphDataRevision, highlightedComputed])
 
   React.useEffect(() => {
     if (!enabled) return

@@ -32,7 +32,7 @@ import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/p
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
-import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
+import { parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
 import {
   buildMarkdownVariableSsotAnchorId,
   parseMarkdownVariableTokens,
@@ -427,10 +427,8 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         return (
           <span
             key={key}
-            style={{
-              ...(sigil.color ? { color: sigil.color } : {}),
-              ...(sigil.background ? { backgroundColor: sigil.background } : {}),
-            }}
+            data-kg-sigil="1"
+            style={readMarkdownSigilInlineStyle(sigil)}
           >
             {sigil.text}
           </span>

@@ -1,53 +1,17 @@
-export type MarkdownSigil = {
-  text: string
-  color: string | null
-  background: string | null
-}
+import {
+  buildMarkdownSigil,
+  parseMarkdownSigil,
+  readMarkdownSigilInlineStyle,
+  unwrapDefaultHighlight,
+} from '@/lib/markdown/markdownSigil'
 
-const SIGIL_RE = /^(#[0-9a-fA-F]{6})?(\|?bg#[0-9a-fA-F]{6})?:(.+)$/
-const HEX6_RE = /^#[0-9a-fA-F]{6}$/
-
-const normalizeHex6 = (value: string): string | null => {
-  const raw = String(value || '').trim()
-  if (!HEX6_RE.test(raw)) return null
-  return raw.toUpperCase()
+export {
+  buildMarkdownSigil,
+  parseMarkdownSigil,
+  readMarkdownSigilInlineStyle,
+  unwrapDefaultHighlight,
 }
-
-export const parseMarkdownSigil = (rawCell: string): MarkdownSigil | null => {
-  const trimmed = String(rawCell || '').trim()
-  const unwrapped = trimmed.replace(/^`|`$/g, '')
-  const normalized = unwrapped.replace(/\\\|/g, '|')
-  const match = normalized.match(SIGIL_RE)
-  if (!match) return null
-  const color = normalizeHex6(String(match[1] || ''))
-  const background = normalizeHex6(String(match[2] || '').replace('|bg#', '#').replace('bg#', '#'))
-  return {
-    text: String(match[3] || ''),
-    color,
-    background,
-  }
-}
-
-export const buildMarkdownSigil = (args: {
-  text: string
-  color?: string | null
-  background?: string | null
-}): string => {
-  const text = String(args.text || '')
-  const color = normalizeHex6(String(args.color || ''))
-  const background = normalizeHex6(String(args.background || ''))
-  if (!color && !background) return text
-  if (color && background) return `\`${color}|bg${background}:${text}\``
-  if (color) return `\`${color}:${text}\``
-  return `\`bg${background}:${text}\``
-}
-
-export const unwrapDefaultHighlight = (raw: string): { text: string; wrapped: boolean } => {
-  const source = String(raw || '')
-  const match = source.match(/^==([\s\S]+)==$/)
-  if (!match) return { text: source, wrapped: false }
-  return { text: String(match[1] || ''), wrapped: true }
-}
+export type { MarkdownAnnotation, MarkdownSigil } from '@/lib/markdown/markdownSigil'
 
 export const rewriteSigilSpansToInlineCodeHtml = (html: string): string => {
   const raw = String(html || '')
@@ -100,12 +64,11 @@ export const rewriteInlineCodeSigilsToStyledSpansHtml = (html: string): string =
     span.setAttribute('data-kg-sigil', '1')
     if (parsed.color) {
       span.setAttribute('data-kg-sigil-color', parsed.color)
-      span.style.color = parsed.color
     }
     if (parsed.background) {
       span.setAttribute('data-kg-sigil-bg', parsed.background)
-      span.style.backgroundColor = parsed.background
     }
+    Object.assign(span.style, readMarkdownSigilInlineStyle(parsed))
     span.textContent = parsed.text
     code.replaceWith(span)
   }

@@ -5,6 +5,7 @@ import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { DataViewTagChip } from '../MarkdownDataViewChips'
 import { KanbanCard } from './KanbanCard'
+import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 export type KanbanGroupModel = {
   key: string
@@ -44,7 +45,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
         ].join(' ')}
         aria-label={`Group: ${props.group.key}`}
       >
-        <header className={['flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
+        <header className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
           <button
             type="button"
             className={['flex items-center gap-2 flex-1 min-w-0 rounded', UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
@@ -136,7 +137,8 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                   type="button"
                   className={[
                     'kg-panel-action-btn',
-                    'kg-data-view-action w-full min-w-0 max-w-full inline-flex flex-nowrap items-center gap-2 overflow-hidden text-xs px-2 py-2 rounded-md',
+                    UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+                    'w-full gap-2 text-xs px-2 py-2 rounded-md',
                     UI_THEME_TOKENS.text.secondary,
                     UI_THEME_TOKENS.button.hoverBg,
                     UI_THEME_TOKENS.focus.primarySoftRing,

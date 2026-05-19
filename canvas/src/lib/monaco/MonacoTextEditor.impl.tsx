@@ -1310,7 +1310,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   }, [])
 
   return (
-    <section className={className}>
+    <section className={`kg-monaco-editor-root ${className || ''}`.trim()}>
       {canUseMonaco ? (
         <section
           ref={el => {

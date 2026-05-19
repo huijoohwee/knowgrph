@@ -1,6 +1,8 @@
 import { deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
 import { mergeKeywordGraphWithSourceNodes } from '@/hooks/useActiveGraphData'
+import { markdownToPlainText } from '@/hooks/active-graph-data/keywordSourceText'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { extractMarkdownAnnotationsFromText } from '@/lib/markdown/markdownSigil'
 
 export const testKeywordModeDerivesEntitiesAndPredicateEdges = () => {
   const { graph } = deriveKeywordGraphFromText({
@@ -90,6 +92,45 @@ export const testKeywordModeCarriesSourceLayerHashForNoStaleViews = () => {
   if (keyA === keyB) throw new Error('expected graph meta key to change when sourceLayerHash changes')
 }
 
+export const testKeywordModePreservesSigilTextForSourceExtraction = () => {
+  const plain = markdownToPlainText([
+    '## Review',
+    '`#D85A30:Urgent migration` depends on ==deployment review==.',
+    '`const ignored = true` should not become a keyword.',
+  ].join('\n'))
+  if (!plain.includes('Urgent migration')) throw new Error('expected color sigil text in keyword source text')
+  if (!plain.includes('deployment review')) throw new Error('expected default highlight text in keyword source text')
+  if (plain.includes('#D85A30') || plain.includes('==') || plain.includes('ignored')) {
+    throw new Error('expected source text to remove sigil wrappers and generic inline code')
+  }
+}
+
+export const testKeywordModeCarriesSigilHighlightsToKeywordNodes = () => {
+  const markdown = [
+    '`#D85A30|bg#FEF3C7:Agent labs` coordinate code migration.',
+    'Agent labs improve code migration review.',
+    'Agent labs reduce deployment review work.',
+  ].join('\n')
+  const { graph } = deriveKeywordGraphFromText({
+    documentId: 'doc:test',
+    documentText: markdownToPlainText(markdown),
+    markdownAnnotations: extractMarkdownAnnotationsFromText(markdown),
+  })
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const agentLabs = nodes.find(node => {
+    const props = (node.properties || {}) as Record<string, unknown>
+    return props['keyword:key'] === 'agent labs'
+  })
+  if (!agentLabs) throw new Error('expected annotated keyphrase node')
+  const props = (agentLabs.properties || {}) as Record<string, unknown>
+  if (props['keyword:highlight'] !== true) throw new Error('expected keyword highlight marker')
+  if (props['keyword:highlight:color'] !== '#D85A30') throw new Error('expected keyword highlight text color')
+  if (props['keyword:highlight:background'] !== '#FEF3C7') throw new Error('expected keyword highlight background')
+  const meta = (graph.metadata || {}) as Record<string, unknown>
+  const highlightedCount = meta.keywordHighlightedCount
+  if (typeof highlightedCount !== 'number' || highlightedCount <= 0) throw new Error('expected highlighted keyword metadata')
+}
+
 export const testKeywordModeExtractsKeyphrasesAndWordCloudMetadata = () => {
   const { graph } = deriveKeywordGraphFromText({
     documentId: 'doc:test',
@@ -146,6 +187,23 @@ export const testKeywordModeCompactsLargeGraphsForCanvasPerformance = () => {
   if (typeof pruned !== 'number' || pruned <= 0) throw new Error('expected keyword node pruning metadata')
   const wordCloudNodes = nodes.filter(node => ((node.properties || {}) as Record<string, unknown>)['visual:wordCloud'] === true)
   if (wordCloudNodes.length === 0) throw new Error('compacted keyword graph should still include word-cloud nodes')
+}
+
+export const testKeywordModeHonorsLowNodeBudgetForCanvasPerformance = () => {
+  const documentText = Array.from({ length: 220 }, (_, i) => {
+    return `BudgetTopic${i} connects BudgetSignal${(i + 9) % 220}. BudgetTopic${i} supports review queue ${i % 19}.`
+  }).join('\n')
+  const { graph } = deriveKeywordGraphFromText({
+    documentId: 'doc:budget',
+    documentText,
+    tuning: { maxNodes: 80, edgesPerNode: 2, maxEdgesCap: 180 },
+  })
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const edges = Array.isArray(graph.edges) ? graph.edges : []
+  if (nodes.length > 80) throw new Error('keyword graph should honor low node budget')
+  if (edges.length > 180) throw new Error('keyword graph should honor low edge cap')
+  const meta = (graph.metadata || {}) as Record<string, unknown>
+  if (meta.keywordNodeLimit !== 80) throw new Error('expected keyword node limit metadata')
 }
 
 export const testKeywordModeCapsMergedSourceNodesForCanvasPerformance = () => {

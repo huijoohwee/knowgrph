@@ -11,6 +11,8 @@ import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useG
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const EMPTY_COLUMN_WIDTHS: Record<string, number> = {}
 
@@ -102,20 +104,24 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
               UI_THEME_TOKENS.panel.border,
               UI_THEME_TOKENS.panel.bg,
             ].join(' ')}
-            aria-label={`Lane ${lane.label}`}
+            aria-label={`Lane ${readMarkdownSigilDisplayText(lane.label)}`}
           >
             <header className={['px-3 py-2 border-b', UI_THEME_TOKENS.panel.border].join(' ')}>
               <div className={['flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden', typography.microLabelClass].join(' ')}>
-                <h2 className={['min-w-0 font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{lane.label}</h2>
+                <h2 className={['min-w-0 font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} title={readMarkdownSigilDisplayText(lane.label)}>
+                  {renderMarkdownSigilInlineText(lane.label)}
+                </h2>
                 <output className={UI_THEME_TOKENS.text.tertiary}>{lane.rows.length}</output>
               </div>
             </header>
 
-            <ul className="flex-1 min-h-0 overflow-y-auto list-none m-0 p-2 flex flex-col gap-2" aria-label={`${lane.label} cards`}>
+            <ul className="flex-1 min-h-0 overflow-y-auto list-none m-0 p-2 flex flex-col gap-2" aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}>
               {lane.rows.map(row => {
                 const selected = selectedSet.has(row.id)
                 const title = getRowTitle(row)
+                const displayTitle = readMarkdownSigilDisplayText(title)
                 const meta = getRowMeta(row, props.tableId)
+                const displayMeta = readMarkdownSigilDisplayText(meta)
                 return (
                   <li key={row.id} className="list-none">
                     <button
@@ -127,12 +133,17 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                         UI_THEME_TOKENS.panel.border,
                       ].join(' ')}
                       aria-current={selected ? 'true' : undefined}
+                      title={displayTitle}
                       onClick={() => {
                         props.onRowClicked(row.id)
                       }}
                     >
-                      <div className={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{title}</div>
-                      {meta ? <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{meta}</div> : null}
+                      <div className={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{renderMarkdownSigilInlineText(title)}</div>
+                      {meta ? (
+                        <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayMeta}>
+                          {renderMarkdownSigilInlineText(meta)}
+                        </div>
+                      ) : null}
                       <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{row.id}</div>
                     </button>
                   </li>

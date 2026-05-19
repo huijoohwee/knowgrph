@@ -6,7 +6,6 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import type { HighlightedLineRange } from '@/features/markdown-workspace/markdownWorkspaceTypes'
 import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationIndex'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
-import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/lib/gympgrph/api'
@@ -381,30 +380,6 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     workspaceApplyEffectsEnabled,
   ])
 
-  const handleFormatAction = React.useCallback(
-    (action: MarkdownFormatAction) => {
-      const handle = editorRef.current
-      if (!handle) return
-      const offsets = handle.getSelectionOffsets()
-      const selection = offsets || { startOffset: activeText.length, endOffset: activeText.length }
-      const { nextText, nextSelection } = applyMarkdownFormatAction({ text: activeText, selection, action })
-      setActiveText(nextText)
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          const nextHandle = editorRef.current
-          if (!nextHandle) return
-          try {
-            nextHandle.focus()
-            nextHandle.setSelectionOffsets(nextSelection.startOffset, nextSelection.endOffset)
-          } catch {
-            void 0
-          }
-        }),
-      )
-    },
-    [activeText, editorRef, setActiveText],
-  )
-
   return {
     geoDatasetIntegration,
     revealLineInEditor,
@@ -416,6 +391,5 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     backlinks: explorerState.backlinks,
     onTocReorder: explorerState.onTocReorder,
     handleApply,
-    handleFormatAction,
   }
 }

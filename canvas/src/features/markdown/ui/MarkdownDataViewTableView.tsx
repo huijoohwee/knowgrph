@@ -20,7 +20,15 @@ import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu'
 import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
+import {
+  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
@@ -287,6 +295,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             >
               {visibleColumnMeta.map(({ col: c, index: colIndex }) => {
                 const value = String(r.cells[colIndex] ?? '')
+                const displayValue = readMarkdownSigilDisplayText(value)
                 const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
                 const baseKind = columnTypeToBaseKind(uiType)
                 const isEditing = editing?.rowId === r.id && editing?.colId === c.id
@@ -298,7 +307,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   return (
                     <td key={c.id} className={cellBase}>
                       {isCheckbox ? (
-                        <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+                        <label className={`${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-2`}>
                           <input
                             autoFocus
                             type="checkbox"
@@ -317,7 +326,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           const chips = splitMultiValues(draft)
                           if (!chips.length) return <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
                           return (
-                            <div className="flex flex-wrap gap-1">
+                            <div className={`${uiToolbarRowScrollClassName} gap-1`}>
                               {chips.map(v => (
                                 <DataViewTagChip key={v} value={v} />
                               ))}
@@ -369,24 +378,26 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         />
                       </span>
                     ) : uiType === 'progress' && Number.isFinite(progressValue) ? (
-                      <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+                      <div className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
                         <progress className="h-2 w-24 max-w-[55%] shrink" value={Math.max(0, Math.min(100, progressValue))} max={100} />
                         <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
                       </div>
                     ) : href ? (
-                      <a className={['block max-w-[24rem] underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">
-                        {value}
+                      <a className={['block max-w-[24rem] underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" title={displayValue}>
+                        {renderMarkdownSigilInlineText(value)}
                       </a>
                     ) : baseKind === 'select' && value ? (
                       <DataViewTagChip value={value} />
                     ) : baseKind === 'multi-select' && chips.length ? (
-                      <div className="flex flex-wrap gap-1">
+                      <div className={`${uiToolbarRowScrollClassName} gap-1`}>
                         {chips.map(v => (
                           <DataViewTagChip key={v} value={v} />
                         ))}
                       </div>
                     ) : (
-                      <span className={['block max-w-[24rem]', UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>{value || (canMutate ? '—' : '')}</span>
+                      <span className={['block max-w-[24rem]', UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayValue}>
+                        {value ? renderMarkdownSigilInlineText(value) : (canMutate ? '—' : '')}
+                      </span>
                     )}
                   </td>
                 )
@@ -404,7 +415,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
               >
                 <button
                   type="button"
-                  className={['kg-data-view-action inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden text-xs', UI_THEME_TOKENS.text.tertiary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
+                  className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 text-xs', UI_THEME_TOKENS.text.tertiary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
                   onClick={() => props.onNewRecord?.()}
                 >
                   <Plus className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />

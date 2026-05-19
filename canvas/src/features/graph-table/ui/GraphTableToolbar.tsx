@@ -26,6 +26,10 @@ import {
 } from './graphTableViewState'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import {
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 export type GraphTableToolbarProps = {
@@ -62,7 +66,7 @@ export type GraphTableToolbarProps = {
 
 export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const iconButtonClass = `${UI_THEME_TOKENS.button.square} kg-toolbar-btn shrink-0`
-  const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} kg-toolbar-btn inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden rounded cursor-pointer select-none`
+  const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} kg-toolbar-btn ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center rounded cursor-pointer select-none`
   const microLabelClass = props.panelTypography?.microLabelClass || ''
   const inputHeightClass = 'h-[var(--kg-control-height,28px)]'
   const menuRowClass = `kg-graph-table-menu-row ${uiToolbarRowScrollClassName} gap-2`
@@ -145,7 +149,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
             <fieldset className="space-y-1">
               <legend className={`${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
               {props.columns.map(c => (
-                <label key={c.columnId} className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+                <label key={c.columnId} className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
                   <input
                     className="shrink-0"
                     type="checkbox"
@@ -250,7 +254,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         }
       />
 
-      <label className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+      <label className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
         <span className={UI_TEXT_TRUNCATE}>Group</span>
         <select
           value={props.groupBy}
@@ -333,7 +337,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         }
       />
 
-      <label className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+      <label className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}>
         <span className={UI_TEXT_TRUNCATE}>Row height</span>
         <select
           value={props.rowHeightPreset}

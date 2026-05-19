@@ -5,6 +5,7 @@ import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import { labelForMarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import { iconByColumnType } from './markdownDataViewColumnTypeMenuIcons'
 import { MarkdownDataViewColumnTypeMenu } from './MarkdownDataViewColumnTypeMenu'
+import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export function MarkdownDataViewAddColumnMenu(props: {
@@ -73,7 +74,8 @@ export function MarkdownDataViewAddColumnMenu(props: {
           <details className="relative">
             <summary
               className={[
-                'kg-menu-row list-none w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1 rounded border cursor-pointer text-xs',
+                UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+                'list-none gap-2 px-2 py-1 rounded border cursor-pointer text-xs',
                 UI_THEME_TOKENS.input.bg,
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.text.primary,
@@ -95,7 +97,7 @@ export function MarkdownDataViewAddColumnMenu(props: {
         <li className="list-none px-1">
           <button
             type="button"
-            className={['kg-menu-row w-full min-w-0 max-w-full inline-flex flex-nowrap items-center justify-center gap-2 overflow-hidden px-3 py-2 rounded border text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'w-full justify-center gap-2 px-3 py-2 rounded border text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={add}
           >
             <Plus className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />

@@ -18,6 +18,7 @@ import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbe
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '@/lib/routing/queryParams'
 import { runGlobalInteractionCleanup } from '@/lib/canvas/interaction-recovery'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { WORKSPACE_EDITOR_CANVAS_GUTTER_CSS } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -88,7 +89,7 @@ export default function CanvasPage() {
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceCanvasPaneVisible = workspaceEditorOverlayOpen && workspaceCanvasPaneOpen
-  const workspacePaneBoundaryCss = `min(${workspacePreviewWidthPx}px, calc(100% - 3rem))`
+  const workspacePaneBoundaryCss = `min(${workspacePreviewWidthPx}px, calc(100% - ${WORKSPACE_EDITOR_CANVAS_GUTTER_CSS}))`
 
   React.useEffect(() => {
     if (!workspaceEditorOverlayOpen) return
@@ -181,7 +182,7 @@ export default function CanvasPage() {
                   >
                     {!workspaceEditorOverlayOpen ? (
                       <nav
-                        className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
+                        className="kg-canvas-toolbar-dock absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"
                         role="navigation"
                       >

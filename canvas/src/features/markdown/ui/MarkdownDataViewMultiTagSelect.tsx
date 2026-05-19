@@ -4,6 +4,11 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { resolveDataViewChipClass } from './MarkdownDataViewChips'
 import { toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
+import {
+  UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+  UI_RESPONSIVE_MENU_ROW_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 const normalizeTagText = (raw: string): string => {
@@ -129,7 +134,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
         <ul className="flex min-w-0 max-w-full flex-wrap gap-1 items-center list-none m-0 p-0" aria-label="Selected tags">
           {selected.map(t => (
             <li key={t} className="list-none">
-              <span className={['inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
+              <span className={[UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME, 'gap-1 px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
                 <span className={UI_TEXT_TRUNCATE}>{t}</span>
                 <button
                   type="button"
@@ -165,7 +170,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
           <li className="list-none">
             <button
               type="button"
-              className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => {
                 toggleTag(createCandidate)
                 setQuery('')
@@ -181,14 +186,14 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
           const active = selectedSet.has(t.toLowerCase())
           return (
             <li key={t} className="list-none">
-              <div className={['w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+              <div className={['w-full', UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
                 <button
                   type="button"
-                  className="kg-menu-row flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-hidden text-left"
+                  className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} flex-1 gap-2 text-left`}
                   onClick={() => toggleTag(t)}
                   aria-pressed={active}
                 >
-                  <span className={['inline-flex min-w-0 max-w-full flex-nowrap items-center overflow-hidden px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
+                  <span className={[UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME, 'px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
                     <span className={UI_TEXT_TRUNCATE}>{t}</span>
                   </span>
                   {active ? <Check className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}

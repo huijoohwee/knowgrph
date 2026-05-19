@@ -10,6 +10,7 @@ import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
 import { WorkspaceDataViewSettingsDialog } from './WorkspaceDataViewSettingsDialog'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   uiToolbarRowScrollClassName,
   uiToolbarRowScrollInlineClassName,
@@ -71,8 +72,8 @@ export function WorkspaceDataViewHeader(props: {
 
   const icon12Class = ['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
   const icon14Class = ['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
-  const squareIconButtonClassName = ['kg-data-view-action inline-flex shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
-  const squareIconSummaryClassName = ['kg-data-view-action list-none cursor-pointer shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+  const squareIconButtonClassName = [UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+  const squareIconSummaryClassName = [UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'list-none cursor-pointer shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
 
   const viewModeLabel =
     props.viewConfig?.geospatialViewEnabled === true
@@ -286,7 +287,7 @@ export function WorkspaceDataViewHeader(props: {
             >
               <li className="list-none">
                 <div className={['text-xs font-medium mb-1 px-2', UI_THEME_TOKENS.text.secondary].join(' ')}>Visible columns</div>
-                <div className="flex flex-wrap gap-1 px-2 pb-1">
+                <div className={`${uiToolbarRowScrollClassName} gap-1 px-2 pb-1`}>
                   {props.groupOptions.map(k => {
                     const active = props.state.visibleGroups ? props.state.visibleGroups.includes(k) : true
                     return (
@@ -294,7 +295,8 @@ export function WorkspaceDataViewHeader(props: {
                         key={k}
                         type="button"
                         className={[
-                          'kg-data-view-action max-w-full text-[10px] px-2 py-1 rounded border',
+                          UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+                          'text-[10px] px-2 py-1 rounded border',
                           active ? [UI_THEME_TOKENS.button.primarySolid, UI_THEME_TOKENS.button.activeBorder].join(' ') : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
                         ].join(' ')}
                         onClick={() => {
@@ -337,7 +339,7 @@ export function WorkspaceDataViewHeader(props: {
           {props.canMutate && props.onNewRecord ? (
             <button
               type="button"
-              className={['kg-data-view-action inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={[UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => props.onNewRecord?.()}
             >
               <Plus className={icon14Class} aria-hidden="true" />

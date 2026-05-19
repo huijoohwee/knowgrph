@@ -1,4 +1,5 @@
 import React from 'react'
+import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type ExplorerToolbarIconButtonProps = {
@@ -30,7 +31,7 @@ export function ExplorerToolbarIconButton(props: ExplorerToolbarIconButtonProps)
     <button
       type={type}
       className={[
-        'kg-toolbar-btn shrink-0 inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden rounded',
+        `kg-toolbar-btn shrink-0 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center rounded`,
         UI_THEME_TOKENS.button.text,
         UI_THEME_TOKENS.button.hoverBg,
         className,

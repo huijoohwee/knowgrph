@@ -13,9 +13,19 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const explorerSearchControlText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/ExplorerSearchControl.tsx'))
   const selectionActionsMenuText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/SelectionActionsMenu.tsx'))
   const markdownWorkspaceToolbarText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx'))
+  const markdownWorkspaceLayoutText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/main/layout/MarkdownWorkspaceLayout.tsx'))
+  const markdownEditorPaneText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/main/editor/MarkdownEditorPane.tsx'))
+  const monacoTextEditorText = readUtf8(path.resolve(root, 'src/lib/monaco/MonacoTextEditor.impl.tsx'))
+  const workspaceWidthDefaultsText = readUtf8(path.resolve(root, 'src/features/workspace-table/workspaceViewCanvasDefaults.ts'))
+  const workspacePaneRuntimeText = readUtf8(path.resolve(root, 'src/features/canvas/useCanvasWorkspacePaneRuntime.ts'))
   const graphTableToolbarText = readUtf8(path.resolve(root, 'src/features/graph-table/ui/GraphTableToolbar.tsx'))
   const graphTableKanbanViewText = readUtf8(path.resolve(root, 'src/features/graph-table/ui/GraphTableKanbanView.tsx'))
   const toastHostText = readUtf8(path.resolve(root, 'src/components/ui/ToastHost.tsx'))
+  const dataViewToolbarButtonText = readUtf8(path.resolve(root, 'src/lib/ui/dataViewToolbarButton.tsx'))
+  const designFloatingPanelText = readUtf8(path.resolve(root, 'src/features/design/DesignFloatingPanelView.tsx'))
+  const graphEditorToolRailText = readUtf8(path.resolve(root, 'src/features/graph-editor/GraphEditorToolRail.tsx'))
+  const markdownInlineMenusText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx'))
+  const settingsUiText = readUtf8(path.resolve(root, 'src/features/settings/ui.tsx'))
   const cssText = readUtf8(path.resolve(root, 'src/index.css'))
   const responsiveToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-toolbar.css'))
 
@@ -37,6 +47,24 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-row-scroll,') || !responsiveToolbarCssText.includes('.kg-responsive-row-scroll')) {
     throw new Error('expected responsive toolbar CSS to centralize same-row scrolling primitives')
   }
+  if (!responsiveToolbarCssText.includes('.kg-responsive-element-row')) {
+    throw new Error('expected responsive toolbar CSS to centralize clipped one-row element primitives')
+  }
+  if (!dataViewToolbarButtonText.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME') || !dataViewToolbarButtonText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')) {
+    throw new Error('expected shared data-view toolbar buttons to reuse responsive action and inline rows')
+  }
+  if (!designFloatingPanelText.includes('uiToolbarRowScrollClassName') || designFloatingPanelText.includes('App-toolbar__btn flex items-center')) {
+    throw new Error('expected design floating-panel controls and tabs to use toolbar-owned row scrolling')
+  }
+  if (!graphEditorToolRailText.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME') || !graphEditorToolRailText.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('expected graph-editor rail buttons to reuse responsive menu rows and ellipsis')
+  }
+  if (!markdownInlineMenusText.includes('uiToolbarRowScrollClassName') || markdownInlineMenusText.includes('flex flex-wrap gap-1')) {
+    throw new Error('expected inline markdown bubble menus to scroll on one toolbar-owned row')
+  }
+  if (!settingsUiText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !settingsUiText.includes('uiToolbarRowScrollClassName')) {
+    throw new Error('expected Settings previews to use responsive inline rows and shared row scrolling')
+  }
   if (!responsiveToolbarCssText.includes('.App-toolbar--touch-row-scroll') || responsiveToolbarCssText.includes('.App-toolbar--touch-wrap')) {
     throw new Error('expected toolbar mobile row-scroll behavior to stay centralized in shared CSS without stale wrap classes')
   }
@@ -48,6 +76,27 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-shell')) {
     throw new Error('expected Editor Workspace to use a shared mobile stacking rule')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-editor-panes') || !responsiveToolbarCssText.includes('.kg-monaco-textarea-fallback')) {
+    throw new Error('expected Editor Workspace edit panes and textarea fallback to have shared mobile editability bounds')
+  }
+  if (!markdownWorkspaceLayoutText.includes('kg-markdown-workspace-editor-panes') || !markdownWorkspaceLayoutText.includes('kg-markdown-workspace-pane-divider')) {
+    throw new Error('expected Editor Workspace panes and dividers to use responsive owner classes')
+  }
+  if (!markdownEditorPaneText.includes('kg-markdown-editor-pane') || !markdownEditorPaneText.includes('kg-monaco-textarea-fallback')) {
+    throw new Error('expected Markdown editor pane to expose responsive Monaco and textarea classes')
+  }
+  if (!monacoTextEditorText.includes('kg-monaco-editor-root')) {
+    throw new Error('expected Monaco editor root to expose a responsive editability class')
+  }
+  if (!canvasText.includes('WORKSPACE_EDITOR_CANVAS_GUTTER_CSS') || canvasText.includes('calc(100% - 3rem)')) {
+    throw new Error('expected Canvas overlay bounds to reuse the shared workspace gutter token instead of a local mobile width literal')
+  }
+  if (!workspacePaneRuntimeText.includes('WORKSPACE_EDITOR_CANVAS_GUTTER_PX') || workspacePaneRuntimeText.includes('WORKSPACE_PREVIEW_RIGHT_GUTTER_PX')) {
+    throw new Error('expected workspace pane runtime resizing bounds to reuse the shared canvas gutter token')
+  }
+  if (!workspaceWidthDefaultsText.includes('MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_RATIO') || !workspaceWidthDefaultsText.includes('return args.maxPx')) {
+    throw new Error('expected compact workspace width defaults to prefer editable mobile pane width from the shared owner')
   }
   if (!responsiveToolbarCssText.includes('flex-direction: column')) {
     throw new Error('expected Editor Workspace mobile layout to stack Explorer above editor content')
@@ -61,8 +110,14 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-collapsible-toolbar-overflow')) {
     throw new Error('expected collapsed toolbar overflow bounds to stay centralized in shared CSS')
   }
+  if (!responsiveToolbarCssText.includes('.kg-collapsible-toolbar-overflow-items .kg-row-scroll') || !responsiveToolbarCssText.includes('min-inline-size: 0')) {
+    throw new Error('expected collapsed toolbar same-row scroll containers to stay bounded by the shared overflow shell')
+  }
   if (!responsiveToolbarCssText.includes('.kg-workspace-overlay-canvas-toolbar')) {
     throw new Error('expected editor-mode canvas toolbar mobile dock to stay centralized in shared CSS')
+  }
+  if (!canvasText.includes('kg-canvas-toolbar-dock') || !responsiveToolbarCssText.includes('.kg-canvas-toolbar-dock')) {
+    throw new Error('expected primary canvas toolbar to share the mobile thumb-reachable dock owner')
   }
   if (!detailsMenuText.includes('clampOverlayTopLeftFullyInViewport') || !detailsMenuText.includes('viewportHeight')) {
     throw new Error('expected shared details menus to clamp portal placement against full viewport bounds')
@@ -79,11 +134,32 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-selection-actions-menu') || !selectionActionsMenuText.includes('kg-selection-actions-menu')) {
     throw new Error('expected Explorer selection actions menu to use shared bounded menu sizing')
   }
-  if (!selectionActionsMenuText.includes('UI_TEXT_TRUNCATE') || !selectionActionsMenuText.includes('kg-menu-row')) {
+  if (!selectionActionsMenuText.includes('UI_TEXT_TRUNCATE') || !selectionActionsMenuText.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME')) {
     throw new Error('expected Explorer selection actions labels to ellipsize without icon/text wrapping')
   }
   if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggles') || !markdownWorkspaceToolbarText.includes('kg-workspace-pane-toggles') || !markdownWorkspaceToolbarText.includes('uiToolbarRowScrollInlineClassName')) {
     throw new Error('expected workspace pane toggles to keep a shared mobile row-scroll owner')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggle') || !responsiveToolbarCssText.includes('.kg-workspace-pane-toggle-input') || !responsiveToolbarCssText.includes('.kg-workspace-pane-toggle-label')) {
+    throw new Error('expected workspace pane toggles to expose shared touch-sized label/input/text classes')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggle--viewer') || !markdownWorkspaceToolbarText.includes('kg-workspace-pane-toggle--viewer')) {
+    throw new Error('expected Viewer pane toggle to expose a dedicated bounded mobile touch target class')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggles-item') || !markdownWorkspaceToolbarText.includes('kg-workspace-pane-toggles-item')) {
+    throw new Error('expected workspace pane toggle row wrapper to stay bounded in collapsed toolbar overflow')
+  }
+  if (!markdownWorkspaceToolbarText.includes('Show Markdown editor pane') || !markdownWorkspaceToolbarText.includes('Show Viewer preview pane')) {
+    throw new Error('expected Markdown and Viewer pane toggles to keep explicit edit/view accessibility labels')
+  }
+  if (!markdownWorkspaceToolbarText.includes('resolveViewerEditPaneVisibility')) {
+    throw new Error('expected Viewer pane toggle to preserve an editable source pane when enabling preview')
+  }
+  const explorerPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Explorer pane')
+  const markdownPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Markdown editor pane')
+  const viewerPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Viewer preview pane')
+  if (!(explorerPaneToggleIdx >= 0 && explorerPaneToggleIdx < markdownPaneToggleIdx && markdownPaneToggleIdx < viewerPaneToggleIdx)) {
+    throw new Error('expected mobile pane toggles to keep Explorer, Markdown, and Viewer first for immediate edit/view reachability')
   }
   if (!responsiveToolbarCssText.includes('.kg-graph-table-menu-row') || !graphTableToolbarText.includes('kg-graph-table-menu-field')) {
     throw new Error('expected graph-table menu form rows to use shared mobile field constraints')
@@ -107,7 +183,7 @@ export function testCanvasTouchTargetsStayLargeAndViewportSuppressesBrowserGestu
   const dropdownText = readUtf8(path.resolve(root, 'src/components/toolbar/ToolbarDropdownSelect.tsx'))
   const viewportText = readUtf8(path.resolve(root, 'src/components/CanvasViewport.tsx'))
 
-  if (!dropdownText.includes('min-h-[var(--kg-touch-target)]')) {
+  if (!dropdownText.includes('UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME')) {
     throw new Error('expected toolbar dropdown rows to keep touch-sized hit targets')
   }
   if (!viewportText.includes("touchAction: 'manipulation'")) {

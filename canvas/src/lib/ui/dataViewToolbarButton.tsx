@@ -1,6 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
+import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type DataViewToolbarButtonVariant = 'default' | 'primary' | 'ghost'
@@ -23,7 +24,8 @@ export function DataViewToolbarButton(props: DataViewToolbarButtonProps) {
   const size = props.size ?? 'md'
 
   const base = cn(
-    'inline-flex items-center justify-center select-none',
+    UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+    'justify-center select-none',
     'rounded border',
     UI_FOCUS_RING,
     props.disabled ? 'opacity-50 pointer-events-none' : undefined,
@@ -47,9 +49,9 @@ export function DataViewToolbarButton(props: DataViewToolbarButtonProps) {
       disabled={props.disabled}
       aria-label={props.ariaLabel ?? props.label}
     >
-      {props.leadingIcon ? <span className="inline-flex items-center" aria-hidden="true">{props.leadingIcon}</span> : null}
+      {props.leadingIcon ? <span className={UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} aria-hidden="true">{props.leadingIcon}</span> : null}
       <span className="font-medium truncate">{props.label}</span>
-      {props.trailingIcon ? <span className="inline-flex items-center" aria-hidden="true">{props.trailingIcon}</span> : null}
+      {props.trailingIcon ? <span className={UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} aria-hidden="true">{props.trailingIcon}</span> : null}
     </button>
   )
 }
@@ -71,7 +73,8 @@ export function DataViewIconButton(props: DataViewIconButtonProps) {
     <button
       type="button"
       className={cn(
-        'inline-flex items-center justify-center rounded-md border',
+        UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
+        'justify-center rounded-md border',
         dims,
         UI_FOCUS_RING,
         UI_THEME_TOKENS.panel.border,
@@ -85,7 +88,7 @@ export function DataViewIconButton(props: DataViewIconButtonProps) {
       disabled={props.disabled}
       aria-label={props.ariaLabel}
     >
-      <span className="inline-flex items-center" aria-hidden="true">
+      <span className={UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} aria-hidden="true">
         {props.icon}
       </span>
     </button>

@@ -41,6 +41,7 @@ export type LsKeyOwner =
   | 'schema.ui'
   | 'ui.chat'
   | 'ui.workspace'
+  | 'ui.mcp'
   | 'ui.monaco'
   | 'import.pdf'
   | 'payments.stripe';
@@ -210,6 +211,18 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   geospatialOverlayEnabled: 'ui.geospatial',
   geospatialOverlayPreferenceVersion: 'ui.geospatial',
   geospatialAutoEnableOnGeoImport: 'ui.geospatial',
+  apiNativeBrowserMcpServerKey: 'ui.mcp',
+  apiNativeBrowserMcpCommand: 'ui.mcp',
+  apiNativeBrowserMcpArgsJson: 'ui.mcp',
+  apiNativeBrowserMcpEnvJson: 'ui.mcp',
+  apiNativeBrowserMcpStartupTimeoutMs: 'ui.mcp',
+  apiNativeBrowserMcpRuntimeUrl: 'ui.mcp',
+  apiNativeBrowserMcpDefaultIntent: 'ui.mcp',
+  apiNativeBrowserMcpTargetUrl: 'ui.mcp',
+  apiNativeBrowserMcpDryRun: 'ui.mcp',
+  apiNativeBrowserMcpConfirmUnsafe: 'ui.mcp',
+  apiNativeBrowserMcpConfirmThirdPartyTerms: 'ui.mcp',
+  apiNativeBrowserMcpConfirmCookieImport: 'ui.mcp',
   orchestratorTraversalDelayMs: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagMaxFull: 'orchestrator.prefs',
   orchestratorTraversalLegendGraphRagHead: 'orchestrator.prefs',

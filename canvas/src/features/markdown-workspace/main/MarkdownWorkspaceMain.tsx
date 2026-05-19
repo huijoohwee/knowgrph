@@ -2,7 +2,6 @@ import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
@@ -114,9 +113,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     onSaveAs,
     onToggleFullscreen,
     presentationApiRef,
-    isEditing,
     isMarkdown,
-    onFormatAction,
     webpageWorkspaceMeta, onWebpageChangeView, onWebpageUpdateMeta, contentFormat, onContentFormatChange,
     activeText,
     setActiveText,
@@ -744,9 +741,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onExportSvg: handleExportSvg,
         onToggleFullscreen,
         presentationApiRef,
-        isEditing,
-        isMarkdown,
-        onFormatAction,
         webpageSignalSummary,
         webpageWorkspaceMeta, onWebpageChangeView, onWebpageUpdateMeta, contentFormat, onContentFormatChange,
       }}

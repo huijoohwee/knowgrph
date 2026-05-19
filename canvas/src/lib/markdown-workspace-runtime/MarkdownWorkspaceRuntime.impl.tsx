@@ -555,9 +555,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         onSaveAs={() => void saveState.saveAsActiveFileNow()}
         onToggleFullscreen={shellState.toggleFullscreen}
         presentationApiRef={presentationApiRef}
-        isEditing={effectiveContent.effectiveIsEditing}
         isMarkdown={effectiveContent.effectiveIsMarkdown}
-        onFormatAction={interactionState.handleFormatAction}
         webpageWorkspaceMeta={derivedViews.webpageWorkspaceMeta}
         onWebpageChangeView={view => void derivedViews.switchActiveWebpageWorkspaceView(view)}
         onWebpageUpdateMeta={patch => void derivedViews.updateActiveWebpageWorkspaceMeta(patch)}

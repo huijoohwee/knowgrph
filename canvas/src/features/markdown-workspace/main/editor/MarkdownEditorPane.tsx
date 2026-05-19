@@ -73,7 +73,7 @@ export function MarkdownEditorPane(props: {
   }, [])
 
   return (
-    <section className="flex-1 min-h-0 overflow-hidden flex flex-col" aria-label={props.paneAriaLabel || 'Markdown Editor'}>
+    <section className="kg-markdown-editor-pane flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col" aria-label={props.paneAriaLabel || 'Markdown Editor'}>
       <MonacoTextEditor
         value={props.value}
         onChange={props.readOnly ? () => void 0 : props.onChange}
@@ -85,8 +85,8 @@ export function MarkdownEditorPane(props: {
         forceLineNumberColumn={true}
         paddingTopPx={12}
         paddingBottomPx={12}
-        className="flex-1 min-h-0 w-full overflow-hidden"
-        textareaClassName={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
+        className="kg-monaco-editor-shell flex-1 min-w-0 min-h-0 w-full overflow-hidden"
+        textareaClassName={`kg-monaco-textarea-fallback flex-1 min-w-0 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
         ariaLabel={props.ariaLabel || 'Markdown Editor Text'}
         editorRef={props.editorRef}
         onHandle={props.onEditorHandle}

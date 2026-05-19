@@ -12,6 +12,7 @@ import { GEMINI_VIDEO_GENERATION_API_DOC_AREA, GEMINI_VIDEO_GENERATION_API_DOCS_
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
+import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 
 export const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
 export const ACTIVE_WORKSPACE_SYNC_MAX_ATTEMPTS = 8
@@ -93,6 +94,16 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
 }
 
 export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
+  [API_NATIVE_BROWSER_MCP_DOC_AREA]: {
+    docsUrl: 'https://github.com/unbrowse-ai/unbrowse',
+    docsLabel: 'Open API-Native Browser MCP Reference',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    note: 'Generic MCP bridge for local browser API route discovery and execution.',
+    highlights: [
+      'Route cache, native browser actions, loopback runtime URL, dry-run, unsafe-action, third-party terms, and cookie-import confirmation stay configurable in MainPanel MCP.',
+    ],
+    openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
+  },
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
     docsLabel: 'Open GrabMaps MCP Docs',

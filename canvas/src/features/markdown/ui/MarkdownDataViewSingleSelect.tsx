@@ -3,6 +3,7 @@ import React from 'react'
 import { Check } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 const normalizeText = (raw: string): string => {
@@ -104,7 +105,7 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
         <li className="list-none">
           <button
             type="button"
-            className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={() => setAndClose('')}
             aria-pressed={!selected}
           >
@@ -117,7 +118,7 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
           <li className="list-none">
             <button
               type="button"
-              className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => setAndClose(createCandidate)}
             >
               <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.multiTagCreateLabel(createCandidate)}</span>
@@ -131,7 +132,7 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
             <li key={o} className="list-none">
               <button
                 type="button"
-                className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                 onClick={() => setAndClose(o)}
                 aria-pressed={active}
               >

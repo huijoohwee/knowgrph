@@ -2,8 +2,10 @@ import React from 'react'
 import { Settings as SettingsIcon, Tag as TagIcon } from 'lucide-react'
 import { ScopeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { getIconSizeClass, getPillClass } from '@/lib/ui/icons'
+import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 export const renderSettingInput = (
   key: string,
@@ -25,12 +27,12 @@ export const renderSettingInput = (
   const pillBaseClass =
     typeof pillBaseRaw === 'string' && pillBaseRaw.trim().length > 0
       ? pillBaseRaw
-      : `inline-flex items-center gap-1 h-6 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5`
+      : `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1 h-6 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5`
   const badgeChipBaseRaw = values.uiIconBadgeChipClass
   const badgeChipBaseClass =
     typeof badgeChipBaseRaw === 'string' && badgeChipBaseRaw.trim().length > 0
       ? badgeChipBaseRaw
-      : `inline-flex items-center gap-1 h-6 rounded-full border px-1 ${UI_THEME_TOKENS.panel.bg}`
+      : `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} gap-1 h-6 rounded-full border px-1 ${UI_THEME_TOKENS.panel.bg}`
   const rawPanelInputClass = values['uiPanelKeyValueInputClass']
   const uiPanelKeyValueInputClass =
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
@@ -83,7 +85,7 @@ export const renderSettingInput = (
     const placeholder = key === 'uiIconColorClass' ? UI_THEME_TOKENS.icon.color : UI_THEME_TOKENS.button.hoverBg
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewBase =
-      `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.panel.bg} text-xs flex items-center justify-center`
+      `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.panel.bg} text-xs ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center`
     const previewClass =
       key === 'uiIconColorClass'
         ? `${previewBase} ${appliedClass}`
@@ -109,7 +111,7 @@ export const renderSettingInput = (
     const placeholder = UI_THEME_TOKENS.button.padding
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
-      `inline-flex items-center justify-center w-8 h-6 rounded border border-dashed ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs`,
+      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center w-8 h-6 rounded border border-dashed ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} text-xs`,
       appliedClass,
     ]
       .filter(Boolean)
@@ -137,7 +139,7 @@ export const renderSettingInput = (
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
       appliedClass,
-      'inline-flex items-center justify-center gap-1 h-6 box-border text-xs',
+      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center gap-1 h-6 box-border text-xs`,
     ]
       .filter(Boolean)
       .join(' ')
@@ -166,7 +168,7 @@ export const renderSettingInput = (
     const legendPreviewClass =
       key === 'uiIconPillLegendTextSizeClass'
         ? getPillClass('legend', {
-            baseClass: `${pillBaseClass} inline-flex items-center gap-1 box-border h-6`,
+            baseClass: `${pillBaseClass} box-border`,
             legendTextSizeClass: appliedClass,
             textColorClass: UI_THEME_TOKENS.text.primary,
           })
@@ -174,7 +176,7 @@ export const renderSettingInput = (
     const badgePreviewClass =
       key === 'uiIconPillBadgeTextSizeClass'
         ? getPillClass('badge', {
-            baseClass: `${pillBaseClass} inline-flex items-center gap-1 box-border h-6`,
+            baseClass: `${pillBaseClass} box-border`,
             badgeTextSizeClass: appliedClass,
             textColorClass: UI_THEME_TOKENS.text.primary,
           })
@@ -182,7 +184,7 @@ export const renderSettingInput = (
     return (
       <div className="flex w-full min-w-0 items-center gap-2">
         {key === 'uiIconPillLegendTextSizeClass' ? (
-          <div className="flex flex-wrap items-center gap-1">
+          <div className={`${uiToolbarRowScrollClassName} gap-1`}>
             <span className={legendPreviewClass}>
               <ScopeIcon scope="node" className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
               <span>Base</span>
@@ -221,7 +223,7 @@ export const renderSettingInput = (
             </span>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-1">
+          <div className={`${uiToolbarRowScrollClassName} gap-1`}>
             <span className={badgePreviewClass}>
               <span>Base</span>
             </span>
@@ -245,7 +247,7 @@ export const renderSettingInput = (
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
       appliedClass,
-      `inline-flex items-center justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`,
+      `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`,
     ]
       .filter(Boolean)
       .join(' ')
@@ -274,7 +276,7 @@ export const renderSettingInput = (
     const previewClass = [
       badgeChipBaseClass,
       appliedClass,
-      `inline-flex items-center gap-1 h-6 box-border ${UI_THEME_TOKENS.text.primary}`,
+      `gap-1 h-6 box-border ${UI_THEME_TOKENS.text.primary}`,
     ]
       .filter(Boolean)
       .join(' ')

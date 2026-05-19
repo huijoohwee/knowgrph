@@ -22,6 +22,7 @@ import {
 } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
+import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 
 export type SettingsEntry = {
   meta: {
@@ -62,6 +63,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'UI Density: Panels',
   'UI Density: Icons',
   MAPS_GRABMAPS_DOC_AREA,
+  API_NATIVE_BROWSER_MCP_DOC_AREA,
   MAPS_GRABMAPS_MCP_DOC_AREA,
   MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA,
   MAPS_GEO_DOC_AREA,
@@ -148,6 +150,7 @@ export function isMapsOwnedSetting(key: string, areaRaw: string): boolean {
 export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
   if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
+  if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
   return key.includes('.mcp.')
 }
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_RESPONSIVE_BLOCK_MENU_ROW_CLASSNAME, UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import type { SsotSurface } from 'grph-shared/ssot/types'
 import { MoreHorizontal } from 'lucide-react'
 import { getLinkDisplayMode, setLinkDisplayMode } from './linkDisplayMode'
@@ -51,8 +52,8 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
     setLinkMode(getLinkDisplayMode(toolbar.startLine))
   }, [toolbar])
   if (!toolbar) return null
-  const btnClass = `kg-menu-row block w-full min-w-0 max-w-full overflow-hidden px-3 py-1 text-left ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed`
-  const bubbleButtonClass = `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} h-7 w-7`
+  const btnClass = `${UI_RESPONSIVE_BLOCK_MENU_ROW_CLASSNAME} px-3 py-1 text-left ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed`
+  const bubbleButtonClass = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} h-7 w-7`
 
   const handleSetLinkMode = (mode: 'snapshot' | 'card') => {
     setLinkDisplayMode(toolbar.startLine, mode)

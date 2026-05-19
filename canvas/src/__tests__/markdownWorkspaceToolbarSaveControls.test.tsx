@@ -37,9 +37,7 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
         }}
         onToggleFullscreen={() => {}}
         presentationApiRef={presentationApiRef as never}
-        isEditing={true}
         isMarkdown={true}
-        onFormatAction={() => {}}
         activeText={'# Title\n'}
         setActiveText={() => {}}
         activeDocumentKey="doc"

@@ -2,6 +2,8 @@ import React from 'react'
 import { FileText, Folder } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MarkdownTocDropMarkers, MarkdownTocExpandGlyph, MarkdownTocReorderHandle } from '@/features/markdown/ui/MarkdownTocChrome'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 type MarkdownTocTreeRowProps = {
   itemId: string
@@ -37,6 +39,7 @@ export function MarkdownTocTreeRow(props: MarkdownTocTreeRowProps) {
     onDragStart,
     onDragEnd,
   } = props
+  const displayText = readMarkdownSigilDisplayText(text)
 
   return (
     <>
@@ -48,7 +51,8 @@ export function MarkdownTocTreeRow(props: MarkdownTocTreeRowProps) {
         className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${uiPanelTextFontClass} ${isDragging ? 'opacity-50' : ''} ${isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''}`}
         style={{ paddingLeft: 6 + indent }}
         onClick={onClick}
-        aria-label={`Heading ${text}`}
+        aria-label={`Heading ${displayText}`}
+        title={displayText}
       >
         {hasChildren ? (
           <MarkdownTocExpandGlyph isExpanded={isExpanded} className="w-3 h-3 shrink-0" />
@@ -57,7 +61,7 @@ export function MarkdownTocTreeRow(props: MarkdownTocTreeRowProps) {
         )}
         {hasChildren ? <Folder className="w-3 h-3 shrink-0" aria-hidden="true" /> : <FileText className="w-3 h-3 shrink-0" aria-hidden="true" />}
         <span className={`shrink-0 tabular-nums ${UI_THEME_TOKENS.text.secondary}`}>{headingNumber}</span>
-        <span className="truncate">{text}</span>
+        <span className="truncate">{renderMarkdownSigilInlineText(text)}</span>
       </button>
 
       <MarkdownTocReorderHandle

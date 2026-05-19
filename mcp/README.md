@@ -33,6 +33,10 @@ ClawdChat itself is not required to run Knowgrph—your users still connect to *
    - Runs: `python -m knowgrph_parser superagent ...`
    - Typical use: run the Codex-compatible rich media super-agent harness with deterministic mock text/image/video providers
    - Emits: `state.json`, `trace.jsonl`, `final-report.md`, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
+4. `knowgrph.browser_api.run`
+   - Calls a configurable local API-native browser runtime, using an Unbrowse-compatible shape without copying its implementation
+   - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
+   - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
 
 ## Install (external users)
 
@@ -63,13 +67,14 @@ Add a server entry similar to:
 ```json
 {
   "mcpServers": {
-    "knowgrph": {
+    "api-native-browser-bridge": {
       "command": "node",
-      "args": ["/ABS/PATH/TO/knowgrph/mcp/server.js"],
+      "args": ["/ABS/PATH/TO/LOCAL_MCP_SERVER.js"],
       "env": {
-        "KNOWGRPH_ROOT": "/ABS/PATH/TO/knowgrph",
-        "KNOWGRPH_PYTHON": "/ABS/PATH/TO/knowgrph/.venv/bin/python",
-        "KNOWGRPH_MCP_TIMEOUT_MS": "600000"
+        "KNOWGRPH_ROOT": "/ABS/PATH/TO/WORKSPACE_ROOT",
+        "KNOWGRPH_PYTHON": "/ABS/PATH/TO/PYTHON",
+        "KNOWGRPH_MCP_TIMEOUT_MS": "600000",
+        "KNOWGRPH_BROWSER_API_RUNTIME_URL": "http://localhost:6969"
       }
     }
   }
@@ -82,6 +87,28 @@ Then you can call:
 - `knowgrph.pipeline` with `{ "mode": "pipeline", "inputPath": "data/outputs/graph.json", "outputDir": "data/outputs" }`
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
 - `knowgrph.superagent.run` with `{ "inputPath": "knowgrph_parser/fixtures/superagent-neutral.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example" }`
+- `knowgrph.browser_api.run` with `{ "operation": "resolve", "targetUrl": "<TARGET_URL>", "intent": "find the current account profile JSON endpoint" }`
+- `knowgrph.browser_api.run` with `{ "operation": "execute", "skillId": "resolved-skill-id", "payload": {}, "dryRun": true, "confirmUnsafe": false, "confirmThirdPartyTerms": false }`
+- `knowgrph.browser_api.run` with `{ "operation": "cookieImport", "targetUrl": "<TARGET_URL>", "dryRun": false, "confirmCookieImport": true, "confirmUnsafe": true, "confirmThirdPartyTerms": true }`
+- `knowgrph.browser_api.run` with `{ "operation": "click", "sessionId": "session-id", "selector": "#submit", "dryRun": false, "confirmUnsafe": true }`
+
+### Direct API-native browser MCP config
+
+If an agent should connect to the browser runtime MCP directly instead of going through Knowgrph, MainPanel MCP also exposes a direct `mcpServers` snippet shaped like:
+
+```json
+{
+  "mcpServers": {
+    "api-native-browser": {
+      "command": "npx",
+      "args": ["-y", "unbrowse", "mcp"],
+      "env": {
+        "UNBROWSE_URL": "http://localhost:6969"
+      }
+    }
+  }
+}
+```
 
 ## Security / sandboxing
 

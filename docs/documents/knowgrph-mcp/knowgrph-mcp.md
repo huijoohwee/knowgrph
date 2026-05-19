@@ -86,6 +86,8 @@ Start with a small number of integrations that unlock real flows:
 - **GitHub MCP**: repo/file fetch + issues/PRs (for codebase indexing workflows).
 - **Stripe MCP** (if monetization is in scope): customer status, metering, portal links.
 - **Artifact store MCP**: abstract R2/D1/KV behind stable tools.
+- **API-native browser MCP**: route discovery, login plus guarded cookie-import handoff, cached first-party API resolution, skill/session listing, feedback/verification, guarded route execution, and native browser capture/action fallback through `knowgrph.browser_api.run`.
+- **Editor Workspace responsive verification**: treat mobile editor pane width, resize gutter, toolbar overflow, and Monaco focus checks as UI contract evidence from the root workspace defaults, not per-client remapping.
 
 Keep integration MCP servers **thin**: translate external APIs into stable tool I/O; keep business logic in Knowgrph Core (or gateway).
 

@@ -1,12 +1,14 @@
 import type { GraphData } from '@/lib/graph/types'
 import { requestFromSingletonWorker } from '@/lib/workers/singletonWorkerClient'
 import { runDeferredWithTimeout } from '@/lib/async/runDeferredWithTimeout'
+import type { MarkdownAnnotation } from '@/lib/markdown/markdownSigil'
 
 export type KeywordGraphWorkerArgs = {
   documentId: string
   documentText: string
   sourceLabel?: string
   sourceTextHash?: string
+  markdownAnnotations?: MarkdownAnnotation[]
   tuning?: { edgesPerNode?: number; maxEdgesCap?: number; maxNodes?: number }
   timeoutMs?: number
   signal?: AbortSignal
@@ -45,6 +47,7 @@ const deriveDeferred = (args: KeywordGraphWorkerArgs, timeoutMs: number): Promis
           documentText: args.documentText,
           sourceLabel: args.sourceLabel,
           sourceTextHash: args.sourceTextHash,
+          markdownAnnotations: args.markdownAnnotations,
           tuning: args.tuning,
         })).graph || null
       )
@@ -70,6 +73,7 @@ const deriveViaWorker = (
         documentText: args.documentText,
         sourceLabel: args.sourceLabel,
         sourceTextHash: args.sourceTextHash,
+        markdownAnnotations: args.markdownAnnotations,
         tuning: args.tuning,
       })
     },

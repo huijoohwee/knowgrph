@@ -43,6 +43,7 @@ import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const previewPlaceholderClassName = `flex-1 w-full flex items-center justify-center rounded ${UI_THEME_TOKENS.button.neutralMuted} text-[10px] ${UI_THEME_TOKENS.text.secondary} px-2 text-center`
@@ -604,11 +605,7 @@ export default function PreviewPanelView() {
       )
     }
 
-    return (
-      <div className={previewPlaceholderClassName}>
-        <span className="truncate w-full">{item.label}</span>
-      </div>
-    )
+    return <div className={previewPlaceholderClassName}><span className="truncate w-full">{renderMarkdownSigilInlineText(item.label)}</span></div>
   }
 
   const renderActiveMedia = () => {
@@ -749,7 +746,7 @@ export default function PreviewPanelView() {
                             {renderMiniPreview(item)}
                           </div>
                           <div className={`mt-1 mx-1 line-clamp-2 ${UI_THEME_TOKENS.text.primary}`}>
-                            {item.label}
+                            {renderMarkdownSigilInlineText(item.label)}
                           </div>
                         </button>
                       )

@@ -12,12 +12,14 @@ export const WORKSPACE_MULTI_DIMENSIONAL_TABLE_DEFAULT_SPLIT = {
 } as const
 
 const DEFAULT_VIEWPORT_WIDTH_PX = 1440
-const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_RATIO = 0.28
+export const WORKSPACE_EDITOR_CANVAS_GUTTER_PX = 48
+export const WORKSPACE_EDITOR_CANVAS_GUTTER_CSS = `${WORKSPACE_EDITOR_CANVAS_GUTTER_PX / 16}rem`
+const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_DESKTOP_RATIO = 0.28
+const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_RATIO = 0.12
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX = 420
-const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_MIN_PX = 96
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX = 640
 const WORKSPACE_EDITOR_PANE_MIN_WIDTH_PX = 320
-const WORKSPACE_EDITOR_PANE_COMPACT_MIN_RATIO = 0.6
+const WORKSPACE_EDITOR_PANE_COMPACT_MIN_RATIO = 0.75
 const WORKSPACE_EDITOR_PANE_COMPACT_MIN_PX = 192
 const WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX = 768
 
@@ -34,12 +36,16 @@ function clampPx(px: number, minPx: number, maxPx: number): number {
 
 export function resolveWorkspaceCanvasMinVisibleStripPx(): number {
   const viewport = resolveViewportWidthPx()
+  const compact = viewport <= WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX
+  const ratio = compact
+    ? MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_RATIO
+    : MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_DESKTOP_RATIO
   const minPx =
-    viewport <= WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX
-      ? MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_MIN_PX
+    compact
+      ? WORKSPACE_EDITOR_CANVAS_GUTTER_PX
       : MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX
   return clampPx(
-    viewport * MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_RATIO,
+    viewport * ratio,
     minPx,
     MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX,
   )
@@ -69,6 +75,9 @@ export function resolveWorkspacePaneMaxWidthPx(args: { minPx: number; rightGutte
 
 export function resolveWorkspaceEditorPaneDefaultWidthPx(args: { minPx: number; maxPx: number }): number {
   const viewport = resolveViewportWidthPx()
+  if (viewport <= WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX) {
+    return args.maxPx
+  }
   const ratio = 1 - (WORKSPACE_EDITOR_CANVAS_DEFAULT_SPLIT.canvasPercent / 100)
   return clampPx(viewport * ratio, args.minPx, args.maxPx)
 }

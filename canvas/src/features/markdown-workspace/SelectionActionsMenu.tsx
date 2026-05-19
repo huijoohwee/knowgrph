@@ -2,6 +2,7 @@ import React from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib/browser/dismissEvents'
 import type { SelectionActionItem } from './selectionActionItems'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
@@ -67,7 +68,7 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
               <li key={item.key} className="list-none">
                 <button
                   type="button"
-                  className={`kg-menu-row flex w-full min-w-0 max-w-full flex-nowrap items-center overflow-hidden text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`${UI_RESPONSIVE_MENU_ROW_CLASSNAME} text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   aria-label={item.ariaLabel}
                   role="menuitem"
                   onClick={() => {
