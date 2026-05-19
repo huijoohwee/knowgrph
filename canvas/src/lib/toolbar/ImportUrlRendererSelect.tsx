@@ -41,7 +41,7 @@ export function ImportUrlRendererSelect(props: {
   return (
     <select
       className={cn(
-        'h-[var(--kg-control-height,28px)] px-2 rounded border text-xs',
+        'h-[var(--kg-control-height,28px)] min-w-0 flex-1 px-2 rounded border text-xs',
         UI_THEME_TOKENS.input.border,
         UI_THEME_TOKENS.input.bg,
         UI_THEME_TOKENS.input.text,

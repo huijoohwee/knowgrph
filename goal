@@ -135,6 +135,14 @@ Manual management is explicit user intent:
 - Manual deletion or disabling must be respected by automated refresh unless the user explicitly resets the workspace, re-enables the default seed set, or accepts a remote replacement.
 - Manual and automated records must converge through the same conflict UX, toast/log reporting, storage outbox handling, and stale-write guards.
 
+Crawler access is read-only storage exposure:
+
+- AI crawler and non-JavaScript clients must be able to discover Editor Workspace Source Files through storage-owned crawler entrypoints, including `/api/storage/llms.txt` and `/api/storage/source-files`, without running the SPA or using Import local files.
+- Crawler entrypoints must derive document links, canonical source paths, content hashes, revisions, and updated timestamps from the same D1 document rows and doc-view route used by storage export/doc hydration. They must not depend on display name, local absolute path, demo filename, downstream host patch, stale alias, or generated fixture content.
+- Cloudflare AI Crawl Control Pay Per Crawl compatibility must be described as a zone-owned policy boundary: unpaid AI crawler access can be negotiated by Cloudflare through HTTP 402 and `crawler-price`, while successful paid access can return HTTP 200 with `crawler-charged`.
+- The Knowgrph storage Worker must not emulate payment headers, prices, crawler identity, or paywall decisions in app code.
+- Opening crawler entrypoints must be read-only and must not upload, recompute, reparse, rehydrate, or rerender Source Files.
+
 Source-file sharing is explicit publish intent:
 
 - Toolbar -> Launch -> Editor Workspace -> Source Files -> right-click "Share URL" must generate or copy a shareable URL for the selected SourceFile through the same canonical SourceFile record, storage sync contract, provenance metadata, and conflict/stale-write guards used by automated and manual source-file updates.
@@ -156,6 +164,7 @@ Required source-file acceptance criteria:
 - A clean Editor Workspace opens with the default automated Source Files present from the D1/docs storage path, including the full Markdown content and matching content hashes.
 - Manual creation, import, edit, delete, enable/disable, parse, and conflict-resolution paths continue to work after automated hydration is enabled by default.
 - Automated default sync and manual source-file actions share the same SourceFile normalization, storage sync, recomposition, provenance, and stale-guard utilities.
+- Focused tests prove crawler Source Files discovery and `llms.txt` access are served from D1-backed storage/doc-view metadata, hide deleted records, and link to the latest canonical markdown content without local imports or route-specific patches.
 - Source Files context-menu Share URL is available from Toolbar -> Launch -> Editor Workspace -> Source Files, reuses the canonical SourceFile storage/share owner, dedupes by semantic share key, copies a URL only for the latest non-conflicting content, and never depends on a local absolute path, demo fixture, stale alias, or downstream host patch.
 - Focused tests prove default D1/docs hydration, manual import isolation, duplicate canonical-path suppression, local-edit conflict protection, source-file recomposition, and stale remote-pull rejection.
 - Focused tests prove Share URL generation/copy behavior, offline/unavailable reporting, in-flight dedupe, stale-edit conflict protection, and absence of upload/reparse/rerender work when merely opening the Source Files context menu.

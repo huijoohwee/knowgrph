@@ -161,6 +161,18 @@ This root document exists as the auto-generated settings registry table surface 
 | `maps.grabmaps.mcp.nearbySearch.rankBy` | string | localStorage |  |  |
 | `maps.grabmaps.mcp.nearbySearch.language` | string | localStorage |  |  |
 | `maps.grabmaps.mcp.nearbySearch.category` | string | localStorage |  |  |
+| `browser.apiNative.mcp.serverKey` | string | localStorage |  |  |
+| `browser.apiNative.mcp.command` | string | localStorage |  |  |
+| `browser.apiNative.mcp.args` | json | localStorage |  |  |
+| `browser.apiNative.mcp.env` | json | localStorage |  |  |
+| `browser.apiNative.mcp.startupTimeoutMs` | number | localStorage |  |  |
+| `browser.apiNative.mcp.runtimeUrl` | string | localStorage |  |  |
+| `browser.apiNative.mcp.defaultIntent` | string | localStorage |  |  |
+| `browser.apiNative.mcp.targetUrl` | string | localStorage |  |  |
+| `browser.apiNative.mcp.dryRun` | boolean | localStorage |  |  |
+| `browser.apiNative.mcp.confirmUnsafe` | boolean | localStorage |  |  |
+| `browser.apiNative.mcp.confirmThirdPartyTerms` | boolean | localStorage |  |  |
+| `browser.apiNative.mcp.confirmCookieImport` | boolean | localStorage |  |  |
 | `flowchart.dataSource` | string | store |  |  |
 | `flowchart.pollIntervalSec` | number | store |  |  |
 | `flowchart.metric.nodeSize` | string | store |  |  |
@@ -559,5 +571,12 @@ This root document exists as the auto-generated settings registry table surface 
 | `payments.stripe.accountId` | string | localStorage |  |  |
 | `payments.stripe.paywallEnabled` | boolean | localStorage |  |  |
 | `payments.stripe.checkoutUrl` | string | localStorage |  |  |
+| `payments.stripe.mcp.serverKey` | string | localStorage |  |  |
+| `payments.stripe.mcp.remoteUrl` | string | localStorage |  |  |
+| `payments.stripe.mcp.connectionMode` | string | localStorage |  |  |
+| `payments.stripe.mcp.localCommand` | string | localStorage |  |  |
+| `payments.stripe.mcp.localArgs` | json | localStorage |  |  |
+| `payments.stripe.mcp.startupTimeoutMs` | number | localStorage |  |  |
+| `payments.stripe.mcp.requireConfirmation` | boolean | localStorage |  |  |
 
 <!-- SETTINGS_REGISTRY_TABLE_END -->

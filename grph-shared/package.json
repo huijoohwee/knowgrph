@@ -194,6 +194,16 @@
       "import": "./dist/browser/apiNativeBrowserMcpSsot.js",
       "default": "./dist/browser/apiNativeBrowserMcpSsot.js"
     },
+    "./payments/stripeMcpSsot": {
+      "types": "./dist/payments/stripeMcpSsot.d.ts",
+      "import": "./dist/payments/stripeMcpSsot.js",
+      "default": "./dist/payments/stripeMcpSsot.js"
+    },
+    "./payments/stripePaymentSsot": {
+      "types": "./dist/payments/stripePaymentSsot.d.ts",
+      "import": "./dist/payments/stripePaymentSsot.js",
+      "default": "./dist/payments/stripePaymentSsot.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

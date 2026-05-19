@@ -22,6 +22,7 @@ import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { createId } from '@/lib/id'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { buildRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
+import { buildSourceFilesGeospatialSelectionSignature } from '@/features/source-files/sourceFilesSignatures'
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
 
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -224,6 +225,11 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
     text: markdownDocumentText,
     applyViewPreset: markdownDocumentApplyViewPreset !== false,
   })
+  const sourceFilesGeospatialSelectionSignature = React.useMemo(
+    () => buildSourceFilesGeospatialSelectionSignature(sourceFiles),
+    [sourceFiles],
+  )
+  const geospatialSourceFiles = React.useMemo(() => sourceFiles, [sourceFilesGeospatialSelectionSignature])
 
   const geoGraphLastRef = React.useRef<GraphData>(graphData)
   const geospatialGraphData = React.useMemo(() => {
@@ -235,9 +241,9 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       graphRevision: graphDataRevision,
       markdownText: canvasMarkdownDocument.text,
       sourceDocumentPath: canvasMarkdownDocument.name,
-      sourceFiles,
+      sourceFiles: geospatialSourceFiles,
     })
-  }, [active, canvasMarkdownDocument.name, canvasMarkdownDocument.text, graphData, graphDataRevision, sourceFiles])
+  }, [active, canvasMarkdownDocument.name, canvasMarkdownDocument.text, geospatialSourceFiles, graphData, graphDataRevision])
 
   React.useEffect(() => {
     if (!active) return

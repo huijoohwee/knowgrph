@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, ArrowRight, EyeOff, Filter, Trash2, Copy, ArrowUp, ArrowDown, Columns2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, EyeOff, Filter, Trash2, Copy, ArrowUp, ArrowDown, ChevronDown, Columns2 } from 'lucide-react'
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
@@ -60,7 +60,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
   const [filterOp, setFilterOp] = React.useState(props.filter?.defaultOp || 'contains')
   const [filterValue, setFilterValue] = React.useState(props.filter?.defaultValue || '')
   const [isTypeOpen, setIsTypeOpen] = React.useState(false)
-  const typeCloseTimerRef = React.useRef<number | null>(null)
+  const typeMenuId = React.useId()
 
   React.useEffect(() => {
     if (!props.filter) return
@@ -72,31 +72,6 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
     setIsTypeOpen(false)
   }, [props.ariaLabel])
 
-  React.useEffect(() => {
-    return () => {
-      if (typeCloseTimerRef.current != null) {
-        window.clearTimeout(typeCloseTimerRef.current)
-        typeCloseTimerRef.current = null
-      }
-    }
-  }, [])
-
-  const openType = React.useCallback(() => {
-    if (typeCloseTimerRef.current != null) {
-      window.clearTimeout(typeCloseTimerRef.current)
-      typeCloseTimerRef.current = null
-    }
-    setIsTypeOpen(true)
-  }, [])
-
-  const scheduleCloseType = React.useCallback(() => {
-    if (typeCloseTimerRef.current != null) window.clearTimeout(typeCloseTimerRef.current)
-    typeCloseTimerRef.current = window.setTimeout(() => {
-      typeCloseTimerRef.current = null
-      setIsTypeOpen(false)
-    }, 160)
-  }, [])
-
   return (
     <menu
       className={['kg-column-header-menu rounded border shadow-sm p-1 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
@@ -104,26 +79,26 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
     >
       <li className="list-none">
         <details
-          className="relative"
+          className="min-w-0"
           open={isTypeOpen}
-          onMouseEnter={openType}
-          onMouseLeave={scheduleCloseType}
         >
           <summary
             className={[itemBtn(props.disableTypeChange), 'list-none'].join(' ')}
             aria-disabled={props.disableTypeChange}
+            aria-expanded={isTypeOpen}
+            aria-controls={typeMenuId}
             onClick={e => {
               e.preventDefault()
-              if (isTypeOpen) scheduleCloseType()
-              else openType()
+              if (props.disableTypeChange) return
+              setIsTypeOpen(prev => !prev)
             }}
           >
             <Columns2 className={icon14} aria-hidden="true" />
             <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{props.typeSummaryLabel}</span>
             <span className={['min-w-0 max-w-[120px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{props.typeValueLabel}</span>
-            <ArrowRight className={icon14} aria-hidden="true" />
+            <ChevronDown className={[icon14, 'transition-transform', isTypeOpen ? 'rotate-180' : ''].join(' ')} aria-hidden="true" />
           </summary>
-          <div className="kg-column-header-submenu absolute left-full top-0 pl-1" onMouseEnter={openType} onMouseLeave={scheduleCloseType}>
+          <div id={typeMenuId} className="kg-column-header-children kg-click-expand-menu-children mt-1">
             {props.renderTypeMenu({ closeMenu: props.closeMenu })}
           </div>
         </details>

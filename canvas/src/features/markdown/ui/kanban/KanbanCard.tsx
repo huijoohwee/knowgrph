@@ -212,7 +212,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                       <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.expandCardLabel}</span>
                     </button>
                   </li>
-                  <li className="list-none relative">
+                  <li className="list-none">
                     <button
                       type="button"
                       className={[UI_RESPONSIVE_MENU_ROW_CLASSNAME, 'gap-3 px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
@@ -233,11 +233,11 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                     >
                       <ArrowRight className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                       <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.moveToLabel}</span>
-                      <ChevronDown className={['w-4 h-4 shrink-0 rotate-[-90deg]', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <ChevronDown className={['w-4 h-4 shrink-0 transition-transform', moveMenuOpen ? 'rotate-180' : '', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                     </button>
                     {moveMenuOpen ? (
                       <menu
-                        className={['kg-column-header-submenu kg-data-view-floating-menu absolute left-[-8px] top-0 -translate-x-full w-[200px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+                        className="kg-data-view-floating-menu-children kg-click-expand-menu-children mt-1 m-0 list-none"
                         role="menu"
                         aria-label="Move targets"
                       >

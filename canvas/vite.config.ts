@@ -11,6 +11,14 @@ import { existsSync, createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import { unwrapUserProvidedText } from 'grph-shared/url'
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
+import {
+  STRIPE_PAYMENT_ROUTE_PATHS,
+  buildStripeCheckoutSessionCreateForm,
+  isStripeCheckoutReturnUrlAllowed,
+  readStripeCheckoutReturnOrigin,
+  readStripePaymentServerKey,
+  resolveStripeCheckoutServerConfig,
+} from 'grph-shared/payments/stripePaymentSsot'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
@@ -51,7 +59,6 @@ const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 const CHAT_PROXY_BYTEPLUS_HOSTS = new Set([CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST, CHAT_PROXY_BYTEPLUS_EU_WEST_HOST])
 const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
 const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
-const STRIPE_CHECKOUT_SESSION_CREATE_PATH = '/__stripe_checkout_session'
 const STRIPE_MAX_REQUEST_BYTES = 16 * 1024
 const chatLogsDir = path.resolve(repoRoot, 'logs')
 const normalizeHost = (value: unknown): string => String(value || '').trim().toLowerCase()
@@ -263,39 +270,40 @@ const writeJsonResponse = (res: import('node:http').ServerResponse, statusCode: 
   res.end(JSON.stringify(body))
 }
 
-const getStripeCheckoutServerKey = (): string => {
-  const restrictedKey = String(process.env.STRIPE_RESTRICTED_KEY || '').trim()
-  if (restrictedKey.startsWith('rk_')) return restrictedKey
-  const secretKey = String(process.env.STRIPE_SECRET_KEY || '').trim()
-  if (secretKey.startsWith('sk_')) return secretKey
-  return ''
-}
-
 async function createStripeCheckoutSessionServer(args: {
   successUrl: string
   cancelUrl: string
+  workspaceId?: string | null
+  requestOrigin: string
 }): Promise<{ id: string; url: string }> {
-  const apiKey = getStripeCheckoutServerKey()
+  const apiKey = readStripePaymentServerKey(process.env)
   if (!apiKey) {
     throw new Error('Missing server-managed Stripe key. Set STRIPE_RESTRICTED_KEY (recommended) or STRIPE_SECRET_KEY on the dev/preview server.')
   }
+  const config = resolveStripeCheckoutServerConfig(process.env)
+  if (!config.ok) throw new Error(config.error)
+  const configuredOrigin = readStripeCheckoutReturnOrigin(process.env)
+  if (
+    !isStripeCheckoutReturnUrlAllowed(args.successUrl, args.requestOrigin, configuredOrigin)
+    || !isStripeCheckoutReturnUrlAllowed(args.cancelUrl, args.requestOrigin, configuredOrigin)
+  ) {
+    throw new Error('Checkout return URLs must stay on the configured request origin.')
+  }
 
-  const body = new URLSearchParams({
-    mode: 'payment',
-    success_url: String(args.successUrl || '').trim(),
-    cancel_url: String(args.cancelUrl || '').trim(),
-    'line_items[0][price_data][currency]': 'usd',
-    'line_items[0][price_data][product_data][name]': 'Knowgrph Paywall',
-    'line_items[0][price_data][unit_amount]': '100',
-    'line_items[0][quantity]': '1',
+  const body = buildStripeCheckoutSessionCreateForm({
+    successUrl: args.successUrl,
+    cancelUrl: args.cancelUrl,
+    workspaceId: args.workspaceId || null,
+  }, config)
+
+  const headers = new Headers({
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
   })
 
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers,
     body,
   })
 
@@ -324,14 +332,20 @@ function createStripeCheckoutDevHandler(): import('vite').Connect.NextHandleFunc
       return
     }
     try {
-      const payload = await readJsonRequestBody<{ successUrl?: unknown; cancelUrl?: unknown }>(req, STRIPE_MAX_REQUEST_BYTES)
+      const payload = await readJsonRequestBody<{ successUrl?: unknown; cancelUrl?: unknown; workspaceId?: unknown }>(req, STRIPE_MAX_REQUEST_BYTES)
       const successUrl = String(payload?.successUrl || '').trim()
       const cancelUrl = String(payload?.cancelUrl || '').trim()
       if (!successUrl || !cancelUrl) {
         writeJsonResponse(res, 400, { ok: false, error: 'Missing Checkout Session success_url or cancel_url.' })
         return
       }
-      const created = await createStripeCheckoutSessionServer({ successUrl, cancelUrl })
+      const reqOrigin = String(req.headers.origin || '').trim() || `http://${String(req.headers.host || '').trim()}`
+      const created = await createStripeCheckoutSessionServer({
+        successUrl,
+        cancelUrl,
+        workspaceId: String(payload?.workspaceId || '').trim() || null,
+        requestOrigin: reqOrigin,
+      })
       writeJsonResponse(res, 200, { ok: true, id: created.id, url: created.url })
     } catch (error) {
       const message = error instanceof Error && error.message.trim()
@@ -345,10 +359,10 @@ function createStripeCheckoutDevHandler(): import('vite').Connect.NextHandleFunc
 const stripeCheckoutDevPlugin = {
   name: 'knowgrph-stripe-checkout-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use(STRIPE_CHECKOUT_SESSION_CREATE_PATH, createStripeCheckoutDevHandler())
+    server.middlewares.use(STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession, createStripeCheckoutDevHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use(STRIPE_CHECKOUT_SESSION_CREATE_PATH, createStripeCheckoutDevHandler())
+    server.middlewares.use(STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession, createStripeCheckoutDevHandler())
   },
 }
 

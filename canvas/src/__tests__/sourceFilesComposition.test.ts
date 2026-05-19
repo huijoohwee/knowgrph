@@ -246,6 +246,51 @@ export function testSourceFilesGeospatialSelectionSignatureTracksGeoLayerEligibi
   }
 }
 
+export function testSourceFilesGeospatialSelectionSignatureUsesCandidateProfiles() {
+  const geoTextA = '```geojson\n{"type":"FeatureCollection","features":[1]}\n```'
+  const geoTextB = '```geojson\n{"type":"FeatureCollection","features":[2]}\n```'
+  const base = [
+    {
+      id: 'source:geo',
+      name: 'geo.md',
+      text: geoTextA,
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'geo.md' },
+    },
+    {
+      id: 'source:plain',
+      name: 'plain.md',
+      text: 'Plain source file without map data.',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'plain.md' },
+    },
+  ]
+  const statusOnlyChurn = [
+    base[0],
+    {
+      ...base[1],
+      status: 'idle',
+      text: 'Other source text without map data.',
+    },
+  ]
+  const geoContentChanged = [
+    {
+      ...base[0],
+      text: geoTextB,
+    },
+    base[1],
+  ]
+  const baseSignature = buildSourceFilesGeospatialSelectionSignature(base)
+  if (buildSourceFilesGeospatialSelectionSignature(statusOnlyChurn) !== baseSignature) {
+    throw new Error('expected geospatial source-file selection signatures to ignore plain non-map text and status churn')
+  }
+  if (buildSourceFilesGeospatialSelectionSignature(geoContentChanged) === baseSignature) {
+    throw new Error('expected geospatial source-file selection signatures to still track geo candidate content changes')
+  }
+}
+
 export function testSourceLayerKeysIgnoreParsedGraphRevisionOnlyChurnWhenGraphSemanticsMatch() {
   const baseGraph: GraphData = {
     type: 'Graph',

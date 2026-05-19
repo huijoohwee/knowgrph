@@ -39,6 +39,7 @@ type RendererHighlightToken = {
   count: number
   frequency: number
   source: string
+  selected: boolean
 }
 
 const readString = (record: Record<string, unknown>, key: string): string => {
@@ -71,6 +72,7 @@ export const readRendererHighlightTokens = (
         count: readNumber(props, 'keyword:frequency') || 1,
         frequency: readNumber(props, 'keyword:frequency'),
         source: 'selection',
+        selected: true,
       })
     }
   } else if (selectedEdgeId) {
@@ -88,6 +90,7 @@ export const readRendererHighlightTokens = (
         count: readNumber(props, 'count') || 1,
         frequency: readNumber(props, 'count'),
         source: 'selection',
+        selected: true,
       })
     }
   }
@@ -115,6 +118,7 @@ export const readRendererHighlightTokens = (
       existing.count += count
       existing.frequency += frequency
       existing.defaultHighlight = existing.defaultHighlight || props['keyword:highlight:default'] === true || (markdownMarked && !background)
+      existing.selected = existing.selected || String(node.id || '').trim() === selectedNodeId
       continue
     }
     byKey.set(key, {
@@ -126,10 +130,11 @@ export const readRendererHighlightTokens = (
       count,
       frequency,
       source,
+      selected: String(node.id || '').trim() === selectedNodeId,
     })
   }
   return Array.from(byKey.values())
-    .sort((a, b) => b.count - a.count || b.frequency - a.frequency || a.label.localeCompare(b.label))
+    .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || b.frequency - a.frequency || a.label.localeCompare(b.label))
     .slice(0, 8)
 }
 

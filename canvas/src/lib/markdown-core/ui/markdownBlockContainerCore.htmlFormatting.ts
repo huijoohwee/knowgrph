@@ -11,6 +11,45 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
   lastNonCollapsedSelectionOffsetsRef: React.MutableRefObject<SelectionOffsets | null>
   lastNonCollapsedDomRangeRef: React.MutableRefObject<Range | null>
 }) => {
+  const restoreSelectionForFormatting = React.useCallback((): boolean => {
+    const root = args.editorRef.current
+    if (!root) return false
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return false
+    if (hasExpandedSelectionInRoot({ root, selection: sel })) {
+      const selection = args.getSelectionOffsets()
+      if (selection && selection.startOffset !== selection.endOffset) {
+        args.lastNonCollapsedSelectionOffsetsRef.current = selection
+      }
+      try {
+        args.lastNonCollapsedDomRangeRef.current = sel.getRangeAt(0).cloneRange()
+      } catch {
+        void 0
+      }
+      return true
+    }
+    const last = args.lastNonCollapsedDomRangeRef.current
+    if (last && !last.collapsed) {
+      const c = last.commonAncestorContainer
+      const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+      if (n && root.contains(n)) {
+        try {
+          sel.removeAllRanges()
+          sel.addRange(last)
+          return hasExpandedSelectionInRoot({ root, selection: sel })
+        } catch {
+          void 0
+        }
+      }
+    }
+    const offsets = args.lastNonCollapsedSelectionOffsetsRef.current
+    if (offsets && offsets.startOffset !== offsets.endOffset) {
+      args.setSelectionByOffsets(offsets)
+      return hasExpandedSelectionInRoot({ root, selection: sel })
+    }
+    return false
+  }, [args])
+
   const readSelectionOffsetsForFormatting = React.useCallback((): SelectionOffsets | null => {
     const selection = args.getSelectionOffsets()
     if (selection && selection.startOffset !== selection.endOffset) {
@@ -23,44 +62,47 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
   const execInline = React.useCallback((cmd: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'removeFormat') => {
     const root = args.editorRef.current
     if (!root) return
-    root.focus()
+    try {
+      root.focus({ preventScroll: true })
+    } catch {
+      root.focus()
+    }
+    restoreSelectionForFormatting()
     try {
       document.execCommand(cmd, false)
     } catch {
       void 0
     }
-  }, [args.editorRef])
+  }, [args.editorRef, restoreSelectionForFormatting])
 
   const insertHtmlAroundSelection = React.useCallback((payload: { leftHtml: string; rightHtml: string }) => {
     const root = args.editorRef.current
     if (!root) return
+    try {
+      root.focus({ preventScroll: true })
+    } catch {
+      root.focus()
+    }
+    restoreSelectionForFormatting()
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel || !hasExpandedSelectionInRoot({ root, selection: sel })) return
     const range = sel.getRangeAt(0)
     const wrap = document.createElement('div')
     wrap.appendChild(range.cloneContents())
     const html = `${payload.leftHtml}${wrap.innerHTML}${payload.rightHtml}`
-    root.focus()
     try {
       document.execCommand('insertHTML', false, html)
     } catch {
       void 0
     }
-  }, [args.editorRef])
+  }, [args.editorRef, restoreSelectionForFormatting])
 
   const applySigilToHtmlSelection = React.useCallback((payload: { color?: string; background?: string }) => {
     const root = args.editorRef.current
     if (!root) return
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel) return
-    try {
-      if ((sel.rangeCount <= 0 || sel.getRangeAt(0).collapsed) && args.lastNonCollapsedSelectionOffsetsRef.current) {
-        const cached = args.lastNonCollapsedSelectionOffsetsRef.current
-        if (cached.startOffset !== cached.endOffset) args.setSelectionByOffsets(cached)
-      }
-    } catch {
-      void 0
-    }
+    restoreSelectionForFormatting()
     const pickRange = (): Range | null => {
       if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
       const last = args.lastNonCollapsedDomRangeRef.current
@@ -166,31 +208,11 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       void 0
     }
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [args])
+  }, [args, restoreSelectionForFormatting])
 
   const restoreCachedHtmlSelection = React.useCallback(() => {
-    const root = args.editorRef.current
-    if (!root) return
-    const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    if (!sel) return
-    if (hasExpandedSelectionInRoot({ root, selection: sel })) return
-    const last = args.lastNonCollapsedDomRangeRef.current
-    if (last && !last.collapsed) {
-      const c = last.commonAncestorContainer
-      const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
-      if (n && root.contains(n)) {
-        try {
-          sel.removeAllRanges()
-          sel.addRange(last)
-          return
-        } catch {
-          void 0
-        }
-      }
-    }
-    const offsets = args.lastNonCollapsedSelectionOffsetsRef.current
-    if (offsets && offsets.startOffset !== offsets.endOffset) args.setSelectionByOffsets(offsets)
-  }, [args])
+    restoreSelectionForFormatting()
+  }, [restoreSelectionForFormatting])
 
   return {
     readSelectionOffsetsForFormatting,

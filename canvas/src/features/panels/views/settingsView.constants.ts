@@ -1,4 +1,5 @@
 import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { FLOW_IMAGE_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'
 import { settingsRegistry } from '@/features/settings/registry'
 import { getGrabMapsDiscoveryWidgetLabel } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
@@ -13,6 +14,8 @@ import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } fro
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
+import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
+import { STRIPE_MCP_DOCS_URL } from 'grph-shared/payments/stripeMcpSsot'
 
 export const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
 export const ACTIVE_WORKSPACE_SYNC_MAX_ATTEMPTS = 8
@@ -103,6 +106,16 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
       'Route cache, native browser actions, loopback runtime URL, dry-run, unsafe-action, third-party terms, and cookie-import confirmation stay configurable in MainPanel MCP.',
     ],
     openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
+  },
+  [STRIPE_MCP_DOC_AREA]: {
+    docsUrl: STRIPE_MCP_DOCS_URL,
+    docsLabel: 'Open Stripe MCP Docs',
+    panelLabel: 'Open MainPanel Payments',
+    note: 'Remote Stripe MCP uses OAuth when available; local or bearer-token flows must keep restricted keys server-side.',
+    highlights: [
+      'Payment-mutating MCP tools stay behind human confirmation and least-privilege authorization.',
+    ],
+    openPanel: () => emitMainPanelOpen({ tab: 'payments', searchQuery: 'stripeApi.checkout' }),
   },
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',

@@ -4,6 +4,7 @@ import {
   computeFloatingMenuPosition,
   getRangeRectSafe,
   hasExpandedSelectionInRoot,
+  ensureWordSelectionInRoot,
   readLiveSelectionSnapshot,
   type LiveSelectionSnapshot,
 } from './markdownBlockContainerCore.interaction'
@@ -221,9 +222,11 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   const onMouseUp = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     args.lastEditorPointerUpAtRef.current = Date.now()
     const selNow = typeof window !== 'undefined' ? window.getSelection() : null
+    let capturedNonCollapsedSelection = false
     if (selNow && selNow.rangeCount > 0) {
       const rr = selNow.getRangeAt(0)
       if (!rr.collapsed) {
+        capturedNonCollapsedSelection = true
         args.liveSelectionSnapshotRef.current = { range: rr, rect: getRangeRectSafe(rr) }
         const selection = args.getSelectionOffsets()
         if (selection && selection.startOffset !== selection.endOffset) args.lastNonCollapsedSelectionOffsetsRef.current = selection
@@ -231,6 +234,26 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
           args.lastNonCollapsedDomRangeRef.current = rr.cloneRange()
         } catch {
           void 0
+        }
+      }
+    }
+    const shouldResolveWordSelection = event.detail >= 2 || Date.now() < args.editOpenBlurGuardUntilRef.current
+    if (!capturedNonCollapsedSelection && shouldResolveWordSelection) {
+      const root = args.editorRef.current
+      if (root && ensureWordSelectionInRoot(root)) {
+        const nextSelection = typeof window !== 'undefined' ? window.getSelection() : null
+        if (nextSelection && nextSelection.rangeCount > 0) {
+          const rr = nextSelection.getRangeAt(0)
+          if (!rr.collapsed) {
+            args.liveSelectionSnapshotRef.current = { range: rr, rect: getRangeRectSafe(rr) }
+            const selection = args.getSelectionOffsets()
+            if (selection && selection.startOffset !== selection.endOffset) args.lastNonCollapsedSelectionOffsetsRef.current = selection
+            try {
+              args.lastNonCollapsedDomRangeRef.current = rr.cloneRange()
+            } catch {
+              void 0
+            }
+          }
         }
       }
     }

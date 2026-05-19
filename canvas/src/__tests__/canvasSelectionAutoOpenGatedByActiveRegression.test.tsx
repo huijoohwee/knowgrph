@@ -131,16 +131,16 @@ export async function testCanvasSelectionSyncSkipsWhenLiveSelectionSourceChanges
     const calls = { reveal: 0, setActive: 0 }
 
     function Harness() {
-      const [activePath, setActivePath] = React.useState<WorkspacePath | null>(null)
       const [, setExpandedPaths] = React.useState<Set<string>>(() => new Set())
 
       useCanvasMarkdownSync({
         active: true,
         entries,
-        activePath,
+        activePath: null,
         setActivePathSafe: path => {
+          void path
           calls.setActive += 1
-          setActivePath(path)
+          useGraphStore.getState().setSelectionSource('editor')
         },
         setExpandedPaths,
         revealLineInEditor: () => {
@@ -157,13 +157,104 @@ export async function testCanvasSelectionSyncSkipsWhenLiveSelectionSourceChanges
       root.render(<Harness />)
     })
 
-    // Simulate a user file click that flips selection source to editor before the
-    // canvas-driven sync effect applies stale 'canvas' closure state.
-    store.setSelectionSource('editor')
     await tick()
 
-    if (calls.reveal !== 0 || calls.setActive !== 0) {
+    if (calls.reveal !== 0 || calls.setActive !== 1) {
       throw new Error(`expected live selection-source guard to prevent canvas sync override, got reveal=${calls.reveal} setActive=${calls.setActive}`)
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
+    await tick()
+  } finally {
+    try {
+      useGraphStore.getState().setWorkspaceViewMode('canvas')
+    } catch {
+      void 0
+    }
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}
+
+export async function testCanvasSelectionSyncRetriesKeywordTextHighlightWhenSourceTextArrives() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setWorkspaceViewMode('canvas')
+    store.setGraphData({
+      type: 'Graph',
+      context: 'test',
+      nodes: [
+        {
+          id: 'kw:agent',
+          type: 'Keyword',
+          label: 'Agent Labs',
+          properties: { 'keyword:key': 'agent labs' },
+          metadata: { derived: true, kind: 'keyword' },
+        },
+      ],
+      edges: [],
+    } as never)
+    useGraphStore.setState({ markdownDocumentText: 'No matching source yet.' } as never)
+    store.setSelectionSource('canvas')
+    store.selectNode('kw:agent')
+
+    const container = bootstrap.dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const entries: WorkspaceEntry[] = [
+      { kind: 'file', path: '/foo.md', parentPath: '/', name: 'foo.md', updatedAtMs: Date.now(), text: 'Agent Labs ships locally.' },
+    ]
+
+    const calls: { reveal: number; line: number } = { reveal: 0, line: 0 }
+    const readCalls = () => ({ reveal: calls.reveal, line: calls.line })
+
+    function Harness() {
+      const [activePath, setActivePath] = React.useState<WorkspacePath | null>('/foo.md' as WorkspacePath)
+      const [, setExpandedPaths] = React.useState<Set<string>>(() => new Set())
+
+      useCanvasMarkdownSync({
+        active: true,
+        entries,
+        activePath,
+        setActivePathSafe: path => {
+          setActivePath(path)
+        },
+        setExpandedPaths,
+        revealLineInEditor: line => {
+          calls.reveal += 1
+          calls.line = line
+        },
+        setStatusError: () => {},
+      })
+
+      return null
+    }
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<Harness />)
+    })
+    await tick()
+
+    const beforeSourceText = readCalls()
+    if (beforeSourceText.reveal !== 0) {
+      throw new Error(`expected no reveal before source text has selected keyword, got ${beforeSourceText.reveal}`)
+    }
+
+    await act(async () => {
+      useGraphStore.setState({
+        markdownDocumentText: ['# Transcript', 'Agent Labs ships a local renderer validation path.'].join('\n'),
+      } as never)
+    })
+    await tick()
+
+    const afterSourceText = readCalls()
+    if (afterSourceText.reveal !== 1 || afterSourceText.line !== 2) {
+      throw new Error(`expected retry reveal on source text arrival at line 2, got reveal=${afterSourceText.reveal} line=${afterSourceText.line}`)
     }
 
     await act(async () => {

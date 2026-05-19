@@ -1,6 +1,10 @@
 import type { GraphData } from '@/lib/graph/types'
 import type { SourceFile } from '@/hooks/store/types'
+import { buildMarkdownGeodataCandidateProfile } from '@/lib/markdown/markdownGeodataAnalysis'
 import { normalizeComposedSourcePath, readComposedSourceFilePath } from './composedSourceSelection'
+import { isGeospatialSourceFileEligible } from './geospatialSourceEligibility'
+
+export { isGeospatialSourceFileEligible } from './geospatialSourceEligibility'
 
 export type GeospatialSourceContextResolvedFrom = 'direct' | 'sourceFiles' | 'none'
 
@@ -17,12 +21,6 @@ const basenameLike = (value: string): string => {
   const normalizedPath = normalizeComposedSourcePath(value)
   const parts = normalizedPath.split('/').filter(Boolean)
   return parts.length > 0 ? String(parts[parts.length - 1] || '') : ''
-}
-
-export const isGeospatialSourceFileEligible = (file: SourceFile | null | undefined): boolean => {
-  if (!file || file.enabled !== true) return false
-  if (typeof file.geoLayerEnabled === 'boolean' && file.geoLayerEnabled !== true) return false
-  return true
 }
 
 const findUniqueEligibleGeospatialSourceFileByNormalizedPath = (
@@ -76,9 +74,10 @@ export function resolvePreferredGeospatialSourceFile(args: {
     if (!isGeospatialSourceFileEligible(file)) return false
     const sourcePath = readComposedSourceFilePath(file)
     const text = String(file?.text || '')
+    const candidateProfile = buildMarkdownGeodataCandidateProfile(text)
     return !!sourcePath
       && isMarkdownLikeName(sourcePath)
-      && (text.includes('"FeatureCollection"') || text.includes('```geojson') || text.includes('```json'))
+      && (candidateProfile.mayContainEmbeddedGeoJson || candidateProfile.mayContainPoiTables)
   })
   return eligibleMarkdownFiles.length === 1 ? eligibleMarkdownFiles[0] || null : null
 }

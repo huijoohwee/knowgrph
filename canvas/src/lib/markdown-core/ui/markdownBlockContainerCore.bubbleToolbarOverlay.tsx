@@ -72,7 +72,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
   }
   const selectionActions = props.selectionActions
   return (
-    <AnchorOverlay anchorRef={props.anchorRef} open align="top-center" className={props.floatingBubbleToolbarClassName}>
+    <AnchorOverlay anchorRef={props.anchorRef} open align="top-center" className={props.floatingBubbleToolbarClassName} autoFocus={false}>
       <menu
         ref={props.toolbarRef}
         className="list-none m-0 p-0 flex flex-wrap items-center gap-1"
@@ -87,10 +87,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             <Heading2 className="w-3 h-3" strokeWidth={1.6} />
           </summary>
           <menu className={props.toolbarMenuClassName} aria-label="Turn into menu">
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} title="Heading" onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('heading2')}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H2</button></li>
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} title="Bulleted List" onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('bulletList')}><List className="w-3 h-3 mr-1" strokeWidth={1.6} />Bulleted list</button></li>
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} title="Numbered List" onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('numberedList')}><ListOrdered className="w-3 h-3 mr-1" strokeWidth={1.6} />Numbered list</button></li>
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} title="Quote" onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('blockquote')}><Quote className="w-3 h-3 mr-1" strokeWidth={1.6} />Quote</button></li>
+            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('heading2')}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H2</button></li>
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('code')}><Code className="w-3 h-3 mr-1" strokeWidth={1.6} />Code block</button></li>
             <li className={props.toolbarMenuDividerClassName} />
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyToggleHeading(1)}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H1</button></li>
@@ -98,6 +95,14 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyToggleHeading(3)}><Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />H3</button></li>
           </menu>
         </details>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('bold')} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('italic')} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('strike')} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('inlineCode')} title="Inline Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('link')} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('bulletList')} title="Bulleted List"><List className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('numberedList')} title="Numbered List"><ListOrdered className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('blockquote')} title="Quote"><Quote className="w-3 h-3" strokeWidth={1.8} /></button>
         <details className="relative">
           <summary className={props.toolbarMenuSummaryClassName} onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
             <AlignLeft className="w-3 h-3" strokeWidth={1.8} />
@@ -108,11 +113,6 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyAlign('right')}>Right</button></li>
           </menu>
         </details>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('bold')} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('inlineCode')} title="Inline Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('italic')} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('link')} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('strike')} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('<u>', '</u>')} title="Underline"><Underline className="w-3 h-3" strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('^', '^')} title="Superscript"><Superscript className="w-3 h-3" strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('~', '~')} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>

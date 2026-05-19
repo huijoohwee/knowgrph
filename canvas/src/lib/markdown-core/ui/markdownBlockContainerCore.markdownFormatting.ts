@@ -56,7 +56,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
       }
       return
     }
-    const selection = args.getSelectionOffsets()
+    const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
     const startOffset = selection?.startOffset ?? 0
     const endOffset = selection?.endOffset ?? 0
     const result = applyMarkdownFormatAction({
@@ -70,7 +70,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
 
   const applyWrap = React.useCallback((left: string, right: string) => {
     const current = args.getDraft()
-    const selection = args.getSelectionOffsets()
+    const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
     const startOffset = selection?.startOffset ?? 0
     const endOffset = selection?.endOffset ?? 0
     const a = Math.max(0, Math.min(current.length, startOffset))

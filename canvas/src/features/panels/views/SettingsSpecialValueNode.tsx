@@ -193,7 +193,9 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
     )
   }
 
-  if (sKey === 'stripeApi.auth.secret_key') {
+  if (sKey === 'stripeApi.auth.secret_key' || sKey === 'stripeApi.webhooks.signing_secret') {
+    const secretLabel = sKey === 'stripeApi.auth.secret_key' ? 'Stripe secret keys' : 'Stripe webhook signing secrets'
+    const envLabel = sKey === 'stripeApi.auth.secret_key' ? 'STRIPE_RESTRICTED_KEY' : 'STRIPE_WEBHOOK_SECRET'
     return (
       <div className={specialValueRowClassName}>
         <div className={specialValueInputShellClassName}>
@@ -205,10 +207,10 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             title="Server-managed only"
           />
           <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-            Stripe secret keys are not stored in the browser. Use `STRIPE_RESTRICTED_KEY` on the dev or preview server.
+            {secretLabel} are not stored in the browser. Use `{envLabel}` on the server.
           </div>
         </div>
-        <span className={statusPillClassName} title="Restricted API key recommended; secret stays server-side.">
+        <span className={statusPillClassName} title="Secret stays server-side.">
           server-managed
         </span>
       </div>

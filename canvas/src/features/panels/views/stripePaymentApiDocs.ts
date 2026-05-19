@@ -1,15 +1,12 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
+import { buildSettingsRowAnchorId } from './settingsRowAnchor'
+import { STRIPE_PAYMENT_ROUTE_PATHS } from 'grph-shared/payments/stripePaymentSsot'
 
 export const STRIPE_PAYMENT_API_DOC_AREA = 'Stripe Payment API'
 
 export function getStripePaymentApiRowAnchorId(rowKey: string): string {
-  const normalized = String(rowKey || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `stripe-payment-api-row-${normalized || 'entry'}`
+  return buildSettingsRowAnchorId('stripe-payment-api-row', rowKey)
 }
 
 type StripeApiDocRow = {
@@ -96,8 +93,9 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
     key: 'stripeApi.webhooks.signing_secret',
     typeLabel: 'secret string',
     value: '—',
-    responsibility: 'Webhook signing secret used to verify Stripe webhook signatures.',
+    responsibility: 'Server-side webhook signing secret used by the Cloudflare Worker to verify Stripe webhook signatures.',
     valueKey: 'payments.stripe.webhookSecret',
+    notes: 'Server-managed only; configure STRIPE_WEBHOOK_SECRET on the Worker or dev/preview server.',
     searchHints: ['webhook', 'signature', 'whsec_'],
   },
   {
@@ -167,9 +165,9 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
   {
     key: 'stripeApi.endpoints.checkout.sessions.create',
     typeLabel: 'endpoint',
-    value: 'POST /v1/checkout/sessions',
-    responsibility: 'Creates a Checkout Session for hosted checkout.',
-    searchHints: ['checkout sessions create'],
+    value: `POST ${STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession} -> Stripe POST /v1/checkout/sessions`,
+    responsibility: 'Creates a hosted Checkout Session through the server-owned route so the browser never sends Stripe secrets or price authority.',
+    searchHints: ['checkout sessions create', STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession, 'server-owned checkout'],
   },
   {
     key: 'stripeApi.checkout.session_url',
@@ -177,8 +175,15 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
     value: '—',
     responsibility: 'Checkout Session URL returned by Stripe (field: url). Redirect the customer to this URL to begin a hosted Checkout Session.',
     valueKey: 'payments.stripe.checkoutUrl',
-    notes: 'Server-managed value. Use Generate (secure) so the browser only receives the returned Session url; the Stripe key stays on the dev or preview server. Present for active hosted Checkout Sessions and often uses checkout.stripe.com unless you configured a custom domain.',
+    notes: 'Server-managed value. Use Generate (secure) so the browser only receives the returned Session url; Stripe keys and price authority stay on the Worker or dev/preview server. Present for active hosted Checkout Sessions and often uses checkout.stripe.com unless you configured a custom domain.',
     searchHints: ['checkout session url', 'generate secure', 'checkout.stripe.com', 'ui_mode hosted', 'redirect'],
+  },
+  {
+    key: 'stripeApi.webhooks.worker_route',
+    typeLabel: 'endpoint',
+    value: `POST ${STRIPE_PAYMENT_ROUTE_PATHS.webhook}`,
+    responsibility: 'Receives Stripe webhook events, verifies stripe-signature with STRIPE_WEBHOOK_SECRET, and records completed Checkout Sessions server-side.',
+    searchHints: ['webhook route', STRIPE_PAYMENT_ROUTE_PATHS.webhook, 'checkout.session.completed', 'stripe-signature'],
   },
   {
     key: 'stripeApi.endpoints.checkout.sessions.retrieve',

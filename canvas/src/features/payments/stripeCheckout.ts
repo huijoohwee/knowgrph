@@ -1,6 +1,11 @@
+import { STRIPE_PAYMENT_ROUTE_PATHS } from 'grph-shared/payments/stripePaymentSsot'
+
 type StripeCheckoutSessionResponse = {
+  ok?: boolean
   id?: string
   url?: string
+  status?: string
+  paymentStatus?: string
   error?: {
     message?: string
     type?: string
@@ -8,17 +13,16 @@ type StripeCheckoutSessionResponse = {
   }
 }
 
-const STRIPE_CHECKOUT_SESSION_CREATE_PATH = '/__stripe_checkout_session'
-
 export async function createStripeHostedCheckoutSessionUrl(args: {
   successUrl: string
   cancelUrl: string
+  workspaceId?: string | null
 }): Promise<{ id: string; url: string }> {
   const successUrl = String(args.successUrl || '').trim()
   const cancelUrl = String(args.cancelUrl || '').trim()
   if (!successUrl || !cancelUrl) throw new Error('Missing Stripe Checkout return URLs.')
 
-  const res = await fetch(STRIPE_CHECKOUT_SESSION_CREATE_PATH, {
+  const res = await fetch(STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -26,6 +30,7 @@ export async function createStripeHostedCheckoutSessionUrl(args: {
     body: JSON.stringify({
       successUrl,
       cancelUrl,
+      workspaceId: String(args.workspaceId || '').trim() || null,
     }),
   })
 

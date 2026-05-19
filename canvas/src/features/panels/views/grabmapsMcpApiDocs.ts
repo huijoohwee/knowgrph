@@ -1,5 +1,6 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
+import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from '@/features/integrations/grabMapsSsot'
 import {
   GRABMAPS_DEFAULT_MCP_ARGS_JSON,
@@ -214,12 +215,7 @@ const toBaseType = (typeLabel: string): SettingMeta['type'] => {
 }
 
 export function getGrabMapsMcpApiRowAnchorId(rowKey: string): string {
-  const normalized = String(rowKey || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `mcp-row-${normalized || 'entry'}`
+  return buildSettingsRowAnchorId('mcp-row', rowKey)
 }
 
 export const GRABMAPS_MCP_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =

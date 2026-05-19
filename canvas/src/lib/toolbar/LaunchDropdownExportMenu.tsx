@@ -1,8 +1,6 @@
 import React from 'react'
-import { Download } from 'lucide-react'
+import { ChevronDown, Download } from 'lucide-react'
 import { WORKSPACE_EXPORT_MENU_ITEMS, type ExportMenuActionKey } from '@/lib/toolbar/exportMenuSsot'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { cn } from '@/lib/utils'
 
 export type LaunchDropdownExportActions = Partial<Record<ExportMenuActionKey, () => void>>
 
@@ -14,9 +12,9 @@ type LaunchDropdownExportMenuProps = {
   menuItemClass: string
   menuIconClass: string
   openExportMenu: () => void
-  scheduleCloseExportMenu: () => void
+  closeExportMenu: () => void
   openPdfMenu: () => void
-  scheduleClosePdfMenu: () => void
+  closePdfMenu: () => void
   runExportAction: (label: string, action: (() => void) | undefined) => void
 }
 
@@ -50,44 +48,38 @@ export function LaunchDropdownExportMenu({
   menuItemClass,
   menuIconClass,
   openExportMenu,
-  scheduleCloseExportMenu,
+  closeExportMenu,
   openPdfMenu,
-  scheduleClosePdfMenu,
+  closePdfMenu,
   runExportAction,
 }: LaunchDropdownExportMenuProps) {
   const canExportPdf = Boolean(exportActions.pdfPortrait || exportActions.pdfLandscape)
-  const exportMenuClass = cn(
-    'kg-launch-menu-root absolute left-full top-0 flex flex-col w-72 list-none m-0',
-    UI_THEME_TOKENS.panel.bg,
-    'border',
-    UI_THEME_TOKENS.panel.border,
-    'rounded shadow-md',
-  )
-  const pdfExportMenuClass = cn(
-    'kg-launch-menu-root absolute left-full top-0 flex flex-col w-64 list-none m-0',
-    UI_THEME_TOKENS.panel.bg,
-    'border',
-    UI_THEME_TOKENS.panel.border,
-    'rounded shadow-md',
-  )
+  const exportMenuClass = 'kg-launch-menu-children kg-click-expand-menu-children mt-1 m-0 flex flex-col list-none'
+  const pdfExportMenuClass = 'kg-launch-menu-children kg-click-expand-menu-children mt-1 m-0 flex flex-col list-none'
+  const exportMenuId = React.useId()
+  const pdfMenuId = React.useId()
 
   return (
     <li className="list-none">
-      <section className="relative" onPointerEnter={openExportMenu} onPointerLeave={scheduleCloseExportMenu}>
+      <section>
         <button
           type="button"
           className={menuItemClass}
           disabled={!canExport}
+          aria-expanded={canExport ? exportMenuOpen : undefined}
+          aria-controls={canExport ? exportMenuId : undefined}
           onClick={() => {
             if (!canExport) return
-            openExportMenu()
+            if (exportMenuOpen) closeExportMenu()
+            else openExportMenu()
           }}
         >
           <Download className={menuIconClass} strokeWidth={1.6} />
           <span className="truncate">Export</span>
+          <ChevronDown className={`ml-auto ${menuIconClass} transition-transform ${exportMenuOpen ? 'rotate-180' : ''}`} strokeWidth={1.6} aria-hidden="true" />
         </button>
         {exportMenuOpen ? (
-          <menu className={exportMenuClass} aria-label="Export" onPointerEnter={openExportMenu} onPointerLeave={scheduleCloseExportMenu}>
+          <menu id={exportMenuId} className={exportMenuClass} aria-label="Export">
             {NON_PDF_EXPORT_ITEMS.map(item => (
               <li key={item.id} className="list-none">
                 <button
@@ -105,18 +97,22 @@ export function LaunchDropdownExportMenu({
             ))}
             {canExportPdf ? (
               <li className="list-none">
-                <section className="relative" onPointerEnter={openPdfMenu} onPointerLeave={scheduleClosePdfMenu}>
+                <section>
                   <button
                     type="button"
                     className={menuItemClass}
+                    aria-expanded={pdfMenuOpen}
+                    aria-controls={pdfMenuId}
                     onClick={() => {
-                      runExportAction('PDF Landscape', exportActions.pdfLandscape || exportActions.pdfPortrait)
+                      if (pdfMenuOpen) closePdfMenu()
+                      else openPdfMenu()
                     }}
                   >
                     <span className="truncate">PDF (.pdf) — Print…</span>
+                    <ChevronDown className={`ml-auto ${menuIconClass} transition-transform ${pdfMenuOpen ? 'rotate-180' : ''}`} strokeWidth={1.6} aria-hidden="true" />
                   </button>
                   {pdfMenuOpen ? (
-                    <menu className={pdfExportMenuClass} aria-label="PDF export orientation" onPointerEnter={openPdfMenu} onPointerLeave={scheduleClosePdfMenu}>
+                    <menu id={pdfMenuId} className={pdfExportMenuClass} aria-label="PDF export orientation">
                       <li className="list-none">
                         <button
                           type="button"

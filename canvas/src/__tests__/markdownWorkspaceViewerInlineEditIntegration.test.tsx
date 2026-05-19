@@ -547,6 +547,16 @@ export async function testMarkdownWorkspaceSplitConsolidatesViewerFormattingInto
         throw new Error(`expected split viewer floating toolbar to expose ${title}`)
       }
     }
+    if (!floatingToolbarText.includes('autoFocus={false}')) {
+      throw new Error('expected inline selection toolbar overlay to preserve editor selection instead of stealing focus')
+    }
+    const formattingText = readFileSync(
+      resolve(process.cwd(), 'src/lib/markdown-core/ui/markdownBlockContainerCore.markdownFormatting.ts'),
+      'utf8',
+    )
+    if (!formattingText.includes('args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()')) {
+      throw new Error('expected inline floating formatting actions to reuse cached selection offsets after toolbar focus changes')
+    }
   } finally {
     try {
       await act(async () => {
@@ -678,16 +688,19 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickWordSelect
     }
 
     host.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: 28, clientY: 16, detail: 2 }))
-    await tick(6)
+    await tick(12)
 
     const editor = container.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (!editor) throw new Error('expected contenteditable editor after double-click')
+
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 2 }))
+    await tick(4)
 
     const selectionText = String(dom.window.getSelection()?.toString() || '').trim()
     if (!selectionText) throw new Error('expected non-empty word selection after double-click open')
 
     doc.dispatchEvent(new dom.window.Event('selectionchange'))
-    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 2 }))
     await tick(4)
 
     const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null

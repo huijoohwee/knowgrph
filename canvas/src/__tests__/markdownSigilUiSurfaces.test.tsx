@@ -126,6 +126,41 @@ export const testRendererSummaryIncludesSelectedTextHighlightToken = () => {
   }
 }
 
+export const testRendererSummaryPinsSelectedTextHighlightToken = () => {
+  const highlightedNodes = Array.from({ length: 12 }, (_, i) => ({
+    id: `kw:ranked:${i}`,
+    label: `Ranked ${i}`,
+    type: 'Keyword',
+    properties: {
+      'keyword:highlight': true,
+      'keyword:highlight:count': 200 - i,
+      'keyword:frequency': 200 - i,
+    },
+  }))
+  const tokens = readRendererHighlightTokens({
+    nodes: [
+      ...highlightedNodes,
+      {
+        id: 'kw:selected',
+        label: 'Selected keyword',
+        type: 'Keyword',
+        properties: {
+          'keyword:key': 'selected keyword',
+          'keyword:frequency': 1,
+          'visual:fill': '#FEF3C7',
+          'visual:labelColor': '#78350F',
+        },
+      },
+    ],
+    edges: [],
+    metadata: {},
+  } as unknown as GraphData, { selectedNodeId: 'kw:selected' })
+  if (tokens.length !== 8) throw new Error(`expected capped renderer tokens, got ${tokens.length}`)
+  if (tokens[0]?.source !== 'selection' || tokens[0]?.label !== 'selected keyword') {
+    throw new Error(`expected selected keyword token to be pinned first, got ${JSON.stringify(tokens[0])}`)
+  }
+}
+
 export const testMarkdownTextHighlightFindsSelectedKeywordLine = () => {
   const range = findMarkdownTextHighlightLineRange([
     '# Transcript',

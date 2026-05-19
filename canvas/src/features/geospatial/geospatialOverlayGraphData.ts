@@ -1,11 +1,16 @@
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { SourceFile } from '@/hooks/store/types'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
-import { hashText } from '@/features/parsers/hash'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { buildSourceFilesGeospatialSelectionSignature } from '@/features/source-files/sourceFilesSignatures'
-import { analyzeMarkdownGeodataSources, buildMarkdownGeodataAnalysisCacheSignature } from '@/lib/markdown/markdownGeodataAnalysis'
+import {
+  analyzeMarkdownGeodataSources,
+  buildMarkdownGeodataAnalysisCacheSignature,
+  buildMarkdownGeodataCandidateProfile,
+  type MarkdownGeodataAnalysis,
+  type MarkdownGeodataCandidateProfile,
+} from '@/lib/markdown/markdownGeodataAnalysis'
 import { normalizeComposedSourcePath } from '@/features/source-files/composedSourceSelection'
 import { resolveGeospatialSourceContext } from '@/features/source-files/geospatialSourceContext'
 import { buildMarkdownGeoFeatureCollectionGraphSourceHash } from './markdownGeoContentSignature'
@@ -79,20 +84,26 @@ const buildGeospatialOverlayGraphCacheKey = (args: {
   markdownText?: string | null
   sourceDocumentPath?: string | null
   sourceFiles?: SourceFile[] | null
+  markdownAnalysisCacheSignature?: string | null
+  skipMarkdownAnalysis?: boolean | null
+  skipSourceFiles?: boolean | null
 }): string => {
   const baseGraphKey = buildScopedGraphSemanticKey('geospatial-overlay-base-graph', {
     graphData: args.graphData,
     graphRevision: args.graphRevision,
     graphSemanticKey: args.graphSemanticKey,
   })
-  const markdownText = String(args.markdownText || '')
+  const markdownText = args.skipMarkdownAnalysis ? '' : String(args.markdownText || '')
   const sourceDocumentPath = normalizeWorkspaceDocLike(String(args.sourceDocumentPath || ''))
+  const sourceFilesSignature = args.skipSourceFiles
+    ? `source-files-count:${Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0}`
+    : buildSourceFilesGeospatialSelectionSignature(args.sourceFiles)
   return hashSignatureParts([
     'geospatial-overlay-graph-data',
     baseGraphKey,
     sourceDocumentPath,
     markdownText
-      ? buildMarkdownGeodataAnalysisCacheSignature({
+      ? String(args.markdownAnalysisCacheSignature || '').trim() || buildMarkdownGeodataAnalysisCacheSignature({
           markdownText,
           sourceDocumentPath,
           embeddedGeoLimit: 8,
@@ -100,18 +111,18 @@ const buildGeospatialOverlayGraphCacheKey = (args: {
           poiRowLimit: 400,
         })
       : '',
-    buildSourceFilesGeospatialSelectionSignature(args.sourceFiles),
+    sourceFilesSignature,
   ])
 }
 
 const buildGeospatialOverlaySupplementGraphCacheKey = (args: {
-  markdownText: string
   sourceDocumentPath: string
+  analysisCacheSignature: string
 }): string => {
   return hashSignatureParts([
     'geospatial-overlay-supplement-graph',
     normalizeWorkspaceDocLike(args.sourceDocumentPath),
-    hashText(args.markdownText),
+    args.analysisCacheSignature,
   ])
 }
 
@@ -193,20 +204,15 @@ const attachOverlayDebugInfo = (graphData: GraphData, info: GeospatialOverlayGra
 })
 
 const buildMarkdownGeodataSupplementGraph = (args: {
-  markdownText: string
   sourceDocumentPath: string
+  analysisCacheSignature: string
+  geodataAnalysis: MarkdownGeodataAnalysis
 }): GraphData | null => {
   const supplementCacheKey = buildGeospatialOverlaySupplementGraphCacheKey(args)
   const cached = readCachedGeospatialOverlaySupplementGraphData(supplementCacheKey)
   if (cached) return cached
 
-  const geodataAnalysis = analyzeMarkdownGeodataSources({
-    markdownText: args.markdownText,
-    sourceDocumentPath: args.sourceDocumentPath,
-    embeddedGeoLimit: 8,
-    poiTableLimit: 3,
-    poiRowLimit: 400,
-  })
+  const geodataAnalysis = args.geodataAnalysis
 
   let supplementGraph: GraphData | null = null
   for (let i = 0; i < geodataAnalysis.poiFeatureCollections.length; i += 1) {
@@ -242,11 +248,34 @@ export function buildGeospatialOverlayGraphData(args: {
   sourceDocumentPath?: string | null
   sourceFiles?: SourceFile[] | null
 }): GraphData {
-  const cacheKey = buildGeospatialOverlayGraphCacheKey(args)
+  const graphData = args.graphData
+  const graphHasGeoCoordinates = hasGeoCoordinates(graphData)
+  const directMarkdownText = String(args.markdownText || '')
+  const directSourceDocumentPath = normalizeWorkspaceDocLike(String(args.sourceDocumentPath || ''))
+  const directCandidateProfile: MarkdownGeodataCandidateProfile | null =
+    !graphHasGeoCoordinates && directMarkdownText
+      ? buildMarkdownGeodataCandidateProfile(directMarkdownText)
+      : null
+  const directAnalysisCacheSignature =
+    directCandidateProfile && directSourceDocumentPath
+      ? buildMarkdownGeodataAnalysisCacheSignature({
+          markdownText: directMarkdownText,
+          sourceDocumentPath: directSourceDocumentPath,
+          embeddedGeoLimit: 8,
+          poiTableLimit: 3,
+          poiRowLimit: 400,
+          candidateProfile: directCandidateProfile,
+        })
+      : ''
+  const cacheKey = buildGeospatialOverlayGraphCacheKey({
+    ...args,
+    markdownAnalysisCacheSignature: directAnalysisCacheSignature,
+    skipMarkdownAnalysis: graphHasGeoCoordinates,
+    skipSourceFiles: graphHasGeoCoordinates,
+  })
   const cached = readCachedGeospatialOverlayGraphData(cacheKey)
   if (cached) return cached
-  const graphData = args.graphData
-  if (hasGeoCoordinates(graphData)) {
+  if (graphHasGeoCoordinates) {
     return writeCachedGeospatialOverlayGraphData(cacheKey, attachOverlayDebugInfo(graphData, {
       resolvedFrom: 'none',
       sourceDocumentPath: '',
@@ -278,12 +307,41 @@ export function buildGeospatialOverlayGraphData(args: {
   }
   const { markdownText, sourceDocumentPath } = markdownContext
   const resolvedFrom = resolvedOverlayContext.resolvedFrom === 'direct' ? 'direct' : 'sourceFiles'
+  const contextSourceDocumentPath = normalizeWorkspaceDocLike(sourceDocumentPath)
+  const reuseDirectAnalysisProfile =
+    !!directCandidateProfile
+    && markdownText === directMarkdownText
+    && contextSourceDocumentPath === directSourceDocumentPath
+  const geodataCandidateProfile = reuseDirectAnalysisProfile
+    ? directCandidateProfile
+    : buildMarkdownGeodataCandidateProfile(markdownText)
+  if (!geodataCandidateProfile.mayContainEmbeddedGeoJson && !geodataCandidateProfile.mayContainPoiTables) {
+    return writeCachedGeospatialOverlayGraphData(cacheKey, attachOverlayDebugInfo(graphData, {
+      resolvedFrom,
+      sourceDocumentPath,
+      embeddedGeoBlockCount: 0,
+      supplementedNodeCount: 0,
+      sourceFilesCount: Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0,
+    }))
+  }
+  const geodataAnalysisCacheSignature = reuseDirectAnalysisProfile && directAnalysisCacheSignature
+    ? directAnalysisCacheSignature
+    : buildMarkdownGeodataAnalysisCacheSignature({
+        markdownText,
+        sourceDocumentPath,
+        embeddedGeoLimit: 8,
+        poiTableLimit: 3,
+        poiRowLimit: 400,
+        candidateProfile: geodataCandidateProfile,
+      })
   const geodataAnalysis = analyzeMarkdownGeodataSources({
     markdownText,
     sourceDocumentPath,
     embeddedGeoLimit: 8,
     poiTableLimit: 3,
     poiRowLimit: 400,
+    candidateProfile: geodataCandidateProfile,
+    cacheSignature: geodataAnalysisCacheSignature,
   })
   if (geodataAnalysis.embeddedGeoJsonGraphDataRequests.length === 0 && geodataAnalysis.poiFeatureCollections.length === 0) {
     return writeCachedGeospatialOverlayGraphData(cacheKey, attachOverlayDebugInfo(graphData, {
@@ -294,7 +352,11 @@ export function buildGeospatialOverlayGraphData(args: {
       sourceFilesCount: Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0,
     }))
   }
-  const supplementGraph = buildMarkdownGeodataSupplementGraph({ markdownText, sourceDocumentPath })
+  const supplementGraph = buildMarkdownGeodataSupplementGraph({
+    sourceDocumentPath,
+    analysisCacheSignature: geodataAnalysisCacheSignature,
+    geodataAnalysis,
+  })
   if (!supplementGraph) {
     return writeCachedGeospatialOverlayGraphData(cacheKey, attachOverlayDebugInfo(graphData, {
       resolvedFrom,

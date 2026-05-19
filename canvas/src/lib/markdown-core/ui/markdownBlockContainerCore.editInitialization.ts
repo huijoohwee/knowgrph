@@ -156,6 +156,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
               if (args.editSessionIdRef.current !== openSessionId) return
               window.requestAnimationFrame(() => {
                 if (args.editSessionIdRef.current !== openSessionId) return
+                args.placeCaretFromClientPoint()
                 args.runSelectionSyncBurst(() => syncSelectionToolbarStateRef.current())
               })
             })
@@ -225,6 +226,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
             if (args.editSessionIdRef.current !== openSessionId) return
             window.requestAnimationFrame(() => {
               if (args.editSessionIdRef.current !== openSessionId) return
+              args.placeCaretFromClientPoint()
               args.runSelectionSyncBurst(() => syncSelectionToolbarStateRef.current())
             })
           })

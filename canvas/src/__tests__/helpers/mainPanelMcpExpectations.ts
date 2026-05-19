@@ -13,6 +13,25 @@ import {
   GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS,
   GRABMAPS_DEFAULT_MCP_URL,
 } from 'grph-shared/geospatial/grabMapsSsot'
+import {
+  STRIPE_MCP_DEFAULT_LOCAL_COMMAND,
+  STRIPE_MCP_DEFAULT_LOCAL_PACKAGE,
+  STRIPE_MCP_DEFAULT_SERVER_KEY,
+  STRIPE_MCP_DEFAULT_STARTUP_TIMEOUT_MS,
+  STRIPE_MCP_REGISTRY_URL,
+  STRIPE_MCP_REMOTE_URL,
+  STRIPE_MCP_RESTRICTED_KEY_ENV_REF,
+  STRIPE_MCP_SECRET_ENV_KEY,
+} from 'grph-shared/payments/stripeMcpSsot'
+import {
+  CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
+  KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
+  KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  KNOWGRPH_STORAGE_ROUTE_PATHS,
+  buildKnowgrphStorageLlmsPath,
+  buildKnowgrphStorageSourceFilesIndexPath,
+} from '@/lib/storage/knowgrphStorageSyncContract'
 
 const readRenderedFormValues = (container: Element): string => (
   Array.from(container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select'))
@@ -105,5 +124,120 @@ export function assertMcpHubSurfacesApiNativeBrowserMcpConfig(container: Element
     .filter(Boolean)
   if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-browser-'))) {
     throw new Error(`expected API-native browser MCP rows to use browser MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesStripeMcpPaymentReadiness(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  ;[
+    'Stripe MCP Configuration',
+    'stripeMcp.server_key',
+    'stripeMcp.remote.url',
+    'stripeMcp.remote.connection',
+    'stripeMcp.local.command',
+    'stripeMcp.local.args',
+    'stripeMcp.startup_timeout_ms',
+    'stripeMcp.tool.confirmation_required',
+    'stripeMcp.payment_tools',
+    'stripeMcp.remote_config',
+    'stripeMcp.local_config',
+    'stripeMcp.restricted_key_scope',
+    'stripeMcp.accept_payment_ready',
+    'stripeMcp.registry.url',
+    STRIPE_MCP_DEFAULT_SERVER_KEY,
+    STRIPE_MCP_REMOTE_URL,
+    STRIPE_MCP_DEFAULT_LOCAL_COMMAND,
+    STRIPE_MCP_DEFAULT_LOCAL_PACKAGE,
+    STRIPE_MCP_SECRET_ENV_KEY,
+    STRIPE_MCP_RESTRICTED_KEY_ENV_REF,
+    STRIPE_MCP_REGISTRY_URL,
+    String(STRIPE_MCP_DEFAULT_STARTUP_TIMEOUT_MS),
+    'create_payment_link',
+    'create_price',
+    'create_product',
+    'create_refund',
+    'human confirmation',
+    'accept payment',
+    'checkout handoff',
+    'Payment-mutating MCP tools stay behind human confirmation and least-privilege authorization.',
+    'Open MainPanel Payments',
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include Stripe MCP payment-readiness token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;['sk_test_', 'sk_live_', 'rk_test_', 'rk_live_'].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected Stripe MCP surface to avoid embedded secret key examples ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-stripe-'))) {
+    throw new Error(`expected Stripe MCP rows to use Stripe MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
+  }
+}
+
+export function assertMcpHubSurfacesCrawlerAccessAndPaymentReadiness(container: Element): void {
+  const text = container.textContent || ''
+  const searchableText = `${text}\n${readRenderedFormValues(container)}`
+  const defaultIndexPath = buildKnowgrphStorageSourceFilesIndexPath(KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID)
+  const defaultLlmsPath = buildKnowgrphStorageLlmsPath(KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID)
+  ;[
+    'Crawler Access MCP Configuration',
+    'crawlerMcp.default_workspace_id',
+    'crawlerMcp.route.source_files.index',
+    'crawlerMcp.route.source_files.workspace_index',
+    'crawlerMcp.route.llms.default',
+    'crawlerMcp.route.llms.workspace',
+    'crawlerMcp.route.doc_view',
+    'crawlerMcp.headers.worker',
+    'crawlerMcp.headers.cloudflare_pay_per_crawl',
+    'crawlerMcp.policy.pay_per_crawl_boundary',
+    'crawlerMcp.guard.read_only_source_files',
+    'crawlerMcp.payment.handoff',
+    'crawlerMcp.readiness_manifest',
+    KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+    KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesIndex,
+    KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesIndexPrefix,
+    KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesLlms,
+    KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix,
+    KNOWGRPH_STORAGE_ROUTE_PATHS.exportPrefix,
+    defaultIndexPath,
+    defaultLlmsPath,
+    KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.source,
+    KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy,
+    CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price,
+    CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged,
+    CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+    'cloudflare-zone-policy',
+    'read-only Source Files',
+    'D1 document rows',
+    'doc-view URLs',
+    'Pay Per Crawl',
+    'accept payment',
+    'Stripe MCP',
+    'MainPanel Payments',
+  ].forEach(token => {
+    if (!searchableText.includes(token)) {
+      throw new Error(`expected MCP hub to include crawler/payment readiness token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
+    }
+  })
+  ;[
+    'Worker sets crawler-price',
+    'Worker sets crawler-charged',
+    'app-local crawler price',
+  ].forEach(token => {
+    if (searchableText.includes(token)) {
+      throw new Error(`expected crawler MCP readiness to avoid app-local Pay Per Crawl emulation ${JSON.stringify(token)}`)
+    }
+  })
+  const mcpAnchors = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-anchor]'))
+    .map(el => String(el.dataset.kgAnchor || ''))
+    .filter(Boolean)
+  if (!mcpAnchors.some(anchor => anchor.startsWith('mcp-row-crawler-'))) {
+    throw new Error(`expected crawler MCP rows to use crawler MCP anchors, got ${JSON.stringify(mcpAnchors)}`)
   }
 }

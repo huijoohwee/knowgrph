@@ -91,7 +91,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   'payments.stripe.mode': { area: 'Stripe Payment API', responsibility: 'Stripe mode label (test vs live)' },
   'payments.stripe.secretKey': { area: 'Stripe Payment API', responsibility: 'Stripe secret key (server-side)', notes: 'Keep secret keys server-side only; do not expose in client code.' },
   'payments.stripe.publishableKey': { area: 'Stripe Payment API', responsibility: 'Stripe publishable key (client-side)' },
-  'payments.stripe.webhookSecret': { area: 'Stripe Payment API', responsibility: 'Stripe webhook signing secret', notes: 'Used to verify webhook signatures.' },
+  'payments.stripe.webhookSecret': { area: 'Stripe Payment API', responsibility: 'Stripe webhook signing secret', notes: 'Server-managed only; used by the Worker to verify webhook signatures.' },
   'payments.stripe.accountId': { area: 'Stripe Payment API', responsibility: 'Stripe account id (optional, Connect)' },
   autoEnableGeospatialOnGeoImport: { area: 'Geo', responsibility: 'Auto-enable Geospatial Mode after Geo imports' },
   'maps.grabmaps.authMode': { area: 'GrabMaps', responsibility: 'GrabMaps auth mode (BYOK or server-managed)' },

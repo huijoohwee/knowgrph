@@ -1,6 +1,20 @@
-import worker from '../../../cloudflare/workers/knowgrph-storage/index.ts'
-import { KNOWGRPH_STORAGE_API_VERSION } from '@/lib/storage/knowgrphStorageSyncContract'
+import storageWorkerModule from '../../../cloudflare/workers/knowgrph-storage/index.ts'
+import {
+  CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
+  KNOWGRPH_STORAGE_API_VERSION,
+  KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
+  KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  buildKnowgrphStorageLlmsPath,
+  buildKnowgrphStorageSourceFilesIndexPath,
+} from '@/lib/storage/knowgrphStorageSyncContract'
 import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnowgrphStorageD1'
+
+const worker = (
+  typeof (storageWorkerModule as { fetch?: unknown }).fetch === 'function'
+    ? storageWorkerModule
+    : (storageWorkerModule as unknown as { default: typeof storageWorkerModule }).default
+) as typeof storageWorkerModule
 
 export async function testKnowgrphStorageWorkerPushPullAndExportFlow() {
   const env = createFakeKnowgrphStorageWorkerEnv()
@@ -323,5 +337,175 @@ export async function testKnowgrphStorageWorkerDocViewRebuildsChunkOnlyMarkdown(
   const markdown = await docViewResponse.text()
   if (markdown.trim() !== '# Chunk Title\n\nChunk body') {
     throw new Error(`expected doc view to rebuild chunk-only markdown, got "${markdown}"`)
+  }
+}
+
+const pushCrawlerDocument = async (args: {
+  env: ReturnType<typeof createFakeKnowgrphStorageWorkerEnv>
+  workspaceId: string
+  documentId: string
+  canonicalPath: string
+  title: string
+  contentMd: string
+  contentHash: string
+  deleted?: boolean
+}) => {
+  const response = await worker.fetch(
+    new Request('https://example.com/api/storage/push', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: args.workspaceId,
+        deviceId: 'dev_crawler',
+        mutations: [
+          {
+            mutationId: `mut_${args.documentId}`,
+            workspaceId: args.workspaceId,
+            entity: 'document',
+            op: 'upsert',
+            recordId: args.documentId,
+            baseRevision: null,
+            record: {
+              id: args.documentId,
+              workspaceId: args.workspaceId,
+              canonicalPath: args.canonicalPath,
+              title: args.title,
+              docType: 'markdown',
+              lang: null,
+              graphId: null,
+              sourceKind: 'markdown',
+              contentMd: args.contentMd,
+              contentHash: args.contentHash,
+              parserVersion: 'source-files',
+              revision: 1,
+              updatedAtMs: 1_777_400_000_000,
+              deleted: args.deleted === true,
+            },
+          },
+        ],
+      }),
+    }),
+    args.env as never,
+  )
+  if (!response.ok) throw new Error(`expected crawler fixture push ok, received ${response.status}`)
+}
+
+export async function testKnowgrphStorageWorkerServesSourceFilesCrawlerIndex() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  await pushCrawlerDocument({
+    env,
+    workspaceId: 'wk_crawler',
+    documentId: 'doc_alpha',
+    canonicalPath: 'huijoohwee/docs/alpha.md',
+    title: 'Alpha Source',
+    contentMd: '# Alpha',
+    contentHash: 'sha256:alpha',
+  })
+  await pushCrawlerDocument({
+    env,
+    workspaceId: 'wk_crawler',
+    documentId: 'doc_deleted',
+    canonicalPath: 'huijoohwee/docs/deleted.md',
+    title: 'Deleted Source',
+    contentMd: '# Deleted',
+    contentHash: 'sha256:deleted',
+    deleted: true,
+  })
+
+  const response = await worker.fetch(
+    new Request(`https://example.com${buildKnowgrphStorageSourceFilesIndexPath('wk_crawler')}`),
+    env as never,
+  )
+  if (!response.ok) throw new Error(`expected crawler index response ok, received ${response.status}`)
+  if (!String(response.headers.get('content-type') || '').includes('text/markdown')) {
+    throw new Error('expected Source Files crawler index to be served as markdown')
+  }
+  if (response.headers.get('x-robots-tag') !== 'all') {
+    throw new Error('expected Source Files crawler index to allow crawler indexing')
+  }
+  if (response.headers.get(KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy) !== 'cloudflare-zone-policy') {
+    throw new Error('expected Source Files crawler index to declare Cloudflare-owned Pay Per Crawl policy')
+  }
+  if (!String(response.headers.get('link') || '').includes(CLOUDFLARE_PAY_PER_CRAWL_DOC_URL)) {
+    throw new Error('expected Source Files crawler index to link the Cloudflare Pay Per Crawl reference')
+  }
+  const markdown = await response.text()
+  if (!markdown.includes('# Knowgrph Source Files') || !markdown.includes('Workspace: `wk_crawler`')) {
+    throw new Error('expected crawler index to identify the source-files workspace')
+  }
+  if (!markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price) || !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged)) {
+    throw new Error('expected crawler index to describe Pay Per Crawl payment response semantics without emulating them')
+  }
+  if (!markdown.includes('https://example.com/api/storage/doc/wk_crawler/huijoohwee%2Fdocs%2Falpha.md')) {
+    throw new Error('expected crawler index to link directly to the markdown doc-view route')
+  }
+  if (!markdown.includes('contentHash: `sha256:alpha`')) {
+    throw new Error('expected crawler index to expose source-file content hash metadata')
+  }
+  if (markdown.includes('Deleted Source')) {
+    throw new Error('expected crawler index to hide deleted Source Files')
+  }
+}
+
+export async function testKnowgrphStorageWorkerServesDefaultLlmsSourceFilesEntrypoint() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  await pushCrawlerDocument({
+    env,
+    workspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+    documentId: 'doc_llms',
+    canonicalPath: 'huijoohwee/docs/llms-demo.md',
+    title: 'LLMS Demo',
+    contentMd: '# LLMS Demo',
+    contentHash: 'sha256:llms-demo',
+  })
+
+  const response = await worker.fetch(
+    new Request(`https://example.com${buildKnowgrphStorageLlmsPath()}`),
+    env as never,
+  )
+  if (!response.ok) throw new Error(`expected default llms source-files response ok, received ${response.status}`)
+  if (!String(response.headers.get('content-type') || '').includes('text/plain')) {
+    throw new Error('expected default llms source-files response to be served as text/plain')
+  }
+  const text = await response.text()
+  if (!text.includes('Markdown Source Files from the Knowgrph Editor Workspace storage boundary.')) {
+    throw new Error('expected llms entrypoint to describe the storage-backed Source Files boundary')
+  }
+  if (!text.includes('Cloudflare AI Crawl Control Pay Per Crawl') || !text.includes(CLOUDFLARE_PAY_PER_CRAWL_DOC_URL)) {
+    throw new Error('expected llms entrypoint to include Pay Per Crawl policy metadata')
+  }
+  if (!text.includes('https://example.com/api/storage/doc/kgws%3Acanonical-docs/huijoohwee%2Fdocs%2Fllms-demo.md')) {
+    throw new Error('expected llms entrypoint to link to the canonical Source File doc-view route')
+  }
+
+  const indexResponse = await worker.fetch(
+    new Request(`https://example.com${buildKnowgrphStorageSourceFilesIndexPath()}`),
+    env as never,
+  )
+  if (!indexResponse.ok) throw new Error(`expected default source-files index response ok, received ${indexResponse.status}`)
+  const indexMarkdown = await indexResponse.text()
+  if (!indexMarkdown.includes('Workspace: `kgws:canonical-docs`') || !indexMarkdown.includes('LLMS Demo')) {
+    throw new Error('expected default Source Files index to resolve the canonical docs workspace')
+  }
+}
+
+export async function testKnowgrphStorageWorkerCrawlerRoutesStayReadOnly() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const workspaceId = 'wk_crawler_empty'
+  const response = await worker.fetch(
+    new Request(`https://example.com${buildKnowgrphStorageSourceFilesIndexPath(workspaceId)}`),
+    env as never,
+  )
+  if (!response.ok) throw new Error(`expected empty crawler index response ok, received ${response.status}`)
+  const markdown = await response.text()
+  if (!markdown.includes('No Source Files are currently published for this workspace.')) {
+    throw new Error('expected empty crawler index to return a readable empty-state response')
+  }
+  if (env.DB.workspaces.has(workspaceId)) {
+    throw new Error('expected crawler GET routes to avoid creating workspace rows')
+  }
+  if (env.DB.documents.size !== 0 || env.DB.documentChunks.size !== 0 || env.DB.graphSnapshots.size !== 0) {
+    throw new Error('expected crawler GET routes to avoid mutating storage records')
   }
 }

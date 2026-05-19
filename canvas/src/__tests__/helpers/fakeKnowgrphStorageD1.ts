@@ -7,6 +7,8 @@ export class FakeKnowgrphStorageD1Database {
   graphSnapshots = new Map<string, FakeRow>()
   syncDevices = new Map<string, FakeRow>()
   syncEvents = new Map<string, FakeRow>()
+  stripeCheckoutSessions = new Map<string, FakeRow>()
+  stripeWebhookEvents = new Map<string, FakeRow>()
 
   prepare(sql: string) {
     const db = this
@@ -130,6 +132,55 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
+    if (sql.includes('INSERT INTO stripe_checkout_sessions')) {
+      const [
+        id,
+        workspaceId,
+        status,
+        paymentStatus,
+        mode,
+        amountTotal,
+        currency,
+        customerId,
+        customerEmail,
+        url,
+        metadataJson,
+        createdAt,
+        updatedAt,
+        completedAt,
+      ] = values
+      const existing = this.stripeCheckoutSessions.get(String(id)) || {}
+      this.stripeCheckoutSessions.set(String(id), {
+        ...existing,
+        id,
+        workspace_id: workspaceId,
+        status,
+        payment_status: paymentStatus,
+        mode,
+        amount_total: amountTotal,
+        currency,
+        customer_id: customerId,
+        customer_email: customerEmail,
+        url: url || existing.url || null,
+        metadata_json: metadataJson,
+        created_at: existing.created_at || createdAt,
+        updated_at: updatedAt,
+        completed_at: completedAt || existing.completed_at || null,
+      })
+      return
+    }
+    if (sql.includes('INSERT INTO stripe_webhook_events')) {
+      const [id, eventType, livemode, payloadHash, receivedAt, processedAt] = values
+      this.stripeWebhookEvents.set(String(id), {
+        id,
+        event_type: eventType,
+        livemode,
+        payload_hash: payloadHash,
+        received_at: receivedAt,
+        processed_at: processedAt,
+      })
+      return
+    }
     if (sql.includes('DELETE FROM graph_snapshots')) {
       this.graphSnapshots.delete(String(values[0]))
       return
@@ -169,6 +220,26 @@ export class FakeKnowgrphStorageD1Database {
         })
         .map(row => ({ id: row.id, chunk_order: row.chunk_order, markdown: row.markdown }))
     }
+    if (sql.includes('SELECT id, canonical_path, title, doc_type, content_hash, revision, updated_at') && sql.includes('FROM documents')) {
+      const [workspaceId] = values
+      return Array.from(this.documents.values())
+        .filter(row => row.workspace_id === workspaceId && Number(row.deleted || 0) === 0)
+        .sort((a, b) => {
+          const pathDelta = String(a.canonical_path || '').localeCompare(String(b.canonical_path || ''))
+          if (pathDelta !== 0) return pathDelta
+          return String(a.id || '').localeCompare(String(b.id || ''))
+        })
+        .map(row => ({
+          id: row.id,
+          canonical_path: row.canonical_path,
+          title: row.title,
+          doc_type: row.doc_type,
+          content_hash: row.content_hash,
+          revision: row.revision,
+          updated_at: row.updated_at,
+          content_length: String(row.content_md || '').length,
+        }))
+    }
     if (sql.includes('SELECT revision FROM documents')) {
       const [id, workspaceId] = values
       const row = this.documents.get(String(id))
@@ -182,6 +253,14 @@ export class FakeKnowgrphStorageD1Database {
       )
       const max = rows.reduce((acc, row) => Math.max(acc, Number(row.graph_revision || 0)), 0)
       return rows.length > 0 ? [{ graph_revision: max }] : []
+    }
+    if (sql.includes('SELECT id FROM stripe_webhook_events WHERE id = ?')) {
+      const row = this.stripeWebhookEvents.get(String(values[0]))
+      return row ? [{ id: row.id }] : []
+    }
+    if (sql.includes('SELECT * FROM stripe_checkout_sessions WHERE id = ?')) {
+      const row = this.stripeCheckoutSessions.get(String(values[0]))
+      return row ? [row] : []
     }
     if (sql.includes('SELECT * FROM documents')) {
       return this.filterByWorkspaceAndSince(this.documents, values)

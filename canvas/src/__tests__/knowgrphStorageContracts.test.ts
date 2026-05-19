@@ -5,14 +5,21 @@ import {
   getKnowgrphStorageDb,
 } from '@/lib/storage/knowgrphStorageRxdb'
 import {
+  CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
   KNOWGRPH_STORAGE_API_VERSION,
+  KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_COLLECTION_NAMES,
   KNOWGRPH_STORAGE_D1_BINDING_NAME,
   KNOWGRPH_STORAGE_D1_TABLE_NAMES,
+  KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
   buildKnowgrphStorageCursorId,
+  buildKnowgrphStorageDocPath,
   buildKnowgrphStorageExportPath,
+  buildKnowgrphStorageLlmsPath,
   buildKnowgrphStoragePullRequest,
+  buildKnowgrphStorageSourceFilesIndexPath,
   isKnowgrphStorageEntityKind,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 
@@ -29,6 +36,21 @@ export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () =>
   if (KNOWGRPH_STORAGE_ROUTE_PATHS.pull !== '/api/storage/pull') {
     throw new Error('expected pull route to match the storage document contract')
   }
+  if (KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID !== 'kgws:canonical-docs') {
+    throw new Error('expected default storage workspace id to stay centralized in the storage contract')
+  }
+  if (!CLOUDFLARE_PAY_PER_CRAWL_DOC_URL.includes('/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/')) {
+    throw new Error('expected Pay Per Crawl docs link to stay centralized for crawler access metadata')
+  }
+  if (CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price !== 'crawler-price') {
+    throw new Error('expected Pay Per Crawl price header name to stay centralized')
+  }
+  if (CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged !== 'crawler-charged') {
+    throw new Error('expected Pay Per Crawl charged header name to stay centralized')
+  }
+  if (KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy !== 'x-knowgrph-pay-per-crawl-policy') {
+    throw new Error('expected crawler access policy header name to stay centralized')
+  }
   const pullRequest = buildKnowgrphStoragePullRequest({
     workspaceId: 'wk_123',
     deviceId: 'dev_macbook',
@@ -44,6 +66,21 @@ export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () =>
   }
   if (buildKnowgrphStorageExportPath('wk_123') !== '/api/storage/export/wk_123') {
     throw new Error('expected export path helper to keep workspace-scoped route structure')
+  }
+  if (buildKnowgrphStorageDocPath('wk_123', 'docs/example file.md') !== '/api/storage/doc/wk_123/docs%2Fexample%20file.md') {
+    throw new Error('expected doc path helper to encode workspace and canonical source-file path')
+  }
+  if (buildKnowgrphStorageSourceFilesIndexPath() !== '/api/storage/source-files') {
+    throw new Error('expected default Source Files crawler index path to stay route-owned')
+  }
+  if (buildKnowgrphStorageSourceFilesIndexPath('wk_123') !== '/api/storage/source-files/wk_123') {
+    throw new Error('expected workspace-scoped Source Files crawler index path to stay deterministic')
+  }
+  if (buildKnowgrphStorageLlmsPath() !== '/api/storage/llms.txt') {
+    throw new Error('expected default llms.txt path to stay route-owned')
+  }
+  if (buildKnowgrphStorageLlmsPath('wk_123') !== '/api/storage/source-files/wk_123/llms.txt') {
+    throw new Error('expected workspace-scoped llms.txt path to stay attached to Source Files crawler index')
   }
   if (buildKnowgrphStorageCursorId('wk_123', 'dev_macbook') !== 'wk_123:dev_macbook') {
     throw new Error('expected cursor id helper to stay deterministic across client and worker code')

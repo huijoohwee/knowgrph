@@ -44,7 +44,8 @@ export type LsKeyOwner =
   | 'ui.mcp'
   | 'ui.monaco'
   | 'import.pdf'
-  | 'payments.stripe';
+  | 'payments.stripe'
+  | 'payments.stripe.mcp';
 
 
 export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
@@ -412,6 +413,13 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   paymentsStripePublishableKey: 'payments.stripe',
   paymentsStripeWebhookSecret: 'payments.stripe',
   paymentsStripeAccountId: 'payments.stripe',
+  paymentsStripeMcpServerKey: 'payments.stripe.mcp',
+  paymentsStripeMcpRemoteUrl: 'payments.stripe.mcp',
+  paymentsStripeMcpConnectionMode: 'payments.stripe.mcp',
+  paymentsStripeMcpLocalCommand: 'payments.stripe.mcp',
+  paymentsStripeMcpLocalArgsJson: 'payments.stripe.mcp',
+  paymentsStripeMcpStartupTimeoutMs: 'payments.stripe.mcp',
+  paymentsStripeMcpRequireConfirmation: 'payments.stripe.mcp',
   onboardingSpotlightEnabled: 'ui.onboardingSpotlight',
   startupOpenWorkflowPanel: 'ui.startup',
   settingsCollapsedByArea: 'settings.collapsedByArea',

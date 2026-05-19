@@ -65,7 +65,9 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuCallsOnChangeCol
 
     const typeDetails = columnMenu.querySelector('details') as HTMLDetailsElement | null
     if (!typeDetails) throw new Error('Expected Type details')
-    typeDetails.dispatchEvent(new dom.window.MouseEvent('mouseenter', { bubbles: true }))
+    const typeSummary = typeDetails.querySelector('summary') as HTMLElement | null
+    if (!typeSummary) throw new Error('Expected Type summary')
+    typeSummary.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
 
     const typeMenu = doc.querySelector('menu[aria-label="Column type: Status"]') as HTMLElement | null

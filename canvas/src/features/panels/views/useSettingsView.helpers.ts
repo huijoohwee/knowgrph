@@ -23,6 +23,8 @@ import {
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
+import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
+import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 
 export type SettingsEntry = {
   meta: {
@@ -64,6 +66,8 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'UI Density: Icons',
   MAPS_GRABMAPS_DOC_AREA,
   API_NATIVE_BROWSER_MCP_DOC_AREA,
+  CRAWLER_ACCESS_MCP_DOC_AREA,
+  STRIPE_MCP_DOC_AREA,
   MAPS_GRABMAPS_MCP_DOC_AREA,
   MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA,
   MAPS_GEO_DOC_AREA,
@@ -151,6 +155,8 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
   if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
   if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
+  if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
+  if (area === STRIPE_MCP_DOC_AREA) return true
   return key.includes('.mcp.')
 }
 
@@ -197,7 +203,7 @@ export function buildDocMappedEntry(
     valueDisplayOverride:
       entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
         ? (values[entry.valueKey] as string | number | boolean | undefined)
-        : undefined,
+        : entry.value,
     valueType: mappedMeta?.type,
     valueOptions: mappedMeta?.options,
     tooltipRole: entry.tooltipRole,

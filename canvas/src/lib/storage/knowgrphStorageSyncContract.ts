@@ -5,9 +5,23 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   pull: '/api/storage/pull',
   exportPrefix: '/api/storage/export/',
   docPrefix: '/api/storage/doc/',
+  sourceFilesIndex: '/api/storage/source-files',
+  sourceFilesIndexPrefix: '/api/storage/source-files/',
+  sourceFilesLlms: '/api/storage/llms.txt',
 } as const
 
 export const KNOWGRPH_STORAGE_D1_BINDING_NAME = 'DB'
+export const KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID = 'kgws:canonical-docs'
+export const CLOUDFLARE_PAY_PER_CRAWL_DOC_URL =
+  'https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/'
+export const CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS = {
+  price: 'crawler-price',
+  charged: 'crawler-charged',
+} as const
+export const KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS = {
+  source: 'x-knowgrph-crawler-source',
+  payPerCrawlPolicy: 'x-knowgrph-pay-per-crawl-policy',
+} as const
 
 export const KNOWGRPH_STORAGE_COLLECTION_NAMES = [
   'documents',
@@ -221,6 +235,23 @@ export const buildKnowgrphStoragePullRequest = (args: {
 
 export const buildKnowgrphStorageExportPath = (workspaceId: string): string =>
   `/api/storage/export/${encodeURIComponent(String(workspaceId || '').trim())}`
+
+export const buildKnowgrphStorageDocPath = (workspaceId: string, canonicalPath: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(String(workspaceId || '').trim())}/${encodeURIComponent(String(canonicalPath || '').trim())}`
+
+export const buildKnowgrphStorageSourceFilesIndexPath = (workspaceId?: string | null): string => {
+  const normalizedWorkspaceId = String(workspaceId || '').trim()
+  return normalizedWorkspaceId
+    ? `${KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesIndexPrefix}${encodeURIComponent(normalizedWorkspaceId)}`
+    : KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesIndex
+}
+
+export const buildKnowgrphStorageLlmsPath = (workspaceId?: string | null): string => {
+  const normalizedWorkspaceId = String(workspaceId || '').trim()
+  return normalizedWorkspaceId
+    ? `${buildKnowgrphStorageSourceFilesIndexPath(normalizedWorkspaceId)}/llms.txt`
+    : KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesLlms
+}
 
 export const buildKnowgrphStorageCursorId = (workspaceId: string, deviceId: string): string =>
   `${String(workspaceId || '').trim()}:${String(deviceId || '').trim()}`

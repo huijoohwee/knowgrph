@@ -1,5 +1,6 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
+import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import {
   API_NATIVE_BROWSER_DEFAULT_CONFIRM_COOKIE_IMPORT,
   API_NATIVE_BROWSER_DEFAULT_CONFIRM_UNSAFE,
@@ -242,12 +243,7 @@ const toBaseType = (typeLabel: string): SettingMeta['type'] => {
 }
 
 export function getApiNativeBrowserMcpApiRowAnchorId(rowKey: string): string {
-  const normalized = String(rowKey || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `mcp-row-browser-${normalized || 'entry'}`
+  return buildSettingsRowAnchorId('mcp-row-browser', rowKey)
 }
 
 export const API_NATIVE_BROWSER_MCP_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =

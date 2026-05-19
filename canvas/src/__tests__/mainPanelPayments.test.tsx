@@ -6,6 +6,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { STRIPE_PAYMENT_ROUTE_PATHS } from 'grph-shared/payments/stripePaymentSsot'
 
 export async function testMainPanelPaymentsRendersStripeProviderSurface() {
   const storage = new MemoryStorage()
@@ -39,6 +40,8 @@ export async function testMainPanelPaymentsRendersStripeProviderSurface() {
       'stripeApi.auth.secret_key',
       'stripeApi.webhooks.signing_secret',
       'stripeApi.checkout.session_url',
+      STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession,
+      STRIPE_PAYMENT_ROUTE_PATHS.webhook,
       'Generate (secure)',
     ]
     expectedTokens.forEach(token => {

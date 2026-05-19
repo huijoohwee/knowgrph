@@ -162,7 +162,8 @@
   }
 
   .kg-toolbar-dropdown-menu,
-  .kg-toolbar-dropdown-submenu,
+  .kg-toolbar-dropdown-children,
+  .kg-click-expand-menu-children,
   .kg-launch-menu-root,
   .kg-column-header-menu,
   .kg-column-header-filter-editor,
@@ -177,9 +178,18 @@
     overscroll-behavior: contain;
   }
 
-  .kg-toolbar-dropdown-menu,
-  .kg-toolbar-dropdown-submenu {
+  .kg-toolbar-dropdown-menu {
     width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+  }
+
+  .kg-click-expand-menu-children {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline: 0;
+    padding: 0 0 0 0.5rem;
+    border-left: 1px solid var(--kg-border);
+    box-sizing: border-box;
   }
 
   .kg-column-header-menu,
@@ -208,6 +218,10 @@
   .kg-launch-menu-item svg,
   .kg-data-view-action svg {
     flex: 0 0 auto;
+  }
+
+  .kg-touch-menu-row {
+    min-height: var(--kg-control-height, 28px);
   }
 
   .kg-data-view-header-controls,
@@ -253,21 +267,21 @@
   }
 
   .kg-workspace-pane-toggle {
-    min-height: var(--kg-touch-target, 44px);
+    min-height: var(--kg-control-height, 28px);
     max-width: min(10rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 2rem));
     align-items: center;
-    padding-inline: 0.25rem;
+    padding-inline: 0.125rem;
   }
 
   .kg-workspace-pane-toggles .kg-workspace-pane-toggle--viewer {
-    min-width: 5.25rem;
-    scroll-margin-inline: 0.5rem;
+    min-width: 0;
+    scroll-margin-inline: 0;
   }
 
   .kg-workspace-pane-toggle-input {
     flex: 0 0 auto;
-    width: 1rem;
-    height: 1rem;
+    width: 0.875rem;
+    height: 0.875rem;
     margin: 0;
   }
 
@@ -421,6 +435,22 @@
 
     .kg-workspace-pane-toggle {
       flex: 0 0 auto;
+      min-height: var(--kg-touch-target, 44px);
+      padding-inline: 0.25rem;
+    }
+
+    .kg-touch-menu-row {
+      min-height: var(--kg-touch-target, 44px);
+    }
+
+    .kg-workspace-pane-toggles .kg-workspace-pane-toggle--viewer {
+      min-width: 5.25rem;
+      scroll-margin-inline: 0.5rem;
+    }
+
+    .kg-workspace-pane-toggle-input {
+      width: 1rem;
+      height: 1rem;
     }
 
     .kg-graph-table-menu-row {
@@ -441,25 +471,6 @@
     .kg-graph-table-menu-field input {
       margin-left: 0 !important;
       width: 100%;
-    }
-
-    .kg-toolbar-dropdown-submenu,
-    .kg-launch-menu-root,
-    .kg-column-header-submenu {
-      position: static !important;
-      margin-left: 0 !important;
-      margin-top: 0.25rem;
-      padding-left: 0 !important;
-      transform: none !important;
-    }
-
-    .kg-toolbar-dropdown-submenu,
-    .kg-column-header-submenu {
-      width: 100% !important;
-    }
-
-    .kg-launch-menu-root {
-      width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)) !important;
     }
 
     .kg-data-view-settings-layout {

@@ -1,4 +1,5 @@
 import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripeCheckout'
+import { STRIPE_PAYMENT_ROUTE_PATHS } from 'grph-shared/payments/stripePaymentSsot'
 
 export async function testStripeCheckoutUsesServerManagedRouteOnly() {
   const fetchCalls: Array<{ url: string; init?: RequestInit }> = []
@@ -23,7 +24,7 @@ export async function testStripeCheckoutUsesServerManagedRouteOnly() {
     if (fetchCalls.length !== 1) {
       throw new Error(`expected one fetch call, got ${fetchCalls.length}`)
     }
-    if (fetchCalls[0]?.url !== '/__stripe_checkout_session') {
+    if (fetchCalls[0]?.url !== STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession) {
       throw new Error(`expected server-managed checkout route, got ${JSON.stringify(fetchCalls[0]?.url)}`)
     }
     const headers = fetchCalls[0]?.init?.headers as Record<string, string> | undefined

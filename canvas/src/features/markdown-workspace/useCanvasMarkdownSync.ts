@@ -131,10 +131,10 @@ export function useCanvasMarkdownSync(args: {
 
     const nodeId = selectedNodeId ? String(selectedNodeId) : ''
     const edgeId = !nodeId && selectedEdgeId ? String(selectedEdgeId) : ''
-    const sig = nodeId ? `node:${nodeId}:${graphLookupSemanticKey}` : edgeId ? `edge:${edgeId}:${graphLookupSemanticKey}` : ''
+    const documentTextKey = `${activePath || ''}:${markdownDocumentText.length}`
+    const sig = nodeId ? `node:${nodeId}:${graphLookupSemanticKey}:${documentTextKey}` : edgeId ? `edge:${edgeId}:${graphLookupSemanticKey}:${documentTextKey}` : ''
     if (!sig) return
     if (lastCanvasSyncSigRef.current === sig) return
-    lastCanvasSyncSigRef.current = sig
 
     const lookup = graphLookupRef.current
     const node = nodeId ? lookup?.nodeById.get(nodeId) || null : null
@@ -157,6 +157,7 @@ export function useCanvasMarkdownSync(args: {
     if (docKey) {
       const targetPath = findWorkspacePathForDocumentKey(entries, docKey)
       if (!targetPath) {
+        lastCanvasSyncSigRef.current = sig
         setStatusError(`Missing file: ${docKey}`, { ttlMs: 3500, dismissible: true })
         return
       }
@@ -172,6 +173,8 @@ export function useCanvasMarkdownSync(args: {
         setActivePathSafe(normalizedTarget)
       }
     }
+    if (useGraphStore.getState().selectionSource !== 'canvas') return
+    lastCanvasSyncSigRef.current = sig
     revealLineInEditor(location?.lineStart ?? fallbackRange!.start, location?.lineEnd ?? fallbackRange!.end)
   }, [
     active,

@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, ChevronDown, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -60,14 +60,12 @@ export function LaunchDropdown({
 }: LaunchDropdownProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const folderInputRef = React.useRef<HTMLInputElement | null>(null)
-  const urlInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
   const [importUrlRenderer, setImportUrlRenderer] = React.useState<ImportUrlRendererSelection>('default')
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = React.useState(false)
-  const exportCloseTimeoutRef = React.useRef<number | null>(null)
-  const pdfCloseTimeoutRef = React.useRef<number | null>(null)
+  const importUrlControlsId = React.useId()
 
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
@@ -82,65 +80,25 @@ export function LaunchDropdown({
     setImportUrlRenderer('default')
     setExportMenuOpen(false)
     setPdfMenuOpen(false)
-    if (exportCloseTimeoutRef.current != null) {
-      window.clearTimeout(exportCloseTimeoutRef.current)
-      exportCloseTimeoutRef.current = null
-    }
-    if (pdfCloseTimeoutRef.current != null) {
-      window.clearTimeout(pdfCloseTimeoutRef.current)
-      pdfCloseTimeoutRef.current = null
-    }
   }, [open])
 
   const openExportMenu = React.useCallback(() => {
-    if (exportCloseTimeoutRef.current != null) {
-      window.clearTimeout(exportCloseTimeoutRef.current)
-      exportCloseTimeoutRef.current = null
-    }
+    setUrlInputOpen(false)
     setExportMenuOpen(true)
   }, [])
 
-  const scheduleCloseExportMenu = React.useCallback(() => {
-    if (exportCloseTimeoutRef.current != null) {
-      window.clearTimeout(exportCloseTimeoutRef.current)
-      exportCloseTimeoutRef.current = null
-    }
-    exportCloseTimeoutRef.current = window.setTimeout(() => {
-      exportCloseTimeoutRef.current = null
-      setExportMenuOpen(false)
-    }, 180)
+  const closeExportMenu = React.useCallback(() => {
+    setExportMenuOpen(false)
+    setPdfMenuOpen(false)
   }, [])
 
   const openPdfMenu = React.useCallback(() => {
-    if (pdfCloseTimeoutRef.current != null) {
-      window.clearTimeout(pdfCloseTimeoutRef.current)
-      pdfCloseTimeoutRef.current = null
-    }
     setPdfMenuOpen(true)
   }, [])
 
-  const scheduleClosePdfMenu = React.useCallback(() => {
-    if (pdfCloseTimeoutRef.current != null) {
-      window.clearTimeout(pdfCloseTimeoutRef.current)
-      pdfCloseTimeoutRef.current = null
-    }
-    pdfCloseTimeoutRef.current = window.setTimeout(() => {
-      pdfCloseTimeoutRef.current = null
-      setPdfMenuOpen(false)
-    }, 180)
+  const closePdfMenu = React.useCallback(() => {
+    setPdfMenuOpen(false)
   }, [])
-
-  React.useEffect(() => {
-    if (!urlInputOpen) return
-    const id = requestAnimationFrame(() => {
-      try {
-        urlInputRef.current?.focus()
-      } catch {
-        void 0
-      }
-    })
-    return () => cancelAnimationFrame(id)
-  }, [urlInputOpen])
 
   const openFilePicker = React.useCallback((el: HTMLInputElement | null) => {
     if (!el) return
@@ -420,11 +378,7 @@ export function LaunchDropdown({
               onClick={() => {
                 const draft = String(urlDraft || '').trim()
                 if (urlInputOpen) {
-                  if (!draft) {
-                    setUrlInputOpen(false)
-                    return
-                  }
-                  runImportUrl(draft)
+                  setUrlInputOpen(false)
                   return
                 }
                 if (!draft) {
@@ -434,14 +388,19 @@ export function LaunchDropdown({
                     setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)
                   }
                 }
+                setExportMenuOpen(false)
+                setPdfMenuOpen(false)
                 setUrlInputOpen(true)
               }}
+              aria-expanded={urlInputOpen}
+              aria-controls={importUrlControlsId}
             >
               <Link className={menuIconClass} strokeWidth={1.6} />
               <span className="truncate">Import URL</span>
+              <ChevronDown className={`ml-auto ${menuIconClass} transition-transform ${urlInputOpen ? 'rotate-180' : ''}`} strokeWidth={1.6} aria-hidden="true" />
             </button>
             {urlInputOpen ? (
-              <section className="mt-1">
+              <section id={importUrlControlsId} className="kg-launch-menu-children kg-click-expand-menu-children mt-1">
                 <ImportUrlPrompt
                   urlDraft={urlDraft}
                   onChange={setUrlDraft}
@@ -452,7 +411,7 @@ export function LaunchDropdown({
                     runImportUrl(next)
                   }}
                   rightAddon={
-                    <section className="flex items-stretch gap-1">
+                    <section className="flex min-w-0 flex-1 items-stretch gap-1">
                       <ImportUrlRendererSelect
                         value={importUrlRenderer}
                         onChange={setImportUrlRenderer}
@@ -549,9 +508,9 @@ export function LaunchDropdown({
             menuItemClass={menuItemClass}
             menuIconClass={menuIconClass}
             openExportMenu={openExportMenu}
-            scheduleCloseExportMenu={scheduleCloseExportMenu}
+            closeExportMenu={closeExportMenu}
             openPdfMenu={openPdfMenu}
-            scheduleClosePdfMenu={scheduleClosePdfMenu}
+            closePdfMenu={closePdfMenu}
             runExportAction={runExportAction}
           />
 

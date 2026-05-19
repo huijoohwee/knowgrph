@@ -472,6 +472,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["sourceFiles.composition.orderAndVisibility","@/__tests__/sourceFilesComposition.test","testSourceFilesCompositionOrderAndVisibility"],
   ["sourceFiles.composition.signature.ignoresStatusOnlyChurn","@/__tests__/sourceFilesComposition.test","testSourceFilesCompositionSignatureIgnoresStatusOnlyChurn"],
   ["sourceFiles.geospatialSelection.signature.tracksGeoLayerEligibility","@/__tests__/sourceFilesComposition.test","testSourceFilesGeospatialSelectionSignatureTracksGeoLayerEligibility"],
+  ["sourceFiles.geospatialSelection.signature.usesCandidateProfiles","@/__tests__/sourceFilesComposition.test","testSourceFilesGeospatialSelectionSignatureUsesCandidateProfiles"],
   ["sourceFiles.persistence.signature.hashesContentNotLengthOnly","@/__tests__/sourceFilesComposition.test","testSourceFilesPersistenceSignatureHashesContentNotLengthOnly"],
   ["sourceFiles.sourceLayerKeyChange.helper.centralizesApplyBranching","@/__tests__/sourceFilesComposition.test","testSourceLayerKeyChangeHelperCentralizesApplyBranching"],
   ["sourceFiles.composedApplyDeferral.helper.centralizesRaceSuppression","@/__tests__/sourceFilesComposition.test","testComposedApplyDeferralHelperCentralizesRaceSuppression"],

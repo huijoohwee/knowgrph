@@ -26,6 +26,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const graphEditorToolRailText = readUtf8(path.resolve(root, 'src/features/graph-editor/GraphEditorToolRail.tsx'))
   const markdownInlineMenusText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx'))
   const settingsUiText = readUtf8(path.resolve(root, 'src/features/settings/ui.tsx'))
+  const responsiveElementClassesText = readUtf8(path.resolve(root, 'src/lib/ui/responsiveElementClasses.ts'))
+  const anchorOverlayText = readUtf8(path.resolve(root, 'src/lib/ui/overlay.tsx'))
+  const overlayPlacementText = readUtf8(path.resolve(root, 'src/lib/ui/overlayPlacement.ts'))
   const cssText = readUtf8(path.resolve(root, 'src/index.css'))
   const responsiveToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-toolbar.css'))
 
@@ -49,6 +52,12 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!responsiveToolbarCssText.includes('.kg-responsive-element-row')) {
     throw new Error('expected responsive toolbar CSS to centralize clipped one-row element primitives')
+  }
+  if (!responsiveElementClassesText.includes('kg-touch-menu-row') || responsiveElementClassesText.includes('min-h-[var(--kg-touch-target)]')) {
+    throw new Error('expected touch menu row height to be CSS-policy driven, not forced into every desktop dropdown row')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-touch-menu-row') || !responsiveToolbarCssText.includes('min-height: var(--kg-control-height, 28px);') || !responsiveToolbarCssText.includes('min-height: var(--kg-touch-target, 44px);')) {
+    throw new Error('expected touch menu rows to use compact desktop height and mobile touch height from shared CSS')
   }
   if (!dataViewToolbarButtonText.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME') || !dataViewToolbarButtonText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')) {
     throw new Error('expected shared data-view toolbar buttons to reuse responsive action and inline rows')
@@ -122,6 +131,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!detailsMenuText.includes('clampOverlayTopLeftFullyInViewport') || !detailsMenuText.includes('viewportHeight')) {
     throw new Error('expected shared details menus to clamp portal placement against full viewport bounds')
   }
+  if (!anchorOverlayText.includes('useState<HTMLDivElement | null>(() => createPortalRoot())') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
+    throw new Error('expected shared dropdown overlays to render from the first open and use viewport-aware vertical placement')
+  }
+  if (!detailsMenuText.includes('resolveOverlayVerticalTop') || !detailsMenuText.includes('readOverlayElementSize')) {
+    throw new Error('expected shared point-expand menus to reuse measured viewport-aware overlay placement')
+  }
+  if (!overlayPlacementText.includes('spaceBelow') || !overlayPlacementText.includes('spaceAbove') || !overlayPlacementText.includes('scrollHeight')) {
+    throw new Error('expected overlay placement helper to measure real menu height and flip away from clipped viewport edges')
+  }
   if (!detailsMenuText.includes('maxHeight') || !detailsMenuText.includes('overscrollBehavior')) {
     throw new Error('expected shared details menus to cap height and scroll inside the mobile viewport')
   }
@@ -185,6 +203,12 @@ export function testCanvasTouchTargetsStayLargeAndViewportSuppressesBrowserGestu
 
   if (!dropdownText.includes('UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME')) {
     throw new Error('expected toolbar dropdown rows to keep touch-sized hit targets')
+  }
+  if (!dropdownText.includes('kg-toolbar-dropdown-children') || !dropdownText.includes('aria-expanded')) {
+    throw new Error('expected toolbar dropdown child groups to use shared click-expand-down rows')
+  }
+  if (dropdownText.includes('kg-toolbar-dropdown-submenu') || dropdownText.includes('left-full')) {
+    throw new Error('expected toolbar dropdown groups to avoid stale side-flyout submenu placement')
   }
   if (!viewportText.includes("touchAction: 'manipulation'")) {
     throw new Error('expected canvas viewport shell to disable double-tap browser zoom delays')

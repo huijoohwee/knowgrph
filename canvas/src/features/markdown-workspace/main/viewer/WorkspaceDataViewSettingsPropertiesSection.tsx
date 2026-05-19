@@ -220,7 +220,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                       'list-none cursor-pointer inline-flex items-center justify-center w-7 h-7 rounded',
                       UI_THEME_TOKENS.button.hoverBg,
                     ].join(' ')}
-                    menuClassName="kg-column-header-submenu absolute left-full top-0 ml-2"
+                    menuClassName="kg-column-header-children kg-click-expand-menu-children mt-1"
                     summary={<Icon className={icon14} aria-hidden="true" />}
                     menu={({ close }) => (
                       <MarkdownDataViewColumnTypeMenu

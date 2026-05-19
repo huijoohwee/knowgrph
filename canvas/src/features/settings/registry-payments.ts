@@ -2,6 +2,17 @@ import type { SettingMeta } from './types'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  STRIPE_MCP_CONNECTION_MODES,
+  STRIPE_MCP_DEFAULT_CONNECTION_MODE,
+  STRIPE_MCP_DEFAULT_LOCAL_ARGS_JSON,
+  STRIPE_MCP_DEFAULT_LOCAL_COMMAND,
+  STRIPE_MCP_DEFAULT_REQUIRE_CONFIRMATION,
+  STRIPE_MCP_DEFAULT_SERVER_KEY,
+  STRIPE_MCP_DEFAULT_STARTUP_TIMEOUT_MS,
+  STRIPE_MCP_REMOTE_URL,
+} from 'grph-shared/payments/stripeMcpSsot'
+import { localBooleanSetting, localJsonSetting, localNumberSetting, localStringSetting } from './registry-local-settings'
 
 const parseString = (raw: unknown): string | null => (typeof raw === 'string' ? raw : null)
 const s = () => useGraphStore.getState()
@@ -51,9 +62,13 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
     key: 'payments.stripe.webhookSecret',
     type: 'string',
     source: 'localStorage',
-    read: () => lsJson(LS_KEYS.paymentsStripeWebhookSecret, '', parseString),
-    write: (v) => {
-      lsSetJson(LS_KEYS.paymentsStripeWebhookSecret, String(v || ''))
+    read: () => {
+      const legacy = lsJson(LS_KEYS.paymentsStripeWebhookSecret, '', parseString)
+      if (legacy) lsSetJson(LS_KEYS.paymentsStripeWebhookSecret, '')
+      return ''
+    },
+    write: () => {
+      lsSetJson(LS_KEYS.paymentsStripeWebhookSecret, '')
     },
     docKey: 'payments.stripe.webhookSecret',
     default: () => '',
@@ -91,4 +106,49 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
     docKey: 'payments.stripe.checkoutUrl',
     default: () => '',
   },
+  localStringSetting({
+    key: 'payments.stripe.mcp.serverKey',
+    storageKey: LS_KEYS.paymentsStripeMcpServerKey,
+    defaultValue: STRIPE_MCP_DEFAULT_SERVER_KEY,
+    docKey: 'payments.stripe.mcp.serverKey',
+  }),
+  localStringSetting({
+    key: 'payments.stripe.mcp.remoteUrl',
+    storageKey: LS_KEYS.paymentsStripeMcpRemoteUrl,
+    defaultValue: STRIPE_MCP_REMOTE_URL,
+    docKey: 'payments.stripe.mcp.remoteUrl',
+  }),
+  localStringSetting({
+    key: 'payments.stripe.mcp.connectionMode',
+    storageKey: LS_KEYS.paymentsStripeMcpConnectionMode,
+    defaultValue: STRIPE_MCP_DEFAULT_CONNECTION_MODE,
+    options: [...STRIPE_MCP_CONNECTION_MODES],
+    docKey: 'payments.stripe.mcp.connectionMode',
+  }),
+  localStringSetting({
+    key: 'payments.stripe.mcp.localCommand',
+    storageKey: LS_KEYS.paymentsStripeMcpLocalCommand,
+    defaultValue: STRIPE_MCP_DEFAULT_LOCAL_COMMAND,
+    docKey: 'payments.stripe.mcp.localCommand',
+  }),
+  localJsonSetting({
+    key: 'payments.stripe.mcp.localArgs',
+    storageKey: LS_KEYS.paymentsStripeMcpLocalArgsJson,
+    defaultValue: STRIPE_MCP_DEFAULT_LOCAL_ARGS_JSON,
+    docKey: 'payments.stripe.mcp.localArgs',
+  }),
+  localNumberSetting({
+    key: 'payments.stripe.mcp.startupTimeoutMs',
+    storageKey: LS_KEYS.paymentsStripeMcpStartupTimeoutMs,
+    defaultValue: STRIPE_MCP_DEFAULT_STARTUP_TIMEOUT_MS,
+    min: 1000,
+    max: 300000,
+    docKey: 'payments.stripe.mcp.startupTimeoutMs',
+  }),
+  localBooleanSetting({
+    key: 'payments.stripe.mcp.requireConfirmation',
+    storageKey: LS_KEYS.paymentsStripeMcpRequireConfirmation,
+    defaultValue: STRIPE_MCP_DEFAULT_REQUIRE_CONFIRMATION,
+    docKey: 'payments.stripe.mcp.requireConfirmation',
+  }),
 ]

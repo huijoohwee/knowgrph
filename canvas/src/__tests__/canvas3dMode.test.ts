@@ -266,6 +266,36 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
   }
 }
 
+export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
+  const options = buildCanvasViewOptions(
+    {
+      canvas2dRenderer: 'd3',
+      canvas3dMode: '3d',
+      canvasRenderMode: '2d',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      renderMediaAsNodes: false,
+      geospatialEnabled: false,
+      layoutMode: 'block',
+      schema: BLOCK_SCHEMA,
+      frontmatterOnlyAllowed: false,
+      isD3Like2dLayoutToggle: true,
+      voxelApplicable: true,
+      voxelDisabledReason: null,
+    },
+    getCanvasViewRendererOptions(),
+  )
+  const titles = options.map(option => option.title)
+  const expected = ['2D Renderer', 'Layout Mode', 'Document Modes', 'Surface Mode', 'Animation Mode', 'Display Controls']
+  if (titles.join('|') !== expected.join('|')) {
+    throw new Error(`Expected Canvas View Mode grouped order ${expected.join(' > ')}, got ${titles.join(' > ')}`)
+  }
+  for (const option of options) {
+    if (!option.children?.length) throw new Error(`Expected ${option.title} to expand into child controls`)
+  }
+}
+
 export function testCanvasViewRendererSelectionActivates2dSurface() {
   const renderModes: Array<'2d' | '3d'> = []
   let rendererCalls = 0

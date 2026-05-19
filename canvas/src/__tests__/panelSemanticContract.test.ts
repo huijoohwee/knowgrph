@@ -191,6 +191,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const overlayPath = path.resolve(root, 'src', 'lib', 'ui', 'overlay.tsx')
   const toolbarDropdownPath = path.resolve(root, 'src', 'components', 'toolbar', 'ToolbarDropdownSelect.tsx')
   const launchDropdownPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
+  const launchDropdownExportPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdownExportMenu.tsx')
   const columnHeaderMenuPath = path.resolve(root, 'src', 'components', 'ui', 'ColumnHeaderMenu.tsx')
   const typeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'TypeMenu.tsx')
   const dataViewHeaderPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewHeader.tsx')
@@ -210,24 +211,25 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!responsiveCss.includes('.kg-data-view-settings-dialog') || !responsiveCss.includes('.kg-data-view-kanban-group')) {
     throw new Error('Expected shared responsive CSS to bound data-view dialogs and kanban groups')
   }
-  if (!responsiveCss.includes('transform: none !important') || !responsiveCss.includes('.kg-menu-row svg')) {
-    throw new Error('Expected mobile submenus and menu icons to avoid offscreen transforms and icon wrapping')
+  if (!responsiveCss.includes('.kg-click-expand-menu-children') || !responsiveCss.includes('.kg-menu-row svg')) {
+    throw new Error('Expected nested menu children and menu icons to avoid offscreen transforms and icon wrapping')
   }
   const overlay = readUtf8(overlayPath)
   if (!overlay.includes('clampOverlayTopLeftFullyInViewport') || !overlay.includes('maxWidth') || !overlay.includes('overscrollBehavior')) {
     throw new Error('Expected AnchorOverlay to clamp dropdowns inside the viewport')
   }
   const toolbarDropdown = readUtf8(toolbarDropdownPath)
-  if (!toolbarDropdown.includes('kg-toolbar-dropdown-menu') || !toolbarDropdown.includes('kg-toolbar-dropdown-submenu') || !toolbarDropdown.includes('UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME')) {
-    throw new Error('Expected toolbar dropdowns and submenus to use shared responsive menu classes')
+  if (!toolbarDropdown.includes('kg-toolbar-dropdown-menu') || !toolbarDropdown.includes('kg-toolbar-dropdown-children') || !toolbarDropdown.includes('aria-expanded') || !toolbarDropdown.includes('UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME')) {
+    throw new Error('Expected toolbar dropdown groups to use shared click-expand responsive menu classes')
   }
   const launchDropdown = readUtf8(launchDropdownPath)
-  if (!launchDropdown.includes('UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME')) {
-    throw new Error('Expected launch menu rows to keep icons and labels on one clipped row')
+  const launchDropdownExport = readUtf8(launchDropdownExportPath)
+  if (!launchDropdown.includes('UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME') || !launchDropdown.includes('importUrlControlsId') || !launchDropdown.includes('kg-click-expand-menu-children') || !launchDropdownExport.includes('kg-click-expand-menu-children') || launchDropdownExport.includes('left-full') || launchDropdown.includes('runImportUrl(draft)')) {
+    throw new Error('Expected launch menu rows to keep bounded click-expand rows without parent-click import execution')
   }
   const columnHeaderMenu = readUtf8(columnHeaderMenuPath)
-  if (!columnHeaderMenu.includes('kg-column-header-menu') || !columnHeaderMenu.includes('kg-column-header-submenu')) {
-    throw new Error('Expected column header menus to use bounded menu and submenu primitives')
+  if (!columnHeaderMenu.includes('kg-column-header-menu') || !columnHeaderMenu.includes('kg-click-expand-menu-children') || columnHeaderMenu.includes('onMouseEnter') || columnHeaderMenu.includes('left-full')) {
+    throw new Error('Expected column header menus to use bounded click-expand child primitives')
   }
   const typeMenu = readUtf8(typeMenuPath)
   if (!typeMenu.includes('kg-type-menu') || !typeMenu.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME')) {
@@ -261,6 +263,9 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected Data View table chip rows to use toolbar-owned same-row scrolling')
   }
   const kanbanCard = readUtf8(kanbanCardPath)
+  if (!kanbanCard.includes('kg-click-expand-menu-children') || kanbanCard.includes('-translate-x-full')) {
+    throw new Error('Expected kanban card child menus to expand inline without offscreen side placement')
+  }
   if (!kanbanCard.includes('uiToolbarRowScrollClassName') || kanbanCard.includes('flex flex-wrap gap-1 list-none')) {
     throw new Error('Expected Kanban tag rows to use toolbar-owned same-row scrolling')
   }

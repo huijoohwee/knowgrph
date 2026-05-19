@@ -66,6 +66,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["markdownSigil.ui.toolbarHighlightToggleCountsSigils","@/__tests__/markdownSigilUiSurfaces.test","testMarkdownToolbarHighlightToggleCountsSigils"],
   ["markdownSigil.ui.rendererSummaryReadsGenericHighlightTokens","@/__tests__/markdownSigilUiSurfaces.test","testRendererSummaryReadsGenericHighlightTokens"],
   ["markdownSigil.ui.rendererSummaryIncludesSelectedTextHighlightToken","@/__tests__/markdownSigilUiSurfaces.test","testRendererSummaryIncludesSelectedTextHighlightToken"],
+  ["markdownSigil.ui.rendererSummaryPinsSelectedTextHighlightToken","@/__tests__/markdownSigilUiSurfaces.test","testRendererSummaryPinsSelectedTextHighlightToken"],
   ["markdownSigil.ui.textHighlightFindsSelectedKeywordLine","@/__tests__/markdownSigilUiSurfaces.test","testMarkdownTextHighlightFindsSelectedKeywordLine"],
   ["markdownSigil.ui.keywordNavigationMetadataResolvesMentionSourceLine","@/__tests__/markdownSigilUiSurfaces.test","testKeywordNavigationMetadataResolvesMentionSourceLine"],
   ["canvas.renderBudget.compactsD3GraphOnly","@/__tests__/canvasRenderBudget.test","testCanvasRenderBudgetCompactsD3GraphOnly"],

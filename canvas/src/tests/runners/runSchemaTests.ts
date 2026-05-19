@@ -85,6 +85,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelState()
   })
+  await execTest(results, 'canvas.viewSelection.mobileFirstGroupedOrder', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvasViewMenuKeepsMobileFirstGroupedOrder()
+  })
   await execTest(results, 'canvas.viewSelection.rendererActivates2dSurface', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewRendererSelectionActivates2dSurface()

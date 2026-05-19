@@ -1,6 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { readOverlayElementSize, resolveOverlayVerticalTop } from '@/lib/ui/overlayPlacement'
 import { Z_INDEX_MENU } from '@/lib/ui/zIndex'
 
 export type DetailsMenuApi = {
@@ -19,17 +20,6 @@ export type DetailsMenuProps = {
   portal?: boolean
   portalPlacement?: 'bottom-start' | 'bottom-end'
   portalGapPx?: number
-}
-
-function readPortalSize(container: HTMLElement | null): { width: number; height: number } {
-  if (!container) return { width: 1, height: 1 }
-  const containerRect = container.getBoundingClientRect()
-  const child = container.firstElementChild
-  const childRect = child && typeof child.getBoundingClientRect === 'function' ? child.getBoundingClientRect() : null
-  return {
-    width: Math.max(1, containerRect.width || 0, childRect?.width || 0),
-    height: Math.max(1, containerRect.height || 0, childRect?.height || 0),
-  }
 }
 
 export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuProps) {
@@ -53,7 +43,6 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     if (!anchor) return
     const rect = anchor.getBoundingClientRect()
     const gap = typeof props.portalGapPx === 'number' ? props.portalGapPx : 8
-    const desiredTop = rect.bottom + gap
     const placement = props.portalPlacement || 'bottom-start'
     const viewportWidth =
       typeof window !== 'undefined'
@@ -63,7 +52,16 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       typeof window !== 'undefined'
         ? window.innerHeight || document.documentElement.clientHeight || 0
         : 0
-    const menuSize = readPortalSize(portalRootRef.current)
+    const menuSize = readOverlayElementSize(portalRootRef.current)
+    const desiredTop = viewportHeight > 0
+      ? resolveOverlayVerticalTop({
+          anchorRect: rect,
+          overlayHeight: menuSize.height,
+          viewportHeight,
+          margin: gap,
+          preferredPlacement: 'bottom',
+        })
+      : rect.bottom + gap
     const desiredLeft = placement === 'bottom-end' ? rect.right - menuSize.width : rect.left
 
     const next: React.CSSProperties = {

@@ -1,0 +1,18 @@
+# Knowgrph
+
+## Source Files
+
+- Editor Workspace Source Files for LLMs: /api/storage/llms.txt
+- Editor Workspace Source Files index: /api/storage/source-files
+- Source File markdown documents: /api/storage/doc/{workspaceId}/{canonicalPath}
+
+## Access Policy
+
+- Cloudflare AI Crawl Control Pay Per Crawl can apply at the zone boundary.
+- If enabled, unpaid AI crawler requests can receive HTTP 402 with crawler-price.
+- Successful paid crawler access can receive HTTP 200 with crawler-charged.
+- The storage routes remain read-only and do not emulate payment headers or prices.
+
+## App
+
+- Knowgrph workspace: /knowgrph/

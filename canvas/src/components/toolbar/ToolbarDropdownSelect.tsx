@@ -1,4 +1,5 @@
 import React from 'react'
+import { ChevronDown } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { emitToolbarDropdownOpen, subscribeToolbarDropdownOpen } from '@/components/toolbar/dropdownOpenEvents'
@@ -51,12 +52,23 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   onSelectComplete,
 }: ToolbarDropdownSelectProps<T>) {
   const [open, setOpen] = React.useState(false)
-  const [openSubmenuId, setOpenSubmenuId] = React.useState<string | null>(null)
+  const [expandedOptionId, setExpandedOptionId] = React.useState<string | null>(null)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const optionButtonRefs = React.useRef<Array<HTMLButtonElement | null>>([])
   const dropdownIdRef = React.useRef(`toolbar-dropdown-${Math.random().toString(36).slice(2)}`)
   const activeOption = React.useMemo(() => options.find(option => option.id === value) || options[0], [options, value])
   const enabledOptions = React.useMemo(() => options.filter(option => option.disabled !== true), [options])
+  const activeParentOptionId = React.useMemo(
+    () =>
+      options.find(option =>
+        option.children?.some(child => (child.isActive === undefined ? child.id === value : child.isActive)),
+      )?.id || null,
+    [options, value],
+  )
+  const getChildrenId = React.useCallback(
+    (id: string) => `${dropdownIdRef.current}-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}-children`,
+    [],
+  )
   const focusOptionAtIndex = React.useCallback((index: number) => {
     const optionEl = optionButtonRefs.current[index]
     if (!optionEl) return
@@ -68,28 +80,30 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   }, [])
   const closeMenuNow = React.useCallback(() => {
     setOpen(false)
-    setOpenSubmenuId(null)
+    setExpandedOptionId(null)
   }, [])
   React.useEffect(() => {
     return subscribeToolbarDropdownOpen(detail => {
       if (detail.sourceId === dropdownIdRef.current) return
       setOpen(false)
-      setOpenSubmenuId(null)
+      setExpandedOptionId(null)
     })
   }, [])
   React.useEffect(() => {
     if (!open) {
       optionButtonRefs.current = []
+      setExpandedOptionId(null)
       return
     }
-    const preferredIndex = Math.max(0, options.findIndex(option => option.id === value && option.disabled !== true))
+    setExpandedOptionId(prev => prev || activeParentOptionId)
+    const preferredIndex = Math.max(0, enabledOptions.findIndex(option => option.id === value || option.id === activeParentOptionId))
     const rafId = requestAnimationFrame(() => {
       focusOptionAtIndex(preferredIndex)
     })
     return () => {
       cancelAnimationFrame(rafId)
     }
-  }, [focusOptionAtIndex, open, options, value])
+  }, [activeParentOptionId, enabledOptions, focusOptionAtIndex, open, value])
   if (!activeOption) return null
 
   return (
@@ -111,7 +125,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
           if (next) {
             emitToolbarDropdownOpen(dropdownIdRef.current)
           } else {
-            setOpenSubmenuId(null)
+            setExpandedOptionId(null)
           }
           setOpen(next)
         }}
@@ -125,7 +139,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
           open={open}
           onClose={() => {
             setOpen(false)
-            setOpenSubmenuId(null)
+            setExpandedOptionId(null)
           }}
           align="bottom-center"
         >
@@ -158,7 +172,11 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
             }}
           >
             {enabledOptions.map((option, index) => {
-              const isActive = option.isActive === undefined ? option.id === value : option.isActive
+              const hasChildren = Boolean(option.children && option.children.length > 0)
+              const isExpanded = hasChildren && expandedOptionId === option.id
+              const hasActiveChild = option.children?.some(child => (child.isActive === undefined ? child.id === value : child.isActive)) === true
+              const isActive = option.isActive === undefined ? option.id === value || hasActiveChild : option.isActive
+              const childrenId = hasChildren ? getChildrenId(option.id) : undefined
               return (
                 <React.Fragment key={option.id}>
                   {option.dividerBefore ? (
@@ -167,23 +185,21 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                     </li>
                   ) : null}
                   <li
-                    className="list-none relative"
-                    onMouseEnter={() => {
-                      if (option.children && option.children.length > 0) setOpenSubmenuId(option.id)
-                      else setOpenSubmenuId(null)
-                    }}
+                    className="list-none"
                   >
                     <button
                       ref={el => {
                         optionButtonRefs.current[index] = el
                       }}
                       type="button"
-                      className={`${UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
+                      className={`kg-toolbar-dropdown-section-toggle ${UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME} gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
                       disabled={option.disabled}
+                      aria-expanded={hasChildren ? isExpanded : undefined}
+                      aria-controls={childrenId}
                       onClick={() => {
                         if (option.disabled) return
-                        if (option.children && option.children.length > 0) {
-                          setOpenSubmenuId(option.id)
+                        if (hasChildren) {
+                          setExpandedOptionId(prev => (prev === option.id ? null : option.id))
                           return
                         }
                         closeMenuNow()
@@ -205,16 +221,20 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                         <span className="ml-auto min-w-0 max-w-[45%] truncate text-[10px] text-amber-500/90 text-right">
                           {option.disabledReason || option.enableHint}
                         </span>
-                      ) : option.children && option.children.length > 0 ? (
-                        <span className="ml-auto shrink-0 text-xs opacity-70">▸</span>
+                      ) : hasChildren ? (
+                        <ChevronDown
+                          className={`ml-auto h-3 w-3 shrink-0 opacity-70 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          aria-hidden="true"
+                        />
                       ) : null}
                     </button>
                     {option.disabled && option.enableHint ? (
                       <div className="px-2 py-0.5 text-[10px] opacity-75">{option.enableHint}</div>
                     ) : null}
-                    {option.children && option.children.length > 0 && openSubmenuId === option.id ? (
+                    {option.children && option.children.length > 0 && isExpanded ? (
                       <menu
-                        className={`kg-toolbar-dropdown-submenu absolute left-full top-0 ml-1 p-1 flex flex-col gap-1 w-72 list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md z-50`}
+                        id={childrenId}
+                        className="kg-toolbar-dropdown-children kg-click-expand-menu-children mt-1 m-0 flex flex-col gap-1 list-none"
                       >
                         {option.children.map(childRaw => {
                           const child = childRaw as T
@@ -229,6 +249,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                                   if (child.disabled) return
                                   closeMenuNow()
                                   onSelect(child.id)
+                                  onSelectComplete?.(child.id)
                                 }}
                                 title={
                                   child.disabled && (child.disabledReason || child.enableHint)
@@ -241,7 +262,15 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                                 ) : (
                                   <span className="truncate">{child.title}</span>
                                 )}
+                                {child.disabled && (child.disabledReason || child.enableHint) ? (
+                                  <span className="ml-auto min-w-0 max-w-[45%] truncate text-[10px] text-amber-500/90 text-right">
+                                    {child.disabledReason || child.enableHint}
+                                  </span>
+                                ) : null}
                               </button>
+                              {child.disabled && child.enableHint ? (
+                                <div className="px-2 py-0.5 text-[10px] opacity-75">{child.enableHint}</div>
+                              ) : null}
                             </li>
                           )
                         })}

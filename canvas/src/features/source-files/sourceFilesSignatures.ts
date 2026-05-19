@@ -2,6 +2,8 @@ import type { GraphData } from '@/lib/graph/types'
 import { buildSourceLayerKeys } from '@/lib/graph/sourceLayers'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { buildMarkdownGeodataCandidateProfile } from '@/lib/markdown/markdownGeodataAnalysis'
+import { isGeospatialSourceFileEligible } from './geospatialSourceEligibility'
 import { readSourceFileParsedState } from '@/features/source-files/sourceFileParsedState'
 
 export type SourceFilesCompositionSignatureOptions = {
@@ -160,22 +162,29 @@ export const buildSourceFilesCompositionSignature = (
 
 export const buildSourceFilesGeospatialSelectionSignature = (value: unknown): string => {
   const items = Array.isArray(value) ? value : []
+  const candidates = items
+    .map(entry => entry as SourceFileLike)
+    .filter(entry => isGeospatialSourceFileEligible(entry))
   return hashSignatureParts([
     'source-files-geospatial-selection',
-    ...items.flatMap(entry => {
-      const item = entry as SourceFileLike
+    candidates.length,
+    ...candidates.flatMap(item => {
       const parsed = readSourceFileParsedState(item)
       const sourceKind = readSourceKind(item?.source)
+      const text = typeof item?.text === 'string' ? item.text : ''
+      const profile = buildMarkdownGeodataCandidateProfile(text)
       return [
         String(item?.id || '').trim(),
         String(item?.name || '').trim(),
-        item?.enabled === true ? '1' : '0',
-        typeof item?.geoLayerEnabled === 'boolean' ? (item.geoLayerEnabled ? '1' : '0') : 'unset',
-        readCompositionStatusToken(item?.status),
         String(parsed.parsedTextHash || '').trim(),
+        String(parsed.parsedGraphRevision || '').trim(),
+        item?.parsedGraphData && typeof item.parsedGraphData === 'object' ? 'graph:1' : 'graph:0',
         sourceKind,
         sourceKind === 'url' ? String(item?.source?.url || '').trim() : '',
         sourceKind === 'local' ? String(item?.source?.path || '').trim() : '',
+        profile.mayContainEmbeddedGeoJson ? 'embedded:1' : 'embedded:0',
+        profile.mayContainPoiTables ? 'poi:1' : 'poi:0',
+        profile.textSignature,
       ]
     }),
   ])

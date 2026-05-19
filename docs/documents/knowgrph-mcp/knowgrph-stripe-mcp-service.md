@@ -1,359 +1,117 @@
 ---
-title: Knowgrph · Stripe MCP Service — B2C Monetization + Checkout (Video Generation Flow Editor)
+title: Knowgrph - Stripe MCP Payment Readiness
 graphId: md:knowgrph-stripe-mcp-service
 product: "Knowgrph Canvas"
-service_type: "AI-native · MCP-based · OpenClaw-friendly · FOSS-first · token-economics-first"
-doc_type: "Recommendation (PRD + TAD aligned)"
-version: "0.1.0"
+service_type: "AI-native MCP payment integration"
+doc_type: "PRD + TAD"
+version: "0.2.0"
 owner: "joohwee"
 status: "draft"
-date: "2026-04-18"
-license: "FOSS"
+date: "2026-05-19"
+license: "FOSS-compatible integration posture"
 tier: "free + pay-per-use + subscription"
 ai_model: "provider-swappable"
 
-dev_repo: "${KG_GITHUB_ROOT}/knowgrph"
-prod_repo: "${KG_GITHUB_ROOT}/huijoohwee/knowgrph"
-cloudflare_host: "airvio.co/knowgrph"
-
 billing_provider: "Stripe"
-checkout_ux: "Stripe Checkout (MainPanel)"
-provider_registry: "OpenClaw"
-commerce_protocol: "Agentic Commerce Protocol (ACP) inspired catalog"
-commerce_docs: "https://developers.openai.com/commerce"
-stripe_payment_links_docs: "https://docs.stripe.com/payment-links"
-stripe_checkout_sessions_api_docs: "https://docs.stripe.com/api/checkout/sessions"
-stripe_checkout_mode: "Payment Links (preferred) → Checkout Session (optional)"
+stripe_mcp_registry_url: "https://github.com/mcp/com.stripe/mcp"
+stripe_mcp_docs_url: "https://docs.stripe.com/mcp"
+stripe_mcp_remote_url: "https://mcp.stripe.com"
+stripe_mcp_connection_mode: "OAuth preferred; restricted-key bearer fallback"
+stripe_mcp_local_package: "@stripe/mcp@latest"
+stripe_mcp_local_command: "npx -y @stripe/mcp@latest"
+stripe_mcp_secret_env: "STRIPE_SECRET_KEY"
+stripe_mcp_secret_placeholder: "${STRIPE_RESTRICTED_KEY}"
+stripe_mcp_confirmation_policy: "human confirmation required for payment-mutating tools"
 
-primary_use_case: "Video Generation Flow Editor Service"
-icp: "solo creators + indie teams shipping short-form video workflows"
-
-# ── runtime ───────────────────────────────────────────────────────────────────
-# {{runtime.*}} resolves in body prose + Pipeline table cells.
-runtime:
-  entry:    {key: entry,    type: string,  value: "n-scope"}
-  exit:     {key: exit,     type: string,  value: "n-deploy"}
-  sandbox:  {key: sandbox,  type: string,  value: "quickjs-emscripten"}
-  trace:    {key: trace,    type: boolean, value: true}
-  maxRetry: {key: maxRetry, type: number,  value: 3}
-
-# ── mcp ───────────────────────────────────────────────────────────────────────
-# {{mcp.*}} resolves in body prose + pipeline. Tool names are SSOT and MUST remain
-# stable for OpenClaw-friendly registries.
 mcp:
-  server_url:          {key: server_url,          type: string, value: "mcp://localhost:3120"}
-  tool_pricing_get:    {key: tool_pricing_get,    type: string, value: "billing_pricing_get"}
-  tool_quote:          {key: tool_quote,          type: string, value: "billing_quote"}
-  tool_checkout_create:{key: tool_checkout_create,type: string, value: "billing_checkout_create"}
-  tool_checkout_status:{key: tool_checkout_status,type: string, value: "billing_checkout_status"}
-  tool_checkout_session_get:{key: tool_checkout_session_get,type: string, value: "billing_checkout_session_get"}
-  tool_checkout_session_expire:{key: tool_checkout_session_expire,type: string, value: "billing_checkout_session_expire"}
-  tool_checkout_session_line_items:{key: tool_checkout_session_line_items,type: string, value: "billing_checkout_session_line_items_get"}
-  tool_payment_link_get:{key: tool_payment_link_get,type: string, value: "billing_payment_link_get"}
-  tool_payment_link_create:{key: tool_payment_link_create,type: string, value: "billing_payment_link_create"}
-  tool_usage_meter:    {key: tool_usage_meter,    type: string, value: "billing_usage_meter"}
-  tool_entitlements:   {key: tool_entitlements,   type: string, value: "billing_entitlements_get"}
-  timeout_s:           {key: timeout_s,           type: number, value: 15}
-  auth:                {key: auth,                type: string, value: "bearer-token (optional)"}
+  server_key:          {key: server_key,          type: string,  value: "stripe"}
+  remote_url:          {key: remote_url,          type: url,     value: "https://mcp.stripe.com"}
+  connection_mode:     {key: connection_mode,     type: enum,    value: "oauth"}
+  local_command:       {key: local_command,       type: string,  value: "npx"}
+  local_args:          {key: local_args,          type: array,   value: ["-y","@stripe/mcp@latest"]}
+  startup_timeout_ms:  {key: startup_timeout_ms,  type: number,  value: 60000}
+  require_confirmation:{key: require_confirmation,type: boolean, value: true}
+  payment_tools:       {key: payment_tools,       type: array,   value: ["create_payment_link","create_product","create_price","create_customer","create_invoice","create_invoice_item","finalize_invoice","list_payment_intents","create_refund"]}
 
-# ── economics ─────────────────────────────────────────────────────────────────
-# Token performance/economics are first-class: quote and clamp BEFORE compute.
-economics:
-  token_budget_context:      {key: token_budget_context,      type: number, value: 1024}
-  token_budget_response:     {key: token_budget_response,     type: number, value: 1536}
-  mcp_tax_tokens:            {key: mcp_tax_tokens,            type: number, value: 150}
-  free_tier_credits_daily:   {key: free_tier_credits_daily,   type: number, value: 50}
-  free_tier_gens_daily:      {key: free_tier_gens_daily,      type: number, value: 3}
-  paid_unit:                 {key: paid_unit,                 type: string, value: "compute_credits"}
-  price_per_credit_usd:      {key: price_per_credit_usd,      type: number, value: 0.02}
-  subscription_monthly_usd:  {key: subscription_monthly_usd,  type: number, value: 12}
-  cache_ttl_days:            {key: cache_ttl_days,            type: number, value: 30}
-  no_double_charge:          {key: no_double_charge,          type: boolean, value: true}
-  quote_basis:               {key: quote_basis,               type: string, value: "duration_s × res_factor × fps_factor × model_factor"}
-
-# ── pipeline ──────────────────────────────────────────────────────────────────
-# This plan is a delivery pipeline (implementation steps), not the runtime DAG.
-# pipeline[*].node MUST match flow.nodes[*].id AND mermaid node IDs exactly.
 pipeline:
   - seq: S01
-    node: n-scope
-    label: "scope lock + monetization surfaces"
-    actor: ["founder","system"]
-    edge_in: "—"
-    edge_out: spec_pkg
-    user_action: "Confirm B2C actions to monetize: run, export, share, publish, template, marketplace; confirm catalog + variants"
-    sys_event: "Freeze SSOT: Stripe checkout UX rules, pricing entities, Stripe mapping, free-tier constraints, ACP-inspired catalog schema"
-    data_in: "—"
-    data_out: "spec_pkg {monetized_actions, pricing_model, entitlements, free_tier_policy, catalog_schema}"
-    trigger: plan-start
-    on_fail: "@flag:blocking — unclear monetized actions causes churn"
-    kanban: in-flight
-    confidence: high
-    status: TBD
-
+    node: n-contract
+    label: "Stripe MCP contract"
+    actor: ["system"]
+    user_action: "Operator opens MainPanel MCP and sees Stripe MCP payment readiness rows."
+    sys_event: "Render remote, local, permission, confirmation, and registry configuration from shared constants."
+    data_in: "Stripe MCP official docs + shared Stripe MCP SSOT"
+    data_out: "contract_pkg {remote_url, connection_mode, local_launcher, payment_tools, permission_policy}"
+    status: in-flight
+    priority: P0
   - seq: S02
-    node: n-actions
-    label: "define B2C action meter + entitlements + catalog (ACP-inspired)"
-    actor: ["system"]
-    edge_in: spec_pkg
-    edge_out: action_pkg
-    user_action: "—"
-    sys_event: "Implement action taxonomy + entitlement rules; define catalog items + variants + attribution; bind to VideoGeneration and export/share actions"
-    data_in: "spec_pkg"
-    data_out: "action_pkg {action_types, meter_keys, entitlement_rules, catalog_items, variant_rules, attribution_rules}"
-    trigger: spec_pkg non-null
-    on_fail: "@flag:contract-drift — cannot price or cap consistently"
-    kanban: backlog
-    confidence: high
-    status: TBD
-
+    node: n-auth
+    label: "authorization boundary"
+    actor: ["operator","system"]
+    user_action: "Operator chooses OAuth when supported, or a restricted-key server/local fallback when OAuth is unavailable."
+    sys_event: "Store only non-secret connection metadata in MainPanel; keep keys in server secrets or local environment."
+    data_in: "contract_pkg"
+    data_out: "auth_pkg {oauth_preferred, bearer_fallback, no_browser_secret}"
+    status: in-flight
+    priority: P0
   - seq: S03
-    node: n-mcp
-    label: "build Stripe Billing MCP Service (Stripe-backed)"
+    node: n-tools
+    label: "payment tool readiness"
     actor: ["system"]
-    edge_in: action_pkg
-    edge_out: service_pkg
-    user_action: "—"
-    sys_event: "Expose MCP tools for pricing, quote, Stripe Payment Links, Checkout Sessions, usage metering, entitlements; add caching and idempotency"
-    data_in: "action_pkg"
-    data_out: "service_pkg {mcp_tools, stripe_adapter, cache_layer}"
-    trigger: action_pkg non-null
-    on_fail: "@flag:service-unavailable — cannot create checkout reliably"
-    kanban: backlog
-    confidence: high
-    status: TBD
-
+    user_action: "Operator can identify payment-mutating tools before enabling an agent flow."
+    sys_event: "Surface create/refund/invoice/payment-link tools and require confirmation before mutating calls."
+    data_in: "auth_pkg"
+    data_out: "tool_pkg {tool_names, confirmation_required, least_privilege_scope}"
+    status: in-flight
+    priority: P0
   - seq: S04
-    node: n-ui
-    label: "MainPanel Stripe checkout integration"
-    actor: ["founder","system"]
-    edge_in: service_pkg
-    edge_out: ui_pkg
-    user_action: "Stripe checkout appears at the moment of intent (Run/Export/Publish)"
-    sys_event: "Integrate MainPanel: quote → Payment Link (default) or Checkout Session (fallback) → entitlement refresh; show price clarity and free-tier remaining"
-    data_in: "service_pkg"
-    data_out: "ui_pkg {checkout_surface, price_badges, paywall_triggers, session_reconciliation}"
-    trigger: service_pkg non-null
-    on_fail: "@flag:ux-incomplete — conversion suffers"
-    kanban: backlog
-    confidence: medium
-    status: TBD
+    node: n-handoff
+    label: "payments handoff"
+    actor: ["operator","system"]
+    user_action: "Operator can move from MainPanel MCP setup to MainPanel Payments without duplicating config."
+    sys_event: "MainPanel MCP owns integration readiness; MainPanel Payments owns customer-facing checkout and entitlement UX."
+    data_in: "tool_pkg"
+    data_out: "handoff_pkg {mcp_ready, payments_surface_linked}"
+    status: in-flight
+    priority: P1
 
-  - seq: S05
-    node: n-ops
-    label: "token economics, caching, and TCO controls"
-    actor: ["system"]
-    edge_in: ui_pkg
-    edge_out: ops_pkg
-    user_action: "—"
-    sys_event: "Add cache keys, quote preflight, no double charge, and observability for token/cost; enforce free-tier clamps"
-    data_in: "ui_pkg"
-    data_out: "ops_pkg {cache_keys, quota_enforcer, cost_metrics}"
-    trigger: ui_pkg non-null
-    on_fail: "@flag:tco-risk — costs become unpredictable"
-    kanban: backlog
-    confidence: medium
-    status: TBD
-
-  - seq: S06
-    node: n-deploy
-    label: "Dev → Prod → Cloudflare release"
-    actor: ["system"]
-    edge_in: ops_pkg
-    edge_out: "—"
-    user_action: "Verify end-to-end checkout + entitlement unlock on {{cloudflare_host}}"
-    sys_event: "Deploy control plane; configure Stripe webhooks; publish OpenClaw registry entry; add docs"
-    data_in: "ops_pkg"
-    data_out: "deployed Stripe billing surface"
-    trigger: ops_pkg non-null
-    on_fail: "@flag:deploy-failed — rollback to last known good"
-    kanban: backlog
-    confidence: medium
-    status: TBD
-
-# ── mermaid ───────────────────────────────────────────────────────────────────
-# NEVER use {{}} inside this block.
 mermaid: |
   %%{init: {"theme": "base", "themeVariables": {"primaryColor":"#E1F5EE","primaryTextColor":"#085041","primaryBorderColor":"#1D9E75","lineColor":"#5F5E5A","secondaryColor":"#E6F1FB","tertiaryColor":"#FAEEDA"}}}%%
   flowchart LR
-    classDef persona fill:#E1F5EE,stroke:#1D9E75,color:#085041,stroke-width:1.5px
+    classDef actor fill:#E1F5EE,stroke:#1D9E75,color:#085041,stroke-width:1.5px
     classDef process fill:#E6F1FB,stroke:#378ADD,color:#0C447C,stroke-width:1.5px
-    classDef store   fill:#F1EFE8,stroke:#888780,color:#444441,stroke-width:1px
-    classDef output  fill:#EAF3DE,stroke:#639922,color:#27500A,stroke-width:1.5px
-    classDef bill    fill:#FAEEDA,stroke:#BA7517,color:#633806,stroke-width:1.5px
+    classDef secure fill:#FAEEDA,stroke:#BA7517,color:#633806,stroke-width:1.5px
+    classDef data fill:#F1EFE8,stroke:#888780,color:#444441,stroke-width:1px
 
-    User(["B2C creator"])
-    MainPanel[/"MainPanel\nStripe checkout"/]
-    Stripe[/"Stripe Billing"/]
-    DB[("entitlements\nusage_ledger\npricing")]
-    OpenClaw[/"OpenClaw registry"/]
-    VideoSvc[/"Video Gen Service"/]
+    Operator(["Operator"])
+    MainPanelMCP[/"MainPanel MCP"/]
+    SharedSSOT[("Stripe MCP SSOT")]
+    StripeRemote[/"Stripe remote MCP\nhttps://mcp.stripe.com"/]
+    LocalMCP[/"Local Stripe MCP\nnpx -y @stripe/mcp@latest"/]
+    SecretBoundary[/"Secret boundary\nOAuth or restricted key"/]
+    Payments[/"MainPanel Payments"/]
 
-    subgraph P1["S01–S02 · Define"]
-      n-scope["S01 · n-scope\nmonetization surfaces"]
-      n-actions["S02 · n-actions\naction meter + entitlements + catalog"]
-      n-scope --> n-actions
-    end
+    Operator -->|configure| MainPanelMCP
+    MainPanelMCP -->|reads constants| SharedSSOT
+    MainPanelMCP -->|OAuth-capable client| StripeRemote
+    MainPanelMCP -->|local/server fallback| LocalMCP
+    StripeRemote --> SecretBoundary
+    LocalMCP --> SecretBoundary
+    MainPanelMCP -->|payment readiness handoff| Payments
 
-    subgraph P2["S03–S05 · Build"]
-      n-mcp["S03 · n-mcp\nStripe Billing MCP Service"]
-      n-ui["S04 · n-ui\nMainPanel Stripe integration"]
-      n-ops["S05 · n-ops\ntoken economics + TCO"]
-      n-actions --> n-mcp --> n-ui --> n-ops
-    end
-
-    subgraph P3["S06 · Ship"]
-      n-deploy["S06 · n-deploy\nDev → Prod → Cloudflare"]
-      n-ops --> n-deploy
-    end
-
-    User -->|intent| MainPanel
-    MainPanel -->|checkout| Stripe
-    n-mcp -->|webhooks| Stripe
-    n-mcp -->|read/write| DB
-    VideoSvc -->|preflight quote| n-mcp
-    n-deploy -->|register tools| OpenClaw
-
-    class User persona
-    class MainPanel process
-    class VideoSvc process
-    class n-scope,n-actions,n-mcp,n-ui,n-ops process
-    class n-deploy output
-    class Stripe bill
-    class DB store
-    class OpenClaw process
-
-    click n-scope "#pipeline--from-0-to-1" "S01 · scope lock"
-    click n-actions "#pipeline--from-0-to-1" "S02 · action meter"
-    click n-mcp "#pipeline--from-0-to-1" "S03 · MCP service"
-    click n-ui "#pipeline--from-0-to-1" "S04 · Stripe checkout"
-    click n-ops "#pipeline--from-0-to-1" "S05 · economics"
-    click n-deploy "#pipeline--from-0-to-1" "S06 · deploy"
-
-# ── flow ──────────────────────────────────────────────────────────────────────
-# Machine-readable plan nodes; compute bodies are intentionally pure.
-flow:
-  direction:  {key: direction,  type: string,  value: LR}
-  edgeType:   {key: edgeType,   type: string,  value: smoothstep}
-  snapToGrid: {key: snapToGrid, type: boolean, value: true}
-  computed:   {key: computed,   type: boolean, value: true}
-
-  nodes:
-    - id:            {key: id,            type: string,   value: "n-scope"}
-      type:          {key: type,          type: string,   value: "input"}
-      label:         {key: label,         type: string,   value: "S01 · defineMonetizedActions()"}
-      phase:         {key: phase,         type: string,   value: "define"}
-      actor:         {key: actor,         type: array,    value: ["founder","system"]}
-      handles:       {key: handles,       type: object,   value: {source: ["spec_pkg"]}}
-      data:          {key: data,          type: object,   value: {use_case: "Video Generation Flow Editor", surface: "MainPanel", checkout: "Stripe"}}
-      applies_rules: {key: applies_rules, type: array,    value: ["V-03","V-06","V-07"]}
-      db_writes:     {key: db_writes,     type: string,   value: "pricing"}
-      retry_arc:     {key: retry_arc,     type: string,   value: "—"}
-      confidence:    {key: confidence,    type: string,   value: "high"}
-      status:        {key: status,        type: string,   value: "TBD"}
-      kanban:        {key: kanban,        type: string,   value: "in-flight"}
-      compute:       {key: compute,       type: function, value: |
-        (inputs) => ({ spec_pkg: inputs.__seed ? { ok: true } : { ok: true } })
-      }
-
-    - id:            {key: id,            type: string,   value: "n-actions"}
-      type:          {key: type,          type: string,   value: "default"}
-      label:         {key: label,         type: string,   value: "S02 · buildEntitlementsAndCatalogPolicy()"}
-      phase:         {key: phase,         type: string,   value: "contract"}
-      actor:         {key: actor,         type: array,    value: ["system"]}
-      handles:       {key: handles,       type: object,   value: {target: ["spec_pkg"], source: ["action_pkg"]}}
-      data:          {key: data,          type: object,   value: {entitlements: ["free_tier","credits","subscription"], meter: "per-action", acp_inspired_catalog: true, catalog_update_mode: "snapshot + upsert"}}
-      applies_rules: {key: applies_rules, type: array,    value: ["V-03","V-04"]}
-      db_writes:     {key: db_writes,     type: string,   value: "entitlements"}
-      retry_arc:     {key: retry_arc,     type: string,   value: "—"}
-      confidence:    {key: confidence,    type: string,   value: "high"}
-      status:        {key: status,        type: string,   value: "TBD"}
-      kanban:        {key: kanban,        type: string,   value: "backlog"}
-      compute:       {key: compute,       type: function, value: |
-        (inputs) => ({ action_pkg: inputs.spec_pkg ? { ok: true } : null })
-      }
-
-    - id:            {key: id,            type: string,   value: "n-mcp"}
-      type:          {key: type,          type: string,   value: "default"}
-      label:         {key: label,         type: string,   value: "S03 · serveBillingTools()"}
-      phase:         {key: phase,         type: string,   value: "build"}
-      actor:         {key: actor,         type: array,    value: ["system"]}
-      handles:       {key: handles,       type: object,   value: {target: ["action_pkg"], source: ["service_pkg"]}}
-      data:          {key: data,          type: object,   value: {tools: ["billing_pricing_get","billing_quote","billing_payment_link_get","billing_payment_link_create","billing_checkout_create","billing_checkout_status","billing_usage_meter","billing_entitlements_get"], provider: "Stripe"}}
-      applies_rules: {key: applies_rules, type: array,    value: ["V-01","V-03","V-05","V-07"]}
-      db_writes:     {key: db_writes,     type: string,   value: "usage_ledger"}
-      retry_arc:     {key: retry_arc,     type: string,   value: "source"}
-      confidence:    {key: confidence,    type: string,   value: "high"}
-      status:        {key: status,        type: string,   value: "TBD"}
-      kanban:        {key: kanban,        type: string,   value: "backlog"}
-      compute:       {key: compute,       type: function, value: |
-        (inputs) => ({ service_pkg: inputs.action_pkg ? { ok: true, server_url: "mcp://localhost:3120" } : null })
-      }
-
-    - id:            {key: id,            type: string,   value: "n-ui"}
-      type:          {key: type,          type: string,   value: "default"}
-      label:         {key: label,         type: string,   value: "S04 · integrateStripeCheckout()"}
-      phase:         {key: phase,         type: string,   value: "integrate"}
-      actor:         {key: actor,         type: array,    value: ["founder","system"]}
-      handles:       {key: handles,       type: object,   value: {target: ["service_pkg"], source: ["ui_pkg"]}}
-      data:          {key: data,          type: object,   value: {surface: "MainPanel", stripe_checkout: true, moments: ["run","export","publish"], prefer_payment_links: true}}
-      applies_rules: {key: applies_rules, type: array,    value: ["V-03","V-06","V-07"]}
-      db_writes:     {key: db_writes,     type: string,   value: "—"}
-      retry_arc:     {key: retry_arc,     type: string,   value: "target"}
-      confidence:    {key: confidence,    type: string,   value: "medium"}
-      status:        {key: status,        type: string,   value: "TBD"}
-      kanban:        {key: kanban,        type: string,   value: "backlog"}
-      compute:       {key: compute,       type: function, value: |
-        (inputs) => ({ ui_pkg: inputs.service_pkg ? { ok: true } : null })
-      }
-
-    - id:            {key: id,            type: string,   value: "n-ops"}
-      type:          {key: type,          type: string,   value: "default"}
-      label:         {key: label,         type: string,   value: "S05 · enforceEconomicsGuards()"}
-      phase:         {key: phase,         type: string,   value: "optimize"}
-      actor:         {key: actor,         type: array,    value: ["system"]}
-      handles:       {key: handles,       type: object,   value: {target: ["ui_pkg"], source: ["ops_pkg"]}}
-      data:          {key: data,          type: object,   value: {quote_before_compute: true, cache: true, no_double_charge: true}}
-      applies_rules: {key: applies_rules, type: array,    value: ["V-03","V-05"]}
-      db_writes:     {key: db_writes,     type: string,   value: "usage_ledger"}
-      retry_arc:     {key: retry_arc,     type: string,   value: "—"}
-      confidence:    {key: confidence,    type: string,   value: "medium"}
-      status:        {key: status,        type: string,   value: "TBD"}
-      kanban:        {key: kanban,        type: string,   value: "backlog"}
-      compute:       {key: compute,       type: function, value: |
-        (inputs) => ({ ops_pkg: inputs.ui_pkg ? { ok: true } : null })
-      }
-
-    - id:            {key: id,            type: string,   value: "n-deploy"}
-      type:          {key: type,          type: string,   value: "output"}
-      label:         {key: label,         type: string,   value: "S06 · deployStripeSurface()"}
-      phase:         {key: phase,         type: string,   value: "release"}
-      actor:         {key: actor,         type: array,    value: ["system"]}
-      handles:       {key: handles,       type: object,   value: {target: ["ops_pkg"]}}
-      data:          {key: data,          type: object,   value: {host: "cloudflare", registry: "OpenClaw", url: "airvio.co/knowgrph"}}
-      applies_rules: {key: applies_rules, type: array,    value: ["V-03"]}
-      db_writes:     {key: db_writes,     type: string,   value: "entitlements, usage_ledger, pricing"}
-      retry_arc:     {key: retry_arc,     type: string,   value: "—"}
-      confidence:    {key: confidence,    type: string,   value: "medium"}
-      status:        {key: status,        type: string,   value: "TBD"}
-      kanban:        {key: kanban,        type: string,   value: "backlog"}
-      compute:       {key: compute,       type: function, value: |
-        (inputs) => ({ delivered: inputs.ops_pkg ? { ok: true } : null })
-      }
-
-  edges:
-    - {id: e1, source: n-scope,   sourceHandle: spec_pkg,   target: n-actions, targetHandle: spec_pkg,   animated: true}
-    - {id: e2, source: n-actions, sourceHandle: action_pkg, target: n-mcp,     targetHandle: action_pkg, animated: true}
-    - {id: e3, source: n-mcp,     sourceHandle: service_pkg,target: n-ui,      targetHandle: service_pkg,animated: true}
-    - {id: e4, source: n-ui,      sourceHandle: ui_pkg,     target: n-ops,     targetHandle: ui_pkg,     animated: true}
-    - {id: e5, source: n-ops,     sourceHandle: ops_pkg,    target: n-deploy,  targetHandle: ops_pkg,    animated: true}
+    class Operator actor
+    class MainPanelMCP,StripeRemote,LocalMCP,Payments process
+    class SecretBoundary secure
+    class SharedSSOT data
 ---
 
-# Knowgrph · Stripe MCP Service — B2C Monetization + Checkout (Video Generation Flow Editor)
+# Knowgrph - Stripe MCP Payment Readiness
 
-`bg#E1F5EE:version {{version}}` · `bg#FAEEDA:status {{status}}` · owner `{{owner}}` · {{date}} · `bg#EAF3DE:{{license}}` · tier `{{tier}}`
+`bg#E1F5EE:version {{version}}` - `bg#FAEEDA:status {{status}}` - owner `{{owner}}` - {{date}}
 
-> This document recommends a **Stripe Billing MCP Service** that monetizes B2C user actions inside Knowgrph’s MainPanel for the Video Generation Flow Editor. YAML frontmatter is the machine-readable SSOT (`mermaid:`, `flow:`, `pipeline:`); the body is the human-readable projection, organized by **From 0 to 1** and the three lenses: `bg#E1F5EE:UF` user flow, `bg#E6F1FB:WF` work flow, `bg#EAF3DE:DF` data flow.
+This document turns the MainPanel MCP Stripe surface into a PRD/TAD contract for accepting payment through Stripe MCP without embedding payment credentials in the browser. The implementation posture is neutral: MainPanel MCP exposes payment readiness and agent configuration; MainPanel Payments remains the customer-facing checkout, entitlement, and reconciliation surface.
+
+The official Stripe MCP server is the integration source of truth. Use the remote server at `{{mcp.remote_url}}` with OAuth when the MCP client supports it. If OAuth is unavailable, use a restricted API key only from a server secret store or local environment. Payment-mutating tools stay behind human confirmation.
 
 ---
 
@@ -363,161 +121,238 @@ flow:
 {{mermaid}}
 ```
 
-### Frontmatter → body linkage map
+---
 
-| Frontmatter key | Resolves in body as | Example |
+## PRD
+
+### Problem Statement
+
+MainPanel needs to become payment-ready for agent workflows without mixing secret handling, customer checkout UX, and MCP setup into one surface. Operators need to see which Stripe MCP server is configured, how it authenticates, which payment-capable tools may mutate Stripe state, and where checkout responsibility begins.
+
+The product risk is not lack of Stripe API coverage; it is unsafe configuration sprawl: stale server URLs, copied keys in browser storage, duplicated payment tool labels, and unclear confirmation boundaries. The Stripe MCP contract must therefore be shared, explicit, and reusable.
+
+### Personas And Jobs To Be Done
+
+| Persona | Job | Success Signal |
 |---|---|---|
-| `runtime.maxRetry` | `{{runtime.maxRetry}}` | retry arc ≤ `{{runtime.maxRetry}}` |
-| `mcp.tool_payment_link_get` | `{{mcp.tool_payment_link_get}}` | open hosted checkout via Payment Link |
-| `mcp.tool_checkout_create` | `{{mcp.tool_checkout_create}}` | fallback to Checkout Session |
-| `economics.free_tier_gens_daily` | `{{economics.free_tier_gens_daily}}` | cap = `{{economics.free_tier_gens_daily}}` |
-| `pipeline[*].node` | `@node:<id>` | `@node:n-ui` |
-| `flow.edges[*]` | `@edge:src:h→tgt:h` | `@edge:n-mcp:service_pkg→n-ui:service_pkg` |
+| Operator | Configure Stripe MCP for an agent or server workflow | Remote and local `mcpServers` snippets are visible and use shared defaults |
+| Maintainer | Keep Stripe MCP labels, URLs, tools, and security guidance in one place | UI, tests, and docs resolve the same semantic keys |
+| End user | Pay only after an intentional checkout action | Payment-mutating calls require confirmation and entitlement UX stays in Payments |
+| Auditor | Review whether keys and payment actions are handled safely | No secret examples, least-privilege scope, and traceable tool intent are documented |
 
----
+### User Journey Flow
 
-## Pipeline — From 0 to 1
-
-Human-readable projection of `pipeline:` frontmatter. Column header sigils encode perspective: `bg#E1F5EE:UF` user flow, `bg#E6F1FB:WF` work flow, `bg#EAF3DE:DF` data flow.
-
-| seq | `@node:id` | pipeline step | `bg#E1F5EE:UF` user action | `bg#E6F1FB:WF` system event | `bg#EAF3DE:DF` data in | `bg#EAF3DE:DF` data out | edge | actor | trigger | on fail | kanban | confidence |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `S01` | `@node:n-scope` | `bg#E6F1FB:define surface` | Confirm monetized actions to keep B2C simple | Freeze Stripe checkout UX rules + pricing entities + Stripe mapping | — | `spec_pkg` | — | `["founder","system"]` | plan-start | `@flag:blocking` | `bg#FAEEDA:in-flight` | high |
-| `S02` | `@node:n-actions` | `bg#E6F1FB:entitlements` | — | Create action taxonomy + entitlement rules | `spec_pkg` | `action_pkg` | `@edge:n-scope:spec_pkg→n-actions:spec_pkg` | `["system"]` | `spec_pkg` non-null | `@flag:contract-drift` | `bg#FBEAF0:backlog` | high |
-| `S03` | `@node:n-mcp` | `bg#E6F1FB:MCP billing` | — | Implement MCP tools + Stripe adapter + idempotency | `action_pkg` | `service_pkg` | `@edge:n-actions:action_pkg→n-mcp:action_pkg` | `["system"]` | `action_pkg` non-null | `@flag:service-unavailable` | `bg#FBEAF0:backlog` | high |
-| `S04` | `@node:n-ui` | `bg#FAEEDA:Stripe paywall` | Stripe checkout at Run/Export/Publish | MainPanel shows quote, opens Payment Link, refreshes entitlements | `service_pkg` | `ui_pkg` | `@edge:n-mcp:service_pkg→n-ui:service_pkg` | `["founder","system"]` | `service_pkg` non-null | `@flag:ux-incomplete` | `bg#FBEAF0:backlog` | medium |
-| `S05` | `@node:n-ops` | `bg#EAF3DE:economics` | — | Quote before compute; cache; enforce free-tier; measure token costs | `ui_pkg` | `ops_pkg` | `@edge:n-ui:ui_pkg→n-ops:ui_pkg` | `["system"]` | `ui_pkg` non-null | `@flag:tco-risk` | `bg#FBEAF0:backlog` | medium |
-| `S06` | `@node:n-deploy` | `bg#EAF3DE:ship` | Verify checkout on `{{cloudflare_host}}` | Deploy + Stripe webhooks + OpenClaw registry | `ops_pkg` | deployed surface | `@edge:n-ops:ops_pkg→n-deploy:ops_pkg` | `["system"]` | `ops_pkg` non-null | `@flag:deploy-failed` | `bg#FBEAF0:backlog` | medium |
-
----
-
-## PRD — Product Requirements
-
-### Problem
-
-B2C creators want to generate and iterate video workflows quickly, but paywalls are often disconnected from intent, and pricing is opaque. The product needs commerce-like conversion: **monetize actions at the moment of intent** (Run/Export/Publish) with a low-friction Stripe checkout, while preserving FOSS, free-tier, and predictable token economics.
-
-### B2C monetization ideas (recommended set)
-
-| Monetized action | Why users pay | Meter | Default free-tier | Notes |
-|---|---|---|---|---|
-| Run VideoGeneration | unlock longer or higher quality runs | credits per run | `{{economics.free_tier_gens_daily}}` runs/day | quote before compute |
-| Export bundle | shareable workflow artifacts | per export | 3 exports/day | can be bundled in subscription |
-| Publish template | sell workflow templates | revenue share | 0 paid listings | commerce-like conversion |
-| Asset hosting | keep outputs online | storage ops | 7-day TTL | upgrade extends TTL |
-| Priority queue | reduce waiting | subscription add-on | none | separate from compute |
-
-### ACP alignment (Agentic Commerce Protocol)
-
-Agentic Commerce Protocol (ACP) is an open standard for sharing structured catalog data so assistants can surface products in context. For Knowgrph, treat **plans, credit packs, and template marketplace items** as a catalog with clear variants, stable IDs, and attribution-ready URLs.
-
-#### Integration path (ACP-inspired)
-
-| Step | Mode | Rationale | Fit for Knowgrph |
+| Step | User Action | System Response | Acceptance Criteria |
 |---|---|---|---|
-| 1 | Snapshot feed (daily) | stable baseline catalog | publish plans, packs, featured templates |
-| 2 | API upserts (throughout day) | keep inventory current | update template availability, price changes |
-| 3 | Promotions via API only | promo is time-bound | limited-time credit bonuses |
+| 1 | Open MainPanel MCP | Stripe MCP Configuration rows appear | Rows include server key, remote URL, connection mode, local launcher, timeout, confirmation, payment tools, registry URL |
+| 2 | Choose remote mode | UI shows `{{mcp.remote_url}}` and OAuth-preferred connection guidance | Browser stores no OAuth token, restricted key, or secret key |
+| 3 | Choose local/server fallback | UI shows local `mcpServers` JSON with `npx` and `@stripe/mcp@latest` | Secret value is represented only by `{{stripe_mcp_secret_placeholder}}` |
+| 4 | Review tools | UI lists payment-capable Stripe MCP tools | Mutating tools are labeled as requiring human confirmation |
+| 5 | Continue to payments | Operator opens MainPanel Payments | Payments surface owns checkout, entitlement, and reconciliation UX |
 
-#### Catalog modeling rules (ACP-inspired)
+### User Stories
 
-| Rule | Why it matters | How Knowgrph applies |
+| id | Story | Acceptance Criteria | Priority |
+|---|---|---|---|
+| `US-01` | As an operator, I can copy agent-ready remote Stripe MCP config | Config contains `mcpServers.stripe.url = "{{mcp.remote_url}}"`; auth guidance says OAuth first | P0 |
+| `US-02` | As an operator, I can run a local Stripe MCP server without pasting keys into Knowgrph | Local config uses `command: "{{mcp.local_command}}"`, `args: {{mcp.local_args}}`, and an environment placeholder | P0 |
+| `US-03` | As a maintainer, I can update Stripe MCP defaults once | Docs, MainPanel MCP rows, and tests use one shared semantic-key owner | P0 |
+| `US-04` | As an auditor, I can distinguish read-only from payment-mutating readiness | Payment-capable tools are listed and confirmation is required before mutation | P0 |
+| `US-05` | As an end user, I never enter checkout from an implicit agent action | Checkout and entitlement UX remain in MainPanel Payments, not hidden MCP rows | P1 |
+
+### MoSCoW Scope
+
+| Class | Requirement |
+|---|---|
+| Must | Use `https://mcp.stripe.com` as the remote Stripe MCP URL |
+| Must | Prefer OAuth; allow restricted-key bearer/local fallback only outside browser storage |
+| Must | Keep Stripe MCP constants in shared SSOT and reuse them in MainPanel MCP docs/tests |
+| Must | Require human confirmation for payment-mutating tools |
+| Should | Surface local `@stripe/mcp@latest` launcher config for agents that need local MCP |
+| Should | Link MainPanel MCP setup to MainPanel Payments handoff |
+| Could | Add per-tool scope presets after the first payment workflow is finalized |
+| Won't | Store Stripe secret or restricted keys in browser localStorage/sessionStorage |
+
+### Success Metrics
+
+| Metric | Target |
+|---|---:|
+| Stripe MCP rows render from shared constants | 100% |
+| Secret-key literal examples in MainPanel MCP/docs | 0 |
+| Payment-mutating tool calls without confirmation | 0 |
+| Remote/local config drift between docs, UI, and tests | 0 |
+| Time for operator to locate Stripe MCP registry/docs/config | under 60 seconds |
+
+### Scope And Exclusions
+
+In scope: Stripe MCP readiness rows, remote/local MCP config snippets, payment-tool labels, confirmation policy, secret-boundary guidance, docs, and tests.
+
+Out of scope: creating live Stripe products, choosing actual prices, running production checkout, webhook fulfillment, refunds policy, and entitlement ledger migration. Those belong to MainPanel Payments and backend payment services.
+
+### Assumptions
+
+| id | Assumption | Validation |
 |---|---|---|
-| Variants at row level | variant-specific price/availability | `credit_pack_small` vs `credit_pack_large`; template tier variants |
-| Factual descriptions | improves ranking and trust | short, literal copy: what user gets, constraints, refund rules |
-| Optional fields only when stable | avoid brittle transforms | add markdown/HTML descriptions later |
-| URLs must be valid + encoded | prevents broken checkout | pre-encode query params and asset URLs |
-| Attribution params | measure conversion | add UTM-style parameters to checkout and template URLs |
-
-### Goals
-
-| id | Goal | maps to | Priority | Status |
-|---|---|---|---|---|
-| `G-01` | Monetize actions at intent moments in MainPanel via Stripe Checkout | `@node:n-ui` | `#D85A30:P0` | TBD |
-| `G-02` | Stripe-backed MCP tools for quote + checkout + entitlements | `@node:n-mcp` | `#D85A30:P0` | TBD |
-| `G-03` | Token economics: quote first, clamp, cache, no double charge (`{{economics.no_double_charge}}`) | `@node:n-ops` | `#D85A30:P0` | TBD |
-| `G-04` | Free-tier remains usable: `{{economics.free_tier_credits_daily}}` credits/day | `@node:n-actions` | `#185FA5|bg#E6F1FB:P1` | TBD |
-| `G-05` | OpenClaw-friendly tool names and stable schemas | `@node:n-mcp` | `#185FA5|bg#E6F1FB:P1` | TBD |
-
-### Non-Goals
-
-This does not require changing core editor code paths outside the billing surface; it is a shared service that the UI can call without embedding payment logic everywhere.
+| `A-01` | OAuth is available in the MCP host for the preferred remote path | Confirm during agent-host setup |
+| `A-02` | Restricted API keys are used only for server/local fallback | Verify deployment secrets and local env templates |
+| `A-03` | Payment tools may create or mutate Stripe resources | Keep `{{mcp.require_confirmation}}` true by default |
+| `A-04` | MainPanel MCP is configuration readiness, not checkout UX | Keep customer-facing payment flow in Payments |
 
 ---
 
-## `bg#E1F5EE:UF` User Flow (Stripe checkout)
+## TAD
 
-1. User clicks **Run** on a VideoGeneration node.
-2. UI calls `{{mcp.tool_quote}}` with run params and receives a price in `{{economics.paid_unit}}`.
-3. If free-tier available, UI shows “use free credits”; otherwise UI opens a Stripe-hosted checkout (prefer Payment Link).
-4. Default path: UI uses `{{mcp.tool_payment_link_get}}` and opens the hosted link (fastest ship).
-5. Fallback path: service creates a new Checkout Session for each attempt via `{{mcp.tool_checkout_create}}` and redirects to `session.url`.
-6. After payment, service reconciles using `{{mcp.tool_checkout_session_get}}` and checks `status` and `payment_status`, then updates entitlements.
-7. UI calls `{{mcp.tool_entitlements}}`, then re-enables Run.
+### Component Inventory
 
----
-
-## `bg#E6F1FB:WF` Work Flow (service responsibilities)
-
-### Core idea: monetize user actions, not time
-
-| Action category | Trigger | Meter key | Outcome |
+| Component | Responsibility | State | Boundary |
 |---|---|---|---|
-| compute | run workflow node | `video.run` | consumes credits and records usage |
-| conversion | Stripe checkout | `billing.checkout` | creates paid entitlement |
-| commerce | publish template | `market.listing` | enables marketplace listing |
-| upsell | export bundle | `workflow.export` | converts share intent into payment |
+| Shared Stripe MCP SSOT | Remote URL, registry/docs URLs, local launcher, env placeholder, timeout, tool list, confirmation default | Static constants | Shared package |
+| MainPanel MCP | Renders Stripe MCP configuration rows and agent-ready JSON | Non-secret settings only | Browser UI |
+| Stripe remote MCP | Official hosted MCP server | OAuth or bearer authorization | External service |
+| Local Stripe MCP | Local/server MCP process launched by an agent host | `STRIPE_SECRET_KEY` from environment | Local/server process |
+| MainPanel Payments | Checkout, entitlement, and reconciliation UX | Payment state and entitlement state | Product payment surface |
 
-### ACP-inspired catalog responsibilities
+### Integration Contract
 
-| Responsibility | Contract | Owner | Notes |
-|---|---|---|---|
-| Catalog snapshot generation | deterministic export of pricing + items | service | can be used for external channels later |
-| Catalog updates (upsert) | idempotent updates keyed by stable ids | service | align with `{{economics.cache_ttl_days}}` caching |
-| Attribution hygiene | stable tracking params | UI + service | use consistent parameter names |
+Remote MCP config:
 
-### MCP tool contract (minimal set)
+```json
+{
+  "mcpServers": {
+    "stripe": {
+      "url": "https://mcp.stripe.com"
+    }
+  }
+}
+```
 
-| Tool | Purpose | Inputs | Outputs |
-|---|---|---|---|
-| `{{mcp.tool_pricing_get}}` | show plans + packs | userId | plans, packs |
-| `{{mcp.tool_quote}}` | quote before compute | params | credits, USD |
-| `{{mcp.tool_payment_link_get}}` | fetch Stripe Payment Link | sku, userId | url, attribution_params |
-| `{{mcp.tool_payment_link_create}}` | create/manage link (optional) | sku, price | url, active |
-| `{{mcp.tool_checkout_create}}` | create Checkout Session (fallback) | quote, userId, mode | sessionId, url |
-| `{{mcp.tool_checkout_status}}` | poll completion (legacy alias) | sessionId | status, payment_status |
-| `{{mcp.tool_checkout_session_get}}` | retrieve session | sessionId | status, payment_status, customer, payment_intent, subscription |
-| `{{mcp.tool_checkout_session_line_items}}` | retrieve line items | sessionId | line_items[] |
-| `{{mcp.tool_checkout_session_expire}}` | expire session | sessionId | status=expired |
-| `{{mcp.tool_usage_meter}}` | record usage | action, quantity | ok |
-| `{{mcp.tool_entitlements}}` | entitlements snapshot | userId | caps, balances |
+Local/server MCP config:
 
-### Stripe Payment Links (preferred) — why
+```json
+{
+  "mcpServers": {
+    "stripe": {
+      "command": "npx",
+      "args": ["-y", "@stripe/mcp@latest"],
+      "env": {
+        "STRIPE_SECRET_KEY": "${STRIPE_RESTRICTED_KEY}"
+      }
+    }
+  }
+}
+```
 
-| Capability | Benefit | Implication for Knowgrph |
+Authorization rules:
+
+| Mode | Use When | Required Boundary |
 |---|---|---|
-| Stripe-hosted payment page | faster shipping, less UI code | MainPanel opens a hosted URL |
-| Preferred language + local currency | higher conversion globally | keep catalog prices compatible with localization |
-| Many payment methods | broader coverage | rely on Stripe’s dynamic selection |
-| Automatic receipts + dashboard refunds | support cost reduction | refund policy can be handled in Stripe UI |
-| Link tracking via URL parameters | measure conversion | enforce attribution params consistency |
-| Buy button + QR code | distribution | enable landing pages and social sharing |
+| OAuth | MCP client supports remote OAuth | User authorization happens in the MCP host; browser UI stores no Stripe credential |
+| Bearer restricted key | OAuth is unavailable and an agent/server needs direct authorization | Key lives in server secret store; permissions are least privilege |
+| Local environment | Local agent host runs Stripe MCP process | Key lives in environment; config exposes only placeholder text |
 
-### Stripe Checkout Sessions API (fallback) — why and how
+Payment-capable tools surfaced for readiness:
 
-Checkout Sessions provide a server-created payment attempt object with a hosted redirect URL (`session.url`). Recommendation: create a new session each time the customer attempts to pay, and reconcile on the server after completion.
-
-| Session field | Why it matters | How Knowgrph uses it |
+| Tool | Mutation Class | Guard |
 |---|---|---|
-| `client_reference_id` | link to internal user/cart | set to `userId` or `docId` |
-| `metadata` | structured reconciliation | include `sku`, `quote_hash`, `doc_id` |
-| `mode` | one-time vs subscription | `payment` for packs, `subscription` for plans |
-| `status` | open/complete/expired | guard fulfillment and retries |
-| `payment_status` | paid/unpaid/no_payment_required | unlock entitlements only when `paid` |
-| `customer` / `payment_intent` / `subscription` | canonical references after payment | store for audit, refunds, chargebacks |
+| `create_payment_link` | Create checkout resource | Human confirmation |
+| `create_product` | Create catalog resource | Human confirmation |
+| `create_price` | Create pricing resource | Human confirmation |
+| `create_customer` | Create customer record | Human confirmation |
+| `create_invoice` | Create billing document | Human confirmation |
+| `create_invoice_item` | Create invoice line | Human confirmation |
+| `finalize_invoice` | Finalize billing document | Human confirmation |
+| `list_payment_intents` | Read payment state | Least-privilege read scope |
+| `create_refund` | Move money back to customer | Human confirmation |
+
+### Workflow Flow
+
+```mermaid
+sequenceDiagram
+  actor Operator
+  participant MCP as MainPanel MCP
+  participant SSOT as Shared Stripe MCP SSOT
+  participant Host as Agent/MCP Host
+  participant Stripe as Stripe MCP
+  participant Payments as MainPanel Payments
+
+  Operator->>MCP: Open Stripe MCP Configuration
+  MCP->>SSOT: Resolve shared Stripe MCP constants
+  MCP-->>Operator: Show remote/local config, tools, confirmation policy
+  Operator->>Host: Configure Stripe MCP outside browser secrets
+  Host->>Stripe: Connect with OAuth or restricted-key bearer
+  Stripe-->>Host: Expose authorized Stripe tools
+  Operator->>Payments: Continue to checkout/entitlement setup
+```
+
+### Data Flow
+
+| Data | Source | Stored In Browser | Destination | Policy |
+|---|---|---:|---|---|
+| Server key | Shared SSOT/default setting | Yes | MCP config JSON | Non-secret |
+| Remote URL | Shared SSOT/default setting | Yes | MCP host | Non-secret |
+| Connection mode | Shared SSOT/default setting | Yes | Operator guidance | Non-secret |
+| Local command/args | Shared SSOT/default setting | Yes | MCP host | Non-secret |
+| Secret placeholder | Shared SSOT | Yes | Documentation only | Placeholder, not a credential |
+| Restricted API key | Secret store or local environment | No | Stripe MCP | Least privilege |
+| OAuth token/session | MCP host | No | Stripe MCP | Host-owned |
+| Tool call arguments | Agent/payment service | No by default | Stripe MCP | Redact secrets; log hashes/trace ids |
+
+### Error Handling
+
+| Failure | Response |
+|---|---|
+| OAuth unsupported by host | Use restricted-key bearer/local fallback and keep key out of browser storage |
+| Missing local `STRIPE_SECRET_KEY` | Agent host fails closed before calling Stripe tools |
+| Payment-mutating tool requested without confirmation | Block call and ask for explicit confirmation |
+| Tool authorization too broad | Reject config during review and narrow restricted-key permissions |
+| Stripe MCP remote unavailable | Use local/server fallback only if secrets and confirmation policy are satisfied |
+
+### Security And Governance
+
+- Prefer OAuth for the remote Stripe MCP server because authorization can be user-scoped and revocable.
+- Use restricted API keys only when OAuth is unavailable; grant only required Stripe permissions.
+- Never paste `sk_*` or `rk_*` values into MainPanel, markdown docs, fixtures, or tests.
+- Keep payment-mutating tools behind explicit human confirmation.
+- Log tool name, principal, argument hash, result status, latency, and trace id; do not log raw secrets.
+
+### Quality Attributes
+
+| Attribute | Requirement |
+|---|---|
+| Neutrality | Stripe MCP config is reusable across agent hosts and does not depend on one payment product |
+| Determinism | Defaults resolve from one semantic-key owner |
+| Low TCO | Remote MCP OAuth is the default; local server is optional |
+| Safety | Secrets never cross the browser boundary |
+| Testability | MainPanel MCP render tests assert URLs, launcher, placeholders, tools, and forbidden key literals |
+
+### Deployment And Migration
+
+1. Keep Stripe MCP defaults in the shared payment SSOT.
+2. Render MainPanel MCP rows from the shared constants.
+3. Keep existing Payments settings focused on customer-facing checkout.
+4. Validate render tests and docs lint before syncing Dev to Prod.
+5. Configure real OAuth/restricted-key credentials only in the target MCP host or backend secret store.
+
+### ADR
+
+| Decision | Status | Rationale |
+|---|---|---|
+| Use official Stripe remote MCP URL | Accepted | Reduces custom adapter churn and follows Stripe's MCP documentation |
+| Prefer OAuth over embedded bearer tokens | Accepted | Supports user-scoped authorization and avoids browser secret exposure |
+| Keep local `@stripe/mcp@latest` fallback | Accepted | Supports agent hosts that need local MCP or lack remote OAuth |
+| Separate MCP readiness from checkout UX | Accepted | Avoids duplicate payment logic and keeps MainPanel Payments as the checkout owner |
+
+### Traceability
+
+| Requirement | PRD Coverage | TAD Coverage |
+|---|---|---|
+| Remote Stripe MCP readiness | `US-01`, journey step 2 | Remote config, component inventory |
+| Local MCP fallback | `US-02`, journey step 3 | Local config, authorization rules |
+| Shared semantic-key reuse | `US-03`, MoSCoW Must | Shared SSOT, deployment steps |
+| Confirmation for mutating tools | `US-04`, success metrics | Tool table, error handling |
+| Payments handoff | `US-05`, scope | Workflow flow, ADR |
 
 ---
-
 
 ## Continuation
 

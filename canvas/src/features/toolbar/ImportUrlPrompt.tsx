@@ -37,9 +37,9 @@ export function ImportUrlPrompt(props: {
   const normalizedDraft = String(urlDraft || '')
 
   return (
-    <section aria-label="URL import controls">
+    <section className="min-w-0" aria-label="URL import controls">
       {(WORKSPACE_IMPORT_URL_TEST || WORKSPACE_IMPORT_IMAGE_URL_TEST) ? (
-        <section className="mb-1 flex items-center gap-1">
+        <section className="mb-1 flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain">
           {WORKSPACE_IMPORT_URL_TEST ? (
             <button
               type="button"
@@ -71,7 +71,7 @@ export function ImportUrlPrompt(props: {
         </section>
       ) : null}
 
-      <section className="flex items-stretch gap-1">
+      <section className="flex min-w-0 items-stretch gap-1">
         <input
           ref={inputRef}
           className={cn(
@@ -96,7 +96,6 @@ export function ImportUrlPrompt(props: {
             onConfirm(next)
           }}
         />
-        {props.rightAddon}
         <button
           type="button"
           className={cn(
@@ -115,7 +114,11 @@ export function ImportUrlPrompt(props: {
           {confirmLabel}
         </button>
       </section>
+      {props.rightAddon ? (
+        <section className="mt-1 flex min-w-0 items-stretch gap-1">
+          {props.rightAddon}
+        </section>
+      ) : null}
     </section>
   )
 }
-

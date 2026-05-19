@@ -9677,7 +9677,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L11"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L22"
   },
   "payments.stripe.secretKey": {
     "area": "Stripe Payment API",
@@ -9691,7 +9691,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L25"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L36"
   },
   "payments.stripe.publishableKey": {
     "area": "Stripe Payment API",
@@ -9705,7 +9705,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L40"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L51"
   },
   "payments.stripe.webhookSecret": {
     "area": "Stripe Payment API",
@@ -9719,7 +9719,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L51"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L62"
   },
   "payments.stripe.accountId": {
     "area": "Stripe Payment API",
@@ -9733,7 +9733,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L62"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L77"
   },
   "payments.stripe.paywallEnabled": {
     "area": "—",
@@ -9751,7 +9751,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L73; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L133"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L88; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L133"
   },
   "payments.stripe.checkoutUrl": {
     "area": "—",
@@ -9769,6 +9769,104 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L84; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L99; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L146"
+  },
+  "payments.stripe.mcp.serverKey": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Stripe MCP server key inside mcpServers",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L110"
+  },
+  "payments.stripe.mcp.remoteUrl": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Stripe remote MCP server URL",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L116"
+  },
+  "payments.stripe.mcp.connectionMode": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Stripe MCP connection mechanism label",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L122"
+  },
+  "payments.stripe.mcp.localCommand": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Local Stripe MCP launcher command",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L129"
+  },
+  "payments.stripe.mcp.localArgs": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Local Stripe MCP launcher args JSON array",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L135"
+  },
+  "payments.stripe.mcp.startupTimeoutMs": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Stripe MCP startup timeout in milliseconds",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L141"
+  },
+  "payments.stripe.mcp.requireConfirmation": {
+    "area": "Stripe MCP Configuration",
+    "responsibility": "Require human confirmation before payment-mutating MCP tool calls",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-payments.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L149"
   }
 }

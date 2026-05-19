@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { readOverlayElementSize, resolveOverlayVerticalTop } from '@/lib/ui/overlayPlacement'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 
 type Align = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'bottom-center' | 'top-center'
@@ -11,23 +12,18 @@ interface AnchorOverlayProps {
   onClose?: () => void
   align?: Align
   className?: string
+  autoFocus?: boolean
   children: React.ReactNode
 }
 
-function readOverlaySize(container: HTMLElement | null): { width: number; height: number } {
-  if (!container) return { width: 1, height: 1 }
-  const containerRect = container.getBoundingClientRect()
-  const child = container.firstElementChild
-  const childRect = child && typeof child.getBoundingClientRect === 'function' ? child.getBoundingClientRect() : null
-  return {
-    width: Math.max(1, containerRect.width || 0, childRect?.width || 0),
-    height: Math.max(1, containerRect.height || 0, childRect?.height || 0),
-  }
+function createPortalRoot(): HTMLDivElement | null {
+  if (typeof document === 'undefined') return null
+  return document.createElement('div')
 }
 
-export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right', className = '', children }: AnchorOverlayProps) {
+export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right', className = '', autoFocus = true, children }: AnchorOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const portalRootRef = useRef<HTMLDivElement | null>(null)
+  const [portalRoot, setPortalRoot] = useState<HTMLDivElement | null>(() => createPortalRoot())
   const priorFocusedElementRef = useRef<HTMLElement | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
@@ -36,12 +32,18 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     if (!el) return
     const r = el.getBoundingClientRect()
     const margin = 4
-    const overlaySize = readOverlaySize(containerRef.current)
+    const overlaySize = readOverlayElementSize(containerRef.current)
     const overlayWidth = overlaySize.width
     const overlayHeight = overlaySize.height
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1
-    const top = align.startsWith('bottom') ? r.bottom + margin : r.top - margin - overlayHeight
+    const top = resolveOverlayVerticalTop({
+      anchorRect: r,
+      overlayHeight,
+      viewportHeight,
+      margin,
+      preferredPlacement: align.startsWith('bottom') ? 'bottom' : 'top',
+    })
     const left = align.endsWith('center')
       ? r.left + r.width / 2 - overlayWidth / 2
       : align.endsWith('right')
@@ -132,30 +134,34 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     return () => observer.disconnect()
   }, [open, updatePosition])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return
+    if (portalRoot) return
+    setPortalRoot(createPortalRoot())
+  }, [open, portalRoot])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    if (!portalRoot) return
     if (typeof document === 'undefined') return
     if (!document.body) return
-    if (!portalRootRef.current) {
-      portalRootRef.current = document.createElement('div')
-    }
-    const root = portalRootRef.current
     try {
-      if (!document.body.contains(root)) document.body.appendChild(root)
+      if (!document.body.contains(portalRoot)) document.body.appendChild(portalRoot)
     } catch {
       void 0
     }
     return () => {
       try {
-        if (root.parentNode) root.parentNode.removeChild(root)
+        if (portalRoot.parentNode) portalRoot.parentNode.removeChild(portalRoot)
       } catch {
         void 0
       }
     }
-  }, [open])
+  }, [open, portalRoot])
 
   useEffect(() => {
     if (!open) return
+    if (!autoFocus) return
     const activeElement = typeof document !== 'undefined' ? document.activeElement : null
     priorFocusedElementRef.current = activeElement instanceof HTMLElement ? activeElement : null
     const rafId = requestAnimationFrame(() => {
@@ -182,7 +188,7 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
         target.focus()
       }
     }
-  }, [open])
+  }, [autoFocus, open])
 
   const style = useMemo<React.CSSProperties>(
     () => ({
@@ -200,7 +206,6 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
   )
 
   if (!open) return null
-  const portalRoot = portalRootRef.current
   if (!portalRoot) return null
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>

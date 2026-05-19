@@ -45,8 +45,11 @@ export const useMarkdownBlockContainerHostOrchestration = (args: {
     args.originalOnClick?.(event)
     if (event.defaultPrevented) return
     if (args.editing) {
+      if (event.detail >= 2) {
+        args.onEditingHostDoubleClick?.(event)
+        return
+      }
       if (isTargetInsideEditor(event.target)) return
-      if (event.detail >= 2) return
       return
     }
     if (event.detail >= 2) return

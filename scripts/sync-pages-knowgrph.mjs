@@ -16,6 +16,7 @@ const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
+  'llms.txt',
   'manifest.webmanifest',
   'settings-flow.json',
   'sw.js',

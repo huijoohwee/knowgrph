@@ -84,12 +84,25 @@ Expose these first because they are **product-differentiating** and enable AI-na
 ### 3.2 “Integration” MCP (service integration)
 Start with a small number of integrations that unlock real flows:
 - **GitHub MCP**: repo/file fetch + issues/PRs (for codebase indexing workflows).
-- **Stripe MCP** (if monetization is in scope): customer status, metering, portal links.
+- **Stripe MCP** (payment readiness): official remote MCP at `https://mcp.stripe.com` with OAuth preferred; local/server fallback uses `npx -y @stripe/mcp@latest` and a restricted key from the host environment.
 - **Artifact store MCP**: abstract R2/D1/KV behind stable tools.
 - **API-native browser MCP**: route discovery, login plus guarded cookie-import handoff, cached first-party API resolution, skill/session listing, feedback/verification, guarded route execution, and native browser capture/action fallback through `knowgrph.browser_api.run`.
 - **Editor Workspace responsive verification**: treat mobile editor pane width, resize gutter, toolbar overflow, and Monaco focus checks as UI contract evidence from the root workspace defaults, not per-client remapping.
 
 Keep integration MCP servers **thin**: translate external APIs into stable tool I/O; keep business logic in Knowgrph Core (or gateway).
+
+### 3.3 Stripe MCP payment-readiness contract
+
+MainPanel MCP owns Stripe MCP readiness; MainPanel Payments owns customer-facing checkout, entitlement, and reconciliation UX. This separation keeps payment setup agent-ready without mixing secret handling into the browser or duplicating checkout logic.
+
+| Contract | Decision | Guard |
+|---|---|---|
+| Remote server | `https://mcp.stripe.com` | OAuth first |
+| Registry entry | `https://github.com/mcp/com.stripe/mcp` | resolve from shared Stripe MCP constants |
+| Local fallback | `npx -y @stripe/mcp@latest` | `STRIPE_SECRET_KEY` comes from local/server environment |
+| Bearer fallback | restricted API key only | least-privilege permissions; never browser storage |
+| Payment-mutating tools | create payment link/product/price/customer/invoice/refund | explicit human confirmation |
+| Browser state | server key, URL, mode, timeout, non-secret config snippets | no `sk_*` or `rk_*` values |
 
 ---
 
@@ -204,6 +217,8 @@ Pages UI → Worker gateway → (LLM providers + MCP servers + KV/D1/R2).
 ### 8.2 Secrets
 - Keep provider keys in Worker secrets.
 - Never expose keys to the browser.
+- For Stripe MCP, prefer OAuth on the remote server; if OAuth is unavailable, restricted API keys must live in a server secret store or local environment.
+- MainPanel MCP may show `STRIPE_SECRET_KEY: ${STRIPE_RESTRICTED_KEY}` as a placeholder only; real Stripe keys are forbidden in docs, tests, fixtures, and browser storage.
 
 ### 8.3 Auditability
 Log tool calls with:
@@ -211,6 +226,7 @@ Log tool calls with:
 - principal (user/workspace)
 - result size + status
 - latency + trace id
+- payment-mutating confirmation status for Stripe MCP calls.
 
 ---
 
@@ -230,7 +246,11 @@ Log tool calls with:
 
 ### Phase 2 — Integration MCP
 - GitHub MCP for codebase workflows.
-- Stripe MCP if billing is required.
+- Stripe MCP readiness before billing is enabled:
+  - render remote/local config from shared constants
+  - verify OAuth-preferred and restricted-key fallback guidance
+  - require confirmation for payment-mutating tools
+  - hand off checkout/entitlements to MainPanel Payments
 - Add scopes + rate limiting.
 
 ### Phase 3 — Economics hardening
@@ -273,6 +293,9 @@ Log tool calls with:
 - `MCP_AUTH_SHARED_SECRET`
 - `LOG_LEVEL`
 
+**Stripe MCP host or backend only**
+- `STRIPE_SECRET_KEY` (restricted key for bearer/local fallback only)
+
 ---
 
 ## Appendix B — “Good” acceptance criteria
@@ -280,3 +303,5 @@ Log tool calls with:
 - Tool outputs are **small, typed, stable** (minimize downstream prompt size).
 - Every request has a **trace id** and **cost record**.
 - You can switch models/providers with **no tool contract changes**.
+- Stripe MCP setup exposes official remote/local config while storing **zero Stripe secrets in the browser**.
+- Payment-mutating Stripe MCP tools require explicit confirmation before execution.

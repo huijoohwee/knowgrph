@@ -74,6 +74,8 @@ export function analyzeMarkdownGeodataSources(args: {
   embeddedGeoLimit?: number
   poiTableLimit?: number
   poiRowLimit?: number
+  candidateProfile?: MarkdownGeodataCandidateProfile
+  cacheSignature?: string
 }): MarkdownGeodataAnalysis {
   const markdownText = String(args.markdownText || '')
   const sourceDocumentPath = normalizeMarkdownGeoSourceDocumentPath(args.sourceDocumentPath)
@@ -84,8 +86,8 @@ export function analyzeMarkdownGeodataSources(args: {
     return createEmptyMarkdownGeodataAnalysis()
   }
 
-  const candidateProfile = buildMarkdownGeodataCandidateProfile(markdownText)
-  const cacheKey = buildMarkdownGeodataAnalysisCacheSignature({
+  const candidateProfile = args.candidateProfile || buildMarkdownGeodataCandidateProfile(markdownText)
+  const cacheKey = String(args.cacheSignature || '').trim() || buildMarkdownGeodataAnalysisCacheSignature({
     markdownText,
     sourceDocumentPath,
     embeddedGeoLimit,
