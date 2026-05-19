@@ -67,3 +67,53 @@ These middleware endpoints exist for local development and preview builds. Curre
 - Dev-only tooling routes such as remote media proxying and markdown pipeline execution must be promoted to a real server route before relying on them in production.
 
 Production API work must keep root-owned configuration, path policy, provider dispatch, and responsive workspace metadata as the single source of truth. Fix stale behavior in Dev, then sync the mirror and schema/API docs from the canonical source.
+
+## Production Worker API
+
+### Storage Worker: `knowgrph-storage`
+
+Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co/api/storage/*`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/storage/push` | Push local workspace mutations into D1 |
+| POST | `/api/storage/pull` | Pull D1 mutations since a cursor |
+| GET | `/api/storage/export/{workspaceId}` | Export the full workspace storage bundle as JSON |
+| GET | `/api/storage/doc/{workspaceId}/{canonicalPath}` | Serve the latest markdown for one canonical Source File |
+| GET | `/api/storage/source-files` | Serve the default workspace Source Files crawler index |
+| GET | `/api/storage/source-files/{workspaceId}` | Serve a workspace-scoped Source Files crawler index |
+| GET | `/api/storage/llms.txt` | Serve the default LLM crawler entrypoint |
+| GET | `/api/storage/source-files/{workspaceId}/llms.txt` | Serve a workspace-scoped LLM crawler entrypoint |
+
+Crawler access is read-only. It reads existing D1 document rows and doc-view links; it does not import, parse, render, mutate storage, or emulate Cloudflare Pay Per Crawl.
+
+Pay Per Crawl headers are Cloudflare-owned:
+
+| Header | Direction | Owner |
+|---|---|---|
+| `crawler-exact-price` | AI crawler request | Cloudflare/Web Bot Auth flow |
+| `crawler-max-price` | AI crawler request | Cloudflare/Web Bot Auth flow |
+| `crawler-price` | Cloudflare response | Cloudflare zone policy |
+| `crawler-charged` | Cloudflare response | Cloudflare zone policy |
+| `crawler-error` | Cloudflare response | Cloudflare zone policy |
+
+### Payment Worker: `knowgrph-payment`
+
+Route owner: `cloudflare/workers/knowgrph-payment`. Cloudflare route: `airvio.co/api/payments/*`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/payments/stripe/checkout/session` | Create a hosted Stripe Checkout Session server-side |
+| GET | `/api/payments/stripe/checkout/session?session_id=...` | Read stored Checkout Session state from D1 |
+| POST | `/api/payments/stripe/webhook` | Verify Stripe webhook signatures and store Checkout Session events |
+
+Required production runtime configuration lives on `knowgrph-payment`, not on Cloudflare Pages project variables:
+
+| Variable | Required For |
+|---|---|
+| `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY` | Stripe API authentication |
+| `STRIPE_CHECKOUT_PRICE_ID` or `STRIPE_CHECKOUT_CURRENCY` + `STRIPE_CHECKOUT_UNIT_AMOUNT` + `STRIPE_CHECKOUT_PRODUCT_NAME` | Server-owned checkout price authority |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signature verification |
+| `STRIPE_CHECKOUT_RETURN_ORIGIN` | Optional return-origin override |
+
+Current live context as of 2026-05-19: `STRIPE_SECRET_KEY` is configured on `knowgrph-payment`; checkout still fails closed until server-owned checkout price authority is configured.

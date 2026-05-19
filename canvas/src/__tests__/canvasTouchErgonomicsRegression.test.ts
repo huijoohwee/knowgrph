@@ -28,7 +28,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const settingsUiText = readUtf8(path.resolve(root, 'src/features/settings/ui.tsx'))
   const responsiveElementClassesText = readUtf8(path.resolve(root, 'src/lib/ui/responsiveElementClasses.ts'))
   const anchorOverlayText = readUtf8(path.resolve(root, 'src/lib/ui/overlay.tsx'))
+  const anchoredPopoverText = readUtf8(path.resolve(root, 'src/components/ui/AnchoredPopover.tsx'))
   const overlayPlacementText = readUtf8(path.resolve(root, 'src/lib/ui/overlayPlacement.ts'))
+  const importUrlPromptText = readUtf8(path.resolve(root, 'src/features/toolbar/ImportUrlPrompt.tsx'))
   const cssText = readUtf8(path.resolve(root, 'src/index.css'))
   const responsiveToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-toolbar.css'))
 
@@ -86,6 +88,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.App-toolbar--touch-row-scroll') || responsiveToolbarCssText.includes('.App-toolbar--touch-wrap')) {
     throw new Error('expected toolbar mobile row-scroll behavior to stay centralized in shared CSS without stale wrap classes')
   }
+  if (!responsiveToolbarCssText.includes('scroll-snap-type: x proximity') || !responsiveToolbarCssText.includes('scroll-snap-align: center')) {
+    throw new Error('expected mobile canvas toolbar row scrolling to keep stable snap affordances')
+  }
   if (!collapsibleToolbarText.includes('kg-collapsible-toolbar-overflow')) {
     throw new Error('expected collapsed workspace toolbar menus to reuse the shared viewport-clamped overflow shell')
   }
@@ -142,6 +147,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!anchorOverlayText.includes('useState<HTMLDivElement | null>(() => createPortalRoot())') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
     throw new Error('expected shared dropdown overlays to render from the first open and use viewport-aware vertical placement')
+  }
+  if (!anchorOverlayText.includes('kg-anchor-overlay') || !detailsMenuText.includes('kg-details-menu-portal') || !responsiveToolbarCssText.includes('.kg-anchor-overlay')) {
+    throw new Error('expected shared overlay portals to expose mobile viewport-owned classes')
+  }
+  if (!anchoredPopoverText.includes('clampOverlayTopLeftFullyInViewport') || anchoredPopoverText.includes("translateX('-100%')") || anchoredPopoverText.includes("translateX(-100%)")) {
+    throw new Error('expected anchored popovers to clamp inside the viewport without transform fallback placement')
+  }
+  if (!anchoredPopoverText.includes('kg-anchored-popover') || !responsiveToolbarCssText.includes('.kg-anchored-popover')) {
+    throw new Error('expected anchored popovers to reuse shared mobile overlay sizing')
   }
   if (!detailsMenuText.includes('resolveOverlayVerticalTop') || !detailsMenuText.includes('readOverlayElementSize')) {
     throw new Error('expected shared point-expand menus to reuse measured viewport-aware overlay placement')
@@ -202,6 +216,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!cssText.includes('min-height: var(--kg-control-height, 36px);')) {
     throw new Error('expected collapsed toolbar and header height to follow the shared control height token')
+  }
+  if (!importUrlPromptText.includes('kg-import-url-prompt') || !importUrlPromptText.includes('kg-import-url-actions') || !importUrlPromptText.includes('kg-import-url-confirm')) {
+    throw new Error('expected Import URL controls to expose shared responsive owner classes')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-import-url-actions') || !responsiveToolbarCssText.includes('flex-direction: column') || !responsiveToolbarCssText.includes('.kg-import-url-confirm')) {
+    throw new Error('expected Import URL controls to stack and keep touch-sized actions from shared mobile CSS')
+  }
+  if (!responsiveToolbarCssText.includes('[data-kg-floating-panel-root="true"]:not(.App-toolbar)') || !responsiveToolbarCssText.includes('--kg-floating-tool-menu-bottom-offset')) {
+    throw new Error('expected floating tool menus to use a shared bottom-safe mobile panel placement')
   }
 }
 

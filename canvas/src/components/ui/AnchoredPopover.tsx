@@ -1,6 +1,8 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
+import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { resolveOverlayVerticalTop } from '@/lib/ui/overlayPlacement'
 import { Z_INDEX_MENU } from '@/lib/ui/zIndex'
 
 export type AnchoredPopoverPlacement = 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end'
@@ -35,45 +37,46 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
     const maxWidth = typeof props.maxWidthPx === 'number' ? props.maxWidthPx : 420
     const maxHeight = typeof props.maxHeightPx === 'number' ? props.maxHeightPx : 360
 
-    const width = Math.max(minWidth, Math.min(maxWidth, Math.round(rect.width)))
     const viewportW = typeof window !== 'undefined' ? window.innerWidth : 0
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 0
     const padding = 8
+    const availableWidth = Math.max(1, viewportW - padding * 2)
+    const availableHeight = Math.max(1, viewportH - padding * 2)
+    const width = Math.min(availableWidth, Math.max(minWidth, Math.min(maxWidth, Math.round(rect.width))))
+    const safeMaxHeight = Math.min(maxHeight, availableHeight)
 
-    const preferredTop = placement.startsWith('top')
-    const canPlaceTop = rect.top >= maxHeight + gap + padding
-    const placeTop = preferredTop && canPlaceTop
+    const desiredTop = resolveOverlayVerticalTop({
+      anchorRect: rect,
+      overlayHeight: safeMaxHeight,
+      viewportHeight: viewportH,
+      margin: gap,
+      preferredPlacement: placement.startsWith('top') ? 'top' : 'bottom',
+    })
+    const desiredLeft = placement.endsWith('end') ? rect.right - width : rect.left
+    const clamped = clampOverlayTopLeftFullyInViewport({
+      pos: { top: desiredTop, left: desiredLeft },
+      size: { width, height: safeMaxHeight },
+      viewport: { width: Math.max(1, viewportW), height: Math.max(1, viewportH) },
+      snapPx: 1,
+    })
 
     const next: React.CSSProperties = {
       position: 'fixed',
       width,
-      maxHeight,
-    }
-
-    if (placeTop) {
-      next.bottom = Math.round(viewportH - rect.top + gap)
-    } else {
-      next.top = Math.round(rect.bottom + gap)
-    }
-
-    if (placement.endsWith('end')) {
-      const right = Math.round(rect.right)
-      next.left = Math.min(viewportW - padding, Math.max(padding, right))
-      next.transform = 'translateX(-100%)'
-    } else {
-      const left = Math.round(rect.left)
-      next.left = Math.min(viewportW - padding, Math.max(padding, left))
+      maxHeight: safeMaxHeight,
+      top: clamped.top,
+      left: clamped.left,
+      overflow: 'auto',
+      overscrollBehavior: 'contain',
     }
 
     setStyle(prev => {
       if (!prev) return next
       if (
         prev.top === next.top &&
-        prev.bottom === next.bottom &&
         prev.left === next.left &&
         prev.width === next.width &&
-        prev.maxHeight === next.maxHeight &&
-        prev.transform === next.transform
+        prev.maxHeight === next.maxHeight
       ) {
         return prev
       }
@@ -177,6 +180,7 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
           rootRef.current = el
         }}
         style={{ ...style, pointerEvents: 'auto' }}
+        className="kg-anchored-popover"
         role="dialog"
         aria-label={props.ariaLabel}
       >

@@ -325,7 +325,7 @@ flowchart TB
 | Worker | Wrangler config | `workers/knowgrph-storage/wrangler.toml` | Built |
 | D1 | Migration SQL | `d1/migrations/0001_knowgrph_storage.sql` | Built |
 | Edge | Deployed Storage Worker | `cloudflare/workers/knowgrph-storage/wrangler.toml` + `index.ts` | **Deployed** — `knowgrph-storage` routes `airvio.co/api/storage/*` |
-| Edge | Payment Worker | `cloudflare/workers/knowgrph-payment/wrangler.toml` + `index.ts` | **Configured separately** — `knowgrph-payment` routes `airvio.co/api/payments/*` |
+| Edge | Payment Worker | `cloudflare/workers/knowgrph-payment/wrangler.toml` + `index.ts` | **Deployed separately** — `knowgrph-payment` routes `airvio.co/api/payments/*` |
 | Edge | Provisioned D1 | `633355bf-…152` | **Migrated** — remote D1 migrations apply through `npm run storage:d1:migrate:remote` |
 
 ### Deploy & Test
@@ -334,7 +334,7 @@ flowchart TB
 |---|---|---|---|
 | Deploy | Pages sync script | `scripts/sync-pages-knowgrph.mjs` | Built |
 | Deploy | Static build + sync | `npm run pages:build-sync` | Built |
-| Deploy | Static + storage deploy | `npm run pages:build-sync-cloudflare` | Built |
+| Deploy | Static + Workers deploy | `npm run pages:build-sync-cloudflare` -> `npm run workers:deploy` | Built |
 | Test | D1 fake | `__tests__/helpers/fakeKnowgrphStorageD1.ts` | Built |
 | Future | PostgreSQL backend | — | Deferred |
 

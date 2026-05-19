@@ -63,3 +63,35 @@ The Cloudflare Worker at `airvio.co/api/storage/*` provides storage sync and doc
 | POST | `/api/storage/push` | Push workspace mutations to D1 |
 | POST | `/api/storage/pull` | Pull mutations since cursor from D1 |
 | GET | `/api/storage/export/:workspaceId` | Full workspace snapshot (JSON) |
+
+### Crawler access endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/storage/source-files` | Default workspace Source Files crawler index |
+| GET | `/api/storage/source-files/:workspaceId` | Workspace-scoped Source Files crawler index |
+| GET | `/api/storage/llms.txt` | Default LLM crawler entrypoint |
+| GET | `/api/storage/source-files/:workspaceId/llms.txt` | Workspace-scoped LLM crawler entrypoint |
+
+Crawler endpoints are read-only D1 document views. They return metadata and markdown doc-view links from existing storage records and do not trigger Import URL, Import local files, graph recomputation, rendering, or writes.
+
+Cloudflare AI Crawl Control Pay Per Crawl remains a zone-level policy boundary. Knowgrph advertises compatibility and source metadata, but Cloudflare owns `crawler-exact-price`, `crawler-max-price`, `crawler-price`, `crawler-charged`, and `crawler-error`.
+
+### Payment endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/payments/stripe/checkout/session` | Create a hosted Stripe Checkout Session on the payment Worker |
+| GET | `/api/payments/stripe/checkout/session?session_id=...` | Read stored Checkout Session status |
+| POST | `/api/payments/stripe/webhook` | Verify Stripe webhooks and record Checkout Session updates |
+
+`knowgrph-payment` owns Stripe server credentials and checkout price authority. Cloudflare Pages project variables do not satisfy this Worker runtime. As of 2026-05-19, `STRIPE_SECRET_KEY` is present on `knowgrph-payment`; live checkout still fails closed until `STRIPE_CHECKOUT_PRICE_ID` or the inline price tuple is configured.
+
+### Dev -> Prod -> Cloudflare contract
+
+| Stage | Path | Responsibility |
+|---|---|---|
+| Dev | `/Users/huijoohwee/Documents/GitHub/knowgrph` | Source code, docs, tests, Worker configs, and build source |
+| Prod mirror | `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` | Synced static SPA artifact only |
+| Cloudflare Pages | `airvio.co/knowgrph` | Static app route and hashed assets |
+| Cloudflare Workers | `airvio.co/api/storage/*`, `airvio.co/api/payments/*` | D1 storage, crawler access, Stripe checkout, and Stripe webhook routes |

@@ -22,6 +22,10 @@ stripe_mcp_local_command: "npx -y @stripe/mcp@latest"
 stripe_mcp_secret_env: "STRIPE_SECRET_KEY"
 stripe_mcp_secret_placeholder: "${STRIPE_RESTRICTED_KEY}"
 stripe_mcp_confirmation_policy: "human confirmation required for payment-mutating tools"
+stripe_projects_url: "https://projects.dev/"
+stripe_projects_docs_url: "https://docs.stripe.com/projects"
+payment_worker_name: "knowgrph-payment"
+payment_worker_route: "airvio.co/api/payments/*"
 
 mcp:
   server_key:          {key: server_key,          type: string,  value: "stripe"}
@@ -112,6 +116,8 @@ mermaid: |
 This document turns the MainPanel MCP Stripe surface into a PRD/TAD contract for accepting payment through Stripe MCP without embedding payment credentials in the browser. The implementation posture is neutral: MainPanel MCP exposes payment readiness and agent configuration; MainPanel Payments remains the customer-facing checkout, entitlement, and reconciliation surface.
 
 The official Stripe MCP server is the integration source of truth. Use the remote server at `{{mcp.remote_url}}` with OAuth when the MCP client supports it. If OAuth is unavailable, use a restricted API key only from a server secret store or local environment. Payment-mutating tools stay behind human confirmation.
+
+Stripe Projects can provision and sync local provider credentials, but production checkout still requires explicit Cloudflare Worker configuration. `stripe projects env --pull` writes local `.env` credentials; it does not write variables into `knowgrph-payment` or Cloudflare Pages.
 
 ---
 
@@ -211,6 +217,8 @@ Out of scope: creating live Stripe products, choosing actual prices, running pro
 | Stripe remote MCP | Official hosted MCP server | OAuth or bearer authorization | External service |
 | Local Stripe MCP | Local/server MCP process launched by an agent host | `STRIPE_SECRET_KEY` from environment | Local/server process |
 | MainPanel Payments | Checkout, entitlement, and reconciliation UX | Payment state and entitlement state | Product payment surface |
+| Stripe Projects | Local project credential provisioning and sync | `.env` and `.projects/vault/` on developer machines | Local development, not production host |
+| `knowgrph-payment` Worker | Hosted Checkout Session creation, status reads, and webhook verification | Cloudflare Worker secrets and D1 checkout-session rows | `airvio.co/api/payments/*` |
 
 ### Integration Contract
 
@@ -314,6 +322,28 @@ sequenceDiagram
 - Never paste `sk_*` or `rk_*` values into MainPanel, markdown docs, fixtures, or tests.
 - Keep payment-mutating tools behind explicit human confirmation.
 - Log tool name, principal, argument hash, result status, latency, and trace id; do not log raw secrets.
+
+### Stripe Projects And Production Worker Configuration
+
+Stripe Projects references:
+
+| Reference | Purpose |
+|---|---|
+| `https://projects.dev/` | Stripe Projects entrypoint and provider catalog |
+| `https://projects.dev/skill.md` | Agent skill entrypoint |
+| `https://docs.stripe.com/projects` | CLI, project state, credential sync, and production environment guidance |
+
+Production checkout configuration belongs to the `knowgrph-payment` Worker:
+
+| Variable | Required For | Current context |
+|---|---|---|
+| `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY` | Stripe API authentication | `STRIPE_SECRET_KEY` is configured on `knowgrph-payment` as of 2026-05-19 |
+| `STRIPE_CHECKOUT_PRICE_ID` | Preferred server-owned checkout price authority | Pending unless configured in Cloudflare |
+| `STRIPE_CHECKOUT_CURRENCY` + `STRIPE_CHECKOUT_UNIT_AMOUNT` + `STRIPE_CHECKOUT_PRODUCT_NAME` | Inline price tuple fallback | Pending unless configured in Cloudflare |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook verification | Required before relying on webhook reconciliation |
+| `STRIPE_CHECKOUT_RETURN_ORIGIN` | Optional return-origin override | Optional |
+
+Do not configure these as browser storage or rely on Cloudflare Pages project variables for the payment route. Pages variables are separate from the standalone `knowgrph-payment` Worker runtime.
 
 ### Quality Attributes
 

@@ -1,5 +1,6 @@
 import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
@@ -138,6 +139,8 @@ const appendAccessPolicyLines = (lines: string[]): void => {
     '- Source Files are read from the D1-backed storage document rows and markdown doc-view route.',
     '- Cloudflare AI Crawl Control Pay Per Crawl, when enabled on the zone, owns payment negotiation before crawler-visible content is served.',
     `- Unpaid crawler requests can receive HTTP 402 with ${code(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price)}; successful paid access can receive HTTP 200 with ${code(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged)}.`,
+    `- AI crawler payment intent can use ${code(CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.exactPrice)} or ${code(CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.maxPrice)} when those headers are signed through Cloudflare Web Bot Auth.`,
+    `- Cloudflare can return ${code(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.error)} when paid crawler access is rejected.`,
     '- This Worker does not emulate payment headers, prices, or crawler identity. It only exposes neutral read-only Source Files content and metadata.',
     `- Pay Per Crawl reference: ${CLOUDFLARE_PAY_PER_CRAWL_DOC_URL}`,
     '',

@@ -6,6 +6,7 @@ import {
 } from '@/lib/storage/knowgrphStorageRxdb'
 import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
   KNOWGRPH_STORAGE_API_VERSION,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
@@ -39,14 +40,23 @@ export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () =>
   if (KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID !== 'kgws:canonical-docs') {
     throw new Error('expected default storage workspace id to stay centralized in the storage contract')
   }
-  if (!CLOUDFLARE_PAY_PER_CRAWL_DOC_URL.includes('/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/')) {
-    throw new Error('expected Pay Per Crawl docs link to stay centralized for crawler access metadata')
+  if (!CLOUDFLARE_PAY_PER_CRAWL_DOC_URL.endsWith('/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/index.md')) {
+    throw new Error('expected Pay Per Crawl markdown docs link to stay centralized for crawler access metadata')
+  }
+  if (CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.exactPrice !== 'crawler-exact-price') {
+    throw new Error('expected Pay Per Crawl exact price request header name to stay centralized')
+  }
+  if (CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.maxPrice !== 'crawler-max-price') {
+    throw new Error('expected Pay Per Crawl maximum price request header name to stay centralized')
   }
   if (CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price !== 'crawler-price') {
     throw new Error('expected Pay Per Crawl price header name to stay centralized')
   }
   if (CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged !== 'crawler-charged') {
     throw new Error('expected Pay Per Crawl charged header name to stay centralized')
+  }
+  if (CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.error !== 'crawler-error') {
+    throw new Error('expected Pay Per Crawl error header name to stay centralized')
   }
   if (KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy !== 'x-knowgrph-pay-per-crawl-policy') {
     throw new Error('expected crawler access policy header name to stay centralized')

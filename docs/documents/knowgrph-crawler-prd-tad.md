@@ -15,6 +15,8 @@
 
 **Directive**: Keep crawler access rooted in the shared storage contract and D1-backed document rows; keep Pay Per Crawl as a Cloudflare zone policy boundary; do not emulate payment headers, prices, crawler identity, parsing, rendering, uploads, or local import behavior in application code.
 
+**Current deployment context**: Dev is `/Users/huijoohwee/Documents/GitHub/knowgrph`; the static production mirror is `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`; Cloudflare serves the app at `airvio.co/knowgrph`, the storage Worker at `airvio.co/api/storage/*`, and the separate payment Worker at `airvio.co/api/payments/*`.
+
 ---
 
 ## Companion Files
@@ -43,6 +45,9 @@ The storage export endpoint is useful for synchronization and backups, but raw J
 
 **Problem 3: Pay Per Crawl policy must not leak into app logic**
 Cloudflare AI Crawl Control Pay Per Crawl can return payment-required or paid-access responses at the zone boundary. The application must declare compatibility without inventing prices, payment status, crawler identity, or app-local paywall decisions.
+
+**Problem 3a: Pay Per Crawl has request-side payment intent**
+Cloudflare's current Pay Per Crawl flow lets verified AI crawlers send signed `crawler-exact-price` or `crawler-max-price` headers. Those headers are Cloudflare/Web Bot Auth concerns, not Knowgrph app state.
 
 **Problem 4: Publication parity needs a crawlable artifact**
 The same crawl surface must survive the Dev -> Prod -> Cloudflare path so production crawlers receive the same route names, metadata shape, and static discovery hints as local validation.
@@ -152,6 +157,7 @@ The same crawl surface must survive the Dev -> Prod -> Cloudflare path so produc
 - **When** an AI crawler requests protected content without acceptable payment intent
 - **Then** Cloudflare can return HTTP 402 with `crawler-price`
 - **And** the Worker does not fabricate a payment-required response
+- **And** the Worker does not generate, inspect, or sign `crawler-exact-price` or `crawler-max-price`
 
 ### Story PRD-E003-S002: Paid Access Metadata Compatibility
 
@@ -164,6 +170,7 @@ The same crawl surface must survive the Dev -> Prod -> Cloudflare path so produc
 - **Given** Cloudflare accepts paid crawler access
 - **When** the request reaches the Worker and content is served
 - **Then** Cloudflare can return HTTP 200 with `crawler-charged`
+- **And** Cloudflare can return `crawler-error` when payment intent is rejected
 - **And** the application response declares only neutral crawler source and policy metadata
 
 ---
@@ -395,8 +402,11 @@ sequenceDiagram
 | `x-robots-tag` | Worker | Allows crawler indexing of the route |
 | `x-knowgrph-crawler-source` | Worker | Identifies D1 document/doc-view source ownership |
 | `x-knowgrph-pay-per-crawl-policy` | Worker | Identifies policy as Cloudflare zone-owned |
+| `crawler-exact-price` | Cloudflare / AI crawler | Request header for exact paid-access intent; must be signed through Web Bot Auth |
+| `crawler-max-price` | Cloudflare / AI crawler | Request header for maximum paid-access intent; must be signed through Web Bot Auth |
 | `crawler-price` | Cloudflare | Price returned with HTTP 402 when crawler payment is required |
 | `crawler-charged` | Cloudflare | Amount returned with HTTP 200 after successful paid crawler access |
+| `crawler-error` | Cloudflare | Error returned when paid crawler access is rejected |
 
 ---
 
@@ -440,7 +450,7 @@ The storage Worker already owns canonical workspace records, revision state, and
 
 ### Context
 
-Cloudflare AI Crawl Control Pay Per Crawl lets site owners control and monetize AI crawler access at the zone boundary. Cloudflare can return HTTP 402 with `crawler-price`, and successful paid access can return HTTP 200 with `crawler-charged`.
+Cloudflare AI Crawl Control Pay Per Crawl lets site owners control and monetize AI crawler access at the zone boundary. Cloudflare can return HTTP 402 with `crawler-price`, verified AI crawlers can send signed `crawler-exact-price` or `crawler-max-price`, successful paid access can return HTTP 200 with `crawler-charged`, and unsuccessful paid access can return `crawler-error`.
 
 ### Decision
 
@@ -513,6 +523,7 @@ Metadata plus doc-view links gives crawlers freshness evidence and direct conten
 - Crawler indexes must not expose local absolute paths, device IDs, user identity, sync outbox records, or conflict logs.
 - Deleted Source Files are excluded from crawler indexes.
 - Pay Per Crawl headers that express price or charged amount belong to Cloudflare, not the Worker.
+- Pay Per Crawl request headers that express crawler payment intent also belong to Cloudflare and verified AI crawler owners; Knowgrph does not sign or synthesize them.
 - Private workspace authorization is out of scope for this slice and must be designed with multi-user membership before enabling private crawling.
 
 ---
@@ -525,7 +536,8 @@ Metadata plus doc-view links gives crawlers freshness evidence and direct conten
 4. Sync built artifacts into the Prod content mirror.
 5. Commit and push the Prod mirror.
 6. Deploy the storage Worker and D1 migrations when Worker code changed.
-7. Verify Cloudflare Pages route and storage Worker route with direct HTTP probes.
+7. Deploy the separate payment Worker when Stripe checkout or webhook code changed.
+8. Verify Cloudflare Pages route, storage Worker route, payment Worker route, and static asset MIME types with direct HTTP probes.
 
 **Rollback Plan**:
 
@@ -546,7 +558,7 @@ Metadata plus doc-view links gives crawlers freshness evidence and direct conten
 | Static artifact | `npm run pages:build` | Built `llms.txt` includes Source Files and access policy |
 | MainPanel MCP readiness | Focused MainPanel MCP crawler/payment render test | MCP hub surfaces crawler routes, Pay Per Crawl boundary, Stripe MCP payment readiness, and no app-local crawler price |
 | Docs map | `python3 ../huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` | Documentation map remains synchronized or is regenerated from canonical docs |
-| Production smoke | Direct Cloudflare route probes after deploy | HTML route and storage crawler route are reachable |
+| Production smoke | Direct Cloudflare route probes after deploy | HTML route, storage crawler route, payment Worker route, and hashed static assets are reachable |
 
 ---
 

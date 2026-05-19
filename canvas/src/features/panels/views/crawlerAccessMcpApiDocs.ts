@@ -1,5 +1,6 @@
 import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
@@ -53,11 +54,13 @@ export function buildCrawlerAccessReadinessManifestJson(): string {
       },
       headers: {
         worker: KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
+        cloudflarePayPerCrawlRequest: CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
         cloudflarePayPerCrawl: CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
       },
       policy: {
         source: 'd1-documents-doc-view',
         payPerCrawlOwner: 'cloudflare-zone-policy',
+        paymentRequestAuth: 'Web Bot Auth',
         readOnly: true,
         appLocalPaymentEmulation: false,
       },
@@ -120,12 +123,20 @@ const CRAWLER_ACCESS_MCP_DOC_ROWS: ReadonlyArray<CrawlerAccessMcpDocRow> = [
     searchHints: Object.values(KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS),
   },
   {
+    key: 'headers.cloudflare_pay_per_crawl_request',
+    typeLabel: 'header list',
+    value: Object.values(CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS).join(' | '),
+    responsibility: 'Cloudflare-owned AI crawler request headers for declaring exact or maximum paid-access intent through Web Bot Auth.',
+    notes: 'Payment request headers must be signed through Cloudflare Web Bot Auth; Knowgrph only surfaces the contract and does not generate crawler payment intent.',
+    searchHints: ['crawler-exact-price', 'crawler-max-price', 'Web Bot Auth', 'payment intent'],
+  },
+  {
     key: 'headers.cloudflare_pay_per_crawl',
     typeLabel: 'header list',
     value: Object.values(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS).join(' | '),
     responsibility: 'Cloudflare-owned Pay Per Crawl response headers for price and charged access signals.',
-    notes: 'Knowgrph exposes compatibility metadata only; Cloudflare owns HTTP 402 pricing and HTTP 200 charged headers.',
-    searchHints: ['crawler-price', 'crawler-charged', 'HTTP 402', 'HTTP 200'],
+    notes: 'Knowgrph exposes compatibility metadata only; Cloudflare owns HTTP 402 pricing, HTTP 200 charged headers, and crawler rejection errors.',
+    searchHints: ['crawler-price', 'crawler-charged', 'crawler-error', 'HTTP 402', 'HTTP 200'],
   },
   {
     key: 'policy.pay_per_crawl_docs',

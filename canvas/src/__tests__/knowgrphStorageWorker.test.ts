@@ -1,6 +1,7 @@
 import storageWorkerModule from '../../../cloudflare/workers/knowgrph-storage/index.ts'
 import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
   KNOWGRPH_STORAGE_API_VERSION,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
@@ -434,7 +435,13 @@ export async function testKnowgrphStorageWorkerServesSourceFilesCrawlerIndex() {
   if (!markdown.includes('# Knowgrph Source Files') || !markdown.includes('Workspace: `wk_crawler`')) {
     throw new Error('expected crawler index to identify the source-files workspace')
   }
-  if (!markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price) || !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged)) {
+  if (
+    !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price)
+    || !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged)
+    || !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.error)
+    || !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.exactPrice)
+    || !markdown.includes(CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.maxPrice)
+  ) {
     throw new Error('expected crawler index to describe Pay Per Crawl payment response semantics without emulating them')
   }
   if (!markdown.includes('https://example.com/api/storage/doc/wk_crawler/huijoohwee%2Fdocs%2Falpha.md')) {

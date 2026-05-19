@@ -25,6 +25,7 @@ import {
 } from 'grph-shared/payments/stripeMcpSsot'
 import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+  CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,
   CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
@@ -209,9 +210,13 @@ export function assertMcpHubSurfacesCrawlerAccessAndPaymentReadiness(container: 
     defaultLlmsPath,
     KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.source,
     KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy,
+    CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.exactPrice,
+    CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS.maxPrice,
     CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.price,
     CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.charged,
+    CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS.error,
     CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
+    'Web Bot Auth',
     'cloudflare-zone-policy',
     'read-only Source Files',
     'D1 document rows',

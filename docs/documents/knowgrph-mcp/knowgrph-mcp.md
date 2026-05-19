@@ -29,6 +29,29 @@ For Knowgrph, MCP should be the integration boundary between:
 
 ## 2) Recommended architecture (Cloudflare-first)
 
+### Current implemented topology
+
+The active deployment path is:
+
+| Stage | Runtime | Responsibility |
+|---|---|---|
+| Dev | `/Users/huijoohwee/Documents/GitHub/knowgrph` | Source-owned MCP, crawler, storage, payment, docs, tests, and Worker configs |
+| Prod mirror | `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` | Synced static Pages artifact only |
+| Cloudflare Pages | `airvio.co/knowgrph` | Static SPA, `llms.txt`, and asset delivery |
+| Storage Worker | `airvio.co/api/storage/*` | D1 push/pull/export/doc-view plus read-only Source Files crawler indexes |
+| Payment Worker | `airvio.co/api/payments/*` | Stripe Checkout Session creation, status reads, and webhook verification |
+
+Current edge split: `knowgrph-storage` owns storage and crawler access; `knowgrph-payment` owns Stripe checkout and webhooks. The two Workers share the D1 database for checkout-session state, but keep route ownership and secrets separate.
+
+MainPanel MCP surfaces two implemented readiness contracts:
+
+- Stripe MCP readiness from the shared Stripe MCP SSOT: official remote MCP URL, local fallback launcher, non-secret config snippets, payment-capable tool labels, and confirmation policy.
+- Crawler Access MCP readiness from the shared storage route contract: Source Files index routes, `llms.txt` routes, doc-view pattern, Worker metadata headers, Cloudflare Pay Per Crawl headers, and read-only guardrails.
+
+Pay Per Crawl remains Cloudflare-owned. The app and Workers do not create `crawler-price`, `crawler-charged`, `crawler-error`, `crawler-exact-price`, or `crawler-max-price`; they only expose crawler-readable content after Cloudflare policy allows the request through.
+
+As of 2026-05-19, `STRIPE_SECRET_KEY` is configured on `knowgrph-payment`; hosted checkout still requires server-owned price authority through `STRIPE_CHECKOUT_PRICE_ID` or `STRIPE_CHECKOUT_CURRENCY` + `STRIPE_CHECKOUT_UNIT_AMOUNT` + `STRIPE_CHECKOUT_PRODUCT_NAME`.
+
 ### 2.1 High-level topology
 
 1. **Cloudflare Pages (static UI)**  

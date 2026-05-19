@@ -37,9 +37,9 @@ export function ImportUrlPrompt(props: {
   const normalizedDraft = String(urlDraft || '')
 
   return (
-    <section className="min-w-0" aria-label="URL import controls">
+    <section className="kg-import-url-prompt min-w-0" aria-label="URL import controls">
       {(WORKSPACE_IMPORT_URL_TEST || WORKSPACE_IMPORT_IMAGE_URL_TEST) ? (
-        <section className="mb-1 flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain">
+        <section className="kg-import-url-presets mb-1 flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain">
           {WORKSPACE_IMPORT_URL_TEST ? (
             <button
               type="button"
@@ -71,11 +71,11 @@ export function ImportUrlPrompt(props: {
         </section>
       ) : null}
 
-      <section className="flex min-w-0 items-stretch gap-1">
+      <section className="kg-import-url-actions flex min-w-0 items-stretch gap-1">
         <input
           ref={inputRef}
           className={cn(
-            'flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border text-xs',
+            'kg-import-url-input flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border text-xs',
             UI_THEME_TOKENS.input.border,
             UI_THEME_TOKENS.input.bg,
             UI_THEME_TOKENS.input.text,
@@ -99,7 +99,7 @@ export function ImportUrlPrompt(props: {
         <button
           type="button"
           className={cn(
-            'h-[var(--kg-control-height,28px)] px-2 inline-flex items-center justify-center rounded border text-xs',
+            'kg-import-url-confirm h-[var(--kg-control-height,28px)] px-2 inline-flex items-center justify-center rounded border text-xs',
             UI_THEME_TOKENS.input.border,
             UI_THEME_TOKENS.button.text,
             UI_THEME_TOKENS.button.hoverBg,
@@ -115,7 +115,7 @@ export function ImportUrlPrompt(props: {
         </button>
       </section>
       {props.rightAddon ? (
-        <section className="mt-1 flex min-w-0 items-stretch gap-1">
+        <section className="kg-import-url-addon mt-1 flex min-w-0 items-stretch gap-1">
           {props.rightAddon}
         </section>
       ) : null}

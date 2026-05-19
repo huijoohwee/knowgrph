@@ -164,6 +164,9 @@
   .kg-toolbar-dropdown-menu,
   .kg-toolbar-dropdown-children,
   .kg-click-expand-menu-children,
+  .kg-anchor-overlay,
+  .kg-details-menu-portal,
+  .kg-anchored-popover,
   .kg-launch-menu-root,
   .kg-column-header-menu,
   .kg-column-header-filter-editor,
@@ -176,6 +179,13 @@
     max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
     overflow: auto;
     overscroll-behavior: contain;
+  }
+
+  .kg-anchor-overlay,
+  .kg-details-menu-portal,
+  .kg-anchored-popover {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .kg-toolbar-dropdown-menu {
@@ -222,6 +232,28 @@
 
   .kg-touch-menu-row {
     min-height: var(--kg-control-height, 28px);
+  }
+
+  .kg-import-url-prompt,
+  .kg-import-url-presets,
+  .kg-import-url-actions,
+  .kg-import-url-addon {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .kg-import-url-actions,
+  .kg-import-url-addon {
+    inline-size: 100%;
+  }
+
+  .kg-import-url-input {
+    min-width: 0;
+  }
+
+  .kg-import-url-confirm {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .kg-data-view-header-controls,
@@ -440,6 +472,47 @@
     }
 
     .kg-touch-menu-row {
+      min-height: var(--kg-touch-target, 44px);
+    }
+
+    .App-toolbar--touch-row-scroll {
+      scroll-padding-inline: 0.5rem;
+      scroll-snap-type: x proximity;
+    }
+
+    .App-toolbar--touch-row-scroll > * {
+      scroll-snap-align: center;
+    }
+
+    .kg-anchor-overlay,
+    .kg-details-menu-portal {
+      min-inline-size: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+    }
+
+    .kg-anchored-popover {
+      max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+    }
+
+    [data-kg-floating-panel-root="true"]:not(.App-toolbar) {
+      --kg-floating-tool-menu-bottom-offset: calc(var(--kg-control-height, 28px) + 2.25rem);
+      top: auto !important;
+      left: calc(var(--kg-safe-left) + 0.5rem) !important;
+      right: calc(var(--kg-safe-right) + 0.5rem);
+      bottom: calc(var(--kg-safe-bottom) + var(--kg-floating-tool-menu-bottom-offset));
+      width: auto !important;
+      max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem) !important;
+      height: min(72dvh, calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-floating-tool-menu-bottom-offset) - 1rem)) !important;
+      max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-floating-tool-menu-bottom-offset) - 1rem) !important;
+    }
+
+    .kg-import-url-actions,
+    .kg-import-url-addon {
+      flex-direction: column;
+    }
+
+    .kg-import-url-input,
+    .kg-import-url-confirm {
+      inline-size: 100%;
       min-height: var(--kg-touch-target, 44px);
     }
 

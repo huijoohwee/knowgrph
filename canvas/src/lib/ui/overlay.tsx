@@ -201,6 +201,7 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
       maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 0.5rem)',
       overflow: 'auto',
       overscrollBehavior: 'contain',
+      WebkitOverflowScrolling: 'touch',
     }),
     [pos],
   )
@@ -222,7 +223,8 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
           }
         }}
         style={{ ...style, pointerEvents: 'auto' }}
-        className={className}
+        className={['kg-anchor-overlay', className].filter(Boolean).join(' ')}
+        data-kg-anchor-overlay="true"
         tabIndex={-1}
       >
         {children}

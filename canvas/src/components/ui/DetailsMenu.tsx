@@ -71,6 +71,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 1rem)',
       overflow: 'auto',
       overscrollBehavior: 'contain',
+      WebkitOverflowScrolling: 'touch',
     }
     if (viewportWidth > 0 && viewportHeight > 0) {
       const clamped = clampOverlayTopLeftFullyInViewport({
@@ -233,6 +234,8 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
                   }
                 }}
                 style={{ ...portalStyle, pointerEvents: 'auto' }}
+                className="kg-details-menu-portal"
+                data-kg-details-menu-portal="true"
               >
                 {menu}
               </div>

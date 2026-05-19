@@ -13,10 +13,15 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
 export const KNOWGRPH_STORAGE_D1_BINDING_NAME = 'DB'
 export const KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID = 'kgws:canonical-docs'
 export const CLOUDFLARE_PAY_PER_CRAWL_DOC_URL =
-  'https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/'
+  'https://developers.cloudflare.com/ai-crawl-control/features/pay-per-crawl/what-is-pay-per-crawl/index.md'
+export const CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS = {
+  exactPrice: 'crawler-exact-price',
+  maxPrice: 'crawler-max-price',
+} as const
 export const CLOUDFLARE_PAY_PER_CRAWL_RESPONSE_HEADERS = {
   price: 'crawler-price',
   charged: 'crawler-charged',
+  error: 'crawler-error',
 } as const
 export const KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS = {
   source: 'x-knowgrph-crawler-source',
