@@ -37,9 +37,11 @@ Implementation:
 
 ## Production note
 
-These middleware endpoints exist for local development and preview builds. For production deployments, mirror the same routes in a real server (or replace them with a dedicated service) so the UI can continue to:
-- Proxy remote media safely
-- Trigger pipeline tasks where appropriate
+These middleware endpoints exist for local development and preview builds. Current production is split by concern:
+
+- Static SPA: `knowgrph/canvas/dist` -> `huijoohwee/content/knowgrph` -> Cloudflare Pages at `airvio.co/knowgrph`
+- Storage and payments API: `cloudflare/workers/knowgrph-storage` -> Cloudflare Worker `knowgrph-storage` at `airvio.co/api/storage/*` and `airvio.co/api/payments/*`
+- Dev-only tooling routes such as remote media proxying and markdown pipeline execution must be promoted to a real server route before relying on them in production.
 
 ## Production Worker API (Cloudflare)
 

@@ -13,7 +13,7 @@ tier: "free + pay-per-use + subscription"
 ai_model: "provider-swappable"
 
 dev_repo: "${KG_GITHUB_ROOT}/knowgrph"
-prod_repo: "${KG_GITHUB_ROOT}/huijoohwee/knowgrph"
+prod_artifact_mirror: "${KG_GITHUB_ROOT}/huijoohwee/content/knowgrph"
 cloudflare_host: "airvio.co/knowgrph"
 
 mini_program_platform: "WeChat Mini Program"

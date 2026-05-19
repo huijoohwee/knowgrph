@@ -8,7 +8,7 @@ This document describes a **lean, MVP** database path for Knowgrph:
 
 It includes **User Flow**, **Work Flow**, and **Data Flow** for “RxDB → PostgreSQL”.
 
-> Context: Dev (`${KG_GITHUB_ROOT}/knowgrph`) → Prod (`${KG_GITHUB_ROOT}/huijoohwee/knowgrph`) → Cloudflare Pages (`airvio.co/knowgrph`).
+> Context: Dev (`${KG_GITHUB_ROOT}/knowgrph`) -> Prod artifact mirror (`${KG_GITHUB_ROOT}/huijoohwee/content/knowgrph`) -> Cloudflare Pages (`airvio.co/knowgrph`).
 >
 > Constraint: Cloudflare Pages is static hosting. If you want a real PostgreSQL-backed API, you need a backend runtime (e.g., Cloudflare Workers + managed Postgres, or any other free-tier-friendly host).
 
@@ -277,4 +277,3 @@ Keep the payload format stable and versioned:
 2. **Export/import stable**: JSON/JSON-LD/CSV roundtrips
 3. **Sync MVP**: push/pull JSON to PostgreSQL (no fancy merge)
 4. **Share MVP**: read-only workspace export via server
-

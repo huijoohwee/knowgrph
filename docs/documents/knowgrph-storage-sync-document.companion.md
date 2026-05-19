@@ -2,8 +2,8 @@
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 2.4.0
-**Date**: 2026-05-08
+**Version**: 2.5.0
+**Date**: 2026-05-19
 
 ---
 
@@ -14,10 +14,10 @@ Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-docume
 Knowgrph source files exist in three disconnected locations:
 
 1. **Dev** (`knowgrph/canvas/src/`) — live editing with RxDB local-first storage
-2. **Prod SSOT** (`huijoohwee/content/knowgrph/`) — static build artifacts on Cloudflare Pages
+2. **Prod SSOT** (`huijoohwee/content/knowgrph/`) — static build artifacts mirrored into the Cloudflare Pages publish repo
 3. **Docs seed** (`huijoohwee/docs/`) — canonical Markdown files for workspace initialization
 
-The client-side sync engine is fully built but has **no server-side endpoint**. Multi-device continuity and collaborative editing are impossible.
+The original gap was a built client-side sync engine with no server-side endpoint. Current Dev -> Prod -> Cloudflare context resolves the shared-store path through the deployed `knowgrph-storage` Worker, remote D1 migrations, and the static `huijoohwee/content/knowgrph` mirror.
 
 ### User Stories
 
@@ -38,6 +38,7 @@ The client-side sync engine is fully built but has **no server-side endpoint**. 
 | Second device opens same workspace | client polls `/api/storage/pull` with last cursor | receives all mutations newer than cursor, applies to local RxDB |
 | File changes in `huijoohwee/docs/` | Dev server seed polling cycle runs | workspace re-reads file and updates source file state |
 | `npm run pages:build-sync` executed | build completes and sync runs | Prod SSOT reflects latest static artifacts |
+| `npm run pages:build-sync-cloudflare` executed | static build/sync completes, remote D1 migrations apply, and Worker deploy runs | Prod mirror and Cloudflare storage routes reflect the same Dev source |
 
 ### Success Metrics
 
@@ -85,7 +86,7 @@ Local field names differ from remote to avoid RxDB reserved-name collisions (`do
 
 - device id provisioning, mutation enqueueing
 - immediate and scheduled sync runs
-- workspace-scoped polling loop (30s default)
+- workspace-scoped polling loop (120s default)
 - export helper, conflict summary callbacks
 
 ### Canvas Runtime Integration
@@ -167,13 +168,13 @@ flowchart TB
 
 **Adoption gates**: multiple concurrent editors; server-side retrieval outgrows D1; vector search becomes runtime requirement; tenancy/analytics/audit justify managed DB overhead.
 
-### ADR-004: Deploy Worker As Pages Function (Co-located With SPA)
+### ADR-004: Deploy Storage API As A Standalone Cloudflare Worker On The Same Zone
 
-**Status**: Accepted. Same domain avoids CORS; same deployment pipeline; D1 binding available via `wrangler.toml`.
+**Status**: Accepted. `cloudflare/workers/knowgrph-storage/wrangler.toml` deploys the `knowgrph-storage` Worker to `airvio.co/api/storage/*` and `airvio.co/api/payments/*` with the D1 binding `knowgrph-storage` (`633355bf-1a52-4085-bd3c-eba4220ff152`). The static SPA remains a Cloudflare Pages artifact served at `airvio.co/knowgrph`.
 
-**Trade-offs**: Pages Functions have 50ms CPU time limit on free tier (sufficient for CRUD); standalone Workers offer more flexibility for future WebSocket/Durable Object integration.
+**Trade-offs**: A standalone Worker requires a separate `storage:deploy` step from the Pages Git push, but keeps D1 route ownership explicit, avoids Pages Function coupling, and leaves room for future WebSocket, Durable Object, crawler, and payments routes.
 
-### ADR-005: Retain Polling-Based Sync (30s) For Phase 1
+### ADR-005: Retain Polling-Based Sync (120s) For Phase 1
 
 **Status**: Accepted. Client-side polling infrastructure already exists; acceptable latency for single-user / small-team use; avoids Durable Objects complexity.
 
@@ -227,10 +228,10 @@ flowchart TB
 
 ### Phase 1 — Worker + D1 (DONE)
 
-1. ~~Create `wrangler.toml` with D1 binding and Pages Function route pattern~~ ✅
+1. ~~Create `wrangler.toml` with D1 binding and standalone Worker route patterns~~ ✅
 2. ~~Apply D1 migration for 6 tables~~ ✅
 3. ~~Deploy Worker handlers for push, pull, export~~ ✅
-4. ~~Wire `pages:build-sync` to deploy Worker alongside static assets~~ ✅
+4. ~~Wire `pages:build-sync-cloudflare` to run static build/sync and then deploy storage through `storage:deploy`~~ ✅
 5. ~~Verify end-to-end: Dev browser push → D1 → second browser pull → state parity~~ ✅
 
 ### Phase 1.5 — Conflict Resilience (DONE)
@@ -259,7 +260,7 @@ flowchart TB
 ### Phase 4 — Real-Time Collaboration (FUTURE)
 
 1. Introduce Cloudflare Durable Objects for per-workspace WebSocket channels
-2. Replace 30s polling with push-based mutation broadcast
+2. Replace 120s polling with push-based mutation broadcast
 3. Add device presence tracking via `sync_devices` table
 4. Implement conflict resolution UI for concurrent edits
 

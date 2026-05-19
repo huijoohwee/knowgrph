@@ -62,7 +62,7 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 | Canonical docs | Upstream documentation | `knowgrph/docs/**`, `knowgrph/todo-log.md`, `knowgrph/README.md` | Merge canonical wording first, then update any mirrors or generated derivatives |
 | Generators and sync logic | Upstream automation | `knowgrph/scripts/**`, `knowgrph/canvas/src/cli/**`, generator inputs | Fix the generator or its input, then rerun the workflow |
 | Schema mirrors | Downstream documentation mirror | `huijoohwee.github.io/schema/AgenticRAG/**` | Update only after the canonical owner is aligned |
-| Publish mirrors | Downstream deploy surface | `huijoohwee/content/knowgrph/**`, `huijoohwee/knowgrph/**` | Never hand-merge; rebuild and resync from `knowgrph` |
+| Publish mirrors | Downstream deploy surface | `huijoohwee/content/knowgrph/**`, managed route files in `huijoohwee/knowgrph/**` | Never hand-merge; rebuild and resync from `knowgrph` |
 
 ---
 
@@ -105,7 +105,7 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 
 ### Publish Mirrors
 
-- Treat `huijoohwee/content/knowgrph/**` and `huijoohwee/knowgrph/**` as deploy artifacts.
+- Treat `huijoohwee/content/knowgrph/**` as the primary Prod artifact mirror and managed `huijoohwee/knowgrph/**` route files as generated deploy artifacts.
 - Rebuild and resync them from `knowgrph` after upstream changes.
 - Reject manual conflict resolutions inside copied assets unless the sync workflow itself is broken.
 
@@ -133,6 +133,12 @@ To rebuild and then sync:
 
 ```bash
 npm run pages:build-sync
+```
+
+To rebuild, sync, apply remote D1 migrations, and deploy the storage Worker:
+
+```bash
+npm run pages:build-sync-cloudflare
 ```
 
 ### Docs And Schema

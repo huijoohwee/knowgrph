@@ -3,7 +3,7 @@
 ## Context
 
 - Dev repo: `${KG_GITHUB_ROOT}/knowgrph` (**MainPanel Maps**)
-- Prod repo: `${KG_GITHUB_ROOT}/huijoohwee/knowgrph`
+- Prod artifact mirror: `${KG_GITHUB_ROOT}/huijoohwee/content/knowgrph`
 - Deployment: Cloudflare (`airvio.co/knowgrph`)
 - Reference docs: https://maps.grab.com/developer/documentation
 - Constraint: **FORBID update code** (this document is recommendation only)
@@ -141,4 +141,3 @@ Choose this only if you need custom rendering that MapLibre layers can’t easil
 - Initializing a map (builder + MapLibre options): https://maps.grab.com/developer/documentation/initializing-map  
 - Route & Navigate (Directions API, polyline6 geometry, parameters): https://maps.grab.com/developer/documentation/routes  
 - GrabMapsLib configuration (routing + overlays like pins/polygons): https://maps.grab.com/developer/documentation/ui-library-config  
-

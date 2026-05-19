@@ -6,8 +6,8 @@
 
 ---
 
-**Version**: 2.5.0
-**Date**: 2026-05-13
+**Version**: 2.6.0
+**Date**: 2026-05-19
 **Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view, deep link canvas rendering, D1 write amplification neutralized)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
@@ -95,6 +95,7 @@ flowchart TB
     end
 
     Dev -->|"npm run pages:build-sync"| ProdSSOT
+    Dev -->|"npm run storage:deploy"| Edge
 
     subgraph ProdSSOT["Prod SSOT: huijoohwee/content/knowgrph/"]
         index["index.html + sw.js"]
@@ -234,6 +235,7 @@ flowchart TB
 
     Dev -->|"npm run storage:worker:dev"| LocalWorker
     Dev -->|"npm run pages:build-sync"| ProdSSOT
+    Dev -->|"npm run storage:deploy"| Edge
 
     subgraph LocalWorker["Local Worker (localhost:8787)"]
         push["POST /api/storage/push"]
@@ -322,14 +324,16 @@ flowchart TB
 | Worker | Contract re-export | `workers/knowgrph-storage/contract.ts` | Built |
 | Worker | Wrangler config | `workers/knowgrph-storage/wrangler.toml` | Built |
 | D1 | Migration SQL | `d1/migrations/0001_knowgrph_storage.sql` | Built |
-| Edge | Deployed Worker | `wrangler.toml` + `index.ts` | **Pending deploy** (API token) |
-| Edge | Provisioned D1 | `633355bf-…152` | **Pending migrate** (API token) |
+| Edge | Deployed Worker | `wrangler.toml` + `index.ts` | **Deployed** — `knowgrph-storage` routes `airvio.co/api/storage/*` and `airvio.co/api/payments/*` |
+| Edge | Provisioned D1 | `633355bf-…152` | **Migrated** — remote D1 migrations apply through `npm run storage:d1:migrate:remote` |
 
 ### Deploy & Test
 
 | Layer | Component | File | Status |
 |---|---|---|---|
 | Deploy | Pages sync script | `scripts/sync-pages-knowgrph.mjs` | Built |
+| Deploy | Static build + sync | `npm run pages:build-sync` | Built |
+| Deploy | Static + storage deploy | `npm run pages:build-sync-cloudflare` | Built |
 | Test | D1 fake | `__tests__/helpers/fakeKnowgrphStorageD1.ts` | Built |
 | Future | PostgreSQL backend | — | Deferred |
 

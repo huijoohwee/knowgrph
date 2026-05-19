@@ -4,8 +4,8 @@
 
 This document maps user-facing features to built chunk families and ranks their likely mobile impact. It is based on:
 
-- The built asset directory at `${KG_GITHUB_ROOT}/huijoohwee/content/knowgrph/assets`
-- The deployed shell entry at `${KG_GITHUB_ROOT}/huijoohwee/knowgrph/index.html`
+- The primary built asset directory at `${KG_GITHUB_ROOT}/huijoohwee/content/knowgrph/assets`
+- The managed public-route shell entry at `${KG_GITHUB_ROOT}/huijoohwee/knowgrph/index.html`
 - Source-level lazy imports and worker entry points in `knowgrph/canvas/src`
 - Rollup/Vite manual chunk rules in `knowgrph/canvas/vite.config.ts`
 
