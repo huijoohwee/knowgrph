@@ -3,6 +3,7 @@ import { Search as SearchIcon, X as CloseIcon, Save as SaveIcon, RotateCcw as Re
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
+import { uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 interface HeaderActionsProps {
   onSearchToggle?: () => void
@@ -45,7 +46,7 @@ export default function HeaderActions({
   const showCloseButton = typeof onClose === 'function'
 
   return (
-    <div className="flex max-w-full flex-wrap items-center justify-end gap-1">
+    <div className={`${uiToolbarRowScrollJustifyEndClassName} gap-1`}>
       {showSearchButton ? (
         <IconButton
           className="App-toolbar__btn"

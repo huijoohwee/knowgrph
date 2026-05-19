@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { resolveDataViewChipClass } from './MarkdownDataViewChips'
 import { toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 const normalizeTagText = (raw: string): string => {
   return String(raw ?? '')
@@ -121,34 +122,34 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
 
   return (
     <section
-      className={['rounded border p-2', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border].join(' ')}
+      className={['min-w-0 max-w-full rounded border p-2', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border].join(' ')}
       aria-label="Multi-tag select"
     >
-      <header className="flex flex-wrap gap-1 items-center">
-        <ul className="flex flex-wrap gap-1 items-center list-none m-0 p-0" aria-label="Selected tags">
+      <header className="flex min-w-0 max-w-full flex-wrap gap-1 items-center">
+        <ul className="flex min-w-0 max-w-full flex-wrap gap-1 items-center list-none m-0 p-0" aria-label="Selected tags">
           {selected.map(t => (
             <li key={t} className="list-none">
-              <span className={['inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
-                <span>{t}</span>
+              <span className={['inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
+                <span className={UI_TEXT_TRUNCATE}>{t}</span>
                 <button
                   type="button"
-                  className={['inline-flex items-center justify-center w-4 h-4 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  className={['inline-flex shrink-0 items-center justify-center w-4 h-4 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                   aria-label={`Remove ${t}`}
                   onClick={() => removeTag(t)}
                 >
-                  <X className={['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                  <X className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                 </button>
               </span>
             </li>
           ))}
         </ul>
 
-        <form className="flex-1 min-w-[120px]" aria-label="Tag input" onSubmit={e => e.preventDefault()}>
+        <form className="min-w-0 flex-1 sm:min-w-[120px]" aria-label="Tag input" onSubmit={e => e.preventDefault()}>
           <input
             autoFocus={props.autoFocus}
             value={query}
             placeholder={MARKDOWN_DATA_VIEW_COPY.multiTagTypeHerePlaceholder}
-            className={['w-full bg-transparent outline-none text-xs', UI_THEME_TOKENS.text.primary].join(' ')}
+            className={['w-full min-w-0 bg-transparent outline-none text-xs', UI_THEME_TOKENS.text.primary].join(' ')}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
           />
@@ -164,14 +165,14 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
           <li className="list-none">
             <button
               type="button"
-              className={['w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => {
                 toggleTag(createCandidate)
                 setQuery('')
               }}
             >
               <PlusIcon />
-              <span className={UI_THEME_TOKENS.text.primary}>{MARKDOWN_DATA_VIEW_COPY.multiTagCreateLabel(createCandidate)}</span>
+              <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.multiTagCreateLabel(createCandidate)}</span>
             </button>
           </li>
         ) : null}
@@ -180,25 +181,25 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
           const active = selectedSet.has(t.toLowerCase())
           return (
             <li key={t} className="list-none">
-              <div className={['w-full flex items-center gap-2 px-2 py-1.5 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+              <div className={['w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
                 <button
                   type="button"
-                  className="flex items-center gap-2 flex-1 text-left"
+                  className="kg-menu-row flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-hidden text-left"
                   onClick={() => toggleTag(t)}
                   aria-pressed={active}
                 >
-                  <span className={['inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
-                    {t}
+                  <span className={['inline-flex min-w-0 max-w-full flex-nowrap items-center overflow-hidden px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(t)].join(' ')}>
+                    <span className={UI_TEXT_TRUNCATE}>{t}</span>
                   </span>
-                  {active ? <Check className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
+                  {active ? <Check className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
                 </button>
                 <button
                   type="button"
-                  className={['inline-flex items-center justify-center w-7 h-7 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  className={['inline-flex shrink-0 items-center justify-center w-7 h-7 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                   aria-label={`More for ${t}`}
                   disabled
                 >
-                  <MoreHorizontal className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                  <MoreHorizontal className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                 </button>
               </div>
             </li>
@@ -211,7 +212,7 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
 
 function PlusIcon() {
   return (
-    <span className={['inline-flex items-center justify-center w-5 h-5 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')} aria-hidden="true">
+    <span className={['inline-flex shrink-0 items-center justify-center w-5 h-5 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')} aria-hidden="true">
       +
     </span>
   )

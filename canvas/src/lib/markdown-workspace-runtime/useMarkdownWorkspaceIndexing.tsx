@@ -11,7 +11,7 @@ import {
   WORKSPACE_ROOT_PATH,
 } from '@/features/workspace-fs/path'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
-import { getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceSeedFiles, isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -25,7 +25,6 @@ import { runInIdle } from '@/features/panels/utils/idle'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
-import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
 import {
   cancelMarkdownWorkspaceIndexStart,
   scheduleMarkdownWorkspaceIndexStart,
@@ -47,7 +46,6 @@ import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownW
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { resolveWorkspaceSourceFileInlineText, upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
-import { resolveMarkdownWorkspaceFrontmatterLanding } from './markdownWorkspaceFrontmatterLanding'
 export { shouldTrustEmptyWorkspaceSelectionCache } from './markdownWorkspaceSelectionCache'
 
 const WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS = 240_000
@@ -237,35 +235,20 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             })
             const previouslyIndexedHash = args.lastIndexedByPathRef.current.get(path)
             const alreadyIndexedForTextHash = typeof previouslyIndexedHash === 'string' && previouslyIndexedHash === textHash
-            const graphState = useGraphStore.getState()
-            const frontmatterLanding = resolveMarkdownWorkspaceFrontmatterLanding({
-              activeDocumentKey: args.activeDocumentKey, nextText,
-              maxChars: WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS,
-              alreadyIndexedForTextHash,
-              currentMarkdownDocumentName: graphState.markdownDocumentName, currentMarkdownDocumentText: graphState.markdownDocumentText,
-            })
-            if (!alreadyIndexedForTextHash || frontmatterLanding.shouldApply) {
-              if (frontmatterLanding.shouldApply) {
-                pushWorkspaceTextToActiveMarkdownDocument({
-                  activeDocumentKey: args.activeDocumentKey,
-                  activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
-                  setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-                  text: nextText,
-                  applyViewPreset: true,
-                  applyToGraph: true,
-                  forceApplyToGraph: true,
-                  canvasWorkspacePreset: frontmatterLanding.preset,
-                  normalizeWebpageFrontmatterToMarkdown: false,
-                })
-              } else {
-                pushWorkspaceTextToActiveMarkdownDocument({
-                  activeDocumentKey: args.activeDocumentKey,
-                  activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
-                  setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-                  text: nextText,
-                  applyViewPreset: false,
-                })
-              }
+            if (!alreadyIndexedForTextHash) {
+              const shouldApplyWorkspaceSwitchGraph =
+                isInitializationWorkspacePath(path) &&
+                nextText.length <= WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS
+              pushWorkspaceTextToActiveMarkdownDocument({
+                activeDocumentKey: args.activeDocumentKey,
+                activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+                setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+                text: nextText,
+                applyViewPreset: false,
+                applyToGraph: shouldApplyWorkspaceSwitchGraph,
+                forceApplyToGraph: shouldApplyWorkspaceSwitchGraph,
+                normalizeWebpageFrontmatterToMarkdown: false,
+              })
             }
           }
 
@@ -377,16 +360,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 String(existing?.status || '').toLowerCase() === 'parsed' &&
                 existing?.error == null
               )
-              const applyComposedFromSourceFiles = async () => {
-                if (isStaleJob()) return
-                try {
-                  const mod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
-                  if (!isStaleJob()) mod.scheduleApplyComposedGraphFromSourceFiles()
-                } catch {
-                  void 0
-                }
-              }
-
               if (workspaceSourceAlreadyMaterialized) {
                 if (!isStaleJob()) rememberIndexedForPath(path, hash)
                 return
@@ -461,8 +434,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
 
               if (geoGraph) {
                 if (isStaleJob()) return
-                await maybeAutoEnableGeospatialModeForGraphData({ graphData: geoGraph, openSidePanel: true })
-                if (isStaleJob()) return
                 try {
                   store.updateSourceFile(fileId, {
                     ...buildSourceFileLifecycleState({
@@ -475,7 +446,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 } catch {
                   void 0
                 }
-                await applyComposedFromSourceFiles()
                 if (!isStaleJob()) rememberIndexedForPath(path, hash)
                 return
               }
@@ -496,7 +466,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 } catch {
                   void 0
                 }
-                await applyComposedFromSourceFiles()
               } else {
                 if (isStaleJob()) return
                 const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
@@ -530,7 +499,6 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                   } catch {
                     void 0
                   }
-                  await applyComposedFromSourceFiles()
                 } else if (!isStaleJob()) {
                   try {
                     store.updateSourceFile(fileId, {
@@ -557,7 +525,9 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             applyLoadFailedStatus(e)
           }
         } finally {
-          clearMarkdownWorkspaceIndexingInFlight(args, scheduledFor, effectJobId)
+          if (args.indexingInFlightPathRef.current === scheduledFor) {
+            clearMarkdownWorkspaceIndexingInFlight(args, scheduledFor, effectJobId)
+          }
           clearRuntimeTimeout(loadingLabelTimer)
         }
       })()
@@ -569,7 +539,9 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     return () => {
       cancelled = true
       cancelMarkdownWorkspaceIndexStart()
-      clearMarkdownWorkspaceIndexingInFlight(args, scheduledFor)
+      if (args.indexingInFlightPathRef.current === scheduledFor) {
+        clearMarkdownWorkspaceIndexingInFlight(args, scheduledFor)
+      }
     }
   }, [
     applyIndexedStatus,

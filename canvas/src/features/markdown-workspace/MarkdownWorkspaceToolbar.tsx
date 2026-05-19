@@ -18,6 +18,11 @@ import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/fro
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import {
+  uiToolbarRowScrollInlineClassName,
+  uiToolbarRowScrollJustifyEndClassName,
+  uiToolbarRowScrollListClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import { closeWorkspaceView } from '@/features/workspace-table/workspaceTableSsot'
 import {
   DEFAULT_MARKDOWN_WORKSPACE_PANE_AVAILABILITY,
@@ -80,7 +85,7 @@ export type MarkdownWorkspaceToolbarProps = {
   onContentFormatChange?: (format: 'markdown' | 'json') => void | Promise<void>
 }
 
-const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
 
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
@@ -252,7 +257,7 @@ export function MarkdownWorkspaceToolbar({
 
     return (
       <span
-        className="inline-flex gap-1 flex-wrap"
+        className={`${uiToolbarRowScrollInlineClassName} gap-1`}
         aria-label="Webpage signals"
         title="Derived from the current markdown: link labels (NAV/CTA) plus detected price/time tokens."
       >
@@ -267,23 +272,23 @@ export function MarkdownWorkspaceToolbar({
   }, [panelTypography.microLabelClass, webpageSignalSummary])
 
   const paneToggleLabelClass = (available: boolean): string =>
-    `inline-flex items-center gap-1 text-xs select-none ${available ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`
+    `inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden text-xs select-none ${available ? 'cursor-pointer' : 'cursor-not-allowed opacity-45'}`
   const paneToggleTitle = (label: string, available: boolean): string =>
     available ? label : `${label} not applicable for this Source File`
 
   return (
-      <WorkspaceHeaderRow className="kg-toolbar h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
+      <WorkspaceHeaderRow className="kg-toolbar min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
         {webpageSignalsNode ? (
-          <span className="min-w-0 flex items-center">
+          <span className="flex min-w-0 max-w-full items-center overflow-hidden">
             <span className="sr-only">Workspace editor</span>
             {webpageSignalsNode}
           </span>
         ) : (
           <span className="sr-only">Workspace editor</span>
         )}
-        <CollapsibleToolbar className="kg-toolbar kg-workspace-toolbar-controls flex items-center justify-end" ariaLabel="Markdown view controls">
+        <CollapsibleToolbar className={`kg-toolbar kg-workspace-toolbar-controls ${uiToolbarRowScrollJustifyEndClassName} gap-1`} ariaLabel="Markdown view controls">
           {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
-            <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
+            <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Webpage">
             <li className="list-none">
               <WorkspaceModeSelect<'inherit' | '1' | '2' | '3' | '4'>
                 ariaLabel="Webpage fidelity level"
@@ -305,21 +310,21 @@ export function MarkdownWorkspaceToolbar({
           </menu>
         ) : null}
 
-        <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Layout mode">
+        <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Layout mode">
           <li className="list-none">
             <fieldset
               id={workspacePanesControlId}
-              className={`inline-flex items-center gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+              className={`kg-workspace-pane-toggles ${uiToolbarRowScrollInlineClassName} gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
               aria-label="Workspace panes"
               title="Workspace panes"
             >
-              <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+              <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden text-xs cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={explorerOpen}
                   onChange={() => setExplorerOpen(!explorerOpen)}
                 />
-                <span>Explorer</span>
+                <span className={UI_TEXT_TRUNCATE}>Explorer</span>
               </label>
               <label className={paneToggleLabelClass(effectivePaneAvailability.bin)} title={paneToggleTitle('bin', effectivePaneAvailability.bin)}>
                 <input
@@ -328,7 +333,7 @@ export function MarkdownWorkspaceToolbar({
                   disabled
                   aria-disabled="true"
                 />
-                <span>bin</span>
+                <span className={UI_TEXT_TRUNCATE}>bin</span>
               </label>
               <label className={paneToggleLabelClass(effectivePaneAvailability.json)} title={paneToggleTitle('JSON', effectivePaneAvailability.json)}>
                 <input
@@ -341,7 +346,7 @@ export function MarkdownWorkspaceToolbar({
                     handleContentPaneToggle('json')
                   }}
                 />
-                <span>JSON</span>
+                <span className={UI_TEXT_TRUNCATE}>JSON</span>
               </label>
               <label className={paneToggleLabelClass(effectivePaneAvailability.markdown)} title={paneToggleTitle('Markdown', effectivePaneAvailability.markdown)}>
                 <input
@@ -354,7 +359,7 @@ export function MarkdownWorkspaceToolbar({
                     handleContentPaneToggle('markdown')
                   }}
                 />
-                <span>Markdown</span>
+                <span className={UI_TEXT_TRUNCATE}>Markdown</span>
               </label>
               <label className={paneToggleLabelClass(effectivePaneAvailability.viewer)} title={paneToggleTitle('Viewer', effectivePaneAvailability.viewer)}>
                 <input
@@ -367,7 +372,7 @@ export function MarkdownWorkspaceToolbar({
                     handleSplitPaneToggle('viewer')
                   }}
                 />
-                <span>Viewer</span>
+                <span className={UI_TEXT_TRUNCATE}>Viewer</span>
               </label>
               <label className={paneToggleLabelClass(htmlPaneAvailable)} title={paneToggleTitle('HTML', htmlPaneAvailable)}>
                 <input
@@ -377,16 +382,16 @@ export function MarkdownWorkspaceToolbar({
                   aria-disabled={!htmlPaneAvailable}
                   onChange={handleHtmlPaneToggle}
                 />
-                <span>HTML</span>
+                <span className={UI_TEXT_TRUNCATE}>HTML</span>
               </label>
               {typeof canvasOpen === 'boolean' && typeof setCanvasOpen === 'function' ? (
-                <label className="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden text-xs cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={canvasOpen}
                     onChange={() => setCanvasOpen(!canvasOpen)}
                   />
-                  <span>Canvas</span>
+                  <span className={UI_TEXT_TRUNCATE}>Canvas</span>
                 </label>
               ) : null}
             </fieldset>
@@ -436,7 +441,7 @@ export function MarkdownWorkspaceToolbar({
             setMarkdownWordWrap={setMarkdownWordWrap}
           />
         ) : null}
-        <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
+        <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Actions">
           <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Fullscreen" onClick={onToggleFullscreen}>
               <Maximize2 className="w-4 h-4" strokeWidth={1.6} />

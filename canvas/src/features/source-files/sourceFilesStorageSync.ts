@@ -1,5 +1,7 @@
 import type { SourceFile } from '@/hooks/store/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashSignatureParts } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { readEnvString } from '@/lib/config.env'
 import { toCloneSafeObject } from '@/lib/storage/cloneSafe'
 import {
@@ -16,6 +18,11 @@ import {
   normalizeSourceFilesWorkspaceState,
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesWorkspaceState'
+import {
+  getSourceFileTextHash,
+  isWorkspaceBackedSourceFile,
+} from '@/features/source-files/sourceFilesSignatures'
+import type { GraphData } from '@/lib/graph/types'
 
 const KNOWGRPH_SOURCE_FILE_DOCUMENT_ID_PREFIX = 'sf:'
 const KNOWGRPH_SOURCE_FILE_GRAPH_SNAPSHOT_ID_PREFIX = 'sf-graph:'
@@ -49,33 +56,38 @@ export const readKnowgrphSourceFileIdFromDocumentId = (value: unknown): string =
     : ''
 }
 
-const buildSourceFileDocumentHash = (file: SourceFile): string =>
-  hashStringToHex(
-    [
-      normalizeSourceFileCanonicalPath(file),
-      normalizeString(file.name),
-      String(file.text || ''),
-    ].join('|'),
-  )
+const buildSourceFileDocumentHash = (file: SourceFile): string => {
+  const text = String(file.text || '')
+  return hashSignatureParts([
+    'source-file-document',
+    normalizeSourceFileCanonicalPath(file),
+    normalizeString(file.name),
+    text.length,
+    getSourceFileTextHash(file),
+  ])
+}
 
 const readSourceFileGraphDataSemanticHash = (value: unknown): string => {
   if (!value || typeof value !== 'object') return hashStringToHex('{}')
   const objectValue = value as object
   const cached = sourceFileGraphDataHashCache.get(objectValue)
   if (cached) return cached
-  const next = hashStringToHex(JSON.stringify(value))
+  const semanticHash = hashStringToHex(JSON.stringify(value))
+  const next = buildScopedGraphSemanticKey('source-file-storage-graph', {
+    graphData: value as GraphData,
+    graphSemanticKey: semanticHash,
+  }) || semanticHash
   sourceFileGraphDataHashCache.set(objectValue, next)
   return next
 }
 
 const buildSourceFileGraphHash = (file: SourceFile): string =>
-  hashStringToHex(
-    [
-      normalizeString(file.id),
-      normalizeString(file.parsedParserId),
-      readSourceFileGraphDataSemanticHash(file.parsedGraphData),
-    ].join('|'),
-  )
+  hashSignatureParts([
+    'source-file-graph',
+    normalizeString(file.id),
+    normalizeString(file.parsedParserId),
+    readSourceFileGraphDataSemanticHash(file.parsedGraphData),
+  ])
 
 const buildSourceFileStorageSyncToken = (file: SourceFile): string => {
   const id = normalizeString(file.id)
@@ -180,8 +192,7 @@ const shouldSyncSourceFile = (file: SourceFile | null | undefined): file is Sour
   if (!file) return false
   const id = normalizeString(file.id)
   if (!id) return false
-  const sourcePath = normalizeString(file.source?.path)
-  if (sourcePath.startsWith('workspace:')) return false
+  if (isWorkspaceBackedSourceFile(file)) return false
   const text = String(file.text || '')
   const canonicalPath = normalizeSourceFileCanonicalPath(file)
   return !!canonicalPath || !!text.trim()

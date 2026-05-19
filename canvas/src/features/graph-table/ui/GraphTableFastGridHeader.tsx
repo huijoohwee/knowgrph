@@ -9,6 +9,7 @@ import { GraphTableColumnKindMenu, labelForGraphColumnKind } from '@/features/gr
 import type { GraphColumnKind } from '@/features/graph-table-db/graphTableDb'
 import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu'
 import type { GraphTableFilterOperator, GraphTableSortDirection } from '@/features/graph-table/ui/graphTableViewState'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 type GraphTableGridModel = ReturnType<typeof useGraphTableGridModel>
 
@@ -135,7 +136,7 @@ export function GraphTableFastGridHeader(props: {
               <button
                 key={col.id}
                 type="button"
-                className={`h-full flex items-center leading-none px-2 border-r pointer-events-auto ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.textSecondary} font-semibold`}
+                className={`h-full min-w-0 overflow-hidden flex items-center leading-none px-2 border-r pointer-events-auto ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.textSecondary} font-semibold`}
                 style={{ width: col.width, backgroundColor: bg }}
                 onClick={() => {
                   props.selectedColumnIdRef.current = col.id
@@ -143,7 +144,7 @@ export function GraphTableFastGridHeader(props: {
                   props.scheduleDraw()
                 }}
               >
-                {col.title}
+                <span className={UI_TEXT_TRUNCATE}>{col.title}</span>
               </button>
             )
           })}
@@ -177,7 +178,7 @@ export function GraphTableFastGridHeader(props: {
                     ariaLabel={`Property type: ${col.title}`}
                     label={col.title}
                     detailsClassName="relative w-full h-full pointer-events-auto"
-                    summaryClassName={`list-none h-full w-full leading-none px-2 flex items-center justify-between gap-2 cursor-pointer ${UI_THEME_TOKENS.table.textSecondary} font-semibold`}
+                    summaryClassName={`list-none h-full w-full min-w-0 overflow-hidden leading-none px-2 flex items-center justify-between gap-2 cursor-pointer ${UI_THEME_TOKENS.table.textSecondary} font-semibold`}
                     menuClassName="absolute left-0 mt-2"
                     portal
                     portalPlacement="bottom-start"

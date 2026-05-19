@@ -64,6 +64,7 @@ import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/Marqu
 import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -89,7 +90,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const activeRef = useRef<boolean>(true)
   activeRef.current = !!active
-
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null)
   const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null)
   const groupChevronSelRef = useRef<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>(null)
@@ -142,6 +142,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     selectNode,
     markdownDocumentName,
     markdownDocumentText,
+    markdownDocumentApplyViewPreset,
   } = useGraphStore(
     useShallow(s => {
       if (!active) {
@@ -175,6 +176,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           selectNode: s.selectNode,
           markdownDocumentName: null,
           markdownDocumentText: '',
+          markdownDocumentApplyViewPreset: false,
         }
       }
       return {
@@ -207,10 +209,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         selectNode: s.selectNode,
         markdownDocumentName: s.markdownDocumentName,
         markdownDocumentText: s.markdownDocumentText,
+        markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
       }
     }),
   )
-
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({ name: markdownDocumentName, text: markdownDocumentText, applyViewPreset: markdownDocumentApplyViewPreset !== false })
   const documentViewMode = useMemo(() => {
     return readDocumentViewModeContext({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
@@ -442,25 +445,22 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [sceneGraphData])
   const flowState = useMemo(() => computeFlowState(sceneGraphData as GraphData | null), [sceneGraphData])
 
-  const deferredMarkdownDocumentText = React.useDeferredValue(markdownDocumentText)
+  const deferredMarkdownDocumentText = React.useDeferredValue(canvasMarkdownDocument.text)
   const markdownDesignLayout: MarkdownDesignLayout | null = useMemo(() => {
     const markdownText = String(deferredMarkdownDocumentText || '')
     if (!markdownText.trim()) return null
-    const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
+    const activeDocumentPath = String(canvasMarkdownDocument.name || '').trim() || 'markdown'
     const markdownTokensKey = buildMarkdownTokensKey(markdownText)
     return pipelinePerfMeasureSync({
       name: 'render',
       stage: 'graphRoot:markdownLayout',
-      detail: {
-        textLength: markdownText.length,
-        activeDocumentPath,
-      },
+      detail: { textLength: markdownText.length, activeDocumentPath },
       run: () => {
         const lexed = lexMarkdown(markdownText)
         return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
       },
     })
-  }, [markdownDocumentName, deferredMarkdownDocumentText])
+  }, [canvasMarkdownDocument.name, deferredMarkdownDocumentText])
 
   const nodeByIdForPanelsRef = useRef<{ graphSemanticKey: string; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
     graphSemanticKey: '',
@@ -733,7 +733,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [markdownPanelLayoutLive])
   const markdownPanelLayoutForOverlay = markdownPanelLayoutLive || markdownPanelLayoutRef.current
 
-  const markdownOverlayEnabled = active && (!!String(markdownDocumentText || '').trim() || !!markdownPanelLayoutForOverlay)
+  const markdownOverlayEnabled = active && (!!String(canvasMarkdownDocument.text || '').trim() || !!markdownPanelLayoutForOverlay)
 
   const { panelOnlyNodeIdsKey, panelOnlyNodeIdSet } = useMemo(() => {
     if (graphBlockPanel) {
@@ -1122,8 +1122,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       <MarkdownDesignOverlay
         enabled={markdownOverlayEnabled}
         svgRef={svgRef}
-        markdownDocumentName={markdownDocumentName}
-        markdownDocumentText={markdownDocumentText}
+        markdownDocumentName={canvasMarkdownDocument.name}
+        markdownDocumentText={canvasMarkdownDocument.text}
         allowedKinds={markdownPanelAllowedKinds}
         layoutOverride={markdownPanelLayoutForOverlay}
         anchorNodeIdByBlockId={markdownAnchorNodeIdByBlockId}

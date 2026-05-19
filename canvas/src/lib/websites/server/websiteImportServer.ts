@@ -4,14 +4,16 @@ import { randomUUID } from 'node:crypto'
 import {
   clampInt,
   extractXmlLocs,
+  extractInternalUrlCandidatesFromHtml,
   fetchTextWithLimit,
   hashHex,
-  isSameHost,
+  isCrawlableInternalUrl,
   looksLikeSitemapIndex,
   normalizeUrl,
   safeJsonParse,
   urlToTreePath,
 } from './websiteImportCore'
+import { buildWebsiteSemanticSnapshotFromHtml } from '../websiteSemanticSnapshot'
 
 type WebsiteImportStatus = 'queued' | 'running' | 'done' | 'failed'
 
@@ -34,8 +36,14 @@ type WebsiteImportNode = {
   status: 'ok' | 'error'
   artifacts: {
     rawHtmlRelPath?: string
+    rawHtmlBytes?: number
+    rawHtmlSha256?: string
     markdownRelPath?: string
+    markdownBytes?: number
+    markdownSha256?: string
     conversionJsonRelPath?: string
+    conversionJsonBytes?: number
+    conversionJsonSha256?: string
   }
 }
 
@@ -70,6 +78,7 @@ type WebsiteImportOptions = {
 }
 
 const isHttpUrl = (raw: string): boolean => /^https?:\/\//i.test(String(raw || '').trim())
+const WEBSITE_IMPORT_PAGE_MAX_BYTES = 32 * 1024 * 1024, WEBSITE_IMPORT_DISCOVERY_MAX_BYTES = 4 * 1024 * 1024
 
 const posixPathFromFsAbs = (absPath: string): string => String(absPath || '').replace(/\\/g, '/').replace(/^\/+/, '')
 
@@ -219,19 +228,7 @@ const crawlInternalUrls = async (args: {
   const enqueue = (candidate: string) => {
     const normalized = normalizeUrl(candidate)
     if (!normalized) return
-    if (!isSameHost(normalized, root)) return
-    try {
-      const u = new URL(normalized)
-      const p = u.pathname || '/'
-      if (p.startsWith('/cdn-cgi/')) return
-      const leaf = p.split('/').pop() || ''
-      const ext = leaf.includes('.') ? leaf.split('.').pop()?.toLowerCase() || '' : ''
-      if (ext && ['css', 'js', 'mjs', 'map', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip'].includes(ext)) {
-        return
-      }
-    } catch {
-      void 0
-    }
+    if (!isCrawlableInternalUrl(normalized, root)) return
     if (visited.has(normalized)) return
     visited.add(normalized)
     queue.push(normalized)
@@ -241,7 +238,6 @@ const crawlInternalUrls = async (args: {
   for (const u of args.seedUrls) enqueue(u)
 
   const out: string[] = []
-  const hrefRe = /\bhref\s*=\s*(["'])([^"']+)\1/gi
   let fetched = 0
   const fetchLimit = Math.max(6, Math.min(120, maxPages * 3))
   let queueIdx = 0
@@ -255,20 +251,8 @@ const crawlInternalUrls = async (args: {
     const htmlRes = await fetchTextWithLimit(u, { timeoutMs: args.timeoutMs, maxBytes: args.maxBytes, accept: 'text/html,*/*;q=0.9' })
     if (!htmlRes.ok) continue
     const html = String(htmlRes.text || '')
-    let m: RegExpExecArray | null
-    hrefRe.lastIndex = 0
-    while ((m = hrefRe.exec(html))) {
-      const href = String(m[2] || '').trim()
-      if (!href) continue
-      if (/^(javascript|data|mailto):/i.test(href)) continue
-      if (href.startsWith('#')) continue
-      try {
-        const resolved = new URL(href, u)
-        resolved.hash = ''
-        enqueue(resolved.toString())
-      } catch {
-        void 0
-      }
+    for (const href of extractInternalUrlCandidatesFromHtml(html, u, root)) {
+      enqueue(href)
       if (visited.size >= maxPages) break
     }
   }
@@ -285,7 +269,7 @@ const collectSitemapUrls = async (rootUrl: string, sitemapUrl: string, opts: { t
   const enqueue = (candidate: string) => {
     const normalized = normalizeUrl(candidate)
     if (!normalized) return
-    if (!isSameHost(normalized, rootUrl)) return
+    if (!isCrawlableInternalUrl(normalized, rootUrl)) return
     if (visited.has(normalized)) return
     visited.add(normalized)
     urls.push(normalized)
@@ -441,11 +425,11 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
         const rawHtmlRes = pageUrlHttp
           ? await fetchTextWithLimit(pageUrlHttp, {
               timeoutMs: 30_000,
-              maxBytes: 8 * 1024 * 1024,
+              maxBytes: WEBSITE_IMPORT_PAGE_MAX_BYTES,
               accept: 'text/html,*/*;q=0.9',
             })
           : pageUrlLocal && pageUrlLocal.ok === true
-            ? await readLocalTextWithLimit(pageUrlLocal.abs, 8 * 1024 * 1024)
+            ? await readLocalTextWithLimit(pageUrlLocal.abs, WEBSITE_IMPORT_PAGE_MAX_BYTES)
             : { ok: false as const, error: 'Not found' }
         if (rawHtmlRes.ok !== true) {
           errors.push({ url: pageUrl, error: rawHtmlRes.error })
@@ -458,7 +442,8 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
           }
         }
 
-        const title = rawHtmlRes.ok === true ? extractTitleFromHtml(rawHtmlRes.text) : ''
+        const importedRawHtml = rawHtmlRes.ok === true ? String(rawHtmlRes.text || '') : ''
+        const title = importedRawHtml ? extractTitleFromHtml(importedRawHtml) : ''
 
         const node: WebsiteImportNode = {
           nodeId,
@@ -466,9 +451,9 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
           path: toTreePath(pageUrlHttp ? 'http' : 'local', pageUrl),
           title: title || undefined,
           status: errors.length > 0 ? 'error' : 'ok',
-          artifacts: {
-            rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
-          },
+          artifacts: importedRawHtml
+            ? { rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'), rawHtmlBytes: Buffer.byteLength(importedRawHtml, 'utf8'), rawHtmlSha256: hashHex(importedRawHtml) }
+            : {},
         }
 
         const manifest: WebsiteImportManifestV1 = {
@@ -666,7 +651,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
                 seedUrls: urls,
                 maxPages: options.maxPages || 50,
                 timeoutMs: 30_000,
-                maxBytes: 2 * 1024 * 1024,
+                maxBytes: WEBSITE_IMPORT_DISCOVERY_MAX_BYTES,
               })
               const combined = (() => {
                 const out: string[] = []
@@ -788,7 +773,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
           }
 
           let convertEnv: { restore: () => void } | null = null
-          let convertFn: ((args: { html: string; url: string }) => string) | null = null
+          let convertFn: ((args: { html: string; url: string }) => Promise<string>) | null = null
           let convertLock = Promise.resolve()
           const withConvertLock = async <T,>(run: () => Promise<T>): Promise<T> => {
             const prev = convertLock
@@ -810,7 +795,15 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             const { initJsdomHarness } = await import('../../../tests/lib/jsdomHarness')
             convertEnv = initJsdomHarness()
             const mod = await import('../webpageHtmlToMarkdownArtifact')
-            convertFn = mod.convertWebpageHtmlToMarkdownArtifact as (args: { html: string; url: string }) => string
+            convertFn = (input: { html: string; url: string }) => mod.convertWebpageHtmlToMarkdownArtifactAsync({
+              html: input.html,
+              url: input.url,
+              includeImages: options.includeImages !== false,
+              fidelityLevel: 4,
+              includeHeadSection: true,
+              includeHtmlSnapshot: true,
+              mode: 'debug',
+            })
           }
 
           const processUrl = async (u: string) => {
@@ -821,10 +814,10 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             const rawHtmlRes = rootKind === 'http' || isHttpUrl(u)
               ? await fetchTextWithLimit(u, {
                   timeoutMs: 30_000,
-                  maxBytes: 8 * 1024 * 1024,
+                  maxBytes: WEBSITE_IMPORT_PAGE_MAX_BYTES,
                   accept: 'text/html,*/*;q=0.9',
                 })
-              : await readLocalTextWithLimit(path.resolve(repoRootAbs, u), 8 * 1024 * 1024)
+              : await readLocalTextWithLimit(path.resolve(repoRootAbs, u), WEBSITE_IMPORT_PAGE_MAX_BYTES)
             if (rawHtmlRes.ok !== true) {
               errors.push({ url: u, error: rawHtmlRes.error })
               nodes.push({ nodeId, url: u, path: toTreePath(isHttpUrl(u) ? 'http' : 'local', u, localSiteRootRel), status: 'error', artifacts: {} })
@@ -839,9 +832,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             }
             const title = extractTitleFromHtml(html)
 
-            const artifacts: WebsiteImportNode['artifacts'] = {
-              rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'),
-            }
+            const artifacts: WebsiteImportNode['artifacts'] = { rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'), rawHtmlBytes: Buffer.byteLength(html, 'utf8'), rawHtmlSha256: hashHex(html) }
 
             if (options.generateMarkdownArtifacts) {
               try {
@@ -852,13 +843,18 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
                     try {
                       await fs.writeFile(path.join(nodeDirAbs, 'page.md'), markdown, 'utf8')
                       artifacts.markdownRelPath = path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'page.md')
+                      artifacts.markdownBytes = Buffer.byteLength(markdown, 'utf8')
+                      artifacts.markdownSha256 = hashHex(markdown)
                     } catch {
                       void 0
                     }
                     try {
-                      const json = JSON.stringify({ ok: true, name: 'webpage.md', markdown, title: title || undefined, source_url: u, images: [] }, null, 2)
+                      const semanticSnapshot = buildWebsiteSemanticSnapshotFromHtml({ html, url: u, title, maxItems: 220 })
+                      const json = JSON.stringify({ ok: true, name: 'webpage.md', markdown, title: title || undefined, source_url: u, images: [], semanticSnapshot }, null, 2)
                       await fs.writeFile(path.join(nodeDirAbs, 'conversion.json'), json, 'utf8')
                       artifacts.conversionJsonRelPath = path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'conversion.json')
+                      artifacts.conversionJsonBytes = Buffer.byteLength(json, 'utf8')
+                      artifacts.conversionJsonSha256 = hashHex(json)
                     } catch {
                       void 0
                     }

@@ -1,7 +1,15 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
+import { MAPS_GRABMAPS_MCP_DOC_AREA } from '@/features/integrations/grabMapsSsot'
+import {
+  GRABMAPS_DEFAULT_MCP_ARGS_JSON,
+  GRABMAPS_DEFAULT_MCP_COMMAND,
+  GRABMAPS_DEFAULT_MCP_ENV_JSON,
+  GRABMAPS_DEFAULT_MCP_SERVER_KEY,
+  GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS,
+} from 'grph-shared/geospatial/grabMapsSsot'
 
-export const MAPS_GRABMAPS_MCP_DOC_AREA = 'GrabMaps MCP Configuration'
+export { MAPS_GRABMAPS_MCP_DOC_AREA }
 
 type GrabMapsMcpDocRow = {
   key: string
@@ -21,23 +29,23 @@ const GRABMAPS_MCP_DOC_ROWS: ReadonlyArray<GrabMapsMcpDocRow> = [
     typeLabel: 'string',
     valueKey: 'maps.grabmaps.mcp.serverKey',
     responsibility: 'MCP server key inside the mcpServers object.',
-    tooltipDefaultValue: 'grab-maps-playground',
-    searchHints: ['mcp_servers', 'server key', 'grab-maps-playground'],
+    tooltipDefaultValue: GRABMAPS_DEFAULT_MCP_SERVER_KEY,
+    searchHints: ['mcp_servers', 'server key', GRABMAPS_DEFAULT_MCP_SERVER_KEY],
   },
   {
     key: 'command',
     typeLabel: 'string',
     valueKey: 'maps.grabmaps.mcp.command',
     responsibility: 'Launcher command for the GrabMaps MCP server block.',
-    tooltipDefaultValue: 'npx',
-    searchHints: ['command', 'npx', 'mcp-remote'],
+    tooltipDefaultValue: GRABMAPS_DEFAULT_MCP_COMMAND,
+    searchHints: ['command', GRABMAPS_DEFAULT_MCP_COMMAND, 'mcp-remote'],
   },
   {
     key: 'args',
     typeLabel: 'string[]',
     valueKey: 'maps.grabmaps.mcp.args',
     responsibility: 'CLI args array for mcp-remote, including URL, Authorization template, and transport.',
-    tooltipDefaultValue: '[\"-y\",\"mcp-remote@latest\",\"https://maps.grab.com/api/v1/mcp\",\"--header\",\"Authorization:${AUTH_HEADER}\",\"--transport\",\"http-only\"]',
+    tooltipDefaultValue: GRABMAPS_DEFAULT_MCP_ARGS_JSON,
     searchHints: ['args', 'mcp-remote', 'http-only', 'authorization:${auth_header}'],
   },
   {
@@ -45,7 +53,7 @@ const GRABMAPS_MCP_DOC_ROWS: ReadonlyArray<GrabMapsMcpDocRow> = [
     typeLabel: 'object',
     valueKey: 'maps.grabmaps.mcp.env',
     responsibility: 'Environment object passed to the MCP launcher.',
-    tooltipDefaultValue: '{"AUTH_HEADER":"Bearer mcp_{TOKEN}"}',
+    tooltipDefaultValue: GRABMAPS_DEFAULT_MCP_ENV_JSON,
     searchHints: ['env', 'auth_header', 'bearer mcp token'],
     notes: 'AUTH_HEADER is the SSOT for the templated Authorization header.',
   },
@@ -54,7 +62,7 @@ const GRABMAPS_MCP_DOC_ROWS: ReadonlyArray<GrabMapsMcpDocRow> = [
     typeLabel: 'integer',
     valueKey: 'maps.grabmaps.mcp.startupTimeoutMs',
     responsibility: 'MCP process startup timeout in milliseconds.',
-    tooltipDefaultValue: 60000,
+    tooltipDefaultValue: GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS,
     searchHints: ['startup timeout', 'startup_timeout_ms'],
   },
   {
@@ -203,6 +211,15 @@ const toBaseType = (typeLabel: string): SettingMeta['type'] => {
   if (normalized.includes('integer') || normalized.includes('float') || normalized.includes('number')) return 'number'
   if (normalized.includes('object') || normalized.includes('[]')) return 'json'
   return 'string'
+}
+
+export function getGrabMapsMcpApiRowAnchorId(rowKey: string): string {
+  const normalized = String(rowKey || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `mcp-row-${normalized || 'entry'}`
 }
 
 export const GRABMAPS_MCP_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =

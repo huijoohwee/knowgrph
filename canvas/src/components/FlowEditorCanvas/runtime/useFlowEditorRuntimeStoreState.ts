@@ -23,6 +23,7 @@ export function useFlowEditorRuntimeStoreState() {
       collapsedGroupIds: s.collapsedGroupIds,
       markdownDocumentName: s.markdownDocumentName,
       markdownDocumentSourceUrl: s.markdownDocumentSourceUrl,
+      markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
       selectedNodeId: typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null,
       selectedNodeIds: Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : EMPTY_STRING_ARRAY,
       selectedEdgeId: typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null,

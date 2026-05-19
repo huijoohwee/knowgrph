@@ -28,6 +28,7 @@ import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.rend
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 import { PaywallOverlay } from '@/features/payments/PaywallOverlay'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_OPEN_WIDGETS_BY_RENDERER: Record<string, string[]> = {}
@@ -189,7 +190,19 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       dismissUiToast: s.dismissUiToast,
     })),
   )
-  const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId, markdownDocumentName, markdownDocumentText, sourceFiles } = useGraphStore(
+  const {
+    fitToScreenMode,
+    zoomToSelectionMode,
+    viewPinned,
+    selectedNodeId,
+    selectedNodeIds,
+    selectedEdgeId,
+    markdownDocumentName,
+    markdownDocumentSourceUrl,
+    markdownDocumentText,
+    markdownDocumentApplyViewPreset,
+    sourceFiles,
+  } = useGraphStore(
     useShallow(s => ({
       fitToScreenMode: s.fitToScreenMode === true,
       zoomToSelectionMode: s.zoomToSelectionMode === true,
@@ -198,11 +211,19 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       selectedNodeIds: s.selectedNodeIds,
       selectedEdgeId: s.selectedEdgeId,
       markdownDocumentName: s.markdownDocumentName,
+      markdownDocumentSourceUrl: s.markdownDocumentSourceUrl,
       markdownDocumentText: s.markdownDocumentText,
+      markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
       sourceFiles: s.sourceFiles,
     })),
   )
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
+    name: markdownDocumentName,
+    sourceUrl: markdownDocumentSourceUrl,
+    text: markdownDocumentText,
+    applyViewPreset: markdownDocumentApplyViewPreset !== false,
+  })
 
   const geoGraphLastRef = React.useRef<GraphData>(graphData)
   const geospatialGraphData = React.useMemo(() => {
@@ -212,11 +233,11 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
     return buildGeospatialOverlayGraphData({
       graphData: base,
       graphRevision: graphDataRevision,
-      markdownText: markdownDocumentText,
-      sourceDocumentPath: markdownDocumentName,
+      markdownText: canvasMarkdownDocument.text,
+      sourceDocumentPath: canvasMarkdownDocument.name,
       sourceFiles,
     })
-  }, [active, graphData, graphDataRevision, markdownDocumentName, markdownDocumentText, sourceFiles])
+  }, [active, canvasMarkdownDocument.name, canvasMarkdownDocument.text, graphData, graphDataRevision, sourceFiles])
 
   React.useEffect(() => {
     if (!active) return

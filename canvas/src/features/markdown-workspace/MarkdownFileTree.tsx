@@ -9,6 +9,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib/browser/dismissEvents'
 import { buildMarkdownFileTreeContextMenuItems } from './markdownFileTreeContextMenuItems'
 import { MarkdownFileTreeRowButton } from './MarkdownFileTreeRowButton'
+import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 
 type Node = {
   entry: WorkspaceEntry
@@ -178,7 +179,16 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             onContextMenu={event => {
               event.preventDefault()
               event.stopPropagation()
-              setContextMenu({ x: event.clientX, y: event.clientY, entry })
+              const pos = clampOverlayTopLeftFullyInViewport({
+                pos: { left: event.clientX, top: event.clientY },
+                size: { width: 220, height: 260 },
+                viewport: {
+                  width: window.innerWidth || document.documentElement.clientWidth || 1,
+                  height: window.innerHeight || document.documentElement.clientHeight || 1,
+                },
+                snapPx: 1,
+              })
+              setContextMenu({ x: pos.left, y: pos.top, entry })
             }}
           >
             {isFolder ? (
@@ -212,7 +222,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
       {renderNode(tree, 0)}
       {contextMenu ? (
         <section
-          className={`fixed z-[120] min-w-[180px] rounded border shadow-lg ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}
+          className={`kg-data-view-floating-menu fixed z-[120] min-w-[180px] rounded border shadow-lg ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onPointerDown={event => event.stopPropagation()}
         >
@@ -221,7 +231,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
               <li key={item.key} className="list-none">
                 <button
                   type="button"
-                  className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${
+                  className={`kg-menu-row w-full min-w-0 max-w-full overflow-hidden text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${
                     item.tone === 'danger' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.button.text
                   } ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={item.onSelect}

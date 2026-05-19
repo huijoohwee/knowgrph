@@ -250,7 +250,7 @@ const NodeOverlayEditorWidgetInner = React.memo(function NodeOverlayEditorWidget
     if (!active || typeof window === 'undefined') return
     let raf: number | null = null
     const onFrame = () => {
-      if (floating && !placement.pinnedDragOverrideRef.current && !placement.widgetWorldPosRef.current) return
+      if (floating && !placement.pinnedDragOverrideRef.current && !placement.worldDragOverrideRef.current) return
       if (raf != null) return
       raf = requestAnimationFrame(() => {
         raf = null

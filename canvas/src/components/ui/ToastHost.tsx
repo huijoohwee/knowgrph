@@ -45,7 +45,7 @@ function ToastCard({
   return (
     <aside
       className={cn(
-        'pointer-events-auto flex-none w-[520px] max-w-[calc(100vw-24px)]',
+        'kg-toast-card pointer-events-auto flex-none',
         'rounded border shadow-sm',
         'bg-[rgba(var(--panel-bg-rgb),var(--panel-opacity))]',
         UI_THEME_TOKENS.panel.border,
@@ -161,7 +161,7 @@ export function ToastHost() {
       aria-live="polite"
       aria-relevant="additions removals"
     >
-      <ol className="flex flex-col gap-2 items-end" style={{ width: 520, maxWidth: 'calc(100vw - 24px)' }} aria-label="Toast list">
+      <ol className="kg-toast-list flex flex-col gap-2 items-end" aria-label="Toast list">
         {orderedToasts.map(t => (
           <li key={t.id} className="list-none pointer-events-auto">
             <ToastCard toast={t} onDismiss={dismissUiToast} onTogglePinned={togglePinned} />

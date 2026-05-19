@@ -5,6 +5,13 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
+const rowTextCellClassName = 'flex min-w-0 max-w-full overflow-hidden'
+const rowLabelCellClassName = `${rowTextCellClassName} text-ellipsis whitespace-nowrap`
+const keyIconSliderInputGridClassName = 'grid-cols-[minmax(0,0.9fr)_minmax(1rem,1rem)_minmax(0,0.55fr)_minmax(0,1.15fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.05fr)_minmax(0,0.55fr)_minmax(0,1.4fr)]'
+const keyIconValueGridClassName = 'grid-cols-[minmax(0,1fr)_minmax(1.25rem,1.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.2fr)]'
+const keyValueGridClassName = 'grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
+const keyTypeValueGridClassName = 'grid-cols-[minmax(0,0.92fr)_minmax(3.75rem,0.62fr)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.05fr)_minmax(5rem,6.75rem)_minmax(0,1.25fr)]'
+
 export interface KeyTypeValueRowProps {
   keyNode: React.ReactNode
   typeNode?: React.ReactNode
@@ -72,8 +79,8 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyIconSliderInput') {
     const rootClassName = [
-      'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.05fr)_minmax(0,0.55fr)_minmax(0,1.4fr)]',
-      'gap-x-2 gap-y-1 sm:gap-y-0 rounded',
+      `grid w-full ${keyIconSliderInputGridClassName}`,
+      'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
@@ -86,14 +93,14 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <dl className={rootClassName} onClick={onClick}>
-        <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+        <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {keyNode}
         </dt>
-        <dd className={`hidden min-w-0 items-center justify-center sm:flex ${UI_THEME_TOKENS.text.tertiary}`} />
-        <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`} />
+        <dd className={`${rowLabelCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
           {typeNode}
         </dd>
-        <dd className={`flex min-w-0 items-stretch justify-start gap-2 sm:justify-end ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        <dd className={`${rowTextCellClassName} items-stretch justify-start gap-2 sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
           {valueNode}
         </dd>
       </dl>
@@ -102,8 +109,8 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyIconValue') {
     const rootClassName = [
-      'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,1.1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.2fr)]',
-      'gap-x-2 gap-y-1 sm:gap-y-0 rounded',
+      `grid w-full ${keyIconValueGridClassName}`,
+      'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
@@ -116,13 +123,13 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <dl className={rootClassName} onClick={onClick}>
-        <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+        <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {keyNode}
         </dt>
-        <dd className={`hidden min-w-0 items-center justify-center sm:flex ${UI_THEME_TOKENS.text.tertiary}`}>
+        <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
           {typeNode}
         </dd>
-        <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
           {valueNode}
         </dd>
       </dl>
@@ -131,8 +138,8 @@ export function KeyTypeValueRow({
 
   if (layout === 'keyValue') {
     const rootClassName = [
-      'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]',
-      'gap-x-2 gap-y-1 rounded',
+      `grid w-full ${keyValueGridClassName}`,
+      'gap-x-2 gap-y-0 rounded',
       activeClass,
       uiPanelKeyValueTextSizeClass,
       uiPanelTextFontClass,
@@ -145,10 +152,10 @@ export function KeyTypeValueRow({
       .join(' ')
     return (
       <dl className={rootClassName} onClick={onClick}>
-        <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+        <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {keyNode}
         </dt>
-        <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+        <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
           {valueNode}
         </dd>
       </dl>
@@ -156,7 +163,7 @@ export function KeyTypeValueRow({
   }
 
   const rootClassName = [
-    'grid w-full grid-cols-1 sm:grid-cols-[minmax(0,1.05fr)_minmax(5rem,6.75rem)_minmax(0,1.25fr)] gap-x-2 gap-y-1 sm:gap-y-0 rounded',
+    `grid w-full ${keyTypeValueGridClassName} gap-x-2 gap-y-0 rounded`,
     activeClass,
     uiPanelKeyValueTextSizeClass,
     uiPanelTextFontClass,
@@ -174,13 +181,13 @@ export function KeyTypeValueRow({
       className={rootClassName}
       onClick={onClick}
     >
-      <dt className={`flex min-w-0 items-center gap-1 ${UI_THEME_TOKENS.text.primary} break-words`}>
+      <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
         {keyNode}
       </dt>
-      <dd className={`flex min-w-0 items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary} break-words`}>
+      <dd className={`${rowLabelCellClassName} items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
         {typeNode}
       </dd>
-      <dd className={`flex min-w-0 items-center gap-2 ${UI_THEME_TOKENS.text.secondary} break-words`}>
+      <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
         {valueNode}
       </dd>
     </dl>
@@ -207,7 +214,7 @@ export function SimpleKeyValueRow({
 }
 
 export function RightAlignedValueCell({ children, className }: RightAlignedValueCellProps) {
-  const rootClassName = ['flex w-full justify-start sm:justify-end', className || '']
+  const rootClassName = ['flex w-full min-w-0 max-w-full overflow-hidden justify-start sm:justify-end', className || '']
     .filter(Boolean)
     .join(' ')
   return (

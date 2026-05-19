@@ -5,6 +5,8 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewSortDirection, WorkspaceDataViewSortRule } from './workspaceDataViewConfig'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function makeId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -38,8 +40,8 @@ export function WorkspaceDataViewSettingsSortSection(props: {
   return (
     <section aria-label="Sort">
       <section className={['rounded border p-2 space-y-2', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="Sort rules">
-        <div className="flex items-center gap-2">
-          <label className="flex-1">
+        <div className={`${uiToolbarRowScrollClassName} gap-2`}>
+          <label className="min-w-0 flex-1">
             <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Field</span>
             <select
               className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
@@ -53,7 +55,7 @@ export function WorkspaceDataViewSettingsSortSection(props: {
               ))}
             </select>
           </label>
-          <label>
+          <label className="min-w-0">
             <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Dir</span>
             <select
               className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME].join(' ')}
@@ -66,15 +68,15 @@ export function WorkspaceDataViewSettingsSortSection(props: {
           </label>
         </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex min-w-0 max-w-full items-center justify-end">
           <button
             type="button"
-            className={['inline-flex items-center gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={['kg-data-view-action inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={() => props.onChangeView({ ...props.view, sortRules: [] })}
             disabled={props.view.sortRules.length === 0}
           >
-            <ArrowUpDown className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-            <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>Clear</span>
+            <ArrowUpDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+            <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Clear</span>
           </button>
         </div>
       </section>

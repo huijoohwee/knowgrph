@@ -129,7 +129,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
           align="bottom-center"
         >
           <menu
-            className={`p-1 flex flex-col gap-1 ${menuWidthClass} list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md`}
+            className={`kg-toolbar-dropdown-menu p-1 flex flex-col gap-1 ${menuWidthClass} list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md`}
             onKeyDown={e => {
               if (!enabledOptions.length) return
               const currentIndex = optionButtonRefs.current.findIndex(option => option === document.activeElement)
@@ -177,7 +177,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                         optionButtonRefs.current[index] = el
                       }}
                       type="button"
-                      className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
+                      className={`kg-menu-row w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
                       disabled={option.disabled}
                       onClick={() => {
                         if (option.disabled) return
@@ -201,11 +201,11 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                         <span className="truncate">{option.title}</span>
                       )}
                       {option.disabled && (option.disabledReason || option.enableHint) ? (
-                        <span className="ml-auto text-[10px] text-amber-500/90 text-right">
+                        <span className="ml-auto min-w-0 max-w-[45%] truncate text-[10px] text-amber-500/90 text-right">
                           {option.disabledReason || option.enableHint}
                         </span>
                       ) : option.children && option.children.length > 0 ? (
-                        <span className="ml-auto text-xs opacity-70">▸</span>
+                        <span className="ml-auto shrink-0 text-xs opacity-70">▸</span>
                       ) : null}
                     </button>
                     {option.disabled && option.enableHint ? (
@@ -213,7 +213,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                     ) : null}
                     {option.children && option.children.length > 0 && openSubmenuId === option.id ? (
                       <menu
-                        className={`absolute left-full top-0 ml-1 p-1 flex flex-col gap-1 w-72 list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md z-50`}
+                        className={`kg-toolbar-dropdown-submenu absolute left-full top-0 ml-1 p-1 flex flex-col gap-1 w-72 list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md z-50`}
                       >
                         {option.children.map(childRaw => {
                           const child = childRaw as T
@@ -222,7 +222,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                             <li key={child.id} className="list-none">
                               <button
                                 type="button"
-                                className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isChildActive ? uiPrimaryChipActiveClassName : ''}`}
+                                className={`kg-menu-row w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isChildActive ? uiPrimaryChipActiveClassName : ''}`}
                                 disabled={child.disabled}
                                 onClick={() => {
                                   if (child.disabled) return

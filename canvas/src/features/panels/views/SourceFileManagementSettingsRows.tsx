@@ -6,7 +6,8 @@ import { LS_KEYS } from '@/lib/config'
 import { readEnvString } from '@/lib/config.env'
 import { lsRemove } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 
 const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
@@ -33,8 +34,8 @@ const SOURCE_FILE_MANAGEMENT_ROW_ANCHORS = {
   sources: buildSettingsRowAnchorId('source-file-management-row', 'sources'),
   storage: buildSettingsRowAnchorId('source-file-management-row', 'storage'),
 } as const
-const SOURCE_FILE_ROW_VALUE_CLASS_NAME = 'flex flex-1 flex-wrap items-center gap-1'
-const SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME = `min-w-0 ${UI_THEME_TOKENS.text.secondary}`
+const SOURCE_FILE_ROW_VALUE_CLASS_NAME = `${uiToolbarRowScrollClassName} flex-1 gap-1`
+const SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME = `min-w-0 max-w-full ${UI_TEXT_TRUNCATE} ${UI_THEME_TOKENS.text.secondary}`
 
 export const matchesSourceFileManagementQuery = (query: string): boolean => {
   const terms = query.split(/\s+/).map(term => term.trim()).filter(Boolean)
@@ -64,8 +65,8 @@ const readBooleanValue = (
 
 function SourceFileValuePill({ children }: { children: React.ReactNode }) {
   return (
-    <span className={`inline-flex min-h-6 max-w-full items-center rounded-full border px-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-      <span className="truncate">{children}</span>
+    <span className={`inline-flex min-h-6 min-w-0 max-w-full items-center overflow-hidden rounded-full border px-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+      <span className={UI_TEXT_TRUNCATE}>{children}</span>
     </span>
   )
 }
@@ -86,7 +87,7 @@ function SourceFileSettingsActionButton({
     : `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
   return (
     <button type="button" className={className} disabled={disabled} onClick={onClick}>
-      {children}
+      <span className={UI_TEXT_TRUNCATE}>{children}</span>
     </button>
   )
 }

@@ -1,4 +1,4 @@
-import React, { act } from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
@@ -28,10 +28,61 @@ const PRIOR_WIDGET_BY_RENDERER: Record<NonFlowEditorRenderer, string> = {
   flow: 'prior-flow',
   design: 'prior-design',
 }
+const TEST_RUNTIME_FRAME_MS = 16
 
 const createFile = (name: string, text: string) => {
   const blob = new Blob([text], { type: 'text/plain' })
   return new File([blob], name, { type: 'text/plain' })
+}
+
+const waitForRuntimeTick = () => new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+const installRuntimeFrameHarness = (targetWindow: Window): (() => void) => {
+  const timers = new Set<ReturnType<typeof setTimeout>>()
+  const anyWindow = targetWindow as unknown as {
+    requestAnimationFrame?: (cb: (ts: number) => void) => number
+    cancelAnimationFrame?: (id: number) => void
+  }
+  const previousWindowRequest = anyWindow.requestAnimationFrame
+  const previousWindowCancel = anyWindow.cancelAnimationFrame
+  const previousGlobalRequest = (globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame
+  const previousGlobalCancel = (globalThis as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame
+  const request = (cb: (ts: number) => void): number => {
+    const timer = setTimeout(() => {
+      timers.delete(timer)
+      cb(Date.now())
+    }, TEST_RUNTIME_FRAME_MS)
+    timers.add(timer)
+    return timer as unknown as number
+  }
+  const cancel = (id: number) => {
+    const timer = id as unknown as ReturnType<typeof setTimeout>
+    clearTimeout(timer)
+    timers.delete(timer)
+  }
+  anyWindow.requestAnimationFrame = request
+  anyWindow.cancelAnimationFrame = cancel
+  ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = request
+  ;(globalThis as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame = cancel
+  return () => {
+    for (const timer of timers) clearTimeout(timer)
+    timers.clear()
+    anyWindow.requestAnimationFrame = previousWindowRequest
+    anyWindow.cancelAnimationFrame = previousWindowCancel
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = previousGlobalRequest
+    ;(globalThis as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame = previousGlobalCancel
+  }
+}
+
+const mountFlowEditorCanvasRuntime = async (container: HTMLElement): Promise<ReturnType<typeof createRoot>> => {
+  const root = createRoot(container)
+  root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+  await waitForRuntimeTick()
+  return root
+}
+
+const unmountFlowEditorCanvasRuntime = async (root: ReturnType<typeof createRoot> | null): Promise<void> => {
+  root?.unmount()
+  await waitForRuntimeTick()
 }
 
 const readScopedWidgetIds = (ids: unknown[] | null | undefined): string[] => {
@@ -76,11 +127,10 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
+  let restoreRuntimeFrames: (() => void) | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    restoreRuntimeFrames = installRuntimeFrameHarness(dom.window)
 
     resetWorkspaceFsForTests()
     const fs = createMemoryWorkspaceFs()
@@ -169,11 +219,7 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     const container = doc.createElement('div')
     container.id = 'runtime-root'
     doc.body.appendChild(container)
-    await act(async () => {
-      root = createRoot(container as unknown as HTMLElement)
-      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
 
     const waitForFlowEditorOverlaySeed = async () => {
       const deadline = Date.now() + 1500
@@ -210,13 +256,11 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     }
   } finally {
     try {
-      await act(async () => {
-        root?.unmount()
-        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-      })
+      await unmountFlowEditorCanvasRuntime(root)
     } catch {
       void 0
     }
+    restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
   }
@@ -252,11 +296,10 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
+  let restoreRuntimeFrames: (() => void) | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    restoreRuntimeFrames = installRuntimeFrameHarness(dom.window)
 
     resetWorkspaceFsForTests()
     const fs = createMemoryWorkspaceFs()
@@ -312,11 +355,7 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
     container.id = 'runtime-root-widget-visibility'
     doc.body.appendChild(container)
 
-    await act(async () => {
-      root = createRoot(container as unknown as HTMLElement)
-      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
 
     const waitForWidgetUiVisibility = async () => {
       const deadline = Date.now() + 2200
@@ -381,13 +420,11 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
     await waitForWidgetUiVisibility()
   } finally {
     try {
-      await act(async () => {
-        root?.unmount()
-        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-      })
+      await unmountFlowEditorCanvasRuntime(root)
     } catch {
       void 0
     }
+    restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
   }
@@ -400,14 +437,10 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
   let root: ReturnType<typeof createRoot> | null = null
   const targetViewport = { width: 1920, height: 1080 }
   let restoreElementRect: (() => void) | null = null
+  let restoreRuntimeFrames: (() => void) | null = null
 
   try {
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: (ts: number) => void) => number
-      dispatchEvent?: (event: Event) => boolean
-    }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    restoreRuntimeFrames = installRuntimeFrameHarness(dom.window)
     const elementProto = dom.window.HTMLElement.prototype
     const originalElementRect = elementProto.getBoundingClientRect
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
@@ -473,18 +506,12 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     container.id = 'runtime-root-balanced-1920x1080'
     doc.body.appendChild(container)
 
-    await act(async () => {
-      root = createRoot(container as unknown as HTMLElement)
-      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
-
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    await act(async () => {
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     const waitForBalancedFit = async () => {
       const deadline = Date.now() + 2500
@@ -593,13 +620,11 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
       void 0
     }
     try {
-      await act(async () => {
-        root?.unmount()
-        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-      })
+      await unmountFlowEditorCanvasRuntime(root)
     } catch {
       void 0
     }
+    restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
   }
@@ -612,14 +637,10 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
   let root: ReturnType<typeof createRoot> | null = null
   const targetViewport = { width: 1920, height: 1080 }
   let restoreElementRect: (() => void) | null = null
+  let restoreRuntimeFrames: (() => void) | null = null
 
   try {
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: (ts: number) => void) => number
-      dispatchEvent?: (event: Event) => boolean
-    }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    restoreRuntimeFrames = installRuntimeFrameHarness(dom.window)
     const elementProto = dom.window.HTMLElement.prototype
     const originalElementRect = elementProto.getBoundingClientRect
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
@@ -702,18 +723,12 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
     container.id = 'runtime-root-source-files-balanced-1920x1080'
     doc.body.appendChild(container)
 
-    await act(async () => {
-      root = createRoot(container as unknown as HTMLElement)
-      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
-
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    await act(async () => {
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     const waitForBalancedFit = async () => {
       const deadline = Date.now() + 2500
@@ -804,13 +819,11 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
       void 0
     }
     try {
-      await act(async () => {
-        root?.unmount()
-        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-      })
+      await unmountFlowEditorCanvasRuntime(root)
     } catch {
       void 0
     }
+    restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
   }
@@ -823,14 +836,10 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
   let root: ReturnType<typeof createRoot> | null = null
   const targetViewport = { width: 1920, height: 1080 }
   let restoreElementRect: (() => void) | null = null
+  let restoreRuntimeFrames: (() => void) | null = null
 
   try {
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: (ts: number) => void) => number
-      dispatchEvent?: (event: Event) => boolean
-    }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    restoreRuntimeFrames = installRuntimeFrameHarness(dom.window)
     const elementProto = dom.window.HTMLElement.prototype
     const originalElementRect = elementProto.getBoundingClientRect
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
@@ -907,18 +916,12 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     container.id = 'runtime-root-source-files-open-close-reopen-1920x1080'
     doc.body.appendChild(container)
 
-    await act(async () => {
-      root = createRoot(container as unknown as HTMLElement)
-      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
-
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    await act(async () => {
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     const waitForInViewCollective = async (phase: string) => {
       const deadline = Date.now() + 3000
@@ -1000,27 +1003,21 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
 
     await waitForInViewCollective('initial-canvas')
 
-    await act(async () => {
-      store.setWorkspaceViewMode('editor')
-      store.setWorkspaceCanvasPaneOpen(true)
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    store.setWorkspaceViewMode('editor')
+    store.setWorkspaceCanvasPaneOpen(true)
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     await waitForInViewCollective('opened')
 
-    await act(async () => {
-      store.setWorkspaceCanvasPaneOpen(false)
-      store.setWorkspaceViewMode('canvas')
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    store.setWorkspaceCanvasPaneOpen(false)
+    store.setWorkspaceViewMode('canvas')
+    await waitForRuntimeTick()
 
-    await act(async () => {
-      store.setWorkspaceViewMode('editor')
-      store.setWorkspaceCanvasPaneOpen(true)
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    store.setWorkspaceViewMode('editor')
+    store.setWorkspaceCanvasPaneOpen(true)
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     await waitForInViewCollective('reopen')
   } finally {
@@ -1030,13 +1027,11 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
       void 0
     }
     try {
-      await act(async () => {
-        root?.unmount()
-        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-      })
+      await unmountFlowEditorCanvasRuntime(root)
     } catch {
       void 0
     }
+    restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
   }
@@ -1049,14 +1044,10 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
   let root: ReturnType<typeof createRoot> | null = null
   const targetViewport = { width: 1920, height: 1080 }
   let restoreElementRect: (() => void) | null = null
+  let restoreRuntimeFrames: (() => void) | null = null
 
   try {
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: (ts: number) => void) => number
-      dispatchEvent?: (event: Event) => boolean
-    }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    restoreRuntimeFrames = installRuntimeFrameHarness(dom.window)
     const elementProto = dom.window.HTMLElement.prototype
     const originalElementRect = elementProto.getBoundingClientRect
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
@@ -1097,18 +1088,12 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     container.id = 'runtime-root-source-files-initial-workspace-open-1920x1080'
     doc.body.appendChild(container)
 
-    await act(async () => {
-      root = createRoot(container as unknown as HTMLElement)
-      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
-
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    await act(async () => {
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     const sourcePath = '/docs/knowgrph-video-demo.md'
     const sourceText = readDocsSsotFixtureText(KNOWGRPH_VIDEO_DEMO_BASENAME)
@@ -1145,10 +1130,8 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     }
     store.setOpenWidgetNodeIds(eligibleWidgetIds)
     store.setFlowWidgetWorldPosByNodeId({})
-    await act(async () => {
-      dom.window.dispatchEvent(new dom.window.Event('resize'))
-      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-    })
+    dom.window.dispatchEvent(new dom.window.Event('resize'))
+    await waitForRuntimeTick()
 
     const waitForInViewCollective = async () => {
       const deadline = Date.now() + 3200
@@ -1242,13 +1225,11 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
       void 0
     }
     try {
-      await act(async () => {
-        root?.unmount()
-        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
-      })
+      await unmountFlowEditorCanvasRuntime(root)
     } catch {
       void 0
     }
+    restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
   }

@@ -53,7 +53,17 @@ export function buildSettingsEntryValueNode({
     )
     : null
 
-  if (specialValueNode) return specialValueNode
+  if (specialValueNode) {
+    const sectionAssistNodes = actions.buildSectionMetaAssistNodes(sectionMeta, isFirstRowInArea, entry.meta.key)
+    return sectionAssistNodes.length > 0
+      ? (
+        <div className="space-y-1">
+          {specialValueNode}
+          <div className="flex flex-wrap items-center gap-1">{sectionAssistNodes}</div>
+        </div>
+      )
+      : specialValueNode
+  }
 
   const assistNodes = [
     ...actions.buildSectionMetaAssistNodes(sectionMeta, isFirstRowInArea, entry.meta.key),

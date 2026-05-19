@@ -5,6 +5,7 @@ import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripe
 import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW } from '@/lib/chatEndpoint'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type SettingsSpecialValueNodeProps = {
   area: string
@@ -40,6 +41,10 @@ type SettingsSpecialValueNodeProps = {
   ui: Pick<SettingsRowUi, 'uiPanelKeyValueTextSizeClass'>
   values: Record<string, string | number | boolean>
 }
+
+const specialValueRowClassName = `${uiToolbarRowScrollClassName} gap-1.5`
+const specialValueInputShellClassName = 'min-w-[7rem] flex-1 overflow-hidden'
+const specialValueStatusShellClassName = 'min-w-0 max-w-full overflow-hidden'
 
 export function shouldRenderSettingsSpecialValueNode({
   area,
@@ -82,9 +87,9 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (sKey === 'chatSystemPrompt') {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{inputNode}</div>
-        <div className="shrink-0" title={status.chatHealthDetails || undefined}>
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>{inputNode}</div>
+        <div className={specialValueStatusShellClassName} title={status.chatHealthDetails || undefined}>
           <StatusBadge
             label="Chat API"
             ok={status.isCheckingHealth ? null : (status.chatHealthOk ?? null)}
@@ -93,7 +98,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
           />
         </div>
         {status.normalizedChatProvider !== CHAT_PROVIDER_BYTEPLUS ? (
-          <div className="shrink-0" title={status.bytePlusHealthDetails || undefined}>
+          <div className={specialValueStatusShellClassName} title={status.bytePlusHealthDetails || undefined}>
             <StatusBadge
               label="BytePlus API"
               ok={status.isCheckingBytePlusHealth ? null : (status.bytePlusHealthOk ?? null)}
@@ -103,7 +108,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
           </div>
         ) : null}
         {status.normalizedChatProvider === CHAT_PROVIDER_DEERFLOW ? (
-          <div className="shrink-0" title={status.deerFlowHealthDetails || undefined}>
+          <div className={specialValueStatusShellClassName} title={status.deerFlowHealthDetails || undefined}>
             <StatusBadge
               label="DeerFlow Gateway"
               ok={status.isCheckingDeerFlowHealth ? null : (status.deerFlowHealthOk ?? null)}
@@ -136,9 +141,9 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (area === DEERFLOW_API_DOC_AREA && sKey === 'deerflowApi.provider') {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{inputNode}</div>
-        <div className="shrink-0" title={status.deerFlowHealthDetails || undefined}>
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>{inputNode}</div>
+        <div className={specialValueStatusShellClassName} title={status.deerFlowHealthDetails || undefined}>
           <StatusBadge
             label="DeerFlow Gateway"
             ok={status.isCheckingDeerFlowHealth ? null : (status.deerFlowHealthOk ?? null)}
@@ -163,9 +168,9 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (resolvedValueKey === 'maps.grabmaps.apiKey') {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{inputNode}</div>
-        <div className="shrink-0" title={status.grabMapsHealthDetails || undefined}>
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>{inputNode}</div>
+        <div className={specialValueStatusShellClassName} title={status.grabMapsHealthDetails || undefined}>
           <StatusBadge
             label="GrabMaps API"
             ok={status.isCheckingGrabMapsHealth ? null : (status.grabMapsHealthOk ?? null)}
@@ -190,8 +195,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (sKey === 'stripeApi.auth.secret_key') {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>
           <input
             value=""
             readOnly
@@ -199,7 +204,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             className={`w-full rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} px-2 py-1.5 ${ui.uiPanelKeyValueTextSizeClass}`}
             title="Server-managed only"
           />
-          <div className={`mt-1 ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+          <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             Stripe secret keys are not stored in the browser. Use `STRIPE_RESTRICTED_KEY` on the dev or preview server.
           </div>
         </div>
@@ -213,8 +218,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
   if (sKey === 'stripeApi.checkout.session_url') {
     const checkoutUrlValue = String(values[resolvedValueKey] ?? '').trim()
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>
           <input
             value={checkoutUrlValue}
             readOnly
@@ -223,7 +228,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             title={checkoutUrlValue || 'Server-managed Checkout Session url'}
           />
           {status.stripeCheckoutStatus ? (
-            <div className={`mt-1 ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.stripeCheckoutStatus}</div>
+            <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.stripeCheckoutStatus}</div>
           ) : null}
         </div>
         <button
@@ -277,11 +282,11 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
   if (sKey === 'chatHistoryWorkspacePath') {
     const currentPath = typeof values.chatHistoryWorkspacePath === 'string' ? values.chatHistoryWorkspacePath.trim() : ''
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>
           {inputNode}
           {status.chatHistoryPathStatus && (
-            <div className={`mt-1 ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.chatHistoryPathStatus}</div>
+            <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.chatHistoryPathStatus}</div>
           )}
         </div>
         <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localImportInputRef.current) }} className={pillButtonClassName}>Import Local</button>
@@ -309,11 +314,11 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
   if (sKey === 'chatKnowgrphWorkspacePath') {
     const currentPath = typeof values.chatKnowgrphWorkspacePath === 'string' ? values.chatKnowgrphWorkspacePath.trim() : ''
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>
           {inputNode}
           {status.knowgrphPathStatus && (
-            <div className={`mt-1 ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.knowgrphPathStatus}</div>
+            <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.knowgrphPathStatus}</div>
           )}
         </div>
         <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalImportInputRef.current) }} className={pillButtonClassName}>Import Local</button>
@@ -340,8 +345,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (sKey === 'chatHistoryCloudUrl') {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{inputNode}</div>
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>{inputNode}</div>
         <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForChatHistory() }} className={pillButtonClassName}>Import URL</button>
       </div>
     )
@@ -349,8 +354,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (sKey === 'chatKnowgrphCloudUrl') {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">{inputNode}</div>
+      <div className={specialValueRowClassName}>
+        <div className={specialValueInputShellClassName}>{inputNode}</div>
         <button type="button" onClick={e => { e.stopPropagation(); actions.importCloudUrlForKnowgrph() }} className={pillButtonClassName}>Import URL</button>
       </div>
     )

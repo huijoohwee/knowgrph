@@ -2,6 +2,7 @@ import React from 'react'
 import { Check } from 'lucide-react'
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export type TypeMenuOption<T extends string> = {
   key: T
@@ -24,7 +25,7 @@ export function TypeMenu<T extends string>(props: TypeMenuProps<T>) {
     <menu
       className={
         [
-          'rounded border shadow-sm p-1 z-20',
+          'kg-type-menu rounded border shadow-sm p-1 z-20',
           UI_THEME_TOKENS.panel.bg,
           UI_THEME_TOKENS.panel.border,
           props.className || '',
@@ -42,7 +43,7 @@ export function TypeMenu<T extends string>(props: TypeMenuProps<T>) {
               type="button"
               className={
                 [
-                  'w-full flex items-center gap-2 px-2 py-2 rounded text-xs',
+                  'kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 rounded text-xs',
                   disabled ? UI_THEME_TOKENS.text.tertiary : UI_THEME_TOKENS.button.hoverBg,
                 ].join(' ')
               }
@@ -59,8 +60,8 @@ export function TypeMenu<T extends string>(props: TypeMenuProps<T>) {
               }}
             >
               <Icon className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} />
-              <span className="flex-1 text-left">{o.label}</span>
-              {active ? <Check className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
+              <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{o.label}</span>
+              {active ? <Check className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
             </button>
           </li>
         )

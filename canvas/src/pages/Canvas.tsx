@@ -154,12 +154,12 @@ export default function CanvasPage() {
             {workspaceEditorOverlayOpen ? (
               <header
                 ref={toolbarHeaderRef}
-                className={`absolute top-0 inset-x-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[420]' : 'z-[400]'}`}
+                className={`absolute inset-0 pointer-events-none ${toolbarHeaderElevated ? 'z-[420]' : 'z-[400]'}`}
                 aria-label="Workspace Toolbar Header"
                 onPointerDown={() => setToolbarHeaderElevated(true)}
               >
-                <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
-                  <div className="pointer-events-auto">
+                <nav className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+0.5rem)] left-[calc(var(--kg-safe-left)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                  <div className="pointer-events-auto min-w-0 max-w-full">
                     <React.Suspense fallback={null}>
                       <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
                     </React.Suspense>

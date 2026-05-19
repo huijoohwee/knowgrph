@@ -7,11 +7,11 @@ import { computeMediaOverlaySizing, type MediaOverlaySizingConfig, type MediaOve
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import {
-  type BalancedSpreadViewportPreset,
   computeBalancedSpreadLayout,
   computeBalancedSpreadSpacingPx,
   computeBalancedSpreadViewportMargins,
-  shouldForceBalancedSpreadReseed,
+  isHorizontalOverlayStrip,
+  isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
 export type MediaOverlayLayoutItem = { id: string }
 
@@ -28,7 +28,6 @@ export function startMediaOverlayLayoutLoop2d(args: {
   density: MediaPanelDensity
   viewportW: number
   viewportH: number
-  balancedViewportPreset?: BalancedSpreadViewportPreset
   schema?: GraphSchema | null
   collision?: {
     enabled?: boolean
@@ -97,7 +96,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const spreadMargins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
       viewportH: args.viewportH,
-      preset: args.balancedViewportPreset || 'richMedia',
+      preset: 'richMedia',
       minLeftPx: clampMargin,
       minRightPx: clampMargin,
       minTopPx: clampMargin,
@@ -235,10 +234,13 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const externalObstacles = typeof args.getCollisionObstacles === 'function' ? args.getCollisionObstacles() : []
       const boxes = preferred.map(p => ({ left: p.left, top: p.top, w: p.w, h: p.h }))
       const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
-      const needsBalancedReseed = hasOverlaps(boxes, gapPx) || shouldForceBalancedSpreadReseed({ items: clusterItems, gapPx })
+      const hasVerticalCluster = isVerticalOverlayCluster({ items: clusterItems, gapPx })
+      const hasHorizontalStrip = isHorizontalOverlayStrip({ items: clusterItems, gapPx })
+      const shouldReseedBalancedCluster = hasVerticalCluster || hasHorizontalStrip
+      const needsBalancedReseed = hasOverlaps(boxes, gapPx) || shouldReseedBalancedCluster
       if (needsBalancedReseed) {
         const verticalSeed = (() => {
-          if (!shouldForceBalancedSpreadReseed({ items: clusterItems, gapPx })) {
+          if (!shouldReseedBalancedCluster) {
             return null
           }
           let sumW = 0

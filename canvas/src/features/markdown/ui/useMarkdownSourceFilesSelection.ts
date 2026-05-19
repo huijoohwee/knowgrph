@@ -1,7 +1,4 @@
 import React from 'react'
-import { flushSync } from 'react-dom'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { applyCanvasWorkspacePresetForSwitch } from '@/lib/markdown-workspace-runtime/workspaceSwitchPreset'
 import {
   expandMarkdownSourceFolderAncestors,
   normalizeMarkdownSourceFolderPath,
@@ -61,13 +58,6 @@ export function useMarkdownSourceFilesSelection(args: {
 
   const selectFile = React.useCallback(
     (args: { fileId: string; path: string }) => {
-      const fileId = String(args.fileId || '').trim()
-      if (fileId) {
-        const state = useGraphStore.getState()
-        const sourceFile = (state.sourceFiles || []).find(file => String(file?.id || '').trim() === fileId) || null
-        const sourceText = sourceFile && typeof sourceFile.text === 'string' ? sourceFile.text : ''
-        if (sourceText) flushSync(() => applyCanvasWorkspacePresetForSwitch({ text: sourceText }))
-      }
       const parentPath = resolveMarkdownSourceParentFolderPath(args.path)
       React.startTransition(() => {
         onSourceFileSelect?.(args.fileId)

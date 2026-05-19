@@ -6,11 +6,19 @@ export type WorkspaceImportUrlOpts = {
   documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
 }
 
+export type WorkspaceImportWebsiteOpts = {
+  generateArtifactDocs?: boolean
+  browserEnhance?: boolean
+  maxPages?: number
+  minPages?: number
+  source?: 'import-url' | 'website'
+}
+
 export type MarkdownWorkspaceActionBridge = {
   importLocalFiles?: (files: FileList | null) => void
   importLocalFolder?: (files: FileList | null) => void
   importUrl?: (url: string, opts?: WorkspaceImportUrlOpts) => void
-  importWebsite?: (url: string) => void
+  importWebsite?: (url: string, opts?: WorkspaceImportWebsiteOpts) => void
   createNewFolder?: () => void
   save?: () => void
 

@@ -5,6 +5,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import type { GraphData } from '@/lib/graph/types'
 import { applyCanvasFrontmatterPreset } from './canvasFrontmatterPreset'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 
 const FRONTMATTER_FLOW_CANVAS_RENDER_MODE = '2d' as const
 const FRONTMATTER_FLOW_CANVAS_2D_RENDERER = 'flowEditor' as const
@@ -21,19 +22,28 @@ const syncFrontmatterFlowSchemaEdgeType = (graphData: GraphData): boolean => {
   return true
 }
 
-export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | undefined): boolean => {
+export const applyFrontmatterFlowImportModes = (
+  graphData: GraphData | null | undefined,
+  opts: {
+    applyViewPreset?: boolean
+    resetWidgetLayout?: boolean
+  } = {},
+): boolean => {
   if (!graphData || !isFrontmatterFlowGraph(graphData)) return false
-  applyCanvasFrontmatterPreset({
-    graphData,
-    defaultCanvasRenderMode: FRONTMATTER_FLOW_CANVAS_RENDER_MODE,
-    defaultCanvas2dRenderer: FRONTMATTER_FLOW_CANVAS_2D_RENDERER,
-    defaultDocumentSemanticMode: FRONTMATTER_FLOW_DOCUMENT_MODE,
-    defaultFrontmatterModeEnabled: true,
-    disableMultiDimTableMode: true,
-  })
-  syncFrontmatterFlowSchemaEdgeType(graphData)
+  if (opts.applyViewPreset !== false) {
+    applyCanvasFrontmatterPreset({
+      graphData,
+      defaultCanvasRenderMode: FRONTMATTER_FLOW_CANVAS_RENDER_MODE,
+      defaultCanvas2dRenderer: FRONTMATTER_FLOW_CANVAS_2D_RENDERER,
+      defaultDocumentSemanticMode: FRONTMATTER_FLOW_DOCUMENT_MODE,
+      defaultFrontmatterModeEnabled: true,
+      disableMultiDimTableMode: true,
+    })
+    syncFrontmatterFlowSchemaEdgeType(graphData)
+  }
   const graphKey = buildGraphMetaKeyIgnoringPending(graphData)
   useGraphStore.setState(prev => {
+    if (opts.resetWidgetLayout === false || isWorkspaceGraphMutationBlocked(prev)) return prev
     const prevState = prev as unknown as {
       flowWidgetPinnedByNodeId?: Record<string, boolean>
       flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>>
@@ -54,12 +64,12 @@ export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | un
     const hasKeyedPos = graphKey ? Object.keys(currentPosByKey[graphKey] || {}).length > 0 : false
     const hasGlobalWorld = Object.keys(currentWorld).length > 0
     const hasKeyedWorld = graphKey ? Object.keys(currentWorldByKey[graphKey] || {}).length > 0 : false
-    if (!hasGlobalPinned && !hasKeyedPinned && !hasGlobalPos && !hasKeyedPos && !hasGlobalWorld && !hasKeyedWorld) return {}
+    if (!hasGlobalPinned && !hasKeyedPinned && !hasGlobalPos && !hasKeyedPos && !hasGlobalWorld && !hasKeyedWorld) return prev
     const nextPinnedByKey = graphKey ? { ...currentPinnedByKey, [graphKey]: {} } : currentPinnedByKey
     const nextPosByKey = graphKey ? { ...currentPosByKey, [graphKey]: {} } : currentPosByKey
     const nextWorldByKey = graphKey ? { ...currentWorldByKey, [graphKey]: {} } : currentWorldByKey
-    // Frontmatter-flow import owns the landing layout; clear pin/screen/world
-    // overlay caches so stale per-graph widget authority cannot drag the collective off-view.
+    // Explicit frontmatter-flow imports own the landing layout; passive Source
+    // Files switches keep the keyed graph layout state intact.
     return graphKey
       ? {
           flowWidgetPinnedByNodeId: {},
@@ -75,8 +85,7 @@ export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | un
           flowWidgetWorldPosByNodeId: {},
         }
   })
-  // A frontmatter-flow graph always owns the import landing contract. Returning
-  // true here avoids downstream fallback preset replays when the effective
-  // state is already aligned and nothing had to mutate this frame.
+  // Returning true here avoids downstream fallback preset replays when the
+  // effective state is already aligned and nothing had to mutate this frame.
   return true
 }

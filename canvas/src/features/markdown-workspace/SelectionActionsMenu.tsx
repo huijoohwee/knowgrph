@@ -1,6 +1,7 @@
 import React from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib/browser/dismissEvents'
 import type { SelectionActionItem } from './selectionActionItems'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
@@ -44,7 +45,7 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
   if (!hasSelectionActions) return null
 
   return (
-    <li className="list-none relative" ref={el => (selectionMenuRootRef.current = el)}>
+    <li className="list-none relative min-w-0 max-w-full" ref={el => (selectionMenuRootRef.current = el)}>
       <ExplorerToolbarIconButton
         ariaLabel={activeEntryName ? `Actions for ${activeEntryName}` : 'Selection actions'}
         ariaHaspopup="menu"
@@ -57,7 +58,7 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
       </ExplorerToolbarIconButton>
       {selectionMenuOpen ? (
         <section
-          className={`absolute right-0 mt-1 min-w-40 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md ${textSizeClass} ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
+          className={`kg-selection-actions-menu absolute right-0 mt-1 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md ${textSizeClass} ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
           role="menu"
           aria-label="Selection actions menu"
         >
@@ -66,7 +67,7 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
               <li key={item.key} className="list-none">
                 <button
                   type="button"
-                  className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`kg-menu-row flex w-full min-w-0 max-w-full flex-nowrap items-center overflow-hidden text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   aria-label={item.ariaLabel}
                   role="menuitem"
                   onClick={() => {
@@ -74,7 +75,7 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
                     item.onSelect()
                   }}
                 >
-                  {item.label}
+                  <span className={['min-w-0 flex-1', UI_TEXT_TRUNCATE].join(' ')}>{item.label}</span>
                 </button>
               </li>
             ))}

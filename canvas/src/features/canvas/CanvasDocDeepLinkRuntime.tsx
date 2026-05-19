@@ -16,12 +16,10 @@ async function handleLocalDeepLink(
       { getWorkspaceFs },
       { normalizeWorkspacePath, workspaceBasename, workspaceDocumentKey },
       { applyActiveMarkdownDocumentPayload },
-      { applyCanvasWorkspacePresetForSwitch },
     ] = await Promise.all([
       import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
       import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
       import('@/features/markdown/activeMarkdownDocument') as Promise<typeof import('@/features/markdown/activeMarkdownDocument')>,
-      import('@/lib/markdown-workspace-runtime/workspaceSwitchPreset') as Promise<typeof import('@/lib/markdown-workspace-runtime/workspaceSwitchPreset')>,
     ])
 
     const fs = await getWorkspaceFs()
@@ -45,11 +43,6 @@ async function handleLocalDeepLink(
 
     const entryText = typeof entry.text === 'string' ? entry.text : ''
     if (entryText) {
-      try {
-        applyCanvasWorkspacePresetForSwitch({ text: entryText })
-      } catch {
-        void 0
-      }
       void applyActiveMarkdownDocumentPayload({
         setActiveMarkdownDocument: graphStore.setActiveMarkdownDocument,
         name: workspaceDocumentKey(targetPath),
@@ -57,7 +50,7 @@ async function handleLocalDeepLink(
         sourceUrl: null,
         autoEnableFrontmatter: false,
         applyViewPreset: false,
-        applyToGraph: true,
+        applyToGraph: false,
         normalizeWebpageFrontmatterToMarkdown: false,
       })?.catch(() => { void 0 })
     }

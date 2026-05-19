@@ -3,6 +3,7 @@ import React from 'react'
 import { Check } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 const normalizeText = (raw: string): string => {
   return String(raw ?? '')
@@ -85,15 +86,15 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
 
   return (
     <section
-      className={['rounded border p-2', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border].join(' ')}
+      className={['min-w-0 max-w-full rounded border p-2', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border].join(' ')}
       aria-label="Single select"
     >
-      <form className="flex items-center gap-2" aria-label="Select input" onSubmit={e => e.preventDefault()}>
+      <form className="flex min-w-0 items-center gap-2" aria-label="Select input" onSubmit={e => e.preventDefault()}>
         <input
           autoFocus={props.autoFocus}
           value={query}
           placeholder={MARKDOWN_DATA_VIEW_COPY.multiTagTypeHerePlaceholder}
-          className={['w-full bg-transparent outline-none text-xs', UI_THEME_TOKENS.text.primary].join(' ')}
+          className={['w-full min-w-0 bg-transparent outline-none text-xs', UI_THEME_TOKENS.text.primary].join(' ')}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
         />
@@ -103,12 +104,12 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
         <li className="list-none">
           <button
             type="button"
-            className={['w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={() => setAndClose('')}
             aria-pressed={!selected}
           >
-            <span className={UI_THEME_TOKENS.text.primary}>—</span>
-            {!selected ? <Check className={['w-4 h-4 ml-auto', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
+            <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>—</span>
+            {!selected ? <Check className={['w-4 h-4 ml-auto shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
           </button>
         </li>
 
@@ -116,10 +117,10 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
           <li className="list-none">
             <button
               type="button"
-              className={['w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => setAndClose(createCandidate)}
             >
-              <span className={UI_THEME_TOKENS.text.primary}>{MARKDOWN_DATA_VIEW_COPY.multiTagCreateLabel(createCandidate)}</span>
+              <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.multiTagCreateLabel(createCandidate)}</span>
             </button>
           </li>
         ) : null}
@@ -130,12 +131,12 @@ export const MarkdownDataViewSingleSelect = React.memo(function MarkdownDataView
             <li key={o} className="list-none">
               <button
                 type="button"
-                className={['w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                 onClick={() => setAndClose(o)}
                 aria-pressed={active}
               >
-                <span className={UI_THEME_TOKENS.text.primary}>{o}</span>
-                {active ? <Check className={['w-4 h-4 ml-auto', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
+                <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{o}</span>
+                {active ? <Check className={['w-4 h-4 ml-auto shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" /> : null}
               </button>
             </li>
           )

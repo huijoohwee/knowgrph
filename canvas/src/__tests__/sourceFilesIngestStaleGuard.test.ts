@@ -488,7 +488,6 @@ export function testParsedGraphStateOwnershipIsCentralized() {
 export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInsteadOfDirectGraphOverride() {
   const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const text = readFileSync(runtimePath, 'utf8')
-  const landingText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceFrontmatterLanding.ts'), 'utf8')
   if (!text.includes('const shouldReuseExistingWorkspaceSourceFile =')) {
     throw new Error('expected markdown workspace runtime to centralize reuse of an already-parsed workspace source file')
   }
@@ -528,18 +527,14 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
   if (materializedFastPathBlock.includes('applyComposedFromSourceFiles()')) {
     throw new Error('expected already-materialized/reuse workspace source-file fast paths to avoid redundant composed-graph reschedule churn')
   }
-  if (!text.includes('const applyComposedFromSourceFiles = async () => {')) {
-    throw new Error('expected markdown workspace runtime to keep composed apply helper for true parse/mutate branches')
-  }
+  if (text.includes('applyComposedFromSourceFiles') || text.includes('scheduleApplyComposedGraphFromSourceFiles') || text.includes('maybeAutoEnableGeospatialModeForGraphData')) throw new Error('expected Source Files selection indexing not to schedule composed graph/geospatial surface mutation while switching files')
   if (!text.includes('const alreadyIndexedForTextHash = typeof previouslyIndexedHash === \'string\' && previouslyIndexedHash === textHash')) {
-    throw new Error('expected markdown workspace runtime to centralize frontmatter landing dedupe on indexed semantic text hash reuse')
+    throw new Error('expected markdown workspace runtime to centralize passive active-document sync dedupe on indexed semantic text hash reuse')
   }
-  if (!text.includes('if (!alreadyIndexedForTextHash || frontmatterLanding.shouldApply) {')) {
-    throw new Error('expected markdown workspace runtime to skip redundant active document push except required frontmatter Canvas relanding')
+  if (!text.includes('if (!alreadyIndexedForTextHash) {')) {
+    throw new Error('expected markdown workspace runtime to skip redundant active document push after indexed semantic text hash reuse')
   }
-  if (!landingText.includes('args.alreadyIndexedForTextHash && currentDocumentMatches') || !landingText.includes('readCanvasWorkspacePresetSwitchContext(nextText)')) {
-    throw new Error('expected markdown workspace frontmatter landing helper to reuse bounded detection and avoid repeated active-document graph apply')
-  }
+  if (text.includes('frontmatterLanding') || text.includes('resolveMarkdownWorkspaceFrontmatterLanding') || text.includes('forceApplyToGraph: true')) throw new Error('expected markdown workspace file switching not to keep stale frontmatter Canvas relanding paths')
   if (!text.includes('const workspaceSourceAlreadyIndexedForSameHash = !!(')) {
     throw new Error('expected markdown workspace runtime indexing to centralize semantic no-op guard for already-indexed workspace source path/hash')
   }

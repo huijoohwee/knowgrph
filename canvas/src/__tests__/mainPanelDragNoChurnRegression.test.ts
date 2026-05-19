@@ -5,5 +5,6 @@ export function testMainPanelDragUsesSharedPointerDragAndRaf() {
   const p = resolve(process.cwd(), 'src', 'features', 'toolbar', 'hooks', 'useMainPanelDrag.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('startPointerDrag')) throw new Error('expected main panel drag to use shared startPointerDrag')
-  if (!text.includes('requestAnimationFrame')) throw new Error('expected main panel drag to batch updates with requestAnimationFrame')
+  if (!text.includes('createRafValueScheduler')) throw new Error('expected main panel drag to batch updates with the shared RAF value scheduler')
+  if (!text.includes('scheduler.schedule(')) throw new Error('expected main panel drag movement to schedule batched position updates')
 }

@@ -16,9 +16,15 @@ type UseContainerDimsOptions = {
 
 function readContainerDims(el: HTMLElement | null): ContainerDims {
   if (!el) {
+    const fallbackWidth = typeof window !== 'undefined' && Number.isFinite(window.innerWidth) && window.innerWidth > 0
+      ? window.innerWidth
+      : 1;
+    const fallbackHeight = typeof window !== 'undefined' && Number.isFinite(window.innerHeight) && window.innerHeight > 0
+      ? window.innerHeight
+      : 1;
     return {
-      width: 800,
-      height: 600,
+      width: fallbackWidth,
+      height: fallbackHeight,
       left: 0,
       top: 0,
       dpr: typeof window !== 'undefined' ? Math.max(1, window.devicePixelRatio || 1) : 1,

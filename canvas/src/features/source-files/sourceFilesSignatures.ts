@@ -4,6 +4,10 @@ import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { readSourceFileParsedState } from '@/features/source-files/sourceFileParsedState'
 
+export type SourceFilesCompositionSignatureOptions = {
+  includeWorkspaceBacked?: boolean
+}
+
 type SourceFileLike = {
   id?: unknown
   name?: unknown
@@ -21,10 +25,11 @@ type SourceFileLike = {
   } | null
 }
 
-const sourceFileTextHashCache = new WeakMap<object, string>()
+const sourceFileTextHashCache = new WeakMap<object, { text: string; hash: string }>()
 
-const isWorkspaceBackedSourceFile = (entry: SourceFileLike): boolean => {
-  return String(entry?.source?.path || '').trim().startsWith('workspace:')
+export const isWorkspaceBackedSourceFile = (entry: unknown): boolean => {
+  const item = entry as SourceFileLike | null | undefined
+  return String(item?.source?.path || '').trim().startsWith('workspace:')
 }
 
 const readPersistableSourceFiles = (value: unknown): SourceFileLike[] => {
@@ -34,13 +39,25 @@ const readPersistableSourceFiles = (value: unknown): SourceFileLike[] => {
     .filter(entry => !isWorkspaceBackedSourceFile(entry))
 }
 
+export const readSourceFilesForComposition = (
+  value: unknown,
+  options: SourceFilesCompositionSignatureOptions = {},
+): SourceFileLike[] => {
+  const items = Array.isArray(value) ? value : []
+  const includeWorkspaceBacked = options.includeWorkspaceBacked === true
+  return items
+    .map(entry => entry as SourceFileLike)
+    .filter(entry => includeWorkspaceBacked || !isWorkspaceBackedSourceFile(entry))
+}
+
 export const getSourceFileTextHash = (entry: unknown): string => {
   if (!entry || typeof entry !== 'object') return hashStringToHex('')
   const cached = sourceFileTextHashCache.get(entry as object)
-  if (cached) return cached
   const item = entry as { text?: unknown }
+  const text = String(item?.text || '')
+  if (cached && cached.text === text) return cached.hash
   const next = hashStringToHex(String(item?.text || ''))
-  sourceFileTextHashCache.set(entry as object, next)
+  sourceFileTextHashCache.set(entry as object, { text, hash: next })
   return next
 }
 
@@ -86,8 +103,11 @@ function readCompositionStatusToken(status: unknown): 'parsed' | 'pending' {
   return String(status || '').trim().toLowerCase() === 'parsed' ? 'parsed' : 'pending'
 }
 
-export const buildSourceFilesCompositionSignature = (value: unknown): string => {
-  const items = Array.isArray(value) ? value : []
+export const buildSourceFilesCompositionSignature = (
+  value: unknown,
+  options: SourceFilesCompositionSignatureOptions = {},
+): string => {
+  const items = readSourceFilesForComposition(value, options)
   const layers = items.map(entry => {
     const item = entry as SourceFileLike
     const parsed = readSourceFileParsedState(item)

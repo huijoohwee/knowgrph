@@ -42,6 +42,7 @@
 | MainPanel Integrations | Collapse provider setup into a touch-safe setup flow with reachable inputs, validation states, and actions. | Desktop-only forms, hidden submit actions, route-specific mobile patches |
 | FloatingPanel Chat UI | Stay usable above the virtual keyboard and preserve visible context while tool traces or streamed output update. | Scroll traps, keyboard overlap, unbounded auto-scroll, duplicate chat shells |
 | Editor Workspace | Keep Markdown/source review readable with the toolbar, bottom surface, and canvas stacked or sheeted predictably. | Overlapping fixed bars, inaccessible editor controls, second preview mounts |
+| Toolbar and Same-Row Controls | Scroll horizontally within the active row from shared toolbar row-scroll classes and keep icon/text groups clipped with ellipsis. | Wrapped icon rows, duplicated overflow classes, component-local scroll rules |
 | Canvas | Preserve pan, zoom, fit, selection, quick edit, and inspect actions through touch and pointer input. | Component-local breakpoints, hardcoded coordinates, resize-observer loops |
 | Rich Media Panel | Keep media playback, fallback states, and metadata inspection reachable inside safe-area-aware bounds. | Offscreen-only controls, silent clipping, desktop-only playback affordances |
 | Generated Widgets | Emit responsive bounds, min sizes, fit strategy, edge anchors, and overflow behavior as metadata. | One-off fixed scenes, stale desktop coordinates, hidden edge handles |

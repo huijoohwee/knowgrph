@@ -13,6 +13,11 @@ import { WORKSPACE_EDITOR_MODE_OPTIONS, type WorkspaceEditorMode } from '@/featu
 import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import {
+  uiToolbarResponsiveRowScrollClassName,
+  uiToolbarRowScrollClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 
 type WorkspaceDataViewLayoutMode = WorkspaceEditorMode
 
@@ -76,7 +81,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
     <dialog
       ref={dialogRef}
       className={[
-        'rounded-lg p-0 border shadow-xl w-[720px] max-w-[92vw] h-[560px] max-h-[85vh] overflow-hidden',
+        'kg-data-view-settings-dialog rounded-lg p-0 border shadow-xl w-[720px] max-w-[92vw] h-[560px] max-h-[85vh] overflow-hidden',
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.panel.border,
       ].join(' ')}
@@ -94,8 +99,8 @@ export function WorkspaceDataViewSettingsDialog(props: {
       <MainPanelSettingsPanelShell
         ariaLabel={MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}
         titleNode={(
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className={['text-base font-semibold min-w-0 truncate', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</h3>
+          <div className="flex min-w-0 max-w-full items-center gap-2">
+            <h3 className={['text-base font-semibold min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</h3>
             <button
               type="button"
               className={['ml-auto inline-flex items-center justify-center w-8 h-8 rounded shrink-0', UI_THEME_TOKENS.button.hoverBg].join(' ')}
@@ -111,9 +116,13 @@ export function WorkspaceDataViewSettingsDialog(props: {
         headerClassName={['px-4 py-3 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}
         bodyClassName="p-0"
       >
-        <main className="flex h-full min-h-0">
+        <main className="kg-data-view-settings-layout flex h-full min-h-0">
           <nav
-            className={['w-[220px] border-r p-2 overflow-y-auto', UI_THEME_TOKENS.panel.divider].join(' ')}
+            className={[
+              'kg-data-view-settings-nav w-[220px] shrink-0 border-r p-2 overflow-y-auto',
+              uiToolbarResponsiveRowScrollClassName,
+              UI_THEME_TOKENS.panel.divider,
+            ].join(' ')}
             aria-label="View settings sections"
           >
             {([
@@ -131,7 +140,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
                   key={item.key}
                   type="button"
                   className={[
-                    'w-full flex items-center gap-2 px-2 py-2 rounded text-sm',
+                    'kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 rounded text-sm',
                     active
                       ? [UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText].join(' ')
                       : [UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.primary].join(' '),
@@ -139,17 +148,17 @@ export function WorkspaceDataViewSettingsDialog(props: {
                   onMouseEnter={() => setActivePanel(item.key)}
                   onFocus={() => setActivePanel(item.key)}
                 >
-                  <span className={active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.icon.color}>{item.icon}</span>
-                  <span className="min-w-0 truncate">{item.label}</span>
+                  <span className={['shrink-0', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.icon.color].join(' ')}>{item.icon}</span>
+                  <span className={['min-w-0', UI_TEXT_TRUNCATE].join(' ')}>{item.label}</span>
                   {'value' in item && item.value ? (
-                    <span className={['ml-auto text-xs', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>{item.value}</span>
+                    <span className={['ml-auto min-w-0 max-w-[45%] text-xs', UI_TEXT_TRUNCATE, active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>{item.value}</span>
                   ) : null}
                 </button>
               )
             })}
           </nav>
 
-          <section className="flex-1 p-3 overflow-y-auto" aria-label="View settings panel">
+          <section className="kg-data-view-settings-panel min-w-0 flex-1 p-3 overflow-y-auto" aria-label="View settings panel">
           {activePanel === 'layout' ? (
             <section className="space-y-4" aria-label="Layout">
               <label className="block">
@@ -171,7 +180,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
                   <LayoutGrid className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                   <span>Layout</span>
                 </div>
-                <div className="mt-2 flex gap-2">
+                <div className={`${uiToolbarRowScrollClassName} mt-2 gap-2`}>
                   {layoutModeOptions.map(mode => (
                     <LayoutChoice
                       key={mode}
@@ -204,7 +213,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
                 <div className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
                   Configure property mapping in Properties.
                 </div>
-                <label className="mt-3 flex items-center gap-2" aria-label="Enable Multi-dimensional Table graph">
+                <label className="mt-3 flex min-w-0 max-w-full items-center gap-2" aria-label="Enable Multi-dimensional Table graph">
                   <input
                     type="checkbox"
                     className="rounded"
@@ -212,7 +221,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
                     onChange={e => setGraphEnabled(e.target.checked)}
                     disabled={!props.canMutate}
                   />
-                  <span className={['text-sm', UI_THEME_TOKENS.text.primary].join(' ')}>Enable table-to-graph rendering</span>
+                  <span className={['min-w-0 text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Enable table-to-graph rendering</span>
                 </label>
               </fieldset>
             </section>

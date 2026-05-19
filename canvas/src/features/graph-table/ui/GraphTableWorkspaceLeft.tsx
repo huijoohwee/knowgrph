@@ -95,7 +95,7 @@ export function GraphTableWorkspaceLeft(props: {
   }, [props.onDeleteSelected, props.selectedRow, props.setSelectedRowIds])
 
   return (
-    <section className={`flex-1 min-h-0 overflow-hidden flex flex-col ${UI_THEME_TOKENS.text.primary}`} aria-label="Graph Data Table">
+    <section className={`kg-graph-table-workspace-left flex-1 min-h-0 min-w-0 max-w-full overflow-hidden flex flex-col ${UI_THEME_TOKENS.text.primary}`} aria-label="Graph Data Table">
       <GraphTableWorkspaceHeader
         panelTypography={props.panelTypography}
         activeTableId={props.activeTableId}
@@ -136,8 +136,8 @@ export function GraphTableWorkspaceLeft(props: {
         onClose={props.onClose}
       />
 
-      <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Table workspace">
-        <section className="flex-1 min-w-0 min-h-0 overflow-hidden flex" aria-label="Table and inspector">
+      <section className="kg-graph-table-body flex-1 min-h-0 min-w-0 max-w-full overflow-hidden flex" aria-label="Table workspace">
+        <section className="kg-graph-table-grid-inspector-shell flex-1 min-w-0 min-h-0 max-w-full overflow-hidden flex" aria-label="Table and inspector">
           {props.viewMode === 'kanban' ? (
             <GraphTableKanbanView
               tableId={props.activeTableId}
@@ -178,6 +178,7 @@ export function GraphTableWorkspaceLeft(props: {
                 ref={el => {
                   props.setInspectorDragHandleEl(el)
                 }}
+                className="kg-graph-table-inspector-resize"
                 ariaLabel="Resize inspector"
                 visualStyle="centerGrip"
               />

@@ -200,7 +200,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           <li className="list-none">
             <button
               type="button"
-              className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={`kg-menu-row w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={toggleWorkspaceSyncMode}
               title={
                 canvasWorkspaceSyncMode === 'realtime'
@@ -208,7 +208,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
                   : UI_COPY.canvasWorkspaceSyncManualTooltip
               }
             >
-              <Link2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+              <Link2 className={`${iconSizeClass} shrink-0`} strokeWidth={iconStrokeWidth} />
               <span className="truncate">{`${UI_LABELS.workspaceSyncMode}: ${syncLabel}`}</span>
             </button>
           </li>

@@ -10,7 +10,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
@@ -165,9 +164,6 @@ export default function FlowCanvasMediaOverlays(args: {
     })
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
   const graphSchema = schema as GraphSchema
-  const balancedViewportPreset = React.useMemo(() => {
-    return resolveBalancedViewportPreset({ graphData: sceneGraphData, fallbackPreset: 'richMedia' })
-  }, [sceneGraphData])
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
   const mediaOverlayPanelSizeTargetWorldRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
@@ -304,8 +300,8 @@ export default function FlowCanvasMediaOverlays(args: {
   )
   const mediaLayoutItemsKey = React.useMemo(() => mediaLayoutItems.map(item => item.id).join('|'), [mediaLayoutItems])
   const mediaViewportMargins = React.useMemo(
-    () => computeBalancedSpreadViewportMargins({ viewportW, viewportH, preset: balancedViewportPreset, minLeftPx: 16, minRightPx: 16, minTopPx: 16, minBottomPx: 16 }),
-    [balancedViewportPreset, viewportH, viewportW],
+    () => computeBalancedSpreadViewportMargins({ viewportW, viewportH, preset: 'richMedia', minLeftPx: 16, minRightPx: 16, minTopPx: 16, minBottomPx: 16 }),
+    [viewportH, viewportW],
   )
   const mediaLayoutPropsSignature = React.useMemo(
     () => readMediaLayoutNodePropsSignature(mediaLayoutItemIds, sceneGraphData),
@@ -565,7 +561,6 @@ export default function FlowCanvasMediaOverlays(args: {
       density,
       viewportW,
       viewportH,
-      balancedViewportPreset,
       readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
       computeSizingZoomK: zoomK => computeOverlaySizingScale(zoomK, stableMediaLayoutItems.length, 360, 240),
       getPanelSizeForId: id => {
@@ -651,7 +646,6 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaViewportMargins.left,
     mediaViewportMargins.right,
     mediaViewportMargins.top,
-    balancedViewportPreset,
     viewportH,
     viewportW,
   ])

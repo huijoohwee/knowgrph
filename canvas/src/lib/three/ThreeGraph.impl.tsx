@@ -16,6 +16,7 @@ import { GlbAssetModel } from '@/lib/three/GlbAssetModel'
 import { CanvasXrEntryPanel, OverlayFrameSync } from '@/lib/three/ThreeGraphXr'
 import { registerThreeGraphSnapshotFns } from '@/lib/three/ThreeGraphSnapshots'
 import { useThreeRichMediaOverlayController } from '@/lib/three/useThreeRichMediaOverlayController'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 
 const SceneLazy = React.lazy(() =>
   import('@/features/three/Scene').then(mod => ({
@@ -36,7 +37,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     selectEdge,
     setSelectionSource,
   } = useGraphStore()
+  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const markdownDocumentSourceUrl = useGraphStore(s => s.markdownDocumentSourceUrl)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
+  const markdownDocumentApplyViewPreset = useGraphStore(s => s.markdownDocumentApplyViewPreset)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const registerThreeGlbSnapshotFns = useGraphStore(s => s.registerThreeGlbSnapshotFns)
   const registerThreeLayoutSnapshotFns = useGraphStore(s => s.registerThreeLayoutSnapshotFns)
@@ -71,7 +75,13 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     renderGraphRef.current = graph
     return graph
   }, [paused, graph])
-  const glbAsset = useMemo(() => parseGlbAssetDocument(markdownDocumentText), [markdownDocumentText])
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
+    name: markdownDocumentName,
+    sourceUrl: markdownDocumentSourceUrl,
+    text: markdownDocumentText,
+    applyViewPreset: markdownDocumentApplyViewPreset !== false,
+  })
+  const glbAsset = useMemo(() => parseGlbAssetDocument(canvasMarkdownDocument.text), [canvasMarkdownDocument.text])
   const sceneGraph = useMemo(() => {
     if (glbAsset) return null
     const g = renderGraph as GraphData | null

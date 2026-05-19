@@ -1,5 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
+import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { Z_INDEX_MENU } from '@/lib/ui/zIndex'
 
 export type DetailsMenuApi = {
@@ -18,6 +19,17 @@ export type DetailsMenuProps = {
   portal?: boolean
   portalPlacement?: 'bottom-start' | 'bottom-end'
   portalGapPx?: number
+}
+
+function readPortalSize(container: HTMLElement | null): { width: number; height: number } {
+  if (!container) return { width: 1, height: 1 }
+  const containerRect = container.getBoundingClientRect()
+  const child = container.firstElementChild
+  const childRect = child && typeof child.getBoundingClientRect === 'function' ? child.getBoundingClientRect() : null
+  return {
+    width: Math.max(1, containerRect.width || 0, childRect?.width || 0),
+    height: Math.max(1, containerRect.height || 0, childRect?.height || 0),
+  }
 }
 
 export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuProps) {
@@ -41,22 +53,46 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     if (!anchor) return
     const rect = anchor.getBoundingClientRect()
     const gap = typeof props.portalGapPx === 'number' ? props.portalGapPx : 8
-    const top = Math.round(rect.bottom + gap)
+    const desiredTop = rect.bottom + gap
     const placement = props.portalPlacement || 'bottom-start'
+    const viewportWidth =
+      typeof window !== 'undefined'
+        ? window.innerWidth || document.documentElement.clientWidth || 0
+        : 0
+    const viewportHeight =
+      typeof window !== 'undefined'
+        ? window.innerHeight || document.documentElement.clientHeight || 0
+        : 0
+    const menuSize = readPortalSize(portalRootRef.current)
+    const desiredLeft = placement === 'bottom-end' ? rect.right - menuSize.width : rect.left
 
     const next: React.CSSProperties = {
       position: 'fixed',
-      top,
+      width: 'max-content',
+      maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 1rem)',
+      maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 1rem)',
+      overflow: 'auto',
+      overscrollBehavior: 'contain',
     }
-    if (placement === 'bottom-end') {
-      next.left = Math.round(rect.right)
-      next.transform = 'translateX(-100%)'
+    if (viewportWidth > 0 && viewportHeight > 0) {
+      const clamped = clampOverlayTopLeftFullyInViewport({
+        pos: { top: desiredTop - gap, left: desiredLeft - gap },
+        size: menuSize,
+        viewport: {
+          width: Math.max(1, viewportWidth - gap * 2),
+          height: Math.max(1, viewportHeight - gap * 2),
+        },
+        snapPx: 1,
+      })
+      next.top = clamped.top + gap
+      next.left = clamped.left + gap
     } else {
-      next.left = Math.round(rect.left)
+      next.top = Math.round(desiredTop)
+      next.left = Math.round(desiredLeft)
     }
     setPortalStyle(prev => {
       if (!prev) return next
-      if (prev.top === next.top && prev.left === next.left && prev.transform === next.transform) return prev
+      if (prev.top === next.top && prev.left === next.left && prev.maxWidth === next.maxWidth && prev.maxHeight === next.maxHeight) return prev
       return next
     })
   }, [props.portalGapPx, props.portalPlacement])
@@ -105,6 +141,29 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       window.removeEventListener('pointerdown', onPointerDown, true)
     }
   }, [close, isOpen, props.portal, updatePortalPosition])
+
+  React.useEffect(() => {
+    if (!props.portal || !isOpen) return
+    const root = portalRootRef.current
+    if (!root) return
+    updatePortalPosition()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => updatePortalPosition())
+    observer.observe(root)
+    const child = root.firstElementChild
+    if (child instanceof HTMLElement) observer.observe(child)
+    return () => observer.disconnect()
+  }, [isOpen, props.portal, updatePortalPosition])
+
+  React.useEffect(() => {
+    if (!props.portal || !isOpen) return
+    const root = portalRootRef.current
+    if (!root) return
+    if (typeof MutationObserver === 'undefined') return
+    const observer = new MutationObserver(() => updatePortalPosition())
+    observer.observe(root, { attributes: true, childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [isOpen, props.portal, updatePortalPosition])
 
   return (
     <details
@@ -166,6 +225,14 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
               <div
                 ref={el => {
                   portalRootRef.current = el
+                  if (!el) return
+                  updatePortalPosition()
+                  if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(() => {
+                      updatePortalPosition()
+                      window.requestAnimationFrame(updatePortalPosition)
+                    })
+                  }
                 }}
                 style={{ ...portalStyle, pointerEvents: 'auto' }}
               >

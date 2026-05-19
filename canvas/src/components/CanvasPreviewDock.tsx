@@ -93,7 +93,7 @@ export function CanvasPreviewDock(props: CanvasPreviewDockProps) {
         />
       )}
       <aside
-        className={`shrink min-w-0 min-h-0 ${UI_THEME_TOKENS.panel.bg} flex flex-col ${collapsed ? `border-l ${UI_THEME_TOKENS.panel.divider}` : ''}`}
+        className={`kg-canvas-preview-dock ${collapsed ? 'kg-canvas-preview-dock--collapsed' : 'kg-canvas-preview-dock--open'} shrink min-w-0 min-h-0 ${UI_THEME_TOKENS.panel.bg} flex flex-col ${collapsed ? `border-l ${UI_THEME_TOKENS.panel.divider}` : ''}`}
         style={{ width: collapsed ? `${collapsedWidthPx}px` : `${widthPx}px` }}
         aria-label={collapsed ? ariaLabelCollapsed : ariaLabel}
       >

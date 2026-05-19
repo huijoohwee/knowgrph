@@ -25,6 +25,8 @@ import {
   type GraphTableSortDirection,
 } from './graphTableViewState'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 export type GraphTableToolbarProps = {
   columns: { columnId: string; name: string }[]
@@ -59,10 +61,12 @@ export type GraphTableToolbarProps = {
 }
 
 export function GraphTableToolbar(props: GraphTableToolbarProps) {
-  const iconButtonClass = `${UI_THEME_TOKENS.button.square} kg-toolbar-btn`
-  const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} kg-toolbar-btn inline-flex items-center justify-center rounded cursor-pointer select-none`
+  const iconButtonClass = `${UI_THEME_TOKENS.button.square} kg-toolbar-btn shrink-0`
+  const iconSummaryClass = `list-none ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} kg-toolbar-btn inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden rounded cursor-pointer select-none`
   const microLabelClass = props.panelTypography?.microLabelClass || ''
   const inputHeightClass = 'h-[var(--kg-control-height,28px)]'
+  const menuRowClass = `kg-graph-table-menu-row ${uiToolbarRowScrollClassName} gap-2`
+  const menuFieldClass = 'kg-graph-table-menu-field min-w-0 max-w-full'
   const toggleColumn = (columnId: string) => {
     const next = { ...props.columnVisibilityById }
     const current = props.columnVisibilityById[columnId]
@@ -104,7 +108,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
   const hasCustomWidths = Object.keys(props.columnWidthsPxById || {}).length > 0
 
   return (
-    <CollapsibleToolbar ariaLabel="Table toolbar" className={`kg-toolbar flex items-center gap-2 justify-end ${microLabelClass}`}>
+    <CollapsibleToolbar ariaLabel="Table toolbar" className={`kg-graph-table-toolbar kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1.5 ${microLabelClass}`}>
       <IconButton
         title={props.inspectorOpen ? 'Hide Inspector' : 'Show Inspector'}
         showTooltip={false}
@@ -137,19 +141,20 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         portalPlacement="bottom-end"
         summary={<Columns2 className="w-4 h-4" aria-hidden="true" />}
         menu={({ close }) => (
-          <form className={['rounded border p-2 min-w-44 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+          <form className={['kg-graph-table-menu-form kg-graph-table-menu-form--narrow rounded border p-2 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
             <fieldset className="space-y-1">
               <legend className={`${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
               {props.columns.map(c => (
-                <label key={c.columnId} className="flex items-center gap-2">
+                <label key={c.columnId} className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
                   <input
+                    className="shrink-0"
                     type="checkbox"
                     checked={props.columnVisibilityById[c.columnId] !== false}
                     onChange={() => {
                       toggleColumn(c.columnId)
                     }}
                   />
-                  <span>{c.name}</span>
+                  <span className={UI_TEXT_TRUNCATE}>{c.name}</span>
                 </label>
               ))}
             </fieldset>
@@ -165,27 +170,27 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         portalPlacement="bottom-end"
         summary={<Filter className="w-4 h-4" aria-hidden="true" />}
         menu={
-          <form className={['rounded border p-2 min-w-72 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+          <form className={['kg-graph-table-menu-form rounded border p-2 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
             <fieldset className="space-y-2">
-              <label className="flex items-center gap-2">
-                <span>Match</span>
+              <label className={menuRowClass}>
+                <span className={UI_TEXT_TRUNCATE}>Match</span>
                 <select
                   value={props.filterMatch}
                   onChange={e => props.setFilterMatch(e.target.value === 'any' ? 'any' : 'all')}
-                  className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                  className={`${inputHeightClass} min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                 >
                   <option value="all">All</option>
                   <option value="any">Any</option>
                 </select>
               </label>
               {props.filterClauses.map(clause => (
-                <section key={clause.id} className="flex items-center gap-2">
-                  <label>
-                    Field
+                <section key={clause.id} className={menuRowClass}>
+                  <label className={menuFieldClass}>
+                    <span className={UI_TEXT_TRUNCATE}>Field</span>
                     <select
                       value={clause.columnId}
                       onChange={e => updateFilterClause(clause.id, { columnId: e.target.value })}
-                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       {props.columns.map(c => (
                         <option key={c.columnId} value={c.columnId}>
@@ -194,12 +199,12 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                       ))}
                     </select>
                   </label>
-                  <label>
-                    Op
+                  <label className={menuFieldClass}>
+                    <span className={UI_TEXT_TRUNCATE}>Op</span>
                     <select
                       value={clause.operator}
                       onChange={e => updateFilterClause(clause.id, { operator: e.target.value as GraphTableFilterOperator })}
-                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       <option value="contains">contains</option>
                       <option value="equals">equals</option>
@@ -207,12 +212,12 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                       <option value="endsWith">endsWith</option>
                     </select>
                   </label>
-                  <label>
-                    Value
+                  <label className={menuFieldClass}>
+                    <span className={UI_TEXT_TRUNCATE}>Value</span>
                     <input
                       value={clause.value}
                       onChange={e => updateFilterClause(clause.id, { value: e.target.value })}
-                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     />
                   </label>
                   <button
@@ -224,7 +229,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                   </button>
                 </section>
               ))}
-              <section className="flex items-center gap-2">
+              <section className={menuRowClass}>
                 <button
                   type="button"
                   className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -245,12 +250,12 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         }
       />
 
-      <label className="flex items-center gap-2">
-        <span>Group</span>
+      <label className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+        <span className={UI_TEXT_TRUNCATE}>Group</span>
         <select
           value={props.groupBy}
           onChange={e => props.setGroupBy(e.target.value)}
-          className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+          className={`${inputHeightClass} min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
         >
           <option value="">None</option>
           {props.columns.map(c => (
@@ -269,16 +274,16 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         portalPlacement="bottom-end"
         summary={<ArrowUpDown className="w-4 h-4" aria-hidden="true" />}
         menu={
-          <form className={['rounded border p-2 min-w-64 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+          <form className={['kg-graph-table-menu-form rounded border p-2 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
             <fieldset className="space-y-2">
               {props.sortRules.map(rule => (
-                <section key={rule.id} className="flex items-center gap-2">
-                  <label>
-                    Field
+                <section key={rule.id} className={menuRowClass}>
+                  <label className={menuFieldClass}>
+                    <span className={UI_TEXT_TRUNCATE}>Field</span>
                     <select
                       value={rule.columnId}
                       onChange={e => updateSortRule(rule.id, { columnId: e.target.value })}
-                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       {props.columns.map(c => (
                         <option key={c.columnId} value={c.columnId}>
@@ -287,12 +292,12 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                       ))}
                     </select>
                   </label>
-                  <label>
-                    Direction
+                  <label className={menuFieldClass}>
+                    <span className={UI_TEXT_TRUNCATE}>Direction</span>
                     <select
                       value={rule.direction}
                       onChange={e => updateSortRule(rule.id, { direction: e.target.value as GraphTableSortDirection })}
-                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                      className={`${inputHeightClass} ml-2 min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
                     >
                       <option value="asc">asc</option>
                       <option value="desc">desc</option>
@@ -307,7 +312,7 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
                   </button>
                 </section>
               ))}
-              <section className="flex items-center gap-2">
+              <section className={menuRowClass}>
                 <button
                   type="button"
                   className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -328,12 +333,12 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         }
       />
 
-      <label className="flex items-center gap-2">
-        <span>Row height</span>
+      <label className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+        <span className={UI_TEXT_TRUNCATE}>Row height</span>
         <select
           value={props.rowHeightPreset}
           onChange={e => props.setRowHeightPreset(e.target.value === 'compact' ? 'compact' : 'comfortable')}
-          className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+          className={`${inputHeightClass} min-w-0 max-w-full px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
         >
           <option value="comfortable">Comfortable</option>
           <option value="compact">Compact</option>

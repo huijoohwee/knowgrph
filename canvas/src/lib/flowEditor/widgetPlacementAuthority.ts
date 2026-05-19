@@ -168,12 +168,10 @@ export function stripFrontmatterAutoManagedWidgetWorldPositions(args: {
 
 export function shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit(args: {
   graphData: GraphData | null | undefined
-  forceResetOverlayCarry?: boolean
   carryForwardSameSourceUiState?: boolean
   stableSameSourceNodeLayout?: boolean
   preserveBalancedCollective?: boolean
 }): boolean {
-  if (args.forceResetOverlayCarry === true) return false
   if (args.preserveBalancedCollective === true) return true
   const kind = String((((args.graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
   if (kind === 'frontmatter-flow') return false

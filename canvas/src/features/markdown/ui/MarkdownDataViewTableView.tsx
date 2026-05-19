@@ -20,6 +20,7 @@ import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu'
 import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
@@ -194,7 +195,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 key={c.id}
                 className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                   <ColumnHeaderPropertyTypeMenu
                     ariaLabel={`Column type: ${c.name}`}
                     label={c.name}
@@ -263,7 +264,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   canMutate={canMutate}
                   onAddColumn={props.onAddColumn}
                   summaryClassName={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  menuPositionClassName="absolute right-0 mt-2 w-[280px]"
+                  menuPositionClassName="kg-data-view-add-column-menu absolute right-0 mt-2 w-[280px]"
                 />
               </th>
             ) : null}
@@ -297,7 +298,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   return (
                     <td key={c.id} className={cellBase}>
                       {isCheckbox ? (
-                        <label className="inline-flex items-center gap-2">
+                        <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
                           <input
                             autoFocus
                             type="checkbox"
@@ -307,7 +308,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                               setEditing(null)
                             }}
                           />
-                          <span className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>{isTruthy(value) ? 'Checked' : 'Unchecked'}</span>
+                          <span className={['min-w-0 text-xs', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{isTruthy(value) ? 'Checked' : 'Unchecked'}</span>
                         </label>
                       ) : isSelect ? (
                         draft ? <DataViewTagChip value={draft} /> : <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
@@ -368,12 +369,12 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         />
                       </span>
                     ) : uiType === 'progress' && Number.isFinite(progressValue) ? (
-                      <div className="flex items-center gap-2">
-                        <progress className="w-24 h-2" value={Math.max(0, Math.min(100, progressValue))} max={100} />
-                        <span className={UI_THEME_TOKENS.text.secondary}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
+                      <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden">
+                        <progress className="h-2 w-24 max-w-[55%] shrink" value={Math.max(0, Math.min(100, progressValue))} max={100} />
+                        <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
                       </div>
                     ) : href ? (
-                      <a className={['underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">
+                      <a className={['block max-w-[24rem] underline', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">
                         {value}
                       </a>
                     ) : baseKind === 'select' && value ? (
@@ -385,7 +386,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         ))}
                       </div>
                     ) : (
-                      <span className={value ? '' : UI_THEME_TOKENS.text.tertiary}>{value || (canMutate ? '—' : '')}</span>
+                      <span className={['block max-w-[24rem]', UI_TEXT_TRUNCATE, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>{value || (canMutate ? '—' : '')}</span>
                     )}
                   </td>
                 )
@@ -403,11 +404,11 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
               >
                 <button
                   type="button"
-                  className={['inline-flex items-center gap-2 text-xs', UI_THEME_TOKENS.text.tertiary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
+                  className={['kg-data-view-action inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden text-xs', UI_THEME_TOKENS.text.tertiary, UI_THEME_TOKENS.button.hoverBg, 'px-2 py-1 rounded'].join(' ')}
                   onClick={() => props.onNewRecord?.()}
                 >
-                  <Plus className={['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                  {MARKDOWN_DATA_VIEW_COPY.newRecordLabel}
+                  <Plus className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                  <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
                 </button>
               </td>
             </tr>

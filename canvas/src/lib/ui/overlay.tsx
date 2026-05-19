@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 
 type Align = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'bottom-center' | 'top-center'
@@ -13,27 +14,61 @@ interface AnchorOverlayProps {
   children: React.ReactNode
 }
 
+function readOverlaySize(container: HTMLElement | null): { width: number; height: number } {
+  if (!container) return { width: 1, height: 1 }
+  const containerRect = container.getBoundingClientRect()
+  const child = container.firstElementChild
+  const childRect = child && typeof child.getBoundingClientRect === 'function' ? child.getBoundingClientRect() : null
+  return {
+    width: Math.max(1, containerRect.width || 0, childRect?.width || 0),
+    height: Math.max(1, containerRect.height || 0, childRect?.height || 0),
+  }
+}
+
 export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right', className = '', children }: AnchorOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const portalRootRef = useRef<HTMLDivElement | null>(null)
   const priorFocusedElementRef = useRef<HTMLElement | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
-  useLayoutEffect(() => {
-    if (!open) return
+  const updatePosition = React.useCallback(() => {
     const el = anchorRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
     const margin = 4
-    let top = 0
-    let left = 0
-    if (align.startsWith('bottom')) top = r.bottom + margin
-    else top = r.top - margin
-    if (align.endsWith('center')) left = r.left + r.width / 2
-    else if (align.endsWith('right')) left = r.right
-    else left = r.left
-    setPos({ top, left })
-  }, [open, anchorRef, align])
+    const overlaySize = readOverlaySize(containerRef.current)
+    const overlayWidth = overlaySize.width
+    const overlayHeight = overlaySize.height
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1
+    const top = align.startsWith('bottom') ? r.bottom + margin : r.top - margin - overlayHeight
+    const left = align.endsWith('center')
+      ? r.left + r.width / 2 - overlayWidth / 2
+      : align.endsWith('right')
+        ? r.right - overlayWidth
+        : r.left
+    const next = clampOverlayTopLeftFullyInViewport({
+      pos: { top, left },
+      size: { width: overlayWidth, height: overlayHeight },
+      viewport: { width: viewportWidth, height: viewportHeight },
+      snapPx: 1,
+    })
+    setPos(prev => (prev.top === next.top && prev.left === next.left ? prev : next))
+  }, [align, anchorRef])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    updatePosition()
+  })
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+    const timeoutIds = [window.setTimeout(updatePosition, 0), window.setTimeout(updatePosition, 50)]
+    return () => {
+      timeoutIds.forEach(id => window.clearTimeout(id))
+    }
+  }, [open, updatePosition])
 
   useEffect(() => {
     if (!open) return
@@ -59,20 +94,7 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     }
 
     const handleReposition = () => {
-      requestAnimationFrame(() => {
-        const el = anchorRef.current
-        if (!el) return
-        const r = el.getBoundingClientRect()
-        const margin = 4
-        let top = 0
-        let left = 0
-        if (align.startsWith('bottom')) top = r.bottom + margin
-        else top = r.top - margin
-        if (align.endsWith('center')) left = r.left + r.width / 2
-        else if (align.endsWith('right')) left = r.right
-        else left = r.left
-        setPos({ top, left })
-      })
+      requestAnimationFrame(updatePosition)
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -85,7 +107,30 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
       window.removeEventListener('scroll', handleReposition, true)
       window.removeEventListener('resize', handleReposition)
     }
-  }, [open, onClose, anchorRef, align])
+  }, [open, onClose, anchorRef, updatePosition])
+
+  useEffect(() => {
+    if (!open) return
+    const containerEl = containerRef.current
+    if (!containerEl) return
+    updatePosition()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => updatePosition())
+    observer.observe(containerEl)
+    const child = containerEl.firstElementChild
+    if (child instanceof HTMLElement) observer.observe(child)
+    return () => observer.disconnect()
+  }, [open, updatePosition])
+
+  useEffect(() => {
+    if (!open) return
+    const containerEl = containerRef.current
+    if (!containerEl) return
+    if (typeof MutationObserver === 'undefined') return
+    const observer = new MutationObserver(() => updatePosition())
+    observer.observe(containerEl, { attributes: true, childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [open, updatePosition])
 
   useEffect(() => {
     if (!open) return
@@ -145,16 +190,13 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
       top: pos.top,
       left: pos.left,
       zIndex: Z_INDEX_ANCHOR_OVERLAY,
-      transform: (() => {
-        const tx = align.endsWith('center') ? '-50%' : '0%'
-        const ty = align.startsWith('top') ? '-100%' : '0%'
-        if (tx === '0%' && ty === '0%') return undefined
-        if (tx !== '0%' && ty !== '0%') return `translate(${tx}, ${ty})`
-        if (tx !== '0%') return `translateX(${tx})`
-        return `translateY(${ty})`
-      })(),
+      width: 'max-content',
+      maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 0.5rem)',
+      maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 0.5rem)',
+      overflow: 'auto',
+      overscrollBehavior: 'contain',
     }),
-    [pos, align],
+    [pos],
   )
 
   if (!open) return null
@@ -162,7 +204,22 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
   if (!portalRoot) return null
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>
-      <div ref={containerRef} style={{ ...style, pointerEvents: 'auto' }} className={className} tabIndex={-1}>
+      <div
+        ref={el => {
+          containerRef.current = el
+          if (!el) return
+          updatePosition()
+          if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(() => {
+              updatePosition()
+              window.requestAnimationFrame(updatePosition)
+            })
+          }
+        }}
+        style={{ ...style, pointerEvents: 'auto' }}
+        className={className}
+        tabIndex={-1}
+      >
         {children}
       </div>
     </div>,

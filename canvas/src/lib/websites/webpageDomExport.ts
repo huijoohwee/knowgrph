@@ -7,6 +7,8 @@ export type WebpageDomProbeResult =
   | { ok: false; stage: string; error: string; attempts?: { src: string; sandbox: string }[] }
 
 import { looksLikeNetworkSecurityBlockText } from 'grph-shared/rich-media/webpagePreview'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashSignatureParts } from '@/lib/hash/signature'
 import { isNoiseProneWebpagePreviewHost } from '@/lib/websites/webpageSnapshotShared'
 
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
@@ -55,19 +57,12 @@ const stableKey = (args: {
   viewportW: number
   viewportH: number
 }): string => {
-  return [
-    `mode:${args.mode}`,
-    `url:${args.url}`,
-    `timeout:${args.timeoutMs}`,
-    `maxChars:${args.maxChars}`,
-    `netIdle:${args.waitForNetworkIdle ? 1 : 0}:${args.networkIdleMs}`,
-    `minAfter:${args.minWaitAfterLoadMs}`,
-    `domQuiet:${args.domQuietMs}`,
-    `maxEl:${args.maxElements}`,
-    `vp:${args.viewportW}x${args.viewportH}`,
-    `scroll:${args.scrollCrawl ? 1 : 0}`,
-    `faq:${args.expandFaq ? 1 : 0}`,
-  ].join('|')
+  const graphSemanticKey = hashSignatureParts([
+    args.mode, args.url, args.timeoutMs, args.maxChars, args.waitForNetworkIdle, args.networkIdleMs,
+    args.minWaitAfterLoadMs, args.domQuietMs, args.maxElements, args.viewportW, args.viewportH,
+    args.scrollCrawl, args.expandFaq,
+  ])
+  return buildScopedGraphSemanticKey('webpage-dom-export', { graphSemanticKey }) || graphSemanticKey
 }
 
 export async function exportWebpageDomViaHiddenIframe(args: {

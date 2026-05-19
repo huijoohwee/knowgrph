@@ -3,7 +3,7 @@ import path from 'node:path'
 
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 
-export const testCanvasDocDeepLinkAppliesWorkspaceSwitchPresetAndGraph = () => {
+export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () => {
   const text = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasDocDeepLinkRuntime.tsx'))
   const helperText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocDeepLink.ts'))
   const explorerStoreText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'markdown-explorer', 'store.ts'))
@@ -13,15 +13,12 @@ export const testCanvasDocDeepLinkAppliesWorkspaceSwitchPresetAndGraph = () => {
   if (!explorerStoreText.includes('readLocalDocDeepLinkPathFromCurrentLocation()')) {
     throw new Error('Expected markdown explorer startup to prefer a live local document deep link before persisted active path')
   }
-  if (!text.includes("import('@/lib/markdown-workspace-runtime/workspaceSwitchPreset')")) {
-    throw new Error('Expected local document deep links to reuse the shared workspace switch preset helper')
-  }
-  if (!text.includes('applyCanvasWorkspacePresetForSwitch({ text: entryText })')) {
-    throw new Error('Expected local document deep links to apply canonical YAML canvas presets through the shared helper')
+  if (text.includes("import('@/lib/markdown-workspace-runtime/workspaceSwitchPreset')") || text.includes('applyCanvasWorkspacePresetForSwitch')) {
+    throw new Error('Expected local document deep links not to pre-apply YAML canvas presets before active document graph ownership changes')
   }
   const selectIndex = text.indexOf('setActivePath(targetPath)')
-  const applyIndex = text.indexOf('applyCanvasWorkspacePresetForSwitch({ text: entryText })')
-  if (selectIndex < 0 || applyIndex < 0 || selectIndex > applyIndex) {
+  const graphApplyIndex = text.indexOf('applyActiveMarkdownDocumentPayload({')
+  if (selectIndex < 0 || graphApplyIndex < 0 || selectIndex > graphApplyIndex) {
     throw new Error('Expected local document deep links to select the target path before non-blocking graph work')
   }
   const selectionSourceIndex = text.indexOf("setSelectionSource('editor')")
@@ -43,8 +40,8 @@ export const testCanvasDocDeepLinkAppliesWorkspaceSwitchPresetAndGraph = () => {
   if (!text.includes('name: workspaceDocumentKey(targetPath)')) {
     throw new Error('Expected local document deep links to use canonical workspace document keys')
   }
-  if (!text.includes('applyToGraph: true') || !text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
-    throw new Error('Expected local document deep links to apply the target markdown graph without frontmatter normalization churn')
+  if (!text.includes('applyToGraph: false') || !text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
+    throw new Error('Expected local document deep links to open the target markdown document without mutating the Canvas graph')
   }
   if (text.includes('consumedRef') || text.includes('consumedSearchRef')) {
     throw new Error('Expected document deep-link consumption to avoid stale one-shot latches')

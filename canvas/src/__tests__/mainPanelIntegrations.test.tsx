@@ -22,6 +22,7 @@ import {
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
 import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
+import { assertMapsHubOmitsGrabMapsMcpConfig, assertMcpHubSurfacesGrabMapsMcpConfig } from '@/__tests__/helpers/mainPanelMcpExpectations'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
   void raf
@@ -682,15 +683,7 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
         throw new Error(`expected maps hub to retain backend/system/API GrabMaps guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-    ;[
-      'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
-      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
-      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
-    ].forEach(token => {
-      if (text.includes(token)) {
-        throw new Error(`expected maps hub MCP guidance to move out of maps tab ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
-      }
-    })
+    assertMapsHubOmitsGrabMapsMcpConfig(text)
     if (text.includes('Global Reset')) {
       throw new Error('expected maps hub to omit global reset section')
     }
@@ -724,20 +717,7 @@ export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
     await renderAndFlush(root, React.createElement(McpHubView), anyWindow.requestAnimationFrame, 4)
 
     const text = container.textContent || ''
-    ;[
-      'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
-      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
-      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
-      'grabmapsMcp.server_key',
-      'grabmapsMcp.command',
-      'grabmapsMcp.args',
-      'grabmapsMcp.env',
-      'grabmapsMcp.startup_timeout_ms',
-    ].forEach(token => {
-      if (!text.includes(token)) {
-        throw new Error(`expected MCP hub to include MCP server guidance/config ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
-      }
-    })
+    assertMcpHubSurfacesGrabMapsMcpConfig(container)
     if (text.includes('Global Reset')) {
       throw new Error('expected MCP hub to omit global reset section')
     }

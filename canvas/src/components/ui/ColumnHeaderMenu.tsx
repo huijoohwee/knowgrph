@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, EyeOff, Filter, Trash2, Copy, ArrowUp, ArrowDown
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export type ColumnHeaderMenuFilterOp = string
 
@@ -47,7 +48,7 @@ export type ColumnHeaderMenuProps = {
 
 const itemBtn = (disabled?: boolean): string => {
   return [
-    'w-full flex items-center gap-2 px-2 py-2 rounded text-xs',
+    'kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 rounded text-xs',
     disabled ? UI_THEME_TOKENS.text.tertiary : UI_THEME_TOKENS.button.hoverBg,
   ].join(' ')
 }
@@ -97,7 +98,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
 
   return (
     <menu
-      className={['rounded border shadow-sm p-1 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+      className={['kg-column-header-menu rounded border shadow-sm p-1 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
       aria-label={props.ariaLabel}
     >
       <li className="list-none">
@@ -117,11 +118,11 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
             }}
           >
             <Columns2 className={icon14} aria-hidden="true" />
-            <span className="flex-1 text-left">{props.typeSummaryLabel}</span>
-            <span className={['truncate max-w-[120px]', UI_THEME_TOKENS.text.secondary].join(' ')}>{props.typeValueLabel}</span>
+            <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{props.typeSummaryLabel}</span>
+            <span className={['min-w-0 max-w-[120px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{props.typeValueLabel}</span>
             <ArrowRight className={icon14} aria-hidden="true" />
           </summary>
-          <div className="absolute left-full top-0 pl-1" onMouseEnter={openType} onMouseLeave={scheduleCloseType}>
+          <div className="kg-column-header-submenu absolute left-full top-0 pl-1" onMouseEnter={openType} onMouseLeave={scheduleCloseType}>
             {props.renderTypeMenu({ closeMenu: props.closeMenu })}
           </div>
         </details>
@@ -142,7 +143,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <EyeOff className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Hide In View</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Hide In View</span>
         </button>
       </li>
 
@@ -160,16 +161,16 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
             summary={
               <>
                 <Filter className={icon14} aria-hidden="true" />
-                <span className="flex-1 text-left">Filter</span>
+                <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Filter</span>
                 <ArrowRight className={icon14} aria-hidden="true" />
               </>
             }
             menu={({ close }) => (
               <section
-                className={['rounded border shadow-sm p-2 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+                className={['kg-column-header-filter-editor rounded border shadow-sm p-2 w-[260px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
                 aria-label="Filter editor"
               >
-                <header className="flex items-center gap-2 mb-2">
+                <header className="mb-2 flex min-w-0 items-center gap-2">
                   <button
                     type="button"
                     className={['inline-flex items-center justify-center w-8 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(
@@ -180,14 +181,14 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                   >
                     <ArrowLeft className={icon14} aria-hidden="true" />
                   </button>
-                  <div className={['font-medium text-sm', UI_THEME_TOKENS.text.primary].join(' ')}>Filter</div>
+                  <div className={['min-w-0 font-medium text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>Filter</div>
                 </header>
 
                 <fieldset className="border-0 p-0 m-0 space-y-2">
-                  <label className="flex items-center gap-2">
-                    <span className={['text-xs w-12', UI_THEME_TOKENS.text.secondary].join(' ')}>Op</span>
+                  <label className="flex min-w-0 items-center gap-2">
+                    <span className={['w-12 shrink-0 text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Op</span>
                     <select
-                      className={['h-7 px-2 rounded border flex-1', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+                      className={['h-7 min-w-0 px-2 rounded border flex-1', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
                       value={filterOp}
                       onChange={e => setFilterOp(e.target.value)}
                       disabled={props.filter?.isDisabled}
@@ -199,10 +200,10 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
                       ))}
                     </select>
                   </label>
-                  <label className="flex items-center gap-2">
-                    <span className={['text-xs w-12', UI_THEME_TOKENS.text.secondary].join(' ')}>Value</span>
+                  <label className="flex min-w-0 items-center gap-2">
+                    <span className={['w-12 shrink-0 text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>Value</span>
                     <input
-                      className={['h-7 px-2 rounded border flex-1', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+                      className={['h-7 min-w-0 px-2 rounded border flex-1', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
                       value={filterValue}
                       onChange={e => setFilterValue(e.target.value)}
                       disabled={props.filter?.isDisabled}
@@ -239,7 +240,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
         <li className="list-none">
           <button type="button" className={itemBtn(true)} disabled>
             <Filter className={icon14} aria-hidden="true" />
-            <span className="flex-1 text-left">Filter</span>
+            <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Filter</span>
           </button>
         </li>
       )}
@@ -255,7 +256,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <ArrowUp className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Sort Ascending</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Sort Ascending</span>
         </button>
       </li>
       <li className="list-none">
@@ -269,7 +270,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <ArrowDown className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Sort Descending</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Sort Descending</span>
         </button>
       </li>
 
@@ -288,7 +289,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <ArrowLeft className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Insert Left Column</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Insert Left Column</span>
         </button>
       </li>
       <li className="list-none">
@@ -302,7 +303,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <ArrowRight className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Insert Right Column</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Insert Right Column</span>
         </button>
       </li>
       <li className="list-none">
@@ -316,7 +317,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <ArrowLeft className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Move Left</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Move Left</span>
         </button>
       </li>
       <li className="list-none">
@@ -330,7 +331,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <ArrowRight className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Move Right</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Move Right</span>
         </button>
       </li>
 
@@ -349,7 +350,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <Copy className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Duplicate</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Duplicate</span>
         </button>
       </li>
       <li className="list-none">
@@ -363,7 +364,7 @@ export const ColumnHeaderMenu = React.memo(function ColumnHeaderMenu(props: Colu
           }}
         >
           <Trash2 className={icon14} aria-hidden="true" />
-          <span className="flex-1 text-left">Delete</span>
+          <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>Delete</span>
         </button>
       </li>
     </menu>

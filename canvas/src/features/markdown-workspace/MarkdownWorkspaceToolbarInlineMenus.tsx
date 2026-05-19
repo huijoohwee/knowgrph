@@ -2,6 +2,7 @@ import React from 'react'
 import { usePanelTypography, type PanelTypography } from '@/lib/ui/panelTypography'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
+import { uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
 import {
   Bold,
   ChevronLeft,
@@ -26,7 +27,7 @@ export function MarkdownWorkspacePresentationNavMenu(props: {
 }) {
   if (!props.canNavigateSlides) return null
   return (
-    <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Presentation navigation">
+    <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Presentation navigation">
       <li className="list-none">
         <button
           type="button"
@@ -59,7 +60,7 @@ export function MarkdownWorkspaceFormattingMenu(props: {
 }) {
   const panelTypography = usePanelTypography()
   return (
-    <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Formatting">
+    <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Formatting">
       <li className="list-none">
         <button
           type="button"
@@ -167,7 +168,7 @@ export function MarkdownWorkspaceFormattingMenu(props: {
           disabled={!props.isEditing || !props.isMarkdown}
           onClick={() => props.onFormatAction('normalizeAsciiBlocks')}
         >
-          <span className={panelTypography.microLabelClass}>ASCII</span>
+          <span className={`${panelTypography.microLabelClass} kg-truncate-chip`}>ASCII</span>
         </button>
       </li>
     </menu>
@@ -182,7 +183,7 @@ export function MarkdownWorkspaceDisplayMenu(props: {
   setMarkdownWordWrap: (next: boolean) => void
 }) {
   return (
-    <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Display">
+    <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Display">
       <li className="list-none">
         <button
           type="button"

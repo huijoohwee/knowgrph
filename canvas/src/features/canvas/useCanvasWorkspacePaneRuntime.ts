@@ -5,20 +5,21 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  resolveWorkspaceEditorPaneMinWidthPx,
   resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
-const MIN_WORKSPACE_PREVIEW_WIDTH_PX = 320
 const WORKSPACE_PREVIEW_RIGHT_GUTTER_PX = 48
 
 function resolveWorkspacePreviewWidthBounds() {
+  const minPx = resolveWorkspaceEditorPaneMinWidthPx()
   const maxPx = resolveWorkspacePaneMaxWidthPx({
-    minPx: MIN_WORKSPACE_PREVIEW_WIDTH_PX,
+    minPx,
     rightGutterPx: WORKSPACE_PREVIEW_RIGHT_GUTTER_PX,
   })
-  return { minPx: MIN_WORKSPACE_PREVIEW_WIDTH_PX, maxPx }
+  return { minPx, maxPx }
 }
 
 function clampWorkspacePreviewWidthPx(widthPx: number): number {
@@ -41,16 +42,16 @@ export function useCanvasWorkspacePaneRuntime(): {
 } {
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
   const [workspacePreviewWidthPx, setWorkspacePreviewWidthPx] = React.useState(() => {
+    const bounds = resolveWorkspacePreviewWidthBounds()
     const raw = lsInt(
       LS_KEYS.workspacePreviewWidthPx,
       resolveWorkspaceEditorPaneDefaultWidthPx({
-        minPx: MIN_WORKSPACE_PREVIEW_WIDTH_PX,
-        maxPx: resolveWorkspacePreviewWidthBounds().maxPx,
+        minPx: bounds.minPx,
+        maxPx: bounds.maxPx,
       }),
     )
     const next = clampWorkspacePreviewWidthPx(raw)
     if (next !== raw) {
-      const bounds = resolveWorkspacePreviewWidthBounds()
       lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
     }
     return next

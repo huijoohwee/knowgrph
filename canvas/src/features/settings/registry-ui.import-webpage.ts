@@ -61,7 +61,7 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     read: () => s().websiteImportGenerateWebpageArtifactDocs,
     write: v => s().setWebsiteImportGenerateWebpageArtifactDocs(!!v),
     docKey: 'websiteImportGenerateWebpageArtifactDocs',
-    default: () => false,
+    default: () => true,
   },
   {
     key: 'websiteImportMaxPages',
@@ -70,7 +70,7 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     read: () => s().websiteImportMaxPages,
     write: v => s().setWebsiteImportMaxPages(Number(v)),
     docKey: 'websiteImportMaxPages',
-    default: () => 50,
+    default: () => 100,
   },
   {
     key: 'websiteImportConcurrency',

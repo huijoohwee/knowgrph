@@ -5,6 +5,7 @@ import { SelectionActionsMenu } from './SelectionActionsMenu'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
 import { ExplorerSearchControl } from './ExplorerSearchControl'
 import type { SelectionActionItem } from './selectionActionItems'
+import { uiToolbarRowScrollJustifyEndClassName, uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type MarkdownWorkspaceExplorerHeaderActionsProps = {
   textSizeClass: string
@@ -25,8 +26,8 @@ export function MarkdownWorkspaceExplorerHeaderActions(props: MarkdownWorkspaceE
   )
 
   return (
-    <CollapsibleToolbar ariaLabel="Explorer actions" className="kg-toolbar flex items-center justify-end">
-      <ul className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions list">
+    <CollapsibleToolbar ariaLabel="Explorer actions" className={`kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1`}>
+      <ul className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Explorer actions list">
         <SelectionActionsMenu
           textSizeClass={textSizeClass}
           activeEntryName={activeEntryName}

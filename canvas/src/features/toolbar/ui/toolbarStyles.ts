@@ -37,6 +37,20 @@ export const uiToolbarButtonMutedClassName = `${UI_THEME_TOKENS.button.neutralMu
 
 export const uiToolbarButtonPrimarySolidClassName = UI_THEME_TOKENS.button.primarySolid
 
+export const uiToolbarRowScrollClassName = 'kg-row-scroll flex items-center'
+
+export const uiToolbarRowScrollInlineClassName = 'kg-row-scroll inline-flex items-center'
+
+export const uiToolbarRowScrollJustifyEndClassName = `${uiToolbarRowScrollClassName} justify-end`
+
+export const uiToolbarRowScrollJustifyBetweenClassName = `${uiToolbarRowScrollClassName} justify-between`
+
+export const uiToolbarRowScrollListClassName = `${uiToolbarRowScrollClassName} list-none m-0 p-0`
+
+export const uiToolbarResponsiveRowScrollClassName = 'kg-responsive-row-scroll'
+
+export const uiToolbarTouchRowScrollClassName = 'App-toolbar--touch-scroll App-toolbar--touch-row-scroll'
+
 export const uiPrimaryLinkClassName = `${UI_COLOR_PRIMARY_BLUE} hover:underline`
 
 export const uiPrimaryLinkSmallClassName = `${UI_COLOR_PRIMARY_BLUE} hover:underline`

@@ -26,22 +26,27 @@ const StatusBadge = React.memo(function StatusBadge({ ok, msg, details, below }:
     return UI_THEME_TOKENS.status.neutral
   }, [ok])
   return (
-    <div>
+    <div className="min-w-0 max-w-full overflow-hidden">
       <div
-        className={`${uiIconPillClass} inline-flex items-center justify-center gap-1 h-[var(--kg-status-pill-height,24px)] box-border px-2 text-xs min-w-[120px] ${classes}`}
+        className={`${uiIconPillClass} inline-flex h-[var(--kg-status-pill-height,24px)] min-w-0 max-w-full items-center justify-center gap-1 overflow-hidden box-border px-2 text-xs sm:min-w-[120px] ${classes}`}
       >
         {ok === true ? (
           <CheckCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : ok === false ? (
           <XCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         ) : null}
-        <span className="max-w-40 truncate">{ok == null ? (msg || 'Idle') : (msg || '')}</span>
-        {!below && details ? <span className={`${UI_THEME_TOKENS.text.tertiary}`}>· {details}</span> : null}
+        <span className="min-w-0 max-w-40 truncate">{ok == null ? (msg || 'Idle') : (msg || '')}</span>
+        {!below && details ? (
+          <span className={`min-w-0 max-w-32 truncate ${UI_THEME_TOKENS.text.tertiary}`}>
+            · {details}
+          </span>
+        ) : null}
       </div>
       {below && details ? (
         <div
           className={[
             'mt-1',
+            'min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
             UI_THEME_TOKENS.text.secondary,
             uiPanelMicroLabelTextSizeClass,
           ].join(' ')}

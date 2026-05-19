@@ -45,12 +45,11 @@ export const DataViewTagChip = React.memo(function DataViewTagChip(props: { valu
   return (
     <span
       className={[
-        'inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium',
-        UI_TEXT_TRUNCATE_CHIP,
+        'inline-flex min-w-0 max-w-full flex-nowrap items-center overflow-hidden px-2 py-0.5 rounded border text-[10px] font-medium',
         resolveDataViewChipClass(v),
       ].join(' ')}
     >
-      {v}
+      <span className={UI_TEXT_TRUNCATE_CHIP}>{v}</span>
     </span>
   )
 })
@@ -61,15 +60,15 @@ export const DataViewStatusChip = React.memo(function DataViewStatusChip(props: 
   return (
     <span
       className={[
-        'inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium',
+        'inline-flex min-w-0 max-w-full flex-nowrap items-center overflow-hidden px-2 py-0.5 rounded border text-[10px] font-medium',
         props.hideIcon ? '' : 'gap-1.5',
         resolveDataViewChipClass(v),
       ].join(' ')}
     >
       {props.hideIcon ? null : props.checked ? (
-        <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+        <CheckCircle2 className="w-3 h-3 shrink-0" aria-hidden="true" />
       ) : (
-        <Circle className="w-3 h-3" aria-hidden="true" />
+        <Circle className="w-3 h-3 shrink-0" aria-hidden="true" />
       )}
       <span className={UI_TEXT_TRUNCATE_CHIP}>{v}</span>
     </span>

@@ -34,7 +34,7 @@ export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(p
   }, [search, searchExpanded])
 
   return (
-    <label className="flex items-center gap-1" aria-label="Search files">
+    <label className="kg-explorer-search-control flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-hidden" aria-label="Search files">
       <input
         ref={searchInputRef}
         value={search}
@@ -47,7 +47,7 @@ export const ExplorerSearchControl = React.memo(function ExplorerSearchControl(p
           UI_THEME_TOKENS.input.text,
           panelTextClass,
           'px-2 transition-[width,opacity,padding] duration-150',
-          searchExpanded ? 'w-40 opacity-100' : 'w-0 opacity-0 px-0 border-transparent',
+          searchExpanded ? 'kg-explorer-search-input opacity-100' : 'w-0 opacity-0 px-0 border-transparent',
         ].join(' ')}
         onKeyDown={e => {
           if (e.key !== 'Escape') return

@@ -8,9 +8,11 @@ import { mapLimit } from '@/lib/async/mapLimit'
 import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
 import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertWebpageUrlToMarkdownViaBrowser, looksSyntheticWebpageArtifactMarkdown } from '@/lib/websites/webpageClientConvert'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '../workspaceImport'
+import type { WorkspaceImportWebsiteOpts } from '@/features/markdown-explorer/workspaceActionBridge'
 import type { WorkspaceWebsiteImportCtx } from './types'
 
 type WebsiteImportSettings = {
@@ -21,6 +23,7 @@ type WebsiteImportSettings = {
   includeImages: boolean
   defaultView: unknown
   generateArtifactDocs: boolean
+  browserEnhance: boolean
 }
 
 type WebsiteImportManifestNode = Record<string, unknown>
@@ -39,16 +42,27 @@ function isWebsiteImportJobCurrent(importJobRef: React.MutableRefObject<number>,
   return importJobRef.current === jobId
 }
 
-function resolveWebsiteImportSettings(): WebsiteImportSettings {
+function clampWebsiteImportMaxPages(raw: number, minPages?: number): number {
+  const min = Number.isFinite(minPages) ? Math.max(1, Math.min(500, Math.floor(Number(minPages)))) : 1
+  const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 100
+  return Math.max(min, Math.min(500, Math.max(1, n)))
+}
+
+function resolveWebsiteImportSettings(opts?: WorkspaceImportWebsiteOpts): WebsiteImportSettings {
   const store = useGraphStore.getState()
+  const configuredMaxPages = Number.isFinite(store.websiteImportMaxPages) ? Number(store.websiteImportMaxPages) : 100
+  const requestedMaxPages = Number.isFinite(opts?.maxPages) ? Number(opts?.maxPages) : configuredMaxPages
   return {
     outputDirRel: String(store.websiteImportOutputDirRel || '').trim(),
     discoverSitemap: store.websiteImportDiscoverSitemap !== false,
-    maxPages: Number.isFinite(store.websiteImportMaxPages) ? Number(store.websiteImportMaxPages) : 50,
+    maxPages: clampWebsiteImportMaxPages(requestedMaxPages, opts?.minPages),
     concurrency: Number.isFinite(store.websiteImportConcurrency) ? Number(store.websiteImportConcurrency) : 4,
     includeImages: store.webpageImportIncludeImages ?? true,
     defaultView: store.webpageImportView,
-    generateArtifactDocs: store.websiteImportGenerateWebpageArtifactDocs !== false,
+    generateArtifactDocs: typeof opts?.generateArtifactDocs === 'boolean'
+      ? opts.generateArtifactDocs
+      : store.websiteImportGenerateWebpageArtifactDocs !== false,
+    browserEnhance: opts?.browserEnhance === true,
   }
 }
 
@@ -184,6 +198,19 @@ function coerceWebsiteImportWebpageView(raw: unknown): 'markdown' | 'json' | 'ht
   return raw === 'html' ? 'html' : raw === 'json' ? 'json' : 'markdown'
 }
 
+function shouldEnhanceWebsiteMarkdownViaBrowser(settings: WebsiteImportSettings, url: string, markdown: string): boolean {
+  if (!settings.browserEnhance) return false
+  if (!/^https?:\/\//i.test(String(url || '').trim())) return false
+  const text = String(markdown || '').trim()
+  return !text || text.length < 1400 || looksSyntheticWebpageArtifactMarkdown(text)
+}
+
+async function getBrowserEnhancedWebsiteMarkdown(url: string): Promise<{ markdown: string; title: string } | null> {
+  const res = await convertWebpageUrlToMarkdownViaBrowser({ url })
+  if (res.ok !== true || !String(res.markdown || '').trim()) return null
+  return { markdown: res.markdown.trim(), title: String(res.title || '').trim() }
+}
+
 async function ensureWebsiteFolderPath(fs: WorkspaceFs, absPath: string): Promise<WorkspacePath> {
   const normalized = normalizeWorkspacePath(absPath)
   const segments = normalized.split('/').filter(Boolean)
@@ -248,12 +275,32 @@ async function materializeWebsiteImportWorkspace(args: {
         const nodeTreePath = typeof node.path === 'string' ? node.path : ''
         const nodeStatus = typeof node.status === 'string' ? node.status : 'ok'
         if (!nodeUrl || nodeStatus !== 'ok') return null
-        const row = { nodeUrl, nodeId, nodeTreePath } as { nodeUrl: string; nodeId: string; nodeTreePath: string; nodeTitle?: string }
+        const artifacts = node.artifacts && typeof node.artifacts === 'object' ? (node.artifacts as Record<string, unknown>) : {}
+        const artifactText = (key: string): string | undefined => {
+          const text = typeof artifacts[key] === 'string' ? String(artifacts[key]).trim() : ''
+          return text || undefined
+        }
+        const row = {
+          nodeUrl,
+          nodeId,
+          nodeTreePath,
+          websiteImportMeta: {
+            importId,
+            nodeId,
+            outputDirRel: settings.outputDirRel || undefined,
+            rawHtmlRelPath: artifactText('rawHtmlRelPath'),
+            markdownRelPath: artifactText('markdownRelPath'),
+            conversionJsonRelPath: artifactText('conversionJsonRelPath'),
+            rawHtmlSha256: artifactText('rawHtmlSha256'),
+            markdownSha256: artifactText('markdownSha256'),
+            conversionJsonSha256: artifactText('conversionJsonSha256'),
+          },
+        } as { nodeUrl: string; nodeId: string; nodeTreePath: string; nodeTitle?: string; websiteImportMeta: NonNullable<Parameters<typeof buildWebpageWorkspaceEntryTextFromUpstreamMarkdown>[0]['websiteImportMeta']> }
         const title = typeof node.title === 'string' ? node.title : ''
         if (title) row.nodeTitle = title
         return row
       })
-      .filter((v): v is { nodeUrl: string; nodeId: string; nodeTreePath: string; nodeTitle?: string } => !!v)
+      .filter((v): v is { nodeUrl: string; nodeId: string; nodeTreePath: string; nodeTitle?: string; websiteImportMeta: NonNullable<Parameters<typeof buildWebpageWorkspaceEntryTextFromUpstreamMarkdown>[0]['websiteImportMeta']> } => !!v)
 
     const folderCache = new Map<string, WorkspacePath>()
     folderCache.set(rootFolder, rootFolder)
@@ -310,13 +357,22 @@ async function materializeWebsiteImportWorkspace(args: {
               return ''
             })()
 
-            if (serverMarkdown) {
+            const browserMarkdown = shouldEnhanceWebsiteMarkdownViaBrowser(settings, row.nodeUrl, serverMarkdown)
+              ? await getBrowserEnhancedWebsiteMarkdown(row.nodeUrl).catch(() => null)
+              : null
+            const selectedMarkdown = browserMarkdown?.markdown || serverMarkdown
+            const selectedTitle = row.nodeTitle || browserMarkdown?.title
+
+            if (selectedMarkdown) {
               return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
-                upstreamMarkdown: serverMarkdown,
+                upstreamMarkdown: selectedMarkdown,
                 url: row.nodeUrl,
                 view,
-                title: row.nodeTitle,
-                websiteImportMeta: { importId, nodeId: row.nodeId, outputDirRel: settings.outputDirRel || undefined },
+                title: selectedTitle,
+                fidelityLevel: 4,
+                includeImages: true,
+                preserveBodyFidelity: true,
+                websiteImportMeta: row.websiteImportMeta,
               })
             }
 
@@ -327,14 +383,24 @@ async function materializeWebsiteImportWorkspace(args: {
               kind: 'rawHtml',
               signal: ctrl.signal,
             })
-            const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
-            const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: row.nodeUrl, includeImages: true, fidelityLevel: 4 })
+            const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({
+              html: rawHtml,
+              url: row.nodeUrl,
+              includeImages: true,
+              fidelityLevel: 4,
+              includeHeadSection: true,
+              includeHtmlSnapshot: true,
+              mode: 'debug',
+            })
             return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
               upstreamMarkdown: markdown,
               url: row.nodeUrl,
               view,
               title: row.nodeTitle,
-              websiteImportMeta: { importId, nodeId: row.nodeId, outputDirRel: settings.outputDirRel || undefined },
+              fidelityLevel: 4,
+              includeImages: true,
+              preserveBodyFidelity: true,
+              websiteImportMeta: row.websiteImportMeta,
             })
           } catch {
             return stubForNode(row.nodeUrl, row.nodeId)
@@ -423,13 +489,13 @@ export function useWorkspaceWebsiteImportAction(args: {
   const { getFs, refresh } = args.ctx
 
   const handleImportWebsite = React.useCallback(
-    async (urlRaw: string) => {
+    async (urlRaw: string, opts?: WorkspaceImportWebsiteOpts) => {
       const url = String(urlRaw || '').trim()
       if (!url) return
       const jobId = (importJobRef.current += 1)
       status.setStatusProgress('Importing website')
       try {
-        const settings = resolveWebsiteImportSettings()
+        const settings = resolveWebsiteImportSettings(opts)
         const { importId, manifest } = await runWebsiteImportServerJob({
           url,
           settings,

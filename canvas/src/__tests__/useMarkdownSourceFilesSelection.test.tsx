@@ -109,6 +109,9 @@ export async function testUseMarkdownSourceFilesSelectionCentralizesSourcePanelS
 
     const fileButton = container.querySelector('button[aria-label="select-ref-file"]')
     if (!(fileButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected file button')
+    const beforeSourceFileClick = useGraphStore.getState()
+    const beforeRenderer = beforeSourceFileClick.canvas2dRenderer
+    const beforeFrontmatterMode = beforeSourceFileClick.frontmatterModeEnabled
     await act(async () => {
       fileButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -129,11 +132,11 @@ export async function testUseMarkdownSourceFilesSelectionCentralizesSourcePanelS
       throw new Error(`expected file click to preserve expanded api ancestors, got ${expandedAfterFileClick}`)
     }
     const store = useGraphStore.getState()
-    if (store.canvasRenderMode !== '2d' || store.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected source-file selection to prime Flow Editor mode for strict frontmatter docs, got ${store.canvasRenderMode}/${store.canvas2dRenderer}`)
+    if (store.canvas2dRenderer !== beforeRenderer) {
+      throw new Error('expected source-file selection not to mutate the Canvas renderer from YAML frontmatter')
     }
-    if (store.frontmatterModeEnabled !== true || store.documentSemanticMode !== 'document') {
-      throw new Error(`expected source-file selection to prime document frontmatter mode, got frontmatter=${String(store.frontmatterModeEnabled)} semantic=${String(store.documentSemanticMode)}`)
+    if (store.frontmatterModeEnabled !== beforeFrontmatterMode) {
+      throw new Error('expected source-file selection not to enable Frontmatter Mode before active document graph apply')
     }
   } finally {
     await act(async () => {

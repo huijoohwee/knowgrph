@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
 
@@ -22,6 +24,13 @@ const createMessageEvent = (data: unknown, source: Window): MessageEvent => {
   ;(e as unknown as { initMessageEvent?: unknown }).initMessageEvent &&
     (e as unknown as { initMessageEvent: (...args: unknown[]) => void }).initMessageEvent('message', false, false, data, '', '', source, null)
   return e as unknown as MessageEvent
+}
+
+export function testWebpageDomExportUsesSharedSemanticKeyForInflightDedupe() {
+  const text = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageDomExport.ts'), 'utf8')
+  if (!text.includes("buildScopedGraphSemanticKey('webpage-dom-export'")) {
+    throw new Error('expected DOM export inflight dedupe to use shared semantic-key helper')
+  }
 }
 
 export async function testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot() {

@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import {
   EMPTY_BOOL_RECORD,
   EMPTY_POS_RECORD,
@@ -60,7 +61,9 @@ export function useFlowCanvasStoreState(args: {
           flowWidgetWorldPosByNodeId: EMPTY_POS_RECORD,
           flowWidgetPosByNodeId: EMPTY_POS_RECORD,
           markdownDocumentName: null,
+          markdownDocumentSourceUrl: null,
           markdownDocumentText: '',
+          markdownDocumentApplyViewPreset: false,
         }
       }
       return {
@@ -96,10 +99,18 @@ export function useFlowCanvasStoreState(args: {
           ?? EMPTY_POS_RECORD,
         flowWidgetPosByNodeId: s.flowWidgetPosByNodeId || {},
         markdownDocumentName: (s as unknown as { markdownDocumentName?: unknown }).markdownDocumentName,
+        markdownDocumentSourceUrl: (s as unknown as { markdownDocumentSourceUrl?: unknown }).markdownDocumentSourceUrl,
         markdownDocumentText: (s as unknown as { markdownDocumentText?: unknown }).markdownDocumentText,
+        markdownDocumentApplyViewPreset: (s as unknown as { markdownDocumentApplyViewPreset?: unknown }).markdownDocumentApplyViewPreset,
       }
     }),
   )
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
+    name: typeof storeState.markdownDocumentName === 'string' ? storeState.markdownDocumentName : null,
+    sourceUrl: typeof storeState.markdownDocumentSourceUrl === 'string' ? storeState.markdownDocumentSourceUrl : null,
+    text: typeof storeState.markdownDocumentText === 'string' ? storeState.markdownDocumentText : '',
+    applyViewPreset: storeState.markdownDocumentApplyViewPreset !== false,
+  })
 
   return {
     registerCanvasSnapshotFns,
@@ -111,5 +122,7 @@ export function useFlowCanvasStoreState(args: {
     viewportW,
     viewportH,
     ...storeState,
+    markdownDocumentName: canvasMarkdownDocument.name,
+    markdownDocumentText: canvasMarkdownDocument.text,
   }
 }

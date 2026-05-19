@@ -98,6 +98,8 @@ export interface GraphStateStructure {
   setEditorWorkspacePane: (pane: EditorWorkspacePane) => void
   workspaceCanvasPaneOpen: boolean
   markdownWorkspaceIndexingInFlight: boolean
+  workspaceGraphMutationBlockUntilMs: number
+  workspaceGraphMutationBlockKey: string
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
   setMarkdownWorkspaceIndexingInFlight: (inFlight: boolean) => void
   setWorkspaceViewState: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void

@@ -5,6 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeSubgraphs, type UserSubgraph } from '@/lib/graph/subgraphs'
 import { useShallow } from 'zustand/react/shallow'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import {
   FLOWCHART_FIXTURE_ENDPOINT,
   buildFlowchartSourceMeta,
@@ -907,13 +908,15 @@ export function useApiGraphFlowchartGraphData(enabled: boolean): { graphData: Gr
   const mountedRef = React.useRef(true)
   const apiGraphUnavailableRef = React.useRef(false)
 
-  const { dataSource, apiRunId, pollIntervalSec, markdownDocumentName, markdownDocumentText } = useGraphStore(
+  const { dataSource, apiRunId, pollIntervalSec, markdownDocumentName, markdownDocumentSourceUrl, markdownDocumentText, markdownDocumentApplyViewPreset } = useGraphStore(
     useShallow(s => ({
       dataSource: s.flowchartDataSource,
       apiRunId: s.flowchartApiRunId,
       pollIntervalSec: s.flowchartPollIntervalSec,
       markdownDocumentName: s.markdownDocumentName || null,
+      markdownDocumentSourceUrl: s.markdownDocumentSourceUrl || null,
       markdownDocumentText: s.markdownDocumentText || null,
+      markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
     })),
   )
 
@@ -937,7 +940,8 @@ export function useApiGraphFlowchartGraphData(enabled: boolean): { graphData: Gr
     }
   }, [])
 
-  const debouncedWorkspaceText = useDebouncedValue(markdownDocumentText, 220, markdownDocumentName)
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({ name: markdownDocumentName, sourceUrl: markdownDocumentSourceUrl, text: markdownDocumentText, applyViewPreset: markdownDocumentApplyViewPreset !== false })
+  const debouncedWorkspaceText = useDebouncedValue(canvasMarkdownDocument.text, 220, canvasMarkdownDocument.semanticKey)
   const workspacePayload = React.useMemo((): ApiGraphPayload | null => {
     if (!enabled) return null
     const text = String(debouncedWorkspaceText || '')
@@ -961,12 +965,7 @@ export function useApiGraphFlowchartGraphData(enabled: boolean): { graphData: Gr
   }, [dataSource, workspacePayload])
 
   const sourceMeta = React.useMemo(() => {
-    if (effectiveWorkspaceSource) {
-      return buildFlowchartSourceMeta({
-        kind: 'workspace',
-        documentName: markdownDocumentName,
-      })
-    }
+    if (effectiveWorkspaceSource) return buildFlowchartSourceMeta({ kind: 'workspace', documentName: canvasMarkdownDocument.name })
     const isFixtureSource = String(dataSource || 'api') === 'fixture' || (!!payload && apiGraphUnavailableRef.current)
     if (isFixtureSource) {
       return buildFlowchartSourceMeta({ kind: 'fixture' })
@@ -975,7 +974,7 @@ export function useApiGraphFlowchartGraphData(enabled: boolean): { graphData: Gr
       kind: 'api',
       apiRunId,
     })
-  }, [apiRunId, dataSource, effectiveWorkspaceSource, markdownDocumentName, payload])
+  }, [apiRunId, canvasMarkdownDocument.name, dataSource, effectiveWorkspaceSource, payload])
 
   const graphData = React.useMemo(() => {
     if (!enabled) return null

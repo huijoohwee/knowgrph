@@ -10,7 +10,7 @@ import {
   WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 import { normalizeIds, normalizeOpenWidgetNodeIds } from '@/hooks/store/graphViewIds'
 
@@ -483,7 +483,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   flowWidgetPinnedByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetPinnedByGraphMetaKey, raw => normalizePinnedByNodeId(raw as Record<string, boolean> | null | undefined), parseFlowWidgetPinnedByGraphMap),
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
-    if (isWorkspaceEditorOverlayOpen(state)) return
+    if (isWorkspaceGraphMutationBlocked(state)) return
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
@@ -511,7 +511,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   ),
   setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
     const state = get()
-    if (isWorkspaceEditorOverlayOpen(state)) return
+    if (isWorkspaceGraphMutationBlocked(state)) return
     const nextPosByNodeId = normalizePosByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPosByNodeIdByGraphMetaKey || {}
@@ -552,7 +552,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   ),
   setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
     const state = get()
-    if (isWorkspaceEditorOverlayOpen(state)) return
+    if (isWorkspaceGraphMutationBlocked(state)) return
     const nextWorldByNodeId = normalizeWorldByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}

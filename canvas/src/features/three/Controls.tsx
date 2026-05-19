@@ -64,6 +64,7 @@ export function Controls({
   const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const workspaceGraphMutationBlockKey = useGraphStore(s => s.workspaceGraphMutationBlockKey)
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
   const cameraPathUserInteractingRef = React.useRef(false)
@@ -291,6 +292,7 @@ export function Controls({
       schema: schema as GraphSchema,
       mediaPanelDensity: useGraphStore.getState().mediaPanelDensity,
       renderMediaAsNodes: useGraphStore.getState().renderMediaAsNodes === true,
+      visibilityFrameKey: workspaceGraphMutationBlockKey,
     })
     if (lastFitSigRef.current === sig) return
     lastFitSigRef.current = sig
@@ -299,7 +301,7 @@ export function Controls({
     } catch {
       void 0
     }
-  }, [paused, viewPinned, fitToScreenMode, data, requestThreeCamera, schema, size.height, size.width])
+  }, [paused, viewPinned, fitToScreenMode, data, requestThreeCamera, schema, size.height, size.width, workspaceGraphMutationBlockKey])
   const lastSelectionKeyRef = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (paused || viewPinned) return

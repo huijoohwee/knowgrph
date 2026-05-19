@@ -14,7 +14,12 @@ export const WORKSPACE_MULTI_DIMENSIONAL_TABLE_DEFAULT_SPLIT = {
 const DEFAULT_VIEWPORT_WIDTH_PX = 1440
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_RATIO = 0.28
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX = 420
+const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_MIN_PX = 96
 const MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX = 640
+const WORKSPACE_EDITOR_PANE_MIN_WIDTH_PX = 320
+const WORKSPACE_EDITOR_PANE_COMPACT_MIN_RATIO = 0.6
+const WORKSPACE_EDITOR_PANE_COMPACT_MIN_PX = 192
+const WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX = 768
 
 function resolveViewportWidthPx(): number {
   if (typeof window === 'undefined') return DEFAULT_VIEWPORT_WIDTH_PX
@@ -29,10 +34,26 @@ function clampPx(px: number, minPx: number, maxPx: number): number {
 
 export function resolveWorkspaceCanvasMinVisibleStripPx(): number {
   const viewport = resolveViewportWidthPx()
+  const minPx =
+    viewport <= WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX
+      ? MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_COMPACT_MIN_PX
+      : MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX
   return clampPx(
     viewport * MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_RATIO,
-    MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MIN_PX,
+    minPx,
     MIN_WORKSPACE_CANVAS_VISIBLE_STRIP_MAX_PX,
+  )
+}
+
+export function resolveWorkspaceEditorPaneMinWidthPx(): number {
+  const viewport = resolveViewportWidthPx()
+  if (viewport > WORKSPACE_EDITOR_PANE_COMPACT_BREAKPOINT_PX) {
+    return WORKSPACE_EDITOR_PANE_MIN_WIDTH_PX
+  }
+  return clampPx(
+    viewport * WORKSPACE_EDITOR_PANE_COMPACT_MIN_RATIO,
+    WORKSPACE_EDITOR_PANE_COMPACT_MIN_PX,
+    WORKSPACE_EDITOR_PANE_MIN_WIDTH_PX,
   )
 }
 

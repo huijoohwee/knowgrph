@@ -3,6 +3,13 @@ import path from 'node:path'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { extractGrabMapsPoiFeatureCollectionsFromMarkdown } from '@/features/geospatial/grabMapsMarkdownPoi'
 import { parseGraph } from '@/lib/graph/io/adapter'
+import {
+  GRABMAPS_DEFAULT_MCP_AUTH_HEADER_ARG,
+  GRABMAPS_DEFAULT_MCP_ARGS_JSON,
+  GRABMAPS_DEFAULT_MCP_COMMAND,
+  GRABMAPS_DEFAULT_MCP_PACKAGE,
+  GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS,
+} from 'grph-shared/geospatial/grabMapsSsot'
 
 const readUtf8 = (absPath: string): string => {
   return fs.readFileSync(absPath, { encoding: 'utf8' })
@@ -397,16 +404,40 @@ export const testGrabMapsProxyTreatsTileAbortAsCancellationNotBadGateway = () =>
 export const testGrabMapsMcpConfigUsesRemoteCommandShape = () => {
   const registryPath = path.resolve(process.cwd(), 'src', 'features', 'settings', 'registry-ui.grabmaps.ts')
   const docsPath = path.resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'grabmapsMcpApiDocs.ts')
+  const ssotPath = path.resolve(process.cwd(), '..', 'grph-shared', 'src', 'geospatial', 'grabMapsSsot.ts')
   const registryText = readUtf8(registryPath)
   const docsText = readUtf8(docsPath)
-  if (!registryText.includes("const GRABMAPS_DEFAULT_MCP_COMMAND = 'npx'")) {
-    throw new Error('Expected GrabMaps MCP registry defaults to use npx as the launcher command')
+  const ssotText = readUtf8(ssotPath)
+  if (!registryText.includes('GRABMAPS_DEFAULT_MCP_COMMAND')) {
+    throw new Error('Expected GrabMaps MCP registry defaults to come from the shared SSOT command')
   }
-  if (!registryText.includes('mcp-remote@latest')) {
-    throw new Error('Expected GrabMaps MCP registry defaults to launch mcp-remote@latest')
+  if (!docsText.includes('GRABMAPS_DEFAULT_MCP_COMMAND')) {
+    throw new Error('Expected GrabMaps MCP docs defaults to reuse the shared SSOT command')
   }
-  if (!registryText.includes('Authorization:${AUTH_HEADER}')) {
-    throw new Error('Expected GrabMaps MCP args to template Authorization via AUTH_HEADER env')
+  ;[
+    'GRABMAPS_DEFAULT_MCP_COMMAND',
+    'GRABMAPS_DEFAULT_MCP_PACKAGE',
+    'GRABMAPS_DEFAULT_MCP_AUTH_HEADER_ARG',
+    'GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS',
+  ].forEach(token => {
+    if (!ssotText.includes(token)) {
+      throw new Error(`Expected GrabMaps MCP shared default ${JSON.stringify(token)} to live in the shared SSOT`)
+    }
+  })
+  const defaultArgs = JSON.parse(GRABMAPS_DEFAULT_MCP_ARGS_JSON) as unknown[]
+  ;[
+    GRABMAPS_DEFAULT_MCP_PACKAGE,
+    GRABMAPS_DEFAULT_MCP_AUTH_HEADER_ARG,
+  ].forEach(token => {
+    if (!defaultArgs.includes(token)) {
+      throw new Error(`Expected GrabMaps MCP shared args to include ${JSON.stringify(token)}`)
+    }
+  })
+  if (!GRABMAPS_DEFAULT_MCP_COMMAND || !Number.isFinite(GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS)) {
+    throw new Error('Expected GrabMaps MCP shared defaults to retain command and timeout values')
+  }
+  if (registryText.includes("const GRABMAPS_DEFAULT_MCP_COMMAND = '")) {
+    throw new Error('Expected GrabMaps MCP registry to stop declaring local command defaults')
   }
   if (!registryText.includes("'maps.grabmaps.mcp.args'") || !registryText.includes("'maps.grabmaps.mcp.env'")) {
     throw new Error('Expected GrabMaps MCP registry to expose args/env rows instead of legacy URL/header rows')

@@ -15,7 +15,11 @@ import {
 import { resolvePreferredComposedSourceRawTextFromState, resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { buildSourceFilesCompositionSignature, getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
+import {
+  buildSourceFilesCompositionSignature,
+  getSourceFileTextHash,
+  isWorkspaceBackedSourceFile,
+} from '@/features/source-files/sourceFilesSignatures'
 
 let pendingComposeRaf: number | null = null
 let pendingComposeAfterWorkspaceOverlayClose = false
@@ -36,8 +40,7 @@ function hasEnabledNonWorkspaceComposedSources(
   const list = Array.isArray(sourceFiles) ? sourceFiles : []
   return list.some(file => {
     if (!file?.enabled) return false
-    const sourcePath = String(file.source?.path || '')
-    return !sourcePath.startsWith('workspace:')
+    return !isWorkspaceBackedSourceFile(file)
   })
 }
 
@@ -48,6 +51,15 @@ function hasEnabledComposedSources(
   return list.some(file => Boolean(file?.enabled))
 }
 
+function readSourceFilesForComposedApply(
+  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles'],
+  options: ComposeSourceFilesOptions = {},
+): ReturnType<typeof useGraphStore.getState>['sourceFiles'] {
+  const list = Array.isArray(sourceFiles) ? sourceFiles : []
+  if (options.includeWorkspaceBacked === true) return list
+  return list.filter(file => !isWorkspaceBackedSourceFile(file))
+}
+
 function resetPendingComposedGraphApplyState() {
   pendingComposedGraphSignature = ''
   pendingComposeAfterWorkspaceOverlayClose = false
@@ -55,9 +67,9 @@ function resetPendingComposedGraphApplyState() {
   pendingComposeIncludesWorkspaceBackedSources = false
 }
 
-function readCurrentComposedGraphSignature(): string {
+function readCurrentComposedGraphSignature(options: ComposeSourceFilesOptions = {}): string {
   try {
-    return buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles)
+    return buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles, options)
   } catch {
     return ''
   }
@@ -83,19 +95,24 @@ function ensureWorkspaceOverlayComposeRetrySubscription() {
 
 function buildComposedImportModesSignature(args: {
   state: ReturnType<typeof useGraphStore.getState>
+  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
   graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']
   explorerActivePath: string | null
 }): {
   signature: string
   rawText: string
 } {
+  const selectionState = {
+    sourceFiles: args.sourceFiles,
+    markdownDocumentName: args.state.markdownDocumentName,
+  }
   const preferredSourceFile = resolvePreferredEnabledComposedSourceFileFromState({
-    state: args.state,
+    state: selectionState,
     explorerActivePath: args.explorerActivePath,
   })
   const preferredSourcePath = String(preferredSourceFile?.source?.path || preferredSourceFile?.name || '').trim()
   const preferredSourceText = resolvePreferredComposedSourceRawTextFromState({
-    state: args.state,
+    state: selectionState,
     explorerActivePath: args.explorerActivePath,
   })
   const preferredSourceTextHash = String(preferredSourceFile?.parsedTextHash || '').trim()
@@ -116,12 +133,16 @@ function buildComposedImportModesSignature(args: {
   }
 }
 
-function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
+function applyComposedSourceImportModes(
+  graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData'],
+  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles'],
+) {
   try {
     const store = useGraphStore.getState()
     const explorerActivePath = useMarkdownExplorerStore.getState().activePath
     const { signature, rawText } = buildComposedImportModesSignature({
       state: store,
+      sourceFiles,
       graphData,
       explorerActivePath,
     })
@@ -168,7 +189,10 @@ export function scheduleApplyComposedGraphFromSourceFiles(options: ComposeSource
     }
     return
   }
-  const requestedSignature = readCurrentComposedGraphSignature()
+  const requestedIncludesWorkspaceBacked = includeWorkspaceBacked || pendingComposeIncludesWorkspaceBackedSources
+  const requestedSignature = readCurrentComposedGraphSignature({
+    includeWorkspaceBacked: requestedIncludesWorkspaceBacked,
+  })
   if (requestedSignature && requestedSignature === lastAppliedComposedGraphSignature) return
   if (includeWorkspaceBacked) pendingComposeIncludesWorkspaceBackedSources = true
   if (pendingComposeRaf != null && requestedSignature && requestedSignature === pendingComposedGraphSignature) return
@@ -190,9 +214,9 @@ export function scheduleApplyComposedGraphFromSourceFiles(options: ComposeSource
 }
 
 export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOptions = {}) {
-  const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature()
-  const store = useGraphStore.getState()
   const includeWorkspaceBacked = options.includeWorkspaceBacked === true
+  const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature({ includeWorkspaceBacked })
+  const store = useGraphStore.getState()
   if (!includeWorkspaceBacked && !hasEnabledNonWorkspaceComposedSources(store.sourceFiles)) {
     resetPendingComposedGraphApplyState()
     return
@@ -202,7 +226,8 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
     return
   }
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(store)
-  const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
+  const sourceFilesForComposition = readSourceFilesForComposedApply(store.sourceFiles, { includeWorkspaceBacked })
+  const hasEnabledSourceFiles = sourceFilesForComposition.some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
     if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
     resetPendingComposedGraphApplyState()
@@ -218,7 +243,7 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
     }
     return
   }
-  const layers = (store.sourceFiles || []).map(f => ({
+  const layers = sourceFilesForComposition.map(f => ({
     id: f.id,
     name: f.name,
     enabled: Boolean(f.enabled),
@@ -266,7 +291,7 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
         ? (graphData.metadata as Record<string, unknown>)
         : null
     if (graphData && String(metadata?.sourceLayerComposition || '') === 'compose') {
-      applyComposedSourceImportModes(graphData)
+      applyComposedSourceImportModes(graphData, sourceFilesForComposition)
     }
     return
   }
@@ -297,11 +322,11 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
 
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)
-    applyComposedSourceImportModes(graphData)
+    applyComposedSourceImportModes(graphData, sourceFilesForComposition)
     requestWorkspaceOpenFlowEditorFit(graphData)
     return
   }
   store.setGraphData(graphData)
-  applyComposedSourceImportModes(graphData)
+  applyComposedSourceImportModes(graphData, sourceFilesForComposition)
   requestWorkspaceOpenFlowEditorFit(graphData)
 }

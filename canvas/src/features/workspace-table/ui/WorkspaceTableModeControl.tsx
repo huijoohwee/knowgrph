@@ -26,8 +26,10 @@ import {
   WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS,
   type WorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
-import { openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -68,15 +70,15 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const workspaceCellSelectPanelPlacement = prefs.workspaceCellSelectPanelPlacement as WorkspaceCellSelectPanelPlacement
 
   const openWorkspaceTableFromControl = React.useCallback(() => {
-    openWorkspaceTable({
-      workspaceViewMode,
-      editorWorkspacePane,
-      workspaceCanvasPaneOpen,
-      setWorkspaceViewMode,
-      setWorkspaceViewState,
-      setEditorWorkspacePane,
-      setWorkspaceCanvasPaneOpen,
-    })
+    if (editorWorkspacePane !== 'graphTable') setEditorWorkspacePane('graphTable')
+    if (workspaceViewMode !== 'editor' || workspaceCanvasPaneOpen !== true) {
+      if (setWorkspaceViewState) setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+      else {
+        if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
+        if (workspaceCanvasPaneOpen !== true) setWorkspaceCanvasPaneOpen(true)
+      }
+    }
+    if (typeof window !== 'undefined') void warmGraphTableDb()
   }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceCanvasPaneOpen, setWorkspaceViewMode, setWorkspaceViewState, workspaceCanvasPaneOpen, workspaceViewMode])
 
   const handleWorkspaceEditorModeChanged = React.useCallback(
@@ -111,9 +113,9 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   }, [])
 
   return (
-    <section className={className || 'flex flex-col gap-2'} aria-label={UI_COPY.markdownDataViewTitleDefault}>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">Workspace editor view</span>
+    <section className={className || 'flex min-w-0 max-w-full flex-col gap-2 overflow-hidden'} aria-label={UI_COPY.markdownDataViewTitleDefault}>
+      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
+        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>Workspace editor view</span>
         <select
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceEditorMode}
@@ -133,10 +135,12 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
         onClick={handleOpenTable}
         disabled={tableWorkspaceOpen}
       >
-        {tableWorkspaceOpen ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip : UI_COPY.toolbarGraphDataTableToggleTitle}
+        <span className={UI_TEXT_TRUNCATE}>
+          {tableWorkspaceOpen ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip : UI_COPY.toolbarGraphDataTableToggleTitle}
+        </span>
       </button>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">Select panel position</span>
+      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
+        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>Select panel position</span>
         <select
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceCellSelectPanelPlacement}
@@ -150,8 +154,8 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
           ))}
         </select>
       </label>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">JSON import target</span>
+      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
+        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON import target</span>
         <select
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonImportTarget}
@@ -165,8 +169,8 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
           ))}
         </select>
       </label>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">JSON markdown mode</span>
+      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
+        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON markdown mode</span>
         <select
           className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonMarkdownMode}
@@ -180,8 +184,8 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
           ))}
         </select>
       </label>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">JSON table max rows</span>
+      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
+        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON table max rows</span>
         <input
           type="number"
           className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -192,8 +196,8 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
           aria-label="JSON table max rows"
         />
       </label>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">JSON table max columns</span>
+      <label className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2 text-xs`}>
+        <span className={`min-w-0 ${UI_TEXT_TRUNCATE}`}>JSON table max columns</span>
         <input
           type="number"
           className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}

@@ -190,7 +190,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
 
               {menuOpen && props.canMutate ? (
                 <menu
-                  className={['absolute right-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+                  className={['kg-data-view-floating-menu absolute right-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
                   role="menu"
                   aria-label={MARKDOWN_DATA_VIEW_COPY.cardActionsLabel}
                 >
@@ -198,7 +198,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                     <button
                       ref={firstMenuItemRef}
                       type="button"
-                      className={['w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                       role="menuitem"
                       onClick={() => {
                         props.onActivateRow?.(props.row.id)
@@ -206,14 +206,14 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                         setMoveMenuOpen(false)
                       }}
                     >
-                      <Expand className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                      {MARKDOWN_DATA_VIEW_COPY.expandCardLabel}
+                      <Expand className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.expandCardLabel}</span>
                     </button>
                   </li>
                   <li className="list-none relative">
                     <button
                       type="button"
-                      className={['w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                       role="menuitem"
                       aria-haspopup="menu"
                       aria-expanded={moveMenuOpen}
@@ -229,13 +229,13 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                         }
                       }}
                     >
-                      <ArrowRight className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                      <span className="flex-1 text-left">{MARKDOWN_DATA_VIEW_COPY.moveToLabel}</span>
-                      <ChevronDown className={['w-4 h-4 rotate-[-90deg]', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <ArrowRight className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.moveToLabel}</span>
+                      <ChevronDown className={['w-4 h-4 shrink-0 rotate-[-90deg]', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
                     </button>
                     {moveMenuOpen ? (
                       <menu
-                        className={['absolute left-[-8px] top-0 -translate-x-full w-[200px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+                        className={['kg-column-header-submenu kg-data-view-floating-menu absolute left-[-8px] top-0 -translate-x-full w-[200px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
                         role="menu"
                         aria-label="Move targets"
                       >
@@ -243,7 +243,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                           <li key={`${props.row.id}:move:${t}:${index}`} className="list-none">
                             <button
                               type="button"
-                              className={['w-full text-left px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                              className={['kg-menu-row w-full min-w-0 max-w-full overflow-hidden text-left px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                               role="menuitem"
                               onClick={() => {
                                 if (!props.canMutate) return
@@ -252,7 +252,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                                 setMoveMenuOpen(false)
                               }}
                             >
-                              {t}
+                              <span className={UI_TEXT_TRUNCATE}>{t}</span>
                             </button>
                           </li>
                         ))}
@@ -261,22 +261,22 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                   </li>
                   <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
                   <li className="list-none">
-                    <button type="button" className={['w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
-                      <ArrowUp className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                      Insert Before
+                    <button type="button" className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
+                      <ArrowUp className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <span className={UI_TEXT_TRUNCATE}>Insert Before</span>
                     </button>
                   </li>
                   <li className="list-none">
-                    <button type="button" className={['w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
-                      <ArrowDown className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                      Insert After
+                    <button type="button" className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
+                      <ArrowDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <span className={UI_TEXT_TRUNCATE}>Insert After</span>
                     </button>
                   </li>
                   <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
                   <li className="list-none">
-                    <button type="button" className={['w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
-                      <Trash2 className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                      Delete Card
+                    <button type="button" className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-2 py-1.5 rounded text-sm opacity-60', UI_THEME_TOKENS.button.hoverBg].join(' ')} role="menuitem" disabled>
+                      <Trash2 className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+                      <span className={UI_TEXT_TRUNCATE}>Delete Card</span>
                     </button>
                   </li>
                 </menu>

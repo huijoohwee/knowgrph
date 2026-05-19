@@ -17,6 +17,8 @@ import type { GraphTableViewMode } from '@/features/graph-table/ui/graphTableVie
 import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
 import { UI_COPY } from '@/lib/config'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+import { UI_TEXT_TRUNCATE, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 const GRAPH_TABLE_VIEW_MODE_OPTIONS: Array<{ value: GraphTableViewMode; label: string }> = [
   { value: 'geospatial', label: MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel },
@@ -66,11 +68,11 @@ export function GraphTableWorkspaceHeader(props: {
 }) {
   return (
     <WorkspaceHeader ariaLabel="Table header" border="divider">
-      <WorkspaceHeaderRow className="kg-toolbar min-h-[var(--kg-control-height,28px)] py-0" ariaLabel="Table header row">
-        <section className="kg-toolbar min-w-0 flex items-center gap-3" aria-label="Table navigation">
+      <WorkspaceHeaderRow className="kg-graph-table-header kg-toolbar min-h-[var(--kg-control-height,28px)] py-0" ariaLabel="Table header row">
+        <section className={`kg-graph-table-nav kg-toolbar ${uiToolbarRowScrollClassName} gap-2`} aria-label="Table navigation">
           <span className="sr-only">{UI_LABELS.graphDataTable}</span>
 
-          <nav className="kg-toolbar flex items-center gap-2" aria-label="Dataset selector">
+          <nav className={`kg-toolbar ${uiToolbarRowScrollClassName} gap-1.5`} aria-label="Dataset selector">
             <button
               type="button"
               className={`App-toolbar__btn ${props.panelTypography.microLabelClass} ${props.activeTableId === 'nodes' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -93,30 +95,30 @@ export function GraphTableWorkspaceHeader(props: {
               isActive={props.viewMode !== 'table'}
               onChange={props.setViewMode}
             />
-            <label className="inline-flex items-center gap-1.5 text-[10px]">
+            <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-[10px]">
               <input
                 type="checkbox"
-                className="rounded"
+                className="shrink-0 rounded"
                 checked={props.geospatialViewEnabled}
                 onChange={e => props.setGeospatialViewEnabled(e.target.checked)}
               />
-              <span>{MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}</span>
+              <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}</span>
             </label>
-            <label className="inline-flex items-center gap-1.5 text-[10px]">
+            <label className="inline-flex min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-[10px]">
               <input
                 type="checkbox"
-                className="rounded"
+                className="shrink-0 rounded"
                 checked={props.tableToGraphRenderingEnabled}
                 onChange={e => props.setTableToGraphRenderingEnabled(e.target.checked)}
               />
-              <span>Enable table-to-graph rendering</span>
+              <span className={UI_TEXT_TRUNCATE}>Enable table-to-graph rendering</span>
             </label>
           </nav>
 
-          <output className={`${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{props.rowCountLabel}</output>
+          <output className={`${UI_TEXT_TRUNCATE_CHIP} ${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{props.rowCountLabel}</output>
         </section>
 
-        <section className="flex-1 min-w-0 flex justify-center" aria-label="Table toolbar">
+        <section className="flex min-w-0 max-w-full flex-1 justify-center overflow-hidden" aria-label="Table toolbar">
           <GraphTableToolbar
             panelTypography={props.panelTypography}
             columns={props.orderedColumns}
@@ -142,7 +144,7 @@ export function GraphTableWorkspaceHeader(props: {
           />
         </section>
 
-        <nav className="kg-toolbar flex items-center gap-2" aria-label="Table actions">
+        <nav className={`kg-graph-table-actions kg-toolbar ${uiToolbarRowScrollJustifyEndClassName} gap-1.5`} aria-label="Table actions">
           {props.syncNowVisible ? (
             <button
               type="button"

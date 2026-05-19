@@ -25,43 +25,350 @@ export const testMainPanelContainerUsesKgPanelBg = () => {
   if (!text.includes('var(--kg-panel-bg)')) throw new Error('Expected MainPanelContainer to use var(--kg-panel-bg)')
 }
 
-export const testPanelShellUsesResponsiveWrapping = () => {
+export const testPanelShellUsesResponsiveRowScrolling = () => {
   const root = process.cwd()
   const tabHeaderPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'TabHeader.tsx')
   const headerActionsPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'HeaderActions.tsx')
   const floatingPanelPath = path.resolve(root, 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const iconButtonPath = path.resolve(root, 'src', 'components', 'IconButton.tsx')
+  const responsiveCssPath = path.resolve(root, 'src', 'styles', 'responsive-toolbar.css')
+  const toolbarStylesPath = path.resolve(root, 'src', 'features', 'toolbar', 'ui', 'toolbarStyles.ts')
 
   const tabHeader = readUtf8(tabHeaderPath)
-  if (!tabHeader.includes('flex-wrap items-start gap-y-1 sm:flex-nowrap sm:items-center')) {
-    throw new Error('Expected TabHeader shell to wrap responsively on narrow widths')
+  if (!tabHeader.includes('uiToolbarRowScrollClassName') || !tabHeader.includes('uiToolbarRowScrollJustifyEndClassName')) {
+    throw new Error('Expected TabHeader shell to use the toolbar row-scroll SSOT')
   }
   if (!tabHeader.includes('basis-full w-full sm:basis-auto sm:w-72')) {
     throw new Error('Expected TabHeader search shell to expand full-width on narrow widths')
   }
+  if (!tabHeader.includes('kg-panel-tabs-nav') || !tabHeader.includes('basis-full w-full')) {
+    throw new Error('Expected TabHeader tab nav to preserve its bounded mobile lane before panel tools')
+  }
+  if (!tabHeader.includes('kg-panel-tablist') || !tabHeader.includes('uiToolbarRowScrollClassName')) {
+    throw new Error('Expected TabHeader tabs to scroll from the shared toolbar row helper')
+  }
 
   const headerActions = readUtf8(headerActionsPath)
-  if (!headerActions.includes('flex max-w-full flex-wrap items-center justify-end gap-1')) {
-    throw new Error('Expected HeaderActions to wrap instead of overlapping on narrow widths')
+  if (!headerActions.includes('uiToolbarRowScrollJustifyEndClassName')) {
+    throw new Error('Expected HeaderActions to scroll from the shared toolbar row helper')
   }
 
   const floatingPanel = readUtf8(floatingPanelPath)
   if (!floatingPanel.includes('max-w-[calc(100vw-1rem)]')) {
     throw new Error('Expected FloatingPanel shell to cap width against viewport bounds')
   }
-  if (!floatingPanel.includes('flex w-full flex-wrap items-start justify-between gap-1 sm:items-center sm:gap-2')) {
-    throw new Error('Expected FloatingPanel header shell to wrap responsively')
+  if (!floatingPanel.includes('uiToolbarRowScrollJustifyBetweenClassName') || !floatingPanel.includes('uiToolbarRowScrollClassName')) {
+    throw new Error('Expected FloatingPanel header shell to use toolbar row-scroll helpers')
+  }
+
+  const iconButton = readUtf8(iconButtonPath)
+  if (!iconButton.includes('kg-icon-button') || !iconButton.includes('overflow-hidden')) {
+    throw new Error('Expected IconButton to use the shared clipped icon-button surface')
+  }
+  if (!iconButton.includes('min-w-0 max-w-full') || !iconButton.includes('gap-1.5') || !iconButton.includes('flex-nowrap')) {
+    throw new Error('Expected IconButton text/icon groups to keep mobile-safe dimensions')
+  }
+
+  const responsiveCss = readUtf8(responsiveCssPath)
+  const toolbarStyles = readUtf8(toolbarStylesPath)
+  if (!toolbarStyles.includes('uiToolbarRowScrollClassName') || !toolbarStyles.includes('uiToolbarTouchRowScrollClassName')) {
+    throw new Error('Expected toolbarStyles to own shared row-scroll class constants')
+  }
+  if (!toolbarStyles.includes('uiToolbarResponsiveRowScrollClassName') || toolbarStyles.includes('overflow-x-auto overflow-y-hidden')) {
+    throw new Error('Expected toolbarStyles row-scroll helpers to defer scroll behavior to shared CSS')
+  }
+  if (!responsiveCss.includes('.kg-row-scroll,') || !responsiveCss.includes('.kg-responsive-row-scroll')) {
+    throw new Error('Expected responsive CSS to centralize always-on and mobile-only row scrolling')
+  }
+  if (!responsiveCss.includes('.kg-icon-button,') || !responsiveCss.includes('.App-toolbar__btn')) {
+    throw new Error('Expected shared responsive CSS to own icon and toolbar button clipping')
+  }
+  if (!responsiveCss.includes('text-overflow: ellipsis') || !responsiveCss.includes('white-space: nowrap')) {
+    throw new Error('Expected shared responsive CSS to prefer ellipsis over messy button overflow')
   }
 }
 
-export const testKeyValueRowsUseMobileSingleColumnFallback = () => {
+export const testResponsiveWorkspaceAndTableSurfacesStayBounded = () => {
+  const root = process.cwd()
+  const responsiveCssPath = path.resolve(root, 'src', 'styles', 'responsive-toolbar.css')
+  const workspaceHeaderPath = path.resolve(root, 'src', 'components', 'ui', 'WorkspaceHeader.tsx')
+  const embeddedWorkspacePath = path.resolve(root, 'src', 'components', 'EmbeddedWorkspaceShell.tsx')
+  const canvasPreviewDockPath = path.resolve(root, 'src', 'components', 'CanvasPreviewDock.tsx')
+  const toolMenuStatePath = path.resolve(root, 'src', 'features', 'toolbar', 'useToolMenuState.ts')
+  const graphTableHeaderPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableWorkspaceHeader.tsx')
+  const graphTableToolbarPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableToolbar.tsx')
+  const graphTableLeftPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableWorkspaceLeft.tsx')
+  const graphTableInspectorPath = path.resolve(root, 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
+  const markdownToolbarPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
+  const markdownExplorerPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceExplorer.tsx')
+  const workspaceTableModeControlPath = path.resolve(root, 'src', 'features', 'workspace-table', 'ui', 'WorkspaceTableModeControl.tsx')
+
+  const responsiveCss = readUtf8(responsiveCssPath)
+  if (!responsiveCss.includes('.kg-workspace-header-row') || !responsiveCss.includes('.kg-embedded-workspace-main')) {
+    throw new Error('Expected shared responsive CSS to own workspace header and embedded workspace bounds')
+  }
+  if (!responsiveCss.includes('.kg-graph-table-grid-inspector-shell') || !responsiveCss.includes('.kg-graph-table-menu-form')) {
+    throw new Error('Expected shared responsive CSS to own graph-table mobile stacking and menu bounds')
+  }
+  if (!responsiveCss.includes('flex-wrap: nowrap') || !responsiveCss.includes('.kg-icon-button > span')) {
+    throw new Error('Expected shared responsive CSS to forbid icon/text wrapping inside toolbar buttons')
+  }
+
+  const workspaceHeader = readUtf8(workspaceHeaderPath)
+  if (!workspaceHeader.includes('min-w-0 max-w-full shrink-0 overflow-hidden')) {
+    throw new Error('Expected WorkspaceHeader to clip inside mobile viewports')
+  }
+  if (!workspaceHeader.includes('kg-workspace-header-row') || !workspaceHeader.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
+    throw new Error('Expected WorkspaceHeaderRow to use the shared row-scroll primitive')
+  }
+
+  const embeddedWorkspace = readUtf8(embeddedWorkspacePath)
+  if (!embeddedWorkspace.includes('kg-embedded-workspace-shell') || !embeddedWorkspace.includes('kg-embedded-workspace-main')) {
+    throw new Error('Expected EmbeddedWorkspaceShell to expose shared responsive shell classes')
+  }
+  if (!embeddedWorkspace.includes('kg-embedded-workspace-left') || !embeddedWorkspace.includes('sm:min-w-[280px]')) {
+    throw new Error('Expected EmbeddedWorkspaceShell to release fixed minimum width on mobile')
+  }
+
+  const canvasPreviewDock = readUtf8(canvasPreviewDockPath)
+  if (!canvasPreviewDock.includes('kg-canvas-preview-dock') || !canvasPreviewDock.includes('kg-canvas-preview-dock--collapsed')) {
+    throw new Error('Expected CanvasPreviewDock to expose responsive dock state classes')
+  }
+
+  const toolMenuState = readUtf8(toolMenuStatePath)
+  if (!toolMenuState.includes('clampOverlayTopLeftFullyInViewport') || !toolMenuState.includes('(pointer: coarse), (max-width: 768px)')) {
+    throw new Error('Expected floating panel drag state to fully clamp mobile panels inside the viewport')
+  }
+
+  const graphTableHeader = readUtf8(graphTableHeaderPath)
+  if (!graphTableHeader.includes('UI_TEXT_TRUNCATE') || !graphTableHeader.includes('kg-graph-table-header')) {
+    throw new Error('Expected GraphTableWorkspaceHeader to use shared ellipsis and bounded header classes')
+  }
+  if (!graphTableHeader.includes('kg-graph-table-nav') || !graphTableHeader.includes('kg-graph-table-actions')) {
+    throw new Error('Expected GraphTableWorkspaceHeader navigation and actions to stay viewport-bounded')
+  }
+
+  const graphTableToolbar = readUtf8(graphTableToolbarPath)
+  if (!graphTableToolbar.includes('kg-graph-table-toolbar') || !graphTableToolbar.includes('kg-graph-table-menu-form')) {
+    throw new Error('Expected GraphTableToolbar controls and menus to use shared responsive classes')
+  }
+  if (!graphTableToolbar.includes('UI_TEXT_TRUNCATE') || !graphTableToolbar.includes('flex-nowrap items-center')) {
+    throw new Error('Expected GraphTableToolbar labels to ellipsize instead of pushing icons to new rows')
+  }
+
+  const graphTableLeft = readUtf8(graphTableLeftPath)
+  if (!graphTableLeft.includes('kg-graph-table-grid-inspector-shell') || !graphTableLeft.includes('kg-graph-table-inspector-resize')) {
+    throw new Error('Expected GraphTableWorkspaceLeft to expose responsive inspector stack classes')
+  }
+
+  const graphTableInspector = readUtf8(graphTableInspectorPath)
+  if (!graphTableInspector.includes('kg-graph-table-inspector') || !graphTableInspector.includes('grid-cols-[minmax(0,120px)_minmax(0,1fr)]')) {
+    throw new Error('Expected GraphTableInspector to avoid fixed overflow columns on mobile')
+  }
+
+  const markdownToolbar = readUtf8(markdownToolbarPath)
+  if (!markdownToolbar.includes('kg-workspace-toolbar-controls') || !markdownToolbar.includes('uiToolbarRowScrollJustifyEndClassName')) {
+    throw new Error('Expected MarkdownWorkspaceToolbar controls to scroll on one mobile row')
+  }
+  if (!markdownToolbar.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('Expected MarkdownWorkspaceToolbar labels to use shared ellipsis')
+  }
+
+  const markdownExplorer = readUtf8(markdownExplorerPath)
+  if (!markdownExplorer.includes('kg-toolbar') || !markdownExplorer.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
+    throw new Error('Expected MarkdownWorkspaceExplorer header to scroll without fixed mobile height')
+  }
+
+  const workspaceTableModeControl = readUtf8(workspaceTableModeControlPath)
+  if (!workspaceTableModeControl.includes('UI_TEXT_TRUNCATE') || !workspaceTableModeControl.includes('uiToolbarRowScrollJustifyBetweenClassName')) {
+    throw new Error('Expected WorkspaceTableModeControl rows to stay bounded with one-row scrolling')
+  }
+}
+
+export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
+  const root = process.cwd()
+  const responsiveCssPath = path.resolve(root, 'src', 'styles', 'responsive-toolbar.css')
+  const overlayPath = path.resolve(root, 'src', 'lib', 'ui', 'overlay.tsx')
+  const toolbarDropdownPath = path.resolve(root, 'src', 'components', 'toolbar', 'ToolbarDropdownSelect.tsx')
+  const launchDropdownPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
+  const columnHeaderMenuPath = path.resolve(root, 'src', 'components', 'ui', 'ColumnHeaderMenu.tsx')
+  const typeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'TypeMenu.tsx')
+  const dataViewHeaderPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewHeader.tsx')
+  const dataViewDialogPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsDialog.tsx')
+  const dataViewFilterPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewFilterMenu.tsx')
+  const dataViewChipsPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewChips.tsx')
+  const fileTreePath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownFileTree.tsx')
+
+  const responsiveCss = readUtf8(responsiveCssPath)
+  if (!responsiveCss.includes('.kg-toolbar-dropdown-menu') || !responsiveCss.includes('.kg-column-header-menu')) {
+    throw new Error('Expected shared responsive CSS to bound toolbar and column menus')
+  }
+  if (!responsiveCss.includes('.kg-data-view-settings-dialog') || !responsiveCss.includes('.kg-data-view-kanban-group')) {
+    throw new Error('Expected shared responsive CSS to bound data-view dialogs and kanban groups')
+  }
+  if (!responsiveCss.includes('transform: none !important') || !responsiveCss.includes('.kg-menu-row svg')) {
+    throw new Error('Expected mobile submenus and menu icons to avoid offscreen transforms and icon wrapping')
+  }
+
+  const overlay = readUtf8(overlayPath)
+  if (!overlay.includes('clampOverlayTopLeftFullyInViewport') || !overlay.includes('maxWidth') || !overlay.includes('overscrollBehavior')) {
+    throw new Error('Expected AnchorOverlay to clamp dropdowns inside the viewport')
+  }
+
+  const toolbarDropdown = readUtf8(toolbarDropdownPath)
+  if (!toolbarDropdown.includes('kg-toolbar-dropdown-menu') || !toolbarDropdown.includes('kg-toolbar-dropdown-submenu')) {
+    throw new Error('Expected toolbar dropdowns and submenus to use shared responsive menu classes')
+  }
+
+  const launchDropdown = readUtf8(launchDropdownPath)
+  if (!launchDropdown.includes('kg-launch-menu-item w-full min-w-0 max-w-full flex flex-nowrap')) {
+    throw new Error('Expected launch menu rows to keep icons and labels on one clipped row')
+  }
+
+  const columnHeaderMenu = readUtf8(columnHeaderMenuPath)
+  if (!columnHeaderMenu.includes('kg-column-header-menu') || !columnHeaderMenu.includes('kg-column-header-submenu')) {
+    throw new Error('Expected column header menus to use bounded menu and submenu primitives')
+  }
+
+  const typeMenu = readUtf8(typeMenuPath)
+  if (!typeMenu.includes('kg-type-menu') || !typeMenu.includes('kg-menu-row')) {
+    throw new Error('Expected type menus to reuse shared menu row clipping')
+  }
+
+  const dataViewHeader = readUtf8(dataViewHeaderPath)
+  if (!dataViewHeader.includes('kg-data-view-header-controls') || !dataViewHeader.includes('kg-data-view-actions')) {
+    throw new Error('Expected Data View header controls to stay inside viewport bounds')
+  }
+
+  const dataViewDialog = readUtf8(dataViewDialogPath)
+  if (!dataViewDialog.includes('kg-data-view-settings-layout') || !dataViewDialog.includes('kg-data-view-settings-nav')) {
+    throw new Error('Expected Data View settings dialog to stack navigation and content on mobile')
+  }
+  if (!dataViewDialog.includes('uiToolbarResponsiveRowScrollClassName')) {
+    throw new Error('Expected Data View settings nav to use the toolbar-owned mobile row-scroll helper')
+  }
+
+  const dataViewFilter = readUtf8(dataViewFilterPath)
+  if (!dataViewFilter.includes('kg-data-view-filter-menu') || !dataViewFilter.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('Expected Data View filter menus to stay bounded and ellipsized')
+  }
+
+  const dataViewChips = readUtf8(dataViewChipsPath)
+  if (!dataViewChips.includes('inline-flex min-w-0 max-w-full flex-nowrap') || !dataViewChips.includes('shrink-0')) {
+    throw new Error('Expected Data View chips to prevent long tag and icon overflow')
+  }
+
+  const fileTree = readUtf8(fileTreePath)
+  if (!fileTree.includes('clampOverlayTopLeftFullyInViewport') || !fileTree.includes('kg-data-view-floating-menu fixed')) {
+    throw new Error('Expected workspace file context menus to clamp within mobile viewports')
+  }
+}
+
+export const testKeyValueRowsKeepMobileGridConsistency = () => {
   const root = process.cwd()
   const filePath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'KeyTypeValueRow.tsx')
+  const statusBadgePath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'StatusBadge.tsx')
   const text = readUtf8(filePath)
-  if (!text.includes('grid-cols-1 sm:grid-cols-')) {
-    throw new Error('Expected KeyTypeValueRow layouts to fall back to a single column on narrow widths')
+  const statusBadge = readUtf8(statusBadgePath)
+  if (text.includes('grid-cols-1 sm:grid-cols-')) {
+    throw new Error('Expected KeyTypeValueRow layouts to preserve KTV grid columns on narrow widths')
+  }
+  if (!text.includes('grid-cols-[minmax(0,0.92fr)_minmax(3.75rem,0.62fr)_minmax(0,1fr)]')) {
+    throw new Error('Expected default Key/Type/Value rows to keep a mobile KTV grid')
+  }
+  if (!text.includes('grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]')) {
+    throw new Error('Expected simple Key/Value rows to keep a mobile two-column grid')
+  }
+  if (!text.includes('flex min-w-0 items-center justify-center')) {
+    throw new Error('Expected icon spacer cells to remain in the mobile grid instead of hiding')
   }
   if (!text.includes('justify-start sm:justify-end')) {
     throw new Error('Expected right-aligned value cells to relax to start alignment on narrow widths')
+  }
+  if (!text.includes('rowTextCellClassName') || !text.includes('overflow-hidden')) {
+    throw new Error('Expected KeyTypeValueRow cells to clip instead of allowing messy mobile overflow')
+  }
+  if (!text.includes('rowLabelCellClassName') || !text.includes('text-ellipsis whitespace-nowrap')) {
+    throw new Error('Expected KeyTypeValueRow labels to use ellipsis on narrow widths')
+  }
+  if (text.includes('break-words')) {
+    throw new Error('Expected KeyTypeValueRow cells to avoid messy wrapped setting keys and values')
+  }
+  if (!statusBadge.includes('min-w-0 max-w-full') || !statusBadge.includes('sm:min-w-[120px]')) {
+    throw new Error('Expected StatusBadge to release fixed minimum width on mobile')
+  }
+}
+
+export const testSettingsRowsUseEllipsisForLongMobileText = () => {
+  const root = process.cwd()
+  const settingsEntryRowPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsEntryRow.tsx')
+  const detailsTablePath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsEntryDetailsTable.tsx')
+  const collapsibleSectionPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'CollapsibleSection.tsx')
+  const settingsSectionsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsSections.tsx')
+  const sourceFileRowsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SourceFileManagementSettingsRows.tsx')
+  const specialValueNodePath = path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsSpecialValueNode.tsx')
+  const settingsUiPath = path.resolve(root, 'src', 'features', 'settings', 'ui.tsx')
+  const indexCssPath = path.resolve(root, 'src', 'index.css')
+
+  const settingsEntryRow = readUtf8(settingsEntryRowPath)
+  if (!settingsEntryRow.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('Expected SettingsEntryRow to use the shared ellipsis helper for long labels')
+  }
+  if (!settingsEntryRow.includes('className="w-full min-w-0 max-w-full overflow-hidden"')) {
+    throw new Error('Expected SettingsEntryRow tooltips to constrain long labels before ellipsis')
+  }
+  if (!settingsEntryRow.includes('min-w-0 max-w-full flex-1 overflow-hidden')) {
+    throw new Error('Expected SettingsEntryRow values to stay within their responsive cell')
+  }
+
+  const detailsTable = readUtf8(detailsTablePath)
+  if (!detailsTable.includes('table-fixed') || !detailsTable.includes('title={modules}')) {
+    throw new Error('Expected SettingsEntryDetailsTable to preserve details behind clipped cells')
+  }
+  if (!detailsTable.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('Expected SettingsEntryDetailsTable to ellipsize long module/class/function details')
+  }
+
+  const indexCss = readUtf8(indexCssPath)
+  if (!indexCss.includes('display: block;') || !indexCss.includes('max-inline-size: 100%')) {
+    throw new Error('Expected shared truncate utility to create a bounded ellipsis box')
+  }
+
+  const collapsibleSection = readUtf8(collapsibleSectionPath)
+  if (!collapsibleSection.includes('flex min-w-0 max-w-full items-center justify-between gap-1')) {
+    throw new Error('Expected CollapsibleSection headers to stay within mobile panel bounds')
+  }
+  if (!collapsibleSection.includes('min-w-0 flex-1 overflow-hidden')) {
+    throw new Error('Expected CollapsibleSection title area to release width to the action button')
+  }
+
+  const settingsSections = readUtf8(settingsSectionsPath)
+  if (!settingsSections.includes('UI_TEXT_TRUNCATE') || !settingsSections.includes('inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden')) {
+    throw new Error('Expected SettingsSections titles to ellipsize instead of overflowing on mobile')
+  }
+
+  const sourceFileRows = readUtf8(sourceFileRowsPath)
+  if (!sourceFileRows.includes('SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME') || !sourceFileRows.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('Expected Source File Management settings rows to reuse shared ellipsis classes')
+  }
+  if (!sourceFileRows.includes('SOURCE_FILE_ROW_VALUE_CLASS_NAME') || !sourceFileRows.includes('uiToolbarRowScrollClassName')) {
+    throw new Error('Expected Source File Management value groups to stay inside the responsive value cell')
+  }
+
+  const specialValueNode = readUtf8(specialValueNodePath)
+  if (!specialValueNode.includes('specialValueRowClassName') || !specialValueNode.includes('uiToolbarRowScrollClassName')) {
+    throw new Error('Expected Settings special value rows to scroll within the KTV value cell')
+  }
+  if (specialValueNode.includes('flex items-center gap-2') || specialValueNode.includes('flex-1 min-w-0')) {
+    throw new Error('Expected Settings special value rows to avoid stale fixed-width mobile layouts')
+  }
+
+  const settingsUi = readUtf8(settingsUiPath)
+  if (!settingsUi.includes('overflow-hidden text-ellipsis whitespace-nowrap')) {
+    throw new Error('Expected read-only settings values to ellipsize on mobile')
+  }
+  if (!settingsUi.includes('w-full min-w-0 max-w-full h-6')) {
+    throw new Error('Expected settings inputs and selects to keep responsive width constraints')
   }
 }
 

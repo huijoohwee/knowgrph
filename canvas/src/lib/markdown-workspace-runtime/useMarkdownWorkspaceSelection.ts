@@ -5,10 +5,7 @@ import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import {
-  clearRuntimeTimeout,
   resolveWorkspaceDirtyState,
-  scheduleRuntimeTimeout,
-  type RuntimeTimeoutHandle,
 } from './markdownWorkspaceRuntime.shared'
 import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
 import { resolveMarkdownWorkspaceBootstrapActivePath } from './markdownWorkspaceSelectionBootstrap'
@@ -26,7 +23,6 @@ import {
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import {
-  applyCanvasWorkspacePresetForSwitch,
   buildCanvasWorkspacePresetSwitchSemanticKey,
   hasCanvasWorkspacePresetForSwitch,
   readCanvasWorkspacePresetSwitchContext,
@@ -60,8 +56,6 @@ export type MarkdownWorkspaceSelectionArgs = {
   clearStatus: () => void
   setHighlightedLineRange: (value: null) => void
 }
-
-const FRONTMATTER_SWITCH_GRAPH_APPLY_DELAY_MS = 80
 
 function buildWorkspaceDocumentSwitchSignature(args: {
   activeDocumentKey: string
@@ -191,35 +185,30 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
 
   const lastFrontmatterSwitchApplySigRef = React.useRef<string>('')
   const frontmatterSwitchApplyInFlightSigRef = React.useRef<string>('')
-  const frontmatterSwitchGraphApplyTimerRef = React.useRef<RuntimeTimeoutHandle | null>(null)
-  const frontmatterSwitchGraphApplySigRef = React.useRef<string>('')
   const lastFrontmatterSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
-  const cancelFrontmatterSwitchGraphApply = React.useCallback(() => {
-    clearRuntimeTimeout(frontmatterSwitchGraphApplyTimerRef.current)
-    frontmatterSwitchGraphApplyTimerRef.current = null
-    frontmatterSwitchGraphApplySigRef.current = ''
+  const cancelFrontmatterSwitchApply = React.useCallback(() => {
     lastFrontmatterSwitchApplySigRef.current = ''
     frontmatterSwitchApplyInFlightSigRef.current = ''
     lastFrontmatterSwitchApplyAttemptRef.current = { sig: '', atMs: 0 }
   }, [])
-  React.useEffect(() => cancelFrontmatterSwitchGraphApply, [cancelFrontmatterSwitchGraphApply])
+  React.useEffect(() => cancelFrontmatterSwitchApply, [cancelFrontmatterSwitchApply])
   React.useEffect(() => {
     if (activeEntryKind === 'folder') {
-      cancelFrontmatterSwitchGraphApply()
+      cancelFrontmatterSwitchApply()
       return
     }
     if (!activeDocumentKey) {
-      cancelFrontmatterSwitchGraphApply()
+      cancelFrontmatterSwitchApply()
       return
     }
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
     if (!nextText.trim()) {
-      cancelFrontmatterSwitchGraphApply()
+      cancelFrontmatterSwitchApply()
       return
     }
     const presetContext = readCanvasWorkspacePresetSwitchContext(nextText)
     if (!presetContext) {
-      cancelFrontmatterSwitchGraphApply()
+      cancelFrontmatterSwitchApply()
       return
     }
 
@@ -228,9 +217,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       rawBlock: presetContext.rawBlock,
       updatedAtMs: activeEntry?.updatedAtMs,
     })
-    if (frontmatterSwitchGraphApplySigRef.current && frontmatterSwitchGraphApplySigRef.current !== nextSig) {
-      cancelFrontmatterSwitchGraphApply()
-    }
     const nowMs = Date.now()
     const lastAttempt = lastFrontmatterSwitchApplyAttemptRef.current
     if (
@@ -244,34 +230,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     lastFrontmatterSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
     frontmatterSwitchApplyInFlightSigRef.current = nextSig
     lastFrontmatterSwitchApplySigRef.current = nextSig
-    applyCanvasWorkspacePresetForSwitch({ preset: presetContext.preset })
-
-    const applyGraphAfterPreset = () => {
-      if (frontmatterSwitchGraphApplySigRef.current !== nextSig) return
-      frontmatterSwitchGraphApplyTimerRef.current = null
-      if (!args.activeRef.current || String(args.activeTextRef.current || '') !== nextText) {
-        cancelFrontmatterSwitchGraphApply()
-        return
-      }
-      void applyActiveMarkdownDocumentPayload({
-        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-        name: activeDocumentKey,
-        text: nextText,
-        sourceUrl: activeDocumentSourceUrl,
-        autoEnableFrontmatter: false,
-        applyViewPreset: false,
-        applyToGraph: true,
-        canvasWorkspacePreset: presetContext.preset,
-        normalizeWebpageFrontmatterToMarkdown: false,
-      })
-    }
-
-    clearRuntimeTimeout(frontmatterSwitchGraphApplyTimerRef.current)
-    frontmatterSwitchGraphApplyTimerRef.current = scheduleRuntimeTimeout(
-      applyGraphAfterPreset,
-      FRONTMATTER_SWITCH_GRAPH_APPLY_DELAY_MS,
-    )
-    frontmatterSwitchGraphApplySigRef.current = nextSig
 
     void (async () => {
       try {
@@ -298,9 +256,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeEntry,
     activeEntryKind,
     activeEntryText,
-    cancelFrontmatterSwitchGraphApply,
-    args.activeRef,
-    args.activeTextRef,
+    cancelFrontmatterSwitchApply,
     args.setActiveMarkdownDocument,
   ])
 

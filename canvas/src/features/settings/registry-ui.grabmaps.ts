@@ -3,23 +3,18 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import type { LsStorageKey } from '@/lib/config'
 import { lsFloat, lsJson, lsSetFloat, lsSetJson } from '@/lib/persistence'
 import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
-import { GRABMAPS_DEFAULT_DIRECTIONS_URL, GRABMAPS_DEFAULT_MCP_URL, GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
+import {
+  GRABMAPS_DEFAULT_DIRECTIONS_URL,
+  GRABMAPS_DEFAULT_MCP_ARGS_JSON,
+  GRABMAPS_DEFAULT_MCP_COMMAND,
+  GRABMAPS_DEFAULT_MCP_ENV_JSON,
+  GRABMAPS_DEFAULT_MCP_SERVER_KEY,
+  GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS,
+  GRABMAPS_DEFAULT_STYLE_URL,
+} from 'grph-shared/geospatial/grabMapsSsot'
 import type { SettingMeta } from './types'
 
 const s = () => useGraphStore.getState()
-const GRABMAPS_DEFAULT_MCP_SERVER_KEY = 'grab-maps-playground'
-const GRABMAPS_DEFAULT_MCP_COMMAND = 'npx'
-const GRABMAPS_DEFAULT_MCP_ARGS_JSON = JSON.stringify([
-  '-y',
-  'mcp-remote@latest',
-  GRABMAPS_DEFAULT_MCP_URL,
-  '--header',
-  'Authorization:${AUTH_HEADER}',
-  '--transport',
-  'http-only',
-], null, 2)
-const GRABMAPS_DEFAULT_MCP_ENV_JSON = JSON.stringify({ AUTH_HEADER: 'Bearer mcp_{TOKEN}' }, null, 2)
-const GRABMAPS_DEFAULT_MCP_STARTUP_TIMEOUT_MS = 60000
 
 const normalizeString = (value: unknown, fallback = ''): string => {
   const next = typeof value === 'string' ? value.trim() : ''

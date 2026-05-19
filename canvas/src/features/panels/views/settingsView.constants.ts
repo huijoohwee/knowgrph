@@ -6,6 +6,9 @@ import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusSharedTextApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
+import { BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA, BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusImageGenerationSsot'
+import { BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA, BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusVideoGenerationSsot'
+import { GEMINI_VIDEO_GENERATION_API_DOC_AREA, GEMINI_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/geminiVideoGenerationSsot'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
@@ -30,6 +33,11 @@ export const CHAT_KTV_ROW_KEYS = {
   routing: 'integrationConfigsJson',
   model: 'chatModel',
 } as const
+
+const VIDEO_INTEGRATION_TRAVEL_PIPELINE_HIGHLIGHTS = [
+  'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel MCP keeps backend/system/API/MCP config.',
+  'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
+] as const
 
 export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   Chat: {
@@ -60,15 +68,23 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
     panelLabel: 'Open FloatingPanel Props Panel DeerFlow Text Widget',
     openPanel: () => emitPropsPanelOpen(),
   },
-  'BytePlus Video Generation API': {
-    docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/Video_Generation_API',
+  [BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA]: {
+    docsUrl: BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL,
     docsLabel: 'Open BytePlus Video Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     note: 'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
+    highlights: VIDEO_INTEGRATION_TRAVEL_PIPELINE_HIGHLIGHTS,
     openPanel: () => emitPropsPanelOpen(),
   },
-  'BytePlus Image Generation API': {
-    docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1666945',
+  [GEMINI_VIDEO_GENERATION_API_DOC_AREA]: {
+    docsUrl: GEMINI_VIDEO_GENERATION_API_DOCS_URL,
+    docsLabel: 'Open Gemini Veo Video Generation API Docs',
+    panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
+    note: 'Uses shared Gemini video defaults and the common widget -> edge -> Rich Media Panel output path.',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+  [BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA]: {
+    docsUrl: BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL,
     docsLabel: 'Open BytePlus Image Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_IMAGE_GENERATION_NODE_LABEL}`,
     note: 'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
@@ -100,6 +116,10 @@ export const MAPS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsUrl: 'https://maps.grab.com/developer/documentation/routes',
     docsLabel: 'Open GrabMaps Routes Docs',
     panelLabel: 'Open FloatingPanel Geo',
+    note: 'Directions default to lng,lat coordinate order unless lat_first is enabled.',
+    highlights: [
+      'Use overview=full when you need route geometry suitable for animation or media prompts.',
+    ],
     openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
   },
   [MAPS_GEO_DOC_AREA]: {

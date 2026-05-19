@@ -12,8 +12,6 @@ import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/lib/gympgrph/api'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import {
-  clearRuntimeTimeout,
-  scheduleRuntimeTimeout,
   subscribeMarkdownLayoutRequest,
   WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS,
 } from './markdownWorkspaceRuntime.shared'
@@ -361,11 +359,16 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     if (graphText === text) return
     const sig = `${name}:${hashStringToHex(text)}`
     if (lastRealtimeApplySigRef.current === sig) return
-    const timer = scheduleRuntimeTimeout(() => {
+    if (typeof window === 'undefined') {
+      lastRealtimeApplySigRef.current = sig
+      void handleApply()
+      return
+    }
+    const timer = window.setTimeout(() => {
       lastRealtimeApplySigRef.current = sig
       void handleApply()
     }, WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS)
-    return () => clearRuntimeTimeout(timer)
+    return () => window.clearTimeout(timer)
   }, [
     activeDocumentKey,
     activeText,

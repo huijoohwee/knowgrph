@@ -183,6 +183,7 @@ export const writeWorkspaceFileAndSync = async (args: {
   path: WorkspacePath
   text: string
   getFs: MarkdownWorkspaceRuntimeGetFs
+  skipWrite?: boolean
   lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
   patchWorkspaceEntryInlineText?: (path: WorkspacePath, text: string) => void
   setEntries?: Dispatch<SetStateAction<WorkspaceEntry[]>>
@@ -195,8 +196,10 @@ export const writeWorkspaceFileAndSync = async (args: {
   setGraphRagWorkflowJsonText?: (text: string) => void
   resetParsedState: boolean
 }): Promise<void> => {
-  const fs = await args.getFs()
-  await fs.writeFileText(args.path, args.text)
+  if (args.skipWrite !== true) {
+    const fs = await args.getFs()
+    await fs.writeFileText(args.path, args.text)
+  }
   syncWorkspaceTextState(args)
   updateExistingWorkspaceSourceFile({
     path: args.path,

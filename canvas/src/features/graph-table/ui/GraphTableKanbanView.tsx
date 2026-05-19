@@ -10,6 +10,7 @@ import type {
 import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 const EMPTY_COLUMN_WIDTHS: Record<string, number> = {}
 
@@ -91,21 +92,21 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
   }, [displayRows, props.groupBy])
 
   return (
-    <section className="flex-1 min-h-0 overflow-x-auto overflow-y-auto" aria-label="Graph Data Table Kanban view">
-      <div className="min-h-0 flex items-start gap-3 p-3" role="list">
+    <section className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto" aria-label="Graph Data Table Kanban view">
+      <div className="min-h-0 min-w-0 max-w-full flex items-start gap-3 p-3" role="list">
         {lanes.map(lane => (
           <section
             key={lane.id}
             className={[
-              'w-72 shrink-0 rounded border flex flex-col max-h-full',
+              'kg-graph-table-kanban-lane shrink-0 rounded border flex flex-col max-h-full overflow-hidden',
               UI_THEME_TOKENS.panel.border,
               UI_THEME_TOKENS.panel.bg,
             ].join(' ')}
             aria-label={`Lane ${lane.label}`}
           >
             <header className={['px-3 py-2 border-b', UI_THEME_TOKENS.panel.border].join(' ')}>
-              <div className={['flex items-center justify-between gap-2', typography.microLabelClass].join(' ')}>
-                <h2 className={['font-medium truncate', UI_THEME_TOKENS.text.primary].join(' ')}>{lane.label}</h2>
+              <div className={['flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden', typography.microLabelClass].join(' ')}>
+                <h2 className={['min-w-0 font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{lane.label}</h2>
                 <output className={UI_THEME_TOKENS.text.tertiary}>{lane.rows.length}</output>
               </div>
             </header>
@@ -120,7 +121,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                     <button
                       type="button"
                       className={[
-                        'w-full text-left rounded border px-3 py-2',
+                        'w-full min-w-0 max-w-full overflow-hidden text-left rounded border px-3 py-2',
                         typography.microLabelClass,
                         selected ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
                         UI_THEME_TOKENS.panel.border,
@@ -130,9 +131,9 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                         props.onRowClicked(row.id)
                       }}
                     >
-                      <div className={['font-medium truncate', UI_THEME_TOKENS.text.primary].join(' ')}>{title}</div>
-                      {meta ? <div className={['mt-1 truncate', UI_THEME_TOKENS.text.tertiary].join(' ')}>{meta}</div> : null}
-                      <div className={['mt-1 truncate', UI_THEME_TOKENS.text.tertiary].join(' ')}>{row.id}</div>
+                      <div className={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{title}</div>
+                      {meta ? <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{meta}</div> : null}
+                      <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{row.id}</div>
                     </button>
                   </li>
                 )

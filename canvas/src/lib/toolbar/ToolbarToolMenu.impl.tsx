@@ -13,7 +13,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { usePinnedLs } from '@/lib/ui/panelPinned'
-import { uiPrimaryPillActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { uiPrimaryPillActiveClassName, uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { cn } from '@/lib/utils'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import {
@@ -106,7 +106,7 @@ const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(
   const statusClassName = `${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} kg-truncate-chip`
 
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-1 pl-1">
+    <span className={`${uiToolbarRowScrollClassName} gap-1 pl-1`}>
       {pipelineStatus && (
         <span className={statusClassName}>
           {pipelineStatus}
@@ -576,8 +576,8 @@ export function ToolbarToolMenu({
           style={toolMenuCardStyle}
           data-kg-floating-panel-root="true"
         >
-          <header className="flex w-full flex-wrap items-start justify-between gap-1 sm:items-center sm:gap-2" onPointerDown={handleFloatingPanelPointerDown}>
-            <nav className={`flex min-w-0 flex-1 flex-wrap items-center gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
+          <header className={`${uiToolbarRowScrollJustifyBetweenClassName} w-full gap-1 sm:gap-2`} onPointerDown={handleFloatingPanelPointerDown}>
+            <nav className={`${uiToolbarRowScrollClassName} flex-1 gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               <FloatingPanelHeaderStatus
                 pipelineStatus={pipelineStatus}
@@ -612,8 +612,8 @@ export function ToolbarToolMenu({
         data-kg-floating-panel-root="true"
       >
         <section className="px-2 py-1 flex h-full min-h-[36px] min-w-0 flex-col gap-1" aria-label="Floating panel">
-          <header className={`flex w-full flex-wrap items-start justify-between gap-1 select-none sm:items-center sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`} onPointerDown={handleFloatingPanelPointerDown}>
-            <nav className={`flex min-w-0 flex-1 flex-wrap items-center gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
+          <header className={`${uiToolbarRowScrollJustifyBetweenClassName} w-full gap-1 select-none sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`} onPointerDown={handleFloatingPanelPointerDown}>
+            <nav className={`${uiToolbarRowScrollClassName} flex-1 gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               <FloatingPanelHeaderStatus
                 pipelineStatus={pipelineStatus}
@@ -671,8 +671,8 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
-                <header className="flex flex-wrap items-start justify-between gap-2 sm:items-center" aria-label="Graph traversal actions">
-                  <nav className="flex flex-wrap items-center gap-2" aria-label="Traversal tools">
+                <header className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2`} aria-label="Graph traversal actions">
+                  <nav className={`${uiToolbarRowScrollClassName} gap-2`} aria-label="Traversal tools">
                     <button
                       type="button"
                       className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}

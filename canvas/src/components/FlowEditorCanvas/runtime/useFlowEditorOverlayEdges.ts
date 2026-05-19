@@ -994,12 +994,12 @@ export function useFlowEditorOverlayEdges(args: {
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
         const overlayCurve = edgeCurveById.get(edgeId) || null
         const rawEdge = graphLookup?.rawEdgeById.get(edgeId) || null
-        const frontmatterEdgeCrowdingLift = resolveFrontmatterOverlayEdgeCrowdingLiftPx({
+        const frontmatterShotEdgeCrowdingLift = resolveFrontmatterOverlayEdgeCrowdingLiftPx({
           graphMetaKind, edge: rawEdge, sourceNode: overlayNodeById.get(source) || null, targetNode: overlayNodeById.get(target) || null,
           sourceId: source, targetId: target, sourceY: sy, targetY: ty, sourceHeight: sRect.height, targetHeight: tRect.height,
         })
-        const adjustedSy = frontmatterEdgeCrowdingLift > 0 ? sy - frontmatterEdgeCrowdingLift : sy
-        const adjustedTy = frontmatterEdgeCrowdingLift > 0 ? ty + frontmatterEdgeCrowdingLift * 0.25 : ty
+        const adjustedSy = frontmatterShotEdgeCrowdingLift > 0 ? sy - frontmatterShotEdgeCrowdingLift : sy
+        const adjustedTy = frontmatterShotEdgeCrowdingLift > 0 ? ty + frontmatterShotEdgeCrowdingLift * 0.25 : ty
 
         const d = buildEdgePathD({
           edgeType: globalEdgeType,

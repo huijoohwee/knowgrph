@@ -51,7 +51,7 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
     setLinkMode(getLinkDisplayMode(toolbar.startLine))
   }, [toolbar])
   if (!toolbar) return null
-  const btnClass = `block w-full px-3 py-1 text-left ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed`
+  const btnClass = `kg-menu-row block w-full min-w-0 max-w-full overflow-hidden px-3 py-1 text-left ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed`
   const bubbleButtonClass = `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} h-7 w-7`
 
   const handleSetLinkMode = (mode: 'snapshot' | 'card') => {
@@ -74,11 +74,11 @@ export function MarkdownSelectionToolbar(props: MarkdownSelectionToolbarProps) {
         className={bubbleButtonClass}
         onClick={() => setMenuOpen(prev => !prev)}
       >
-        <MoreHorizontal className="w-3.5 h-3.5" />
+        <MoreHorizontal className="w-3.5 h-3.5 shrink-0" />
       </button>
       {menuOpen ? (
         <menu
-          className={`absolute left-0 mt-1 z-50 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md text-xs ${UI_THEME_TOKENS.text.primary} flex flex-col min-w-[180px] list-none m-0 p-0`}
+          className={`kg-data-view-floating-menu absolute left-0 mt-1 z-50 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md text-xs ${UI_THEME_TOKENS.text.primary} flex flex-col min-w-[180px] list-none m-0 p-0`}
           role="menu"
         >
           <button

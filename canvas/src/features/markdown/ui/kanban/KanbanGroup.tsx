@@ -37,14 +37,14 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
       <section
         data-kg-kanban-group="1"
         className={[
-          'w-[260px] flex-shrink-0 border',
+          'kg-data-view-kanban-group w-[260px] flex-shrink-0 border',
           'rounded-[var(--kg-kanban-card-radius)]',
           UI_THEME_TOKENS.panel.border,
           UI_THEME_TOKENS.kanban.groupBg,
         ].join(' ')}
         aria-label={`Group: ${props.group.key}`}
       >
-        <header className={['flex items-center gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
+        <header className={['flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
           <button
             type="button"
             className={['flex items-center gap-2 flex-1 min-w-0 rounded', UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
@@ -77,7 +77,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
           {props.canMutate ? (
             <menu
               data-kg-kanban-group-actions="1"
-              className="m-0 p-0 list-none flex items-center gap-1 opacity-0 pointer-events-none transition-opacity"
+              className="m-0 p-0 list-none flex shrink-0 items-center gap-1 opacity-0 pointer-events-none transition-opacity"
               aria-label="Group actions"
             >
               <li className="list-none">
@@ -95,7 +95,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                     props.onNewRecord({ [groupByColumnId]: props.group.key })
                   }}
                 >
-                  <Plus className="w-4 h-4" aria-hidden="true" />
+                  <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
                 </button>
               </li>
             </menu>
@@ -136,15 +136,15 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                   type="button"
                   className={[
                     'kg-panel-action-btn',
-                    'w-full inline-flex items-center gap-2 text-xs px-2 py-2 rounded-md',
+                    'kg-data-view-action w-full min-w-0 max-w-full inline-flex flex-nowrap items-center gap-2 overflow-hidden text-xs px-2 py-2 rounded-md',
                     UI_THEME_TOKENS.text.secondary,
                     UI_THEME_TOKENS.button.hoverBg,
                     UI_THEME_TOKENS.focus.primarySoftRing,
                   ].join(' ')}
                   onClick={() => props.onNewRecord({ [groupByColumnId]: props.group.key })}
                 >
-                  <Plus className="w-4 h-4" aria-hidden="true" />
-                  {MARKDOWN_DATA_VIEW_COPY.newRecordLabel}
+                  <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span className="kg-truncate">{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
                 </button>
               </li>
             ) : null}

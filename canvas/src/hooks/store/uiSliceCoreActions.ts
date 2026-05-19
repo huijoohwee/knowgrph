@@ -6,6 +6,7 @@ import { lsSetBool, lsSetFloat, lsSetInt, lsSetJson, lsSetNum } from '@/lib/pers
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -28,6 +29,11 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         return {
           workspaceViewMode: nextMode,
           workspaceCanvasPaneOpen: nextPaneOpen,
+          ...buildWorkspaceGraphMutationTransitionState({
+            workspaceViewMode: nextMode,
+            workspaceCanvasPaneOpen: nextPaneOpen,
+            markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
+          }),
         } as Partial<GraphState>
       }),
 
@@ -40,6 +46,11 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         return {
           workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode),
           workspaceCanvasPaneOpen: nextPaneOpen,
+          ...buildWorkspaceGraphMutationTransitionState({
+            workspaceViewMode: nextMode,
+            workspaceCanvasPaneOpen: nextPaneOpen,
+            markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
+          }),
         } as Partial<GraphState>
       }),
 
@@ -59,6 +70,11 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         return {
           workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, next),
           workspaceCanvasPaneOpen: nextPaneOpen,
+          ...buildWorkspaceGraphMutationTransitionState({
+            workspaceViewMode: next,
+            workspaceCanvasPaneOpen: nextPaneOpen,
+            markdownWorkspaceIndexingInFlight: s.markdownWorkspaceIndexingInFlight,
+          }),
         } as Partial<GraphState>
       }),
 

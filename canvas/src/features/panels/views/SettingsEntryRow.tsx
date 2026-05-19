@@ -6,6 +6,7 @@ import { SettingsEntryDetailsTable } from './SettingsEntryDetailsTable'
 import { buildSettingsEntryInputNode } from './settingsEntryRow.input'
 import { buildSettingsEntryTooltips } from './settingsEntryRow.tooltips'
 import { buildSettingsEntryValueNode } from './settingsEntryRow.value'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import type { SectionMeta } from './settingsView.constants'
 import type { SettingsEntry } from './useSettingsView.helpers'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowToggleActions, SettingsRowUi } from './settingsRowTypes'
@@ -64,8 +65,8 @@ export function SettingsEntryRow({
     values,
   })
 
-  const pillButtonClassName = `inline-flex items-center justify-center h-6 rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary} px-2 text-xs whitespace-nowrap`
-  const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
+  const pillButtonClassName = `inline-flex min-w-0 max-w-full items-center justify-center h-6 rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary} px-2 text-xs ${UI_TEXT_TRUNCATE}`
+  const statusPillClassName = `inline-flex min-w-0 max-w-full items-center h-6 rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs ${UI_TEXT_TRUNCATE}`
   const inputNode = buildSettingsEntryInputNode({
     hasOptions: writable || hasOptions,
     renderInput: () => actions.renderInput(resolvedValueKey, resolvedInputType, writable, resolvedInputOptions, valueDisplayOverride),
@@ -97,16 +98,21 @@ export function SettingsEntryRow({
           <Tooltip
             content={keyTooltip}
             maxWidthPx={250}
+            className="w-full min-w-0 max-w-full overflow-hidden"
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <span className="inline-flex items-center gap-1">
-              <span className="truncate">{setting.key}</span>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden">
+              <span className={UI_TEXT_TRUNCATE}>{setting.key}</span>
             </span>
           </Tooltip>
         )}
         typeNode={
           renderTypeAsText
-            ? <span className={`inline-flex items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>{resolvedTypeLabel}</span>
+            ? (
+              <span className={`inline-flex min-w-0 max-w-full items-center justify-start overflow-hidden sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
+                <span className={UI_TEXT_TRUNCATE}>{resolvedTypeLabel}</span>
+              </span>
+            )
             : (
               <KindPill
                 kind={settingTypeIconKind}
@@ -117,7 +123,7 @@ export function SettingsEntryRow({
               />
             )
         }
-        valueNode={<div className="flex-1">{renderedValueNode}</div>}
+        valueNode={<div className="min-w-0 max-w-full flex-1 overflow-hidden">{renderedValueNode}</div>}
         onClick={toggleActions.onToggleExpanded}
       />
       {isExpanded ? (

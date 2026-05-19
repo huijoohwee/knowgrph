@@ -4,6 +4,39 @@ import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
 import { yamlBlockScalar, yamlQuote } from './yaml'
 
+type WebsiteImportMeta = {
+  importId: string
+  nodeId: string
+  outputDirRel?: string
+  rawHtmlRelPath?: string
+  markdownRelPath?: string
+  conversionJsonRelPath?: string
+  rawHtmlSha256?: string
+  markdownSha256?: string
+  conversionJsonSha256?: string
+}
+
+function pushWebsiteImportMetaLines(fmLines: string[], meta: WebsiteImportMeta | null | undefined): void {
+  const importId = String(meta?.importId || '').trim()
+  const nodeId = String(meta?.nodeId || '').trim()
+  const outputDirRel = String(meta?.outputDirRel || '').trim()
+  if (importId) fmLines.push(`kgWebsiteImportId: ${yamlQuote(importId)}`)
+  if (nodeId) fmLines.push(`kgWebsiteNodeId: ${yamlQuote(nodeId)}`)
+  if (outputDirRel) fmLines.push(`kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel)}`)
+  const artifactPairs = [
+    ['kgWebsiteRawHtmlRelPath', meta?.rawHtmlRelPath],
+    ['kgWebsiteMarkdownRelPath', meta?.markdownRelPath],
+    ['kgWebsiteConversionJsonRelPath', meta?.conversionJsonRelPath],
+    ['kgWebsiteRawHtmlSha256', meta?.rawHtmlSha256],
+    ['kgWebsiteMarkdownSha256', meta?.markdownSha256],
+    ['kgWebsiteConversionJsonSha256', meta?.conversionJsonSha256],
+  ] as const
+  for (const [key, value] of artifactPairs) {
+    const text = String(value || '').trim()
+    if (text) fmLines.push(`${key}: ${yamlQuote(text)}`)
+  }
+}
+
 function buildCanvasPresetLines(preset: CanvasWorkspaceFrontmatterPreset | null | undefined): string[] {
   if (!preset) return []
   const lines: string[] = []
@@ -74,7 +107,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   scriptPolicy?: 'strip' | 'allow'
   fidelityLevel?: 1 | 2 | 3 | 4
   includeImages?: boolean
-  websiteImportMeta?: { importId: string; nodeId: string; outputDirRel?: string } | null
+  websiteImportMeta?: WebsiteImportMeta | null
   canvasPreset?: CanvasWorkspaceFrontmatterPreset | null
   preserveBodyFidelity?: boolean
 }): string {
@@ -102,12 +135,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   if (fidelityLevel) fmLines.push(`kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`)
   if (includeImages != null) fmLines.push(`kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`)
 
-  const importId = String(args.websiteImportMeta?.importId || '').trim()
-  const nodeId = String(args.websiteImportMeta?.nodeId || '').trim()
-  const outputDirRel = String(args.websiteImportMeta?.outputDirRel || '').trim()
-  if (importId) fmLines.push(`kgWebsiteImportId: ${yamlQuote(importId)}`)
-  if (nodeId) fmLines.push(`kgWebsiteNodeId: ${yamlQuote(nodeId)}`)
-  if (outputDirRel) fmLines.push(`kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel)}`)
+  pushWebsiteImportMetaLines(fmLines, args.websiteImportMeta)
 
   const withView = upsertWebpageFrontmatterMeta(strippedUpstream, { url, view })
   const body = (() => {
@@ -176,7 +204,7 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
   upstreamMarkdown: string
   url: string
   view: 'markdown' | 'json' | 'html'
-  websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string }
+  websiteImportMeta: WebsiteImportMeta
 }): string {
   const url = String(args.url || '').trim()
   const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
@@ -189,18 +217,12 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
 
-  const importId = String(args.websiteImportMeta.importId || '').trim()
-  const nodeId = String(args.websiteImportMeta.nodeId || '').trim()
-  const outputDirRel = String(args.websiteImportMeta.outputDirRel || '').trim()
-
   const fmLines = [
     '---',
     `kgWebpageUrl: ${yamlQuote(url)}`,
     `kgWebpageView: ${yamlQuote(view)}`,
-    `kgWebsiteImportId: ${yamlQuote(importId)}`,
-    `kgWebsiteNodeId: ${yamlQuote(nodeId)}`,
   ]
-  if (outputDirRel) fmLines.push(`kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel)}`)
+  pushWebsiteImportMetaLines(fmLines, args.websiteImportMeta)
   fmLines.push('---', '')
 
   const withView = upsertWebpageFrontmatterMeta(strippedUpstream, { url, view })

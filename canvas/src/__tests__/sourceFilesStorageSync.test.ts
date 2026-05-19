@@ -10,6 +10,7 @@ import {
   buildSourceFilesStorageSyncSignature,
   syncSourceFilesToKnowgrphStorage,
 } from '@/features/source-files/sourceFilesStorageSync'
+import { getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
 
 const sourceFileFixture: SourceFile = {
   id: 'file_a',
@@ -155,6 +156,25 @@ export function testSourceFilesStorageSyncSignatureIgnoresUiOnlySelectionState()
   }])
   if (signatureA !== signatureB) {
     throw new Error('expected storage sync signature to ignore UI-only source-file selection/churn fields')
+  }
+}
+
+export function testSourceFilesStorageSyncTextHashCacheTracksMutableText() {
+  const mutable: SourceFile = {
+    ...sourceFileFixture,
+    id: 'mutable-text',
+    text: '# Mutable A',
+  }
+  const firstTextHash = getSourceFileTextHash(mutable)
+  const firstSignature = buildSourceFilesStorageSyncSignature([mutable])
+  mutable.text = '# Mutable B'
+  const secondTextHash = getSourceFileTextHash(mutable)
+  const secondSignature = buildSourceFilesStorageSyncSignature([mutable])
+  if (secondTextHash === firstTextHash) {
+    throw new Error('expected shared source-file text hash cache to invalidate when text changes in place')
+  }
+  if (secondSignature === firstSignature) {
+    throw new Error('expected storage sync signature to track changed markdown text through the shared text hash helper')
   }
 }
 

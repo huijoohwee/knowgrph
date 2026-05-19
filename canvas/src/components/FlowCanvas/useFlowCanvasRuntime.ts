@@ -1317,13 +1317,13 @@ export function useFlowCanvasRuntime(args: {
       || Math.abs(Math.log(Math.max(0.001, current.k) / Math.max(0.001, expectedFit.k))) > 0.16
     __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
     __flowCanvasDebug.lastExpectedFit = `${Math.round(expectedScreenX)},${Math.round(expectedScreenY)},${Math.round(expectedFit.k * 1000) / 1000}`
-    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current && !transformDriftedFromFit) {
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-stabilized-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastOffscreenOverlayRecoveryKeyRef.current = null
       return
     }
-    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {
+    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && !transformDriftedFromFit) {
       // Preserve already-visible centroid-centered transforms while the workspace overlay is open.
       workspaceOverlayStabilizedRef.current = true
       __flowCanvasDebug.lastRecoveryReason = collectiveBalanced

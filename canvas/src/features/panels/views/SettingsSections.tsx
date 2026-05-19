@@ -2,6 +2,7 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { buildSettingsAreaTooltip } from '@/lib/config'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { SettingsEntryRow } from './SettingsEntryRow'
@@ -61,11 +62,12 @@ export function SettingsSections({
           <Tooltip
             content={buildSettingsAreaTooltip(area, String(itemCount))}
             maxWidthPx={250}
+            className="w-full min-w-0 max-w-full overflow-hidden"
             contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
           >
-            <span className="inline-flex items-center gap-1">
-              <span>{area}</span>
-              <span className={`text-xs uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} ml-1`}>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden">
+              <span className={UI_TEXT_TRUNCATE}>{area}</span>
+              <span className={`shrink-0 text-xs uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} ml-1`}>
                 {itemCount} items
               </span>
             </span>

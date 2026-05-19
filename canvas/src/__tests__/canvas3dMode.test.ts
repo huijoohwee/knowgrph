@@ -99,8 +99,8 @@ export function testRenderSettings3dModeSelectPreservesXrMode() {
 
 export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
   const threeGraph = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
-  if (!threeGraph.includes('parseGlbAssetDocument(markdownDocumentText)')) {
-    throw new Error('Expected ThreeGraph to detect active model asset documents from markdown document text')
+  if (!threeGraph.includes('parseGlbAssetDocument(canvasMarkdownDocument.text)')) {
+    throw new Error('Expected ThreeGraph to detect model asset documents from the Canvas-applied markdown render context')
   }
   if (!threeGraph.includes('const hasRenderableScene = hasGraph || hasGlbAsset')) {
     throw new Error('Expected ThreeGraph to keep the canvas mounted for model asset documents without graph nodes')

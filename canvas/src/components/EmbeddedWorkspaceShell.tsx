@@ -19,9 +19,9 @@ export type EmbeddedWorkspaceShellProps = {
 
 export function EmbeddedWorkspaceShell(props: EmbeddedWorkspaceShellProps) {
   return (
-    <section className="flex-1 min-h-0 flex overflow-hidden" aria-label="Embedded Workspace">
-      <main className={`flex-1 min-w-0 min-h-0 flex ${props.panelTextClass || ''}`.trim()} aria-label="Workspace and Preview">
-        <section className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col min-w-[280px]" aria-label={props.leftAriaLabel}>
+    <section className="kg-embedded-workspace-shell flex-1 min-h-0 flex overflow-hidden" aria-label="Embedded Workspace">
+      <main className={`kg-embedded-workspace-main flex-1 min-w-0 min-h-0 flex ${props.panelTextClass || ''}`.trim()} aria-label="Workspace and Preview">
+        <section className="kg-embedded-workspace-left flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col sm:min-w-[280px]" aria-label={props.leftAriaLabel}>
           {props.left}
         </section>
 

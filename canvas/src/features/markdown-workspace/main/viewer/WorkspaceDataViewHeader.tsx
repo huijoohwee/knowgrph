@@ -9,6 +9,12 @@ import { MarkdownDataViewAddColumnMenu } from '@/features/markdown/ui/MarkdownDa
 import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
 import { WorkspaceDataViewSettingsDialog } from './WorkspaceDataViewSettingsDialog'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import {
+  uiToolbarRowScrollClassName,
+  uiToolbarRowScrollInlineClassName,
+  uiToolbarRowScrollJustifyEndClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import {
   FLOATING_MENU_BUTTON_CLASSNAME,
   FLOATING_MENU_DIVIDER_CLASSNAME,
@@ -63,10 +69,10 @@ export function WorkspaceDataViewHeader(props: {
 
   const layoutDetailsRef = React.useRef<HTMLDetailsElement | null>(null)
 
-  const icon12Class = ['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')
-  const icon14Class = ['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')
-  const squareIconButtonClassName = ['inline-flex', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
-  const squareIconSummaryClassName = ['list-none cursor-pointer', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+  const icon12Class = ['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
+  const icon14Class = ['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
+  const squareIconButtonClassName = ['kg-data-view-action inline-flex shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+  const squareIconSummaryClassName = ['kg-data-view-action list-none cursor-pointer shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
 
   const viewModeLabel =
     props.viewConfig?.geospatialViewEnabled === true
@@ -105,9 +111,9 @@ export function WorkspaceDataViewHeader(props: {
   }, [onChangeViewerMode, onSelectGeospatialView, props.viewerMode, setViewConfig, viewConfig])
 
   return (
-    <WorkspaceHeader ariaLabel="Data view header" border="border" className="relative z-20">
-      <section className="flex items-center gap-2 px-3 pt-2 min-w-0" aria-label="Data view controls">
-        <details className="relative z-30" ref={layoutDetailsRef}>
+    <WorkspaceHeader ariaLabel="Data view header" border="border" className="relative z-20 kg-data-view-header">
+      <section className={`kg-data-view-header-controls ${uiToolbarRowScrollClassName} gap-2 px-3 pt-2`} aria-label="Data view controls">
+        <details className="relative z-30 shrink-0" ref={layoutDetailsRef}>
           <summary
             className={squareIconSummaryClassName}
             aria-label={`Layout: ${viewModeLabel}`}
@@ -128,8 +134,8 @@ export function WorkspaceDataViewHeader(props: {
                   if (el) el.open = false
                 }}
               >
-                <span className="inline-flex items-center justify-between w-full gap-2">
-                  <span>{MARKDOWN_DATA_VIEW_COPY.tableViewLabel}</span>
+                <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
+                  <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.tableViewLabel}</span>
                   {props.viewerMode === 'table' ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
                 </span>
               </button>
@@ -148,8 +154,8 @@ export function WorkspaceDataViewHeader(props: {
                     if (el) el.open = false
                   }}
                 >
-                  <span className="inline-flex items-center justify-between w-full gap-2">
-                    <span>{MARKDOWN_DATA_VIEW_COPY.titleDefault}</span>
+                  <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
+                    <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.titleDefault}</span>
                     {props.viewerMode === 'multiDimTable' ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
                   </span>
                 </button>
@@ -168,8 +174,8 @@ export function WorkspaceDataViewHeader(props: {
                   if (el) el.open = false
                 }}
               >
-                <span className="inline-flex items-center justify-between w-full gap-2">
-                  <span>{MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}</span>
+                <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
+                  <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}</span>
                   {props.viewerMode === 'kanban' ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
                 </span>
               </button>
@@ -187,8 +193,8 @@ export function WorkspaceDataViewHeader(props: {
                   if (el) el.open = false
                 }}
               >
-                <span className="inline-flex items-center justify-between w-full gap-2">
-                  <span>{MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}</span>
+                <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
+                  <span className={UI_TEXT_TRUNCATE}>{MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}</span>
                   {props.viewConfig?.geospatialViewEnabled === true ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
                 </span>
               </button>
@@ -203,7 +209,7 @@ export function WorkspaceDataViewHeader(props: {
         >
           <Layers className={icon14Class} aria-hidden="true" />
         </button>
-        <section className="ml-auto flex items-center gap-2" aria-label="Data view actions">
+        <section className={`kg-data-view-actions ${uiToolbarRowScrollJustifyEndClassName} ml-auto gap-2`} aria-label="Data view actions">
           {!searchExpanded ? (
             <button
               type="button"
@@ -218,7 +224,7 @@ export function WorkspaceDataViewHeader(props: {
             </button>
           ) : (
             <form
-              className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+              className={['kg-data-view-search-form flex min-w-0 max-w-full items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
               role="search"
               onSubmit={e => e.preventDefault()}
             >
@@ -226,7 +232,7 @@ export function WorkspaceDataViewHeader(props: {
               <span className="sr-only">{MARKDOWN_DATA_VIEW_COPY.searchLabel}</span>
               <input
                 ref={searchInputRef}
-                className={['bg-transparent outline-none text-xs w-[180px]', UI_THEME_TOKENS.input.text].join(' ')}
+                className={['kg-data-view-search-input min-w-0 bg-transparent outline-none text-xs w-[180px]', UI_THEME_TOKENS.input.text].join(' ')}
                 placeholder={MARKDOWN_DATA_VIEW_COPY.searchPlaceholder}
                 value={props.state.searchQuery}
                 onChange={e => setState({ ...props.state, searchQuery: e.target.value })}
@@ -264,7 +270,7 @@ export function WorkspaceDataViewHeader(props: {
             canMutate={props.canMutate}
             onAddColumn={props.onAddColumn}
             summaryClassName={squareIconSummaryClassName}
-            menuPositionClassName="absolute right-0 mt-2 w-[280px]"
+            menuPositionClassName="kg-data-view-add-column-menu absolute right-0 mt-2 w-[280px]"
           />
 
           <details className="relative z-30">
@@ -288,7 +294,7 @@ export function WorkspaceDataViewHeader(props: {
                         key={k}
                         type="button"
                         className={[
-                          'text-[10px] px-2 py-1 rounded border',
+                          'kg-data-view-action max-w-full text-[10px] px-2 py-1 rounded border',
                           active ? [UI_THEME_TOKENS.button.primarySolid, UI_THEME_TOKENS.button.activeBorder].join(' ') : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
                         ].join(' ')}
                         onClick={() => {
@@ -299,7 +305,7 @@ export function WorkspaceDataViewHeader(props: {
                           setState({ ...props.state, visibleGroups: next.length === props.groupOptions.length ? null : next })
                         }}
                       >
-                        {k}
+                        <span className={UI_TEXT_TRUNCATE}>{k}</span>
                       </button>
                     )
                   })}
@@ -331,20 +337,20 @@ export function WorkspaceDataViewHeader(props: {
           {props.canMutate && props.onNewRecord ? (
             <button
               type="button"
-              className={['inline-flex items-center gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={['kg-data-view-action inline-flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-hidden px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
               onClick={() => props.onNewRecord?.()}
             >
               <Plus className={icon14Class} aria-hidden="true" />
-              <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
+              <span className={['text-xs font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
             </button>
           ) : null}
         </section>
       </section>
 
-      <section className="flex items-center gap-2 px-3 pb-2" aria-label="Data view header options">
+      <section className={`kg-data-view-header-options ${uiToolbarRowScrollClassName} gap-2 px-3 pb-2`} aria-label="Data view header options">
         {props.tableSelector ? (
-          <aside className="ml-2" aria-label="Data view table selector">
-            <div className="inline-flex items-center gap-2" role="group" aria-label="Table selector">
+          <aside className="kg-data-view-table-selector ml-2 min-w-0 max-w-full" aria-label="Data view table selector">
+            <div className={`${uiToolbarRowScrollInlineClassName} gap-2`} role="group" aria-label="Table selector">
               {props.tableSelector}
             </div>
           </aside>

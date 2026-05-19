@@ -52,7 +52,7 @@ export default function MainPanelFrame({
 
   return (
     <MainPanelContainer ariaLabel={ariaLabel} className={collapsed ? 'h-auto' : 'h-full'}>
-      <section className="flex h-full flex-col" aria-label={ariaLabel}>
+      <section className="flex h-full min-w-0 max-w-full flex-col overflow-hidden" aria-label={ariaLabel}>
         <TabHeader
           collapsed={collapsed}
           onToggle={onToggle}
@@ -70,8 +70,8 @@ export default function MainPanelFrame({
           tabIconByKey={tabIconByKey}
         />
         {!collapsed && (
-          <section className="flex-1 min-h-0 flex flex-col overflow-hidden" aria-label="Panel content">
-            <main className="flex-1 min-h-0 overflow-hidden">
+          <section className="flex-1 min-h-0 min-w-0 max-w-full flex flex-col overflow-hidden" aria-label="Panel content">
+            <main className="flex-1 min-h-0 min-w-0 max-w-full overflow-hidden">
               {children}
             </main>
             {footer ? (

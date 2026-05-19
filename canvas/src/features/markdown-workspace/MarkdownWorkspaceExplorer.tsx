@@ -8,6 +8,7 @@ import type { WorkspaceBacklink } from '@/features/workspace-fs/types'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { buildSelectionActionItems } from './selectionActionItems'
 import { MarkdownWorkspaceBacklinksList } from './MarkdownWorkspaceBacklinksList'
 import { MarkdownWorkspaceTocList } from './MarkdownWorkspaceTocList'
@@ -160,15 +161,15 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
   return (
     <aside
-      className={`h-full min-h-0 flex flex-col ${UI_THEME_TOKENS.panel.bg}`}
+      className={`kg-markdown-workspace-explorer h-full min-h-0 flex flex-col ${UI_THEME_TOKENS.panel.bg}`}
       style={{ width: Math.max(sidebarWidthMinPx, Math.min(sidebarWidthMaxPx, sidebarWidthPx)) }}
       aria-label="Markdown Explorer"
     >
       <header
-        className={`kg-toolbar flex h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] items-center justify-between gap-2 px-2 py-0 border-b ${UI_THEME_TOKENS.panel.border}`}
+        className={`kg-toolbar ${uiToolbarRowScrollJustifyBetweenClassName} min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] gap-2 px-2 py-0 border-b ${UI_THEME_TOKENS.panel.border}`}
         aria-label="Explorer header"
       >
-        <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
+        <section className="min-w-0 max-w-full flex-1 flex items-center gap-2 overflow-hidden" aria-label="Explorer title">
           <h2 className={`${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary} ${UI_TEXT_TRUNCATE}`}>Explorer</h2>
         </section>
         <MarkdownWorkspaceExplorerHeaderActions

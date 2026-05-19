@@ -405,33 +405,35 @@ export const testFlowEditorOverlayReseedKeepsBalancedColumnCount = () => {
 }
 
 export const testFlowEditorNodeOverlayUsesPinnedStateForFloatingMode = () => {
-  const overlayPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
+  const placementPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const overlayText = readUtf8(overlayPath)
+  const placementText = readUtf8(placementPath)
   if (!overlayText.includes('const floating = pinnedInCanvas !== true')) {
     throw new Error('expected node overlay floating mode to follow pinned state')
   }
   if (overlayText.includes('const floating = false')) {
     throw new Error('expected node overlay to avoid hardcoded non-floating mode')
   }
-  if (!overlayText.includes("applyOverlayPosition({ persistClamp: false })")) {
+  if (!overlayText.includes("placement.applyOverlayPosition({ persistClamp: false })")) {
     throw new Error('expected node overlay zoom and interaction refreshes to avoid persisting floating clamp churn')
   }
-  if (!overlayText.includes('if (floatingRef.current && !pinnedDragOverrideRef.current && !widgetWorldPosRef.current) return')) {
+  if (!overlayText.includes('if (floating && !placement.pinnedDragOverrideRef.current && !placement.worldDragOverrideRef.current) return')) {
     throw new Error('expected floating overlay interaction-frame refreshes to stay idle when the panel is not actively dragging')
   }
-  if (!overlayText.includes('const sameScale = lastFloatingScaleKeyRef.current === scaleKey')) {
+  if (!placementText.includes('const sameScale = lastFloatingScaleKeyRef.current === scaleKey')) {
     throw new Error('expected floating overlay zoom subscription to ignore pan-only zoom-state churn')
   }
-  if (!overlayText.includes('const allowPassiveClampPersist =')) {
+  if (!placementText.includes('const allowPassiveClampPersist =')) {
     throw new Error('expected floating overlay clamp persistence to be gated so passive viewport/layout updates do not rewrite store positions continuously')
   }
   if (!overlayText.includes('const floatingUsesScreenAuthority = shouldUseFlowEditorWidgetFloatingScreenAuthority({')) {
     throw new Error('expected frontmatter floating overlays to reuse the shared screen-authority helper')
   }
-  if (!overlayText.includes('const storedWorld = floatingUsesScreenAuthority ? null : widgetWorldPosRef.current')) {
+  if (!placementText.includes('const storedWorld = floatingUsesScreenAuthority ? null : (currentStoredWorld || widgetWorldPosRef.current)')) {
     throw new Error('expected frontmatter floating overlays to ignore stored world positions as a placement authority')
   }
-  if (!overlayText.includes('persistWorldPos(nextWorld)')) {
+  if (!placementText.includes('persistWorldPos(nextWorld)')) {
     throw new Error('expected floating overlays to keep derived world positions in sync for edge connectivity')
   }
 }

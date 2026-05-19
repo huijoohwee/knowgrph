@@ -1,10 +1,20 @@
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+
 type WorkspaceViewMode = 'canvas' | 'editor'
 type EditorWorkspacePane = 'markdown' | 'graphTable'
+
+const WORKSPACE_GRAPH_MUTATION_TRANSITION_BLOCK_MS = 360
 
 export type WorkspaceGraphMutationState = {
   workspaceViewMode: WorkspaceViewMode
   workspaceCanvasPaneOpen: boolean
   markdownWorkspaceIndexingInFlight?: boolean
+  workspaceGraphMutationBlockUntilMs?: number
+  workspaceGraphMutationBlockKey?: string
+}
+
+type WorkspaceGraphMutationKeyArgs = WorkspaceGraphMutationState & {
+  transitionSemanticKey?: string | null
 }
 
 type WorkspaceEditorOpenStore = {
@@ -25,7 +35,31 @@ export function isWorkspaceEditorOverlayOpen(args: {
 }
 
 export function isWorkspaceGraphMutationBlocked(args: WorkspaceGraphMutationState): boolean {
-  return isWorkspaceEditorOverlayOpen(args) || args.markdownWorkspaceIndexingInFlight === true
+  if (isWorkspaceEditorOverlayOpen(args) || args.markdownWorkspaceIndexingInFlight === true) return true
+  const untilMs = Number(args.workspaceGraphMutationBlockUntilMs || 0)
+  return Number.isFinite(untilMs) && untilMs > Date.now()
+}
+
+export function buildWorkspaceGraphMutationBlockKey(args: WorkspaceGraphMutationKeyArgs): string {
+  const transitionSemanticKey = String(args.transitionSemanticKey || '').trim()
+  return buildScopedGraphSemanticKey('workspace-graph-mutation-block', {
+    graphSemanticKey: [
+      args.workspaceViewMode === 'editor' ? 'editor' : 'canvas',
+      args.workspaceCanvasPaneOpen === true ? 'pane:1' : 'pane:0',
+      args.markdownWorkspaceIndexingInFlight === true ? 'indexing:1' : 'indexing:0',
+      transitionSemanticKey ? `transition:${transitionSemanticKey}` : 'transition:',
+    ].join('|'),
+  })
+}
+
+export function buildWorkspaceGraphMutationTransitionState(
+  args: WorkspaceGraphMutationKeyArgs & { nowMs?: number },
+): Pick<WorkspaceGraphMutationState, 'workspaceGraphMutationBlockUntilMs' | 'workspaceGraphMutationBlockKey'> {
+  const nowMs = Number.isFinite(args.nowMs) ? Math.max(0, Math.floor(args.nowMs as number)) : Date.now()
+  return {
+    workspaceGraphMutationBlockUntilMs: nowMs + WORKSPACE_GRAPH_MUTATION_TRANSITION_BLOCK_MS,
+    workspaceGraphMutationBlockKey: buildWorkspaceGraphMutationBlockKey(args),
+  }
 }
 
 type OpenWorkspaceEditorPaneArgs = {

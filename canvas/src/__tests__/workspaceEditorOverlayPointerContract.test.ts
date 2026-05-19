@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { resolveWorkspacePreviewWidthFromPointerDrag } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
-import { resolveWorkspaceCanvasMinVisibleStripPx, resolveWorkspacePaneMaxWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import { resolveWorkspaceCanvasMinVisibleStripPx, resolveWorkspaceEditorPaneMinWidthPx, resolveWorkspacePaneMaxWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 function readMarkdownDesignOverlaySourceText(): string {
   const base = resolve(process.cwd(), 'src')
@@ -250,6 +250,58 @@ export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
     }
     if (remainingCanvasStrip < 420) {
       throw new Error(`expected workspace max width to preserve a readable canvas strip, got ${remainingCanvasStrip}px`)
+    }
+  } finally {
+    if (hadWindow) {
+      ;(window as unknown as { innerWidth: number }).innerWidth = originalInnerWidth as number
+    } else if (originalWindowDescriptor) {
+      Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+    } else {
+      delete (globalThis as { window?: unknown }).window
+    }
+  }
+}
+
+export function testWorkspaceEditorOverlayMobileWidthBoundsStayResizable() {
+  const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const hadWindow = typeof window !== 'undefined'
+  const originalInnerWidth = hadWindow ? window.innerWidth : undefined
+  try {
+    if (!hadWindow) {
+      Object.defineProperty(globalThis, 'window', {
+        value: { innerWidth: 320 },
+        configurable: true,
+      })
+    } else {
+      ;(window as unknown as { innerWidth: number }).innerWidth = 320
+    }
+
+    const minWidth = resolveWorkspaceEditorPaneMinWidthPx()
+    const maxWidth = resolveWorkspacePaneMaxWidthPx({ minPx: minWidth, rightGutterPx: 48 })
+    const minCanvasStrip = resolveWorkspaceCanvasMinVisibleStripPx()
+    if (minWidth >= maxWidth) {
+      throw new Error(`expected mobile workspace editor pane to keep a resizable range, got min=${minWidth} max=${maxWidth}`)
+    }
+    if (320 - maxWidth < minCanvasStrip) {
+      throw new Error(`expected mobile max width to preserve ${minCanvasStrip}px of canvas, got ${320 - maxWidth}px`)
+    }
+
+    const narrowed = resolveWorkspacePreviewWidthFromPointerDrag({
+      startWidthPx: maxWidth,
+      startClientX: 200,
+      currentClientX: -200,
+    })
+    if (narrowed !== minWidth) {
+      throw new Error(`expected mobile leftward drag to clamp at ${minWidth}, got ${narrowed}`)
+    }
+
+    const widened = resolveWorkspacePreviewWidthFromPointerDrag({
+      startWidthPx: minWidth,
+      startClientX: 0,
+      currentClientX: 400,
+    })
+    if (widened !== maxWidth) {
+      throw new Error(`expected mobile rightward drag to clamp at ${maxWidth}, got ${widened}`)
     }
   } finally {
     if (hadWindow) {

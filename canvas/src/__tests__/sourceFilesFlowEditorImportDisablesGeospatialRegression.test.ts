@@ -1,16 +1,16 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { applyCanvasWorkspacePresetForSwitch } from '@/lib/markdown-workspace-runtime/workspaceSwitchPreset'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 
-export const testCanvasWorkspacePresetForSwitchClearsStaleBaselineLock = () => {
+export const testCanvasFrontmatterPresetClearsStaleBaselineLock = () => {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setCanvasRenderMode('2d')
   useGraphStore.getState().setCanvas3dMode('3d')
   useGraphStore.getState().setDocumentStructureBaselineLock(true)
 
-  const changed = applyCanvasWorkspacePresetForSwitch({
-    text: [
+  const changed = applyCanvasFrontmatterPreset({
+    rawText: [
       '---',
       'title: "XR Surface Preset"',
       'kgCanvasSurfaceMode: "3d"',

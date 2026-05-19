@@ -121,7 +121,9 @@ export function useDesignCanvasBootstrap(args: UseDesignCanvasBootstrapArgs) {
           setDesignRendererNodes: state.setDesignRendererNodes,
           setDesignRendererWebpageGraph: state.setDesignRendererWebpageGraph,
           markdownDocumentName: null,
+          markdownDocumentSourceUrl: null,
           markdownDocumentText: '',
+          markdownDocumentApplyViewPreset: false,
         }
       }
 
@@ -162,7 +164,9 @@ export function useDesignCanvasBootstrap(args: UseDesignCanvasBootstrapArgs) {
         setDesignRendererNodes: state.setDesignRendererNodes,
         setDesignRendererWebpageGraph: state.setDesignRendererWebpageGraph,
         markdownDocumentName: state.markdownDocumentName,
+        markdownDocumentSourceUrl: state.markdownDocumentSourceUrl,
         markdownDocumentText: state.markdownDocumentText,
+        markdownDocumentApplyViewPreset: state.markdownDocumentApplyViewPreset,
       }
     }),
   )

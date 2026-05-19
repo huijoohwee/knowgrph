@@ -477,7 +477,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   return (
     <section
       ref={workspaceRootRef}
-      className={`flex-1 w-full h-full min-h-0 flex overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+      className={`kg-markdown-workspace-shell flex-1 w-full h-full min-h-0 flex overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
       aria-label="Markdown Workspace"
     >
       {explorerOpen ? (
@@ -528,7 +528,12 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             onDeleteEntry={fileActions.onDeleteEntry}
             renderSourceFileRight={viewShell.renderSourceFileRight}
           />
-          <VerticalResizeSeparatorHr ref={setResizeHandleEl} ariaLabel="Resize explorer" visualStyle="centerGrip" />
+          <VerticalResizeSeparatorHr
+            ref={setResizeHandleEl}
+            ariaLabel="Resize explorer"
+            visualStyle="centerGrip"
+            className="kg-markdown-workspace-explorer-resize"
+          />
         </>
       ) : null}
 

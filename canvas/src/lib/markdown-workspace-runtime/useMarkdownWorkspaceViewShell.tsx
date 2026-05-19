@@ -1,5 +1,4 @@
 import React from 'react'
-import { flushSync } from 'react-dom'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
@@ -11,8 +10,7 @@ import {
 } from './markdownWorkspaceRuntime.stateSync'
 import type { FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import { applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
-import { applyCanvasWorkspacePresetForSwitch } from './workspaceSwitchPreset'
-import { buildWorkspaceEntriesIndex, getWorkspaceFileEntry, hasWorkspaceFileEntry } from './workspaceEntriesIndex'
+import { buildWorkspaceEntriesIndex, hasWorkspaceFileEntry } from './workspaceEntriesIndex'
 
 export function useMarkdownWorkspaceViewShell(args: {
   entries: WorkspaceEntry[]
@@ -72,16 +70,13 @@ export function useMarkdownWorkspaceViewShell(args: {
   const onSelectFile = React.useCallback(
     (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
-      const entry = getWorkspaceFileEntry(entriesIndex, normalized)
-      const entryText = entry && typeof entry.text === 'string' ? entry.text : ''
-      if (entryText) flushSync(() => applyCanvasWorkspacePresetForSwitch({ text: entryText }))
       React.startTransition(() => {
         setSelectionSource('editor')
         setActivePathSafe(normalized)
         setSelectionPathSafe(normalized)
       })
     },
-    [entriesIndex, setActivePathSafe, setSelectionPathSafe, setSelectionSource],
+    [setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )
 
   const onSelectFolder = React.useCallback(

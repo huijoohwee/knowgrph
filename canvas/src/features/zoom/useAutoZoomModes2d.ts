@@ -96,6 +96,7 @@ export function useAutoZoomModes2d(args: {
           schema,
           mediaPanelDensity: state.mediaPanelDensity,
           renderMediaAsNodes: state.renderMediaAsNodes === true,
+          visibilityFrameKey: state.workspaceGraphMutationBlockKey,
         })
         if (lastFitSigRef.current === sig) return
         lastFitSigRef.current = sig
@@ -123,6 +124,7 @@ export function useAutoZoomModes2d(args: {
         renderMediaAsNodes: s.renderMediaAsNodes,
         viewportFitReferenceWidth: s.viewportFitReferenceWidth,
         viewportFitReferenceHeight: s.viewportFitReferenceHeight,
+        workspaceGraphMutationBlockKey: s.workspaceGraphMutationBlockKey,
       }),
       () => schedule(),
       {
@@ -144,6 +146,7 @@ export function useAutoZoomModes2d(args: {
           if (a.renderMediaAsNodes !== b.renderMediaAsNodes) return false
           if (a.viewportFitReferenceWidth !== b.viewportFitReferenceWidth) return false
           if (a.viewportFitReferenceHeight !== b.viewportFitReferenceHeight) return false
+          if (a.workspaceGraphMutationBlockKey !== b.workspaceGraphMutationBlockKey) return false
           return true
         },
       },

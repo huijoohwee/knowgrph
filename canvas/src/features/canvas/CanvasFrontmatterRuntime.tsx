@@ -6,10 +6,18 @@ import { isPendingFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 
 export function CanvasFrontmatterRuntime() {
-  const { markdownDocumentName, markdownDocumentText, frontmatterModeEnabled, documentSemanticMode, graphData } = useGraphStore(
+  const {
+    markdownDocumentName,
+    markdownDocumentText,
+    markdownDocumentApplyViewPreset,
+    frontmatterModeEnabled,
+    documentSemanticMode,
+    graphData,
+  } = useGraphStore(
     useShallow(s => ({
       markdownDocumentName: s.markdownDocumentName,
       markdownDocumentText: s.markdownDocumentText,
+      markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
       graphData: s.graphData,
@@ -20,6 +28,7 @@ export function CanvasFrontmatterRuntime() {
 
   React.useEffect(() => {
     if (documentSemanticMode !== 'document') return
+    if (markdownDocumentApplyViewPreset === false) return
     if (!frontmatterModeEnabled) return
     const text = String(markdownDocumentText || '')
     if (!text.trim()) return
@@ -37,7 +46,14 @@ export function CanvasFrontmatterRuntime() {
       .catch(() => {
         void 0
       })
-  }, [documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
+  }, [
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    graphData,
+    markdownDocumentApplyViewPreset,
+    markdownDocumentName,
+    markdownDocumentText,
+  ])
 
   return null
 }

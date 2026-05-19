@@ -9,6 +9,12 @@ import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { parseCanvasWorkspaceFrontmatterPreset, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import {
+  buildWorkspaceGraphMutationTransitionState,
+  isWorkspaceGraphMutationBlocked,
+} from '@/features/workspace-table/workspaceTableSsot'
 import {
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
@@ -19,11 +25,83 @@ type PendingMarkdownApplyRequest = {
   name: string
   text: string
   force: boolean
+  applyViewPreset: boolean
   preset?: CanvasWorkspaceFrontmatterPreset | null
 }
 
 let markdownApplyInFlight = false
 let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null
+let activeMarkdownApplyKey = ''
+let queuedMarkdownApplyKey = ''
+let lastCompletedMarkdownApplyKey = ''
+let lastCompletedMarkdownApplyGraph: GraphData | null = null
+let lastCompletedMarkdownApplyGraphRevision = -1
+let lastCompletedMarkdownApplyGraphContentRevision = -1
+
+function buildCanvasWorkspacePresetApplyKey(preset: CanvasWorkspaceFrontmatterPreset | null | undefined): string {
+  if (!preset) return ''
+  return [
+    preset.canvasSurfaceMode || '',
+    preset.canvasRenderMode || '',
+    preset.canvas2dRenderer || '',
+    preset.canvas3dMode || '',
+    preset.documentSemanticMode || '',
+    preset.frontmatterModeEnabled === true ? 'fm:1' : preset.frontmatterModeEnabled === false ? 'fm:0' : 'fm:',
+    preset.multiDimTableModeEnabled === true ? 'mdtbl:1' : preset.multiDimTableModeEnabled === false ? 'mdtbl:0' : 'mdtbl:',
+    preset.documentStructureBaselineLock === true ? 'lock:1' : preset.documentStructureBaselineLock === false ? 'lock:0' : 'lock:',
+  ].join('|')
+}
+
+function buildMarkdownApplyRequestSemanticKey(request: PendingMarkdownApplyRequest): string {
+  const name = String(request.name || '').trim()
+  const text = String(request.text || '')
+  const textHash = hashStringToHexCached(`markdown-document-graph-apply:${name || 'document'}`, text)
+  return buildScopedGraphSemanticKey('markdown-document-graph-apply-request', {
+    graphSemanticKey: [
+      name,
+      text.length,
+      textHash,
+      request.force ? 'force:1' : 'force:0',
+      request.applyViewPreset ? 'view:1' : 'view:0',
+      buildCanvasWorkspacePresetApplyKey(request.preset),
+    ].join('|'),
+  })
+}
+
+function buildMarkdownDocumentSwitchMutationSemanticKey(args: {
+  name: string | null
+  text: string | null
+  applyViewPreset: boolean
+}): string {
+  const name = String(args.name || '').trim()
+  const text = String(args.text || '')
+  const textHash = hashStringToHexCached(`markdown-document-source-switch:${name || 'document'}`, text)
+  return buildScopedGraphSemanticKey('markdown-document-source-switch', {
+    graphSemanticKey: [
+      name,
+      text.length,
+      textHash,
+      args.applyViewPreset ? 'view:1' : 'view:0',
+    ].join('|'),
+  })
+}
+
+function isCompletedMarkdownApplyRequestCurrent(get: GetGraph, request: PendingMarkdownApplyRequest, requestKey: string): boolean {
+  if (!requestKey || lastCompletedMarkdownApplyKey !== requestKey) return false
+  const state = get()
+  return !!(
+    state.graphData &&
+    state.graphData === lastCompletedMarkdownApplyGraph &&
+    state.graphDataRevision === lastCompletedMarkdownApplyGraphRevision &&
+    state.graphContentRevision === lastCompletedMarkdownApplyGraphContentRevision &&
+    state.markdownDocumentName === request.name &&
+    state.markdownDocumentText === request.text
+  )
+}
+
+function isMarkdownApplyRequestInFlight(requestKey: string): boolean {
+  return !!requestKey && (requestKey === activeMarkdownApplyKey || requestKey === queuedMarkdownApplyKey)
+}
 
 function buildPendingFrontmatterMarkdownGraph(args: {
   name: string
@@ -62,6 +140,33 @@ const isStrictFlowEditorFrontmatterPreset = (preset: CanvasWorkspaceFrontmatterP
   preset?.frontmatterModeEnabled === true
 )
 
+function resetFrontmatterFlowWidgetRuntimeState(get: GetGraph, graphData: GraphData): void {
+  const state = get()
+  const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
+    canvasRenderMode: state.canvasRenderMode,
+    canvas2dRenderer: state.canvas2dRenderer,
+  })
+  if (!enforceFrontmatterOnly) return
+  if (isWorkspaceGraphMutationBlocked(state)) return
+
+  const parsedNodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  const eligibleFlowWidgetNodeIds = buildFlowWidgetOverlayEligibleNodeIdSet(parsedNodes as any)
+  const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
+    const normalized = String(id || '').trim()
+    return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
+  }
+  const activeWidgetIds = Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : []
+  const sanitizedWidgetIds = activeWidgetIds
+    .map(id => String(id || '').trim())
+    .filter(isEligibleFlowWidgetNodeId)
+  state.setOpenWidgetNodeIds(sanitizedWidgetIds)
+  const currentPinnedByNodeId = state.flowWidgetPinnedByNodeId || {}
+  const nextPinnedByNodeId = Object.fromEntries(
+    Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
+  ) as Record<string, boolean>
+  state.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
+}
+
 export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   return ({
   resyncGraphFieldsFromGraphData: () => {
@@ -86,12 +191,26 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     const needsAutoEnable = shouldAutoEnableFrontmatter &&
       !(state.frontmatterModeEnabled || false) &&
       containsFrontmatterMermaid(nextText)
+    const documentSwitches =
+      state.markdownDocumentName !== name ||
+      state.markdownDocumentText !== text ||
+      state.markdownDocumentApplyViewPreset !== applyViewPreset
     if (
       !needsAutoEnable &&
-      state.markdownDocumentName === name &&
-      state.markdownDocumentText === text &&
-      state.markdownDocumentApplyViewPreset === applyViewPreset
+      !documentSwitches
     ) return
+    const transitionState = documentSwitches
+      ? buildWorkspaceGraphMutationTransitionState({
+          workspaceViewMode: state.workspaceViewMode,
+          workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+          markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
+          transitionSemanticKey: buildMarkdownDocumentSwitchMutationSemanticKey({
+            name,
+            text,
+            applyViewPreset,
+          }),
+        })
+      : {}
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,
@@ -102,6 +221,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       markdownTokensMeta: null,
       markdownTokensStartLineOffset: null,
       ...(needsAutoEnable ? { frontmatterModeEnabled: true } : {}),
+      ...transitionState,
     })
   },
 
@@ -127,7 +247,8 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     const parsedTextPreset = shouldResolveCanvasPreset
       ? (hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text))
       : null
-    const strictFlowEditorPreset = isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
+    const applyViewPresetForSwitch = args?.applyViewPreset !== false
+    const strictFlowEditorPreset = applyViewPresetForSwitch && isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
 
     get().setMarkdownDocument(name, text, {
       autoEnableFrontmatter: args?.autoEnableFrontmatter,
@@ -164,6 +285,17 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     }
 
     if (args?.applyToGraph) {
+      const request: PendingMarkdownApplyRequest = {
+        name,
+        text,
+        force: args?.forceApplyToGraph !== false,
+        applyViewPreset: applyViewPresetForSwitch,
+        preset: parsedTextPreset,
+      }
+      const requestKey = buildMarkdownApplyRequestSemanticKey(request)
+      if (isCompletedMarkdownApplyRequestCurrent(get, request, requestKey)) return true
+      if (isMarkdownApplyRequestInFlight(requestKey)) return false
+
       if (strictFlowEditorPreset) {
         get().setGraphData(buildPendingFrontmatterMarkdownGraph({
           name,
@@ -174,6 +306,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         return await get().applyMarkdownDocumentToGraph(name, text, {
           force: args?.forceApplyToGraph !== false,
           preset: parsedTextPreset,
+          applyViewPreset: applyViewPresetForSwitch,
         })
       } catch {
         return false
@@ -182,7 +315,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     return true
   },
 
-  applyMarkdownDocumentToGraph: async (name: string, text: string, opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null }) => {
+  applyMarkdownDocumentToGraph: async (name: string, text: string, opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null; applyViewPreset?: boolean }) => {
     const runApply = async (request: PendingMarkdownApplyRequest): Promise<boolean> => {
       const nextName = String(request.name || '').trim()
       const nextText = String(request.text || '')
@@ -234,90 +367,45 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       const parsedTextPreset = request.preset === undefined
         ? parseCanvasWorkspaceFrontmatterPreset(nextText)
         : request.preset
-      const strictFlowEditorPreset = isStrictFlowEditorFrontmatterPreset(parsedTextPreset)
       if (canReuseParsedSourceGraph) {
         const reusedGraph = exactSourceFile.parsedGraphData as GraphData
-        const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
-        applyCanvasFrontmatterPreset({
-          graphData: reusedGraph,
-          rawText: nextText,
-          preset: parsedTextPreset || undefined,
-        })
+        if (request.applyViewPreset !== false) {
+          const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
+          applyCanvasFrontmatterPreset({
+            graphData: reusedGraph,
+            rawText: nextText,
+            preset: parsedTextPreset || undefined,
+          })
+        }
         get().setGraphData(reusedGraph)
         const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
-        applyFrontmatterFlowImportModes(reusedGraph)
-        const afterApplyState = get()
-        const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
-          canvasRenderMode: afterApplyState.canvasRenderMode,
-          canvas2dRenderer: afterApplyState.canvas2dRenderer,
+        applyFrontmatterFlowImportModes(reusedGraph, {
+          applyViewPreset: request.applyViewPreset,
+          resetWidgetLayout: request.applyViewPreset,
         })
-        if (enforceFrontmatterOnly) {
-          const parsedNodes = Array.isArray(reusedGraph.nodes) ? reusedGraph.nodes : []
-          const eligibleFlowWidgetNodeIds = buildFlowWidgetOverlayEligibleNodeIdSet(parsedNodes as any)
-          const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
-            const normalized = String(id || '').trim()
-            return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
-          }
-          const activeWidgetIds = Array.isArray(afterApplyState.openWidgetNodeIds) ? afterApplyState.openWidgetNodeIds : []
-          const sanitizedWidgetIds = activeWidgetIds
-            .map(id => String(id || '').trim())
-            .filter(isEligibleFlowWidgetNodeId)
-          afterApplyState.setOpenWidgetNodeIds(sanitizedWidgetIds)
-          const currentPinnedByNodeId = afterApplyState.flowWidgetPinnedByNodeId || {}
-          const nextPinnedByNodeId = Object.fromEntries(
-            Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
-          ) as Record<string, boolean>
-          afterApplyState.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
-          // Frontmatter flow imports should reseed overlay placement from graph anchors,
-          // not stale persisted screen coordinates from previous documents/sessions.
-          afterApplyState.setFlowWidgetPosByNodeId({})
-          afterApplyState.setFlowWidgetWorldPosByNodeId({})
-        }
+        resetFrontmatterFlowWidgetRuntimeState(get, reusedGraph)
         return !!(((reusedGraph.nodes || []).length > 0) || ((reusedGraph.edges || []).length > 0))
       }
 
       const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
       const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: false, syncMarkdownDocument: false })
       const parsedGraph = res?.graphData || null
-      const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
-      applyCanvasFrontmatterPreset({
-        graphData: parsedGraph,
-        rawText: nextText,
-        preset: parsedTextPreset || undefined,
-      })
+      if (request.applyViewPreset !== false) {
+        const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
+        applyCanvasFrontmatterPreset({
+          graphData: parsedGraph,
+          rawText: nextText,
+          preset: parsedTextPreset || undefined,
+        })
+      }
       if (parsedGraph) {
         get().setGraphData(parsedGraph)
         const { applyFrontmatterFlowImportModes } = (await import('@/features/parsers/frontmatterFlowImportMode')) as typeof import('@/features/parsers/frontmatterFlowImportMode')
-        applyFrontmatterFlowImportModes(parsedGraph)
-        const afterApplyState = get()
-        const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
-          canvasRenderMode: afterApplyState.canvasRenderMode,
-          canvas2dRenderer: afterApplyState.canvas2dRenderer,
+        applyFrontmatterFlowImportModes(parsedGraph, {
+          applyViewPreset: request.applyViewPreset,
+          resetWidgetLayout: request.applyViewPreset,
         })
-        if (enforceFrontmatterOnly) {
-          const parsedNodes = Array.isArray(parsedGraph.nodes) ? parsedGraph.nodes : []
-          const eligibleFlowWidgetNodeIds = buildFlowWidgetOverlayEligibleNodeIdSet(parsedNodes as any)
-          const isEligibleFlowWidgetNodeId = (id: unknown): boolean => {
-            const normalized = String(id || '').trim()
-            return !!normalized && eligibleFlowWidgetNodeIds.has(normalized)
-          }
-          const activeWidgetIds = Array.isArray(afterApplyState.openWidgetNodeIds) ? afterApplyState.openWidgetNodeIds : []
-          const sanitizedWidgetIds = activeWidgetIds
-            .map(id => String(id || '').trim())
-            .filter(isEligibleFlowWidgetNodeId)
-          afterApplyState.setOpenWidgetNodeIds(sanitizedWidgetIds)
-          const currentPinnedByNodeId = afterApplyState.flowWidgetPinnedByNodeId || {}
-          const nextPinnedByNodeId = Object.fromEntries(
-            Object.entries(currentPinnedByNodeId).filter(([id]) => isEligibleFlowWidgetNodeId(id)),
-          ) as Record<string, boolean>
-          afterApplyState.setFlowWidgetPinnedByNodeId(nextPinnedByNodeId)
-          // Frontmatter flow imports should reseed overlay placement from graph anchors,
-          // not stale persisted screen coordinates from previous documents/sessions.
-          afterApplyState.setFlowWidgetPosByNodeId({})
-          // Frontmatter flow imports should reseed overlay placement from graph anchors,
-          // not stale persisted world coordinates from previous documents/sessions.
-          afterApplyState.setFlowWidgetWorldPosByNodeId({})
-        }
+        resetFrontmatterFlowWidgetRuntimeState(get, parsedGraph)
       }
       return !!(parsedGraph && ((parsedGraph.nodes || []).length > 0 || (parsedGraph.edges || []).length > 0))
     }
@@ -326,24 +414,47 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       name: String(name || ''),
       text: String(text || ''),
       force: opts?.force === true,
+      applyViewPreset: opts?.applyViewPreset !== false,
       preset: opts?.preset,
     }
+    const requestKey = buildMarkdownApplyRequestSemanticKey(request)
+    if (isCompletedMarkdownApplyRequestCurrent(get, request, requestKey)) return true
     if (markdownApplyInFlight) {
+      if (isMarkdownApplyRequestInFlight(requestKey)) return false
       queuedMarkdownApplyRequest = request
+      queuedMarkdownApplyKey = requestKey
       return false
     }
     markdownApplyInFlight = true
+    activeMarkdownApplyKey = requestKey
     try {
       let currentRequest: PendingMarkdownApplyRequest | null = request
+      let currentRequestKey = requestKey
       let result = false
       while (currentRequest) {
-        result = await runApply(currentRequest)
+        if (isCompletedMarkdownApplyRequestCurrent(get, currentRequest, currentRequestKey)) {
+          result = true
+        } else {
+          result = await runApply(currentRequest)
+          if (result) {
+            const state = get()
+            lastCompletedMarkdownApplyKey = currentRequestKey
+            lastCompletedMarkdownApplyGraph = state.graphData as GraphData | null
+            lastCompletedMarkdownApplyGraphRevision = state.graphDataRevision
+            lastCompletedMarkdownApplyGraphContentRevision = state.graphContentRevision
+          }
+        }
         currentRequest = queuedMarkdownApplyRequest
+        currentRequestKey = queuedMarkdownApplyKey
+        activeMarkdownApplyKey = currentRequestKey
         queuedMarkdownApplyRequest = null
+        queuedMarkdownApplyKey = ''
       }
       return result
     } finally {
       queuedMarkdownApplyRequest = null
+      queuedMarkdownApplyKey = ''
+      activeMarkdownApplyKey = ''
       markdownApplyInFlight = false
     }
   },

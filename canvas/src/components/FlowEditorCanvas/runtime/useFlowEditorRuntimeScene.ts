@@ -27,7 +27,11 @@ import type { GraphData } from '@/lib/graph/types'
 import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import {
+  buildWorkspaceBlockedFlowWidgetSeedPatch, resolveOffscreenPinnedFlowWidgetIds,
+  shouldReseedFrontmatterScreenAuthorityCollective, syncFlowWidgetScreenAuthorityPosition,
+  type FlowWidgetSeedStoreState,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeSeedPositions'
 import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import {
   isFlowTransformKeepingWorldRectCollectiveInViewport,
@@ -598,6 +602,9 @@ export function useFlowEditorRuntimeScene(args: {
     const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
     const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
+    const posById =
+      (st as unknown as { flowWidgetPosByNodeId?: Record<string, { top: number; left: number }> })
+        .flowWidgetPosByNodeId || {}
     const worldById =
       (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
         .flowWidgetWorldPosByNodeId || {}
@@ -896,31 +903,29 @@ export function useFlowEditorRuntimeScene(args: {
     })()
     let pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
     if (pending.length === 0 && pinnedOpenIds.length > 0) {
-      const offscreenPinned = pinnedOpenIds
-        .filter(id => {
-          const world = worldById[id]
-          if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return false
-          const left = world.x
-          const top = world.y
-          const right = world.x + panelWorldW
-          const bottom = world.y + panelWorldH
-          if (right <= viewportBounds.minX) return true
-          if (bottom <= viewportBounds.minY) return true
-          if (left >= viewportBounds.maxX) return true
-          if (top >= viewportBounds.maxY) return true
-          return false
-        })
-        .sort((a, b) => a.localeCompare(b))
+      const offscreenPinned = resolveOffscreenPinnedFlowWidgetIds({ ids: pinnedOpenIds, worldById, panelWorldW, panelWorldH, viewportBounds })
       if (offscreenPinned.length > 0) pending = offscreenPinned
     }
-    const fullFrontmatterCollectiveIds = isFrontmatterFlow
-      ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
-      : []
+    const fullFrontmatterCollectiveIds = isFrontmatterFlow ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)) : []
+    const frontmatterScreenAuthorityCollectiveNeedsReseed = shouldReseedFrontmatterScreenAuthorityCollective({
+      isFrontmatterFlow,
+      ids: fullFrontmatterCollectiveIds,
+      pinnedById,
+      defaultPinnedInCanvas,
+      graphMetaKind,
+      worldById,
+      zoomK,
+      zoomX,
+      zoomY,
+      panelScreen,
+      visibleViewport,
+    })
     const shouldReseedWholeFrontmatterCollective =
       isFrontmatterFlow
       && fullFrontmatterCollectiveIds.length > 0
       && (
         forceSceneEmptyReseed
+        || frontmatterScreenAuthorityCollectiveNeedsReseed
         || (pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length)
       )
     if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds
@@ -973,11 +978,18 @@ export function useFlowEditorRuntimeScene(args: {
       if (minTop > viewportBounds.maxY + marginWorld) return true
       return false
     })()
-    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !collectiveOutsideViewport && !forceSceneEmptyReseed) return
+    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !collectiveOutsideViewport && !forceSceneEmptyReseed && !frontmatterScreenAuthorityCollectiveNeedsReseed) return
 
     const nextWorld = { ...worldById }
+    const nextScreenPos = { ...posById }
     let changed = false
+    let changedScreenPos = false
     const nextAutoSeedPositions: Record<string, { x: number; y: number }> = {}
+    const syncScreenAuthorityPosition = (id: string, world: { x: number; y: number }) => {
+      changedScreenPos = syncFlowWidgetScreenAuthorityPosition({
+        id, world, nextScreenPos, pinnedById, defaultPinnedInCanvas, graphMetaKind, zoomK, zoomX, zoomY,
+      }) || changedScreenPos
+    }
     for (let i = 0; i < bucketIds.length; i += 1) {
       const bucketId = bucketIds[i]!
       const ids = (idsByBucket.get(bucketId) || [])
@@ -992,6 +1004,7 @@ export function useFlowEditorRuntimeScene(args: {
         if (!prev || Math.abs(prev.x - p.x) > 0.0001 || Math.abs(prev.y - p.y) > 0.0001) changed = true
         nextWorld[p.id] = { x: p.x, y: p.y }
         nextAutoSeedPositions[p.id] = { x: p.x, y: p.y }
+        syncScreenAuthorityPosition(p.id, nextWorld[p.id]!)
       }
     }
     const autoSeedIds = Object.keys(nextAutoSeedPositions)
@@ -1042,6 +1055,7 @@ export function useFlowEditorRuntimeScene(args: {
             const y = world.y + shiftY
             nextWorld[id] = { x, y }
             nextAutoSeedPositions[id] = { x, y }
+            syncScreenAuthorityPosition(id, nextWorld[id]!)
           }
           changed = true
         }
@@ -1057,56 +1071,28 @@ export function useFlowEditorRuntimeScene(args: {
     }
     __flowCanvasDebug.widgetWorldRectById = nextWidgetWorldRectById
     syncFlowCanvasDebugWindow()
-    if (!changed) {
+    if (!changed && !changedScreenPos) {
       seededPinnedWidgetWorldPosKeyRef.current = seedKey
       lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
       return
     }
     const hasMissingWorldSeeds = pendingRaw.length > 0
-    const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed
-    if (workspaceMutationBlockedForSeed && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates) return
+    const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || frontmatterScreenAuthorityCollectiveNeedsReseed
+    if (workspaceMutationBlockedForSeed && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
     if (workspaceMutationBlockedForSeed) {
-      useGraphStore.setState(prev => {
-        const prevState = prev as unknown as {
-          graphData?: GraphData | null
-          flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
-          flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-        }
-        const prevWorld = (prev as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-          .flowWidgetWorldPosByNodeId || {}
-        const prevKeys = Object.keys(prevWorld)
-        const nextKeys = Object.keys(nextWorld)
-        if (prevKeys.length === nextKeys.length) {
-          let unchanged = true
-          for (let i = 0; i < nextKeys.length; i += 1) {
-            const key = nextKeys[i]!
-            const a = prevWorld[key]
-            const b = nextWorld[key]
-            if (!a || !b || Math.abs(a.x - b.x) > 0.0001 || Math.abs(a.y - b.y) > 0.0001) {
-              unchanged = false
-              break
-            }
-          }
-          if (unchanged) return {}
-        }
-        const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding || prevState.graphData || null)
-        const worldByKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
-        const nextWorldByKey = graphKey ? { ...worldByKey, [graphKey]: nextWorld } : worldByKey
-        // Keep Workspace/indexing mutation guard semantics by skipping persistence,
-        // but still update in-memory world seeds so visible Flow Editor collectives can recover.
-        // Mirror graph-keyed world SSOT to prevent stale keyed carry-forward from overriding recovery.
-        return graphKey
-          ? {
-              flowWidgetWorldPosByNodeId: nextWorld,
-              flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey,
-            }
-          : { flowWidgetWorldPosByNodeId: nextWorld }
-      })
+      useGraphStore.setState(prev => buildWorkspaceBlockedFlowWidgetSeedPatch({
+        prevState: prev as FlowWidgetSeedStoreState,
+        graphDataForSeeding,
+        nextWorld,
+        nextScreenPos,
+        changedScreenPos,
+      }) as Partial<typeof prev>)
       return
     }
-    st.setFlowWidgetWorldPosByNodeId(nextWorld)
+    if (changedScreenPos) st.setFlowWidgetPosByNodeId(nextScreenPos)
+    if (changed) st.setFlowWidgetWorldPosByNodeId(nextWorld)
   }, [
     args.active,
     args.flowEditorSurfaceId,

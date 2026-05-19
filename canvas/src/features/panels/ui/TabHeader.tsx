@@ -8,6 +8,8 @@ import {
   uiToolbarToggleActiveClassName,
   uiPrimaryIconInactiveClassName,
   uiToolbarButtonMutedClassName,
+  uiToolbarRowScrollClassName,
+  uiToolbarRowScrollJustifyEndClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -119,8 +121,9 @@ function TabHeaderImpl({
     <header
       className={
         [
-          'HeaderBar',
-          'flex-wrap items-start gap-y-1 sm:flex-nowrap sm:items-center',
+	          'HeaderBar',
+	          uiToolbarRowScrollClassName,
+	          'gap-y-1',
           'select-none',
           onDragStart ? 'cursor-move' : '',
           onToggle ? 'cursor-pointer' : '',
@@ -133,13 +136,13 @@ function TabHeaderImpl({
       onPointerDown={handlePointerDown}
       aria-expanded={typeof collapsed === 'boolean' ? !collapsed : undefined}
     >
-      <nav className="flex min-w-0 flex-1 items-center overflow-x-auto" aria-label="Panel tabs">
+	      <nav className={`kg-panel-tabs-nav ${uiToolbarRowScrollClassName} basis-full w-full sm:basis-auto sm:w-auto sm:flex-1`} aria-label="Panel tabs">
         {tabs.length > 0 && (
           <section
             role="tablist"
             aria-label="Tabs"
             aria-orientation="horizontal"
-            className={`flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain pb-[1px] ${tabVariant === 'icon' ? '' : 'whitespace-nowrap'}`}
+	            className={`kg-panel-tablist ${uiToolbarRowScrollClassName} w-full gap-1 pb-[1px] sm:w-auto sm:overscroll-x-contain ${tabVariant === 'icon' ? '' : 'sm:whitespace-nowrap'}`}
           >
             {tabs.map(t => {
               if (tabVariant === 'icon') {
@@ -187,7 +190,7 @@ function TabHeaderImpl({
           </section>
         )}
       </nav>
-      <section className="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto sm:shrink-0 sm:gap-2" aria-label="Panel tools">
+	      <section className={`${uiToolbarRowScrollJustifyEndClassName} w-full gap-1 sm:w-auto sm:shrink-0 sm:gap-2`} aria-label="Panel tools">
         {onSearchChange && (
           <section
             className={`overflow-hidden transition-[width,flex-basis,opacity] duration-200 ease-out ${

@@ -18,6 +18,7 @@ import {
   type LaunchDropdownExportActions,
 } from './LaunchDropdownExportMenu'
 import { ImportUrlRendererSelect, parseImportUrlRendererSelection, type ImportUrlRendererSelection } from './ImportUrlRendererSelect'
+import { buildAutoWebsiteImportOptions, shouldAutoImportUrlAsWebsite } from './importUrlWebsiteMode'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -197,7 +198,9 @@ export function LaunchDropdown({
       onClose()
       const launchBridge = getMarkdownWorkspaceActionBridge()
       const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
-      if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
+      if (!opts && typeof launchBridge.importWebsite === 'function' && shouldAutoImportUrlAsWebsite(nextUrl)) {
+        launchBridge.importWebsite(nextUrl, buildAutoWebsiteImportOptions())
+      } else if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
       else void importUrlFallback(nextUrl, opts)
       setUrlInputOpen(false)
     },
@@ -222,11 +225,11 @@ export function LaunchDropdown({
   }, [pushUiToast])
 
   const menuItemClass = cn(
-    'kg-launch-menu-item w-full flex items-center gap-2 rounded text-sm',
+    'kg-launch-menu-item w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden rounded text-sm',
     UI_THEME_TOKENS.text.primary,
     UI_THEME_TOKENS.button.hoverBg,
   )
-  const menuIconClass = 'w-4 h-4'
+  const menuIconClass = 'w-4 h-4 shrink-0'
   const menuRootClass = cn(
     'kg-launch-menu-root flex flex-col w-80 list-none m-0',
     UI_THEME_TOKENS.panel.bg,

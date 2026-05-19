@@ -6,6 +6,7 @@ import { UI_LABELS, UI_COPY } from '@/lib/config';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
+  uiToolbarTouchRowScrollClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
 import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarContext';
 import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSelect';
@@ -85,13 +86,17 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const effectiveMainPanelCollapsed = isNarrowViewport ? false : mainPanelCollapsed
   const navStyle: React.CSSProperties | undefined =
     isNarrowViewport
-      ? {
-          maxWidth: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          overscrollBehaviorX: 'contain',
-          overscrollBehaviorY: 'none',
-          WebkitOverflowScrolling: 'touch',
+	      ? {
+	          width: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
+	          maxWidth: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
+	          flexWrap: 'nowrap',
+	          justifyContent: 'flex-start',
+	          alignContent: 'center',
+	          overflowX: 'auto',
+	          overflowY: 'hidden',
+	          overscrollBehaviorX: 'contain',
+	          overscrollBehaviorY: 'none',
+	          WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-x manipulation',
         }
       : undefined
@@ -108,9 +113,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   }, [isMainPanelOpen, isNarrowViewport])
 
   return (
-    <nav
-      ref={toolbarNavRef}
-      className={`${navClassBase} ${isNarrowViewport ? 'App-toolbar--touch-scroll' : ''}`}
+	    <nav
+	      ref={toolbarNavRef}
+	      className={`${navClassBase} ${isNarrowViewport ? uiToolbarTouchRowScrollClassName : ''}`}
       role="navigation"
       aria-label="Main Toolbar"
       data-kg-canvas-wheel-ignore="true"

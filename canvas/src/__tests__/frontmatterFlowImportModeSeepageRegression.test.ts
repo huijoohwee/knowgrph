@@ -629,14 +629,14 @@ export function testInitializationWorkspaceSelectionPromotesAtomicGraphAndPreset
   if (!documentActionsText.includes('const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true') || !documentActionsText.includes('hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text)')) {
     throw new Error('expected active markdown document switching to resolve and reuse frontmatter presets for graph applies')
   }
-  if (!indexingText.includes('const frontmatterLanding = resolveMarkdownWorkspaceFrontmatterLanding({') || indexingText.includes('&& false')) {
-    throw new Error('expected workspace indexing to enable bounded frontmatter-driven landing behind an explicit switch contract')
+  if (indexingText.includes('frontmatterLanding') || indexingText.includes('resolveMarkdownWorkspaceFrontmatterLanding')) {
+    throw new Error('expected workspace indexing to keep Source Files switches passive instead of frontmatter-driven Canvas relanding')
   }
-  if (!indexingText.includes('applyViewPreset: true') || !indexingText.includes('applyToGraph: true') || !indexingText.includes('forceApplyToGraph: true') || !indexingText.includes('canvasWorkspacePreset: frontmatterLanding.preset') || !indexingText.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
-    throw new Error('expected frontmatter-driven landing to atomically apply graph, preset, and original Source Files markdown to Canvas')
+  if (indexingText.includes('applyViewPreset: true') || indexingText.includes('applyToGraph: true') || indexingText.includes('forceApplyToGraph: true')) {
+    throw new Error('expected Source Files indexing not to mutate Canvas graph/view state while switching files')
   }
-  if (!indexingText.includes('} else {')) {
-    throw new Error('expected initialization-file landing to skip only the passive preset-suppressed refresh branch')
+  if (!indexingText.includes('applyViewPreset: false') || !indexingText.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
+    throw new Error('expected Source Files indexing to sync active markdown text passively without frontmatter normalization churn')
   }
   if (indexingText.includes("rememberIndexedForPath(path, textHash)\n              args.setStatusWithAutoClear('Indexed')\n              return")) {
     throw new Error('expected initialization-file landing to continue through source-file indexing instead of returning before content/view sync completes')
@@ -758,17 +758,14 @@ export function testFrontmatterIngestPipelineDefersPresetReplayUntilGraphApply()
   if (!loaderText.includes('applyViewPreset: false')) {
     throw new Error('expected parser loader markdown sync to stay passive before graph hydration')
   }
-  if (!loaderText.includes('const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData)')) {
-    throw new Error('expected parser loader to centralize post-graph preset application behind the frontmatter-flow landing helper')
-  }
-  if (!loaderText.includes('applyCanvasFrontmatterPreset({')) {
-    throw new Error('expected parser loader to replay explicit raw frontmatter presets only after graph hydration')
+  if (loaderText.includes('applyFrontmatterFlowImportModes(') || loaderText.includes('applyCanvasFrontmatterPreset({')) {
+    throw new Error('expected parser loader to avoid Canvas/frontmatter layout replay during passive markdown sync')
   }
   if (importModesText.includes('const presetApplied = applyCanvasFrontmatterPreset({ rawText })')) {
     throw new Error('expected interactive import modes to stop replaying raw frontmatter presets before graph-aware import landing runs')
   }
-  if (!importModesText.includes('const hasCanvasFrontmatterPreset = !!parseCanvasWorkspaceFrontmatterPreset(text)')) {
-    throw new Error('expected workspace import pipeline to detect explicit canvas frontmatter presets even when the parsed graph is not tagged as frontmatter-flow')
+  if (!importModesText.includes('const hasCanvasFrontmatterPresetInHeader = !!frontmatterHeaderText && !!parseCanvasWorkspaceFrontmatterPreset(frontmatterHeaderText)')) {
+    throw new Error('expected workspace import pipeline to detect explicit canvas frontmatter presets from the YAML header hot path')
   }
   if (!importModesText.includes("} else if (!preferredInteractiveImportGraphData && graphData && hasCanvasFrontmatterPreset) {")) {
     throw new Error('expected workspace import pipeline to preserve frontmatter-driven canvas landing for parsed non-frontmatter-flow graphs')

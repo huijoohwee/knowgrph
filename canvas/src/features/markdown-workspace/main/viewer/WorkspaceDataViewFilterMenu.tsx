@@ -3,6 +3,8 @@ import { CircleCheck, ListChecks, Type, Plus, ArrowLeft } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewFilterRule, WorkspaceDataViewFilterOp } from './workspaceDataViewConfig'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type FilterTarget = {
   column: MarkdownDataViewColumn
@@ -14,7 +16,7 @@ const makeId = (): string => {
   return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`
 }
 
-const icon14 = ['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')
+const icon14 = ['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
 
 function guessDefaultOp(col: MarkdownDataViewColumn): WorkspaceDataViewFilterOp {
   if (col.kind === 'select') return 'equals'
@@ -96,8 +98,8 @@ export function WorkspaceDataViewFilterMenu(props: {
   }
 
   return (
-    <section className="w-[260px]" aria-label="New filter">
-      <header className="flex items-center gap-2 px-2 py-1.5">
+    <section className="kg-data-view-filter-menu w-[260px]" aria-label="New filter">
+      <header className="flex min-w-0 items-center gap-2 px-2 py-1.5">
         {target ? (
           <button
             type="button"
@@ -108,7 +110,7 @@ export function WorkspaceDataViewFilterMenu(props: {
             <ArrowLeft className={icon14} aria-hidden="true" />
           </button>
         ) : null}
-        <div className={['flex-1 font-medium text-sm', UI_THEME_TOKENS.text.primary].join(' ')}>
+        <div className={['min-w-0 flex-1 font-medium text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
           {target ? `Filter: ${target.column.name}` : 'New filter'}
         </div>
       </header>
@@ -118,13 +120,13 @@ export function WorkspaceDataViewFilterMenu(props: {
           {target.column.kind === 'select' && Array.isArray(target.column.options) && target.column.options.length ? (
             <fieldset className="border-0 p-0 m-0">
               <legend className="sr-only">Select value</legend>
-              <div className="flex flex-wrap gap-1">
+              <div className={`${uiToolbarRowScrollClassName} gap-1`}>
                 {target.column.options.map(o => (
                   <button
                     key={o}
                     type="button"
                     className={[
-                      'text-[10px] px-2 py-1 rounded border',
+                      'kg-data-view-action max-w-full text-[10px] px-2 py-1 rounded border',
                       draftValue === o ? [UI_THEME_TOKENS.button.primarySolid, UI_THEME_TOKENS.button.activeBorder].join(' ') : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
                     ].join(' ')}
                     onClick={() => setDraftValue(o)}
@@ -165,11 +167,11 @@ export function WorkspaceDataViewFilterMenu(props: {
               <li key={c.id} className="list-none">
                 <button
                   type="button"
-                  className={['w-full flex items-center gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                   onClick={() => onPickColumn(c)}
                 >
                   {iconFor(c)}
-                  <span className={['text-sm', UI_THEME_TOKENS.text.primary].join(' ')}>{c.name}</span>
+                  <span className={['min-w-0 text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{c.name}</span>
                 </button>
               </li>
             ))}
@@ -178,11 +180,11 @@ export function WorkspaceDataViewFilterMenu(props: {
           <div className={['my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
           <button
             type="button"
-            className={['w-full flex items-center gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={onAddGroup}
           >
             <Plus className={icon14} aria-hidden="true" />
-            <span className={['text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>Add filter group</span>
+            <span className={['min-w-0 text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>Add filter group</span>
           </button>
         </>
       )}

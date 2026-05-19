@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
-import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
@@ -34,10 +34,19 @@ export function useToolMenuState() {
     const rect = el ? el.getBoundingClientRect() : null
     const w = rect && Number.isFinite(rect.width) && rect.width > 0 ? rect.width : 320
     const h = rect && Number.isFinite(rect.height) && rect.height > 0 ? rect.height : 420
+    const viewport = { width: window.innerWidth, height: window.innerHeight }
+    const fullyClamp = window.matchMedia?.('(pointer: coarse), (max-width: 768px)').matches || w >= viewport.width
+    if (fullyClamp) {
+      return clampOverlayTopLeftFullyInViewport({
+        pos,
+        size: { width: w, height: h },
+        viewport,
+      })
+    }
     return clampOverlayTopLeftToViewport({
       pos,
       size: { width: w, height: h },
-      viewport: { width: window.innerWidth, height: window.innerHeight },
+      viewport,
       visiblePx: 32,
     })
   }, [])

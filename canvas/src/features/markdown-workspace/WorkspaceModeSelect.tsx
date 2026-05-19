@@ -17,11 +17,11 @@ export function WorkspaceModeSelect<T extends string>(props: {
     : ''
   if (presentation === 'tabs') {
     return (
-      <nav aria-label={props.ariaLabel} className="inline-flex min-w-0">
+      <nav aria-label={props.ariaLabel} className="inline-flex min-w-0 max-w-full overflow-hidden">
         <ul
           role="tablist"
           aria-label={props.ariaLabel}
-          className={['inline-flex items-stretch border rounded-sm overflow-hidden', UI_THEME_TOKENS.panel.border].join(' ')}
+          className={['inline-flex min-w-0 max-w-full items-stretch border rounded-sm overflow-hidden', UI_THEME_TOKENS.panel.border].join(' ')}
         >
           {props.options.map((o, idx) => {
             const isSelected = props.value === o.value
@@ -41,7 +41,7 @@ export function WorkspaceModeSelect<T extends string>(props: {
                   tabIndex={isSelected ? 0 : -1}
                   title={o.label}
                   className={[
-                    'h-7 px-3 inline-flex items-center text-[10px] font-medium border-b-2 transition-colors whitespace-nowrap',
+                    'h-7 max-w-[12rem] px-3 inline-flex min-w-0 items-center overflow-hidden text-ellipsis text-[10px] font-medium border-b-2 transition-colors whitespace-nowrap',
                     isSelected
                       ? ['bg-[color:var(--kg-panel-bg)] text-[color:var(--kg-text-primary)] border-b-[color:var(--kg-accent,#3b82f6)]'].join(' ')
                       : ['bg-transparent text-[color:var(--kg-text-secondary)] border-b-transparent', UI_THEME_TOKENS.button.hoverBg].join(' '),
@@ -89,7 +89,7 @@ export function WorkspaceModeSelect<T extends string>(props: {
   }
   return (
     <select
-      className={`h-6 rounded px-1 border-0 outline-none ${panelTypography.microLabelClass} font-medium ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${activeClass}`}
+      className={`kg-workspace-mode-select h-6 min-w-0 max-w-full rounded px-1 border-0 outline-none ${panelTypography.microLabelClass} font-medium ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${activeClass}`}
       value={props.value}
       onChange={e => props.onChange(e.target.value as T)}
       aria-label={props.ariaLabel}

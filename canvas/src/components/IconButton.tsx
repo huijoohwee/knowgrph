@@ -61,7 +61,9 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     );
 
     const inner = hasMultipleChildren ? (
-      <span className="inline-flex items-center justify-center gap-2">{children}</span>
+      <span className="inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-1.5 overflow-hidden">
+        {children}
+      </span>
     ) : (
       children
     )
@@ -106,7 +108,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           onClick?.(e)
         }}
         className={cn(
-          'group relative select-none rounded inline-flex items-center justify-center',
+          'kg-icon-button group relative select-none rounded inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden',
           paddingClass,
           isDisabled
             ? `${UI_THEME_TOKENS.button.disabledText} cursor-not-allowed pointer-events-none`

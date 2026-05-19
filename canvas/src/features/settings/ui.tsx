@@ -48,7 +48,9 @@ export const renderSettingInput = (
     typeof values.uiIconStrokeWidth === 'number' && Number.isFinite(values.uiIconStrokeWidth)
       ? values.uiIconStrokeWidth
       : 1.5
-  if (!writable) return <span className={UI_THEME_TOKENS.text.primary}>{String(v)}</span>
+  if (!writable) {
+    return <span className={`block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${UI_THEME_TOKENS.text.primary}`}>{String(v)}</span>
+  }
   if (type === 'boolean') {
     return (
       <input
@@ -388,7 +390,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-left ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={`w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-left ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       />
     )
   }
@@ -404,7 +406,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: selected }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={`w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -545,7 +547,7 @@ export const renderSettingInput = (
   const baseInputClass =
     type === 'number' || isClassLikeKey
       ? uiPanelKeyValueInputClass
-      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+      : `w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const finalInputClass = baseInputClass
   return (
     <PlainTextInputEditor

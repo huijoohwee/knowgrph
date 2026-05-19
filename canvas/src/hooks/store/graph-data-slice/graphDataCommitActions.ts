@@ -27,7 +27,6 @@ import {
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import { resetComposedPositionWrites } from './graphDataComposedSource'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 function readCanonicalGraphIdentity(raw: unknown): string {
   const id = String(raw || '').trim()
@@ -252,14 +251,9 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         posByNodeId: currentPosByNodeId,
         pinnedByNodeId: currentPinnedByNodeId,
       })
-    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(get())
-    const forceResetFrontmatterOverlayCarry =
-      workspaceEditorOverlayOpen
-      && String((((nextGraphDataBase || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim() === 'frontmatter-flow'
     const carryForwardSameSourceWidgetOverlayState =
       shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit({
         graphData: nextGraphDataBase,
-        forceResetOverlayCarry: forceResetFrontmatterOverlayCarry,
         carryForwardSameSourceUiState,
         stableSameSourceNodeLayout: hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase),
         preserveBalancedCollective: carryForwardBalancedFloatingCollectiveState,
@@ -300,15 +294,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
       const nextPinned =
-        forceResetFrontmatterOverlayCarry
-          ? {}
-          : collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPinnedByNodeId || {}) })
           : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
       const nextPosRaw =
-        forceResetFrontmatterOverlayCarry
-          ? {}
-          : collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPosByNodeId || {}) })
           : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
       const nextPos = resolveCommittedFlowWidgetScreenPositions({
@@ -322,14 +312,12 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextWorld =
-        forceResetFrontmatterOverlayCarry
-          ? {}
-          : carryForwardSameSourceWidgetOverlayState
-            ? nextWorldRaw
-            : stripFrontmatterAutoManagedWidgetWorldPositions({
-                graphData: nextGraphData,
-                worldPosByNodeId: nextWorldRaw || {},
-              })
+        carryForwardSameSourceWidgetOverlayState
+          ? nextWorldRaw
+          : stripFrontmatterAutoManagedWidgetWorldPositions({
+              graphData: nextGraphData,
+              worldPosByNodeId: nextWorldRaw || {},
+            })
       const nextCollapsedByKey =
         collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
           ? { ...byKey, [collapsedKey]: nextCollapsed }
@@ -514,14 +502,9 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         posByNodeId: currentPosByNodeId,
         pinnedByNodeId: currentPinnedByNodeId,
       })
-    const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(get())
-    const forceResetFrontmatterOverlayCarry =
-      workspaceEditorOverlayOpen
-      && String((((nextGraphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim() === 'frontmatter-flow'
     const carryForwardSameSourceWidgetOverlayState =
       shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit({
         graphData: nextGraphData,
-        forceResetOverlayCarry: forceResetFrontmatterOverlayCarry,
         carryForwardSameSourceUiState,
         stableSameSourceNodeLayout: hasStableSameSourceNodeLayout(currentGraph, nextGraphData),
         preserveBalancedCollective: carryForwardBalancedFloatingCollectiveState,
@@ -559,15 +542,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
       const nextPinned =
-        forceResetFrontmatterOverlayCarry
-          ? {}
-          : collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...(s.flowWidgetPinnedByNodeId || {}) }
           : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
       const nextPosRaw =
-        forceResetFrontmatterOverlayCarry
-          ? {}
-          : collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? { ...(s.flowWidgetPosByNodeId || {}) }
           : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
       const nextPos = resolveCommittedFlowWidgetScreenPositions({
@@ -581,14 +560,12 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
           ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextWorld =
-        forceResetFrontmatterOverlayCarry
-          ? {}
-          : carryForwardSameSourceWidgetOverlayState
-            ? nextWorldRaw
-            : stripFrontmatterAutoManagedWidgetWorldPositions({
-                graphData: nextGraphData,
-                worldPosByNodeId: nextWorldRaw || {},
-              })
+        carryForwardSameSourceWidgetOverlayState
+          ? nextWorldRaw
+          : stripFrontmatterAutoManagedWidgetWorldPositions({
+              graphData: nextGraphData,
+              worldPosByNodeId: nextWorldRaw || {},
+            })
       const nextCollapsedByKey =
         collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
           ? { ...byKey, [collapsedKey]: nextCollapsed }

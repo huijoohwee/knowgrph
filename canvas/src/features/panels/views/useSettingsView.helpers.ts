@@ -134,6 +134,7 @@ export function isPaymentsOwnedSetting(key: string, areaRaw: string): boolean {
 
 export function isMapsOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
+  if (key.includes('.mcp.')) return false
   if (
     area === MAPS_GRABMAPS_DOC_AREA
     || area === MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA
@@ -141,7 +142,6 @@ export function isMapsOwnedSetting(key: string, areaRaw: string): boolean {
     || area === MAPS_MAPLIBRE_DOC_AREA
   ) return true
   if (key === 'autoEnableGeospatialOnGeoImport') return true
-  if (key.includes('.mcp.')) return false
   return key.startsWith('maps.')
 }
 

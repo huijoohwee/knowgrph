@@ -9,6 +9,7 @@ export function buildAutoFitToScreenSignature(args: {
   schema: GraphSchema | null
   mediaPanelDensity?: string | null
   renderMediaAsNodes?: boolean
+  visibilityFrameKey?: string | null
 }): string {
   const nodeCount = Math.max(0, Math.floor(Number(args.nodeCount) || 0))
   const viewportW = Math.max(1, Math.floor(Number(args.viewportW) || 1))
@@ -16,12 +17,13 @@ export function buildAutoFitToScreenSignature(args: {
   const graphDataRevision = Math.max(0, Math.floor(Number(args.graphDataRevision) || 0))
   const density = String(args.mediaPanelDensity || '')
   const media = args.renderMediaAsNodes ? 1 : 0
+  const visibilityFrameKey = String(args.visibilityFrameKey || '')
   const schema = args.schema
   const [minScale, maxScale] = schema ? readZoomScaleExtent(schema) : [0.1, 4]
   const fitSig = schema
     ? `${String(schema.layout?.fitPadding ?? '')}|${String(schema.layout?.fitDetectClusters ?? '')}|${String(schema.layout?.fitTargetAspectRatio ?? '')}|${String(schema.layout?.fitEnforceAspectRatio ?? '')}|${minScale}|${maxScale}|${density}|${media}`
     : `${minScale}|${maxScale}|${density}|${media}`
-  return `${nodeCount}|${viewportW}x${viewportH}|${graphDataRevision}|${fitSig}`
+  return `${nodeCount}|${viewportW}x${viewportH}|${graphDataRevision}|${fitSig}|${visibilityFrameKey}`
 }
 
 export function buildAutoZoomSelectionSignature(args: {

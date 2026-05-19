@@ -1,6 +1,9 @@
+import { GRABMAPS_DEFAULT_MCP_URL } from 'grph-shared/geospatial/grabMapsSsot'
+
 export const MAPS_GEO_DOC_AREA = 'Geo'
 export const MAPS_MAPLIBRE_DOC_AREA = 'MapLibre'
 export const MAPS_GRABMAPS_DOC_AREA = 'GrabMaps'
+export const MAPS_GRABMAPS_MCP_DOC_AREA = 'GrabMaps MCP Configuration'
 
 export type GrabMapsApiDocRow = {
   area: string
@@ -167,12 +170,12 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     searchHints: ['reverse geo pickup dropoff coordinates'],
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.url',
     typeLabel: 'url',
-    value: 'https://maps.grab.com/api/v1/mcp',
+    value: GRABMAPS_DEFAULT_MCP_URL,
     keyDescription: 'MCP transport locator -> point assistants to the GrabMaps MCP server -> keep remote tool execution on the documented upstream endpoint.',
-    valueDescription: 'Default: https://maps.grab.com/api/v1/mcp; Using the official MCP URL expands tool-backed assistant operations; changing it narrows compatibility with the shared remote launcher shape.',
+    valueDescription: `Default: ${GRABMAPS_DEFAULT_MCP_URL}; Using the official MCP URL expands tool-backed assistant operations; changing it narrows compatibility with the shared remote launcher shape.`,
     ssot: 'https://maps.grab.com/developer/documentation/mcp',
     module: ['canvas/src/features/settings/registry-ui.grabmaps.ts', 'canvas/src/features/panels/views/grabmapsMcpApiDocs.ts'],
     className: ['SettingsRegistryItem'],
@@ -181,7 +184,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     searchHints: ['grabmaps mcp url remote server'],
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.discovery.chat_model',
     typeLabel: 'string',
     value: 'Integration setting. Discovery planner model.',
@@ -199,7 +202,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'One pinned model narrows planner drift across sessions.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.search_places.query',
     typeLabel: 'string',
     value: 'Integration setting. Keyword query text.',
@@ -217,7 +220,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'Shorter text narrows specificity and can broaden ambiguity.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.search_places.country',
     typeLabel: 'string',
     value: 'Integration setting. ISO alpha-3 country bias.',
@@ -235,7 +238,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'No country narrows biasing and broadens the candidate region.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.search_places.location',
     typeLabel: 'string',
     value: 'Integration setting. Derived from lat/lon pair.',
@@ -253,7 +256,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     notes: 'Backed by `maps.grabmaps.mcp.searchPlaces.lat` and `maps.grabmaps.mcp.searchPlaces.lon` in the settings registry.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.search_places.limit',
     typeLabel: 'integer',
     value: 'Integration setting. Result cap.',
@@ -274,7 +277,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'A lower cap narrows list size and reduces noise.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.nearby_search.location',
     typeLabel: 'string',
     value: 'Integration setting. Derived from lat/lon pair.',
@@ -292,7 +295,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     notes: 'Backed by `maps.grabmaps.mcp.nearbySearch.lat` and `maps.grabmaps.mcp.nearbySearch.lon` in the settings registry.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.nearby_search.radius',
     typeLabel: 'number',
     value: 'Integration setting. Radius in kilometres.',
@@ -313,7 +316,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'A smaller radius narrows results to the immediate vicinity.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.nearby_search.limit',
     typeLabel: 'integer',
     value: 'Integration setting. Result cap.',
@@ -334,7 +337,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'A lower cap narrows list size and reduces scan cost.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.nearby_search.rank_by',
     typeLabel: 'enum',
     value: 'Integration setting. distance | popularity.',
@@ -352,7 +355,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'Distance narrows sorting to physical proximity.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.nearby_search.language',
     typeLabel: 'string',
     value: 'Integration setting. Language code.',
@@ -370,7 +373,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     tooltipContractionNote: 'No language narrows output to the upstream default locale.',
   },
   {
-    area: MAPS_GRABMAPS_DOC_AREA,
+    area: MAPS_GRABMAPS_MCP_DOC_AREA,
     key: 'grabmaps.mcp.nearby_search.category',
     typeLabel: 'string',
     value: 'Integration setting. POI category.',

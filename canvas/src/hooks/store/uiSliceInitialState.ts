@@ -19,6 +19,7 @@ import {
   FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET,
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
+import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 import { readGrabMapsByokApiKeyFromBrowser } from 'grph-shared/geospatial/grabMapsAuth'
 import type { UiStorageReaders } from './uiSliceStorage'
 import {
@@ -98,18 +99,34 @@ export const createUiInitialState = (
 
     workspaceCanvasPaneOpen: initialWorkspaceCanvasPaneOpen,
     markdownWorkspaceIndexingInFlight: false,
+    workspaceGraphMutationBlockUntilMs: 0,
+    workspaceGraphMutationBlockKey: '',
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
         const next = open === false ? false : true
         if (state.workspaceCanvasPaneOpen === next) return {}
         lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
-        return { workspaceCanvasPaneOpen: next } as Partial<GraphState>
+        return {
+          workspaceCanvasPaneOpen: next,
+          ...buildWorkspaceGraphMutationTransitionState({
+            workspaceViewMode: state.workspaceViewMode,
+            workspaceCanvasPaneOpen: next,
+            markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
+          }),
+        } as Partial<GraphState>
       }),
     setMarkdownWorkspaceIndexingInFlight: (inFlight: boolean) =>
       set(state => {
         const next = inFlight === true
         if (state.markdownWorkspaceIndexingInFlight === next) return {}
-        return { markdownWorkspaceIndexingInFlight: next } as Partial<GraphState>
+        return {
+          markdownWorkspaceIndexingInFlight: next,
+          ...buildWorkspaceGraphMutationTransitionState({
+            workspaceViewMode: state.workspaceViewMode,
+            workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+            markdownWorkspaceIndexingInFlight: next,
+          }),
+        } as Partial<GraphState>
       }),
 
     paymentsStripePaywallEnabled: lsBool(LS_KEYS.paymentsStripePaywallEnabled, false),

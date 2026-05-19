@@ -16,6 +16,7 @@ import { useGlobalInteractionCleanup } from '@/components/DesignCanvas/useGlobal
 import { useResizeMarqueeController } from '@/components/DesignCanvas/useResizeMarqueeController'
 import { useZoomInitController } from '@/components/DesignCanvas/useZoomInitController'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
@@ -81,6 +82,12 @@ export default function DesignCanvas({
     emptyDesignFramePosById: EMPTY_DESIGN_FRAME_POS_BY_ID,
     emptyDesignFrameSizeById: EMPTY_DESIGN_FRAME_SIZE_BY_ID,
   })
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
+    name: snapshot.markdownDocumentName,
+    sourceUrl: snapshot.markdownDocumentSourceUrl,
+    text: snapshot.markdownDocumentText,
+    applyViewPreset: snapshot.markdownDocumentApplyViewPreset !== false,
+  })
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode: snapshot.workspaceViewMode, workspaceCanvasPaneOpen: snapshot.workspaceCanvasPaneOpen })
   const interactionActive = active && !workspaceEditorOverlayOpen
   const arrangeActionsActive = active && !workspaceEditorOverlayOpen
@@ -143,8 +150,8 @@ export default function DesignCanvas({
     designFrameSizeById: snapshot.designFrameSizeById,
     documentSemanticMode: String(snapshot.documentSemanticMode || 'document'),
     frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true,
-    markdownDocumentName: snapshot.markdownDocumentName,
-    markdownDocumentText: snapshot.markdownDocumentText,
+    markdownDocumentName: canvasMarkdownDocument.name,
+    markdownDocumentText: canvasMarkdownDocument.text,
     viewportW: dims.width,
     viewportH: dims.height,
     setDesignRendererNodes: snapshot.setDesignRendererNodes,
@@ -177,8 +184,8 @@ export default function DesignCanvas({
     documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
     renderMediaAsNodes: snapshot.renderMediaAsNodes,
     threeIframeOverlayPoolMax: snapshot.threeIframeOverlayPoolMax,
-    markdownDocumentName: snapshot.markdownDocumentName,
-    markdownDocumentText: snapshot.markdownDocumentText,
+    markdownDocumentName: canvasMarkdownDocument.name,
+    markdownDocumentText: canvasMarkdownDocument.text,
   })
   const { localGraphDataRef, designMediaOverlayElsRef } = useDesignCanvasOverlayRuntime({
     active,
@@ -510,8 +517,8 @@ export default function DesignCanvas({
       resizeOverlayRef={resizeOverlayElRef}
       onBeginResize={beginResize}
       workspaceEditorOverlayEnabled={workspaceEditorOverlayEnabled}
-      markdownDocumentName={snapshot.markdownDocumentName}
-      markdownDocumentText={snapshot.markdownDocumentText}
+      markdownDocumentName={canvasMarkdownDocument.name}
+      markdownDocumentText={canvasMarkdownDocument.text}
       markdownPanelAllowedKinds={[...markdownPanelAllowedKinds]}
       stopOverlayEvent={stopOverlayEvent}
       designMediaOverlayNodes={designMediaOverlayNodes}

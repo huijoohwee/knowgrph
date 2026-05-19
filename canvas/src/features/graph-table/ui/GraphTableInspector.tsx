@@ -23,6 +23,7 @@ import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { useShallow } from 'zustand/react/shallow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName, uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
@@ -333,6 +334,7 @@ export function GraphTableInspector({
   return (
     <RootTag
       className={cn(
+        'kg-graph-table-inspector min-w-0 max-w-full',
         scrollMode === 'internal' ? 'h-full min-h-0 overflow-hidden flex flex-col' : 'flex flex-col',
         scrollMode === 'internal' ? UI_THEME_TOKENS.panel.bg : null,
         panelTextClass,
@@ -340,12 +342,12 @@ export function GraphTableInspector({
       style={widthPx ? { width: `${widthPx}px` } : undefined}
       aria-label="Record inspector"
     >
-      <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.divider} flex items-center justify-between gap-2`}>
+      <header className={`${uiToolbarRowScrollJustifyBetweenClassName} px-3 py-2 border-b gap-2 ${UI_THEME_TOKENS.panel.divider}`}>
         <TitleTag className="min-w-0" aria-label="Record title">
           <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{headerKind}</p>
           <p className={`font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{headerLabel}</p>
         </TitleTag>
-        <nav className="flex items-center gap-2" aria-label="Inspector actions">
+        <nav className={`${uiToolbarRowScrollJustifyEndClassName} gap-1.5`} aria-label="Inspector actions">
           <button
             type="button"
             className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -367,7 +369,7 @@ export function GraphTableInspector({
 
       {webpageDoc ? (
         <section
-          className={cn('px-3 py-2 border-b flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.divider)}
+          className={cn(uiToolbarRowScrollJustifyBetweenClassName, 'px-3 py-2 border-b gap-2', UI_THEME_TOKENS.panel.divider)}
           aria-label="Webpage view"
         >
           <p className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Webpage view</p>
@@ -424,10 +426,10 @@ export function GraphTableInspector({
                   schema={schema}
                 />
 
-                <section className={cn('mt-3 rounded border overflow-hidden', UI_THEME_TOKENS.panel.border)} aria-label="Widget codes">
-                  <header className={cn('px-2 py-2 border-b flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.border)}>
+                <section className={cn('mt-3 min-w-0 max-w-full rounded border overflow-hidden', UI_THEME_TOKENS.panel.border)} aria-label="Widget codes">
+                  <header className={cn(uiToolbarRowScrollJustifyBetweenClassName, 'px-2 py-2 border-b gap-2', UI_THEME_TOKENS.panel.border)}>
                     <p className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Codes</p>
-                    <section className="flex items-center gap-1" aria-label="Code format">
+                    <section className={`${uiToolbarRowScrollClassName} gap-1`} aria-label="Code format">
                       <button
                         type="button"
                         className={cn(
@@ -481,7 +483,7 @@ export function GraphTableInspector({
                 </section>
               </section>
             ) : null}
-          <dl className="px-3 py-2 grid grid-cols-[120px_1fr] gap-x-2 gap-y-2 items-center">
+          <dl className="px-3 py-2 grid min-w-0 max-w-full grid-cols-[minmax(0,120px)_minmax(0,1fr)] gap-x-2 gap-y-2 items-center overflow-hidden">
             {ordered.map(col => {
               const value = (row.data || {})[col.columnId]
               const raw = value == null ? '' : String(value)

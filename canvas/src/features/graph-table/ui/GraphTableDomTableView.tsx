@@ -13,6 +13,7 @@ import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useG
 import { getCellTextByKind } from '@/features/graph-table/ui/fast-grid/canvasGridRender'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export const GraphTableDomTableView = React.memo(function GraphTableDomTableView(props: {
   tableId: GraphTableId
@@ -50,7 +51,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
   const selectedSet = React.useMemo(() => new Set(props.selectedRowIds), [props.selectedRowIds])
 
   return (
-    <section className="flex-1 min-h-0 overflow-auto" aria-label={`${props.tableId} dom table`}>
+    <section className="flex-1 min-h-0 min-w-0 max-w-full overflow-auto" aria-label={`${props.tableId} dom table`}>
       <table className="min-w-full border-separate border-spacing-0">
         <thead className="sticky top-0 z-10">
           <tr className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.cellBorder}`}>
@@ -77,7 +78,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                 className={`border-b border-r px-2 text-left ${props.panelTypography?.microLabelClass || ''} ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.secondary}`}
                 style={{ width: col.width }}
               >
-                {col.title}
+                <span className={UI_TEXT_TRUNCATE}>{col.title}</span>
               </th>
             ))}
           </tr>
@@ -88,7 +89,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
               return (
                 <tr key={`g:${item.label}:${idx}`} className={UI_THEME_TOKENS.table.rowBg}>
                   <td colSpan={2 + dataCols.length} className={`border-b px-2 py-1 font-semibold ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.secondary}`}>
-                    {item.label} ({item.count})
+                    <span className={UI_TEXT_TRUNCATE}>{item.label} ({item.count})</span>
                   </td>
                 </tr>
               )
@@ -126,7 +127,7 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
                   const text = getCellTextByKind(raw, col.dataKind)
                   return (
                     <td key={col.id} className={`border-b border-r px-2 ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.text.primary}`}>
-                      <span className="truncate">{text}</span>
+                      <span className={UI_TEXT_TRUNCATE}>{text}</span>
                     </td>
                   )
                 })}
@@ -138,4 +139,3 @@ export const GraphTableDomTableView = React.memo(function GraphTableDomTableView
     </section>
   )
 })
-

@@ -2,6 +2,7 @@ import React from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export type SettingsRowProps = {
   icon: React.ReactNode
@@ -14,13 +15,13 @@ export function SettingsRow(props: SettingsRowProps) {
   return (
     <button
       type="button"
-      className={['w-full flex items-center gap-3 px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+      className={['kg-menu-row w-full min-w-0 max-w-full flex flex-nowrap items-center gap-3 overflow-hidden px-3 py-2 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
       onClick={props.onClick}
     >
-      <span className={['w-5 h-5 flex items-center justify-center', UI_THEME_TOKENS.icon.color].join(' ')}>{props.icon}</span>
-      <span className={['text-sm', UI_THEME_TOKENS.text.primary].join(' ')}>{props.label}</span>
-      <span className={['ml-auto text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>{props.value || ''}</span>
-      <ChevronRight className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+      <span className={['w-5 h-5 shrink-0 flex items-center justify-center', UI_THEME_TOKENS.icon.color].join(' ')}>{props.icon}</span>
+      <span className={['min-w-0 text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{props.label}</span>
+      <span className={['ml-auto min-w-0 max-w-[45%] text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{props.value || ''}</span>
+      <ChevronRight className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
     </button>
   )
 }
@@ -30,7 +31,7 @@ export function LayoutChoice(props: { active: boolean; label: string; icon: Reac
     <button
       type="button"
       className={cn(
-        'relative flex-1 rounded border px-3 py-2 flex flex-col items-center justify-center gap-1',
+        'relative min-w-[6rem] flex-1 rounded border px-3 py-2 flex flex-col items-center justify-center gap-1 overflow-hidden',
         props.active
           ? cn(UI_THEME_TOKENS.button.activeBorder, UI_THEME_TOKENS.button.activeBg)
           : cn(UI_THEME_TOKENS.panel.border),
@@ -44,7 +45,7 @@ export function LayoutChoice(props: { active: boolean; label: string; icon: Reac
         </span>
       ) : null}
       <span className={props.active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary}>{props.icon}</span>
-      <span className={cn('text-sm font-medium', props.active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary)}>{props.label}</span>
+      <span className={cn('max-w-full text-sm font-medium', UI_TEXT_TRUNCATE, props.active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary)}>{props.label}</span>
     </button>
   )
 }

@@ -30,6 +30,7 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 
 export default function FlowEditorCanvasRuntime(
   {
@@ -63,7 +64,7 @@ export default function FlowEditorCanvasRuntime(
     baseWidgetRegistry, canvasRenderMode, canvas2dRenderer, collapsedGroupIds, createUserSubgraph,
     documentSemanticMode, documentStructureBaselineLock, documentWidgetRegistry, effectiveWidgetRegistry,
     flowWidgetPinnedByNodeId, frontmatterModeEnabled, graphContentRevision, markdownDocumentName,
-    markdownDocumentSourceUrl, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
+    markdownDocumentApplyViewPreset, markdownDocumentSourceUrl, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
     removeUserSubgraph, renderMediaAsNodes, resolvedThemeMode, schema, selectEdge, selectGroup,
     selectNode, selectedEdgeId, selectedNodeId, selectedNodeIds, setGraphDataPreservingLayout,
     setOpenWidgetNodeIds, setSchema, setSelectionSource, toggleGroupCollapsed, updateEdge, updateNode,
@@ -90,11 +91,16 @@ export default function FlowEditorCanvasRuntime(
     () => isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer }),
     [canvas2dRenderer, canvasRenderMode],
   )
+  const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
+    name: markdownDocumentName,
+    sourceUrl: markdownDocumentSourceUrl,
+    applyViewPreset: markdownDocumentApplyViewPreset !== false,
+  })
   const activeDocumentKey = React.useMemo(() => {
-    const name = typeof markdownDocumentName === 'string' ? markdownDocumentName.trim() : ''
-    const sourceUrl = typeof markdownDocumentSourceUrl === 'string' ? markdownDocumentSourceUrl.trim() : ''
+    const name = typeof canvasMarkdownDocument.name === 'string' ? canvasMarkdownDocument.name.trim() : ''
+    const sourceUrl = typeof canvasMarkdownDocument.sourceUrl === 'string' ? canvasMarkdownDocument.sourceUrl.trim() : ''
     return `${name}::${sourceUrl}`
-  }, [markdownDocumentName, markdownDocumentSourceUrl])
+  }, [canvasMarkdownDocument.name, canvasMarkdownDocument.sourceUrl])
   const flowEditorViewActive = editorRuntimeActive
   const canInteract = editorRuntimeActive
   const canEdit = editorRuntimeActive && !documentStructureBaselineLock

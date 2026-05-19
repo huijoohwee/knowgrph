@@ -5,6 +5,7 @@ import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import { labelForMarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import { iconByColumnType } from './markdownDataViewColumnTypeMenuIcons'
 import { MarkdownDataViewColumnTypeMenu } from './MarkdownDataViewColumnTypeMenu'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export function MarkdownDataViewAddColumnMenu(props: {
   ariaLabel: string
@@ -39,7 +40,7 @@ export function MarkdownDataViewAddColumnMenu(props: {
   const TypeIcon = iconByColumnType[type]
 
   return (
-    <details className="relative z-30" ref={detailsRef}>
+    <details className="relative z-30 min-w-0" ref={detailsRef}>
       <summary className={[props.summaryClassName, 'list-none'].join(' ')} aria-label={props.ariaLabel}>
         {props.summaryContent || <Plus className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
       </summary>
@@ -53,7 +54,7 @@ export function MarkdownDataViewAddColumnMenu(props: {
         aria-label="Add column menu"
       >
         <li className="list-none">
-          <header className={['text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary].join(' ')}>New column</header>
+          <header className={['min-w-0 text-xs font-semibold px-1 py-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>New column</header>
         </li>
         <li className="list-none px-1 pb-2">
           <label className={['block text-[10px] mb-1', UI_THEME_TOKENS.text.secondary].join(' ')} htmlFor={nameId}>
@@ -72,15 +73,15 @@ export function MarkdownDataViewAddColumnMenu(props: {
           <details className="relative">
             <summary
               className={[
-                'list-none w-full flex items-center gap-2 px-2 py-1 rounded border cursor-pointer text-xs',
+                'kg-menu-row list-none w-full min-w-0 max-w-full flex flex-nowrap items-center gap-2 overflow-hidden px-2 py-1 rounded border cursor-pointer text-xs',
                 UI_THEME_TOKENS.input.bg,
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.text.primary,
               ].join(' ')}
             >
-              <TypeIcon className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-              <span className="flex-1 text-left">{labelForMarkdownDataViewColumnType(type)}</span>
-              <ChevronDown className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+              <TypeIcon className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+              <span className={['min-w-0 flex-1 text-left', UI_TEXT_TRUNCATE].join(' ')}>{labelForMarkdownDataViewColumnType(type)}</span>
+              <ChevronDown className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
             </summary>
             <MarkdownDataViewColumnTypeMenu
               ariaLabel="Select column type"
@@ -94,11 +95,11 @@ export function MarkdownDataViewAddColumnMenu(props: {
         <li className="list-none px-1">
           <button
             type="button"
-            className={['w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded border text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={['kg-menu-row w-full min-w-0 max-w-full inline-flex flex-nowrap items-center justify-center gap-2 overflow-hidden px-3 py-2 rounded border text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
             onClick={add}
           >
-            <Plus className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-            Add
+            <Plus className={['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+            <span className={UI_TEXT_TRUNCATE}>Add</span>
           </button>
         </li>
       </menu>

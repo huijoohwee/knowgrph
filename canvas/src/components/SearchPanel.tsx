@@ -33,7 +33,7 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
   return (
     <div
       ref={ref}
-      className="mt-1 w-80 rounded border border-[color:var(--kg-border)] bg-[var(--kg-panel-bg)] shadow p-1"
+      className="kg-toolbar-dropdown-menu mt-1 w-80 rounded border border-[color:var(--kg-border)] bg-[var(--kg-panel-bg)] shadow p-1"
       data-kg-anchor={UI_ANCHORS.searchPanel}
     >
       <input

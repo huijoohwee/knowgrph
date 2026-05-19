@@ -1,10 +1,11 @@
 import React from 'react'
-import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
+import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
+import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
@@ -31,7 +32,16 @@ export function useWorkspaceImportActions(args: {
   ctx: WorkspaceImportActionsCtx
 }) {
   const { importJobRef, status, focusAfterImport } = args.core
-  const { getFs, refresh } = args.ctx
+  const {
+    getFs,
+    refresh,
+    openedPath,
+    activeDocumentKey,
+    setActiveText,
+    setEntries,
+    lastLoadedRef,
+    setActiveMarkdownDocument,
+  } = args.ctx
 
   const hydratePendingImportedPaths = React.useCallback(async (fs: WorkspaceFs, createdPaths: string[]) => {
     for (const path of createdPaths || []) {
@@ -40,6 +50,40 @@ export function useWorkspaceImportActions(args: {
       await hydrateWorkspaceFileFromPendingLocalImport({ fs, path: nextPath }).catch(() => null)
     }
   }, [])
+
+  const syncImportedExternalWrite = React.useCallback(
+    async (
+      fs: WorkspaceFs,
+      path: WorkspacePath | null | undefined,
+      opts?: { sourceUrl?: string | null },
+    ) => {
+      const normalized = normalizeWorkspacePath(path || '')
+      if (!normalized || normalized === WORKSPACE_ROOT_PATH) return
+      const text = String((await fs.readFileText(normalized).catch(() => '')) || '')
+      await writeWorkspaceFileAndSync({
+        path: normalized,
+        text,
+        getFs: async () => fs,
+        skipWrite: true,
+        lastLoadedRef,
+        setEntries,
+        synchronizeActiveDocument: openedPath === normalized,
+        setActiveText,
+        activeDocumentKey: workspaceDocumentKey(normalized) || activeDocumentKey,
+        activeDocumentSourceUrl: opts?.sourceUrl ?? null,
+        setActiveMarkdownDocument,
+        resetParsedState: false,
+      })
+    },
+    [
+      activeDocumentKey,
+      lastLoadedRef,
+      openedPath,
+      setActiveMarkdownDocument,
+      setActiveText,
+      setEntries,
+    ],
+  )
 
   const finalizeWorkspaceImportCommit = React.useCallback(
     async (args: {
@@ -78,9 +122,10 @@ export function useWorkspaceImportActions(args: {
       })
       const source = args.resolveSourceUrl && createdPath ? result.sources.find(s => s.path === createdPath)?.source : result.sources[0]?.source
       const sourceUrl = source && source.kind === 'url' ? source.url : null
+      if (createdPath) await syncImportedExternalWrite(fs, createdPath, { sourceUrl })
       return { createdPath, sourceUrl }
     },
-    [hydratePendingImportedPaths, refresh],
+    [hydratePendingImportedPaths, refresh, syncImportedExternalWrite],
   )
 
   const formatWorkspaceImportSummary = React.useCallback(

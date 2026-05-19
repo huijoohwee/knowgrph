@@ -30,7 +30,7 @@ export function ExplorerToolbarIconButton(props: ExplorerToolbarIconButtonProps)
     <button
       type={type}
       className={[
-        'kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded',
+        'kg-toolbar-btn shrink-0 inline-flex min-w-0 max-w-full flex-nowrap items-center justify-center overflow-hidden rounded',
         UI_THEME_TOKENS.button.text,
         UI_THEME_TOKENS.button.hoverBg,
         className,

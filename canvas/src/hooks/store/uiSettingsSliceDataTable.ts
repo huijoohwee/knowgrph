@@ -117,12 +117,12 @@ export const createUiSettingsDataTableSlice = (set: SetGraph)=> ({
   websiteImportDiscoverSitemap: true,
   setWebsiteImportDiscoverSitemap: (v: boolean) => set({ websiteImportDiscoverSitemap: !!v }),
 
-  websiteImportGenerateWebpageArtifactDocs: false,
+  websiteImportGenerateWebpageArtifactDocs: true,
   setWebsiteImportGenerateWebpageArtifactDocs: (v: boolean) => set({ websiteImportGenerateWebpageArtifactDocs: !!v }),
 
-  websiteImportMaxPages: 50,
+  websiteImportMaxPages: 100,
   setWebsiteImportMaxPages: (v: number) => {
-    const n = Number.isFinite(v) ? Math.floor(Number(v)) : 50
+    const n = Number.isFinite(v) ? Math.floor(Number(v)) : 100
     set({ websiteImportMaxPages: n < 1 ? 1 : n > 500 ? 500 : n })
   },
 
