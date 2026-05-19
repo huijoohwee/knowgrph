@@ -1,7 +1,16 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
-import { STRIPE_PAYMENT_ROUTE_PATHS } from 'grph-shared/payments/stripePaymentSsot'
+import {
+  STRIPE_PAYMENT_REQUIRED_CHECKOUT_ENV_SUMMARY,
+  STRIPE_PAYMENT_ROUTE_PATHS,
+  STRIPE_PAYMENT_SERVER_RUNTIME_SCOPE,
+  STRIPE_PAYMENT_SERVER_RUNTIME_VISIBLE_SCOPE,
+  STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY,
+  STRIPE_PROJECTS_DOCS_URL,
+  STRIPE_PROJECTS_SKILL_URL,
+  STRIPE_PROJECTS_URL,
+} from 'grph-shared/payments/stripePaymentSsot'
 
 export const STRIPE_PAYMENT_API_DOC_AREA = 'Stripe Payment API'
 
@@ -26,6 +35,14 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
     value: 'https://docs.stripe.com/api',
     responsibility: 'Authoritative Stripe API reference for resources, parameters, and errors.',
     searchHints: ['stripe docs api reference view as markdown'],
+  },
+  {
+    key: 'stripeApi.projects.url',
+    typeLabel: 'url',
+    value: STRIPE_PROJECTS_URL,
+    responsibility: 'Optional Stripe Projects entrypoint for provisioning provider services and syncing local credentials from the CLI.',
+    notes: `Use ${STRIPE_PROJECTS_DOCS_URL} and ${STRIPE_PROJECTS_SKILL_URL} for setup; keep generated credential values out of browser storage and source control.`,
+    searchHints: ['stripe projects', 'projects.dev', 'credential provisioning', STRIPE_PROJECTS_SKILL_URL],
   },
   {
     key: 'stripeApi.base_url',
@@ -70,8 +87,24 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
     value: '—',
     responsibility: 'Server-side secret key used to authenticate Stripe API requests.',
     valueKey: 'payments.stripe.secretKey',
-    notes: 'Keep secret keys server-side only; do not expose in client code.',
+    notes: `Keep secret keys server-side only; configure ${STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY} on the payment server runtime.`,
     searchHints: ['sk_test_', 'sk_live_', 'secret key', 'authentication'],
+  },
+  {
+    key: 'stripeApi.runtime.env_scope',
+    typeLabel: 'deployment scope',
+    value: STRIPE_PAYMENT_SERVER_RUNTIME_VISIBLE_SCOPE,
+    responsibility: 'Identifies where server-only Stripe credentials must be configured for the hosted Checkout Session route.',
+    notes: STRIPE_PAYMENT_SERVER_RUNTIME_SCOPE,
+    searchHints: ['cloudflare pages variables', 'worker secrets', 'payment server runtime', STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession],
+  },
+  {
+    key: 'stripeApi.checkout.server_price_authority',
+    typeLabel: 'env names',
+    value: STRIPE_PAYMENT_REQUIRED_CHECKOUT_ENV_SUMMARY,
+    responsibility: 'Defines the server-owned price authority required before creating hosted Checkout Sessions.',
+    notes: 'Prefer a Stripe Price id when one exists; otherwise provide the complete neutral inline price tuple on the same payment server runtime.',
+    searchHints: ['STRIPE_CHECKOUT_PRICE_ID', 'price authority', 'checkout price'],
   },
   {
     key: 'stripeApi.auth.publishable_key',

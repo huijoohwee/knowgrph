@@ -115,12 +115,6 @@
   overscroll-behavior: none;
 }
 
-@media (pointer: coarse), (max-width: 768px) {
-  :root {
-    --kg-control-height: var(--kg-touch-target);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   :root {
     --kg-motion-fast: 0ms;
@@ -410,7 +404,7 @@ html, body, #root {
 
   .App-toolbar__divider {
     width: 1px;
-    height: 80%;
+    height: calc(var(--kg-control-height, 28px) - 12px);
     background-color: var(--divider-color);
     border: none;
     opacity: 0.7;
@@ -500,13 +494,6 @@ html, body, #root {
     justify-content: space-between;
     padding: var(--toolbar-padding);
     min-height: 36px;
-  }
-  @media (pointer: coarse), (max-width: 768px) {
-    .App-toolbar__divider {
-      height: calc(var(--kg-control-height, 44px) - 12px);
-      margin-left: 0.125rem;
-      margin-right: 0.125rem;
-    }
   }
   .Stack {
     display: flex;

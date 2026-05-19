@@ -378,7 +378,8 @@ export function ToolbarToolMenu({
 
   const handleSelectView = React.useCallback((view: RequestedFloatingPanelView) => {
     setFloatingPanelView(view)
-  }, [setFloatingPanelView])
+    if (view === 'geo') void ensureGeospatialEnabled()
+  }, [ensureGeospatialEnabled, setFloatingPanelView])
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -427,15 +428,11 @@ export function ToolbarToolMenu({
     }
   }, [floatingPanelWidthRatio, floatingPanelHeightRatio])
 
-  void toolMenuCardRef
-
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const designPanelsAvailable =
     !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
   const managedHeaderActionsView: FloatingManagedHeaderActionsView | null =
-    floatingPanelView === 'renderer'
-      ? floatingPanelView
-      : null
+    floatingPanelView === 'renderer' ? floatingPanelView : null
   const floatingPanelBodyClassName = cn(
     'mt-1',
     FLOATING_PANEL_FULL_HEIGHT_VIEWS.has(floatingPanelView)
@@ -544,7 +541,8 @@ export function ToolbarToolMenu({
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
     setFloatingPanelView(requestedFloatingPanelView)
-  }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
+    if (requestedFloatingPanelView === 'geo') void ensureGeospatialEnabled()
+  }, [ensureGeospatialEnabled, requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
 
   React.useEffect(() => {
     if (floatingPanelView === 'renderer') return

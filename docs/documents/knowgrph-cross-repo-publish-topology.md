@@ -9,7 +9,8 @@ Canonical companion for the clean end-state topology shared with `singabldr`.
 - Prod artifact mirror: `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
 - Public route managed files: `/Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph`
 - Public route: `airvio.co/knowgrph`
-- Storage Worker routes: `airvio.co/api/storage/*`, `airvio.co/api/payments/*`
+- Storage Worker routes: `airvio.co/api/storage/*`
+- Payment Worker routes: `airvio.co/api/payments/*`
 - Sibling app route: `airvio.co/singabldr`
 
 ## Current Release Context

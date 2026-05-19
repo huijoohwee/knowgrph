@@ -6,6 +6,7 @@ import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW } from '@/lib/chatEndpoi
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import type { SettingsRowActions, SettingsRowRefs, SettingsRowStatusState, SettingsRowUi } from './settingsRowTypes'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY } from 'grph-shared/payments/stripePaymentSsot'
 
 type SettingsSpecialValueNodeProps = {
   area: string
@@ -195,7 +196,7 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
 
   if (sKey === 'stripeApi.auth.secret_key' || sKey === 'stripeApi.webhooks.signing_secret') {
     const secretLabel = sKey === 'stripeApi.auth.secret_key' ? 'Stripe secret keys' : 'Stripe webhook signing secrets'
-    const envLabel = sKey === 'stripeApi.auth.secret_key' ? 'STRIPE_RESTRICTED_KEY' : 'STRIPE_WEBHOOK_SECRET'
+    const envLabel = sKey === 'stripeApi.auth.secret_key' ? STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY : 'STRIPE_WEBHOOK_SECRET'
     return (
       <div className={specialValueRowClassName}>
         <div className={specialValueInputShellClassName}>

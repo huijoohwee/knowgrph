@@ -1,4 +1,5 @@
 import {
+  STRIPE_PAYMENT_MISSING_SERVER_KEY_ERROR,
   STRIPE_PAYMENT_API_VERSION,
   STRIPE_PAYMENT_ROUTE_PATHS,
   buildStripeCheckoutSessionCreateForm,
@@ -9,7 +10,7 @@ import {
   resolveStripeCheckoutServerConfig,
   type StripeCheckoutSessionCreatePayload,
 } from '../../../grph-shared/src/payments/stripePaymentSsot'
-import { execute, normalizeNumber, normalizeString, queryFirst, type D1DatabaseLike } from './db'
+import { execute, normalizeNumber, normalizeString, queryFirst, type D1DatabaseLike } from '../shared/d1'
 
 type HeadersRecord = Record<string, string>
 
@@ -315,7 +316,7 @@ const handleStripeCheckoutCreate = async (
   corsHeaders: HeadersRecord,
 ): Promise<Response> => {
   const apiKey = readStripePaymentServerKey(env)
-  if (!apiKey) return paymentError(500, 'Missing server-managed Stripe key.', corsHeaders)
+  if (!apiKey) return paymentError(500, STRIPE_PAYMENT_MISSING_SERVER_KEY_ERROR, corsHeaders)
   const config = resolveStripeCheckoutServerConfig(env)
   if (config.ok !== true) return paymentError(500, config.error, corsHeaders)
 

@@ -324,7 +324,8 @@ flowchart TB
 | Worker | Contract re-export | `workers/knowgrph-storage/contract.ts` | Built |
 | Worker | Wrangler config | `workers/knowgrph-storage/wrangler.toml` | Built |
 | D1 | Migration SQL | `d1/migrations/0001_knowgrph_storage.sql` | Built |
-| Edge | Deployed Worker | `wrangler.toml` + `index.ts` | **Deployed** — `knowgrph-storage` routes `airvio.co/api/storage/*` and `airvio.co/api/payments/*` |
+| Edge | Deployed Storage Worker | `cloudflare/workers/knowgrph-storage/wrangler.toml` + `index.ts` | **Deployed** — `knowgrph-storage` routes `airvio.co/api/storage/*` |
+| Edge | Payment Worker | `cloudflare/workers/knowgrph-payment/wrangler.toml` + `index.ts` | **Configured separately** — `knowgrph-payment` routes `airvio.co/api/payments/*` |
 | Edge | Provisioned D1 | `633355bf-…152` | **Migrated** — remote D1 migrations apply through `npm run storage:d1:migrate:remote` |
 
 ### Deploy & Test

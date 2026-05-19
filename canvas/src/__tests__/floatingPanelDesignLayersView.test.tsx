@@ -184,7 +184,15 @@ export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByStat
       throw new Error('expected clicking Geo to switch into the geospatial panel shell')
     }
     const text = container.textContent || ''
-    if (!text.includes('Enable Geospatial Mode to view this panel.') && !text.includes('Enabling Geospatial Mode...')) {
+    const enabledValue = String(dom.window.localStorage.getItem(LS_KEYS.geospatialOverlayEnabled) || '').trim().toLowerCase()
+    if (enabledValue !== 'true' && enabledValue !== '1') {
+      throw new Error(`expected clicking Geo to enable geospatial mode through the shared bridge, got ${JSON.stringify(enabledValue)}`)
+    }
+    if (
+      !text.includes('Geospatial') &&
+      !text.includes('Enable Geospatial Mode to view this panel.') &&
+      !text.includes('Enabling Geospatial Mode...')
+    ) {
       throw new Error(`expected Geo panel to remain actionable when disabled, got ${JSON.stringify(text)}`)
     }
 

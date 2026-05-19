@@ -2,19 +2,33 @@ import type {
   KgDocumentChunkRecord,
   KgDocumentRecord,
   KgGraphSnapshotRecord,
-  KnowgrphStorageWorkerEnv,
 } from './contract'
+import {
+  execute,
+  isoFromMs,
+  normalizeNullableString,
+  normalizeNumber,
+  normalizeString,
+  queryFirst,
+} from '../shared/d1'
+import type { D1DatabaseLike } from '../shared/d1'
 
-export type D1RunResult = { success?: boolean; meta?: unknown }
-export type D1AllResult<T> = { results?: T[] }
-export type D1StatementLike = {
-  bind: (...values: unknown[]) => D1StatementLike
-  run: () => Promise<D1RunResult>
-  all: <T = Record<string, unknown>>() => Promise<D1AllResult<T>>
-}
-export type D1DatabaseLike = {
-  prepare: (query: string) => D1StatementLike
-}
+export {
+  execute,
+  isoFromMs,
+  normalizeNullableString,
+  normalizeNumber,
+  normalizeString,
+  queryAll,
+  queryFirst,
+  readDb,
+} from '../shared/d1'
+export type {
+  D1AllResult,
+  D1DatabaseLike,
+  D1RunResult,
+  D1StatementLike,
+} from '../shared/d1'
 
 export type DocumentRow = {
   id: string
@@ -56,56 +70,6 @@ export type GraphSnapshotRow = {
   layout_json: string | null
   derived_from_document_revision: number
   updated_at: string
-}
-
-export const readDb = (env: KnowgrphStorageWorkerEnv): D1DatabaseLike | null => {
-  const candidate = (env as Record<string, unknown>).DB
-  if (!candidate || typeof candidate !== 'object') return null
-  const db = candidate as Partial<D1DatabaseLike>
-  return typeof db.prepare === 'function' ? (db as D1DatabaseLike) : null
-}
-
-export const normalizeString = (value: unknown): string => String(value || '').trim()
-
-export const normalizeNullableString = (value: unknown): string | null => {
-  const next = normalizeString(value)
-  return next ? next : null
-}
-
-export const normalizeNumber = (value: unknown, fallback = 0): number => {
-  const n = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : fallback
-}
-
-export const isoFromMs = (updatedAtMs: number, fallbackIso: string): string => {
-  if (!Number.isFinite(updatedAtMs) || updatedAtMs <= 0) return fallbackIso
-  try {
-    return new Date(updatedAtMs).toISOString()
-  } catch {
-    return fallbackIso
-  }
-}
-
-export const queryAll = async <T = Record<string, unknown>>(
-  db: D1DatabaseLike,
-  sql: string,
-  values: unknown[] = [],
-): Promise<T[]> => {
-  const result = await db.prepare(sql).bind(...values).all<T>()
-  return Array.isArray(result.results) ? result.results : []
-}
-
-export const queryFirst = async <T = Record<string, unknown>>(
-  db: D1DatabaseLike,
-  sql: string,
-  values: unknown[] = [],
-): Promise<T | null> => {
-  const rows = await queryAll<T>(db, sql, values)
-  return rows[0] ?? null
-}
-
-export const execute = async (db: D1DatabaseLike, sql: string, values: unknown[] = []): Promise<void> => {
-  await db.prepare(sql).bind(...values).run()
 }
 
 export const ensureWorkspaceRow = async (db: D1DatabaseLike, workspaceId: string, nowIso: string): Promise<void> => {

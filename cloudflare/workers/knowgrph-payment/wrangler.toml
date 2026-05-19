@@ -1,4 +1,4 @@
-name = "knowgrph-storage"
+name = "knowgrph-payment"
 main = "index.ts"
 compatibility_date = "2026-05-07"
 
@@ -6,7 +6,7 @@ compatibility_date = "2026-05-07"
 enabled = true
 
 [[routes]]
-pattern = "airvio.co/api/storage/*"
+pattern = "airvio.co/api/payments/*"
 zone_name = "airvio.co"
 
 [[d1_databases]]

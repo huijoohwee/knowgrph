@@ -18,10 +18,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
-import { onGeospatialModeChanged } from '@/features/geospatial/events'
-import { setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
-import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -53,8 +50,6 @@ export function ToolbarMenuLauncher({
     } | null
   >(null)
 
-  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => readGeospatialOverlayEnabledPreference())
-
   const {
     isToolMenuOpen,
     setIsToolMenuOpen,
@@ -76,14 +71,6 @@ export function ToolbarMenuLauncher({
   }, [])
 
   useToolMenuShortcuts(handleToolMenuShortcutAction)
-
-  useEffect(() => {
-    return onGeospatialModeChanged(detail => {
-      const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
-      if (enabled == null) return
-      setGeospatialModeEnabled(enabled)
-    })
-  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -147,25 +134,6 @@ export function ToolbarMenuLauncher({
         view: requested,
         seq: floatingPanelRequestSeqRef.current,
       })
-      if (requested === 'geo' && !geospatialModeEnabled) {
-        void enableGeospatialMode(true)
-          .then(nextEnabled => {
-            setGeospatialModeEnabled(nextEnabled)
-          })
-          .catch((err: unknown) => {
-            try {
-              const msg =
-                err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '').trim() : ''
-              useGraphStore.getState().pushUiToast({
-                id: 'toolbar-launcher-geo-enable-error',
-                kind: 'error',
-                message: `Geospatial Mode failed to load: ${msg || 'Unknown error'}`,
-              })
-            } catch {
-              void 0
-            }
-          })
-      }
       if (e.detail?.open === false) {
         closeToolMenu()
         return
@@ -183,7 +151,7 @@ export function ToolbarMenuLauncher({
       window.removeEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
       window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
     }
-  }, [_onOpenMainPanel, closeToolMenu, geospatialModeEnabled, setIsToolMenuOpen, setToolMenuDragPos])
+  }, [_onOpenMainPanel, closeToolMenu, setIsToolMenuOpen, setToolMenuDragPos])
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)

@@ -1,12 +1,12 @@
-import storageWorkerModule from '../../../cloudflare/workers/knowgrph-storage/index.ts'
+import paymentWorkerModule from '../../../cloudflare/workers/knowgrph-payment/index.ts'
 import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnowgrphStorageD1'
 import { STRIPE_PAYMENT_ROUTE_PATHS } from 'grph-shared/payments/stripePaymentSsot'
 
 const worker = (
-  typeof (storageWorkerModule as { fetch?: unknown }).fetch === 'function'
-    ? storageWorkerModule
-    : (storageWorkerModule as unknown as { default: typeof storageWorkerModule }).default
-) as typeof storageWorkerModule
+  typeof (paymentWorkerModule as { fetch?: unknown }).fetch === 'function'
+    ? paymentWorkerModule
+    : (paymentWorkerModule as unknown as { default: typeof paymentWorkerModule }).default
+) as typeof paymentWorkerModule
 
 const textEncoder = new TextEncoder()
 
@@ -33,7 +33,7 @@ const createPaymentsEnv = () => {
   return env
 }
 
-export async function testKnowgrphStorageWorkerCreatesStripeCheckoutSessionThroughServerRoute() {
+export async function testKnowgrphPaymentWorkerCreatesStripeCheckoutSessionThroughServerRoute() {
   const env = createPaymentsEnv()
   const fetchCalls: Array<{ url: string; init?: RequestInit }> = []
   const originalFetch = globalThis.fetch
@@ -99,7 +99,7 @@ export async function testKnowgrphStorageWorkerCreatesStripeCheckoutSessionThrou
   }
 }
 
-export async function testKnowgrphStorageWorkerRejectsStripeCheckoutWithoutServerPriceAuthority() {
+export async function testKnowgrphPaymentWorkerRejectsStripeCheckoutWithoutServerPriceAuthority() {
   const env = createFakeKnowgrphStorageWorkerEnv() as ReturnType<typeof createFakeKnowgrphStorageWorkerEnv> & Record<string, unknown>
   env.STRIPE_RESTRICTED_KEY = 'rk_'
   const response = await worker.fetch(
@@ -121,7 +121,34 @@ export async function testKnowgrphStorageWorkerRejectsStripeCheckoutWithoutServe
   }
 }
 
-export async function testKnowgrphStorageWorkerAcceptsStripeWebhookAndStoresCompletedSession() {
+export async function testKnowgrphPaymentWorkerExplainsMissingStripeWorkerSecretScope() {
+  const env = createFakeKnowgrphStorageWorkerEnv() as ReturnType<typeof createFakeKnowgrphStorageWorkerEnv> & Record<string, unknown>
+  env.STRIPE_CHECKOUT_PRICE_ID = 'price_accept_payment'
+  const response = await worker.fetch(
+    new Request(`https://example.com${STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession}`, {
+      method: 'POST',
+      headers: {
+        origin: 'https://example.com',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        successUrl: 'https://example.com/knowgrph?stripeCheckout=success&session_id={CHECKOUT_SESSION_ID}',
+        cancelUrl: 'https://example.com/knowgrph?stripeCheckout=cancel',
+      }),
+    }),
+    env as never,
+  )
+  if (response.status !== 500) {
+    throw new Error(`expected missing server Stripe key to fail closed, received ${response.status}`)
+  }
+  const body = await response.json() as { error?: string }
+  const error = String(body.error || '')
+  if (!error.includes('STRIPE_SECRET_KEY') || !error.includes('Pages project variables')) {
+    throw new Error(`expected missing key error to identify Worker-vs-Pages secret scope, got ${JSON.stringify(body)}`)
+  }
+}
+
+export async function testKnowgrphPaymentWorkerAcceptsStripeWebhookAndStoresCompletedSession() {
   const env = createPaymentsEnv()
   const payload = JSON.stringify({
     id: 'evt_accept_payment_1',
@@ -174,7 +201,7 @@ export async function testKnowgrphStorageWorkerAcceptsStripeWebhookAndStoresComp
   }
 }
 
-export async function testKnowgrphStorageWorkerRejectsStripeWebhookWithBadSignature() {
+export async function testKnowgrphPaymentWorkerRejectsStripeWebhookWithBadSignature() {
   const env = createPaymentsEnv()
   const payload = JSON.stringify({
     id: 'evt_accept_payment_bad_sig',

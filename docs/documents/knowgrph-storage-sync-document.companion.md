@@ -170,9 +170,9 @@ flowchart TB
 
 ### ADR-004: Deploy Storage API As A Standalone Cloudflare Worker On The Same Zone
 
-**Status**: Accepted. `cloudflare/workers/knowgrph-storage/wrangler.toml` deploys the `knowgrph-storage` Worker to `airvio.co/api/storage/*` and `airvio.co/api/payments/*` with the D1 binding `knowgrph-storage` (`633355bf-1a52-4085-bd3c-eba4220ff152`). The static SPA remains a Cloudflare Pages artifact served at `airvio.co/knowgrph`.
+**Status**: Accepted. `cloudflare/workers/knowgrph-storage/wrangler.toml` deploys the `knowgrph-storage` Worker to `airvio.co/api/storage/*` with the D1 binding `knowgrph-storage` (`633355bf-1a52-4085-bd3c-eba4220ff152`). `cloudflare/workers/knowgrph-payment/wrangler.toml` deploys the separate `knowgrph-payment` Worker to `airvio.co/api/payments/*` with the same D1 binding for checkout-session state. The static SPA remains a Cloudflare Pages artifact served at `airvio.co/knowgrph`.
 
-**Trade-offs**: A standalone Worker requires a separate `storage:deploy` step from the Pages Git push, but keeps D1 route ownership explicit, avoids Pages Function coupling, and leaves room for future WebSocket, Durable Object, crawler, and payments routes.
+**Trade-offs**: Standalone Workers require a separate `workers:deploy` step from the Pages Git push, but keep D1 route ownership explicit, avoid Pages Function coupling, and isolate payment secrets and webhook handling from storage sync routes.
 
 ### ADR-005: Retain Polling-Based Sync (120s) For Phase 1
 

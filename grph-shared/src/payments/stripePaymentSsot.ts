@@ -5,6 +5,10 @@ export const STRIPE_PAYMENT_ROUTE_PATHS = {
   webhook: '/api/payments/stripe/webhook',
 } as const
 
+export const STRIPE_PROJECTS_URL = 'https://projects.dev/'
+export const STRIPE_PROJECTS_SKILL_URL = 'https://projects.dev/skill.md'
+export const STRIPE_PROJECTS_DOCS_URL = 'https://docs.stripe.com/projects'
+
 export const STRIPE_PAYMENT_ENV_KEYS = {
   restrictedKey: 'STRIPE_RESTRICTED_KEY',
   secretKey: 'STRIPE_SECRET_KEY',
@@ -18,6 +22,32 @@ export const STRIPE_PAYMENT_ENV_KEYS = {
 
 export const STRIPE_CHECKOUT_MAX_QUANTITY = 99
 export const STRIPE_CHECKOUT_METADATA_SOURCE = 'mainpanel-payments'
+
+export const STRIPE_PAYMENT_SERVER_RUNTIME_SCOPE = [
+  `Configure Stripe secrets on the server runtime that owns ${STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession}.`,
+  'Cloudflare Pages project variables are available to Pages builds/functions, but they are not read by separate Worker routes.',
+  'Stripe Projects can provision and sync credentials locally; copy only required server secret names into the payment server runtime.',
+].join(' ')
+
+export const STRIPE_PAYMENT_SERVER_RUNTIME_VISIBLE_SCOPE = [
+  `Payment server runtime for ${STRIPE_PAYMENT_ROUTE_PATHS.checkoutSession}`,
+  'not Cloudflare Pages project variables',
+].join('; ')
+
+export const STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY = [
+  STRIPE_PAYMENT_ENV_KEYS.restrictedKey,
+  STRIPE_PAYMENT_ENV_KEYS.secretKey,
+].join(' or ')
+
+export const STRIPE_PAYMENT_REQUIRED_CHECKOUT_ENV_SUMMARY = [
+  STRIPE_PAYMENT_ENV_KEYS.checkoutPriceId,
+  `${STRIPE_PAYMENT_ENV_KEYS.checkoutCurrency} + ${STRIPE_PAYMENT_ENV_KEYS.checkoutUnitAmount} + ${STRIPE_PAYMENT_ENV_KEYS.checkoutProductName}`,
+].join(' or ')
+
+export const STRIPE_PAYMENT_MISSING_SERVER_KEY_ERROR = [
+  `Missing server-managed Stripe key. Set ${STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY} on the payment server runtime.`,
+  'Pages project variables alone do not satisfy separate Worker routes.',
+].join(' ')
 
 export type StripePaymentEnvLike = Record<string, unknown>
 

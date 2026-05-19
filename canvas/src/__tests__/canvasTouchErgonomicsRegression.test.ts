@@ -47,6 +47,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!cssText.includes('.App-toolbar--touch-scroll')) {
     throw new Error('expected toolbar touch scrolling behavior to stay centralized in shared CSS')
   }
+  if (cssText.includes('--kg-control-height: var(--kg-touch-target)')) {
+    throw new Error('expected mobile touch policy not to mutate the shared control-height token used by toolbar icons')
+  }
+  if (cssText.includes('@media (pointer: coarse), (max-width: 768px) {\n    .App-toolbar__divider')) {
+    throw new Error('expected mobile touch policy not to mutate toolbar divider sizing')
+  }
+  if (!cssText.includes('height: calc(var(--kg-control-height, 28px) - 12px);')) {
+    throw new Error('expected toolbar divider sizing to stay globally tied to the stable control-height token')
+  }
   if (!responsiveToolbarCssText.includes('.kg-row-scroll,') || !responsiveToolbarCssText.includes('.kg-responsive-row-scroll')) {
     throw new Error('expected responsive toolbar CSS to centralize same-row scrolling primitives')
   }

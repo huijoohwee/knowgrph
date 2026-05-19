@@ -35,12 +35,11 @@ import {
   writeSyncEvent,
 } from './db'
 import { handleCrawlerSourceFiles, isKnowgrphStorageCrawlerRoute } from './crawler'
-import { handleStripePaymentRoute, isStripePaymentRoute } from './payments'
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,authorization,stripe-signature',
+  'access-control-allow-headers': 'content-type,authorization',
   'access-control-max-age': '86400',
 }
 
@@ -501,10 +500,6 @@ export const createKnowgrphStorageWorker = () => ({
       }
       if (request.method === 'POST' && url.pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.pull) {
         return await handlePull(request, env, db)
-      }
-      if (isStripePaymentRoute(url.pathname)) {
-        const paymentResponse = await handleStripePaymentRoute(request, env as never, db, CORS_HEADERS)
-        if (paymentResponse) return paymentResponse
       }
       if (request.method === 'GET' && url.pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.exportPrefix)) {
         return await handleExport(request, env, db)
