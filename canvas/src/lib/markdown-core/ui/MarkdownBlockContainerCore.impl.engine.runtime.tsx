@@ -349,6 +349,111 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const closeCommentPreview = React.useCallback(() => {
     setCommentPreview(prev => (prev.show ? { ...prev, show: false } : prev))
   }, [setCommentPreview])
+  const readCommentIndicatorFromTarget = React.useCallback((target: EventTarget | null): HTMLElement | null => {
+    if (!(target instanceof Element)) return null
+    const node = target.closest('[data-kg-comment="1"]') as HTMLElement | null
+    return node && editorRef.current?.contains(node) ? node : null
+  }, [editorRef])
+  const openCommentPreviewFromIndicator = React.useCallback((indicator: HTMLElement) => {
+    const root = editorRef.current
+    if (!root) return
+    const text = String(indicator.getAttribute('data-kg-comment-text') || '').trim()
+    if (!text) return
+    const rootRect = root.getBoundingClientRect()
+    const rect = indicator.getBoundingClientRect()
+    const leftPx = Math.max(0, rect.left - rootRect.left + (rect.width / 2))
+    const topPx = Math.max(0, rect.bottom - rootRect.top + 4)
+    setCommentPreview(prev => {
+      if (prev.show && prev.leftPx === leftPx && prev.topPx === topPx && prev.text === text) return prev
+      return { show: true, leftPx, topPx, text }
+    })
+  }, [editorRef, setCommentPreview])
+  const handleCommentIndicatorMouseOverCapture = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    const indicator = readCommentIndicatorFromTarget(event.target)
+    if (!indicator) return
+    openCommentPreviewFromIndicator(indicator)
+  }, [openCommentPreviewFromIndicator, readCommentIndicatorFromTarget])
+  const handleCommentIndicatorMouseOutCapture = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    const indicator = readCommentIndicatorFromTarget(event.target)
+    if (!indicator) return
+    const next = readCommentIndicatorFromTarget(event.relatedTarget)
+    if (next === indicator) return
+    closeCommentPreview()
+  }, [closeCommentPreview, readCommentIndicatorFromTarget])
+  const handleCommentIndicatorFocusCapture = React.useCallback((event: React.FocusEvent<HTMLElement>) => {
+    const indicator = readCommentIndicatorFromTarget(event.target)
+    if (!indicator) return
+    openCommentPreviewFromIndicator(indicator)
+  }, [openCommentPreviewFromIndicator, readCommentIndicatorFromTarget])
+  const handleCommentIndicatorBlurCapture = React.useCallback((event: React.FocusEvent<HTMLElement>) => {
+    const indicator = readCommentIndicatorFromTarget(event.target)
+    if (!indicator) return
+    const next = readCommentIndicatorFromTarget(event.relatedTarget)
+    if (next === indicator) return
+    closeCommentPreview()
+  }, [closeCommentPreview, readCommentIndicatorFromTarget])
+  React.useEffect(() => {
+    if (!editing) return
+    if (editorPresentation !== 'html') return
+    const root = editorRef.current
+    if (!root) return
+    const cleanupByIndicator = new Map<HTMLElement, () => void>()
+    const readIndicator = (target: EventTarget | null): HTMLElement | null => {
+      if (!(target instanceof Element)) return null
+      const node = target.closest('[data-kg-comment="1"]') as HTMLElement | null
+      return node && root.contains(node) ? node : null
+    }
+    const bindIndicator = (indicator: HTMLElement) => {
+      if (cleanupByIndicator.has(indicator)) return
+      const handleMouseOver = () => {
+        openCommentPreviewFromIndicator(indicator)
+      }
+      const handleMouseOut = (event: MouseEvent) => {
+        const next = readIndicator(event.relatedTarget)
+        if (next === indicator) return
+        closeCommentPreview()
+      }
+      const handleFocus = () => {
+        openCommentPreviewFromIndicator(indicator)
+      }
+      const handleBlur = (event: FocusEvent) => {
+        const next = readIndicator(event.relatedTarget)
+        if (next === indicator) return
+        closeCommentPreview()
+      }
+      indicator.addEventListener('mouseover', handleMouseOver)
+      indicator.addEventListener('mouseout', handleMouseOut)
+      indicator.addEventListener('focus', handleFocus)
+      indicator.addEventListener('blur', handleBlur)
+      cleanupByIndicator.set(indicator, () => {
+        indicator.removeEventListener('mouseover', handleMouseOver)
+        indicator.removeEventListener('mouseout', handleMouseOut)
+        indicator.removeEventListener('focus', handleFocus)
+        indicator.removeEventListener('blur', handleBlur)
+      })
+    }
+    const refreshBindings = () => {
+      const activeIndicators = new Set(
+        Array.from(root.querySelectorAll('[data-kg-comment="1"]')) as HTMLElement[],
+      )
+      cleanupByIndicator.forEach((cleanup, indicator) => {
+        if (activeIndicators.has(indicator)) return
+        cleanup()
+        cleanupByIndicator.delete(indicator)
+      })
+      activeIndicators.forEach(bindIndicator)
+    }
+    refreshBindings()
+    const observer = typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(() => refreshBindings())
+      : null
+    observer?.observe(root, { childList: true, subtree: true })
+    return () => {
+      observer?.disconnect()
+      cleanupByIndicator.forEach(cleanup => cleanup())
+      cleanupByIndicator.clear()
+    }
+  }, [closeCommentPreview, editing, editorPresentation, editorRef, openCommentPreviewFromIndicator])
   const { applyVariableToken, variableSuggestions } = useMarkdownBlockContainerVariableActions({
     editable,
     sourceLines,
@@ -415,6 +520,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     restoreCachedHtmlSelection()
     const selection = readSelectionOffsetsForFormatting() || getSelectionOffsets()
     if (!selection || selection.startOffset === selection.endOffset) return
+    const selectedTextSnapshot = readCommentTextFromHtmlSelection()
+    const selectedMarkdownTokenSnapshot = readMarkdownTokenFromHtmlSelection()
     void (async () => {
       const draft = await readCurrentMarkdownDraft()
       const a = Math.max(0, Math.min(draft.length, selection.startOffset))
@@ -422,8 +529,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       const start = Math.min(a, b)
       const end = Math.max(a, b)
       const selected = draft.slice(start, end)
-      const selectedText = readCommentTextFromHtmlSelection() || selected.trim()
-      const selectedMarkdownToken = readMarkdownTokenFromHtmlSelection() || selected
+      const selectedText = selectedTextSnapshot || selected.trim()
+      const selectedMarkdownToken = selectedMarkdownTokenSnapshot || selected
       if (!selectedText || !selected) return
       const nextDraft = `${draft.slice(0, start)}<!-- ${selectedMarkdownToken} -->${draft.slice(end)}`
       publishMarkdownDraftWithoutDomMutation(nextDraft)
@@ -659,6 +766,10 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         onInput={handleEditorInput}
         onCopy={handleEditorCopy}
         onCut={handleEditorCut}
+        onMouseOverCapture={handleCommentIndicatorMouseOverCapture}
+        onMouseOutCapture={handleCommentIndicatorMouseOutCapture}
+        onFocusCapture={handleCommentIndicatorFocusCapture}
+        onBlurCapture={handleCommentIndicatorBlurCapture}
         onBlur={handleEditorBlur}
         onFocus={handleEditorFocus}
         onMouseDown={handleEditorMouseDown}

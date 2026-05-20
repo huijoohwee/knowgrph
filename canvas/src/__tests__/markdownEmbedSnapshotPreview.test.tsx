@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { fetchYouTubeTranscriptConversion } from '@/lib/net/youtubeTranscriptConversion'
+import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 type FetchResponseStub = {
@@ -284,17 +285,17 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
     if (preview.getAttribute('data-kg-rich-media-preview-key') !== linkPreviewKey) {
       throw new Error('expected timestamp preview to reuse the link Rich Media preview semantic key')
     }
-    const panel = preview.querySelector('[data-kg-rich-media-panel="1"]') as HTMLElement | null
-    if (!panel) throw new Error('expected timestamp preview to reuse the shared Rich Media Panel surface')
-    const frame = preview.querySelector('iframe') as HTMLIFrameElement | null
-    if (!frame) throw new Error('expected timestamp preview iframe')
-    const src = String(frame.getAttribute('src') || '')
-    if (!src.includes(`/embed/${fakeId}`)) {
-      throw new Error('expected timestamp preview iframe to preserve the YouTube video id')
+    if (preview.style.zIndex !== String(Z_INDEX_ANCHOR_OVERLAY)) {
+      throw new Error(`expected timestamp preview to render above workspace overlays with z-index ${Z_INDEX_ANCHOR_OVERLAY}, got ${preview.style.zIndex || '<empty>'}`)
     }
-    if (!src.includes('start=421')) {
-      throw new Error('expected timestamp preview iframe to preserve the requested timestamp')
+    const videoSnapshot = preview.querySelector('[data-kg-video-snapshot="1"]') as HTMLElement | null
+    if (!videoSnapshot) throw new Error('expected timestamp preview to reuse the shared video snapshot surface')
+    const snapshotSrc = String(videoSnapshot.getAttribute('data-src') || '')
+    if (snapshotSrc !== sourceUrl) {
+      throw new Error(`expected timestamp preview snapshot to preserve the requested timestamp source URL, got ${snapshotSrc}`)
     }
+    const thumb = preview.querySelector('[data-kg-media-thumbnail="1"]') as HTMLElement | null
+    if (!thumb) throw new Error('expected timestamp preview snapshot thumbnail surface')
     if (!String(preview.textContent || '').includes('7:01')) {
       throw new Error('expected timestamp preview to expose the semantic timestamp label')
     }
@@ -327,6 +328,69 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
     root.unmount()
   } finally {
     anyWindow.matchMedia = previousMatchMedia
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewKeepsStandaloneTimestampMarkdownLinkInlineForHoverPreview() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const fakeId = buildSyntheticYouTubeId('standalone timestamp markdown link hover preview')
+    const sourceUrl = `https://youtu.be/${fakeId}?t=331`
+    const markdownText = `[5:31](${sourceUrl})`
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    if (container.querySelector('[data-kg-video-snapshot="1"]')) {
+      throw new Error('expected standalone timestamp markdown link to stay inline instead of promoting into a video snapshot block')
+    }
+
+    const link = container.querySelector(`a[data-kg-youtube-timestamp-link="1"][href="${sourceUrl}"]`) as HTMLAnchorElement | null
+    if (!link) throw new Error('expected standalone timestamp markdown link to render as an inline hover-preview anchor')
+    if (link.textContent !== '5:31') throw new Error('expected standalone timestamp markdown link label to remain semantic')
+
+    link.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+    await tick()
+
+    const preview = doc.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    if (!preview) throw new Error('expected standalone timestamp markdown link hover to reveal the shared inline preview')
+    if (preview.style.zIndex !== String(Z_INDEX_ANCHOR_OVERLAY)) {
+      throw new Error(`expected standalone timestamp hover preview to render above workspace overlays with z-index ${Z_INDEX_ANCHOR_OVERLAY}, got ${preview.style.zIndex || '<empty>'}`)
+    }
+    const videoSnapshot = preview.querySelector('[data-kg-video-snapshot="1"]') as HTMLElement | null
+    if (!videoSnapshot) throw new Error('expected standalone timestamp hover preview to reuse the shared video snapshot surface')
+    const snapshotSrc = String(videoSnapshot.getAttribute('data-src') || '')
+    if (snapshotSrc !== sourceUrl) {
+      throw new Error(`expected standalone timestamp hover preview to preserve the requested timestamp source URL, got ${snapshotSrc}`)
+    }
+    const thumb = preview.querySelector('[data-kg-media-thumbnail="1"]') as HTMLElement | null
+    if (!thumb) throw new Error('expected standalone timestamp hover preview thumbnail surface')
+
+    root.unmount()
+  } finally {
     restoreDom()
   }
 }
@@ -417,13 +481,17 @@ export async function testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWith
     if (preview.getAttribute('data-kg-rich-media-preview-key') !== linkPreviewKey) {
       throw new Error('expected imported timestamp preview to reuse the link semantic key')
     }
-    const panel = preview.querySelector('[data-kg-rich-media-panel="1"]') as HTMLElement | null
-    if (!panel) throw new Error('expected imported timestamp preview to reuse the shared Rich Media Panel surface')
-    const frame = preview.querySelector('iframe') as HTMLIFrameElement | null
-    const src = String(frame?.getAttribute('src') || '')
-    if (!src.includes(`/embed/${fakeId}`) || !src.includes('start=421')) {
-      throw new Error(`expected imported timestamp preview iframe to preserve video id and start time, got ${src}`)
+    if (preview.style.zIndex !== String(Z_INDEX_ANCHOR_OVERLAY)) {
+      throw new Error(`expected imported timestamp preview to render above workspace overlays with z-index ${Z_INDEX_ANCHOR_OVERLAY}, got ${preview.style.zIndex || '<empty>'}`)
     }
+    const videoSnapshot = preview.querySelector('[data-kg-video-snapshot="1"]') as HTMLElement | null
+    if (!videoSnapshot) throw new Error('expected imported timestamp preview to reuse the shared video snapshot surface')
+    const snapshotSrc = String(videoSnapshot.getAttribute('data-src') || '')
+    if (snapshotSrc !== timestampUrl) {
+      throw new Error(`expected imported timestamp preview snapshot to preserve the requested timestamp source URL, got ${snapshotSrc}`)
+    }
+    const thumb = preview.querySelector('[data-kg-media-thumbnail="1"]') as HTMLElement | null
+    if (!thumb) throw new Error('expected imported timestamp preview thumbnail surface')
 
     root.unmount()
   } finally {

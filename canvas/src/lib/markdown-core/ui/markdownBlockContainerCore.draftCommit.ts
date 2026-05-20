@@ -9,9 +9,48 @@ import { buildReplacementLinesFromDraftWithPrefixes, HTML_TO_MARKDOWN_UNIFIED_DE
 
 const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
 
+const COMMENT_INDICATOR_TEXT = '...'
+
+const escapeHtmlAttr = (value: string): string => {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+const applyCommentIndicatorAttrs = (span: HTMLElement, commentText: string) => {
+  span.setAttribute('data-kg-comment', '1')
+  span.setAttribute('data-kg-comment-text', commentText)
+  span.setAttribute('role', 'note')
+  span.setAttribute('tabindex', '0')
+  span.setAttribute('aria-label', 'Comment preview')
+  span.setAttribute('title', 'Comment preview')
+  span.style.opacity = '0.8'
+  span.style.fontStyle = 'normal'
+  span.style.fontWeight = '500'
+  span.style.cursor = 'pointer'
+  span.style.textDecorationLine = 'underline'
+  span.style.textDecorationStyle = 'dotted'
+  span.style.textUnderlineOffset = '0.15em'
+  span.textContent = COMMENT_INDICATOR_TEXT
+}
+
+const buildCommentIndicatorHtml = (commentText: string): string => {
+  const text = String(commentText || '').trim()
+  return `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(text)}" role="note" tabindex="0" aria-label="Comment preview" title="Comment preview" style="opacity:0.8;font-style:normal;font-weight:500;cursor:pointer;text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:0.15em;">${COMMENT_INDICATOR_TEXT}</span>`
+}
+
+export const rewriteInlineEditorCommentIndicatorsHtml = (html: string): string => {
+  const raw = String(html || '')
+  if (!raw.trim()) return raw
+  return raw.replace(/<!--([\s\S]*?)-->/g, (_, commentText: string) => buildCommentIndicatorHtml(commentText))
+}
+
 const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
   const sigilStyledHtml = rewriteInlineCodeSigilsToStyledSpansHtml(html)
-  const raw = String(sigilStyledHtml || '')
+  const raw = rewriteInlineEditorCommentIndicatorsHtml(sigilStyledHtml)
   if (!raw.trim()) return raw
   if (typeof DOMParser === 'undefined') return raw
   let doc: Document
@@ -37,11 +76,9 @@ const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
   }
   for (let i = 0; i < comments.length; i += 1) {
     const comment = comments[i] as Comment
+    const commentText = String(comment.nodeValue || '').trim()
     const span = doc.createElement('span')
-    span.setAttribute('data-kg-comment', '1')
-    span.style.opacity = '0.65'
-    span.style.fontStyle = 'italic'
-    span.textContent = String(comment.nodeValue || '').trim()
+    applyCommentIndicatorAttrs(span, commentText)
     comment.replaceWith(span)
   }
   const textNodes: Text[] = []
@@ -211,10 +248,11 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
 
   const publishMarkdownDraftWithoutDomMutation = React.useCallback((draft: string) => {
     args.draftRef.current = draft
+    args.editDirtyRef.current = true
     const root = args.editorRef.current
     if (root) args.lastSerializedEditorHtmlRef.current = String(root.innerHTML || '')
     emitDraftTextChange(draft, { reflectInViewer: false })
-  }, [args.draftRef, args.editorRef, args.lastSerializedEditorHtmlRef, emitDraftTextChange])
+  }, [args.draftRef, args.editDirtyRef, args.editorRef, args.lastSerializedEditorHtmlRef, emitDraftTextChange])
 
   const serializeHtmlRootToDraft = React.useCallback(async (root: HTMLElement | null): Promise<string | null> => {
     if (!root) return null
@@ -239,7 +277,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     const commentNodes = Array.from(workingRoot.querySelectorAll('[data-kg-comment="1"]'))
     commentNodes.forEach(node => {
       const token = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
-      const text = String(node.textContent || '').replace(/\r/g, '')
+      const text = String(node.getAttribute('data-kg-comment-text') || node.textContent || '').replace(/\r/g, '')
       preservedComments.push(`<!-- ${text} -->`)
       node.replaceWith(workingRoot.ownerDocument.createTextNode(token))
     })

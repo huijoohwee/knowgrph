@@ -301,11 +301,11 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
       if (!button) throw new Error('expected comment button')
       if (!button.isConnected) throw new Error('expected connected comment button before press')
       await pressToolbarControl(dom, button)
-      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]'), 20, 5)
-      const panel = dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]')
-      if (!panel) {
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-testid="markdown-preview-root"]'), 20, 5)
+      const previewRoot = dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-testid="markdown-preview-root"]')
+      if (!previewRoot) {
         const body = String(dom.window.document.body.innerHTML || '')
-        throw new Error(`expected comment action to reuse the shared Rich Media Panel preview; hasPreview=${body.includes('data-kg-comment-rich-media-preview')}; hasPanel=${body.includes('data-kg-rich-media-panel')}; hasEditor=${body.includes('contenteditable="true"')}; hasComment=${body.includes('data-kg-comment')}`)
+        throw new Error(`expected comment action to reuse the shared Markdown preview overlay; hasPreview=${body.includes('data-kg-comment-rich-media-preview')}; hasMarkdownPreview=${body.includes('data-testid="markdown-preview-root"')}; hasEditor=${body.includes('contenteditable="true"')}; hasComment=${body.includes('data-kg-comment')}`)
       }
       const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
       if (!liveEditor) throw new Error('expected live inline editor after comment preview action')
@@ -329,7 +329,112 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
       await pressToolbarControl(dom, checklistButton)
     },
   })
+}
 
+
+export async function testMarkdownWorkspaceViewerCommentPreviewReusesMarkdownTimestampLinkPreview() {
+  const timestampUrl = 'https://youtu.be/dQw4w9WgXcQ?t=421'
+  await runViewerToolbarActionCase({
+    activeText: `${timestampUrl} transcript marker`,
+    expectedMarkdownSnippet: `<!-- ${timestampUrl} -->`,
+    expectedJsonSnippet: null,
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, timestampUrl)
+      if (!textNode) throw new Error(`expected timestamp url text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf(timestampUrl)
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + timestampUrl.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected comment button')
+      await pressToolbarControl(dom, button)
+      await waitForCondition(() => !!doc.querySelector('[data-kg-comment-rich-media-preview="1"]'), 20, 5)
+      const link = doc.querySelector(`[data-kg-comment-rich-media-preview="1"] a[data-kg-youtube-timestamp-link="1"][href="${timestampUrl}"]`) as HTMLAnchorElement | null
+      if (!link) {
+        throw new Error(`expected comment preview to render timestamp url as normal Markdown timestamp link; html=${doc.body.innerHTML}`)
+      }
+      if (String(link.textContent || '').trim() !== '7:01') {
+        throw new Error(`expected comment preview timestamp link label to normalize through the shared Markdown timestamp-link path; text=${JSON.stringify(link.textContent || '')}`)
+      }
+      link.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+      await tick(2)
+      const preview = doc.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+      if (!preview) throw new Error(`expected comment preview timestamp link hover to reuse shared preview; html=${doc.body.innerHTML}`)
+      const snapshot = preview.querySelector('[data-kg-video-snapshot="1"]') as HTMLElement | null
+      if (!snapshot) throw new Error('expected comment preview timestamp hover to reuse shared video snapshot surface')
+      if (String(snapshot.getAttribute('data-src') || '') !== timestampUrl) {
+        throw new Error(`expected comment preview timestamp snapshot to preserve the requested timestamp source URL; got=${snapshot.getAttribute('data-src') || ''}`)
+      }
+    },
+  })
+}
+
+export async function testMarkdownWorkspaceViewerCommentActionDoesNotRewriteLiveSelectionDuringToolbarBlur() {
+  await runViewerToolbarActionCase({
+    activeText: 'Viewer sync line one',
+    expectedMarkdownSnippet: '<!-- Viewer --> sync line one',
+    expectedJsonSnippet: null,
+    action: async ({ dom, doc, toolbar }) => {
+      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected comment button')
+      await pressToolbarControl(dom, button)
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor after comment action')
+      if (String(liveEditor.innerHTML || '').includes('data-kg-comment')) {
+        throw new Error(`expected comment action not to rewrite the active selection into a comment indicator during toolbar click; got ${JSON.stringify(liveEditor.innerHTML || '')}`)
+      }
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.FocusEvent('blur', { relatedTarget: null }))
+        await waitMs(120)
+        await tick(6)
+      })
+    },
+  })
+}
+
+export async function testMarkdownWorkspaceViewerCommentHoverUsesCompactIndicatorPreview() {
+  await runViewerToolbarActionCase({
+    activeText: 'Before <!-- hidden viewer note --> after',
+    commitAfterAction: false,
+    expectedMarkdownSnippet: '<!-- hidden viewer note -->',
+    expectedJsonSnippet: '<!-- hidden viewer note -->',
+    expectedEditorHtmlSnippet: 'data-kg-comment="1"',
+    action: async ({ dom, doc }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor for comment hover preview test')
+      await waitForCondition(() => !!liveEditor.querySelector('[data-kg-comment="1"]'), 20, 5)
+      const comment = liveEditor.querySelector('[data-kg-comment="1"]') as HTMLElement | null
+      if (!comment) throw new Error(`expected existing HTML comment to render as an inline indicator; html=${liveEditor.innerHTML}`)
+      if (String(comment.textContent || '').trim() !== '...') {
+        throw new Error(`expected comment indicator to reuse compact ellipsis affordance; text=${JSON.stringify(comment.textContent || '')}`)
+      }
+      if (String(comment.getAttribute('data-kg-comment-text') || '') !== 'hidden viewer note') {
+        throw new Error(`expected comment indicator to preserve raw comment text in data; raw=${JSON.stringify(comment.getAttribute('data-kg-comment-text') || '')}`)
+      }
+      await act(async () => {
+        comment.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      await waitForCondition(() => !!doc.querySelector('[data-kg-comment-rich-media-preview="1"]'), 20, 5)
+      const preview = doc.querySelector('[data-kg-comment-rich-media-preview="1"]') as HTMLElement | null
+      if (!preview) throw new Error('expected comment hover to reveal the shared comment preview overlay')
+      if (!String(preview.textContent || '').includes('hidden viewer note')) {
+        throw new Error(`expected comment hover preview to expose the raw comment text; text=${JSON.stringify(preview.textContent || '')}`)
+      }
+    },
+  })
 }
 
 export async function testMarkdownWorkspaceViewerTaskRowUnderlineKeepsRenderedUnderlineOnMouseRelease() {
@@ -501,7 +606,7 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInl
       const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected comment button')
       await pressToolbarControl(dom, button)
-      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]'), 20, 5)
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-testid="markdown-preview-root"]'), 20, 5)
     },
   })
 
@@ -532,7 +637,7 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInl
       const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected comment button')
       await pressToolbarControl(dom, button)
-      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]'), 20, 5)
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-testid="markdown-preview-root"]'), 20, 5)
     },
   })
 }

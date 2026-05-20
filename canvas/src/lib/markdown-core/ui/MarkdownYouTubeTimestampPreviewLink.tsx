@@ -1,9 +1,9 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import type { RichMediaPreviewDescriptor } from 'grph-shared/rich-media/providers'
-import RichMediaPanel from '@/components/RichMediaPanel'
-import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
+import { buildYouTubeThumbnailPreviewDescriptor, type RichMediaPreviewDescriptor } from 'grph-shared/rich-media/providers'
+import { MediaVideoSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 import { buildAnchorAttrs } from './markdownPreviewLinks.impl'
 
 const isCoarsePointerViewport = (): boolean => {
@@ -34,21 +34,14 @@ export function YouTubeTimestampPreviewLink({
   const linkRef = React.useRef<HTMLAnchorElement | null>(null)
   const touchTapArmedRef = React.useRef(false)
   const pointerTypeRef = React.useRef<string | null>(null)
-  const embedUrl = preview?.kind === 'timestamp-embed' ? String(preview.embedUrl || '') : ''
+  const sourceUrl = preview?.kind === 'timestamp-embed' ? String(preview.sourceUrl || '') : ''
   const timestampLabel = String(preview?.timestampLabel || '')
-  const panelState = React.useMemo(
-    () => buildStaticRichMediaPanelOverlayState({ renderKind: 'iframe' }),
-    [],
+  const thumbnailSrc = React.useMemo(
+    () => buildYouTubeThumbnailPreviewDescriptor(sourceUrl)?.thumbnailUrl || '',
+    [sourceUrl],
   )
-  const panelStyle = React.useMemo<React.CSSProperties>(() => ({
-    width: '100%',
-    height: '100%',
-    boxShadow: 'none',
-    ['--kg-media-panel-padding' as never]: '0px',
-    ['--kg-media-panel-radius' as never]: '6px',
-  }), [])
 
-  if (!embedUrl || !timestampLabel) {
+  if (!sourceUrl || !timestampLabel) {
     return (
       <a href={href} target={anchor.target} rel={anchor.rel} className={anchor.className}>
         {children}
@@ -140,25 +133,26 @@ export function YouTubeTimestampPreviewLink({
           role="tooltip"
           data-kg-youtube-timestamp-preview="1"
           data-kg-rich-media-preview-key={preview.semanticKey}
-          data-src={embedUrl}
+          data-src={sourceUrl}
           data-kg-canvas-pointer-ignore="true"
           data-kg-canvas-wheel-ignore="true"
-          className={['pointer-events-none fixed z-[70] w-56 max-w-[min(14rem,calc(100vw-2rem))] overflow-hidden rounded border shadow-xl', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
+          className={['pointer-events-none fixed w-56 max-w-[min(14rem,calc(100vw-2rem))] overflow-hidden rounded border shadow-xl', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
           style={{
             left: previewPosition.left,
             top: previewPosition.top,
             transform: 'translateX(-50%)',
+            zIndex: Z_INDEX_ANCHOR_OVERLAY,
           }}
         >
           <span className="block aspect-video w-full bg-black">
-            <RichMediaPanel
+            <MediaVideoSnapshot
+              url={sourceUrl}
               title={`YouTube preview at ${timestampLabel}`}
-              url={embedUrl}
-              openUrl={href}
-              kind="iframe"
-              interactive={false}
-              panel={panelState}
-              style={panelStyle}
+              presentationMode
+              thumbnailSrc={thumbnailSrc}
+              containerClassName="aspect-video w-full"
+              className="border-0 rounded-none shadow-none"
+              style={{ borderRadius: 0 }}
             />
           </span>
           <span className={`block px-2 py-1 text-[11px] leading-tight ${UI_THEME_TOKENS.text.secondary}`}>

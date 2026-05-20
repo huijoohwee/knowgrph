@@ -1,5 +1,9 @@
 import { normalizeWebpageLikeUrl } from 'grph-shared/url'
-import { getYouTubeId, stripYouTubeUrlTrailingPunctuation } from 'grph-shared/rich-media/providers'
+import {
+  buildYouTubeTimestampPreviewDescriptor,
+  getYouTubeId,
+  stripYouTubeUrlTrailingPunctuation,
+} from 'grph-shared/rich-media/providers'
 import type { TokenWithLines } from './markdownPreviewLex'
 import type { Token, TokensLink, TokensParagraph, TokensText } from './MarkdownTokens'
 
@@ -32,6 +36,35 @@ const hasInlineMediaToken = (tokens: Token[] | undefined): boolean => {
   return false
 }
 
+const readInlineTokenPlainText = (tokens: Token[] | undefined): string => {
+  const list = Array.isArray(tokens) ? tokens : []
+  let out = ''
+  for (const token of list) {
+    const type = String((token as unknown as { type?: unknown }).type || '')
+    if (type === 'text') {
+      out += String((token as unknown as TokensText).text || '')
+      continue
+    }
+    const nested = (token as unknown as { tokens?: unknown }).tokens
+    if (Array.isArray(nested)) {
+      out += readInlineTokenPlainText(nested as Token[])
+      continue
+    }
+    const raw = String((token as unknown as { raw?: unknown }).raw || '')
+    if (raw) out += raw
+  }
+  return out
+}
+
+const isSemanticTimestampPreviewLink = (link: TokensLink): boolean => {
+  const href = stripYouTubeUrlTrailingPunctuation(String(link.href || ''))
+  if (!href) return false
+  const preview = buildYouTubeTimestampPreviewDescriptor(href)
+  if (!preview?.timestampLabel) return false
+  const label = readInlineTokenPlainText(link.tokens).trim()
+  return !!label && label === preview.timestampLabel
+}
+
 export function readStandaloneParagraphUrlToken(
   token: Token | TokenWithLines,
   opts?: { rejectLinkedMedia?: boolean },
@@ -55,6 +88,7 @@ export function readStandaloneParagraphUrlToken(
       if (href) return ''
       const link = t as unknown as TokensLink
       if (opts?.rejectLinkedMedia && hasInlineMediaToken(link.tokens)) return ''
+      if (isSemanticTimestampPreviewLink(link)) return ''
       href = stripYouTubeUrlTrailingPunctuation(String(link.href || ''))
       continue
     }

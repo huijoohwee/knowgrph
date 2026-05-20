@@ -167,6 +167,13 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     restoreSelectionForFormatting()
     const range = pickExpandedRangeInRoot(root, sel)
     if (!range) return null
+    const container = range.commonAncestorContainer
+    const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
+    const commentNode = node?.closest?.('[data-kg-comment="1"]') as HTMLElement | null
+    if (commentNode && root.contains(commentNode)) {
+      const rawText = String(commentNode.getAttribute('data-kg-comment-text') || '').trim()
+      if (rawText) return rawText
+    }
     return String(range.cloneContents().textContent || '').trim()
   }, [args, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
 

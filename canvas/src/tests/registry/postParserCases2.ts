@@ -111,6 +111,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["markdown.preview.largeDocumentYouTubeSnapshotBudget","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewBudgetsRepeatedLargeDocumentYouTubeSnapshots"],
   ["markdown.preview.linkedYouTubeThumbnailImage","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewRendersLinkedYouTubeThumbnailImage"],
   ["markdown.preview.youtubeTimestampHoverPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndTap"],
+  ["markdown.preview.standaloneTimestampMarkdownLinkHoverPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewKeepsStandaloneTimestampMarkdownLinkInlineForHoverPreview"],
   ["markdown.preview.importedYouTubeTimestampPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWithSharedPreview"],
   ["markdown.preview.rendersInlineHtmlRichMedia","@/__tests__/markdownInlineHtmlRichMediaPreview.test","testMarkdownPreviewRendersInlineHtmlRichMedia"],
   ["markdown.preview.rendersNestedInlineHtmlWrappers","@/__tests__/markdownInlineHtmlRichMediaPreview.test","testMarkdownPreviewRendersNestedInlineHtmlWrappers"],

@@ -1,6 +1,7 @@
 import React from 'react'
 import { getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
 import { rewriteInlineCodeSigilsToPlainTextHtml, rewriteInlineCodeSigilsToStyledSpansHtml } from '@/features/markdown/ui/markdownSigil'
+import { rewriteInlineEditorCommentIndicatorsHtml } from './markdownBlockContainerCore.draftCommit'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 
 const EDIT_HTML_CACHE_MAX_ENTRIES = 12
@@ -37,8 +38,8 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
     syncSelectionToolbarStateRef.current = args.syncSelectionToolbarState
   }, [args.syncSelectionToolbarState])
   const rewriteInlineSigilsForEditHtml = React.useCallback((html: string): string => {
-    if (args.editSigilRenderMode === 'plain') return rewriteInlineCodeSigilsToPlainTextHtml(html)
-    return rewriteInlineCodeSigilsToStyledSpansHtml(html)
+    if (args.editSigilRenderMode === 'plain') return rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToPlainTextHtml(html))
+    return rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToStyledSpansHtml(html))
   }, [args.editSigilRenderMode])
   const editHtmlCacheRef = React.useRef<Map<string, string>>(new Map())
   const initializedEditSessionIdRef = React.useRef<number>(-1)

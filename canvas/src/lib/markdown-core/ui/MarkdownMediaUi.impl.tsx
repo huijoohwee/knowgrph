@@ -171,6 +171,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   url,
   title,
   presentationMode,
+  thumbnailSrc,
   containerClassName,
   containerStyle,
   className,
@@ -179,6 +180,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   url: string
   title: string
   presentationMode: boolean
+  thumbnailSrc?: string
   containerClassName?: string
   containerStyle?: React.CSSProperties
   className?: string
@@ -186,12 +188,14 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
 }) {
   const normalizedUrl = String(url || '').trim()
   const fallbackInfo = React.useMemo(() => getWebpageFallbackInfo(normalizedUrl, title), [normalizedUrl, title])
-  const [thumb, setThumb] = React.useState<string>('')
+  const immediateThumbnailSrc = React.useMemo(() => applyImageLikeProxySrc(String(thumbnailSrc || '').trim()), [thumbnailSrc])
+  const [thumb, setThumb] = React.useState<string>(() => immediateThumbnailSrc)
   const snapshotOverlayBadgeClassName = `absolute left-2 bottom-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   React.useEffect(() => {
     let cancelled = false
-    setThumb('')
+    setThumb(immediateThumbnailSrc)
+    if (immediateThumbnailSrc) return
     if (!normalizedUrl) return
     void getOrCreateVideoThumbnail(normalizedUrl).then((v) => {
       if (cancelled) return
@@ -201,7 +205,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
     return () => {
       cancelled = true
     }
-  }, [normalizedUrl])
+  }, [immediateThumbnailSrc, normalizedUrl])
 
   if (!normalizedUrl) return <MediaErrorPlaceholder alt={title} />
 

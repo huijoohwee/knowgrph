@@ -1,5 +1,23 @@
 import React from 'react'
-import { StaticRichMediaPanelTextAnchorOverlay } from '@/lib/ui/StaticRichMediaPanelTextAnchorOverlay'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/providers'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { AnchorOverlay } from '@/lib/ui/overlay'
+
+const normalizeCommentPreviewMarkdown = (text: string): string => {
+  return String(text || '')
+    .split('\n')
+    .map((line) => {
+      const raw = String(line || '')
+      const trimmed = raw.trim()
+      if (!/^https?:\/\/\S+$/i.test(trimmed)) return raw
+      const preview = buildYouTubeTimestampPreviewDescriptor(trimmed)
+      if (!preview?.timestampLabel) return raw
+      const indent = raw.match(/^\s*/)?.[0] || ''
+      return `${indent}[${preview.timestampLabel}](${preview.sourceUrl})<!-- kg-comment-inline-timestamp-link -->`
+    })
+    .join('\n')
+}
 
 export function MarkdownBlockContainerCommentPreviewOverlay(props: {
   show: boolean
@@ -7,16 +25,53 @@ export function MarkdownBlockContainerCommentPreviewOverlay(props: {
   text: string
   onClose: () => void
 }) {
+  if (!props.show || !props.text.trim()) return null
+  const markdownText = normalizeCommentPreviewMarkdown(props.text)
   return (
-    <StaticRichMediaPanelTextAnchorOverlay
-      show={props.show}
+    <AnchorOverlay
       anchorRef={props.anchorRef}
+      open
       onClose={props.onClose}
-      text={props.text}
-      title="Comment"
-      widthPx={280}
-      heightPx={156}
-      containerProps={{ 'data-kg-comment-rich-media-preview': '1' }}
-    />
+      align="bottom-center"
+      autoFocus={false}
+      className={[
+        'w-[320px] max-w-[calc(100vw-1rem)] overflow-hidden rounded border shadow-lg',
+        UI_THEME_TOKENS.panel.bg,
+        UI_THEME_TOKENS.panel.border,
+      ].join(' ')}
+    >
+      <section
+        data-kg-comment-rich-media-preview="1"
+        data-kg-canvas-pointer-ignore="true"
+        data-kg-canvas-wheel-ignore="true"
+        style={{
+          width: 320,
+          maxWidth: 'calc(100vw - 1rem)',
+          maxHeight: 220,
+          overflow: 'auto',
+        }}
+      >
+        <div className={`border-b px-3 py-2 text-xs font-medium ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.secondary}`}>
+          Comment
+        </div>
+        <div className="px-3 py-2">
+          <MarkdownPreview
+            markdownText={markdownText}
+            activeDocumentPath="/comment-preview.md"
+            highlightedLineRange={null}
+            markdownWordWrap
+            markdownPresentationMode={false}
+            markdownTextHighlight={false}
+            uiPanelTextFontClass="font-sans"
+            uiPanelMonospaceTextClass="font-mono"
+            previewOverlayScope="container"
+            previewOverlayPortalTarget={null}
+            previewScrollable={false}
+            showSidebar={false}
+            markdownTokenStoreSync={false}
+          />
+        </div>
+      </section>
+    </AnchorOverlay>
   )
 }
