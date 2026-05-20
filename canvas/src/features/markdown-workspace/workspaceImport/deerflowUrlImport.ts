@@ -13,6 +13,13 @@ import {
   resolveChatEndpointForRequest,
   resolveChatEndpointForModels,
 } from '@/lib/chatEndpoint'
+import type { Canvas2dRendererId } from '@/lib/config.render'
+import {
+  getWorkspaceUrlImportCanvasPreset,
+  normalizeWorkspaceUrlImportDocumentMode,
+  type WorkspaceUrlImportDocumentModeId,
+} from './canvasPresets'
+import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
 
 type DeerFlowIngestManifest = {
   ok?: unknown
@@ -202,6 +209,8 @@ export async function importWorkspaceUrlViaDeerFlow(args: {
   fs: WorkspaceFs
   urlRaw: string
   parentPath: WorkspacePath
+  canvas2dRenderer?: Canvas2dRendererId | null
+  documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   deerflow?: { endpointUrl?: unknown; apiKey?: unknown; model?: unknown; assistantId?: unknown } | null
   onProgress?: (progress: WorkspaceImportProgress) => void
 }): Promise<WorkspaceImportResult> {
@@ -279,12 +288,25 @@ export async function importWorkspaceUrlViaDeerFlow(args: {
   const key = hashStringToHex(normalizedUrl).slice(0, 10) || Date.now().toString(36)
   const folderName = safeWebsitePathSegment(`${host}-${key}`)
   const outputParent = await ensureFolderPath(args.fs, joinWorkspacePath(joinWorkspacePath(args.parentPath, 'deerflow'), folderName))
+  const canvasPreset = getWorkspaceUrlImportCanvasPreset(
+    args.canvas2dRenderer,
+    args.canvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(args.documentSemanticMode) : null,
+  )
 
   onProgress?.({ phase: 'writing', current: 0, total: files.length, label: 'Writing workspace files…' })
   for (let i = 0; i < files.length; i += 1) {
     const file = files[i]
     onProgress?.({ phase: 'writing', current: i, total: files.length, label: `Writing ${file.name}…` })
-    const path = await upsertWorkspaceFile({ fs: args.fs, parentPath: outputParent, name: file.name, text: file.text })
+    const text = canvasPreset && /\.mdx?$/i.test(String(file.name || ''))
+      ? buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+          upstreamMarkdown: file.text,
+          url: normalizedUrl,
+          view: 'markdown',
+          canvasPreset,
+          preserveBodyFidelity: true,
+        })
+      : file.text
+    const path = await upsertWorkspaceFile({ fs: args.fs, parentPath: outputParent, name: file.name, text })
     createdPaths.push(path)
     const source: WorkspaceEntrySource = { kind: 'url', url: normalizedUrl }
     sources.push({ path, source })

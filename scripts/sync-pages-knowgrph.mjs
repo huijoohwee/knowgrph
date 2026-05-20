@@ -113,20 +113,37 @@ const fileHash = async (filePath) => {
   return createHash('sha256').update(buf).digest('hex')
 }
 
-const fileNeedsUpdate = async (src, dest) => {
+const addEntryScriptCacheKey = (html) =>
+  html.replace(
+    /(<script\b[^>]*\bsrc=")(\/knowgrph\/assets\/([^"?/]+\.js))(")/,
+    (_match, prefix, assetPath, assetFile, suffix) => `${prefix}${assetPath}?v=${encodeURIComponent(assetFile)}${suffix}`,
+  )
+
+const readPublishContent = async (src, rel) => {
+  const buf = await fs.readFile(src)
+  if (rel !== 'index.html') return buf
+  return Buffer.from(addEntryScriptCacheKey(buf.toString('utf8')), 'utf8')
+}
+
+const publishContentHash = async (src, rel) => {
+  const buf = await readPublishContent(src, rel)
+  return createHash('sha256').update(buf).digest('hex')
+}
+
+const fileNeedsUpdate = async (src, dest, rel) => {
   try {
-    const [srcHash, dstHash] = await Promise.all([fileHash(src), fileHash(dest)])
+    const [srcHash, dstHash] = await Promise.all([publishContentHash(src, rel), fileHash(dest)])
     return srcHash !== dstHash
   } catch {
     return true
   }
 }
 
-const copyIfChanged = async (src, dest) => {
-  const needsUpdate = await fileNeedsUpdate(src, dest)
+const copyIfChanged = async (src, dest, rel) => {
+  const needsUpdate = await fileNeedsUpdate(src, dest, rel)
   if (!needsUpdate) return false
   await fs.mkdir(path.dirname(dest), { recursive: true })
-  await fs.copyFile(src, dest)
+  await fs.writeFile(dest, await readPublishContent(src, rel))
   return true
 }
 
@@ -187,7 +204,7 @@ const filesToCopy = []
 for (const rel of sourceFiles) {
   const src = path.resolve(distDir, rel)
   const dst = path.resolve(targetDir, rel)
-  if (await fileNeedsUpdate(src, dst)) filesToCopy.push(rel)
+  if (await fileNeedsUpdate(src, dst, rel)) filesToCopy.push(rel)
 }
 
 const filesToRemove = []
@@ -205,7 +222,7 @@ for (const rel of sourceFiles) {
   if (!isPublicManagedRelativePath(rel)) continue
   const src = path.resolve(distDir, rel)
   const dst = path.resolve(publicRouteDir, rel)
-  if (await fileNeedsUpdate(src, dst)) publicFilesToCopy.push(rel)
+  if (await fileNeedsUpdate(src, dst, rel)) publicFilesToCopy.push(rel)
 }
 const publicFilesToRemove = []
 if (await existsDir(publicRouteDir)) {
@@ -269,7 +286,7 @@ if (checkMode) {
   for (const rel of sourceFiles) {
     const src = path.resolve(distDir, rel)
     const dst = path.resolve(targetDir, rel)
-    const copied = await copyIfChanged(src, dst)
+    const copied = await copyIfChanged(src, dst, rel)
     if (copied) copiedCount += 1
   }
 
@@ -286,7 +303,7 @@ if (checkMode) {
     if (!isPublicManagedRelativePath(rel)) continue
     const src = path.resolve(distDir, rel)
     const dst = path.resolve(publicRouteDir, rel)
-    const copied = await copyIfChanged(src, dst)
+    const copied = await copyIfChanged(src, dst, rel)
     if (copied) copiedPublicCount += 1
   }
   if (await existsDir(publicRouteDir)) {

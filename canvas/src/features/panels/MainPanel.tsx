@@ -4,7 +4,7 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import { UI_ANCHORS, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon, Server } from 'lucide-react'
+import { BarChart3, HelpCircle, MonitorPlay, Palette, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon, Server } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
@@ -26,6 +26,7 @@ const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHub
 const McpHubViewLazy = React.lazy(() => import('./views/McpHubView'))
 const MapsHubViewLazy = React.lazy(() => import('./views/MapsHubView'))
 const PaymentsHubViewLazy = React.lazy(() => import('./views/PaymentsHubView'))
+const DesignEditorMainPanelViewLazy = React.lazy(() => import('@/features/panels/views/DesignEditorMainPanelView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
@@ -248,6 +249,7 @@ export default function MainPanel({
         mcp: Server,
         maps: MapIcon,
         payments: CreditCard,
+        design: Palette,
         workflowManager: Table,
         dashboard: BarChart3,
         preview: MonitorPlay,
@@ -355,6 +357,19 @@ export default function MainPanel({
             </section>
           )
         })}
+        <section
+          className="h-full min-h-0"
+          role="tabpanel"
+          id="main-panel-design-panel"
+          aria-labelledby="main-panel-design-tab"
+          hidden={tab !== 'design'}
+        >
+          {tab === 'design' && (
+            <React.Suspense fallback={null}>
+              <DesignEditorMainPanelViewLazy />
+            </React.Suspense>
+          )}
+        </section>
         <section
           className="h-full min-h-0"
           role="tabpanel"

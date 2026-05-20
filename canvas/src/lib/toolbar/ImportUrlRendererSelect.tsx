@@ -6,8 +6,8 @@ import {
   WORKSPACE_URL_IMPORT_CANVAS_RENDERERS,
   getWorkspaceUrlImportDocumentModeLabel,
   getWorkspaceUrlImportCanvasRendererLabel,
+  isWorkspaceUrlImportDocumentModeId,
   isWorkspaceUrlImportCanvasRendererId,
-  normalizeWorkspaceUrlImportDocumentMode,
   type WorkspaceUrlImportCanvasRendererId,
   type WorkspaceUrlImportDocumentModeId,
 } from '@/features/markdown-workspace/workspaceImport/canvasPresets'
@@ -17,21 +17,23 @@ export type ImportUrlRendererPresetOptions = {
   documentSemanticMode: WorkspaceUrlImportDocumentModeId
 }
 export type ImportUrlRendererSelection = 'default' | `${WorkspaceUrlImportCanvasRendererId}:${WorkspaceUrlImportDocumentModeId}`
+export const DESIGN_IMPORT_URL_RENDERER_SELECTION: ImportUrlRendererSelection = 'design:document'
 
 export function parseImportUrlRendererSelection(value: unknown): ImportUrlRendererPresetOptions | null {
   const raw = String(value || '').trim()
   const [rendererRaw, modeRaw] = raw.split(':')
   if (!isWorkspaceUrlImportCanvasRendererId(rendererRaw)) return null
+  if (!isWorkspaceUrlImportDocumentModeId(modeRaw)) return null
   return {
     canvas2dRenderer: rendererRaw,
-    documentSemanticMode: normalizeWorkspaceUrlImportDocumentMode(modeRaw),
+    documentSemanticMode: modeRaw,
   }
 }
 
 export function normalizeImportUrlRendererSelection(value: unknown): ImportUrlRendererSelection {
   const parsed = parseImportUrlRendererSelection(value)
   if (parsed) return `${parsed.canvas2dRenderer}:${parsed.documentSemanticMode}`
-  return isWorkspaceUrlImportCanvasRendererId(value) ? `${value}:document` : 'default'
+  return 'default'
 }
 
 export function ImportUrlRendererSelect(props: {

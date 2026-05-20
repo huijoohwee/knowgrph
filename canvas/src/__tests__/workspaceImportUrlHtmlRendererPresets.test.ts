@@ -44,9 +44,8 @@ export function testImportUrlRendererSelectionCarriesDocumentMode(): void {
       }
     }
   }
-  const legacyD3 = parseImportUrlRendererSelection(normalizeImportUrlRendererSelection('d3'))
-  if (!legacyD3 || legacyD3.canvas2dRenderer !== 'd3' || legacyD3.documentSemanticMode !== 'document') {
-    throw new Error('expected legacy D3 selection value to normalize to document structure mode')
+  if (normalizeImportUrlRendererSelection('d3') !== 'default') {
+    throw new Error('expected bare renderer values to avoid legacy selection remapping')
   }
 }
 

@@ -3,7 +3,8 @@ import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { CHAT_DEERFLOW_ENDPOINT_URL, CHAT_PROVIDER_DEERFLOW, normalizeChatProviderId, resolveChatEndpointForRequest } from '@/lib/chatEndpoint'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { WorkspaceUrlImportCanvasRendererId } from '../workspaceImport/canvasPresets'
+import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
+import type { WorkspaceUrlImportCanvasRendererId, WorkspaceUrlImportDocumentModeId } from '../workspaceImport/canvasPresets'
 
 type PushUiToast = (toast: UiToastInput) => void
 
@@ -25,6 +26,7 @@ function isLocalUiHost(): boolean {
 export async function importUrlViaDeerFlowAndApply(args: {
   urlRaw: string
   canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null
+  documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   pushUiToast?: PushUiToast
 }): Promise<{ createdPaths: string[] } | null> {
   const url = String(args.urlRaw || '').trim()
@@ -76,6 +78,8 @@ export async function importUrlViaDeerFlowAndApply(args: {
         fs,
         urlRaw: url,
         parentPath: WORKSPACE_ROOT_PATH,
+        canvas2dRenderer: args.canvas2dRenderer,
+        documentSemanticMode: args.documentSemanticMode,
         deerflow: {
           endpointUrl: deerflowEndpointUrl,
           apiKey: deerflowApiKey,
@@ -103,6 +107,9 @@ export async function importUrlViaDeerFlowAndApply(args: {
       opts: applyToGraph ? { applyToGraph: true } : undefined,
     })
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
+    if (args.canvas2dRenderer === 'design') {
+      activateDesignEditorSurface({ openFloatingPanel: true })
+    }
     pushUiToast?.({
       id: toastId,
       kind: 'success',

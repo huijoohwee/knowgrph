@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, ChevronDown, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, ChevronDown, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Palette, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -18,8 +18,14 @@ import {
   hasLaunchDropdownExportActions,
   type LaunchDropdownExportActions,
 } from './LaunchDropdownExportMenu'
-import { ImportUrlRendererSelect, parseImportUrlRendererSelection, type ImportUrlRendererSelection } from './ImportUrlRendererSelect'
+import {
+  DESIGN_IMPORT_URL_RENDERER_SELECTION,
+  ImportUrlRendererSelect,
+  parseImportUrlRendererSelection,
+  type ImportUrlRendererSelection,
+} from './ImportUrlRendererSelect'
 import { buildAutoWebsiteImportOptions, shouldAutoImportUrlAsWebsite } from './importUrlWebsiteMode'
+import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -68,6 +74,7 @@ export function LaunchDropdown({
   const importUrlControlsId = React.useId()
 
   const pushUiToast = useGraphStore(s => s.pushUiToast)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
   const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
   const setFlowchartDataSource = useGraphStore(s => s.setFlowchartDataSource)
@@ -77,10 +84,10 @@ export function LaunchDropdown({
   React.useEffect(() => {
     if (!open) return
     setUrlInputOpen(false)
-    setImportUrlRenderer('default')
+    setImportUrlRenderer(canvas2dRenderer === 'design' ? DESIGN_IMPORT_URL_RENDERER_SELECTION : 'default')
     setExportMenuOpen(false)
     setPdfMenuOpen(false)
-  }, [open])
+  }, [canvas2dRenderer, open])
 
   const openExportMenu = React.useCallback(() => {
     setUrlInputOpen(false)
@@ -157,6 +164,7 @@ export function LaunchDropdown({
       onClose()
       const launchBridge = getMarkdownWorkspaceActionBridge()
       const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
+      if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
       if (!opts && typeof launchBridge.importWebsite === 'function' && shouldAutoImportUrlAsWebsite(nextUrl)) {
         launchBridge.importWebsite(nextUrl, buildAutoWebsiteImportOptions())
       } else if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
@@ -172,6 +180,7 @@ export function LaunchDropdown({
       if (!nextUrl) return
       onClose()
       const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
+      if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
       void importUrlDeerFlowFallback(nextUrl, opts)
       setUrlInputOpen(false)
     },
@@ -412,6 +421,21 @@ export function LaunchDropdown({
                   }}
                   rightAddon={
                     <section className="flex min-w-0 flex-1 items-stretch gap-1">
+                      <button
+                        type="button"
+                        className={cn(
+                          'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border',
+                          importUrlRenderer === DESIGN_IMPORT_URL_RENDERER_SELECTION ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText) : UI_THEME_TOKENS.button.text,
+                          UI_THEME_TOKENS.input.border,
+                          UI_THEME_TOKENS.button.hoverBg,
+                        )}
+                        title="Design renderer"
+                        aria-label="Design renderer"
+                        aria-pressed={importUrlRenderer === DESIGN_IMPORT_URL_RENDERER_SELECTION}
+                        onClick={() => setImportUrlRenderer(prev => (prev === DESIGN_IMPORT_URL_RENDERER_SELECTION ? 'default' : DESIGN_IMPORT_URL_RENDERER_SELECTION))}
+                      >
+                        <Palette className={menuIconClass} strokeWidth={1.6} aria-hidden={true} />
+                      </button>
                       <ImportUrlRendererSelect
                         value={importUrlRenderer}
                         onChange={setImportUrlRenderer}

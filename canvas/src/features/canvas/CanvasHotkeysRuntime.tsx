@@ -17,9 +17,22 @@ export function CanvasHotkeysRuntime(props: {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return
       }
+      const lowerKey = e.key.toLowerCase()
+      const plainKey = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey
+      if (plainKey && (lowerKey === 'v' || lowerKey === 'h')) {
+        try {
+          const state = useGraphStore.getState()
+          if (state.workspaceViewMode === 'canvas' && state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'design') {
+            e.preventDefault()
+            state.setCanvasPointerMode2d(lowerKey === 'h' ? 'pan' : 'select')
+          }
+        } catch {
+          void 0
+        }
+        return
+      }
       const isCmd = e.metaKey || e.ctrlKey
       if (!isCmd) return
-      const lowerKey = e.key.toLowerCase()
       if (launchSpotlightShortcutEnabled && e.shiftKey && lowerKey === 'g') {
         e.preventDefault()
         try {

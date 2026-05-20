@@ -1,8 +1,9 @@
 import React from 'react'
-import { FileCode, Hand, Layers, ListTree, MousePointer, Redo, Ruler, Undo } from 'lucide-react'
+import { FileCode, Hand, Layers, ListTree, Maximize2, MonitorPlay, MousePointer, Palette, Redo, Ruler, Undo } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { dispatchRuntimeFitToViewSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { getIconSizeClass } from '@/lib/ui'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -13,10 +14,12 @@ import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles
 
 import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
+import { DesignEditorOverviewPanel } from '@/features/design/DesignEditorOverviewPanel'
 import DesignInspectorPanel from '@/features/design/DesignInspectorPanel'
 import DesignLayersPanel from '@/features/design/DesignLayersPanel'
+import DesignTokensPanel from '@/features/design/DesignTokensPanel'
 
-type DesignFloatingPanelTab = 'layers' | 'inspector' | 'domTree' | 'domInspect'
+type DesignFloatingPanelTab = 'overview' | 'layers' | 'inspector' | 'tokens' | 'domTree' | 'domInspect'
 
 export function DesignFloatingPanelView({ active }: { active: boolean }) {
   const panelTypography = usePanelTypography()
@@ -47,14 +50,16 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
   )
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
-  const [tab, setTab] = React.useState<DesignFloatingPanelTab>('layers')
+  const [tab, setTab] = React.useState<DesignFloatingPanelTab>('overview')
   const snapGrid = React.useMemo(() => readSnapGridConfigFromSchema(schema), [schema])
 
   const tabs = React.useMemo(
     () =>
       [
+        { id: 'overview' as const, title: 'Overview', icon: MonitorPlay },
         { id: 'layers' as const, title: 'Layers', icon: Layers },
         { id: 'inspector' as const, title: 'Inspector', icon: Ruler },
+        { id: 'tokens' as const, title: 'Tokens', icon: Palette },
         { id: 'domTree' as const, title: 'DOM Tree', icon: ListTree },
         { id: 'domInspect' as const, title: 'DOM Inspect', icon: FileCode },
       ] satisfies Array<{ id: DesignFloatingPanelTab; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }>,
@@ -110,6 +115,20 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
           >
             <Hand className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
             <span className="hidden md:inline">Pan</span>
+          </button>
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME, 'gap-1', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg, panelTypography.microLabelClass)}
+            onClick={() => {
+              if (!active) return
+              dispatchRuntimeFitToViewSoon()
+            }}
+            title="Fit to view"
+            aria-label="Fit to view"
+            disabled={!active}
+          >
+            <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+            <span className="hidden md:inline">Fit</span>
           </button>
           <span className={cn('mx-1 h-4 w-px', UI_THEME_TOKENS.panel.border)} aria-hidden={true} />
           <button
@@ -169,8 +188,17 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
         </nav>
       </header>
       <section className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTypography.panelTextClass)}>
+        {tab === 'overview' && (
+          <DesignEditorOverviewPanel
+            active={active}
+            onOpenLayers={() => setTab('layers')}
+            onOpenInspector={() => setTab('inspector')}
+            onOpenTokens={() => setTab('tokens')}
+          />
+        )}
         {tab === 'layers' && <DesignLayersPanel active={active} />}
         {tab === 'inspector' && <DesignInspectorPanel active={active} />}
+        {tab === 'tokens' && <DesignTokensPanel active={active} />}
         {tab === 'domTree' && <DesignDomTreePanel active={active} />}
         {tab === 'domInspect' && <DesignDomInspectPanel active={active} />}
       </section>

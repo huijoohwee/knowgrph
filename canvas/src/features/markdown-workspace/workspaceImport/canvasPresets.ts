@@ -11,6 +11,10 @@ export function isWorkspaceUrlImportCanvasRendererId(value: unknown): value is W
   return value === 'd3' || value === 'design'
 }
 
+export function isWorkspaceUrlImportDocumentModeId(value: unknown): value is WorkspaceUrlImportDocumentModeId {
+  return value === 'document' || value === 'keyword'
+}
+
 export function normalizeWorkspaceUrlImportDocumentMode(value: unknown): WorkspaceUrlImportDocumentModeId {
   return value === 'keyword' ? 'keyword' : 'document'
 }

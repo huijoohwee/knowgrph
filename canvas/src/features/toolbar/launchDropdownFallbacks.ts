@@ -1,6 +1,7 @@
 import type { UiToastInput } from '@/hooks/store/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
@@ -247,7 +248,15 @@ export async function importUrlDeerFlowFallback(args: {
       '@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction'
     )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/deerflowUrlImportAction')
     const canvas2dRenderer = isWorkspaceUrlImportCanvasRendererId(args.canvas2dRenderer) ? args.canvas2dRenderer : null
-    await importUrlViaDeerFlowAndApply({ urlRaw: url, canvas2dRenderer, pushUiToast: args.pushUiToast })
+    await importUrlViaDeerFlowAndApply({
+      urlRaw: url,
+      canvas2dRenderer,
+      documentSemanticMode: canvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(args.documentSemanticMode) : null,
+      pushUiToast: args.pushUiToast,
+    })
+    if (canvas2dRenderer === 'design') {
+      activateDesignEditorSurface({ openFloatingPanel: true })
+    }
   } catch (e) {
     args.pushUiToast({
       id: toastId,

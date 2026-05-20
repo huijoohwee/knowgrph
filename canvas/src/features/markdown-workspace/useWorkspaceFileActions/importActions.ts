@@ -4,6 +4,7 @@ import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from 
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import type { Canvas2dRendererId } from '@/lib/config.render'
@@ -324,6 +325,9 @@ export function useWorkspaceImportActions(args: {
 
         if (createdPath) {
           await focusAfterImport(createdPath, { sourceUrl, applyToGraph, jobId })
+        }
+        if (selectedCanvas2dRenderer === 'design') {
+          activateDesignEditorSurface({ openFloatingPanel: true })
         }
 
         status.setStatusInfo(summary.imported > 1 ? `Imported ${summary.imported}${summary.suffix}${summary.failureSuffix}` : `Imported URL${summary.suffix}${summary.failureSuffix}`)

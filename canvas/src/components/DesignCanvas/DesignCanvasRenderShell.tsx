@@ -4,6 +4,7 @@ import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/sur
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { DesignCanvasArrangeActionBar } from '@/components/DesignCanvas/ArrangeActionBar'
+import { DesignCanvasEditorChrome } from '@/components/DesignCanvas/DesignCanvasEditorChrome'
 import { DesignCanvasFrameShellLayer } from '@/components/DesignCanvas/FrameShellLayer'
 import { DesignCanvasLabelBadgesLayer } from '@/components/DesignCanvas/LabelBadgesLayer'
 import { DesignCanvasMediaOverlay } from '@/components/DesignCanvas/MediaOverlay'
@@ -11,7 +12,6 @@ import { DesignCanvasSelectionOverlay } from '@/components/DesignCanvas/Selectio
 import { DesignCanvasWebpageStatusPanel } from '@/components/DesignCanvas/webpageStatusPanel'
 import { DesignCanvasWireframePreviewLayer } from '@/components/DesignCanvas/WireframePreviewLayer'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type {
   DesignCanvasFrameNodeRef,
@@ -217,16 +217,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
         onRetry={onRetry}
       />
       <DesignCanvasArrangeActionBar active={arrangeActionsActive} selectedCount={selectedCount} onAction={onArrangeAction} />
-      {active ? (
-        <div
-          className={`pointer-events-none absolute left-2 top-2 z-20 flex items-center gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.tertiary}`}
-          aria-label="Design status"
-        >
-          <span className={`text-[10px] font-semibold ${UI_THEME_TOKENS.text.primary}`}>Design</span>
-          <span className="text-[10px] font-mono">{selectedCount} selected</span>
-          <span className="hidden md:inline text-[10px]">Open Design panel for Layers/DOM</span>
-        </div>
-      ) : null}
+      <DesignCanvasEditorChrome active={active} interactionActive={interactionActive} selectedCount={selectedCount} layerCount={renderNodes.length} />
       <InfiniteGridCanvasOverlay
         enabled={canvasGrid?.enabled === true}
         gridSize={canvasGrid?.size || 10}

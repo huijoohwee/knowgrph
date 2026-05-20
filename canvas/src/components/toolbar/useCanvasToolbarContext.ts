@@ -239,6 +239,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
         || detailTab === 'mcp'
         || detailTab === 'maps'
         || detailTab === 'payments'
+        || detailTab === 'design'
         || detailTab === 'workflowManager'
         || detailTab === 'help'
         || detailTab === 'dashboard'
