@@ -309,7 +309,7 @@ export function MarkdownWorkspaceToolbar({
           <li className="kg-workspace-pane-toggles-item list-none">
             <fieldset
               id={workspacePanesControlId}
-              className={`kg-workspace-pane-toggles ${uiToolbarRowScrollInlineClassName} gap-2 rounded border px-2 py-1 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+              className={`kg-workspace-pane-toggles ${uiToolbarRowScrollInlineClassName} gap-1`}
               aria-label="Workspace panes"
               title="Workspace panes"
             >
@@ -322,6 +322,32 @@ export function MarkdownWorkspaceToolbar({
                   onChange={() => setExplorerOpen(!explorerOpen)}
                 />
                 <span className={paneToggleTextClassName}>Explorer</span>
+              </label>
+              <label className={paneToggleLabelClass(effectivePaneAvailability.bin)} title={paneToggleTitle('bin', effectivePaneAvailability.bin)}>
+                <input
+                  className="kg-workspace-pane-toggle-input"
+                  type="checkbox"
+                  aria-label="Show binary model pane"
+                  checked={effectivePaneAvailability.bin}
+                  disabled
+                  aria-disabled="true"
+                />
+                <span className={paneToggleTextClassName}>bin</span>
+              </label>
+              <label className={paneToggleLabelClass(effectivePaneAvailability.json)} title={paneToggleTitle('JSON', effectivePaneAvailability.json)}>
+                <input
+                  className="kg-workspace-pane-toggle-input"
+                  type="checkbox"
+                  aria-label="Show JSON editor pane"
+                  checked={effectivePaneAvailability.json && effectiveSplitPanes.json}
+                  disabled={!effectivePaneAvailability.json}
+                  aria-disabled={!effectivePaneAvailability.json}
+                  onChange={() => {
+                    if (!effectivePaneAvailability.json) return
+                    handleContentPaneToggle('json')
+                  }}
+                />
+                <span className={paneToggleTextClassName}>JSON</span>
               </label>
               <label className={paneToggleLabelClass(effectivePaneAvailability.markdown)} title={paneToggleTitle('Markdown editor pane', effectivePaneAvailability.markdown)}>
                 <input
@@ -352,32 +378,6 @@ export function MarkdownWorkspaceToolbar({
                   }}
                 />
                 <span className={paneToggleTextClassName}>Viewer</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.bin)} title={paneToggleTitle('bin', effectivePaneAvailability.bin)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show binary model pane"
-                  checked={effectivePaneAvailability.bin}
-                  disabled
-                  aria-disabled="true"
-                />
-                <span className={paneToggleTextClassName}>bin</span>
-              </label>
-              <label className={paneToggleLabelClass(effectivePaneAvailability.json)} title={paneToggleTitle('JSON', effectivePaneAvailability.json)}>
-                <input
-                  className="kg-workspace-pane-toggle-input"
-                  type="checkbox"
-                  aria-label="Show JSON editor pane"
-                  checked={effectivePaneAvailability.json && effectiveSplitPanes.json}
-                  disabled={!effectivePaneAvailability.json}
-                  aria-disabled={!effectivePaneAvailability.json}
-                  onChange={() => {
-                    if (!effectivePaneAvailability.json) return
-                    handleContentPaneToggle('json')
-                  }}
-                />
-                <span className={paneToggleTextClassName}>JSON</span>
               </label>
               <label className={paneToggleLabelClass(htmlPaneAvailable)} title={paneToggleTitle('HTML', htmlPaneAvailable)}>
                 <input

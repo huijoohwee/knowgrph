@@ -1,16 +1,14 @@
-import { useEffect, useLayoutEffect, lazy, Suspense } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import Canvas from '@/pages/Canvas'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { CanvasRouteRuntime } from '@/features/canvas/CanvasRouteRuntime'
 import { PerformanceAutomationReadout } from '@/features/canvas/PerformanceAutomationReadout'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveRouterBasename } from '@/lib/routing/basePath'
 import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceLayoutSettings'
-
-const Canvas = lazy(() => import('@/pages/Canvas'))
 
 function AppThemeRuntime() {
   useLayoutEffect(() => {
@@ -121,11 +119,9 @@ export default function App() {
       <CanvasRouteRuntime />
       <PerformanceAutomationReadout />
       <ErrorBoundary>
-        <Suspense fallback={<div className={`h-[100dvh] flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>Loading…</div>}>
-          <Routes>
-            <Route path="/*" element={<Canvas />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/*" element={<Canvas />} />
+        </Routes>
       </ErrorBoundary>
     </Router>
   )

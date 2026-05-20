@@ -1,6 +1,6 @@
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { JSONValue } from '@/lib/graph/types'
-import { buildYouTubeThumbnailUrl, getYouTubeId, parseYouTubeStartSeconds, stripYouTubeUrlTrailingPunctuation } from 'grph-shared/rich-media/providers'
+import { buildYouTubeThumbnailUrl, formatMediaTimestampSeconds, getYouTubeId, parseYouTubeStartSeconds, stripYouTubeUrlTrailingPunctuation } from 'grph-shared/rich-media/providers'
 
 export type YouTubeTranscriptConversionOk = {
   ok: true
@@ -60,16 +60,6 @@ const readSourceUrl = (transcript: Record<string, JSONValue> | null, fallback: s
 const escapeMarkdownAlt = (value: string): string => {
   const raw = String(value || '').trim()
   return raw.replace(/[\[\]\n\r]/g, ' ').replace(/\s+/g, ' ').trim() || 'YouTube thumbnail'
-}
-
-const formatTimestampLabel = (seconds: number | null): string => {
-  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return ''
-  const total = Math.max(0, Math.floor(seconds))
-  const h = Math.floor(total / 3600)
-  const m = Math.floor((total % 3600) / 60)
-  const s = total % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 const cleanSemanticLabelText = (value: string): string => {
@@ -142,7 +132,10 @@ const buildSemanticYouTubeThumbnailLabel = (args: {
       }, null)
   const row = byTime || rows[0] || null
   const excerpt = row?.text || readFirstMarkdownExcerpt(args.markdown, args.videoId)
-  const timeLabel = formatTimestampLabel(timestamp ?? row?.start ?? null)
+  const timestampForLabel = timestamp ?? row?.start ?? null
+  const timeLabel = timestampForLabel == null || !Number.isFinite(timestampForLabel) || timestampForLabel < 0
+    ? ''
+    : formatMediaTimestampSeconds(timestampForLabel)
   const label = excerpt
     ? `YouTube thumbnail: ${excerpt}${timeLabel ? ` at ${timeLabel}` : ''}`
     : 'YouTube thumbnail'
@@ -252,7 +245,7 @@ const normalizeYouTubeTranscriptTimestampLinks = (
       getYouTubeVideoKey(lineUrl) === expectedId &&
       isTranscriptTextLineCandidate(nextLine)
     ) {
-      out.push(`[${formatTimestampLabel(timestamp)}](${lineUrl}) ${String(nextLine || '').trim()}`)
+      out.push(`[${formatMediaTimestampSeconds(timestamp)}](${lineUrl}) ${String(nextLine || '').trim()}`)
       i += 1
       continue
     }
@@ -270,31 +263,31 @@ const ensureYouTubeMarkdownThumbnail = (
   const source = String(sourceUrl || '').trim()
   const thumbnailUrl = readThumbnailUrl(transcript, source)
   const videoId = getYouTubeVideoKey(source) || (typeof transcript?.video_id === 'string' ? transcript.video_id.trim() : '')
-  const alt = buildSemanticYouTubeThumbnailLabel({ markdown: md, transcript, sourceUrl: source, videoId })
-  const withTimestampLinks = (value: string) => normalizeYouTubeTranscriptTimestampLinks(value, source, videoId)
-  if (!thumbnailUrl) return withTimestampLinks(md)
-  const normalizedImage = normalizeEarlyYouTubeMarkdownImage(md, thumbnailUrl, videoId, alt)
-  if (normalizedImage.found) return withTimestampLinks(normalizedImage.markdown)
-  const lines = md.split('\n')
+  const timestampLinkedMarkdown = normalizeYouTubeTranscriptTimestampLinks(md, source, videoId)
+  const alt = buildSemanticYouTubeThumbnailLabel({ markdown: timestampLinkedMarkdown, transcript, sourceUrl: source, videoId })
+  if (!thumbnailUrl) return timestampLinkedMarkdown
+  const normalizedImage = normalizeEarlyYouTubeMarkdownImage(timestampLinkedMarkdown, thumbnailUrl, videoId, alt)
+  if (normalizedImage.found) return normalizedImage.markdown
+  const lines = timestampLinkedMarkdown.split('\n')
   const standaloneIndex = lines.findIndex(line => !!isSameYouTubeSourceLine(line, source, videoId))
   if (standaloneIndex >= 0) {
     const matchedSource = isSameYouTubeSourceLine(lines[standaloneIndex] || '', source, videoId)
     const imageSource = matchedSource || source
-    const imageAlt = buildSemanticYouTubeThumbnailLabel({ markdown: md, transcript, sourceUrl: source, videoId, imageSource })
+    const imageAlt = buildSemanticYouTubeThumbnailLabel({ markdown: timestampLinkedMarkdown, transcript, sourceUrl: source, videoId, imageSource })
     lines[standaloneIndex] = imageSource ? `[![${imageAlt}](${thumbnailUrl})](${imageSource})` : `![${imageAlt}](${thumbnailUrl})`
-    return withTimestampLinks(lines.join('\n'))
+    return lines.join('\n')
   }
   const imageLine = source ? `[![${alt}](${thumbnailUrl})](${source})` : `![${alt}](${thumbnailUrl})`
   const sourceIndex = lines.findIndex(line => /^\s*Source\s*:/i.test(line))
   if (sourceIndex >= 0) {
     lines.splice(sourceIndex + 1, 0, imageLine)
-    return withTimestampLinks(lines.join('\n'))
+    return lines.join('\n')
   }
   if (lines[0]?.startsWith('# ')) {
     lines.splice(1, 0, '', imageLine)
-    return withTimestampLinks(lines.join('\n'))
+    return lines.join('\n')
   }
-  return withTimestampLinks(`${imageLine}\n\n${md}`)
+  return `${imageLine}\n\n${timestampLinkedMarkdown}`
 }
 
 const readCached = (key: string): YouTubeTranscriptConversionResult | null => {

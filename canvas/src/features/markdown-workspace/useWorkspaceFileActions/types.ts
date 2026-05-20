@@ -80,10 +80,6 @@ export type WorkspaceFileActions = {
   onRenameEntry: (path: WorkspacePath, nextName: string) => void
   onClearFile: (path: WorkspacePath) => void
   refreshFileFromSource: (path: WorkspacePath) => Promise<void>
-  canClearActiveSelection: boolean
-  canDeleteActive: boolean
-  onClearActiveSelection: () => void
-  onDeleteActive: () => void
 }
 
 export type StatusHelpers = {

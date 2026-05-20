@@ -171,7 +171,6 @@
   .kg-column-header-menu,
   .kg-column-header-filter-editor,
   .kg-type-menu,
-  .kg-selection-actions-menu,
   .kg-data-view-floating-menu,
   .kg-data-view-filter-menu,
   .kg-data-view-add-column-menu {
@@ -205,7 +204,6 @@
   .kg-column-header-menu,
   .kg-column-header-filter-editor,
   .kg-type-menu,
-  .kg-selection-actions-menu,
   .kg-data-view-filter-menu {
     width: min(16.25rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
   }
@@ -305,6 +303,8 @@
     padding-inline: 0.125rem;
   }
 
+  .kg-workspace-pane-toggles { border: 0; background: transparent; padding: 0; }
+
   .kg-workspace-pane-toggles .kg-workspace-pane-toggle--viewer {
     min-width: 0;
     scroll-margin-inline: 0;
@@ -403,7 +403,8 @@
     }
 
     .kg-markdown-workspace-explorer-resize {
-      display: none;
+      display: block; width: 100%; min-height: 1px; height: 1px; flex: 0 0 1px;
+      cursor: row-resize; background-color: var(--kg-border) !important; background-image: none !important;
     }
 
     .MainPanelContainer {

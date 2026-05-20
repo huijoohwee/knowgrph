@@ -1,7 +1,14 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { fetchYouTubeTranscriptConversion } from '@/lib/net/youtubeTranscriptConversion'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+
+type FetchResponseStub = {
+  ok: boolean
+  status: number
+  json: () => Promise<unknown>
+}
 
 const buildSyntheticYouTubeId = (seed: string): string => {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'
@@ -318,6 +325,105 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
     root.unmount()
   } finally {
     anyWindow.matchMedia = previousMatchMedia
+    restoreDom()
+  }
+}
+
+export async function testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWithSharedPreview() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const g = globalThis as unknown as { fetch?: unknown }
+  const prevFetch = g.fetch
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const fakeId = buildSyntheticYouTubeId('import url timestamp markdown viewer preview')
+    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}`
+    const timestampUrl = `https://youtu.be/${fakeId}?t=421`
+    const transcript = {
+      ok: true,
+      title: 'Imported Transcript',
+      video_id: fakeId,
+      source_url: watchUrl,
+      segment_count: 1,
+      segments: [
+        { text: 'event transcript segment,', start: 421, duration: 3 },
+      ],
+    }
+
+    g.fetch = (async () => {
+      const response: FetchResponseStub = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          name: `youtube-${fakeId}.md`,
+          markdown: [
+            '# Imported Transcript',
+            '',
+            timestampUrl,
+            'event transcript segment,',
+            '',
+          ].join('\n'),
+          transcript,
+        }),
+      }
+      return response as unknown as Response
+    }) as unknown as typeof fetch
+
+    const conversion = await fetchYouTubeTranscriptConversion(watchUrl)
+    if (!conversion || conversion.ok !== true) throw new Error('expected imported YouTube conversion result')
+    if (!conversion.markdown.includes(`[7:01](${timestampUrl}) event transcript segment,`)) {
+      throw new Error(`expected import conversion to emit timestamp Markdown link, got:\n${conversion.markdown}`)
+    }
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: conversion.markdown,
+        activeDocumentPath: '/imported-youtube.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const link = container.querySelector(`a[data-kg-youtube-timestamp-link="1"][href="${timestampUrl}"]`) as HTMLAnchorElement | null
+    if (!link) throw new Error('expected imported timestamp Markdown to render as a normal anchor link')
+    if (link.textContent !== '7:01') throw new Error('expected imported timestamp link label to remain semantic')
+    const linkPreviewKey = String(link.getAttribute('data-kg-rich-media-preview-key') || '')
+    if (!linkPreviewKey.startsWith('rich-media-preview:')) {
+      throw new Error('expected imported timestamp link to attach the shared Rich Media preview key')
+    }
+
+    link.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+    await tick()
+
+    const preview = container.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    if (!preview) throw new Error('expected imported timestamp link hover to reveal the shared inline preview')
+    if (preview.getAttribute('data-kg-rich-media-preview-key') !== linkPreviewKey) {
+      throw new Error('expected imported timestamp preview to reuse the link semantic key')
+    }
+    const frame = preview.querySelector('iframe') as HTMLIFrameElement | null
+    const src = String(frame?.getAttribute('src') || '')
+    if (!src.includes(`/embed/${fakeId}`) || !src.includes('start=421')) {
+      throw new Error(`expected imported timestamp preview iframe to preserve video id and start time, got ${src}`)
+    }
+
+    root.unmount()
+  } finally {
+    g.fetch = prevFetch
     restoreDom()
   }
 }

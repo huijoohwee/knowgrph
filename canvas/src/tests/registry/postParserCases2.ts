@@ -110,6 +110,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["markdown.preview.largeDocumentYouTubeShortUrlSnapshot","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLargeDocumentMode"],
   ["markdown.preview.largeDocumentYouTubeSnapshotBudget","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewBudgetsRepeatedLargeDocumentYouTubeSnapshots"],
   ["markdown.preview.linkedYouTubeThumbnailImage","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewRendersLinkedYouTubeThumbnailImage"],
+  ["markdown.preview.youtubeTimestampHoverPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndTap"],
+  ["markdown.preview.importedYouTubeTimestampPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWithSharedPreview"],
   ["markdown.preview.rendersInlineHtmlRichMedia","@/__tests__/markdownInlineHtmlRichMediaPreview.test","testMarkdownPreviewRendersInlineHtmlRichMedia"],
   ["markdown.preview.rendersMarkdownImageVideoAudioIframe","@/__tests__/markdownImageRichMediaPreview.test","testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe"],
   ["graphCanvas.richMedia.iframeNodes.hideBody","@/__tests__/graphCanvasIframeNodesHideBody.test","testGraphCanvasIframeNodesHideBodyWhenRichMediaOn"],

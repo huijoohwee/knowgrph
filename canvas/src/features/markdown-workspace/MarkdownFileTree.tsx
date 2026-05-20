@@ -47,7 +47,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   onSelectFile: (path: WorkspacePath) => void
   onSelectFolder?: (path: WorkspacePath) => void
   sourcesByPath?: WorkspaceSourceIndex | null
+  onCreateNewFile?: () => void
   onRevealInFinder?: (path: WorkspacePath) => void
+  onClearFile?: (path: WorkspacePath) => void
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry?: (path: WorkspacePath) => void
   buildShareUrl?: (entryPath: WorkspacePath) => string | null
@@ -61,7 +63,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     onSelectFile,
     onSelectFolder,
     sourcesByPath,
+    onCreateNewFile,
     onRevealInFinder,
+    onClearFile,
     onRenameEntry,
     onDeleteEntry,
     buildShareUrl,
@@ -119,13 +123,15 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             entry: contextMenu.entry,
             copyToClipboard,
             buildShareUrl: defaultBuildShareUrl,
+            onCreateNewFile,
             onRevealInFinder,
+            onClearFile,
             onRenameEntry,
             onDeleteEntry,
             closeContextMenu,
           })
         : [],
-    [closeContextMenu, contextMenu, copyToClipboard, defaultBuildShareUrl, onDeleteEntry, onRenameEntry, onRevealInFinder],
+    [closeContextMenu, contextMenu, copyToClipboard, defaultBuildShareUrl, onClearFile, onCreateNewFile, onDeleteEntry, onRenameEntry, onRevealInFinder],
   )
 
   const renderNode = (node: Node, depth: number) => {

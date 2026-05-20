@@ -78,9 +78,5 @@ export function useWorkspaceFileActions(args: UseWorkspaceFileActionsArgs): Work
     onDeleteEntry: mutationActions.onDeleteEntry,
     onRenameEntry: mutationActions.onRenameEntry,
     onClearFile: mutationActions.onClearFile,
-    canClearActiveSelection: mutationActions.canClearActiveSelection,
-    canDeleteActive: mutationActions.canDeleteActive,
-    onClearActiveSelection: mutationActions.onClearActiveSelection,
-    onDeleteActive: mutationActions.onDeleteActive,
   }
 }

@@ -2,7 +2,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 
 export type MarkdownFileTreeContextMenuItem = {
-  key: 'shareUrl' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'rename' | 'delete'
+  key: 'shareUrl' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'newFile' | 'clear' | 'rename' | 'delete'
   label: string
   tone?: 'default' | 'danger'
   onSelect: () => void
@@ -12,7 +12,9 @@ type BuildMarkdownFileTreeContextMenuItemsArgs = {
   entry: WorkspaceEntry
   copyToClipboard: (text: string) => Promise<boolean>
   buildShareUrl?: (entryPath: WorkspacePath) => string | null
+  onCreateNewFile?: () => void
   onRevealInFinder?: (path: WorkspacePath) => void
+  onClearFile?: (path: WorkspacePath) => void
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry?: (path: WorkspacePath) => void
   closeContextMenu: () => void
@@ -68,6 +70,28 @@ export function buildMarkdownFileTreeContextMenuItems(
       },
     },
   ]
+
+  if (args.onCreateNewFile) {
+    items.push({
+      key: 'newFile',
+      label: 'New file',
+      onSelect: () => {
+        args.onCreateNewFile?.()
+        args.closeContextMenu()
+      },
+    })
+  }
+
+  if (args.entry.kind === 'file' && args.onClearFile) {
+    items.push({
+      key: 'clear',
+      label: 'Clear',
+      onSelect: () => {
+        args.onClearFile?.(entryPath)
+        args.closeContextMenu()
+      },
+    })
+  }
 
   if (!isInitializationEntry) {
     items.push({

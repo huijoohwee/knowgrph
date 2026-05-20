@@ -53,6 +53,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.importUrl.transcript.noAutoParseWhenGraphApplyFalse","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportToCanvasRespectsApplyToGraphFalseForTranscripts"],
   ["workspace.importUrl.youtubeTranscriptConversion.cacheInflight","@/__tests__/youtubeTranscriptConversion.test","testYouTubeTranscriptConversionCachesInflightAndDerivesTranscriptJson"],
   ["workspace.importUrl.youtubeTranscriptConversion.thumbnailMarkdown","@/__tests__/youtubeTranscriptConversion.test","testYouTubeTranscriptConversionRewritesStandaloneShortUrlToThumbnailImage"],
+  ["workspace.importUrl.youtubeTranscriptConversion.timestampMarkdown","@/__tests__/youtubeTranscriptConversion.test","testYouTubeTranscriptConversionPreservesTimestampRowsAsMarkdownLinks"],
   ["markdown.workspace.viewShell.noFileRowFormatControls","@/__tests__/markdownWorkspaceViewShellSelectionSource.test.tsx","testMarkdownWorkspaceViewShellKeepsYoutubeFormatOutOfSourceFileRow"],
   ["markdown.workspace.toolbar.contentFormatPaneChecks","@/__tests__/markdownWorkspaceToolbarWebpageViewControls.test.tsx","testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks"],
   ["markdown.largeDense.summaryGraphBeforeFullParse","@/__tests__/markdownLargeDocumentGraph.test","testDenseLargeMarkdownUsesSummaryGraphBeforeFullParse"],

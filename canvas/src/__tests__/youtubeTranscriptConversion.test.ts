@@ -6,6 +6,22 @@ type FetchResponseStub = {
   json: () => Promise<unknown>
 }
 
+const buildSyntheticYouTubeId = (seed: string): string => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'
+  let hash = 0x811c9dc5
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  let out = ''
+  for (let i = 0; i < 11; i += 1) {
+    hash ^= i + 0x9e3779b9
+    hash = Math.imul(hash, 0x85ebca6b) >>> 0
+    out += alphabet[hash % alphabet.length] || 'A'
+  }
+  return out
+}
+
 export async function testYouTubeTranscriptConversionCachesInflightAndDerivesTranscriptJson() {
   const g = globalThis as unknown as { fetch?: unknown }
   const prevFetch = g.fetch
@@ -108,6 +124,63 @@ export async function testYouTubeTranscriptConversionRewritesStandaloneShortUrlT
     }
     if (!result.markdown.includes('Timestamped line.')) {
       throw new Error('expected transcript text to remain after replacing the source URL line')
+    }
+  } finally {
+    g.fetch = prevFetch
+  }
+}
+
+export async function testYouTubeTranscriptConversionPreservesTimestampRowsAsMarkdownLinks() {
+  const g = globalThis as unknown as { fetch?: unknown }
+  const prevFetch = g.fetch
+  const fakeId = buildSyntheticYouTubeId('timestamp rows before thumbnail insertion')
+  const watchUrl = `https://www.youtube.com/watch?v=${fakeId}`
+  const shortUrl = `https://youtu.be/${fakeId}?t=421`
+  let fetchCount = 0
+  const transcript = {
+    ok: true,
+    title: 'Timestamped Transcript',
+    video_id: fakeId,
+    source_url: watchUrl,
+    segment_count: 1,
+    segments: [
+      { text: 'event transcript segment,', start: 421, duration: 3 },
+    ],
+  }
+
+  g.fetch = (async () => {
+    fetchCount += 1
+    const response: FetchResponseStub = {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        name: `youtube-${fakeId}.md`,
+        markdown: [
+          '# Timestamped Transcript',
+          '',
+          shortUrl,
+          'event transcript segment,',
+          '',
+        ].join('\n'),
+        transcript,
+      }),
+    }
+    return response as unknown as Response
+  }) as unknown as typeof fetch
+
+  try {
+    const result = await fetchYouTubeTranscriptConversion(watchUrl)
+    if (fetchCount !== 1) throw new Error(`expected one YouTube request, got ${fetchCount}`)
+    if (!result || result.ok !== true) throw new Error('expected YouTube conversion result')
+    if (!result.markdown.includes(`[7:01](${shortUrl}) event transcript segment,`)) {
+      throw new Error(`expected transcript URL row to become a timestamp Markdown link, got:\n${result.markdown}`)
+    }
+    if (result.markdown.includes(`\n${shortUrl}\nevent transcript segment,`)) {
+      throw new Error('expected raw timestamp URL row to be removed before thumbnail insertion')
+    }
+    if (!result.markdown.includes(`[![Timestamped Transcript](https://i.ytimg.com/vi/${fakeId}/hqdefault.jpg)](${watchUrl})`)) {
+      throw new Error(`expected thumbnail insertion to preserve source link separately, got:\n${result.markdown}`)
     }
   } finally {
     g.fetch = prevFetch

@@ -25,7 +25,6 @@ export function useWorkspaceMutationActions(args: {
     refresh,
     openedPath,
     selectionPath,
-    selectionEntryKind,
     activeDocumentKey,
     setActiveText,
     setEntries,
@@ -282,55 +281,6 @@ export function useWorkspaceMutationActions(args: {
     [status, writeMutationWorkspaceText],
   )
 
-  const clearFolder = React.useCallback(
-    async (folderPath: WorkspacePath) => {
-      const normalized = normalizeWorkspacePath(folderPath)
-      if (!normalized || normalized === WORKSPACE_ROOT_PATH) return
-      const prefix = normalized.endsWith('/') ? normalized : `${normalized}/`
-      status.setStatusProgress('Clearing')
-      try {
-        const fs = await getFs()
-        const list = await fs.listEntries()
-        const targets = list
-          .filter(e => e.kind === 'file')
-          .map(e => normalizeWorkspacePath(e.path))
-          .filter(p => p.startsWith(prefix))
-        for (const p of targets) {
-          await writeMutationWorkspaceText(p as WorkspacePath, '', {
-            getFsOverride: async () => fs,
-          })
-        }
-
-        status.setStatusInfo(targets.length > 0 ? `Cleared ${targets.length} files` : 'Cleared')
-      } catch (e) {
-        status.setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
-      }
-    },
-    [getFs, status, writeMutationWorkspaceText],
-  )
-
-  const canClearActiveSelection = !!(
-    selectionPath && (selectionEntryKind === 'file' || (selectionEntryKind === 'folder' && selectionPath !== WORKSPACE_ROOT_PATH))
-  )
-  const canDeleteActive = !!selectionPath && selectionPath !== WORKSPACE_ROOT_PATH && !isInitializationWorkspacePath(selectionPath)
-
-  const clearActiveSelection = React.useCallback(() => {
-    if (!selectionPath) return
-    if (selectionEntryKind === 'file') {
-      void clearFile(selectionPath)
-      return
-    }
-    if (selectionEntryKind === 'folder') {
-      void clearFolder(selectionPath)
-    }
-  }, [clearFile, clearFolder, selectionEntryKind, selectionPath])
-
-  const deleteActive = React.useCallback(() => {
-    if (!selectionPath) return
-    if (selectionPath === WORKSPACE_ROOT_PATH) return
-    void deleteEntry(selectionPath)
-  }, [deleteEntry, selectionPath])
-
   const onDeleteEntry = React.useCallback((path: WorkspacePath) => {
     void deleteEntry(path)
   }, [deleteEntry])
@@ -343,22 +293,10 @@ export function useWorkspaceMutationActions(args: {
     void clearFile(path)
   }, [clearFile])
 
-  const onDeleteActive = React.useCallback(() => {
-    deleteActive()
-  }, [deleteActive])
-
-  const onClearActiveSelection = React.useCallback(() => {
-    clearActiveSelection()
-  }, [clearActiveSelection])
-
   return {
     refreshFileFromSource,
     onDeleteEntry,
     onRenameEntry,
     onClearFile,
-    canClearActiveSelection,
-    canDeleteActive,
-    onClearActiveSelection,
-    onDeleteActive,
   }
 }

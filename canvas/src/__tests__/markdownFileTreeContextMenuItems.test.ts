@@ -1,4 +1,5 @@
 import { buildMarkdownFileTreeContextMenuItems } from '@/features/markdown-workspace/markdownFileTreeContextMenuItems'
+import { WORKSPACE_README_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 
 export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions() {
   const calls: string[] = []
@@ -15,7 +16,9 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
       copied.push(text)
       return true
     },
+    onCreateNewFile: () => calls.push('new-file'),
     onRevealInFinder: path => calls.push(`reveal:${path}`),
+    onClearFile: path => calls.push(`clear:${path}`),
     onRenameEntry: (path, nextName) => calls.push(`rename:${path}:${nextName}`),
     onDeleteEntry: path => calls.push(`delete:${path}`),
     closeContextMenu: () => calls.push('close'),
@@ -30,11 +33,11 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
   })
 
   const labels = items.map(item => item.label).join(',')
-  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path,Rename,Delete') {
+  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path,New file,Clear,Rename,Delete') {
     throw new Error(`expected shared file-tree context-menu labels, got ${labels}`)
   }
-  if (items[5]?.tone !== 'danger') {
-    throw new Error(`expected delete menu item to be danger tone, got ${String(items[5]?.tone || '')}`)
+  if (items[7]?.tone !== 'danger') {
+    throw new Error(`expected delete menu item to be danger tone, got ${String(items[7]?.tone || '')}`)
   }
 
   items[0]?.onSelect()
@@ -43,8 +46,16 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
   await items[3]?.onSelect()
   items[4]?.onSelect()
   items[5]?.onSelect()
+  items[6]?.onSelect()
+  items[7]?.onSelect()
 
   const callLog = calls.join(',')
+  if (!callLog.includes('new-file,close')) {
+    throw new Error(`expected New file item to create and close, got ${callLog}`)
+  }
+  if (!callLog.includes('clear:/docs/note.md,close')) {
+    throw new Error(`expected Clear item to clear file and close, got ${callLog}`)
+  }
   if (!callLog.includes('reveal:/docs/note.md,close')) {
     throw new Error(`expected reveal item to reveal and close, got ${callLog}`)
   }
@@ -62,18 +73,20 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
 export async function testMarkdownFileTreeContextMenuItemsHideMutationsForInitializationFiles() {
   const items = buildMarkdownFileTreeContextMenuItems({
     entry: {
-      path: '/README.md',
+      path: WORKSPACE_README_SEED_PATH,
       parentPath: '/',
       kind: 'file',
-      name: 'README.md',
+      name: 'knowgrph-maps-readme.md',
       updatedAtMs: 0,
     },
     copyToClipboard: async () => true,
+    onCreateNewFile: () => void 0,
+    onClearFile: () => void 0,
     closeContextMenu: () => void 0,
   })
 
   const labels = items.map(item => item.label).join(',')
-  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path') {
+  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path,New file,Clear') {
     throw new Error(`expected initialization-file menu to hide rename and delete, got ${labels}`)
   }
 }

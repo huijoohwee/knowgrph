@@ -18,6 +18,11 @@ const findButtonByAriaLabel = (root: ParentNode, label: string): HTMLButtonEleme
   return null
 }
 
+const findButtonByText = (root: ParentNode, text: string): HTMLButtonElement | null => {
+  const buttons = Array.from(root.querySelectorAll('button')) as HTMLButtonElement[]
+  return buttons.find(btn => String(btn.textContent || '').trim() === text) || null
+}
+
 export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
@@ -25,22 +30,45 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
   container.id = 'root'
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
+  const prompt = dom.window.prompt
+  const confirm = dom.window.confirm
 
   try {
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
     const beforeEntries = await fs.listEntries()
     const beforePaths = new Set(beforeEntries.map(e => e.path))
+    const createName = 'note-context-menu.md'
+    ;(dom.window as unknown as { prompt: (message?: string, defaultValue?: string) => string }).prompt = () => createName
+    ;(dom.window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
 
     root.render(React.createElement(MarkdownWorkspace))
 
-    let newFileBtn: HTMLButtonElement | null = null
+    let sourceFileBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 60; i += 1) {
       await tick()
-      newFileBtn = findButtonByAriaLabel(container, 'New file')
+      sourceFileBtn = (Array.from(container.querySelectorAll('button')).find(button => {
+        const label = String((button as HTMLButtonElement).getAttribute('aria-label') || '')
+        return label.startsWith('File ')
+      }) as HTMLButtonElement | undefined) || null
+      if (sourceFileBtn) break
+    }
+    if (!sourceFileBtn) throw new Error('Source file row button not found')
+
+    sourceFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 24,
+      clientY: 24,
+    }))
+
+    let newFileBtn: HTMLButtonElement | null = null
+    for (let i = 0; i < 40; i += 1) {
+      await tick()
+      newFileBtn = findButtonByText(container, 'New file')
       if (newFileBtn) break
     }
-    if (!newFileBtn) throw new Error('New file button not found')
+    if (!newFileBtn) throw new Error('New file context menu item not found')
 
     newFileBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
@@ -51,34 +79,56 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
       const candidates = entries
         .filter(e => e.kind === 'file')
         .filter(e => !beforePaths.has(e.path))
-        .filter(e => String(e.name || '').startsWith('note') && String(e.name || '').endsWith('.md'))
+        .filter(e => String(e.name || '') === createName)
       if (candidates.length === 0) continue
       candidates.sort((a, b) => Number(b.updatedAtMs || 0) - Number(a.updatedAtMs || 0))
       createdPath = candidates[0]?.path ?? null
       break
     }
-    if (!createdPath) throw new Error('Expected new note*.md file to be created')
+    if (!createdPath) throw new Error('Expected new file from context menu to be created')
 
-    const actionsBtnLabel = `Actions for ${createdPath.split('/').pop()}`
-    let actionsBtn: HTMLButtonElement | null = null
+    let createdFileBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 80; i += 1) {
       await tick()
-      actionsBtn = findButtonByAriaLabel(container, actionsBtnLabel)
-      if (actionsBtn) break
+      createdFileBtn = findButtonByAriaLabel(container, `File ${createdPath.split('/').pop()}`)
+      if (createdFileBtn) break
     }
-    if (!actionsBtn) throw new Error('Selection actions button not found')
+    if (!createdFileBtn) throw new Error('Created file row button not found')
 
-    actionsBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    createdFileBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    const staleHeaderDeleteBtn = findButtonByAriaLabel(container, `Delete ${createdPath.split('/').pop()}`)
+    if (staleHeaderDeleteBtn) throw new Error('Delete should not remain in Explorer header actions')
+
+    createdFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 28,
+      clientY: 28,
+    }))
+
+    let clearBtn: HTMLButtonElement | null = null
+    for (let i = 0; i < 40; i += 1) {
+      await tick()
+      clearBtn = findButtonByText(container, 'Clear')
+      if (clearBtn) break
+    }
+    if (!clearBtn) throw new Error('Clear context menu item not found')
+    clearBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+
+    createdFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 28,
+      clientY: 28,
+    }))
 
     let deleteBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 40; i += 1) {
       await tick()
-      const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
-      deleteBtn = buttons.find(b => String(b.textContent || '').trim() === 'Delete') || null
+      deleteBtn = findButtonByText(container, 'Delete')
       if (deleteBtn) break
     }
-    if (!deleteBtn) throw new Error('Delete menu item not found')
-
+    if (!deleteBtn) throw new Error('Delete context menu item not found')
     deleteBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
     for (let i = 0; i < 80; i += 1) {
@@ -91,6 +141,8 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     }
     if (createdPath) throw new Error('Expected created file to be deleted')
   } finally {
+    ;(dom.window as unknown as { prompt: typeof prompt }).prompt = prompt
+    ;(dom.window as unknown as { confirm: typeof confirm }).confirm = confirm
     try {
       root.unmount()
     } catch {

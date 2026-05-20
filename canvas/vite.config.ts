@@ -5424,6 +5424,7 @@ export default defineConfig(({ command }) => ({
           : {
               manualChunks: (id: string) => {
                 const moduleId = String(id || '').replace(/\\/g, '/')
+                if (moduleId.includes('commonjsHelpers')) return 'react'
                 if (moduleId.includes('/node_modules/react/')) return 'react'
                 if (moduleId.includes('/node_modules/react-dom/')) return 'react'
                 if (moduleId.includes('/node_modules/react-router-dom/')) return 'react'
@@ -5471,7 +5472,7 @@ export default defineConfig(({ command }) => ({
                 ) {
                   return 'markdown-ast'
                 }
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return `mermaid-core-${String(moduleId.split('/').pop() || 'chunk').replace(/\.mjs(?:\?.*)?$/, '').replace(/[^a-zA-Z0-9_-]/g, '-')}`
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return 'mermaid'
                 if (moduleId.includes('/node_modules/mermaid/dist/') || moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
                 if (moduleId.endsWith('/node_modules/three/src/Three.js') || moduleId.endsWith('/node_modules/three/src/Three.Legacy.js')) return 'three-barrel'
                 if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
@@ -5496,6 +5497,7 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
+                if (moduleId.includes('/src/')) return undefined
                 if (moduleId.includes('/src/lib/config-copy/') || moduleId.includes('/src/lib/config.ts')) return 'config-copy'
                 if (moduleId.includes('/src/lib/config.ls') || moduleId.includes('/src/lib/persistence')) return 'config-storage'
                 if (moduleId.includes('/src/hooks/useGraphStore.ts') || moduleId.includes('/src/hooks/store/')) return 'graph-store'

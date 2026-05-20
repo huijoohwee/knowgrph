@@ -9,7 +9,6 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
-import { buildSelectionActionItems } from './selectionActionItems'
 import { MarkdownWorkspaceBacklinksList } from './MarkdownWorkspaceBacklinksList'
 import { MarkdownWorkspaceTocList } from './MarkdownWorkspaceTocList'
 import { MarkdownWorkspaceExplorerHeaderActions } from './MarkdownWorkspaceExplorerHeaderActions'
@@ -55,15 +54,10 @@ export type MarkdownWorkspaceExplorerProps = {
   onCreateNewFile: () => void
   onRefresh: () => void
 
-  activeEntryName: string
-  activeEntryKind: 'file' | 'folder' | ''
-  canClearActiveSelection: boolean
-  onClearActiveSelection: () => void
   canRefreshActiveFromSource: boolean
   onRefreshActiveFromSource: () => void
-  canDeleteActive: boolean
-  onDeleteActive: () => void
   onRevealInFinder: (path: WorkspacePath) => void
+  onClearFile: (path: WorkspacePath) => void
   onRenameEntry: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry: (path: WorkspacePath) => void
 
@@ -101,45 +95,23 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     onTocReorder,
     onCreateNewFile,
     onRefresh,
-    activeEntryName,
-    activeEntryKind,
-    canClearActiveSelection,
-    onClearActiveSelection,
     canRefreshActiveFromSource,
     onRefreshActiveFromSource,
-    canDeleteActive,
-    onDeleteActive,
     onRevealInFinder,
+    onClearFile,
     onRenameEntry,
     onDeleteEntry,
     renderSourceFileRight,
   } = props
   const panelTypography = usePanelTypography()
 
-  const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
-  const selectionActionItems = React.useMemo(
-    () =>
-      buildSelectionActionItems({
-        activeEntryName,
-        clearLabel,
-        canClearActiveSelection,
-        onClearActiveSelection,
-        canRefreshActiveFromSource,
-        onRefreshActiveFromSource,
-        canDeleteActive,
-        onDeleteActive,
-      }),
-    [
-      activeEntryName,
-      canClearActiveSelection,
-      canDeleteActive,
-      canRefreshActiveFromSource,
-      clearLabel,
-      onClearActiveSelection,
-      onDeleteActive,
-      onRefreshActiveFromSource,
-    ],
-  )
+  const handleRefresh = React.useCallback(() => {
+    if (canRefreshActiveFromSource) {
+      onRefreshActiveFromSource()
+      return
+    }
+    onRefresh()
+  }, [canRefreshActiveFromSource, onRefresh, onRefreshActiveFromSource])
   const sourceFileCount = React.useMemo(() => entries.reduce((count, e) => (e.kind === 'file' ? count + 1 : count), 0), [entries])
   const {
     activeItemId: activeTocId,
@@ -173,12 +145,8 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
           <h2 className={`${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary} ${UI_TEXT_TRUNCATE}`}>Explorer</h2>
         </section>
         <MarkdownWorkspaceExplorerHeaderActions
-          textSizeClass={panelTypography.textSizeClass}
           panelTextClass={panelTypography.panelTextClass}
-          activeEntryName={activeEntryName}
-          selectionActionItems={selectionActionItems}
-          onCreateNewFile={onCreateNewFile}
-          onRefresh={onRefresh}
+          onRefresh={handleRefresh}
           search={search}
           setSearch={setSearch}
         />
@@ -202,7 +170,9 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             onSelectFile={onSelectFile}
             onSelectFolder={onSelectFolder}
             sourcesByPath={sourcesByPath}
+            onCreateNewFile={onCreateNewFile}
             onRevealInFinder={onRevealInFinder}
+            onClearFile={onClearFile}
             onRenameEntry={onRenameEntry}
             onDeleteEntry={onDeleteEntry}
             renderFileRight={renderSourceFileRight}

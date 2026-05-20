@@ -20,10 +20,10 @@ export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, Vertica
       visualStyle === 'centerGrip'
         ? {
             backgroundColor: 'transparent',
-            backgroundImage: 'linear-gradient(var(--kg-border), var(--kg-border))',
-            backgroundPosition: 'center',
+            backgroundImage: 'linear-gradient(var(--kg-divider), var(--kg-divider)), linear-gradient(var(--kg-border), var(--kg-border))',
+            backgroundPosition: 'center, center',
             backgroundRepeat: 'no-repeat',
-            backgroundSize: '1px 3.5rem',
+            backgroundSize: '2px 3.5rem, 1px 100%',
           }
         : undefined
     return (

@@ -52,6 +52,10 @@ export async function testMarkdownTocTreeRowUsesSharedExplorerTocShell() {
 
     const dragHandle = container.querySelector('button[aria-label="Reorder heading"]')
     if (!(dragHandle instanceof dom.window.HTMLButtonElement)) throw new Error('expected TOC row shell to render the reorder handle')
+    const dragHandleClassName = String(dragHandle.className || '')
+    if (!dragHandleClassName.includes('opacity-100') || dragHandleClassName.includes('opacity-0') || dragHandleClassName.includes('group-hover:opacity-100')) {
+      throw new Error(`expected Explorer TOC reorder handle to stay visible without hover, got ${dragHandleClassName}`)
+    }
     dragHandle.dispatchEvent(new dom.window.Event('dragstart', { bubbles: true }))
     if (dragStarts !== 1) throw new Error(`expected TOC reorder drag start once, got ${String(dragStarts)}`)
 

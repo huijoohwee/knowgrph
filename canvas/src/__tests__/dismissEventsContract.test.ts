@@ -68,7 +68,7 @@ export const testDismissEventHelpersCentralizeEscapeAndPointerDownDismiss = asyn
 export const testDismissEventCallsitesUseSharedHelperBoundary = () => {
   const helperText = readUtf8('src/lib/browser/dismissEvents.ts')
   const fileTreeText = readUtf8('src/features/markdown-workspace/MarkdownFileTree.tsx')
-  const selectionMenuText = readUtf8('src/features/markdown-workspace/SelectionActionsMenu.tsx')
+  const explorerHeaderActionsText = readUtf8('src/features/markdown-workspace/MarkdownWorkspaceExplorerHeaderActions.tsx')
 
   if (!helperText.includes('export function subscribeWindowEscapeDismiss')) {
     throw new Error('expected shared dismiss helper module to expose Escape dismissal subscription')
@@ -85,13 +85,7 @@ export const testDismissEventCallsitesUseSharedHelperBoundary = () => {
   if (fileTreeText.includes("window.addEventListener('keydown'")) {
     throw new Error('expected MarkdownFileTree to avoid raw Escape dismissal listener wiring')
   }
-  if (!selectionMenuText.includes('subscribePointerDownDismiss({') || !selectionMenuText.includes('subscribeWindowEscapeDismiss')) {
-    throw new Error('expected SelectionActionsMenu to use shared dismiss helpers')
-  }
-  if (selectionMenuText.includes("document.addEventListener('pointerdown'")) {
-    throw new Error('expected SelectionActionsMenu to avoid raw outside-pointerdown dismissal wiring')
-  }
-  if (selectionMenuText.includes("window.addEventListener('keydown'")) {
-    throw new Error('expected SelectionActionsMenu to avoid raw Escape dismissal wiring')
+  if (explorerHeaderActionsText.includes('subscribePointerDownDismiss') || explorerHeaderActionsText.includes('subscribeWindowEscapeDismiss')) {
+    throw new Error('expected Explorer header selection actions to avoid submenu dismissal wiring')
   }
 }

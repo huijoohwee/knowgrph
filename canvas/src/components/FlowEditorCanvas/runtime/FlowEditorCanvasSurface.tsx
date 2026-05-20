@@ -98,20 +98,22 @@ export default function FlowEditorCanvasSurface(props: {
         ev.stopPropagation()
       }}
     >
-      <FlowCanvas
-        active={props.active}
-        flowEditorSurfaceId={props.flowEditorSurfaceId}
-        allowNodeDragOverride={props.canInteract}
-        graphDataOverride={props.renderGraphDataOverride}
-        graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
-        exposeRuntimeRef={ref => {
-          props.flowRuntimeRefRef.current = ref
-        }}
-        onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
-        renderEdges={!props.overlayOnlyActive}
-        renderGroups={!props.overlayOnlyActive && !props.geospatialWidgetPanelMode}
-        renderNodes={true}
-      />
+      {!props.noGraphLoaded && (
+        <FlowCanvas
+          active={props.active}
+          flowEditorSurfaceId={props.flowEditorSurfaceId}
+          allowNodeDragOverride={props.canInteract}
+          graphDataOverride={props.renderGraphDataOverride}
+          graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
+          exposeRuntimeRef={ref => {
+            props.flowRuntimeRefRef.current = ref
+          }}
+          onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
+          renderEdges={!props.overlayOnlyActive}
+          renderGroups={!props.overlayOnlyActive && !props.geospatialWidgetPanelMode}
+          renderNodes={true}
+        />
+      )}
 
       {props.overlayOnlyActive && (
         <svg

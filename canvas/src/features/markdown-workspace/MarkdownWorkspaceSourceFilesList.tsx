@@ -15,7 +15,9 @@ type MarkdownWorkspaceSourceFilesListProps = {
   onSelectFile: (path: WorkspacePath) => void
   onSelectFolder: (path: WorkspacePath) => void
   sourcesByPath: WorkspaceSourceIndex | null
+  onCreateNewFile: () => void
   onRevealInFinder: (path: WorkspacePath) => void
+  onClearFile: (path: WorkspacePath) => void
   onRenameEntry: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry: (path: WorkspacePath) => void
   renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
@@ -33,7 +35,9 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
     onSelectFile,
     onSelectFolder,
     sourcesByPath,
+    onCreateNewFile,
     onRevealInFinder,
+    onClearFile,
     onRenameEntry,
     onDeleteEntry,
     renderFileRight,
@@ -56,7 +60,9 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
       onSelectFile={onSelectFile}
       onSelectFolder={onSelectFolder}
       sourcesByPath={sourcesByPath}
+      onCreateNewFile={onCreateNewFile}
       onRevealInFinder={onRevealInFinder}
+      onClearFile={onClearFile}
       onRenameEntry={onRenameEntry}
       onDeleteEntry={onDeleteEntry}
       renderFileRight={renderFileRight}

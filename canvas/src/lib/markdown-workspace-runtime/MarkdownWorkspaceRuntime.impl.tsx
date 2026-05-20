@@ -512,18 +512,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             onTocReorder={interactionState.onTocReorder}
             onCreateNewFile={() => void fileActions.createNewFile({ parentPath: selectionState.createParentPath })}
             onRefresh={() => void explorerState.refresh()}
-            activeEntryName={selectionState.selectionEntry?.name || ''}
-            activeEntryKind={selectionState.selectionEntry?.kind || ''}
-            canClearActiveSelection={fileActions.canClearActiveSelection}
-            onClearActiveSelection={fileActions.onClearActiveSelection}
             canRefreshActiveFromSource={viewShell.canRefreshActiveFromSource}
             onRefreshActiveFromSource={() => {
               if (!selectionState.selectionPath || selectionState.selectionEntry?.kind !== 'file') return
               void fileActions.refreshFileFromSource(selectionState.selectionPath)
             }}
-            canDeleteActive={fileActions.canDeleteActive}
-            onDeleteActive={fileActions.onDeleteActive}
             onRevealInFinder={viewShell.revealInFinder}
+            onClearFile={fileActions.onClearFile}
             onRenameEntry={fileActions.onRenameEntry}
             onDeleteEntry={fileActions.onDeleteEntry}
             renderSourceFileRight={viewShell.renderSourceFileRight}

@@ -11,7 +11,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const collapsibleToolbarText = readUtf8(path.resolve(root, 'src/components/ui/CollapsibleToolbar.tsx'))
   const detailsMenuText = readUtf8(path.resolve(root, 'src/components/ui/DetailsMenu.tsx'))
   const explorerSearchControlText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/ExplorerSearchControl.tsx'))
-  const selectionActionsMenuText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/SelectionActionsMenu.tsx'))
+  const explorerHeaderActionsText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/MarkdownWorkspaceExplorerHeaderActions.tsx'))
   const markdownWorkspaceToolbarText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx'))
   const markdownWorkspaceLayoutText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/main/layout/MarkdownWorkspaceLayout.tsx'))
   const markdownEditorPaneText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/main/editor/MarkdownEditorPane.tsx'))
@@ -127,6 +127,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-explorer')) {
     throw new Error('expected Markdown Explorer mobile sizing to stay centralized in shared CSS')
   }
+  if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-explorer-resize') || responsiveToolbarCssText.includes('.kg-markdown-workspace-explorer-resize {\n      display: none;')) {
+    throw new Error('expected Explorer/editor divider to remain visible when Editor Workspace stacks on narrow viewports')
+  }
   if (!responsiveToolbarCssText.includes('.MainPanelContainer')) {
     throw new Error('expected main panel mobile viewport bounds to stay centralized in shared CSS')
   }
@@ -172,14 +175,28 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-explorer-search-input') || !explorerSearchControlText.includes('kg-explorer-search-input')) {
     throw new Error('expected Explorer search width to stay owned by shared responsive CSS')
   }
-  if (!responsiveToolbarCssText.includes('.kg-selection-actions-menu') || !selectionActionsMenuText.includes('kg-selection-actions-menu')) {
-    throw new Error('expected Explorer selection actions menu to use shared bounded menu sizing')
+  if (explorerHeaderActionsText.includes('SelectionActionsMenu') || explorerHeaderActionsText.includes('MoreHorizontal') || explorerHeaderActionsText.includes('CollapsibleToolbar')) {
+    throw new Error('expected Explorer header actions to avoid a three-dot overflow split')
   }
-  if (!selectionActionsMenuText.includes('UI_TEXT_TRUNCATE') || !selectionActionsMenuText.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME')) {
-    throw new Error('expected Explorer selection actions labels to ellipsize without icon/text wrapping')
+  if (!explorerHeaderActionsText.includes('uiToolbarRowScrollListClassName') || !explorerHeaderActionsText.includes('ariaLabel="Refresh"')) {
+    throw new Error('expected Explorer header actions to keep Refresh and Search in the same scrollable action row')
+  }
+  if (
+    explorerHeaderActionsText.includes('ariaLabel="New file"') ||
+    explorerHeaderActionsText.includes('ariaLabel="Clear"') ||
+    explorerHeaderActionsText.includes('ariaLabel="Delete') ||
+    explorerHeaderActionsText.includes('Refresh from URL')
+  ) {
+    throw new Error('expected Explorer header to keep file mutations in the file context menu and consolidate URL refresh into Refresh')
   }
   if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggles') || !markdownWorkspaceToolbarText.includes('kg-workspace-pane-toggles') || !markdownWorkspaceToolbarText.includes('uiToolbarRowScrollInlineClassName')) {
     throw new Error('expected workspace pane toggles to keep a shared mobile row-scroll owner')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggles') || !responsiveToolbarCssText.includes('border: 0;') || !responsiveToolbarCssText.includes('background: transparent;') || !responsiveToolbarCssText.includes('padding: 0;')) {
+    throw new Error('expected workspace pane toggles to stay unframed inside the shared toolbar panel')
+  }
+  if (markdownWorkspaceToolbarText.includes('kg-workspace-pane-toggles ${uiToolbarRowScrollInlineClassName} gap-2 rounded border')) {
+    throw new Error('expected workspace pane toggles to avoid a nested bordered toolbar panel')
   }
   if (!responsiveToolbarCssText.includes('.kg-workspace-pane-toggle') || !responsiveToolbarCssText.includes('.kg-workspace-pane-toggle-input') || !responsiveToolbarCssText.includes('.kg-workspace-pane-toggle-label')) {
     throw new Error('expected workspace pane toggles to expose shared touch-sized label/input/text classes')
@@ -197,10 +214,22 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected Viewer pane toggle to preserve an editable source pane when enabling preview')
   }
   const explorerPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Explorer pane')
+  const binPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show binary model pane')
+  const jsonPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show JSON editor pane')
   const markdownPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Markdown editor pane')
   const viewerPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Viewer preview pane')
-  if (!(explorerPaneToggleIdx >= 0 && explorerPaneToggleIdx < markdownPaneToggleIdx && markdownPaneToggleIdx < viewerPaneToggleIdx)) {
-    throw new Error('expected mobile pane toggles to keep Explorer, Markdown, and Viewer first for immediate edit/view reachability')
+  const htmlPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show HTML viewer pane')
+  const canvasPaneToggleIdx = markdownWorkspaceToolbarText.indexOf('Show Canvas pane')
+  if (!(
+    explorerPaneToggleIdx >= 0 &&
+    explorerPaneToggleIdx < binPaneToggleIdx &&
+    binPaneToggleIdx < jsonPaneToggleIdx &&
+    jsonPaneToggleIdx < markdownPaneToggleIdx &&
+    markdownPaneToggleIdx < viewerPaneToggleIdx &&
+    viewerPaneToggleIdx < htmlPaneToggleIdx &&
+    htmlPaneToggleIdx < canvasPaneToggleIdx
+  )) {
+    throw new Error('expected pane toggles to keep Explorer, bin, JSON, Markdown, Viewer, HTML, Canvas order')
   }
   if (!responsiveToolbarCssText.includes('.kg-graph-table-menu-row') || !graphTableToolbarText.includes('kg-graph-table-menu-field')) {
     throw new Error('expected graph-table menu form rows to use shared mobile field constraints')
@@ -211,7 +240,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-toast-card') || !toastHostText.includes('kg-toast-list')) {
     throw new Error('expected toast notifications to use valid shared mobile viewport sizing')
   }
-  if ([explorerSearchControlText, selectionActionsMenuText, graphTableKanbanViewText, toastHostText].some(text => text.includes('calc(100vw-'))) {
+  if ([explorerSearchControlText, explorerHeaderActionsText, graphTableKanbanViewText, toastHostText].some(text => text.includes('calc(100vw-'))) {
     throw new Error('expected mobile viewport calc classes to avoid invalid no-space calc syntax')
   }
   if (!cssText.includes('min-height: var(--kg-control-height, 36px);')) {
