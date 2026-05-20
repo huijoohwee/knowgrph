@@ -1,6 +1,9 @@
 import React from 'react'
 import { areReplacementLinesNoop } from '@/features/markdown/ui/markdownEditParitySsot'
 import { captureSelectionForFloatingToolbar } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
+import { applyAppendixCommentToSelection, readAppendixAuthoringPromptConfig } from '@/lib/markdown/markdownAppendixComment'
+import { parseMarkdownCommentMarker } from '@/lib/markdown/markdownCommentMarker'
+import { promptForText } from '@/features/toolbar/ingestUtils'
 import { resolveTurnIntoFormatAction } from './markdownBlockContainerCore.toolbar'
 import { useMarkdownBlockContainerEdgeTrim } from './markdownBlockContainerCore.edgeTrim'
 import { useMarkdownBlockContainerVariableActions } from './markdownBlockContainerCore.variableActions'
@@ -513,15 +516,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     restoreCachedHtmlSelection,
   })
   const applyComment = React.useCallback(() => {
-    if (editorPresentation !== 'html') {
-      applyWrap('<!-- ', ' -->')
-      return
-    }
-    restoreCachedHtmlSelection()
+    if (editorPresentation === 'html') restoreCachedHtmlSelection()
     const selection = readSelectionOffsetsForFormatting() || getSelectionOffsets()
     if (!selection || selection.startOffset === selection.endOffset) return
-    const selectedTextSnapshot = readCommentTextFromHtmlSelection()
-    const selectedMarkdownTokenSnapshot = readMarkdownTokenFromHtmlSelection()
+    const selectedTextSnapshot = editorPresentation === 'html' ? readCommentTextFromHtmlSelection() : null
+    const selectedMarkdownTokenSnapshot = editorPresentation === 'html' ? readMarkdownTokenFromHtmlSelection() : null
     void (async () => {
       const draft = await readCurrentMarkdownDraft()
       const a = Math.max(0, Math.min(draft.length, selection.startOffset))
@@ -532,7 +531,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       const selectedText = selectedTextSnapshot || selected.trim()
       const selectedMarkdownToken = selectedMarkdownTokenSnapshot || selected
       if (!selectedText || !selected) return
-      if (/^<!--[\s\S]*?-->$/.test(String(selectedMarkdownToken || '').trim())) {
+      const normalizedSelectedMarkdownToken = String(selectedMarkdownToken || '').trim()
+      if (/^`@comment:c-[^`\s]+`$/u.test(normalizedSelectedMarkdownToken)) {
         setCommentPreview({
           show: true,
           leftPx: bubble.leftPx,
@@ -541,8 +541,42 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         })
         return
       }
-      const nextDraft = `${draft.slice(0, start)}<!-- ${selectedMarkdownToken} -->${draft.slice(end)}`
-      publishMarkdownDraftWithoutDomMutation(nextDraft)
+      if (/^<!--[\s\S]*?-->$/.test(normalizedSelectedMarkdownToken)) {
+        const parsedMarker = parseMarkdownCommentMarker(normalizedSelectedMarkdownToken)
+        if (parsedMarker.kind !== 'author-note') {
+          setCommentPreview({
+            show: true,
+            leftPx: bubble.leftPx,
+            topPx: bubble.topPx + 28,
+            text:
+              parsedMarker.kind === 'review-comment'
+                ? parsedMarker.previewText
+                : parsedMarker.kind === 'metadata-entry'
+                ? parsedMarker.note
+                : selectedText,
+          })
+          return
+        }
+      }
+      const promptConfig = readAppendixAuthoringPromptConfig({
+        selectedMarkdown: normalizedSelectedMarkdownToken,
+        selectedText,
+      })
+      const authoredText =
+        promptConfig
+          ? promptForText(promptConfig.message, promptConfig.defaultText)
+          : null
+      if (promptConfig && !authoredText) return
+      const mutation = applyAppendixCommentToSelection({
+        markdown: draft,
+        startOffset: start,
+        endOffset: end,
+        selectedMarkdown: normalizedSelectedMarkdownToken,
+        selectedText,
+        authoredText,
+      })
+      if (!mutation) return
+      publishMarkdownDraftWithoutDomMutation(mutation.nextMarkdown)
       setCommentPreview({
         show: true,
         leftPx: bubble.leftPx,
@@ -550,7 +584,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         text: selectedText,
       })
     })()
-  }, [applyWrap, bubble.leftPx, bubble.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
+  }, [bubble.leftPx, bubble.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
   const {
     holdToolbarInteraction,
     updateBubble,

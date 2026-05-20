@@ -18,6 +18,15 @@ export type MarkdownCommentMarker =
       previewText: string
     }
   | {
+      kind: 'metadata-entry'
+      raw: string
+      body: string
+      metadataType: string
+      value: string
+      note: string
+      previewText: string
+    }
+  | {
       kind: 'appendix-open' | 'appendix-close' | 'comment-close'
       raw: string
       body: string
@@ -134,6 +143,22 @@ export const parseMarkdownCommentMarker = (rawComment: string): MarkdownCommentM
     }
   }
 
+  if (head === 'metadata') {
+    const meta = readCommentMeta(trimmedBody)
+    const metadataType = String(meta.type || '').trim()
+    const value = String(meta.value || '').trim()
+    const note = String(meta.note || '').trim()
+    return {
+      kind: 'metadata-entry',
+      raw,
+      body,
+      metadataType,
+      value,
+      note,
+      previewText: [metadataType, value, note].filter(Boolean).join(': '),
+    }
+  }
+
   if (head && parts.length > 1) {
     return {
       kind: 'machine-marker',
@@ -150,4 +175,44 @@ export const parseMarkdownCommentMarker = (rawComment: string): MarkdownCommentM
     text: trimmedBody,
     previewText: trimmedBody,
   }
+}
+
+export type MarkdownAppendixMetadataEntry = {
+  raw: string
+  metadataType: string
+  value: string
+  note: string
+  lineStart: number
+  lineEnd: number
+}
+
+export const extractMarkdownAppendixMetadataEntries = (lines: string[]): MarkdownAppendixMetadataEntry[] => {
+  const rawLines = Array.isArray(lines) ? lines : []
+  const entries: MarkdownAppendixMetadataEntry[] = []
+  let inAppendix = false
+  for (let i = 0; i < rawLines.length; i += 1) {
+    const rawLine = String(rawLines[i] || '')
+    const trimmed = rawLine.trim()
+    if (!trimmed.startsWith('<!--') || !trimmed.endsWith('-->')) continue
+    const parsed = parseMarkdownCommentMarker(trimmed)
+    if (parsed.kind === 'appendix-open') {
+      inAppendix = true
+      continue
+    }
+    if (parsed.kind === 'appendix-close') {
+      inAppendix = false
+      continue
+    }
+    if (!inAppendix || parsed.kind !== 'metadata-entry') continue
+    if (!parsed.metadataType || !parsed.value || !parsed.note) continue
+    entries.push({
+      raw: parsed.raw,
+      metadataType: parsed.metadataType,
+      value: parsed.value,
+      note: parsed.note,
+      lineStart: i + 1,
+      lineEnd: i + 1,
+    })
+  }
+  return entries
 }

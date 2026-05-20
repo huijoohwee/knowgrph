@@ -1,6 +1,6 @@
 import React from 'react'
 import { getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
-import { rewriteInlineCodeSigilsToPlainTextHtml, rewriteInlineCodeSigilsToStyledSpansHtml } from '@/features/markdown/ui/markdownSigil'
+import { normalizeInlineCommentRangeIndicatorsInPlace, rewriteInlineCodeSigilsToPlainTextHtml, rewriteInlineCodeSigilsToStyledSpansHtml } from '@/features/markdown/ui/markdownSigil'
 import { rewriteInlineEditorCommentIndicatorsHtml } from './markdownBlockContainerCore.draftCommit'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 
@@ -41,6 +41,9 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
     if (args.editSigilRenderMode === 'plain') return rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToPlainTextHtml(html))
     return rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToStyledSpansHtml(html))
   }, [args.editSigilRenderMode])
+  const normalizeLiveEditHtmlRoot = React.useCallback((el: HTMLElement) => {
+    normalizeInlineCommentRangeIndicatorsInPlace(el, el.ownerDocument)
+  }, [])
   const editHtmlCacheRef = React.useRef<Map<string, string>>(new Map())
   const initializedEditSessionIdRef = React.useRef<number>(-1)
   const readCachedOrComputeEditHtml = React.useCallback((cacheKey: string, compute: () => string): string => {
@@ -117,6 +120,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
                     return rewriteInlineSigilsForEditHtml(lines.map(line => `<p>${line ? md.renderInline(line) : '<br/>'}</p>`).join(''))
                   },
                 )
+                normalizeLiveEditHtmlRoot(el)
                 args.trimEmptyEditableEdges()
                 args.scheduleEdgeTrimBurst()
               }
@@ -128,6 +132,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
                   `block:${args.editSigilRenderMode}:${presentText}`,
                   () => rewriteInlineSigilsForEditHtml(args.normalizeRenderedBlockHtmlForEditor(rendered)),
                 )
+                normalizeLiveEditHtmlRoot(el)
                 args.trimEmptyEditableEdges()
                 args.scheduleEdgeTrimBurst()
               }
@@ -143,6 +148,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
                 return rewriteInlineSigilsForEditHtml(lines.map(line => (line ? md.renderInline(line) : '')).map((html, i) => (i === 0 ? html : `<br/>${html}`)).join(''))
               },
             )
+            normalizeLiveEditHtmlRoot(el)
             args.initialEditorHtmlRef.current = el.innerHTML
             args.lastSerializedEditorHtmlRef.current = el.innerHTML
           }
@@ -202,6 +208,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
               `block:${args.editSigilRenderMode}:${normalizedInitialText}`,
               () => rewriteInlineSigilsForEditHtml(args.normalizeRenderedBlockHtmlForEditor(rendered)),
             )
+            normalizeLiveEditHtmlRoot(el)
             args.trimEmptyEditableEdges()
             args.scheduleEdgeTrimBurst()
           }
@@ -216,6 +223,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
               return rewriteInlineSigilsForEditHtml(lines.map(line => (line ? md.renderInline(line) : '')).map((html, i) => (i === 0 ? html : `<br/>${html}`)).join(''))
             },
           )
+          normalizeLiveEditHtmlRoot(el)
           args.initialEditorHtmlRef.current = el.innerHTML
           args.lastSerializedEditorHtmlRef.current = el.innerHTML
         }
@@ -278,6 +286,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
     args.lastPointerSelectionModeRef,
     args.normalizeRenderedBlockHtmlForEditor,
     args.placeCaretFromClientPoint,
+    normalizeLiveEditHtmlRoot,
     readCachedOrComputeEditHtml,
     args.runSelectionSyncBurst,
     args.scheduleEdgeTrimBurst,

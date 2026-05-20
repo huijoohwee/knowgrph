@@ -13,6 +13,18 @@ export function promptForUrl(message: string): string | null {
   }
 }
 
+export function promptForText(message: string, initialValue: string = ''): string | null {
+  if (typeof window === 'undefined') return null
+  if (typeof window.prompt !== 'function') return null
+  try {
+    const raw = window.prompt(message, initialValue) || ''
+    const trimmed = raw.trim()
+    return trimmed || null
+  } catch {
+    return null
+  }
+}
+
 export function deriveMarkdownNameFromUrl(rawUrl: string): string {
   try {
     const url = new URL(rawUrl)

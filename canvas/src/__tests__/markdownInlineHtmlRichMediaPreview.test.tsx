@@ -177,6 +177,8 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
     const markdownText = [
       'Refs: `@comment:c-42` `@node:callout-alert-1` `@node:m-hero` `@edge:n-a:out→n-b:in`',
       '',
+      'Range: Before `@comment:c-001`AI`@comment:c-001` after',
+      '',
       'Typed: `@key:status` `@ui:viewer.toolbar` `$id:ABC-42` `$url:https://example.com/docs` `$enum:pending` `$date:2026-05-20` `$hash:#EF4444`',
       '',
       'Invalid: `@ui:File > Export` `$url:example.com/docs` `@key:{{draft}}`',
@@ -221,7 +223,13 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
     if (!commentRef || !String(commentRef.textContent || '').includes('c-42')) {
       throw new Error(`expected comment reference sigil to render as semantic inline token; html=${container.innerHTML}`)
     }
-
+    const commentRange = container.querySelector('[data-kg-comment-range="1"]') as HTMLElement | null
+    if (!commentRange || String(commentRange.textContent || '').trim() !== 'AI') {
+      throw new Error(`expected paired comment range markers to render as a non-literal comment indicator around wrapped text; html=${container.innerHTML}`)
+    }
+    if (String(container.textContent || '').includes('@comment:c-001')) {
+      throw new Error(`expected paired comment range markers not to leak raw sigils in static Viewer preview; text=${JSON.stringify(container.textContent || '')}`)
+    }
     const calloutRef = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="callout"]') as HTMLElement | null
     if (!calloutRef || !String(calloutRef.textContent || '').includes('callout-alert-1')) {
       throw new Error(`expected callout reference sigil to render as semantic inline token; html=${container.innerHTML}`)

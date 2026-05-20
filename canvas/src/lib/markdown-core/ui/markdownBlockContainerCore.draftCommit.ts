@@ -67,8 +67,8 @@ const applyCommentIndicatorAttrs = (span: HTMLElement, args: {
 
 const buildCommentIndicatorHtml = (rawComment: string): string => {
   const parsed = parseMarkdownCommentMarker(rawComment)
-  const span = `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(parsed.kind === 'review-comment' ? parsed.previewText : parsed.kind === 'plain-comment' ? parsed.previewText : '')}" data-kg-comment-raw="${escapeHtmlAttr(parsed.raw)}"></span>`
-  if (parsed.kind === 'author-note' || parsed.kind === 'appendix-open' || parsed.kind === 'appendix-close' || parsed.kind === 'comment-close' || parsed.kind === 'machine-marker') {
+  const span = `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(parsed.kind === 'review-comment' ? parsed.previewText : parsed.kind === 'plain-comment' ? parsed.previewText : parsed.kind === 'metadata-entry' ? parsed.previewText : '')}" data-kg-comment-raw="${escapeHtmlAttr(parsed.raw)}"></span>`
+  if (parsed.kind === 'author-note' || parsed.kind === 'appendix-open' || parsed.kind === 'appendix-close' || parsed.kind === 'comment-close' || parsed.kind === 'machine-marker' || parsed.kind === 'metadata-entry') {
     return span.replace('></span>', ' data-kg-comment-hidden="1" style="display:none;"></span>')
   }
   if (parsed.kind === 'review-comment') {
@@ -127,13 +127,16 @@ const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
           ? parsed.previewText
           : parsed.kind === 'plain-comment'
           ? parsed.previewText
+          : parsed.kind === 'metadata-entry'
+          ? parsed.previewText
           : '',
       hidden:
         parsed.kind === 'author-note'
         || parsed.kind === 'appendix-open'
         || parsed.kind === 'appendix-close'
         || parsed.kind === 'comment-close'
-        || parsed.kind === 'machine-marker',
+        || parsed.kind === 'machine-marker'
+        || parsed.kind === 'metadata-entry',
       compact: parsed.kind === 'plain-comment',
       reviewComment: parsed.kind === 'review-comment',
     })
@@ -334,6 +337,20 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     })
     const commentNodes = Array.from(workingRoot.querySelectorAll('[data-kg-comment="1"]'))
     commentNodes.forEach(node => {
+      if (node.getAttribute('data-kg-comment-range') === '1') {
+        const rawStart = String(node.getAttribute('data-kg-comment-raw-start') || '').replace(/\r/g, '').trim()
+        const rawEnd = String(node.getAttribute('data-kg-comment-raw-end') || '').replace(/\r/g, '').trim()
+        if (rawStart && rawEnd) {
+          const startToken = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
+          preservedComments.push(rawStart)
+          node.before(workingRoot.ownerDocument.createTextNode(startToken))
+          const endToken = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
+          preservedComments.push(rawEnd)
+          node.after(workingRoot.ownerDocument.createTextNode(endToken))
+          node.replaceWith(...Array.from(node.childNodes))
+          return
+        }
+      }
       const token = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
       const rawComment = String(node.getAttribute('data-kg-comment-raw') || '').replace(/\r/g, '').trim()
       const text = String(node.getAttribute('data-kg-comment-text') || node.textContent || '').replace(/\r/g, '').trim()

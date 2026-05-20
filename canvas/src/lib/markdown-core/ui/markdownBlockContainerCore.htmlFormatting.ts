@@ -196,6 +196,8 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     if (!node) return null
     const commentNode = node.closest('[data-kg-comment="1"]') as HTMLElement | null
     if (commentNode && root.contains(commentNode)) {
+      const rawStart = String(commentNode.getAttribute('data-kg-comment-raw-start') || '').trim()
+      if (rawStart) return rawStart
       const raw = String(commentNode.getAttribute('data-kg-comment-raw') || '').trim()
       if (raw) return raw
     }
@@ -284,6 +286,11 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       }
       if (!semanticTokenNode || !root.contains(semanticTokenNode)) return null
       if (semanticTokenNode.hasAttribute('data-kg-comment')) {
+        const rawStart = String(semanticTokenNode.getAttribute('data-kg-comment-raw-start') || '').trim()
+        const rawEnd = String(semanticTokenNode.getAttribute('data-kg-comment-raw-end') || '').trim()
+        if (rawStart && rawEnd) {
+          return document.createTextNode(`${rawStart}${String(semanticTokenNode.textContent || '')}${rawEnd}`)
+        }
         const rawComment = String(semanticTokenNode.getAttribute('data-kg-comment-raw') || '').trim()
         if (rawComment) return document.createTextNode(rawComment)
         return null

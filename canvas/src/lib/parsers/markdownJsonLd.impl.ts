@@ -26,6 +26,7 @@ import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
+import { extractMarkdownAppendixMetadataEntries } from '@/lib/markdown/markdownCommentMarker'
 
 export { slugify } from '@/features/parsers/markdownJsonLdUtils'
 
@@ -64,6 +65,13 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const rawLines = splitMarkdownLines(normalizedText)
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)
+  const appendixMetadataEntries = extractMarkdownAppendixMetadataEntries(rawLines).map(entry => ({
+    type: entry.metadataType,
+    value: entry.value,
+    note: entry.note,
+    lineStart: entry.lineStart,
+    lineEnd: entry.lineEnd,
+  }))
 
   const frontmatterNodeAnchorById = (() => {
     const out = new Map<string, string>()
@@ -595,6 +603,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   const docProps: Record<string, unknown> = { format: 'text/markdown', graphId: gid }
   if (documentPath) docProps.path = documentPath
+  if (appendixMetadataEntries.length > 0) docProps.documentMetadataEntries = appendixMetadataEntries
   builder.createDocumentNode(title, `${title}\n\nSource: ${documentPath || baseName || 'inline'}`, docProps, mkMeta(1, Math.max(1, rawLines.length)))
 
   const mermaidRaw = typeof meta.mermaid === 'string' ? meta.mermaid : ''
@@ -1287,6 +1296,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const metadata = {
     graphId: gid,
     layoutMode: hasMermaid ? 'mermaid' : 'tree',
+    ...(appendixMetadataEntries.length > 0 ? { documentMetadataEntries: appendixMetadataEntries } : {}),
     ...(hasMermaid ? { mermaid: treeMeta } : { tree: treeMeta }),
   }
 

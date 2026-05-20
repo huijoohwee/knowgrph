@@ -15,6 +15,70 @@ export {
 }
 export type { MarkdownAnnotation, MarkdownInlineCodeSemantic, MarkdownSigil } from '@/lib/markdown/markdownSigil'
 
+const isCommentReferenceSemantic = (value: string) => {
+  const parsed = parseMarkdownInlineCodeSemantic(value)
+  return parsed?.kind === 'reference' && parsed.referenceKind === 'comment' ? parsed : null
+}
+
+const applyCommentRangeAttrs = (span: HTMLElement, args: { commentId: string; rawCode: string; text: string }) => {
+  span.setAttribute('data-kg-comment', '1')
+  span.setAttribute('data-kg-comment-range', '1')
+  span.setAttribute('data-kg-comment-id', args.commentId)
+  span.setAttribute('data-kg-comment-text', String(args.text || '').trim())
+  span.setAttribute('data-kg-comment-raw-start', `\`${args.rawCode}\``)
+  span.setAttribute('data-kg-comment-raw-end', `\`${args.rawCode}\``)
+  span.setAttribute('role', 'note')
+  span.setAttribute('tabindex', '0')
+  span.setAttribute('aria-label', 'Comment range')
+  span.setAttribute('title', String(args.text || '').trim() || 'Comment range')
+  span.style.opacity = '0.95'
+  span.style.cursor = 'pointer'
+  span.style.textDecorationLine = 'underline'
+  span.style.textDecorationStyle = 'dotted'
+  span.style.textUnderlineOffset = '0.15em'
+}
+
+export const normalizeInlineCommentRangeIndicatorsInPlace = (root: HTMLElement, doc: Document = root.ownerDocument): void => {
+  const parents = [root, ...Array.from(root.querySelectorAll('*'))] as HTMLElement[]
+  parents.reverse().forEach(parent => {
+    const childNodes = Array.from(parent.childNodes)
+    for (let i = 0; i < childNodes.length; i += 1) {
+      const startNode = childNodes[i]
+      if (startNode?.nodeType !== Node.ELEMENT_NODE) continue
+      const startElement = startNode as HTMLElement
+      if (startElement.tagName.toLowerCase() !== 'code') continue
+      const startSemantic = isCommentReferenceSemantic(String(startElement.textContent || ''))
+      if (!startSemantic) continue
+      const commentId = String(startSemantic.value || '').trim()
+      if (!commentId) continue
+      let endIndex = -1
+      for (let j = i + 2; j < childNodes.length; j += 1) {
+        const endNode = childNodes[j]
+        if (endNode?.nodeType !== Node.ELEMENT_NODE) continue
+        const endElement = endNode as HTMLElement
+        if (endElement.tagName.toLowerCase() !== 'code') continue
+        const endSemantic = isCommentReferenceSemantic(String(endElement.textContent || ''))
+        if (!endSemantic) continue
+        if (String(endSemantic.value || '').trim() !== commentId) continue
+        endIndex = j
+        break
+      }
+      if (endIndex < 0) continue
+      const rangeSpan = doc.createElement('span')
+      const wrappedNodes = childNodes.slice(i + 1, endIndex)
+      wrappedNodes.forEach(node => rangeSpan.appendChild(node))
+      applyCommentRangeAttrs(rangeSpan, {
+        commentId,
+        rawCode: startSemantic.code,
+        text: String(rangeSpan.textContent || ''),
+      })
+      startElement.replaceWith(rangeSpan)
+      childNodes[endIndex]?.remove()
+      i = endIndex
+    }
+  })
+}
+
 export const rewriteSigilSpansToInlineCodeHtml = (html: string): string => {
   const raw = String(html || '')
   if (!raw.trim()) return raw
@@ -27,6 +91,15 @@ export const rewriteSigilSpansToInlineCodeHtml = (html: string): string => {
   }
   const root = doc.body.firstElementChild as HTMLElement | null
   if (!root) return raw
+  const commentRangeNodes = Array.from(root.querySelectorAll('[data-kg-comment-range="1"]')) as HTMLElement[]
+  commentRangeNodes.forEach(node => {
+    const rawStart = String(node.getAttribute('data-kg-comment-raw-start') || '').trim()
+    const rawEnd = String(node.getAttribute('data-kg-comment-raw-end') || '').trim()
+    if (!rawStart || !rawEnd) return
+    node.before(doc.createTextNode(rawStart))
+    node.after(doc.createTextNode(rawEnd))
+    node.replaceWith(...Array.from(node.childNodes))
+  })
   const nodes = Array.from(root.querySelectorAll('[data-kg-sigil="1"],[data-kg-inline-code-token="1"]')) as HTMLElement[]
   if (nodes.length === 0) return raw
 
@@ -69,6 +142,7 @@ export const rewriteInlineCodeSigilsToStyledSpansHtml = (html: string): string =
   }
   const root = doc.body.firstElementChild as HTMLElement | null
   if (!root) return raw
+  normalizeInlineCommentRangeIndicatorsInPlace(root, doc)
   const codeNodes = Array.from(root.querySelectorAll('code')) as HTMLElement[]
   if (codeNodes.length === 0) return raw
 

@@ -104,6 +104,7 @@ async function runViewerToolbarActionCase(args: {
   expectedMarkdownSnippet: string
   expectedJsonSnippet?: string | null
   expectedEditorHtmlSnippet?: string
+  promptResponse?: string | ((message: string, initialValue: string) => string | null)
 }) {
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
@@ -113,6 +114,14 @@ async function runViewerToolbarActionCase(args: {
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   let latestActiveText = args.activeText
+  const originalPrompt = dom.window.prompt
+  dom.window.prompt = ((message?: string, defaultValue?: string) => {
+    if (typeof args.promptResponse === 'function') {
+      return args.promptResponse(String(message || ''), String(defaultValue || ''))
+    }
+    if (typeof args.promptResponse === 'string') return args.promptResponse
+    return String(defaultValue || '')
+  }) as typeof dom.window.prompt
   const Harness = () => {
     const [activeText, setActiveText] = React.useState(args.activeText)
     return React.createElement(MarkdownWorkspaceMain, {
@@ -240,6 +249,7 @@ async function runViewerToolbarActionCase(args: {
       throw new Error(`expected JSON pane to include ${expectedJsonSnippet}; got ${JSON.stringify(jsonEditorTextarea.value || '')}`)
     }
   } finally {
+    dom.window.prompt = originalPrompt
     restoreExecCommand()
     try {
       await act(async () => {
@@ -294,8 +304,9 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
 
   await runViewerToolbarActionCase({
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
-    expectedMarkdownSnippet: '<!-- Viewer --> sync line one',
-    expectedJsonSnippet: null,
+    expectedMarkdownSnippet: '<!-- comment | id: c-001 | author: TODO | text: Explain the Viewer wording choice. -->',
+    expectedJsonSnippet: '<!-- comment | id: c-001 | author: TODO | text: Explain the Viewer wording choice. -->',
+    promptResponse: 'Explain the Viewer wording choice.',
     action: async ({ dom, doc }) => {
       const button = doc.querySelector('menu[aria-label="Inline selection toolbar"] button[title="Comment"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected comment button')
@@ -336,8 +347,8 @@ export async function testMarkdownWorkspaceViewerCommentPreviewReusesMarkdownTim
   const timestampUrl = 'https://youtu.be/dQw4w9WgXcQ?t=421'
   await runViewerToolbarActionCase({
     activeText: `${timestampUrl} transcript marker`,
-    expectedMarkdownSnippet: `<!-- ${timestampUrl} -->`,
-    expectedJsonSnippet: null,
+    expectedMarkdownSnippet: `\`@comment:c-001\`${timestampUrl}\`@comment:c-001\``,
+    expectedJsonSnippet: `\`@comment:c-001\`${timestampUrl}\`@comment:c-001\``,
     action: async ({ dom, doc, toolbar }) => {
       const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
       if (!liveEditor) throw new Error('expected live inline editor')
@@ -384,8 +395,8 @@ export async function testMarkdownWorkspaceViewerCommentPreviewReusesMarkdownTim
 export async function testMarkdownWorkspaceViewerCommentActionDoesNotRewriteLiveSelectionDuringToolbarBlur() {
   await runViewerToolbarActionCase({
     activeText: 'Viewer sync line one',
-    expectedMarkdownSnippet: '<!-- Viewer --> sync line one',
-    expectedJsonSnippet: null,
+    expectedMarkdownSnippet: '`@comment:c-001`Viewer`@comment:c-001` sync line one',
+    expectedJsonSnippet: '`@comment:c-001`Viewer`@comment:c-001` sync line one',
     action: async ({ dom, doc, toolbar }) => {
       const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected comment button')
@@ -575,8 +586,9 @@ export async function testMarkdownWorkspaceViewerTaskRowUnderlineKeepsRenderedUn
 export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInlineSemanticAndFootnoteSelections() {
   await runViewerToolbarActionCase({
     activeText: 'Semantic `@comment:c-42` and `@node:callout-alert-1` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
-    expectedMarkdownSnippet: '<!-- `@comment:c-42` -->',
-    expectedJsonSnippet: null,
+    expectedMarkdownSnippet: '<!-- metadata | type: key | value: Ctrl+S | note: Reuse the same shortcut label in toolbar copy. -->',
+    expectedJsonSnippet: '<!-- metadata | type: key | value: Ctrl+S | note: Reuse the same shortcut label in toolbar copy. -->',
+    promptResponse: 'Reuse the same shortcut label in toolbar copy.',
     action: async ({ dom, doc, toolbar }) => {
       const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
       if (!liveEditor) throw new Error('expected live inline editor')
@@ -586,14 +598,14 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInl
       if (!String(liveEditor.textContent || '').includes('[^1]')) {
         throw new Error(`expected footnote ref text to remain selectable on edit surface; html=${liveEditor.innerHTML}`)
       }
-      const textNode = findTextNodeBySubstring(liveEditor, '@comment:c-42')
-      if (!textNode) throw new Error(`expected semantic text node for comment ref; html=${liveEditor.innerHTML}`)
+      const textNode = findTextNodeBySubstring(liveEditor, '@key:Ctrl+S')
+      if (!textNode) throw new Error(`expected semantic text node for metadata token; html=${liveEditor.innerHTML}`)
       const textValue = String(textNode.nodeValue || '')
-      const start = textValue.indexOf('@comment:c-42')
-      if (start < 0) throw new Error('expected comment ref start offset')
+      const start = textValue.indexOf('@key:Ctrl+S')
+      if (start < 0) throw new Error('expected metadata token start offset')
       const range = doc.createRange()
       range.setStart(textNode, start)
-      range.setEnd(textNode, start + '@comment:c-42'.length)
+      range.setEnd(textNode, start + '@key:Ctrl+S'.length)
       const selection = dom.window.getSelection()
       if (!selection) throw new Error('expected selection object')
       selection.removeAllRanges()
@@ -612,8 +624,8 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInl
 
   await runViewerToolbarActionCase({
     activeText: 'Semantic `@comment:c-42` and `@node:callout-alert-1` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
-    expectedMarkdownSnippet: '<!-- [^1] -->',
-    expectedJsonSnippet: null,
+    expectedMarkdownSnippet: '[^1]: Citation body',
+    expectedJsonSnippet: '[^1]: Citation body',
     action: async ({ dom, doc, toolbar }) => {
       const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
       if (!liveEditor) throw new Error('expected live inline editor')
@@ -625,6 +637,37 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInl
       const range = doc.createRange()
       range.setStart(textNode, start)
       range.setEnd(textNode, start + '[^1]'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected comment button')
+      await pressToolbarControl(dom, button)
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-testid="markdown-preview-root"]'), 20, 5)
+    },
+  })
+
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@comment:c-42` and `@node:callout-alert-1` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '<!-- callout | id: callout-alert-1 | type: note | title: callout-alert-1 note pending -->',
+    expectedJsonSnippet: '<!-- callout | id: callout-alert-1 | type: note | title: callout-alert-1 note pending -->',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '@node:callout-alert-1')
+      if (!textNode) throw new Error(`expected semantic text node for callout ref; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('@node:callout-alert-1')
+      if (start < 0) throw new Error('expected callout ref start offset')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '@node:callout-alert-1'.length)
       const selection = dom.window.getSelection()
       if (!selection) throw new Error('expected selection object')
       selection.removeAllRanges()
@@ -720,6 +763,40 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSelectionPr
       const editorHtml = String(liveEditor.innerHTML || '')
       if ((editorHtml.match(/data-kg-comment-review="1"/g) || []).length !== 1) {
         throw new Error(`expected existing review comment selection not to duplicate/nest rendered comment markers; html=${editorHtml}`)
+      }
+    },
+  })
+}
+
+export async function testMarkdownWorkspaceViewerCommentRangeReopensAsNonLiteralIndicator() {
+  await runViewerToolbarActionCase({
+    activeText: [
+      'Before `@comment:c-001`Viewer`@comment:c-001` after',
+      '',
+      '---',
+      '',
+      '<!-- appendix -->',
+      '',
+      '<!-- comment | id: c-001 | author: TODO | text: TODO: add long comment for "Viewer". -->',
+      '<!-- /comment -->',
+      '',
+      '<!-- /appendix -->',
+    ].join('\n'),
+    commitAfterAction: false,
+    expectedMarkdownSnippet: '`@comment:c-001`Viewer`@comment:c-001`',
+    expectedJsonSnippet: '`@comment:c-001`Viewer`@comment:c-001`',
+    expectedEditorHtmlSnippet: 'data-kg-comment-range="1"',
+    action: async ({ doc }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor for comment range render test')
+      await waitForCondition(() => !!liveEditor.querySelector('[data-kg-comment-range="1"]'), 20, 5)
+      const rangeNode = liveEditor.querySelector('[data-kg-comment-range="1"]') as HTMLElement | null
+      if (!rangeNode) throw new Error(`expected rendered comment range indicator; html=${liveEditor.innerHTML}`)
+      if (String(rangeNode.textContent || '').trim() !== 'Viewer') {
+        throw new Error(`expected comment range indicator to preserve wrapped text only; text=${JSON.stringify(rangeNode.textContent || '')}`)
+      }
+      if (String(liveEditor.textContent || '').includes('@comment:c-001')) {
+        throw new Error(`expected reopened WYSIWYG surface not to expose raw @comment sigils; text=${JSON.stringify(liveEditor.textContent || '')}`)
       }
     },
   })

@@ -247,6 +247,24 @@ const INLINE_SEMANTIC_LABEL_CLASS = [
 ].join(' ')
 
 const INLINE_SEMANTIC_VALUE_CLASS = 'font-medium'
+const INLINE_COMMENT_RANGE_CLASS = [
+  'cursor-pointer underline decoration-dotted underline-offset-2',
+  UI_THEME_TOKENS.status.warning,
+].join(' ')
+
+const readCommentReferenceCodeToken = (token: Token): { code: string; commentId: string } | null => {
+  const generic = token as unknown as TokensGeneric
+  if (generic.type !== 'code') return null
+  const codeToken = token as unknown as TokensCode
+  const semantic = parseMarkdownInlineCodeSemantic(codeToken.text)
+  if (!semantic || semantic.kind !== 'reference' || semantic.referenceKind !== 'comment') return null
+  const commentId = String(semantic.value || '').trim()
+  if (!commentId) return null
+  return {
+    code: semantic.code,
+    commentId,
+  }
+}
 
 const getInlineSemanticToneClassName = (badgeLabel: string): string => {
   const label = String(badgeLabel || '').trim().toLowerCase()
@@ -321,6 +339,47 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     const out: React.ReactNode[] = []
     for (let i = 0; i < list.length; i += 1) {
       const token = list[i]!
+      const commentRangeStart = readCommentReferenceCodeToken(token)
+      if (commentRangeStart) {
+        let closeIndex = -1
+        for (let j = i + 2; j < list.length; j += 1) {
+          const commentRangeEnd = readCommentReferenceCodeToken(list[j]!)
+          if (!commentRangeEnd) continue
+          if (commentRangeEnd.commentId !== commentRangeStart.commentId) continue
+          closeIndex = j
+          break
+        }
+        if (closeIndex > i) {
+          const childTokens = list.slice(i + 1, closeIndex)
+          const childNodes = renderTokens(childTokens, insideLink)
+          const previewText = childTokens
+            .map(child => {
+              const childToken = child as unknown as { raw?: unknown; text?: unknown }
+              return String(childToken.raw ?? childToken.text ?? '')
+            })
+            .join('')
+            .trim()
+          out.push(
+            <span
+              key={`${commentRangeStart.commentId}:${i}`}
+              data-kg-comment="1"
+              data-kg-comment-range="1"
+              data-kg-comment-id={commentRangeStart.commentId}
+              data-kg-comment-text={previewText}
+              data-kg-comment-raw-start={`\`${commentRangeStart.code}\``}
+              data-kg-comment-raw-end={`\`${commentRangeStart.code}\``}
+              className={INLINE_COMMENT_RANGE_CLASS}
+              role="note"
+              tabIndex={0}
+              title={previewText || 'Comment range'}
+            >
+              {childNodes}
+            </span>,
+          )
+          i = closeIndex
+          continue
+        }
+      }
       const wrapper = readInlineHtmlWrapperToken(token)
       if (wrapper?.kind === 'open') {
         let depth = 1
