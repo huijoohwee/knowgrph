@@ -54,6 +54,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   applyVariableToken: (mode: VariableMode, forcedKey?: string) => void
   linkRangeRef: React.MutableRefObject<Range | null>
   setLinkPopover: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number; href: string }>>
+  emitLiveDraftTextFromDom?: () => void
 }) => {
   const onCopy = React.useCallback((event: React.ClipboardEvent<HTMLElement>) => {
     if (!args.forbidCopy) return
@@ -84,6 +85,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       : textRaw
     args.draftRef.current = text
     args.editDirtyRef.current = true
+    args.emitLiveDraftTextFromDom?.()
     if (args.editTrimEmptyBlockEdges) args.scheduleEdgeTrimBurst()
     args.emitParityProbe()
     if (args.editDisableRichUi) return

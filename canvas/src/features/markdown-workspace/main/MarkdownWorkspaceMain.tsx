@@ -32,11 +32,11 @@ import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind
 import { buildFlowchartMarkdownFromJsonText } from '@/features/markdown/flowchartJsonToMarkdown'
 import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
-import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { buildJsonMarkdownSourceSemanticKey, serializeJsonMarkdownDraftToSourceText } from './jsonMarkdownEditing'
 
 const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
   async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspacePresentationSurface')['MarkdownWorkspacePresentationSurface'] }> =>
@@ -157,6 +157,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const [viewerKind, setViewerKind] = React.useState<MarkdownWorkspaceDerivedViewerKind>('markdown')
   const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>('read')
+  const jsonMarkdownRoundTripRef = React.useRef<{ sourceKey: string; markdownText: string } | null>(null)
+  const [viewerInlineDraftText, setViewerInlineDraftText] = React.useState<string | null>(null)
   React.useEffect(() => {
     if (layoutMode !== 'editor') return
     if (viewerKind === 'markdown' || viewerKind === 'json') return
@@ -242,6 +244,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const htmlPaneVisible = paneVisibility.html && showWebpageHtml
   const binaryPaneVisible = paneAvailability.bin && (layoutMode === 'editor' || layoutMode === 'split')
   const { pendingGltfJsonKey, pendingGltfJson } = usePendingGltfJson({ activeDocumentKey, jsonPaneVisible, modelAsset })
+  const activeJsonSourceKey = React.useMemo(
+    () => buildJsonMarkdownSourceSemanticKey({ activeDocumentKey, text: activeText }),
+    [activeDocumentKey, activeText],
+  )
 
   React.useEffect(() => {
     if (viewerKind === 'markdown' || viewerKind === 'json') return
@@ -251,6 +257,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const jsonDerivedMarkdownBase = React.useMemo(() => {
     if (isMarkdown) return null
     if (!markdownPaneVisible && !viewerPaneVisible) return null
+    const cachedRoundTrip = jsonMarkdownRoundTripRef.current
+    if (cachedRoundTrip && cachedRoundTrip.sourceKey === activeJsonSourceKey) {
+      return cachedRoundTrip.markdownText
+    }
     const text = String(activeText || '').trim()
     if (!text || (!text.startsWith('{') && !text.startsWith('['))) return null
     if (widgetModeActive) {
@@ -266,11 +276,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     } catch {
       return null
     }
-  }, [activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible, widgetModeActive])
+  }, [activeJsonSourceKey, activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible, widgetModeActive])
 
   const isJsonMarkdownEditing = !isMarkdown && viewerKind === 'markdown' && !!jsonDerivedMarkdownBase
   const [jsonDerivedMarkdownDraft, setJsonDerivedMarkdownDraft] = React.useState<string | null>(null)
   const jsonDerivedMarkdownSeedRef = React.useRef<string>('')
+  const editableMarkdownText = viewerInlineDraftText ?? (isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : activeText)
+  React.useEffect(() => {
+    setViewerInlineDraftText(null)
+  }, [activeDocumentKey])
   React.useEffect(() => {
     if (!isJsonMarkdownEditing || !jsonDerivedMarkdownBase) {
       jsonDerivedMarkdownSeedRef.current = ''
@@ -282,9 +296,35 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     jsonDerivedMarkdownSeedRef.current = seed
     setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)
   }, [activeDocumentKey, isJsonMarkdownEditing, jsonDerivedMarkdownBase])
-  const markdownEditText = isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : null
+  const markdownEditText = isJsonMarkdownEditing ? editableMarkdownText : null
+  const commitMarkdownEditText = React.useCallback(
+    (nextText: string) => {
+      if (!isJsonMarkdownEditing) {
+        setViewerInlineDraftText(null)
+        setActiveText(nextText)
+        return
+      }
+      setViewerInlineDraftText(null)
+      const nextMarkdownText = String(nextText || '')
+      setJsonDerivedMarkdownDraft(prev => (prev === nextMarkdownText ? prev : nextMarkdownText))
+      const nextJsonText = serializeJsonMarkdownDraftToSourceText({
+        activeDocumentKey,
+        editorUri,
+        markdownText: nextMarkdownText,
+      })
+      jsonMarkdownRoundTripRef.current = {
+        sourceKey: buildJsonMarkdownSourceSemanticKey({ activeDocumentKey, text: nextJsonText }),
+        markdownText: nextMarkdownText,
+      }
+      if (nextJsonText !== activeText) {
+        setActiveText(nextJsonText)
+      }
+    },
+    [activeDocumentKey, activeText, editorUri, isJsonMarkdownEditing, setActiveText],
+  )
   const sourceEditorTextRaw = typeof editorTextOverride === 'string' ? editorTextOverride : activeText
   const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)
+  const deferredEditableMarkdownText = React.useDeferredValue(editableMarkdownText)
   const jsonEditorText = React.useMemo(() => {
     if (!jsonPaneVisible) return ''
     if (modelAsset?.format === 'gltf') {
@@ -303,12 +343,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       }, null, 2)
     }
     if (modelAsset?.format === 'glb') return ''
-    if (isMarkdown) {
-      const sourceText = String(deferredSourceEditorTextRaw || '')
+    if (isMarkdown || isJsonMarkdownEditing) {
+      const sourceText = String(deferredEditableMarkdownText || '')
       if (!sourceText.trim()) return ''
-      const docName = String(activeDocumentKey || editorUri || 'workspace.md')
       try {
-        return JSON.stringify(buildMarkdownJsonLd(docName, sourceText), null, 2)
+        return serializeJsonMarkdownDraftToSourceText({
+          activeDocumentKey,
+          editorUri,
+          markdownText: sourceText,
+        })
       } catch {
         return '{}'
       }
@@ -319,11 +362,11 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     } catch {
       return text
     }
-  }, [activeDocumentKey, deferredSourceEditorTextRaw, editorUri, isMarkdown, jsonPaneVisible, modelAsset, pendingGltfJson, pendingGltfJsonKey])
+  }, [activeDocumentKey, deferredEditableMarkdownText, deferredSourceEditorTextRaw, editorUri, isJsonMarkdownEditing, isMarkdown, jsonPaneVisible, modelAsset, pendingGltfJson, pendingGltfJsonKey])
 
   const needsMarkdownViewerText = !showWebpageHtml || markdownPaneVisible || viewerPaneVisible
   const sourceViewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
-  const viewerTextRaw = needsMarkdownViewerText ? (markdownEditText ?? sourceViewerTextRaw) : ''
+  const viewerTextRaw = needsMarkdownViewerText ? (viewerInlineDraftText ?? markdownEditText ?? sourceViewerTextRaw) : ''
   const viewerText = React.useMemo(
     () => {
       if (!needsMarkdownViewerText) return ''
@@ -393,10 +436,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     (afterLine: number) => {
       if (disableViewerMutations) return
       const line = Math.max(1, Math.floor(afterLine))
-      const lines = splitMarkdownLines(activeText)
+      const lines = splitMarkdownLines(editableMarkdownText)
       const idx = Math.min(lines.length, line)
       const next = [...lines.slice(0, idx), '', ...lines.slice(idx)].join('\n')
-      setActiveText(next)
+      commitMarkdownEditText(next)
       if (layoutMode === 'viewer') return
       try {
         revealLineInEditor(line + 1)
@@ -404,7 +447,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         void 0
       }
     },
-    [activeText, disableViewerMutations, layoutMode, revealLineInEditor, setActiveText],
+    [commitMarkdownEditText, disableViewerMutations, editableMarkdownText, layoutMode, revealLineInEditor],
   )
 
   const handleReorderLineBlock = React.useCallback(
@@ -420,7 +463,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const tgtEnd = Math.max(tgtStart, Math.floor(target.endLine))
       if (srcStart === tgtStart && srcEnd === tgtEnd) return
 
-      const lines = splitMarkdownLines(activeText)
+      const lines = splitMarkdownLines(editableMarkdownText)
       if (srcStart > lines.length) return
 
       const safeSrcEnd = Math.min(lines.length, srcEnd)
@@ -431,9 +474,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const insertionIndex = Math.max(0, Math.min(rest.length, insertionLine - 1))
 
       const next = [...rest.slice(0, insertionIndex), ...srcChunk, ...rest.slice(insertionIndex)].join('\n')
-      setActiveText(next)
+      commitMarkdownEditText(next)
     },
-    [activeText, disableViewerMutations, setActiveText],
+    [commitMarkdownEditText, disableViewerMutations, editableMarkdownText],
   )
 
   const handleReplaceLineRange = React.useCallback(
@@ -443,13 +486,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const endLine = Math.max(startLine, Math.floor(args.endLine || startLine))
       const replacementLines = Array.isArray(args.replacementLines) ? args.replacementLines : []
       const next = replaceMarkdownLineRange({
-        markdownText: activeText,
+        markdownText: editableMarkdownText,
         startLine,
         endLine,
         replacementLines,
       })
-      if (next === activeText) return
-      setActiveText(next)
+      if (next === editableMarkdownText) return
+      commitMarkdownEditText(next)
       if (layoutMode === 'viewer') return
       if (viewerInlineEditActiveRef.current) return
       try {
@@ -458,30 +501,28 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         void 0
       }
     },
-    [activeText, disableViewerMutations, layoutMode, revealLineInEditor, setActiveText],
+    [commitMarkdownEditText, disableViewerMutations, editableMarkdownText, layoutMode, revealLineInEditor],
   )
   const onInsertLineAfter = disableViewerMutations ? undefined : handleInsertLineAfter
   const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock
   const onReplaceLineRange = disableViewerMutations ? undefined : handleReplaceLineRange
   const handleInlineEditStateChange = React.useCallback((active: boolean) => {
+    if (!active) setViewerInlineDraftText(null)
     if (viewerInlineEditActiveRef.current === active) return
     viewerInlineEditActiveRef.current = active
     onViewerInlineEditStateChange?.(active)
   }, [onViewerInlineEditStateChange])
+  const handleInlineDraftTextChange = React.useCallback((nextText: string) => {
+    setViewerInlineDraftText(prev => (prev === nextText ? prev : nextText))
+  }, [])
   const renderMarkdownEditorPane = React.useCallback(
     () => markdownPaneVisible ? (
       <MarkdownEditorPane
-        value={markdownEditText ?? (typeof editorTextOverride === 'string' ? editorTextOverride : activeText)}
+        value={typeof editorTextOverride === 'string' ? editorTextOverride : editableMarkdownText}
         onChange={
           disableEditorMutations
             ? () => void 0
-            : (next: string) => {
-                if (isJsonMarkdownEditing) {
-                  setJsonDerivedMarkdownDraft(next)
-                  return
-                }
-                setActiveText(next)
-              }
+            : (next: string) => commitMarkdownEditText(next)
         }
         wordWrap={markdownWordWrap}
         editorRef={editorRef}
@@ -497,7 +538,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     ) : null,
     [
       activeText,
+      commitMarkdownEditText,
       disableEditorMutations,
+      editableMarkdownText,
       editorRef,
       editorTextOverride,
       editorVariantUri,
@@ -508,8 +551,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       markdownWordWrap,
       onEditorCaretLine,
       panelTypography,
-      setActiveText,
-      setJsonDerivedMarkdownDraft,
       themeMode,
     ],
   )
@@ -613,6 +654,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onReplaceLineRange={onReplaceLineRange}
       onShowInEditor={line => revealLineInEditor(line)}
       onInlineEditStateChange={handleInlineEditStateChange}
+      onInlineDraftTextChange={handleInlineDraftTextChange}
       markdownForcePlainTables={viewerMode === 'table'}
     />
   ) : (

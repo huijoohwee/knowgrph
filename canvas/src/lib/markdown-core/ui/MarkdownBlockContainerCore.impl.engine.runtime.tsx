@@ -57,6 +57,7 @@ type MarkdownBlockContainerProps = {
   editLeftRailClassName?: string
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
+  onInlineDraftTextChange?: (nextText: string) => void
   editDisableRichUi?: boolean
   editStaticChildren?: React.ReactNode
   editStaticChildrenMode?: 'flow' | 'overlay' | 'passthrough'
@@ -97,6 +98,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   editLeftRailClassName,
   forbidCopy = false,
   onInlineEditStateChange,
+  onInlineDraftTextChange,
   editDisableRichUi = false,
   editStaticChildren,
   editStaticChildrenMode = 'flow',
@@ -209,6 +211,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     getSelectionOffsets,
     setSelectionByOffsets,
     setDraftToDom,
+    readCurrentMarkdownDraft,
+    emitHtmlDraftTextChangeFromEditorDom,
     getDraft,
     buildReplacementLinesFromDraft,
     commit,
@@ -235,11 +239,15 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     hostRef,
     setEditing,
     setSessionEditLineRange,
+    onDraftTextChange: onInlineDraftTextChange,
   })
   const {
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
+    applyCommentToHtmlSelection,
+    applyDefaultHighlightToHtmlSelection,
+    applyUnderlineToHtmlSelection,
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   } = useMarkdownBlockContainerHtmlFormatting({
@@ -248,6 +256,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setSelectionByOffsets,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
+    emitLiveDraftTextFromDom: emitHtmlDraftTextChangeFromEditorDom,
   })
   const lastPointerRef = React.useRef<{ x: number; y: number } | null>(null)
   const lastPointerTargetRef = React.useRef<Node | null>(null)
@@ -347,6 +356,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     buildReplacementLinesFromDraft,
     resolveTurnIntoFormatAction,
     readEditorPlainText,
+    readCurrentMarkdownDraft,
     editorRef,
     setEditing,
     setSessionEditLineRange,
@@ -357,6 +367,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
+    applyCommentToHtmlSelection,
+    applyDefaultHighlightToHtmlSelection,
+    applyUnderlineToHtmlSelection,
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   })
@@ -490,6 +503,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     lastPointerSelectionModeRef,
     lastPointerRef,
     lastPointerTargetRef,
+    emitLiveDraftTextFromDom: emitHtmlDraftTextChangeFromEditorDom,
     editorRef,
   })
   return (

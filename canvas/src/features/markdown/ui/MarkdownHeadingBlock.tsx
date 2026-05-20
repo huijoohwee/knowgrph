@@ -319,6 +319,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName={headingEditorClassName}
         editPresentation="html"

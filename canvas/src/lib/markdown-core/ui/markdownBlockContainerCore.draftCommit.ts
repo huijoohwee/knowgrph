@@ -2,9 +2,81 @@ import React from 'react'
 import { getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { areReplacementLinesNoop } from '@/features/markdown/ui/markdownEditParitySsot'
-import { rewriteSigilSpansToInlineCodeHtml } from '@/features/markdown/ui/markdownSigil'
+import { rewriteInlineCodeSigilsToStyledSpansHtml, rewriteSigilSpansToInlineCodeHtml } from '@/features/markdown/ui/markdownSigil'
+import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { getSelectionOffsetsWithin, setSelectionByOffsetsWithin } from './markdownBlockContainerCore.selection'
 import { buildReplacementLinesFromDraftWithPrefixes, HTML_TO_MARKDOWN_UNIFIED_DEFAULTS } from './markdownBlockContainerCore.commit'
+
+const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
+
+const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
+  const sigilStyledHtml = rewriteInlineCodeSigilsToStyledSpansHtml(html)
+  const raw = String(sigilStyledHtml || '')
+  if (!raw.trim()) return raw
+  if (typeof DOMParser === 'undefined') return raw
+  let doc: Document
+  try {
+    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+  } catch {
+    return raw
+  }
+  const root = doc.body.firstElementChild as HTMLElement | null
+  if (!root) return raw
+  const comments = Array.from(root.childNodes).filter(node => node.nodeType === Node.COMMENT_NODE)
+  const commentWalker = doc.createTreeWalker(root, NodeFilter.SHOW_COMMENT)
+  let commentNode = commentWalker.nextNode()
+  while (commentNode) {
+    comments.push(commentNode)
+    commentNode = commentWalker.nextNode()
+  }
+  for (let i = 0; i < comments.length; i += 1) {
+    const comment = comments[i] as Comment
+    const span = doc.createElement('span')
+    span.setAttribute('data-kg-comment', '1')
+    span.style.opacity = '0.65'
+    span.style.fontStyle = 'italic'
+    span.textContent = String(comment.nodeValue || '').trim()
+    comment.replaceWith(span)
+  }
+  const textNodes: Text[] = []
+  const textWalker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let currentNode = textWalker.nextNode()
+  while (currentNode) {
+    textNodes.push(currentNode as Text)
+    currentNode = textWalker.nextNode()
+  }
+  for (let i = 0; i < textNodes.length; i += 1) {
+    const textNode = textNodes[i]!
+    const parent = textNode.parentElement
+    if (!parent) continue
+    if (parent.closest('code,[data-kg-sigil="1"],[data-kg-comment="1"],mark,[data-kg-default-highlight="1"]')) continue
+    const rawText = String(textNode.nodeValue || '')
+    if (!rawText.includes('==')) continue
+    const regex = /==([\s\S]+?)==/g
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    const fragment = doc.createDocumentFragment()
+    let changed = false
+    while ((match = regex.exec(rawText))) {
+      changed = true
+      if (match.index > lastIndex) {
+        fragment.appendChild(doc.createTextNode(rawText.slice(lastIndex, match.index)))
+      }
+      const mark = doc.createElement('mark')
+      mark.setAttribute('data-kg-default-highlight', '1')
+      mark.style.backgroundColor = DEFAULT_HIGHLIGHT_EDITOR_BG
+      mark.textContent = String(match[1] || '')
+      fragment.appendChild(mark)
+      lastIndex = match.index + match[0].length
+    }
+    if (!changed) continue
+    if (lastIndex < rawText.length) {
+      fragment.appendChild(doc.createTextNode(rawText.slice(lastIndex)))
+    }
+    textNode.replaceWith(fragment)
+  }
+  return root.innerHTML
+}
 
 export const useMarkdownBlockContainerDraftCommit = (args: {
   editable: boolean
@@ -28,12 +100,24 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
   hostRef: React.MutableRefObject<HTMLElement | null>
   setEditing: React.Dispatch<React.SetStateAction<boolean>>
   setSessionEditLineRange: React.Dispatch<React.SetStateAction<{ startLine: number; endLine: number } | null>>
+  onDraftTextChange?: (nextText: string) => void
 }) => {
   const hasSemanticRichMarkup = React.useCallback((root: HTMLElement): boolean => {
     const nodes = Array.from(root.querySelectorAll('*'))
     for (let i = 0; i < nodes.length; i += 1) {
-      const tag = String(nodes[i].tagName || '').toLowerCase()
-      if (tag === 'div' || tag === 'p' || tag === 'span' || tag === 'br') continue
+      const element = nodes[i] as HTMLElement
+      const tag = String(element.tagName || '').toLowerCase()
+      if (tag === 'span') {
+        const hasSemanticSpanState =
+          element.hasAttribute('data-kg-sigil')
+          || element.hasAttribute('data-kg-comment')
+          || element.hasAttribute('data-kg-sigil-color')
+          || element.hasAttribute('data-kg-sigil-bg')
+          || String(element.getAttribute('style') || '').trim().length > 0
+        if (hasSemanticSpanState) return true
+        continue
+      }
+      if (tag === 'div' || tag === 'p' || tag === 'br') continue
       return true
     }
     return false
@@ -89,6 +173,108 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     setSelectionByOffsetsWithin(root, selection)
   }, [args.editorRef])
 
+  const buildReplacementLinesFromDraft = React.useCallback((draft: string): string[] => {
+    return buildReplacementLinesFromDraftWithPrefixes({
+      draft,
+      prefixes: args.editLinePrefixesRef.current,
+      initialPresentText: args.initialPresentTextRef.current,
+      editDefaultLinePrefix: args.editDefaultLinePrefix,
+      hasEditStripLinePrefix: args.hasEditStripLinePrefix,
+    })
+  }, [args.editDefaultLinePrefix, args.editLinePrefixesRef, args.hasEditStripLinePrefix, args.initialPresentTextRef])
+
+  const emitDraftTextChange = React.useCallback((draft: string) => {
+    if (!args.onDraftTextChange || !Array.isArray(args.sourceLines)) return
+    const replacementLines = buildReplacementLinesFromDraft(draft)
+    const currentMarkdownText = args.sourceLines.join('\n')
+    const nextMarkdownText = replaceMarkdownLineRange({
+      markdownText: currentMarkdownText,
+      startLine: args.editStartLine,
+      endLine: args.editEndLine,
+      replacementLines,
+    })
+    if (nextMarkdownText === currentMarkdownText) return
+    args.onDraftTextChange(nextMarkdownText)
+  }, [args, buildReplacementLinesFromDraft])
+
+  const serializeHtmlEditorDomToDraft = React.useCallback(async (): Promise<string | null> => {
+    const root = args.editorRef.current
+    if (!root) return null
+    const preservedComments: string[] = []
+    const preservedHighlights: string[] = []
+    const preservedUnderlines: string[] = []
+    const workingRoot = root.cloneNode(true) as HTMLElement
+    const underlineNodes = Array.from(workingRoot.querySelectorAll('u'))
+    underlineNodes.forEach(node => {
+      const token = `KGUNDERLINETOKEN${preservedUnderlines.length}KG`
+      const text = String(node.textContent || '').replace(/\r/g, '')
+      preservedUnderlines.push(`<u>${text}</u>`)
+      node.replaceWith(workingRoot.ownerDocument.createTextNode(token))
+    })
+    const highlightNodes = Array.from(workingRoot.querySelectorAll('mark,[data-kg-default-highlight="1"]'))
+    highlightNodes.forEach(node => {
+      const token = `KGHIGHLIGHTTOKEN${preservedHighlights.length}KG`
+      const text = String(node.textContent || '').replace(/\r/g, '')
+      preservedHighlights.push(`==${text}==`)
+      node.replaceWith(workingRoot.ownerDocument.createTextNode(token))
+    })
+    const commentNodes = Array.from(workingRoot.querySelectorAll('[data-kg-comment="1"]'))
+    commentNodes.forEach(node => {
+      const token = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
+      const text = String(node.textContent || '').replace(/\r/g, '')
+      preservedComments.push(`<!-- ${text} -->`)
+      node.replaceWith(workingRoot.ownerDocument.createTextNode(token))
+    })
+    const html = rewriteSigilSpansToInlineCodeHtml(workingRoot.innerHTML)
+    const htmlForMarkdownConversion = html.replace(/<!--[\s\S]*?-->/g, match => {
+      const token = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
+      preservedComments.push(match)
+      return token
+    })
+    const plainDraft = readEditorPlainText()
+    const preferPlainTextInlineDraft =
+      args.htmlRenderMode === 'inline'
+      && !hasSemanticRichMarkup(root)
+    if (preferPlainTextInlineDraft) {
+      return String(plainDraft || '').replace(/\r/g, '').replace(/\n+$/g, '')
+    }
+    const result = await convertHtmlToMarkdownUnified({
+      html: `<div>${htmlForMarkdownConversion}</div>`,
+      ...HTML_TO_MARKDOWN_UNIFIED_DEFAULTS,
+    })
+    if (!result.ok) return ''
+    return String(result.markdown || '')
+      .replace(/KGUNDERLINETOKEN\s*(\d+)\s*KG/g, (_, idx: string) => preservedUnderlines[Number(idx)] || '')
+      .replace(/KGHIGHLIGHTTOKEN\s*(\d+)\s*KG/g, (_, idx: string) => preservedHighlights[Number(idx)] || '')
+      .replace(/KGHTMLCOMMENTTOKEN\s*(\d+)\s*KG/g, (_, idx: string) => preservedComments[Number(idx)] || '')
+      .replace(/\s+$/g, '')
+  }, [args.editorRef, args.htmlRenderMode, hasSemanticRichMarkup, readEditorPlainText])
+
+  const htmlDraftEmitVersionRef = React.useRef(0)
+  const emitHtmlDraftTextChangeFromEditorDom = React.useCallback(() => {
+    if (args.editorPresentation !== 'html') return
+    if (!args.onDraftTextChange || !Array.isArray(args.sourceLines)) return
+    const sessionId = args.editSessionIdRef.current
+    const emitVersion = htmlDraftEmitVersionRef.current + 1
+    htmlDraftEmitVersionRef.current = emitVersion
+    void (async () => {
+      const markdown = await serializeHtmlEditorDomToDraft()
+      if (htmlDraftEmitVersionRef.current !== emitVersion) return
+      if (args.editSessionIdRef.current !== sessionId) return
+      if (typeof markdown !== 'string') return
+      args.draftRef.current = markdown
+      emitDraftTextChange(markdown)
+    })()
+  }, [args.editorPresentation, args.editSessionIdRef, args.onDraftTextChange, args.sourceLines, args.draftRef, emitDraftTextChange, serializeHtmlEditorDomToDraft])
+
+  const readCurrentMarkdownDraft = React.useCallback(async (): Promise<string> => {
+    if (args.editorPresentation !== 'html') return String(args.draftRef.current || '')
+    const markdown = await serializeHtmlEditorDomToDraft()
+    if (typeof markdown !== 'string') return String(args.draftRef.current || '')
+    args.draftRef.current = markdown
+    return markdown
+  }, [args.draftRef, args.editorPresentation, serializeHtmlEditorDomToDraft])
+
   const setDraftToDom = React.useCallback((nextText: string, selection?: { startOffset: number; endOffset: number }) => {
     const el = args.editorRef.current
       || (args.hostRef.current?.querySelector('[contenteditable="true"]') as HTMLElement | null)
@@ -107,10 +293,11 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
         else el.innerHTML = args.normalizeRenderedBlockHtmlForEditor(rendered)
       } else {
         const lines = String(nextText || '').split(/\r?\n/)
-        el.innerHTML = lines
+        const renderedInlineHtml = lines
           .map(line => (line ? md.renderInline(line) : ''))
           .map((html, i) => (i === 0 ? html : `<br/>${html}`))
           .join('')
+        el.innerHTML = rewriteInlineEditorAnnotationsToStyledHtml(renderedInlineHtml)
       }
     } else {
       el.textContent = nextText
@@ -118,19 +305,10 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     if (selection) {
       queueMicrotask(() => setSelectionByOffsets(selection))
     }
-  }, [args, setSelectionByOffsets])
+    emitDraftTextChange(nextText)
+  }, [args, emitDraftTextChange, setSelectionByOffsets])
 
   const getDraft = React.useCallback(() => args.draftRef.current, [args.draftRef])
-
-  const buildReplacementLinesFromDraft = React.useCallback((draft: string): string[] => {
-    return buildReplacementLinesFromDraftWithPrefixes({
-      draft,
-      prefixes: args.editLinePrefixesRef.current,
-      initialPresentText: args.initialPresentTextRef.current,
-      editDefaultLinePrefix: args.editDefaultLinePrefix,
-      hasEditStripLinePrefix: args.hasEditStripLinePrefix,
-    })
-  }, [args.editDefaultLinePrefix, args.editLinePrefixesRef, args.hasEditStripLinePrefix, args.initialPresentTextRef])
 
   const commit = React.useCallback(() => {
     if (!args.editable || !args.onReplaceLineRange) return
@@ -208,6 +386,8 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     getSelectionOffsets,
     setSelectionByOffsets,
     setDraftToDom,
+    readCurrentMarkdownDraft,
+    emitHtmlDraftTextChangeFromEditorDom,
     getDraft,
     buildReplacementLinesFromDraft,
     commit,

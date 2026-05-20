@@ -100,6 +100,7 @@ export type MarkdownPreviewViewerProps = {
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
+  onInlineDraftTextChange?: (nextText: string) => void
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -161,6 +162,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     markdownForcePlainTables,
     forbidCopy = false,
     onInlineEditStateChange,
+    onInlineDraftTextChange,
   } = props
   const blockCopy = React.useCallback((event: React.ClipboardEvent<HTMLElement>) => {
     if (!forbidCopy) return
@@ -569,6 +571,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         markdownSourceLines={markdownSourceLines}
         forbidCopy={forbidCopy}
         onInlineEditStateChange={onInlineEditStateChange}
+        onInlineDraftTextChange={onInlineDraftTextChange}
         deferMermaidRender={deferMermaidRender}
         markdownLargeDocumentMode={markdownLargeDocumentMode}
       />

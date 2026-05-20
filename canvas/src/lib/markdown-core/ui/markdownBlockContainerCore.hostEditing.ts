@@ -63,6 +63,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
   lastPointerSelectionModeRef: React.MutableRefObject<'caret' | 'word'>
   lastPointerRef: React.MutableRefObject<{ x: number; y: number } | null>
   lastPointerTargetRef: React.MutableRefObject<Node | null>
+  emitLiveDraftTextFromDom?: () => void
 }) => {
   React.useEffect(() => {
     if (!args.editing) return
@@ -139,6 +140,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
     applyVariableToken: args.applyVariableToken,
     linkRangeRef: args.linkRangeRef,
     setLinkPopover: args.setLinkPopover,
+    emitLiveDraftTextFromDom: args.emitLiveDraftTextFromDom,
   })
 
   const handleHostDoubleClickWhileEditing = React.useCallback((event: React.MouseEvent<HTMLElement>) => {

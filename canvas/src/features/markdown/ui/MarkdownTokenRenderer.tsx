@@ -62,6 +62,7 @@ export type MarkdownTokenRendererProps = {
   markdownSourceLines?: string[]
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
+  onInlineDraftTextChange?: (nextText: string) => void
   deferMermaidRender?: boolean
   markdownLargeDocumentMode?: boolean
 }
@@ -124,6 +125,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     markdownSourceLines,
     forbidCopy,
     onInlineEditStateChange,
+    onInlineDraftTextChange,
     deferMermaidRender,
     markdownLargeDocumentMode,
   } = props
@@ -179,6 +181,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       standaloneMediaRenderLineSet,
       forbidCopy: !!forbidCopy,
       onInlineEditStateChange,
+      onInlineDraftTextChange,
       deferMermaidRender: !!deferMermaidRender,
       markdownLargeDocumentMode: !!markdownLargeDocumentMode,
     }),
@@ -197,6 +200,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownWordWrap,
       forbidCopy,
       onInlineEditStateChange,
+      onInlineDraftTextChange,
       deferMermaidRender,
       markdownLargeDocumentMode,
       mermaidFrontmatterConfig,
@@ -414,6 +418,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               sourceLines={opts.markdownSourceLines}
               onReplaceLineRange={opts.onReplaceLineRange}
               onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
               forbidCopy={!!opts.forbidCopy}
               editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}
               editPresentation="html"

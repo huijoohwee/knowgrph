@@ -67,14 +67,11 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     }
     toolbarInteractingRef.current = true
     toolbarInteractionUntilRef.current = Date.now() + 900
-    const cached = lastNonCollapsedSelectionOffsetsRef.current
-    if (!(cached && cached.startOffset !== cached.endOffset)) {
-      captureSelectionForFloatingToolbar({
-        getSelectionOffsets,
-        lastNonCollapsedSelectionOffsetsRef,
-        lastNonCollapsedDomRangeRef,
-      })
-    }
+    captureSelectionForFloatingToolbar({
+      getSelectionOffsets,
+      lastNonCollapsedSelectionOffsetsRef,
+      lastNonCollapsedDomRangeRef,
+    })
   }, [blurCommitTimerRef, getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, toolbarInteractionUntilRef, toolbarInteractingRef])
 
   const updateBubble = React.useCallback(() => {

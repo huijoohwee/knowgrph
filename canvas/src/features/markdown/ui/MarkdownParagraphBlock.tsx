@@ -603,6 +603,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
       forbidCopy={!!opts.forbidCopy}
       editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}
       editPresentation="html"

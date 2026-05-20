@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH } from '@/tests/lib/docsSsotFixture'
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
+import { buildJsonMarkdownSourceSemanticKey, serializeJsonMarkdownDraftToSourceText } from '@/features/markdown-workspace/main/jsonMarkdownEditing'
 import { useMarkdownWorkspaceWidgetMode } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceWidgetMode'
 
 const tick = async (n: number = 1) => {
@@ -637,6 +638,141 @@ export async function testMarkdownWorkspaceSplitButtonOpensPaneSelector() {
   }
 }
 
+export async function testMarkdownWorkspaceViewerFloatingToolbarSyncsSplitMarkdownAndJsonPanesLive() {
+  const { dom, restore } = initJsdomHarness()
+  ensureRangeRect(dom)
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'split',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isMarkdown: true,
+          activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
+          setActiveText: () => void 0,
+          activeDocumentKey: '/viewer-floating-toolbar-sync.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///viewer-floating-toolbar-sync.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    let markdownPaneToggle = doc.querySelector('input[aria-label="Show Markdown editor pane"]') as HTMLInputElement | null
+    let jsonPaneToggle = doc.querySelector('input[aria-label="Show JSON editor pane"]') as HTMLInputElement | null
+    if (!markdownPaneToggle || !jsonPaneToggle) {
+      const splitButton = container.querySelector('button[title="Split"]') as HTMLButtonElement | null
+      if (splitButton) {
+        await act(async () => {
+          splitButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+          await tick(4)
+        })
+        markdownPaneToggle = doc.querySelector('input[aria-label="Show Markdown editor pane"]') as HTMLInputElement | null
+        jsonPaneToggle = doc.querySelector('input[aria-label="Show JSON editor pane"]') as HTMLInputElement | null
+      }
+    }
+    if (!markdownPaneToggle) throw new Error('expected split pane selector to expose Markdown pane toggle')
+    if (!jsonPaneToggle) throw new Error('expected split pane selector to expose JSON pane toggle')
+    await act(async () => {
+      if (!markdownPaneToggle.checked) markdownPaneToggle.click()
+      jsonPaneToggle.click()
+      await tick(6)
+    })
+
+    const host = container.querySelector('[data-start-line="1"]') as HTMLElement | null
+    if (!host) throw new Error('expected viewer first line host for floating toolbar sync test')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0, y: 0, top: 0, left: 0, right: 460, bottom: 60, width: 460, height: 60, toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    await act(async () => {
+      host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 16, clientY: 16 }))
+      await tick(5)
+    })
+
+    const editor = container.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected viewer inline editor for floating toolbar sync test')
+
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected text node in viewer inline editor')
+    const range = doc.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, Math.min(6, String(textNode.textContent || '').length))
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection object for floating toolbar sync test')
+    sel.removeAllRanges()
+    sel.addRange(range)
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+      await tick(4)
+    })
+
+    const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
+    if (!toolbar) throw new Error('expected floating selection toolbar for split sync test')
+    const summary = toolbar.querySelector('summary[title="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color summary in split sync toolbar')
+    await act(async () => {
+      summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+      summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      summary.click()
+      await tick(2)
+    })
+    const redBtn = toolbar.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    if (!redBtn) throw new Error('expected text color button in split sync toolbar')
+    await act(async () => {
+      redBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      redBtn.click()
+      await tick(6)
+    })
+
+    const markdownEditorTextarea = container.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
+    if (!markdownEditorTextarea) throw new Error('expected Markdown editor textarea in split sync test')
+    if (!String(markdownEditorTextarea.value || '').includes('`#EF4444:Viewer`')) {
+      throw new Error('expected Viewer floating-toolbar text color action to sync live into Markdown pane before blur')
+    }
+
+    const jsonEditorTextarea = container.querySelector('textarea[aria-label="JSON Editor Text"]') as HTMLTextAreaElement | null
+    if (!jsonEditorTextarea) throw new Error('expected JSON editor textarea after enabling split JSON pane')
+    if (!String(jsonEditorTextarea.value || '').includes('`#EF4444:Viewer`')) {
+      throw new Error('expected Viewer floating-toolbar text color action to sync live into JSON pane before blur')
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
 export async function testMarkdownWorkspaceViewerInlineEditDoubleClickWordSelectionShowsToolbar() {
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
@@ -804,5 +940,43 @@ export async function testMarkdownWorkspaceViewerInlineEditEditorDoubleClickDoes
       void 0
     }
     restore()
+  }
+}
+
+export async function testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdownEdits() {
+  const markdown = '=={color=red}Viewer{color}== edit line one'
+  const jsonText = serializeJsonMarkdownDraftToSourceText({
+    activeDocumentKey: '/viewer-edit-test.json',
+    editorUri: 'file:///viewer-edit-test.json',
+    markdownText: markdown,
+  })
+  const parsed = JSON.parse(jsonText) as Record<string, unknown>
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('expected json-backed markdown draft serializer to return valid JSON')
+  }
+  if (!jsonText.includes('"@graph"') && !jsonText.includes('"@context"')) {
+    throw new Error('expected json-backed markdown draft serializer to emit JSON-LD')
+  }
+  const semanticKey = buildJsonMarkdownSourceSemanticKey({
+    activeDocumentKey: '/viewer-edit-test.json',
+    text: jsonText,
+  })
+  if (!semanticKey.trim()) {
+    throw new Error('expected json-backed markdown serializer to produce a reusable semantic key')
+  }
+
+  const workspaceMainPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
+  const workspaceMainText = readFileSync(workspaceMainPath, 'utf8')
+  if (!workspaceMainText.includes('const editableMarkdownText = isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? \'\') : activeText')) {
+    throw new Error('expected MarkdownWorkspaceMain to centralize json-backed markdown edits through the visible markdown draft SSOT')
+  }
+  if (!workspaceMainText.includes('const commitMarkdownEditText = React.useCallback(')) {
+    throw new Error('expected MarkdownWorkspaceMain to centralize json-backed markdown writes behind a shared commit helper')
+  }
+  if (!workspaceMainText.includes('commitMarkdownEditText(next)')) {
+    throw new Error('expected MarkdownWorkspaceMain viewer handlers to reuse the shared markdown commit helper')
+  }
+  if (!workspaceMainText.includes('markdownText: editableMarkdownText')) {
+    throw new Error('expected MarkdownWorkspaceMain line-range replacement to edit the visible markdown draft instead of raw active JSON text')
   }
 }

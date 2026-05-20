@@ -23,6 +23,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   buildReplacementLinesFromDraft: (draft: string) => string[]
   resolveTurnIntoFormatAction: (next: string) => MarkdownFormatAction | 'codeBlock' | null
   readEditorPlainText: () => string
+  readCurrentMarkdownDraft: () => Promise<string>
   editorRef: React.RefObject<HTMLElement | null>
   setEditing: (next: boolean) => void
   setSessionEditLineRange: (next: { startLine: number; endLine: number } | null) => void
@@ -33,9 +34,52 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   readSelectionOffsetsForFormatting: () => { startOffset: number; endOffset: number } | null
   execInline: (cmd: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'removeFormat') => void
   insertHtmlAroundSelection: (payload: { leftHtml: string; rightHtml: string }) => void
+  applyCommentToHtmlSelection: () => void
+  applyDefaultHighlightToHtmlSelection: () => void
+  applyUnderlineToHtmlSelection: () => void
   applySigilToHtmlSelection: (payload: { color?: string; background?: string }) => void
   restoreCachedHtmlSelection: () => void
 }) => {
+  const applySerializedDraftMutation = React.useCallback((
+    mutate: (ctx: {
+      draft: string
+      selection: { startOffset: number; endOffset: number } | null
+    }) => { nextText: string; nextSelection?: { startOffset: number; endOffset: number } } | null,
+  ) => {
+    void (async () => {
+      const draft = await args.readCurrentMarkdownDraft()
+      const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
+      const result = mutate({ draft, selection })
+      if (!result) return
+      args.setDraftToDom(result.nextText, result.nextSelection)
+      queueMicrotask(() => args.editorRef.current?.focus())
+    })()
+  }, [args])
+
+  const applyHtmlStructuralMutation = React.useCallback((
+    mutate: (ctx: {
+      draft: string
+      selection: { startOffset: number; endOffset: number } | null
+    }) => string | null,
+  ) => {
+    if (!args.editable || !args.onReplaceLineRange) return
+    void (async () => {
+      const draft = await args.readCurrentMarkdownDraft()
+      const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
+      const nextText = mutate({ draft, selection })
+      if (typeof nextText !== 'string' || nextText === draft) return
+      const replacementLines = args.buildReplacementLinesFromDraft(nextText)
+      if (areReplacementLinesNoop({ sourceLines: args.sourceLines, startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })) {
+        args.setEditing(false)
+        args.setSessionEditLineRange(null)
+        return
+      }
+      args.onReplaceLineRange({ startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })
+      args.setEditing(false)
+      args.setSessionEditLineRange(null)
+    })()
+  }, [args])
+
   const applyDraftAction = React.useCallback((action: MarkdownFormatAction) => {
     if (args.editorPresentation === 'html') {
       if (action === 'bold') args.execInline('bold')
@@ -69,6 +113,47 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   }, [args])
 
   const applyWrap = React.useCallback((left: string, right: string) => {
+    if (args.editorPresentation === 'html') {
+      if (left === '<u>' && right === '</u>') {
+        args.restoreCachedHtmlSelection()
+        args.applyUnderlineToHtmlSelection()
+        return
+      }
+      if (left === '==' && right === '==') {
+        args.restoreCachedHtmlSelection()
+        args.applyDefaultHighlightToHtmlSelection()
+        return
+      }
+      if (left === '<!-- ' && right === ' -->') {
+        applyHtmlStructuralMutation(({ draft, selection }) => {
+          const startOffset = selection?.startOffset ?? 0
+          const endOffset = selection?.endOffset ?? 0
+          const a = Math.max(0, Math.min(draft.length, startOffset))
+          const b = Math.max(0, Math.min(draft.length, endOffset))
+          const start = Math.min(a, b)
+          const end = Math.max(a, b)
+          const selected = draft.slice(start, end)
+          return `${draft.slice(0, start)}<!-- ${selected} -->${draft.slice(end)}`
+        })
+        return
+      }
+      applySerializedDraftMutation(({ draft, selection }) => {
+        const startOffset = selection?.startOffset ?? 0
+        const endOffset = selection?.endOffset ?? 0
+        const a = Math.max(0, Math.min(draft.length, startOffset))
+        const b = Math.max(0, Math.min(draft.length, endOffset))
+        const start = Math.min(a, b)
+        const end = Math.max(a, b)
+        const selected = draft.slice(start, end)
+        const nextText = `${draft.slice(0, start)}${left}${selected}${right}${draft.slice(end)}`
+        const nextStart = start + left.length
+        return {
+          nextText,
+          nextSelection: { startOffset: nextStart, endOffset: nextStart + selected.length },
+        }
+      })
+      return
+    }
     const current = args.getDraft()
     const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
     const startOffset = selection?.startOffset ?? 0
@@ -83,7 +168,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
     const nextEnd = nextStart + selected.length
     args.setDraftToDom(nextText, { startOffset: nextStart, endOffset: nextEnd })
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [args])
+  }, [applySerializedDraftMutation, args])
 
   const applyTurnInto = React.useCallback((next: string) => {
     const applyTransformAndCommit = (action: MarkdownFormatAction | 'codeBlock' | 'heading1' | 'heading3') => {
@@ -242,7 +327,23 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   }, [args])
 
   const applyChecklist = React.useCallback(() => {
-    if (args.editorPresentation === 'html') return
+    if (args.editorPresentation === 'html') {
+      applyHtmlStructuralMutation(({ draft, selection }) => {
+        const startOffset = selection?.startOffset ?? 0
+        const endOffset = selection?.endOffset ?? 0
+        const start = Math.min(startOffset, endOffset)
+        const end = Math.max(startOffset, endOffset)
+        const lineStart = (() => { const idx = draft.lastIndexOf('\n', start - 1); return idx < 0 ? 0 : idx + 1 })()
+        const lineEnd = (() => { const idx = draft.indexOf('\n', end); return idx < 0 ? draft.length : idx })()
+        const block = draft.slice(lineStart, lineEnd)
+        const lines = block.split('\n')
+        const allChecklist = lines.every(line => !line.trim() || /^- \[( |x|X)\] /.test(line))
+        const nextLines = lines.map(line => !line.trim() ? line : allChecklist ? line.replace(/^- \[( |x|X)\] /, '') : (/^- /.test(line) ? line.replace(/^- /, '- [ ] ') : `- [ ] ${line}`))
+        const nextBlock = nextLines.join('\n')
+        return `${draft.slice(0, lineStart)}${nextBlock}${draft.slice(lineEnd)}`
+      })
+      return
+    }
     const selection = args.getSelectionOffsets()
     const startOffset = selection?.startOffset ?? 0
     const endOffset = selection?.endOffset ?? 0
@@ -259,10 +360,18 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
     const nextText = `${text.slice(0, lineStart)}${nextBlock}${text.slice(lineEnd)}`
     args.setDraftToDom(nextText, { startOffset, endOffset: endOffset + (nextBlock.length - block.length) })
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [args])
+  }, [applyHtmlStructuralMutation, args])
 
   const applyDivider = React.useCallback(() => {
-    if (args.editorPresentation === 'html') return
+    if (args.editorPresentation === 'html') {
+      applyHtmlStructuralMutation(({ draft, selection }) => {
+        const startOffset = selection?.startOffset ?? 0
+        const lineEnd = (() => { const idx = draft.indexOf('\n', startOffset); return idx < 0 ? draft.length : idx })()
+        const insert = `${lineEnd > 0 && draft[lineEnd - 1] !== '\n' ? '\n' : ''}\n---\n`
+        return `${draft.slice(0, lineEnd)}${insert}${draft.slice(lineEnd)}`
+      })
+      return
+    }
     const selection = args.getSelectionOffsets()
     const startOffset = selection?.startOffset ?? 0
     const text = args.getDraft()
@@ -272,7 +381,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
     const cursor = lineEnd + insert.length
     args.setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [args])
+  }, [applyHtmlStructuralMutation, args])
 
   const applyClearFormatting = React.useCallback(() => {
     if (args.editorPresentation === 'html') {
@@ -301,6 +410,16 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
 
   const handleDuplicate = React.useCallback(() => {
     if (!args.editable || !args.onReplaceLineRange) return
+    if (args.editorPresentation === 'html') {
+      void (async () => {
+        const draft = await args.readCurrentMarkdownDraft()
+        const replacementLines = args.buildReplacementLinesFromDraft(draft || '')
+        args.onReplaceLineRange?.({ startLine: args.editStartLine, endLine: args.editEndLine, replacementLines: [...replacementLines, ...replacementLines] })
+        args.setEditing(false)
+        args.setSessionEditLineRange(null)
+      })()
+      return
+    }
     const replacementLines = args.buildReplacementLinesFromDraft(args.getDraft() || '')
     args.onReplaceLineRange({ startLine: args.editStartLine, endLine: args.editEndLine, replacementLines: [...replacementLines, ...replacementLines] })
     args.setEditing(false)

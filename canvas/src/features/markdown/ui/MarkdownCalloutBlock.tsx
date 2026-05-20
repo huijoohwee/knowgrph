@@ -180,6 +180,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName={[
           getMarkdownQuoteLikeEditorClass({
@@ -246,6 +247,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         editorClassName={calloutContainerEditorClassName}
         onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
         onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
@@ -285,6 +287,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         editorClassName={calloutContainerEditorClassName}
         defaultOpen={!callout.collapsed}
       >
@@ -309,6 +312,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
       editorClassName={calloutContainerEditorClassName}
       aria-label={callout.title}
     >

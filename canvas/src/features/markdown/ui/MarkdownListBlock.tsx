@@ -161,6 +161,7 @@ function MarkdownListRow(props: {
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName={rowEditorClassName}
         editPresentation={useHtmlInlineRow ? 'html' : 'markdown'}
@@ -437,6 +438,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         forbidCopy={!!opts.forbidCopy}
       >
         {listNode}
@@ -456,6 +458,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
       forbidCopy={!!opts.forbidCopy}
     >
       {listNode}

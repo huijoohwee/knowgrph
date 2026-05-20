@@ -10,7 +10,21 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
   setSelectionByOffsets: (selection: SelectionOffsets) => void
   lastNonCollapsedSelectionOffsetsRef: React.MutableRefObject<SelectionOffsets | null>
   lastNonCollapsedDomRangeRef: React.MutableRefObject<Range | null>
+  emitLiveDraftTextFromDom?: () => void
 }) => {
+  const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
+
+  const focusRootForFormatting = React.useCallback(() => {
+    const root = args.editorRef.current
+    if (!root) return null
+    try {
+      root.focus({ preventScroll: true })
+    } catch {
+      root.focus()
+    }
+    return root
+  }, [args.editorRef])
+
   const restoreSelectionForFormatting = React.useCallback((): boolean => {
     const root = args.editorRef.current
     if (!root) return false
@@ -60,29 +74,20 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
   }, [args])
 
   const execInline = React.useCallback((cmd: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'removeFormat') => {
-    const root = args.editorRef.current
+    const root = focusRootForFormatting()
     if (!root) return
-    try {
-      root.focus({ preventScroll: true })
-    } catch {
-      root.focus()
-    }
     restoreSelectionForFormatting()
     try {
       document.execCommand(cmd, false)
     } catch {
       void 0
     }
-  }, [args.editorRef, restoreSelectionForFormatting])
+    args.emitLiveDraftTextFromDom?.()
+  }, [args.emitLiveDraftTextFromDom, focusRootForFormatting, restoreSelectionForFormatting])
 
   const insertHtmlAroundSelection = React.useCallback((payload: { leftHtml: string; rightHtml: string }) => {
-    const root = args.editorRef.current
+    const root = focusRootForFormatting()
     if (!root) return
-    try {
-      root.focus({ preventScroll: true })
-    } catch {
-      root.focus()
-    }
     restoreSelectionForFormatting()
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel || !hasExpandedSelectionInRoot({ root, selection: sel })) return
@@ -95,7 +100,157 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     } catch {
       void 0
     }
-  }, [args.editorRef, restoreSelectionForFormatting])
+    args.emitLiveDraftTextFromDom?.()
+  }, [args.emitLiveDraftTextFromDom, focusRootForFormatting, restoreSelectionForFormatting])
+
+  const applyCommentToHtmlSelection = React.useCallback(() => {
+    const root = focusRootForFormatting()
+    if (!root) return
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return
+    restoreSelectionForFormatting()
+    const pickRange = (): Range | null => {
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
+      const last = args.lastNonCollapsedDomRangeRef.current
+      if (last && !last.collapsed) {
+        const c = last.commonAncestorContainer
+        const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+        if (n && root.contains(n)) {
+          try {
+            sel.removeAllRanges()
+            sel.addRange(last)
+            if (sel.rangeCount > 0) {
+              const rr = sel.getRangeAt(0)
+              if (!rr.collapsed) return rr
+            }
+          } catch {
+            void 0
+          }
+        }
+      }
+      const offsets = args.getSelectionOffsets() || args.lastNonCollapsedSelectionOffsetsRef.current
+      if (offsets && offsets.startOffset !== offsets.endOffset) args.setSelectionByOffsets(offsets)
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
+      return null
+    }
+    const range = pickRange()
+    if (!range) return
+    const frag = range.extractContents()
+    const span = document.createElement('span')
+    span.setAttribute('data-kg-comment', '1')
+    span.style.opacity = '0.65'
+    span.style.fontStyle = 'italic'
+    span.appendChild(frag)
+    range.insertNode(span)
+    try {
+      range.setStart(span, 0)
+      range.setEnd(span, span.childNodes.length)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } catch {
+      void 0
+    }
+    args.emitLiveDraftTextFromDom?.()
+    queueMicrotask(() => args.editorRef.current?.focus())
+  }, [args, focusRootForFormatting, restoreSelectionForFormatting])
+
+  const applyDefaultHighlightToHtmlSelection = React.useCallback(() => {
+    const root = focusRootForFormatting()
+    if (!root) return
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return
+    restoreSelectionForFormatting()
+    const pickRange = (): Range | null => {
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
+      const last = args.lastNonCollapsedDomRangeRef.current
+      if (last && !last.collapsed) {
+        const c = last.commonAncestorContainer
+        const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+        if (n && root.contains(n)) {
+          try {
+            sel.removeAllRanges()
+            sel.addRange(last)
+            if (sel.rangeCount > 0) {
+              const rr = sel.getRangeAt(0)
+              if (!rr.collapsed) return rr
+            }
+          } catch {
+            void 0
+          }
+        }
+      }
+      const offsets = args.getSelectionOffsets() || args.lastNonCollapsedSelectionOffsetsRef.current
+      if (offsets && offsets.startOffset !== offsets.endOffset) args.setSelectionByOffsets(offsets)
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
+      return null
+    }
+    const range = pickRange()
+    if (!range) return
+    const frag = range.extractContents()
+    const mark = document.createElement('mark')
+    mark.setAttribute('data-kg-default-highlight', '1')
+    mark.style.backgroundColor = DEFAULT_HIGHLIGHT_EDITOR_BG
+    mark.appendChild(frag)
+    range.insertNode(mark)
+    try {
+      range.setStart(mark, 0)
+      range.setEnd(mark, mark.childNodes.length)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } catch {
+      void 0
+    }
+    args.emitLiveDraftTextFromDom?.()
+    queueMicrotask(() => args.editorRef.current?.focus())
+  }, [args, focusRootForFormatting, restoreSelectionForFormatting])
+
+  const applyUnderlineToHtmlSelection = React.useCallback(() => {
+    const root = focusRootForFormatting()
+    if (!root) return
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return
+    restoreSelectionForFormatting()
+    const pickRange = (): Range | null => {
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
+      const last = args.lastNonCollapsedDomRangeRef.current
+      if (last && !last.collapsed) {
+        const c = last.commonAncestorContainer
+        const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+        if (n && root.contains(n)) {
+          try {
+            sel.removeAllRanges()
+            sel.addRange(last)
+            if (sel.rangeCount > 0) {
+              const rr = sel.getRangeAt(0)
+              if (!rr.collapsed) return rr
+            }
+          } catch {
+            void 0
+          }
+        }
+      }
+      const offsets = args.getSelectionOffsets() || args.lastNonCollapsedSelectionOffsetsRef.current
+      if (offsets && offsets.startOffset !== offsets.endOffset) args.setSelectionByOffsets(offsets)
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
+      return null
+    }
+    const range = pickRange()
+    if (!range) return
+    const frag = range.extractContents()
+    const underline = document.createElement('u')
+    underline.appendChild(frag)
+    range.insertNode(underline)
+    try {
+      range.setStart(underline, 0)
+      range.setEnd(underline, underline.childNodes.length)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } catch {
+      void 0
+    }
+    args.emitLiveDraftTextFromDom?.()
+    queueMicrotask(() => args.editorRef.current?.focus())
+  }, [args, focusRootForFormatting, restoreSelectionForFormatting])
 
   const applySigilToHtmlSelection = React.useCallback((payload: { color?: string; background?: string }) => {
     const root = args.editorRef.current
@@ -171,6 +326,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       if (nextBg) existingSpan.setAttribute('data-kg-sigil-bg', nextBg)
       else existingSpan.removeAttribute('data-kg-sigil-bg')
       applySpanStyle(existingSpan)
+      args.emitLiveDraftTextFromDom?.()
       queueMicrotask(() => args.editorRef.current?.focus())
       return
     }
@@ -188,6 +344,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       span.textContent = parsed.text
       applySpanStyle(span)
       codeNode.replaceWith(span)
+      args.emitLiveDraftTextFromDom?.()
       queueMicrotask(() => args.editorRef.current?.focus())
       return
     }
@@ -207,6 +364,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     } catch {
       void 0
     }
+    args.emitLiveDraftTextFromDom?.()
     queueMicrotask(() => args.editorRef.current?.focus())
   }, [args, restoreSelectionForFormatting])
 
@@ -218,6 +376,9 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
+    applyCommentToHtmlSelection,
+    applyDefaultHighlightToHtmlSelection,
+    applyUnderlineToHtmlSelection,
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   }

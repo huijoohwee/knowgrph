@@ -97,6 +97,7 @@ type MarkdownPreviewProps = {
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
+  onInlineDraftTextChange?: (nextText: string) => void
   markdownTokenStoreSync?: boolean
 }
 
@@ -156,6 +157,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     markdownForcePlainTables,
     forbidCopy,
     onInlineEditStateChange,
+    onInlineDraftTextChange,
     markdownTokenStoreSync = true,
   },
   ref,
@@ -578,6 +580,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       markdownForcePlainTables={markdownForcePlainTables}
       forbidCopy={forbidCopy}
       onInlineEditStateChange={handleInlineEditStateChange}
+      onInlineDraftTextChange={onInlineDraftTextChange}
       />
     </MarkdownInlineSelectionActionsContext.Provider>
   )

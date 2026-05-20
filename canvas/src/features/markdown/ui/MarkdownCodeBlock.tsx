@@ -636,6 +636,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         forbidCopy={!!opts.forbidCopy}
         editDisableRichUi
         editTypographyMode="none"
@@ -685,6 +686,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
+        onInlineDraftTextChange={opts.onInlineDraftTextChange}
         forbidCopy={!!opts.forbidCopy}
         editDisableRichUi
         editTypographyMode="none"
