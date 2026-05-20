@@ -18,6 +18,7 @@ import {
   MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_MIN_LINE_CLASS,
 } from '@/features/markdown/ui/markdownEditSurfaceLayout'
 import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockContainerCore.bubbleToolbarOverlay'
+import { MarkdownBlockContainerCommentPreviewOverlay } from './markdownBlockContainerCore.commentPreviewOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
 
 export const MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS =
@@ -38,10 +39,12 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   slashMenu: { show: boolean; leftPx: number; topPx: number }
   variableMenu: { show: boolean; leftPx: number; topPx: number; query: string; keyInput: string; valueInput: string; fallbackInput: string; mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete' }
   linkPopover: { show: boolean; leftPx: number; topPx: number; href: string }
+  commentPreview: { show: boolean; leftPx: number; topPx: number; text: string }
   bubbleAnchorRef: React.RefObject<HTMLSpanElement | null>
   slashAnchorRef: React.RefObject<HTMLSpanElement | null>
   variableAnchorRef: React.RefObject<HTMLSpanElement | null>
   linkAnchorRef: React.RefObject<HTMLSpanElement | null>
+  commentAnchorRef: React.RefObject<HTMLSpanElement | null>
   toolbarRef: React.RefObject<HTMLElement | null>
   variableMenuRef: React.RefObject<HTMLElement | null>
   editDisableRichUi: boolean
@@ -53,6 +56,8 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   applyAlign: (next: string) => void
   applyDraftAction: (action: 'bold' | 'inlineCode' | 'italic' | 'link' | 'strike' | 'heading2' | 'bulletList' | 'numberedList' | 'blockquote') => void
   applyWrap: (left: string, right: string) => void
+  applyComment: () => void
+  closeCommentPreview: () => void
   applyHighlightColor: (color: string) => void
   applyColor: (color: string) => void
   applyClearFormatting: () => void
@@ -154,6 +159,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
       <span ref={props.slashAnchorRef} className="absolute w-px h-px" style={{ left: `${props.slashMenu.leftPx}px`, top: `${props.slashMenu.topPx}px` }} />
       <span ref={props.variableAnchorRef} className="absolute w-px h-px" style={{ left: `${props.variableMenu.leftPx}px`, top: `${props.variableMenu.topPx}px` }} />
       <span ref={props.linkAnchorRef} className="absolute w-px h-px" style={{ left: `${props.linkPopover.leftPx}px`, top: `${props.linkPopover.topPx}px` }} />
+      <span ref={props.commentAnchorRef} className="absolute w-px h-px" style={{ left: `${props.commentPreview.leftPx}px`, top: `${props.commentPreview.topPx}px` }} />
 
       <MarkdownBlockContainerBubbleToolbarOverlay
         show={!props.editDisableRichUi && (props.bubble.show || props.hasCachedSelection)}
@@ -174,6 +180,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         applyAlign={props.applyAlign}
         applyDraftAction={props.applyDraftAction}
         applyWrap={props.applyWrap}
+        applyComment={props.applyComment}
         applyHighlightColor={props.applyHighlightColor}
         applyColor={props.applyColor}
         applyClearFormatting={props.applyClearFormatting}
@@ -182,6 +189,13 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         handleDuplicate={props.handleDuplicate}
         handleDelete={props.handleDelete}
         selectionActions={props.selectionActions}
+      />
+
+      <MarkdownBlockContainerCommentPreviewOverlay
+        show={props.commentPreview.show}
+        anchorRef={props.commentAnchorRef}
+        text={props.commentPreview.text}
+        onClose={props.closeCommentPreview}
       />
 
       <EditorTag

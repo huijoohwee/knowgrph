@@ -4,7 +4,7 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import { UI_ANCHORS, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Palette, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon, Server } from 'lucide-react'
+import { BarChart3, HelpCircle, MonitorPlay, Palette, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon, Server, Users } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
@@ -26,6 +26,7 @@ const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHub
 const McpHubViewLazy = React.lazy(() => import('./views/McpHubView'))
 const MapsHubViewLazy = React.lazy(() => import('./views/MapsHubView'))
 const PaymentsHubViewLazy = React.lazy(() => import('./views/PaymentsHubView'))
+const CollaborationViewLazy = React.lazy(() => import('./views/CollaborationView'))
 const DesignEditorMainPanelViewLazy = React.lazy(() => import('@/features/panels/views/DesignEditorMainPanelView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
@@ -43,7 +44,7 @@ type MainPanelSharedActions = {
   allCollapsed?: boolean
 }
 
-type SharedMainPanelTabKey = 'integrations' | 'mcp' | 'maps' | 'payments' | 'settings'
+type SharedMainPanelTabKey = 'collaboration' | 'integrations' | 'mcp' | 'maps' | 'payments' | 'settings'
 
 type SharedMainPanelViewProps = {
   searchQuery: string
@@ -52,12 +53,13 @@ type SharedMainPanelViewProps = {
   onRegisterActions: (next: MainPanelSharedActions) => void
 }
 
-const SHARED_MAIN_PANEL_TABS: SharedMainPanelTabKey[] = ['integrations', 'mcp', 'maps', 'payments', 'settings']
+const SHARED_MAIN_PANEL_TABS: SharedMainPanelTabKey[] = ['collaboration', 'integrations', 'mcp', 'maps', 'payments', 'settings']
 const DEFAULT_MAIN_PANEL_SHARED_ACTIONS: MainPanelSharedActions = { allCollapsed: true }
 const MAIN_PANEL_SHARED_VIEW_BY_TAB: Record<
   SharedMainPanelTabKey,
   React.LazyExoticComponent<React.ComponentType<SharedMainPanelViewProps>>
 > = {
+  collaboration: CollaborationViewLazy,
   integrations: IntegrationsHubViewLazy,
   mcp: McpHubViewLazy,
   maps: MapsHubViewLazy,
@@ -67,6 +69,7 @@ const MAIN_PANEL_SHARED_VIEW_BY_TAB: Record<
 
 function createMainPanelSharedActionsState(): Record<SharedMainPanelTabKey, MainPanelSharedActions> {
   return {
+    collaboration: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
     integrations: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
     mcp: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
     maps: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
@@ -245,6 +248,7 @@ export default function MainPanel({
       tabs={MAIN_PANEL_TABS}
       tabVariant="icon"
       tabIconByKey={{
+        collaboration: Users,
         integrations: Plug,
         mcp: Server,
         maps: MapIcon,

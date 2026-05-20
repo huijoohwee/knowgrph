@@ -273,17 +273,19 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
     if (!linkPreviewKey.startsWith('rich-media-preview:')) {
       throw new Error('expected timestamp link to reuse the Rich Media preview semantic key')
     }
-    if (container.querySelector('[data-kg-youtube-timestamp-preview="1"]')) {
+    if (doc.querySelector('[data-kg-youtube-timestamp-preview="1"]')) {
       throw new Error('expected timestamp preview to stay closed before interaction')
     }
 
     link.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
     await tick()
-    let preview = container.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    let preview = doc.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
     if (!preview) throw new Error('expected hover to reveal the YouTube timestamp preview')
     if (preview.getAttribute('data-kg-rich-media-preview-key') !== linkPreviewKey) {
       throw new Error('expected timestamp preview to reuse the link Rich Media preview semantic key')
     }
+    const panel = preview.querySelector('[data-kg-rich-media-panel="1"]') as HTMLElement | null
+    if (!panel) throw new Error('expected timestamp preview to reuse the shared Rich Media Panel surface')
     const frame = preview.querySelector('iframe') as HTMLIFrameElement | null
     if (!frame) throw new Error('expected timestamp preview iframe')
     const src = String(frame.getAttribute('src') || '')
@@ -299,7 +301,7 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
 
     link.dispatchEvent(new dom.window.MouseEvent('mouseout', { bubbles: true, cancelable: true }))
     await tick()
-    if (container.querySelector('[data-kg-youtube-timestamp-preview="1"]')) {
+    if (doc.querySelector('[data-kg-youtube-timestamp-preview="1"]')) {
       throw new Error('expected timestamp preview to close after hover leaves')
     }
 
@@ -316,7 +318,7 @@ export async function testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndT
     const click = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })
     const notCancelled = link.dispatchEvent(click)
     await tick()
-    preview = container.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    preview = doc.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
     if (notCancelled || !click.defaultPrevented) {
       throw new Error('expected first coarse-pointer tap to open preview before navigation')
     }
@@ -410,11 +412,13 @@ export async function testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWith
     link.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
     await tick()
 
-    const preview = container.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
+    const preview = doc.querySelector('[data-kg-youtube-timestamp-preview="1"]') as HTMLElement | null
     if (!preview) throw new Error('expected imported timestamp link hover to reveal the shared inline preview')
     if (preview.getAttribute('data-kg-rich-media-preview-key') !== linkPreviewKey) {
       throw new Error('expected imported timestamp preview to reuse the link semantic key')
     }
+    const panel = preview.querySelector('[data-kg-rich-media-panel="1"]') as HTMLElement | null
+    if (!panel) throw new Error('expected imported timestamp preview to reuse the shared Rich Media Panel surface')
     const frame = preview.querySelector('iframe') as HTMLIFrameElement | null
     const src = String(frame?.getAttribute('src') || '')
     if (!src.includes(`/embed/${fakeId}`) || !src.includes('start=421')) {

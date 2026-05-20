@@ -1,6 +1,7 @@
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 
 export type MainPanelTabKey =
+  | 'collaboration'
   | 'integrations'
   | 'mcp'
   | 'maps'
@@ -22,6 +23,13 @@ type MainPanelTabMeta = {
 }
 
 const MAIN_PANEL_TAB_METADATA: MainPanelTabMeta[] = [
+  {
+    key: 'collaboration',
+    label: UI_LABELS.collaboration,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
+    footerLabel: UI_LABELS.collaboration,
+  },
   {
     key: 'integrations',
     label: UI_LABELS.integrations,

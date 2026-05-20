@@ -21,6 +21,19 @@ const waitForCondition = async (condition: () => boolean, attempts: number = 60,
   return condition()
 }
 
+const pressToolbarControl = async (
+  dom: ReturnType<typeof initJsdomHarness>['dom'],
+  element: HTMLElement,
+  waitTicks: number = 6,
+) => {
+  await act(async () => {
+    element.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+    element.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    element.click()
+    await tick(waitTicks)
+  })
+}
+
 const ensureRangeRect = (dom: ReturnType<typeof initJsdomHarness>['dom']) => {
   try {
     const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -237,11 +250,7 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     action: async ({ dom, toolbar }) => {
       const button = toolbar.querySelector('button[title="Underline"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected underline button')
-      await act(async () => {
-        button.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        button.click()
-        await tick(6)
-      })
+      await pressToolbarControl(dom, button)
     },
   })
 
@@ -252,19 +261,10 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     action: async ({ dom, toolbar }) => {
       const summary = toolbar.querySelector('summary[title="Highlight"]') as HTMLElement | null
       if (!summary) throw new Error('expected highlight summary')
-      await act(async () => {
-        summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
-        summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        summary.click()
-        await tick(2)
-      })
+      await pressToolbarControl(dom, summary, 2)
       const button = toolbar.querySelector('menu[aria-label="Highlight menu"] button') as HTMLButtonElement | null
       if (!button) throw new Error('expected default highlight button')
-      await act(async () => {
-        button.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        button.click()
-        await tick(6)
-      })
+      await pressToolbarControl(dom, button)
     },
   })
 
@@ -275,19 +275,10 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     action: async ({ dom, toolbar }) => {
       const summary = toolbar.querySelector('summary[title="Text color"]') as HTMLElement | null
       if (!summary) throw new Error('expected text color summary')
-      await act(async () => {
-        summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
-        summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        summary.click()
-        await tick(2)
-      })
+      await pressToolbarControl(dom, summary, 2)
       const button = toolbar.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
       if (!button) throw new Error('expected text color button')
-      await act(async () => {
-        button.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        button.click()
-        await tick(6)
-      })
+      await pressToolbarControl(dom, button)
     },
   })
 
@@ -295,14 +286,19 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
     expectedMarkdownSnippet: '<!-- Viewer --> sync line one',
     expectedJsonSnippet: null,
-    action: async ({ dom, toolbar }) => {
-      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+    expectedEditorHtmlSnippet: 'data-kg-comment="1"',
+    commitAfterAction: true,
+    action: async ({ dom, doc }) => {
+      const button = doc.querySelector('menu[aria-label="Inline selection toolbar"] button[title="Comment"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected comment button')
-      await act(async () => {
-        button.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        button.click()
-        await tick(6)
-      })
+      if (!button.isConnected) throw new Error('expected connected comment button before press')
+      await pressToolbarControl(dom, button)
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]'), 20, 5)
+      const panel = dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]')
+      if (!panel) {
+        const body = String(dom.window.document.body.innerHTML || '')
+        throw new Error(`expected comment action to reuse the shared Rich Media Panel preview; hasPreview=${body.includes('data-kg-comment-rich-media-preview')}; hasPanel=${body.includes('data-kg-rich-media-panel')}; hasEditor=${body.includes('contenteditable="true"')}; hasComment=${body.includes('data-kg-comment')}`)
+      }
     },
   })
 
@@ -313,20 +309,11 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     action: async ({ dom, toolbar }) => {
       const summary = toolbar.querySelector('summary[title="More"]') as HTMLElement | null
       if (!summary) throw new Error('expected more summary')
-      await act(async () => {
-        summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
-        summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        summary.click()
-        await tick(2)
-      })
+      await pressToolbarControl(dom, summary, 2)
       const buttons = Array.from(toolbar.querySelectorAll('menu[aria-label="More actions"] button')) as HTMLButtonElement[]
       const checklistButton = buttons.find(candidate => String(candidate.textContent || '').trim() === 'Checklist') || null
       if (!checklistButton) throw new Error('expected checklist button')
-      await act(async () => {
-        checklistButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-        checklistButton.click()
-        await tick(6)
-      })
+      await pressToolbarControl(dom, checklistButton)
     },
   })
 

@@ -129,6 +129,10 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
         args.blurCommitTimerRef.current = 0
         const currentRoot = args.editorRef.current
         if (!currentRoot) return
+        if (args.toolbarInteractingRef.current || Date.now() < args.toolbarInteractionUntilRef.current) {
+          scheduleBlurCommit(60)
+          return
+        }
         const active = document.activeElement
         if (active && currentRoot.contains(active)) return
         const toolbarNode = args.toolbarRef.current

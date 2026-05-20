@@ -160,6 +160,125 @@ export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlM
   }
 }
 
+export async function testMarkdownViewerInlineEditToolbarTextColorMenuKeepsEditorAliveAcrossDelayedSecondClick() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    try {
+      const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
+        getBoundingClientRect?: () => DOMRect
+      } | null
+      if (proto && typeof proto.getBoundingClientRect !== 'function') {
+        proto.getBoundingClientRect = () => {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+            width: 10,
+            height: 10,
+            toJSON: () => ({}),
+          } as unknown as DOMRect
+        }
+      }
+    } catch {
+      void 0
+    }
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['Hello world']}
+        onReplaceLineRange={() => {}}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>Hello world</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor to mount after click')
+
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected editor to contain text node')
+
+    const range = dom.window.document.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, 5)
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection')
+    sel.removeAllRanges()
+    sel.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 1 }))
+    await tick(3)
+
+    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar summary')
+    summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+    summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    summary.click()
+    editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true, cancelable: true, relatedTarget: null }))
+    await new Promise<void>(resolve => setTimeout(resolve, 260))
+    await tick(4)
+
+    const editorStillOpen = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editorStillOpen) throw new Error('expected text color menu open state to keep inline editor alive across delayed second click')
+
+    const redBtn = dom.window.document.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    if (!redBtn) throw new Error('expected text color menu button')
+    redBtn.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+    redBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    redBtn.click()
+    await tick(4)
+
+    const sigil = editorStillOpen.querySelector('[data-kg-sigil="1"]') as HTMLElement | null
+    if (!sigil) throw new Error('expected delayed second click to still apply a sigil span')
+    if (sigil.getAttribute('data-kg-sigil-color') !== '#EF4444') {
+      throw new Error(`expected delayed second click to apply red sigil color, got ${String(sigil.getAttribute('data-kg-sigil-color'))}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownViewerInlineEditToolbarBoldRestoresCachedHtmlSelection() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
@@ -504,6 +623,144 @@ export async function testMarkdownViewerInlineEditToolbarTextColorCommitsSigilMa
     const commit = replaceCalls[replaceCalls.length - 1]
     if (commit.replacementLines.length !== 1 || commit.replacementLines[0] !== '`#EF4444:Hello` world') {
       throw new Error(`expected text color toolbar action to commit sigil markdown, got ${JSON.stringify(commit.replacementLines)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditToolbarTextColorOverlappingExistingHighlightCommitsWithoutLiteralSigils() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    try {
+      const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
+        getBoundingClientRect?: () => DOMRect
+      } | null
+      if (proto && typeof proto.getBoundingClientRect !== 'function') {
+        proto.getBoundingClientRect = () => {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+            width: 10,
+            height: 10,
+            toJSON: () => ({}),
+          } as unknown as DOMRect
+        }
+      }
+    } catch {
+      void 0
+    }
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['`bg#FEF08A:is a mi`nimal, reproducible']}
+        onReplaceLineRange={args => replaceCalls.push(args)}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>is a minimal, reproducible</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 420,
+        bottom: 42,
+        width: 420,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor to mount after click')
+    const highlightSpan = editor.querySelector('[data-kg-sigil="1"]') as HTMLElement | null
+    if (!highlightSpan) throw new Error('expected existing highlight sigil span')
+    const highlightTextNode = highlightSpan.firstChild
+    const plainTextNode = highlightSpan.nextSibling
+    if (!highlightTextNode || highlightTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error('expected highlight text node')
+    }
+    if (!plainTextNode || plainTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error('expected trailing plain text node')
+    }
+
+    const range = dom.window.document.createRange()
+    range.setStart(highlightTextNode, Math.max(0, String(highlightTextNode.textContent || '').length - 2))
+    range.setEnd(plainTextNode, 7)
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection')
+    sel.removeAllRanges()
+    sel.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await tick(3)
+
+    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar summary')
+    summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+    summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    summary.click()
+    await tick(2)
+
+    const redButton = dom.window.document.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    if (!redButton) throw new Error('expected text color menu button')
+    redButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    redButton.click()
+    await tick(4)
+
+    const htmlAfterApply = String(editor.innerHTML || '')
+    if (htmlAfterApply.includes('#EF4444:') || htmlAfterApply.includes('``')) {
+      throw new Error(`expected overlapping text color apply not to literalize sigil syntax in editor html, got ${JSON.stringify(htmlAfterApply)}`)
+    }
+    const mergedSigil = Array.from(editor.querySelectorAll('[data-kg-sigil="1"]')).find(node =>
+      (node as HTMLElement).getAttribute('data-kg-sigil-color') === '#EF4444'
+      && (node as HTMLElement).getAttribute('data-kg-sigil-bg') === '#FEF08A',
+    ) as HTMLElement | undefined
+    if (!mergedSigil) throw new Error(`expected overlapping selection to normalize into a merged red+yellow sigil, got ${JSON.stringify(htmlAfterApply)}`)
+
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', ctrlKey: true }))
+    await tick(8)
+
+    if (replaceCalls.length <= 0) throw new Error('expected overlapping text color action to commit replacement lines')
+    const commit = replaceCalls[replaceCalls.length - 1]
+    const committed = commit.replacementLines.join('\n')
+    if (!committed.includes('#EF4444|bg#FEF08A:')) {
+      throw new Error(`expected overlapping text color action to preserve merged sigil markdown, got ${JSON.stringify(commit.replacementLines)}`)
+    }
+    if (committed.includes('``#EF4444:') || committed.includes('#EF4444:`')) {
+      throw new Error(`expected overlapping text color action not to emit adjacent literal sigil fragments, got ${JSON.stringify(commit.replacementLines)}`)
     }
 
     root.unmount()

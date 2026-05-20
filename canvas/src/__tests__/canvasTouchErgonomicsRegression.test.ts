@@ -25,6 +25,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const designFloatingPanelText = readUtf8(path.resolve(root, 'src/features/design/DesignFloatingPanelView.tsx'))
   const graphEditorToolRailText = readUtf8(path.resolve(root, 'src/features/graph-editor/GraphEditorToolRail.tsx'))
   const markdownInlineMenusText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx'))
+  const markdownBubbleToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.bubbleToolbarOverlay.tsx'))
   const settingsUiText = readUtf8(path.resolve(root, 'src/features/settings/ui.tsx'))
   const responsiveElementClassesText = readUtf8(path.resolve(root, 'src/lib/ui/responsiveElementClasses.ts'))
   const anchorOverlayText = readUtf8(path.resolve(root, 'src/lib/ui/overlay.tsx'))
@@ -81,6 +82,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!markdownInlineMenusText.includes('uiToolbarRowScrollClassName') || markdownInlineMenusText.includes('flex flex-wrap gap-1')) {
     throw new Error('expected inline markdown bubble menus to scroll on one toolbar-owned row')
+  }
+  if (!markdownBubbleToolbarText.includes('allowOverflowVisible') || markdownBubbleToolbarText.includes('flex flex-wrap items-center gap-1')) {
+    throw new Error('expected Viewer floating selection toolbar menus to avoid wrapped rows and allow visible overlay overflow for live menu hit targets')
   }
   if (!settingsUiText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !settingsUiText.includes('uiToolbarRowScrollClassName')) {
     throw new Error('expected Settings previews to use responsive inline rows and shared row scrolling')
@@ -150,6 +154,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!anchorOverlayText.includes('useState<HTMLDivElement | null>(() => createPortalRoot())') || !anchorOverlayText.includes('resolveOverlayVerticalTop')) {
     throw new Error('expected shared dropdown overlays to render from the first open and use viewport-aware vertical placement')
+  }
+  if (!anchorOverlayText.includes('allowOverflowVisible') || !anchorOverlayText.includes("overflow: allowOverflowVisible ? 'visible' : 'auto'")) {
+    throw new Error('expected shared AnchorOverlay to support visible-overflow menus when floating selection toolbars expand outside the root panel')
   }
   if (!anchorOverlayText.includes('kg-anchor-overlay') || !detailsMenuText.includes('kg-details-menu-portal') || !responsiveToolbarCssText.includes('.kg-anchor-overlay')) {
     throw new Error('expected shared overlay portals to expose mobile viewport-owned classes')

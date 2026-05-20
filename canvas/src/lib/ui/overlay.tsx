@@ -13,6 +13,7 @@ interface AnchorOverlayProps {
   align?: Align
   className?: string
   autoFocus?: boolean
+  allowOverflowVisible?: boolean
   children: React.ReactNode
 }
 
@@ -21,7 +22,16 @@ function createPortalRoot(): HTMLDivElement | null {
   return document.createElement('div')
 }
 
-export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right', className = '', autoFocus = true, children }: AnchorOverlayProps) {
+export function AnchorOverlay({
+  anchorRef,
+  open,
+  onClose,
+  align = 'bottom-right',
+  className = '',
+  autoFocus = true,
+  allowOverflowVisible = false,
+  children,
+}: AnchorOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [portalRoot, setPortalRoot] = useState<HTMLDivElement | null>(() => createPortalRoot())
   const priorFocusedElementRef = useRef<HTMLElement | null>(null)
@@ -199,11 +209,11 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
       width: 'max-content',
       maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 0.5rem)',
       maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 0.5rem)',
-      overflow: 'auto',
-      overscrollBehavior: 'contain',
-      WebkitOverflowScrolling: 'touch',
+      overflow: allowOverflowVisible ? 'visible' : 'auto',
+      overscrollBehavior: allowOverflowVisible ? undefined : 'contain',
+      WebkitOverflowScrolling: allowOverflowVisible ? undefined : 'touch',
     }),
-    [pos],
+    [allowOverflowVisible, pos],
   )
 
   if (!open) return null

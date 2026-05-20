@@ -39,6 +39,7 @@ import {
 } from './markdownWorkspaceRuntime.composition'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import { useP2PCollaborationRuntime } from '@/features/collaboration/useP2PCollaborationRuntime'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -455,6 +456,23 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     saveActiveFileNow: saveState.saveActiveFileNow,
     setStatusWithAutoClear,
   })
+  const collaborationRuntime = useP2PCollaborationRuntime({
+    active,
+    activeDocumentKey: selectionState.activeDocumentKey,
+    activeText: effectiveContent.effectiveActiveText,
+    applyRemoteDocument: async ({ documentKey, text }) => {
+      await setActiveMarkdownDocument({
+        name: documentKey,
+        text,
+        normalizeMermaidMmd: false,
+        autoEnableFrontmatter: false,
+        applyViewPreset: false,
+      })
+    },
+    revealRemoteLine: line => {
+      interactionState.revealLineInEditor(line)
+    },
+  })
   const viewShell = useMarkdownWorkspaceViewShell({
     entries,
     sourcesByPath,
@@ -574,7 +592,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         editorUri={effectiveContent.editorUri}
         editorLanguage={effectiveContent.editorLanguage}
         editorRef={editorRef}
-        onEditorCaretLine={interactionState.onEditorCaretLine}
+        onEditorCaretLine={line => {
+          interactionState.onEditorCaretLine(line)
+          collaborationRuntime.onEditorCaretLine(line)
+        }}
         widgetModeActive={widgetState.contentMode === 'widget'}
         onViewerInlineEditStateChange={activeState =>
           viewShell.handleViewerInlineEditStateChange(activeState, updater => setViewerInlineEditActive(updater))

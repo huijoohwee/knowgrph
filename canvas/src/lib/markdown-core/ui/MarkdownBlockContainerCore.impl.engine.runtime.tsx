@@ -304,10 +304,13 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setVariableMenu,
     linkPopover,
     setLinkPopover,
+    commentPreview,
+    setCommentPreview,
     bubbleAnchorRef,
     slashAnchorRef,
     variableAnchorRef,
     linkAnchorRef,
+    commentAnchorRef,
     bubbleRafRef,
     bubbleScheduleKey,
     editorMouseUpSyncScheduleKey,
@@ -317,6 +320,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     startLine,
     endLine,
   })
+  const closeCommentPreview = React.useCallback(() => {
+    setCommentPreview(prev => (prev.show ? { ...prev, show: false } : prev))
+  }, [setCommentPreview])
   const { applyVariableToken, variableSuggestions } = useMarkdownBlockContainerVariableActions({
     editable,
     sourceLines,
@@ -375,6 +381,29 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   })
+  const applyComment = React.useCallback(() => {
+    if (editorPresentation !== 'html') {
+      applyWrap('<!-- ', ' -->')
+      return
+    }
+    restoreCachedHtmlSelection()
+    const fallbackSelectedText = (() => {
+      const selection = readSelectionOffsetsForFormatting() || getSelectionOffsets()
+      if (!selection || selection.startOffset === selection.endOffset) return ''
+      const draft = getDraft()
+      const start = Math.max(0, Math.min(draft.length, Math.min(selection.startOffset, selection.endOffset)))
+      const end = Math.max(0, Math.min(draft.length, Math.max(selection.startOffset, selection.endOffset)))
+      return draft.slice(start, end).trim()
+    })()
+    const selectedText = applyCommentToHtmlSelection() || fallbackSelectedText
+    if (!selectedText) return
+    setCommentPreview({
+      show: true,
+      leftPx: bubble.leftPx,
+      topPx: bubble.topPx + 28,
+      text: selectedText,
+    })
+  }, [applyCommentToHtmlSelection, applyWrap, bubble.leftPx, bubble.topPx, editorPresentation, getDraft, getSelectionOffsets, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
   const {
     holdToolbarInteraction,
     updateBubble,
@@ -536,17 +565,19 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         slashMenu={slashMenu}
         variableMenu={variableMenu}
         linkPopover={linkPopover}
+        commentPreview={commentPreview}
         bubbleAnchorRef={bubbleAnchorRef}
         slashAnchorRef={slashAnchorRef}
         variableAnchorRef={variableAnchorRef}
         linkAnchorRef={linkAnchorRef}
+        commentAnchorRef={commentAnchorRef}
         toolbarRef={toolbarRef}
         variableMenuRef={variableMenuRef}
         editDisableRichUi={editDisableRichUi}
         hasCachedSelection={hasCachedSelection}
         holdToolbarInteraction={holdToolbarInteraction}
         onToolbarInteractionEnd={() => {
-          toolbarInteractionUntilRef.current = Date.now() + 180
+          toolbarInteractionUntilRef.current = Math.max(toolbarInteractionUntilRef.current, Date.now() + 180)
           window.setTimeout(() => {
             toolbarInteractingRef.current = false
           }, 0)
@@ -556,6 +587,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         applyAlign={applyAlign}
         applyDraftAction={applyDraftAction}
         applyWrap={applyWrap}
+        applyComment={applyComment}
+        closeCommentPreview={closeCommentPreview}
         applyHighlightColor={applyHighlightColor}
         applyColor={applyColor}
         applyClearFormatting={applyClearFormatting}
