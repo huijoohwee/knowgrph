@@ -2,7 +2,11 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
 import { MarkdownWorkspaceDisplayMenu, readMarkdownToolbarHighlightCount } from '@/features/markdown-workspace/MarkdownWorkspaceToolbarInlineMenus'
-import { readRendererHighlightTokens } from '@/features/toolbar/ui/RendererGraphTopologySummary'
+import {
+  readRendererDocumentMetadataTokens,
+  readRendererHighlightTokens,
+  RendererDocumentMetadataSummary,
+} from '@/features/toolbar/ui/RendererGraphTopologySummary'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import { getDocumentLocationFromMetadata, resolveMarkdownNavigationMetadata } from '@/lib/graph/markdownMetadata'
@@ -158,6 +162,54 @@ export const testRendererSummaryPinsSelectedTextHighlightToken = () => {
   if (tokens.length !== 8) throw new Error(`expected capped renderer tokens, got ${tokens.length}`)
   if (tokens[0]?.source !== 'selection' || tokens[0]?.label !== 'selected keyword') {
     throw new Error(`expected selected keyword token to be pinned first, got ${JSON.stringify(tokens[0])}`)
+  }
+}
+
+export const testRendererSummaryReadsDocumentMetadataTokens = () => {
+  const tokens = readRendererDocumentMetadataTokens({
+    nodes: [],
+    edges: [],
+    metadata: {
+      documentMetadataEntries: [
+        { type: 'ui-path', value: 'Toolbar > Comment', note: 'Open `#1D4ED8|bg#DBEAFE:comment tools`', lineStart: 9 },
+        { type: 'shortcut', value: '`#1D4ED8|bg#DBEAFE:Ctrl+S`', note: 'Save ==before== switching panes', lineStart: 4 },
+        { type: 'audience', value: 'Reviewer', note: 'Used by appendix summaries', lineStart: 7 },
+        { type: 'surface', value: 'Viewer', note: 'Visible in the runtime summary', lineStart: 8 },
+        { type: 'status', value: 'draft', note: 'Shows current document state', lineStart: 10 },
+        { type: 'priority', value: 'high', note: 'Pinned for operator review', lineStart: 6 },
+        { type: 'overflow', value: 'ignored', note: 'Should be trimmed by the summary cap', lineStart: 12 },
+      ],
+    },
+  } as unknown as GraphData)
+  if (tokens.length !== 6) throw new Error(`expected capped document metadata tokens, got ${tokens.length}`)
+  if (tokens[0]?.type !== 'shortcut' || tokens[0]?.lineStart !== 4) {
+    throw new Error(`expected document metadata tokens to sort by lineStart, got ${JSON.stringify(tokens[0])}`)
+  }
+  if (tokens.some(token => token.value === 'ignored')) {
+    throw new Error('expected renderer metadata tokens to cap overflow entries')
+  }
+}
+
+export const testRendererSummaryRendersDocumentMetadataVisibleSurface = () => {
+  const entries = readRendererDocumentMetadataTokens({
+    nodes: [],
+    edges: [],
+    metadata: {
+      documentMetadataEntries: [
+        { type: 'ui-path', value: 'Toolbar > Comment', note: 'Open `#1D4ED8|bg#DBEAFE:comment tools`', lineStart: 9 },
+        { type: 'shortcut', value: '`#1D4ED8|bg#DBEAFE:Ctrl+S`', note: 'Save ==before== switching panes', lineStart: 4 },
+      ],
+    },
+  } as unknown as GraphData)
+  const html = renderToStaticMarkup(<RendererDocumentMetadataSummary entries={entries} />)
+  if (!html.includes('Document metadata 2')) throw new Error('expected document metadata section title in renderer summary')
+  if (!html.includes('data-kg-renderer-document-metadata-list="1"')) throw new Error('expected renderer summary metadata list marker')
+  if (!html.includes('UI path')) throw new Error('expected ui-path label to be humanized in the visible surface')
+  if (!html.includes('Ctrl+S') || !html.includes('comment tools') || !html.includes('before')) {
+    throw new Error(`expected rendered metadata surface to include formatted values and notes, got ${html}`)
+  }
+  if (html.includes('`#1D4ED8|bg#DBEAFE:Ctrl+S`') || html.includes('==before==')) {
+    throw new Error('expected visible metadata surface to hide raw sigil syntax')
   }
 }
 

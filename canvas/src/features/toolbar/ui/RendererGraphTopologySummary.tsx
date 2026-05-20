@@ -2,6 +2,8 @@ import React from 'react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
+import { readDocumentMetadataEntries, type DocumentMetadataEntry } from '@/lib/graph/documentMetadata'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { readGraphTopologySummary, withGraphTopologyMetadata, type GraphTopologySummary } from '@/lib/graph/graphTopology'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -42,9 +44,77 @@ type RendererHighlightToken = {
   selected: boolean
 }
 
+type RendererDocumentMetadataToken = DocumentMetadataEntry & {
+  id: string
+}
+
 const readString = (record: Record<string, unknown>, key: string): string => {
   const value = record[key]
   return typeof value === 'string' ? value.trim() : ''
+}
+
+const formatMetadataTypeLabel = (value: string): string => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'metadata'
+  if (normalized === 'ui-path') return 'UI path'
+  return normalized.replace(/[-_]+/g, ' ')
+}
+
+export const readRendererDocumentMetadataTokens = (
+  graphData: GraphData | null | undefined,
+): RendererDocumentMetadataToken[] => {
+  const entries = readDocumentMetadataEntries(graphData?.metadata)
+  return entries
+    .map((entry, index) => ({
+      ...entry,
+      id: `${entry.type}:${entry.value}:${entry.lineStart || index}:${index}`,
+    }))
+    .sort((a, b) =>
+      (a.lineStart || Number.MAX_SAFE_INTEGER) - (b.lineStart || Number.MAX_SAFE_INTEGER)
+      || a.type.localeCompare(b.type)
+      || a.value.localeCompare(b.value),
+    )
+    .slice(0, 6)
+}
+
+export function RendererDocumentMetadataSummary({
+  entries,
+}: {
+  entries: RendererDocumentMetadataToken[]
+}) {
+  if (entries.length === 0) return null
+
+  return (
+    <div className="mt-2">
+      <div className={`mb-1 text-[11px] font-medium ${UI_THEME_TOKENS.text.secondary}`}>
+        Document metadata {formatCount(entries.length)}
+      </div>
+      <div className="flex flex-col gap-1" data-kg-renderer-document-metadata-list="1">
+        {entries.map(entry => (
+          <div
+            key={entry.id}
+            className={`rounded border px-2 py-1 text-[11px] ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
+            data-kg-renderer-document-metadata-item="1"
+          >
+            <div className="flex items-center gap-2">
+              <span className={`shrink-0 rounded-sm border px-1 py-0.5 uppercase tracking-wide ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.text.tertiary}`}>
+                {formatMetadataTypeLabel(entry.type)}
+              </span>
+              <span
+                className={`min-w-0 truncate ${UI_THEME_TOKENS.text.primary}`}
+                title={readMarkdownSigilDisplayText(entry.value)}
+              >
+                {renderMarkdownSigilInlineText(entry.value)}
+              </span>
+            </div>
+            <div className={`mt-1 break-words ${UI_THEME_TOKENS.text.secondary}`}>
+              {renderMarkdownSigilInlineText(entry.note)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export const readRendererHighlightTokens = (
@@ -158,6 +228,10 @@ export function RendererGraphTopologySummary() {
     [selectedEdgeId, selectedNodeId, topologyGraph],
   )
   const rendererHighlightCount = readNumber(metadata, 'markdownSigilHighlightCount') || readNumber(metadata, 'keywordHighlightedCount')
+  const documentMetadataTokens = React.useMemo(
+    () => readRendererDocumentMetadataTokens(topologyGraph),
+    [topologyGraph],
+  )
 
   if (!summary) return null
 
@@ -225,6 +299,7 @@ export function RendererGraphTopologySummary() {
           </div>
         </div>
       ) : null}
+      <RendererDocumentMetadataSummary entries={documentMetadataTokens} />
     </section>
   )
 }
