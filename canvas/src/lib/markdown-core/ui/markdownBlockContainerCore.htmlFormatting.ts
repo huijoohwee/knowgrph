@@ -205,52 +205,8 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
   }, [args, focusRootForFormatting, restoreSelectionForFormatting])
 
   const applyUnderlineToHtmlSelection = React.useCallback(() => {
-    const root = focusRootForFormatting()
-    if (!root) return
-    const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    if (!sel) return
-    restoreSelectionForFormatting()
-    const pickRange = (): Range | null => {
-      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
-      const last = args.lastNonCollapsedDomRangeRef.current
-      if (last && !last.collapsed) {
-        const c = last.commonAncestorContainer
-        const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
-        if (n && root.contains(n)) {
-          try {
-            sel.removeAllRanges()
-            sel.addRange(last)
-            if (sel.rangeCount > 0) {
-              const rr = sel.getRangeAt(0)
-              if (!rr.collapsed) return rr
-            }
-          } catch {
-            void 0
-          }
-        }
-      }
-      const offsets = args.getSelectionOffsets() || args.lastNonCollapsedSelectionOffsetsRef.current
-      if (offsets && offsets.startOffset !== offsets.endOffset) args.setSelectionByOffsets(offsets)
-      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
-      return null
-    }
-    const range = pickRange()
-    if (!range) return
-    const frag = range.extractContents()
-    const underline = document.createElement('u')
-    underline.appendChild(frag)
-    range.insertNode(underline)
-    try {
-      range.setStart(underline, 0)
-      range.setEnd(underline, underline.childNodes.length)
-      sel.removeAllRanges()
-      sel.addRange(range)
-    } catch {
-      void 0
-    }
-    args.emitLiveDraftTextFromDom?.()
-    queueMicrotask(() => args.editorRef.current?.focus())
-  }, [args, focusRootForFormatting, restoreSelectionForFormatting])
+    execInline('underline')
+  }, [execInline])
 
   const applySigilToHtmlSelection = React.useCallback((payload: { color?: string; background?: string }) => {
     const root = args.editorRef.current

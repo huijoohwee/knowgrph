@@ -406,11 +406,11 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!listText.includes('editInlineFlow')) {
     throw new Error('expected list row inline editor to force inline edit flow to avoid first-character dropping below list marker baseline')
   }
-  if (!listText.includes('const useHtmlInlineRow = !!onlyParagraph && rowStartLine === rowEndLine')) {
-    throw new Error('expected list row inline editor to enable html-inline mode only for single-line paragraph rows')
+  if (!listText.includes('const useHtmlInlineRow = !!onlyParagraph')) {
+    throw new Error('expected list row inline editor to enable html-inline mode for paragraph-only rows so existing inline semantics stay rendered during edit')
   }
   if (!listText.includes("editPresentation={useHtmlInlineRow ? 'html' : 'markdown'}") || !listText.includes("editHtmlRender={useHtmlInlineRow ? 'inline' : undefined}")) {
-    throw new Error('expected list row inline editor to use html-inline editing only for safe single-line paragraph rows and keep markdown mode for complex rows')
+    throw new Error('expected list row inline editor to use html-inline editing for paragraph-only rows and keep markdown mode for complex rows')
   }
   if (!listText.includes('const rowDefaultLinePrefix = React.useMemo(() =>') || !listText.includes("return ' '.repeat((marker[1] || '').length)")) {
     throw new Error('expected row editor to preserve list indentation width instead of mutating marker indentation')

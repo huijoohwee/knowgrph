@@ -158,6 +158,31 @@ export const renderInlineHtmlToken = (args: {
     if (tag === 'span') {
       return <span key={args.key} className={el.getAttribute('class') || undefined}>{el.textContent || ''}</span>
     }
+    if (tag === 'u') {
+      return <u key={args.key}>{el.textContent || ''}</u>
+    }
+    if (tag === 'strong' || tag === 'b') {
+      return <strong key={args.key}>{el.textContent || ''}</strong>
+    }
+    if (tag === 'em' || tag === 'i') {
+      return <em key={args.key}>{el.textContent || ''}</em>
+    }
+    if (tag === 's' || tag === 'del') {
+      return <del key={args.key}>{el.textContent || ''}</del>
+    }
+    if (tag === 'sub') {
+      return <sub key={args.key}>{el.textContent || ''}</sub>
+    }
+    if (tag === 'sup') {
+      return <sup key={args.key}>{el.textContent || ''}</sup>
+    }
+    if (tag === 'mark') {
+      return (
+        <mark key={args.key} className={`${UI_THEME_TOKENS.status.warning} px-0.5 rounded-sm`}>
+          {el.textContent || ''}
+        </mark>
+      )
+    }
     if (tag === 'a') {
       const hrefRaw = String(el.getAttribute('href') || el.getAttribute('xlink:href') || '').trim()
       if (hrefRaw && isSafeHref(hrefRaw)) {

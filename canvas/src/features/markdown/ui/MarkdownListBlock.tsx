@@ -122,7 +122,7 @@ function MarkdownListRow(props: {
     if (first?.type !== 'paragraph' || !Array.isArray(first.tokens)) return null
     return first.tokens as Token[]
   })()
-  const useHtmlInlineRow = !!onlyParagraph && rowStartLine === rowEndLine
+  const useHtmlInlineRow = !!onlyParagraph
   return (
     <li
       data-kg-list-item-index={itemIndex}

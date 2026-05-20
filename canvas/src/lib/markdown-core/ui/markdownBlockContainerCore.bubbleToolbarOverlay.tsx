@@ -83,7 +83,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
         onMouseUpCapture={props.onToolbarInteractionEnd}
       >
         <details className="relative">
-          <summary className={props.toolbarMenuSummaryClassName} title="Heading" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
+          <summary className={props.toolbarMenuSummaryClassName} title="Heading" onPointerDown={preventDefaultPointerDown} onMouseDown={preventDefaultMouseDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
             <Heading2 className="w-3 h-3" strokeWidth={1.6} />
           </summary>
           <menu className={props.toolbarMenuClassName} aria-label="Turn into menu">
@@ -104,7 +104,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('numberedList')} title="Numbered List"><ListOrdered className="w-3 h-3" strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyTurnInto('blockquote')} title="Quote"><Quote className="w-3 h-3" strokeWidth={1.8} /></button>
         <details className="relative">
-          <summary className={props.toolbarMenuSummaryClassName} onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
+          <summary className={props.toolbarMenuSummaryClassName} onPointerDown={preventDefaultPointerDown} onMouseDown={preventDefaultMouseDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
             <AlignLeft className="w-3 h-3" strokeWidth={1.8} />
           </summary>
           <menu className={props.toolbarMenuClassName} aria-label="Align menu">
@@ -118,7 +118,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('~', '~')} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('$', '$')} title="Math"><span className="text-[10px] leading-none">∑</span></button>
         <details className="relative">
-          <summary className={props.toolbarMenuSummaryClassName} title="Highlight" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}><Highlighter className="w-3 h-3" strokeWidth={1.8} /></summary>
+          <summary className={props.toolbarMenuSummaryClassName} title="Highlight" onPointerDown={preventDefaultPointerDown} onMouseDown={preventDefaultMouseDown} onClick={toggleParentDetailsOpenFromSummaryClick}><Highlighter className="w-3 h-3" strokeWidth={1.8} /></summary>
           <menu className={props.toolbarMenuClassName} aria-label="Highlight menu">
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('==', '==')}>Default (==)</button></li>
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} style={{ backgroundColor: '#FEF08A' }} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyHighlightColor('#FEF08A')}>Yellow</button></li>
@@ -128,7 +128,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
           </menu>
         </details>
         <details className="relative">
-          <summary className={props.toolbarMenuSummaryClassName} title="Text color" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}><Palette className="w-3 h-3" strokeWidth={1.8} /></summary>
+          <summary className={props.toolbarMenuSummaryClassName} title="Text color" onPointerDown={preventDefaultPointerDown} onMouseDown={preventDefaultMouseDown} onClick={toggleParentDetailsOpenFromSummaryClick}><Palette className="w-3 h-3" strokeWidth={1.8} /></summary>
           <menu className={props.toolbarMenuClassName} aria-label="Text color menu">
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} style={{ color: '#EF4444' }} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyColor('#EF4444')}>Red</button></li>
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} style={{ color: '#10B981' }} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyColor('#10B981')}>Green</button></li>
@@ -139,7 +139,7 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={props.applyClearFormatting} title="Clear formatting"><Eraser className="w-3 h-3" strokeWidth={1.8} /></button>
         <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('<!-- ', ' -->')} title="Comment"><MessageSquare className="w-3 h-3" strokeWidth={1.8} /></button>
         <details className="relative">
-          <summary className={props.toolbarMenuSummaryClassName} title="More" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}><MoreHorizontal className="w-3 h-3" strokeWidth={1.8} /></summary>
+          <summary className={props.toolbarMenuSummaryClassName} title="More" onPointerDown={preventDefaultPointerDown} onMouseDown={preventDefaultMouseDown} onClick={toggleParentDetailsOpenFromSummaryClick}><MoreHorizontal className="w-3 h-3" strokeWidth={1.8} /></summary>
           <menu className={props.toolbarMenuClassName} aria-label="More actions">
             {selectionActions ? (
               <>

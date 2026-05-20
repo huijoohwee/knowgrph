@@ -296,6 +296,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     jsonDerivedMarkdownSeedRef.current = seed
     setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)
   }, [activeDocumentKey, isJsonMarkdownEditing, jsonDerivedMarkdownBase])
+  const persistedEditableMarkdownText = isJsonMarkdownEditing
+    ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '')
+    : activeText
   const markdownEditText = isJsonMarkdownEditing ? editableMarkdownText : null
   const commitMarkdownEditText = React.useCallback(
     (nextText: string) => {
@@ -486,12 +489,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const endLine = Math.max(startLine, Math.floor(args.endLine || startLine))
       const replacementLines = Array.isArray(args.replacementLines) ? args.replacementLines : []
       const next = replaceMarkdownLineRange({
-        markdownText: editableMarkdownText,
+        markdownText: persistedEditableMarkdownText,
         startLine,
         endLine,
         replacementLines,
       })
-      if (next === editableMarkdownText) return
+      if (next === persistedEditableMarkdownText) return
       commitMarkdownEditText(next)
       if (layoutMode === 'viewer') return
       if (viewerInlineEditActiveRef.current) return
@@ -501,7 +504,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         void 0
       }
     },
-    [commitMarkdownEditText, disableViewerMutations, editableMarkdownText, layoutMode, revealLineInEditor],
+    [commitMarkdownEditText, disableViewerMutations, layoutMode, persistedEditableMarkdownText, revealLineInEditor],
   )
   const onInsertLineAfter = disableViewerMutations ? undefined : handleInsertLineAfter
   const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock

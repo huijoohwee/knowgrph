@@ -506,6 +506,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["markdownWorkspace.editor.emptyBoot.keepsJsonPaneBlank","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkdown"],
   ["markdownWorkspace.viewer.inlineEdit.jsonBackedSync","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdownEdits"],
   ["markdownWorkspace.viewer.inlineEdit.splitToolbarLiveSync","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerFloatingToolbarSyncsSplitMarkdownAndJsonPanesLive"],
+  ["markdownWorkspace.viewer.inlineEdit.underlineInputMouseupKeepsRendered","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineInputDoesNotLiteralizeOnMouseRelease"],
+  ["markdownWorkspace.viewer.inlineEdit.underlineCommitKeepsRenderedPreview","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPreview"],
   ["markdownWorkspace.load.markdownSeedDoesNotAutoSwitchToWidget","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocumentMode"],
   ["markdownWorkspace.widgetMode.semanticCache.lazyBundle","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBuild"],
   ["markdownWorkspace.explorer.crudActions.createDelete","@/__tests__/markdownWorkspaceCrudActions.test","testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile"],

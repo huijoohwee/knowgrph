@@ -93,6 +93,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
   editLinePrefixesRef: React.MutableRefObject<string[] | null>
   initialPresentTextRef: React.MutableRefObject<string>
   initialEditorHtmlRef: React.MutableRefObject<string>
+  lastSerializedEditorHtmlRef: React.MutableRefObject<string>
   draftRef: React.MutableRefObject<string>
   editDirtyRef: React.MutableRefObject<boolean>
   editSessionIdRef: React.MutableRefObject<number>
@@ -123,12 +124,11 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     return false
   }, [])
 
-  const readEditorPlainText = React.useCallback((): string => {
-    const el = args.editorRef.current
-    if (!el) return ''
-    const nodes = Array.from(el.childNodes)
+  const readPlainTextFromRoot = React.useCallback((root: HTMLElement | null): string => {
+    if (!root) return ''
+    const nodes = Array.from(root.childNodes)
     const elementChildren = nodes.filter(n => n.nodeType === Node.ELEMENT_NODE) as HTMLElement[]
-    if (elementChildren.length === 0) return String(el.textContent || '').replace(/\r/g, '')
+    if (elementChildren.length === 0) return String(root.textContent || '').replace(/\r/g, '')
 
     const allBlock = elementChildren.every(n => {
       const tag = String(n.tagName || '').toLowerCase()
@@ -159,7 +159,11 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     for (const n of nodes) walk(n)
     if (out.endsWith('\n')) out = out.slice(0, -1)
     return out.replace(/\r/g, '')
-  }, [args.editorRef])
+  }, [])
+
+  const readEditorPlainText = React.useCallback((): string => {
+    return readPlainTextFromRoot(args.editorRef.current)
+  }, [args.editorRef, readPlainTextFromRoot])
 
   const getSelectionOffsets = React.useCallback((): { startOffset: number; endOffset: number } | null => {
     const root = args.editorRef.current
@@ -197,8 +201,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     args.onDraftTextChange(nextMarkdownText)
   }, [args, buildReplacementLinesFromDraft])
 
-  const serializeHtmlEditorDomToDraft = React.useCallback(async (): Promise<string | null> => {
-    const root = args.editorRef.current
+  const serializeHtmlRootToDraft = React.useCallback(async (root: HTMLElement | null): Promise<string | null> => {
     if (!root) return null
     const preservedComments: string[] = []
     const preservedHighlights: string[] = []
@@ -231,7 +234,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       preservedComments.push(match)
       return token
     })
-    const plainDraft = readEditorPlainText()
+    const plainDraft = readPlainTextFromRoot(root)
     const preferPlainTextInlineDraft =
       args.htmlRenderMode === 'inline'
       && !hasSemanticRichMarkup(root)
@@ -248,32 +251,37 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       .replace(/KGHIGHLIGHTTOKEN\s*(\d+)\s*KG/g, (_, idx: string) => preservedHighlights[Number(idx)] || '')
       .replace(/KGHTMLCOMMENTTOKEN\s*(\d+)\s*KG/g, (_, idx: string) => preservedComments[Number(idx)] || '')
       .replace(/\s+$/g, '')
-  }, [args.editorRef, args.htmlRenderMode, hasSemanticRichMarkup, readEditorPlainText])
+  }, [args.htmlRenderMode, hasSemanticRichMarkup, readPlainTextFromRoot])
 
   const htmlDraftEmitVersionRef = React.useRef(0)
   const emitHtmlDraftTextChangeFromEditorDom = React.useCallback(() => {
     if (args.editorPresentation !== 'html') return
     if (!args.onDraftTextChange || !Array.isArray(args.sourceLines)) return
+    const root = args.editorRef.current
+    if (!root) return
+    const currentEditorHtml = String(root.innerHTML || '')
+    if (currentEditorHtml === args.lastSerializedEditorHtmlRef.current) return
     const sessionId = args.editSessionIdRef.current
     const emitVersion = htmlDraftEmitVersionRef.current + 1
     htmlDraftEmitVersionRef.current = emitVersion
     void (async () => {
-      const markdown = await serializeHtmlEditorDomToDraft()
+      const markdown = await serializeHtmlRootToDraft(root)
       if (htmlDraftEmitVersionRef.current !== emitVersion) return
       if (args.editSessionIdRef.current !== sessionId) return
       if (typeof markdown !== 'string') return
+      args.lastSerializedEditorHtmlRef.current = currentEditorHtml
       args.draftRef.current = markdown
       emitDraftTextChange(markdown)
     })()
-  }, [args.editorPresentation, args.editSessionIdRef, args.onDraftTextChange, args.sourceLines, args.draftRef, emitDraftTextChange, serializeHtmlEditorDomToDraft])
+  }, [args.editorPresentation, args.editSessionIdRef, args.onDraftTextChange, args.sourceLines, args.draftRef, args.editorRef, args.lastSerializedEditorHtmlRef, emitDraftTextChange, serializeHtmlRootToDraft])
 
   const readCurrentMarkdownDraft = React.useCallback(async (): Promise<string> => {
     if (args.editorPresentation !== 'html') return String(args.draftRef.current || '')
-    const markdown = await serializeHtmlEditorDomToDraft()
+    const markdown = await serializeHtmlRootToDraft(args.editorRef.current)
     if (typeof markdown !== 'string') return String(args.draftRef.current || '')
     args.draftRef.current = markdown
     return markdown
-  }, [args.draftRef, args.editorPresentation, serializeHtmlEditorDomToDraft])
+  }, [args.draftRef, args.editorPresentation, args.editorRef, serializeHtmlRootToDraft])
 
   const setDraftToDom = React.useCallback((nextText: string, selection?: { startOffset: number; endOffset: number }) => {
     const el = args.editorRef.current
@@ -299,6 +307,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
           .join('')
         el.innerHTML = rewriteInlineEditorAnnotationsToStyledHtml(renderedInlineHtml)
       }
+      args.lastSerializedEditorHtmlRef.current = el.innerHTML
     } else {
       el.textContent = nextText
     }
@@ -329,32 +338,33 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
         return
       }
       const sessionId = args.editSessionIdRef.current
-      args.setEditing(false)
-      const html = rewriteSigilSpansToInlineCodeHtml(root.innerHTML)
+      const rootSnapshot = root.cloneNode(true) as HTMLElement
       void (async () => {
-        const plainDraft = readEditorPlainText()
-        const preferPlainTextInlineCommit =
-          args.htmlRenderMode === 'inline'
-          && !hasSemanticRichMarkup(root)
-        const markdown = preferPlainTextInlineCommit
-          ? String(plainDraft || '').replace(/\r/g, '').replace(/\n+$/g, '')
-          : await (async () => {
-            const result = await convertHtmlToMarkdownUnified({
-              html: `<div>${html}</div>`,
-              ...HTML_TO_MARKDOWN_UNIFIED_DEFAULTS,
-            })
-            if (!result.ok) return ''
-            return String(result.markdown || '').replace(/\s+$/g, '')
-          })()
+        const markdown = await serializeHtmlRootToDraft(rootSnapshot)
         if (args.editSessionIdRef.current !== sessionId) return
-        if (!preferPlainTextInlineCommit && !markdown) return
-        if (markdown === args.initialPresentTextRef.current) return
+        if (typeof markdown !== 'string') {
+          args.setEditing(false)
+          args.setSessionEditLineRange(null)
+          return
+        }
+        if (!markdown && hasSemanticRichMarkup(rootSnapshot)) {
+          args.setEditing(false)
+          args.setSessionEditLineRange(null)
+          return
+        }
+        if (markdown === args.initialPresentTextRef.current) {
+          args.setEditing(false)
+          args.setSessionEditLineRange(null)
+          return
+        }
         const replacementLines = buildReplacementLinesFromDraft(markdown)
         if (areReplacementLinesNoop({ sourceLines: args.sourceLines, startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })) {
+          args.setEditing(false)
           args.setSessionEditLineRange(null)
           return
         }
         args.onReplaceLineRange?.({ startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })
+        args.setEditing(false)
         args.setSessionEditLineRange(null)
       })()
       return
@@ -374,7 +384,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     args.onReplaceLineRange({ startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })
     args.setEditing(false)
     args.setSessionEditLineRange(null)
-  }, [args, buildReplacementLinesFromDraft, getDraft, hasSemanticRichMarkup, readEditorPlainText])
+  }, [args, buildReplacementLinesFromDraft, getDraft, hasSemanticRichMarkup, serializeHtmlRootToDraft])
 
   const cancel = React.useCallback(() => {
     args.setEditing(false)

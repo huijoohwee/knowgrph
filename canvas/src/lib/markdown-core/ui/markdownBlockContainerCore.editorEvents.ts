@@ -83,7 +83,10 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     const text = args.editTrimEdgeNewlines
       ? (preserveQuoteOnlyBlankLineStructure ? textRaw : textRaw.replace(/^\n+/, '').replace(/\n+$/, ''))
       : textRaw
-    args.draftRef.current = text
+    const domDraftControlsSsot = typeof args.emitLiveDraftTextFromDom === 'function'
+    // Keep rich-text draft state sourced from DOM serialization so toolbar mutations
+    // cannot transiently overwrite semantic HTML markup with plain text.
+    if (!domDraftControlsSsot) args.draftRef.current = text
     args.editDirtyRef.current = true
     args.emitLiveDraftTextFromDom?.()
     if (args.editTrimEmptyBlockEdges) args.scheduleEdgeTrimBurst()

@@ -29,6 +29,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
   editSessionIdRef: React.MutableRefObject<number>
   editorRef: React.RefObject<HTMLElement | null>
   initialEditorHtmlRef: React.MutableRefObject<string>
+  lastSerializedEditorHtmlRef: React.MutableRefObject<string>
   lastPointerSelectionModeRef: React.MutableRefObject<'caret' | 'word'>
 }) => {
   const syncSelectionToolbarStateRef = React.useRef(args.syncSelectionToolbarState)
@@ -131,6 +132,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
               }
             }
             args.initialEditorHtmlRef.current = el.innerHTML
+            args.lastSerializedEditorHtmlRef.current = el.innerHTML
           } else {
             const lines = String(presentText || '').split(/\r?\n/)
             el.innerHTML = readCachedOrComputeEditHtml(
@@ -141,6 +143,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
               },
             )
             args.initialEditorHtmlRef.current = el.innerHTML
+            args.lastSerializedEditorHtmlRef.current = el.innerHTML
           }
         } else {
           if (preserveQuoteOnlyBlankLineStructure) el.innerHTML = Array.from({ length: Math.max(1, stripped.length) }, () => '<div><br/></div>').join('')
@@ -202,6 +205,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
             args.scheduleEdgeTrimBurst()
           }
           args.initialEditorHtmlRef.current = el.innerHTML
+          args.lastSerializedEditorHtmlRef.current = el.innerHTML
         } else {
           const lines = String(normalizedInitialText || '').split(/\r?\n/)
           el.innerHTML = readCachedOrComputeEditHtml(
@@ -212,6 +216,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
             },
           )
           args.initialEditorHtmlRef.current = el.innerHTML
+          args.lastSerializedEditorHtmlRef.current = el.innerHTML
         }
       } else {
         el.textContent = normalizedInitialText
@@ -266,6 +271,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
     args.editorRef,
     args.htmlRenderMode,
     args.initialEditorHtmlRef,
+    args.lastSerializedEditorHtmlRef,
     args.initialPresentTextRef,
     args.initialText,
     args.lastPointerSelectionModeRef,

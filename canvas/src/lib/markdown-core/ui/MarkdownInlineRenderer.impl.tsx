@@ -137,6 +137,55 @@ const encodeUtf8ToBase64 = (text: string): string => {
   return btoa(binary)
 }
 
+const INLINE_HTML_WRAPPER_TAGS = new Set([
+  'u',
+  'strong',
+  'b',
+  'em',
+  'i',
+  's',
+  'del',
+  'sub',
+  'sup',
+  'mark',
+])
+
+const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' | 'close' } | null => {
+  const generic = token as unknown as TokensGeneric
+  if (generic.type !== 'html') return null
+  const raw = String((token as unknown as TokensHTML).text || '').trim()
+  if (!raw) return null
+  const closeMatch = raw.match(/^<\s*\/\s*([A-Za-z0-9-]+)\s*>$/)
+  if (closeMatch) {
+    const tag = String(closeMatch[1] || '').toLowerCase()
+    if (INLINE_HTML_WRAPPER_TAGS.has(tag)) return { tag, kind: 'close' }
+    return null
+  }
+  if (/\/\s*>$/.test(raw)) return null
+  const openMatch = raw.match(/^<\s*([A-Za-z0-9-]+)\b[^>]*>$/)
+  if (!openMatch) return null
+  const tag = String(openMatch[1] || '').toLowerCase()
+  if (!INLINE_HTML_WRAPPER_TAGS.has(tag)) return null
+  return { tag, kind: 'open' }
+}
+
+const renderInlineHtmlWrapper = (tag: string, key: string, children: React.ReactNode): React.ReactNode => {
+  if (tag === 'u') return <u key={key}>{children}</u>
+  if (tag === 'strong' || tag === 'b') return <strong key={key}>{children}</strong>
+  if (tag === 'em' || tag === 'i') return <em key={key}>{children}</em>
+  if (tag === 's' || tag === 'del') return <del key={key}>{children}</del>
+  if (tag === 'sub') return <sub key={key}>{children}</sub>
+  if (tag === 'sup') return <sup key={key}>{children}</sup>
+  if (tag === 'mark') {
+    return (
+      <mark key={key} className={`${UI_THEME_TOKENS.status.warning} px-0.5 rounded-sm`}>
+        {children}
+      </mark>
+    )
+  }
+  return <React.Fragment key={key}>{children}</React.Fragment>
+}
+
 const normalizeSvgDataUriForImg = (src: string): string => {
   const raw = String(src || '').trim()
   if (!raw.toLowerCase().startsWith(SVG_DATA_URI_BASE64_PREFIX)) return raw
@@ -205,7 +254,32 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
 
   const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
     const list = Array.isArray(subTokens) ? subTokens : []
-    return list.map((t, i) => renderOne(t, i, insideLink))
+    const out: React.ReactNode[] = []
+    for (let i = 0; i < list.length; i += 1) {
+      const token = list[i]!
+      const wrapper = readInlineHtmlWrapperToken(token)
+      if (wrapper?.kind === 'open') {
+        let depth = 1
+        let closeIndex = -1
+        for (let j = i + 1; j < list.length; j += 1) {
+          const nextWrapper = readInlineHtmlWrapperToken(list[j]!)
+          if (!nextWrapper || nextWrapper.tag !== wrapper.tag) continue
+          depth += nextWrapper.kind === 'open' ? 1 : -1
+          if (depth === 0) {
+            closeIndex = j
+            break
+          }
+        }
+        if (closeIndex > i) {
+          out.push(renderInlineHtmlWrapper(wrapper.tag, `${wrapper.tag}:${i}`, renderTokens(list.slice(i + 1, closeIndex), insideLink)))
+          i = closeIndex
+          continue
+        }
+      }
+      if (wrapper?.kind === 'close') continue
+      out.push(renderOne(token, i, insideLink))
+    }
+    return out
   }
 
   const renderOne = (t: Token, i: number, insideLink: boolean): React.ReactNode => {

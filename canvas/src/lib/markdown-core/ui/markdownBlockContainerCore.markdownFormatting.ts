@@ -125,6 +125,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
         return
       }
       if (left === '<!-- ' && right === ' -->') {
+        args.restoreCachedHtmlSelection()
         applyHtmlStructuralMutation(({ draft, selection }) => {
           const startOffset = selection?.startOffset ?? 0
           const endOffset = selection?.endOffset ?? 0
@@ -133,6 +134,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
           const start = Math.min(a, b)
           const end = Math.max(a, b)
           const selected = draft.slice(start, end)
+          if (!selected) return null
           return `${draft.slice(0, start)}<!-- ${selected} -->${draft.slice(end)}`
         })
         return
@@ -328,6 +330,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
 
   const applyChecklist = React.useCallback(() => {
     if (args.editorPresentation === 'html') {
+      args.restoreCachedHtmlSelection()
       applyHtmlStructuralMutation(({ draft, selection }) => {
         const startOffset = selection?.startOffset ?? 0
         const endOffset = selection?.endOffset ?? 0
@@ -364,6 +367,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
 
   const applyDivider = React.useCallback(() => {
     if (args.editorPresentation === 'html') {
+      args.restoreCachedHtmlSelection()
       applyHtmlStructuralMutation(({ draft, selection }) => {
         const startOffset = selection?.startOffset ?? 0
         const lineEnd = (() => { const idx = draft.indexOf('\n', startOffset); return idx < 0 ? draft.length : idx })()

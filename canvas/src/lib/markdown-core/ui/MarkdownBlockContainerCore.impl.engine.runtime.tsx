@@ -158,6 +158,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     sourceMetrics: Record<string, string>
   } | null>(null)
   const initialEditorHtmlRef = React.useRef('')
+  const lastSerializedEditorHtmlRef = React.useRef('')
   const initialPresentTextRef = React.useRef('')
   const editSessionIdRef = React.useRef(0)
   const editLinePrefixesRef = React.useRef<string[] | null>(null)
@@ -232,6 +233,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     editLinePrefixesRef,
     initialPresentTextRef,
     initialEditorHtmlRef,
+    lastSerializedEditorHtmlRef,
     draftRef,
     editDirtyRef,
     editSessionIdRef,
@@ -424,6 +426,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     editSessionIdRef,
     editorRef,
     initialEditorHtmlRef,
+    lastSerializedEditorHtmlRef,
     lastPointerSelectionModeRef,
   })
   const hasCachedSelection = !!lastNonCollapsedSelectionOffsetsRef.current
@@ -543,9 +546,10 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         hasCachedSelection={hasCachedSelection}
         holdToolbarInteraction={holdToolbarInteraction}
         onToolbarInteractionEnd={() => {
-          queueMicrotask(() => {
+          toolbarInteractionUntilRef.current = Date.now() + 180
+          window.setTimeout(() => {
             toolbarInteractingRef.current = false
-          })
+          }, 0)
         }}
         applyTurnInto={applyTurnInto}
         applyToggleHeading={applyToggleHeading}

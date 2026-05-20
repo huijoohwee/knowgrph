@@ -14,6 +14,10 @@ const tick = async (n: number = 1) => {
   }
 }
 
+const waitMs = async (ms: number) => {
+  await new Promise<void>(resolve => setTimeout(resolve, ms))
+}
+
 const ensureRangeRect = (dom: ReturnType<typeof initJsdomHarness>['dom']) => {
   try {
     const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -28,6 +32,38 @@ const ensureRangeRect = (dom: ReturnType<typeof initJsdomHarness>['dom']) => {
     }
   } catch {
     void 0
+  }
+}
+
+const installInlineExecCommandStub = (
+  dom: ReturnType<typeof initJsdomHarness>['dom'],
+  commands: Array<'bold' | 'italic' | 'underline' | 'strikeThrough'>,
+) => {
+  const enabled = new Set(commands)
+  const originalExecCommand = dom.window.document.execCommand
+  dom.window.document.execCommand = ((cmd: string) => {
+    if (!enabled.has(cmd as 'bold' | 'italic' | 'underline' | 'strikeThrough')) return false
+    const sel = dom.window.getSelection()
+    if (!sel || sel.rangeCount <= 0) return false
+    const range = sel.getRangeAt(0)
+    if (range.collapsed) return false
+    const tagName = cmd === 'bold'
+      ? 'strong'
+      : cmd === 'italic'
+        ? 'em'
+        : cmd === 'strikeThrough'
+          ? 's'
+          : 'u'
+    const wrapper = dom.window.document.createElement(tagName)
+    wrapper.appendChild(range.extractContents())
+    range.insertNode(wrapper)
+    range.selectNodeContents(wrapper)
+    sel.removeAllRanges()
+    sel.addRange(range)
+    return true
+  }) as typeof dom.window.document.execCommand
+  return () => {
+    dom.window.document.execCommand = originalExecCommand
   }
 }
 
@@ -942,6 +978,365 @@ export async function testMarkdownWorkspaceViewerInlineEditEditorDoubleClickDoes
     restore()
   }
 }
+
+export async function testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineStaysRenderedOnMouseRelease() {
+  const { dom, restore } = initJsdomHarness()
+  ensureRangeRect(dom)
+  const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'viewer',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isMarkdown: true,
+          activeText: 'Viewer edit line one',
+          setActiveText: () => void 0,
+          activeDocumentKey: '/viewer-edit-underline-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///viewer-edit-underline-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const host = container.querySelector('[data-start-line="1"]') as HTMLElement | null
+    if (!host) throw new Error('expected viewer first line host')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0, y: 0, top: 0, left: 0, right: 460, bottom: 60, width: 460, height: 60, toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    await act(async () => {
+      host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 16, clientY: 16 }))
+      await tick(6)
+    })
+
+    const editor = container.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor after single-click open')
+
+    editor.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: 28, clientY: 16, detail: 2 }))
+    await tick(6)
+
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected viewer editor text node after double-click')
+    const range = doc.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, Math.min(6, String(textNode.textContent || '').length))
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection object after double-click')
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 2 }))
+      await tick(4)
+    })
+
+    const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
+    if (!toolbar) throw new Error('expected floating selection toolbar after double-click selection')
+    const underlineButton = toolbar.querySelector('button[title="Underline"]') as HTMLButtonElement | null
+    if (!underlineButton) throw new Error('expected underline button')
+    await act(async () => {
+      underlineButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      underlineButton.click()
+      await tick(6)
+    })
+
+    const underlineTextNode = editor.querySelector('u')?.firstChild
+    if (!underlineTextNode || underlineTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error(`expected underline node after toolbar action, got html=${JSON.stringify(editor.innerHTML || '')}`)
+    }
+    const collapsedRange = doc.createRange()
+    collapsedRange.setStart(underlineTextNode, 2)
+    collapsedRange.setEnd(underlineTextNode, 2)
+    sel.removeAllRanges()
+    sel.addRange(collapsedRange)
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+      await tick(6)
+    })
+
+    if (!String(editor.innerHTML || '').includes('<u>Viewer</u>')) {
+      throw new Error(`expected double-click underline to stay rendered after mouse release, got html=${JSON.stringify(editor.innerHTML || '')}`)
+    }
+    if (String(editor.textContent || '').includes('<u>Viewer</u>')) {
+      throw new Error(`expected double-click underline not to literalize into text after mouse release, got text=${JSON.stringify(editor.textContent || '')}`)
+    }
+  } finally {
+    restoreExecCommand()
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineInputDoesNotLiteralizeOnMouseRelease() {
+  const { dom, restore } = initJsdomHarness()
+  ensureRangeRect(dom)
+  const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'viewer',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isMarkdown: true,
+          activeText: 'Viewer edit line one',
+          setActiveText: () => void 0,
+          activeDocumentKey: '/viewer-edit-underline-input-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///viewer-edit-underline-input-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const host = container.querySelector('[data-start-line="1"]') as HTMLElement | null
+    if (!host) throw new Error('expected viewer first line host')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0, y: 0, top: 0, left: 0, right: 460, bottom: 60, width: 460, height: 60, toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    await act(async () => {
+      host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 16, clientY: 16 }))
+      await tick(6)
+    })
+
+    const editor = container.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor after single-click open')
+
+    editor.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: 28, clientY: 16, detail: 2 }))
+    await tick(6)
+
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected viewer editor text node after double-click')
+    const range = doc.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, Math.min(6, String(textNode.textContent || '').length))
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection object after double-click')
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 2 }))
+      await tick(4)
+    })
+
+    const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
+    if (!toolbar) throw new Error('expected floating selection toolbar after double-click selection')
+    const underlineButton = toolbar.querySelector('button[title="Underline"]') as HTMLButtonElement | null
+    if (!underlineButton) throw new Error('expected underline button')
+    await act(async () => {
+      underlineButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      underlineButton.click()
+      editor.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, cancelable: true, inputType: 'formatUnderline' }))
+      await tick(6)
+    })
+
+    const underlineTextNode = editor.querySelector('u')?.firstChild
+    if (!underlineTextNode || underlineTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error(`expected underline node after toolbar action input, got html=${JSON.stringify(editor.innerHTML || '')}`)
+    }
+    const collapsedRange = doc.createRange()
+    collapsedRange.setStart(underlineTextNode, 2)
+    collapsedRange.setEnd(underlineTextNode, 2)
+    sel.removeAllRanges()
+    sel.addRange(collapsedRange)
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+      await tick(6)
+    })
+
+    if (!String(editor.innerHTML || '').includes('<u>Viewer</u>')) {
+      throw new Error(`expected underline to stay rendered after input-plus-release, got html=${JSON.stringify(editor.innerHTML || '')}`)
+    }
+    if (String(editor.textContent || '').includes('<u>Viewer</u>')) {
+      throw new Error(`expected underline not to literalize into text after input-plus-release, got text=${JSON.stringify(editor.textContent || '')}`)
+    }
+  } finally {
+    restoreExecCommand()
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPreview() {
+  const { dom, restore } = initJsdomHarness()
+  ensureRangeRect(dom)
+  const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'viewer',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isMarkdown: true,
+          activeText: 'Viewer edit line one',
+          setActiveText: () => void 0,
+          activeDocumentKey: '/viewer-edit-underline-commit-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///viewer-edit-underline-commit-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const host = container.querySelector('[data-start-line="1"]') as HTMLElement | null
+    if (!host) throw new Error('expected viewer first line host')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0, y: 0, top: 0, left: 0, right: 460, bottom: 60, width: 460, height: 60, toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    await act(async () => {
+      host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 16, clientY: 16 }))
+      await tick(6)
+    })
+
+    const editor = container.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor after single-click open')
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected viewer editor text node')
+    const range = doc.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, Math.min(6, String(textNode.textContent || '').length))
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection object')
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+      await tick(4)
+    })
+
+    const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
+    if (!toolbar) throw new Error('expected floating selection toolbar')
+    const underlineButton = toolbar.querySelector('button[title="Underline"]') as HTMLButtonElement | null
+    if (!underlineButton) throw new Error('expected underline button')
+    await act(async () => {
+      underlineButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      underlineButton.click()
+      editor.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, cancelable: true, inputType: 'formatUnderline' }))
+      await tick(6)
+    })
+
+    await act(async () => {
+      editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true, cancelable: true }))
+      await waitMs(120)
+      await tick(8)
+    })
+
+    const editorAfterCommit = container.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (editorAfterCommit) throw new Error('expected inline editor to commit and close after blur')
+    const renderedUnderline = Array.from(container.querySelectorAll('u')).find(node => String(node.textContent || '').includes('Viewer')) as HTMLElement | undefined
+    if (!renderedUnderline) {
+      throw new Error(`expected committed Viewer preview to keep rendered underline, got html=${JSON.stringify(container.innerHTML || '')}`)
+    }
+    if (String(container.textContent || '').includes('<u>Viewer</u>')) {
+      throw new Error(`expected committed Viewer preview not to literalize underline html, got text=${JSON.stringify(container.textContent || '')}`)
+    }
+  } finally {
+    restoreExecCommand()
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
 
 export async function testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdownEdits() {
   const markdown = '=={color=red}Viewer{color}== edit line one'

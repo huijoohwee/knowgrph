@@ -224,6 +224,150 @@ export async function testMarkdownViewerInlineEditTaskListCompactBracketSyntaxPa
   }
 }
 
+export async function testMarkdownViewerInlineEditMultilineListParagraphKeepsUnderlineRendered() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = [
+      '- intro line',
+      '  <u>Alpha</u> tail',
+    ].join('\n')
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownTokenRenderer
+        tokens={tokens}
+        activeDocumentPath="/sandbox/demo/list-multiline-underline.md"
+        highlightedLineRange={null}
+        markdownWordWrap
+        markdownPresentationMode={false}
+        uiPanelTextFontClass="font-sans"
+        uiPanelMonospaceTextClass="font-mono text-xs"
+        mermaidFrontmatterConfig={null}
+        rootThemeMode="light"
+        previewOverlayScope="container"
+        markdownSourceLines={sourceLines}
+        viewerBlockEditingEnabled
+        onReplaceLineRange={() => {}}
+        forbidCopy
+      />,
+    )
+    await tick()
+
+    const row = await openEditorAtLine(dom.window, 1)
+    if (!String(row.editor.innerHTML || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected multiline paragraph-only list row to reuse html inline editor and render underline markup, got html=${JSON.stringify(row.editor.innerHTML || '')}`)
+    }
+    if (String(row.editor.textContent || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected multiline paragraph-only list row not to literalize underline markup into text, got text=${JSON.stringify(row.editor.textContent || '')}`)
+    }
+
+    const underlineTextNode = row.editor.querySelector('u')?.firstChild
+    if (!underlineTextNode || underlineTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error('expected underline text node in multiline list row editor')
+    }
+    const selection = dom.window.getSelection()
+    if (!selection) throw new Error('expected selection')
+    const range = dom.window.document.createRange()
+    range.setStart(underlineTextNode, 2)
+    range.setEnd(underlineTextNode, 2)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    row.editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await waitTicks(6)
+
+    if (!String(row.editor.innerHTML || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected multiline paragraph-only list row to preserve underline after mouseup, got html=${JSON.stringify(row.editor.innerHTML || '')}`)
+    }
+    if (String(row.editor.textContent || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected multiline paragraph-only list row not to literalize underline after mouseup, got text=${JSON.stringify(row.editor.textContent || '')}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditTaskRowKeepsUnderlineRendered() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = [
+      '- [ ] <u>Alpha</u> tail',
+      '- [ ] plain',
+    ].join('\n')
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownTokenRenderer
+        tokens={tokens}
+        activeDocumentPath="/sandbox/demo/task-row-underline.md"
+        highlightedLineRange={null}
+        markdownWordWrap
+        markdownPresentationMode={false}
+        uiPanelTextFontClass="font-sans"
+        uiPanelMonospaceTextClass="font-mono text-xs"
+        mermaidFrontmatterConfig={null}
+        rootThemeMode="light"
+        previewOverlayScope="container"
+        markdownSourceLines={sourceLines}
+        viewerBlockEditingEnabled
+        onReplaceLineRange={() => {}}
+        forbidCopy
+      />,
+    )
+    await tick()
+
+    const taskRow = await openEditorAtLine(dom.window, 1)
+    if (!String(taskRow.editor.innerHTML || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected task row editor to render underline markup, got html=${JSON.stringify(taskRow.editor.innerHTML || '')}`)
+    }
+    if (String(taskRow.editor.textContent || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected task row editor not to literalize underline markup into text, got text=${JSON.stringify(taskRow.editor.textContent || '')}`)
+    }
+
+    const underlineTextNode = taskRow.editor.querySelector('u')?.firstChild
+    if (!underlineTextNode || underlineTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error('expected task row underline text node')
+    }
+    const selection = dom.window.getSelection()
+    if (!selection) throw new Error('expected selection')
+    const range = dom.window.document.createRange()
+    range.setStart(underlineTextNode, 2)
+    range.setEnd(underlineTextNode, 2)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    taskRow.editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await waitTicks(6)
+
+    if (!String(taskRow.editor.innerHTML || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected task row underline to remain rendered after mouseup, got html=${JSON.stringify(taskRow.editor.innerHTML || '')}`)
+    }
+    if (String(taskRow.editor.textContent || '').includes('<u>Alpha</u>')) {
+      throw new Error(`expected task row underline not to literalize after mouseup, got text=${JSON.stringify(taskRow.editor.textContent || '')}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownViewerInlineEditBlockquoteBlankLinesPreserveQuotePrefixes() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {

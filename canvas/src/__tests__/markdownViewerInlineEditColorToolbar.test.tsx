@@ -7,6 +7,38 @@ const tick = async (n: number = 1) => {
   }
 }
 
+const installInlineExecCommandStub = (
+  dom: ReturnType<typeof initJsdomHarness>['dom'],
+  commands: Array<'bold' | 'italic' | 'underline' | 'strikeThrough'>,
+) => {
+  const enabled = new Set(commands)
+  const originalExecCommand = dom.window.document.execCommand
+  dom.window.document.execCommand = ((cmd: string) => {
+    if (!enabled.has(cmd as 'bold' | 'italic' | 'underline' | 'strikeThrough')) return false
+    const sel = dom.window.getSelection()
+    if (!sel || sel.rangeCount <= 0) return false
+    const range = sel.getRangeAt(0)
+    if (range.collapsed) return false
+    const tagName = cmd === 'bold'
+      ? 'strong'
+      : cmd === 'italic'
+        ? 'em'
+        : cmd === 'strikeThrough'
+          ? 's'
+          : 'u'
+    const wrapper = dom.window.document.createElement(tagName)
+    wrapper.appendChild(range.extractContents())
+    range.insertNode(wrapper)
+    range.selectNodeContents(wrapper)
+    sel.removeAllRanges()
+    sel.addRange(range)
+    return true
+  }) as typeof dom.window.document.execCommand
+  return () => {
+    dom.window.document.execCommand = originalExecCommand
+  }
+}
+
 export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlMode() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
@@ -34,6 +66,7 @@ export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlM
     }
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
+    const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
 
     const reactDomClient = await import('react-dom/client')
     const root = reactDomClient.createRoot(container)
@@ -121,6 +154,7 @@ export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlM
     if (!toolbarAfterClick) throw new Error('expected inline selection toolbar to remain available after text color action')
 
     root.unmount()
+    restoreExecCommand()
   } finally {
     restore()
   }
@@ -154,21 +188,7 @@ export async function testMarkdownViewerInlineEditToolbarBoldRestoresCachedHtmlS
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
 
-    const originalExecCommand = dom.window.document.execCommand
-    dom.window.document.execCommand = ((cmd: string) => {
-      if (cmd !== 'bold') return false
-      const sel = dom.window.getSelection()
-      if (!sel || sel.rangeCount <= 0) return false
-      const range = sel.getRangeAt(0)
-      if (range.collapsed) return false
-      const strong = dom.window.document.createElement('strong')
-      strong.appendChild(range.extractContents())
-      range.insertNode(strong)
-      range.selectNodeContents(strong)
-      sel.removeAllRanges()
-      sel.addRange(range)
-      return true
-    }) as typeof dom.window.document.execCommand
+    const restoreExecCommand = installInlineExecCommandStub(dom, ['bold'])
 
     const reactDomClient = await import('react-dom/client')
     const root = reactDomClient.createRoot(container)
@@ -244,8 +264,477 @@ export async function testMarkdownViewerInlineEditToolbarBoldRestoresCachedHtmlS
       throw new Error(`expected bold toolbar action to wrap selected text, got "${String(strong.textContent || '')}"`)
     }
 
-    dom.window.document.execCommand = originalExecCommand
+    restoreExecCommand()
     root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditToolbarUnderlineCommitsHtmlMarkdown() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    try {
+      const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
+        getBoundingClientRect?: () => DOMRect
+      } | null
+      if (proto && typeof proto.getBoundingClientRect !== 'function') {
+        proto.getBoundingClientRect = () => {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+            width: 10,
+            height: 10,
+            toJSON: () => ({}),
+          } as unknown as DOMRect
+        }
+      }
+    } catch {
+      void 0
+    }
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
+
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['Hello world']}
+        onReplaceLineRange={(args) => {
+          replaceCalls.push(args)
+        }}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>Hello world</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor to mount after click')
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected editor to contain text node')
+
+    const range = dom.window.document.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, 5)
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection')
+    sel.removeAllRanges()
+    sel.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await tick(3)
+
+    const underlineButton = dom.window.document.querySelector('button[title="Underline"]') as HTMLButtonElement | null
+    if (!underlineButton) throw new Error('expected underline toolbar button')
+    underlineButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    underlineButton.click()
+    await tick(4)
+
+    if (!String(editor.innerHTML || '').includes('<u>Hello</u>')) {
+      throw new Error(`expected underline toolbar action to wrap selected text in editor html, got ${JSON.stringify(editor.innerHTML || '')}`)
+    }
+
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', ctrlKey: true }))
+    await tick(8)
+
+    if (replaceCalls.length <= 0) throw new Error('expected underline toolbar action to commit replacement lines')
+    const commit = replaceCalls[replaceCalls.length - 1]
+    if (commit.replacementLines.length !== 1 || commit.replacementLines[0] !== '<u>Hello</u> world') {
+      throw new Error(`expected underline toolbar action to commit html markdown, got ${JSON.stringify(commit.replacementLines)}`)
+    }
+
+    root.unmount()
+    restoreExecCommand()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditToolbarTextColorCommitsSigilMarkdown() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    try {
+      const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
+        getBoundingClientRect?: () => DOMRect
+      } | null
+      if (proto && typeof proto.getBoundingClientRect !== 'function') {
+        proto.getBoundingClientRect = () => {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+            width: 10,
+            height: 10,
+            toJSON: () => ({}),
+          } as unknown as DOMRect
+        }
+      }
+    } catch {
+      void 0
+    }
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['Hello world']}
+        onReplaceLineRange={(args) => {
+          replaceCalls.push(args)
+        }}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>Hello world</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor to mount after click')
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected editor to contain text node')
+
+    const range = dom.window.document.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, 5)
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection')
+    sel.removeAllRanges()
+    sel.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await tick(3)
+
+    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar summary')
+    summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+    summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    summary.click()
+    await tick(2)
+
+    const redButton = dom.window.document.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    if (!redButton) throw new Error('expected text color menu button')
+    redButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    redButton.click()
+    await tick(4)
+
+    const sigil = editor.querySelector('[data-kg-sigil="1"]') as HTMLElement | null
+    if (!sigil) throw new Error('expected text color toolbar action to apply a sigil span before commit')
+    if (sigil.getAttribute('data-kg-sigil-color') !== '#EF4444') {
+      throw new Error(`expected text color toolbar action to apply red sigil color, got ${String(sigil.getAttribute('data-kg-sigil-color'))}`)
+    }
+
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', ctrlKey: true }))
+    await tick(8)
+
+    if (replaceCalls.length <= 0) throw new Error('expected text color toolbar action to commit replacement lines')
+    const commit = replaceCalls[replaceCalls.length - 1]
+    if (commit.replacementLines.length !== 1 || commit.replacementLines[0] !== '`#EF4444:Hello` world') {
+      throw new Error(`expected text color toolbar action to commit sigil markdown, got ${JSON.stringify(commit.replacementLines)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditExistingUnderlineCaretDoesNotLiteralizeHtml() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    try {
+      const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
+        getBoundingClientRect?: () => DOMRect
+      } | null
+      if (proto && typeof proto.getBoundingClientRect !== 'function') {
+        proto.getBoundingClientRect = () => {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+            width: 10,
+            height: 10,
+            toJSON: () => ({}),
+          } as unknown as DOMRect
+        }
+      }
+    } catch {
+      void 0
+    }
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
+
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['<u>Hello</u> world']}
+        onReplaceLineRange={() => {}}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span><u>Hello</u> world</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(4)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor to mount after click')
+    if (!String(editor.innerHTML || '').includes('<u>Hello</u>')) {
+      throw new Error(`expected existing underline to render as html in editor, got ${JSON.stringify(editor.innerHTML || '')}`)
+    }
+
+    const underlineTextNode = editor.querySelector('u')?.firstChild
+    if (!underlineTextNode || underlineTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error('expected underline text node')
+    }
+    const range = dom.window.document.createRange()
+    range.setStart(underlineTextNode, 2)
+    range.setEnd(underlineTextNode, 2)
+    const sel = dom.window.getSelection()
+    if (!sel) throw new Error('expected selection')
+    sel.removeAllRanges()
+    sel.addRange(range)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await tick(6)
+
+    if (!String(editor.innerHTML || '').includes('<u>Hello</u>')) {
+      throw new Error(`expected collapsed caret on existing underline to preserve html underline, got ${JSON.stringify(editor.innerHTML || '')}`)
+    }
+    if (String(editor.textContent || '').includes('<u>Hello</u>')) {
+      throw new Error(`expected existing underline not to literalize into text, got ${JSON.stringify(editor.textContent || '')}`)
+    }
+
+    root.unmount()
+    restoreExecCommand()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditAppliedUnderlineCaretDoesNotLiteralizeHtml() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    try {
+      const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
+        getBoundingClientRect?: () => DOMRect
+      } | null
+      if (proto && typeof proto.getBoundingClientRect !== 'function') {
+        proto.getBoundingClientRect = () => {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 10,
+            bottom: 10,
+            width: 10,
+            height: 10,
+            toJSON: () => ({}),
+          } as unknown as DOMRect
+        }
+      }
+    } catch {
+      void 0
+    }
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
+
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['Hello world']}
+        onReplaceLineRange={() => {}}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>Hello world</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor to mount after click')
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected editor to contain text node')
+
+    const selection = dom.window.getSelection()
+    if (!selection) throw new Error('expected selection')
+    const initialRange = dom.window.document.createRange()
+    initialRange.setStart(textNode, 0)
+    initialRange.setEnd(textNode, 5)
+    selection.removeAllRanges()
+    selection.addRange(initialRange)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await tick(3)
+
+    const underlineButton = dom.window.document.querySelector('button[title="Underline"]') as HTMLButtonElement | null
+    if (!underlineButton) throw new Error('expected underline toolbar button')
+    underlineButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    underlineButton.click()
+    await tick(4)
+
+    const underlineTextNode = editor.querySelector('u')?.firstChild
+    if (!underlineTextNode || underlineTextNode.nodeType !== dom.window.Node.TEXT_NODE) {
+      throw new Error('expected underline text node after applying underline')
+    }
+    const collapsedRange = dom.window.document.createRange()
+    collapsedRange.setStart(underlineTextNode, 2)
+    collapsedRange.setEnd(underlineTextNode, 2)
+    selection.removeAllRanges()
+    selection.addRange(collapsedRange)
+    dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    await tick(8)
+
+    if (!String(editor.innerHTML || '').includes('<u>Hello</u>')) {
+      throw new Error(`expected applied underline to remain html after collapsed caret mouseup, got ${JSON.stringify(editor.innerHTML || '')}`)
+    }
+    if (String(editor.textContent || '').includes('<u>Hello</u>')) {
+      throw new Error(`expected applied underline not to literalize into text, got ${JSON.stringify(editor.textContent || '')}`)
+    }
+
+    root.unmount()
+    restoreExecCommand()
   } finally {
     restore()
   }
