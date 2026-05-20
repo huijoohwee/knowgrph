@@ -32,6 +32,16 @@ let lastAppliedComposedGraphSignature = ''
 
 type ComposeSourceFilesOptions = {
   includeWorkspaceBacked?: boolean
+  intent?: 'explicit-graph-owner'
+  precomputedSignature?: string
+}
+
+function shouldIncludeWorkspaceBackedSources(options: ComposeSourceFilesOptions = {}): boolean {
+  return options.includeWorkspaceBacked === true && options.intent === 'explicit-graph-owner'
+}
+
+function buildExplicitGraphOwnerComposeOptions(): ComposeSourceFilesOptions {
+  return { includeWorkspaceBacked: true, intent: 'explicit-graph-owner' }
 }
 
 function hasEnabledNonWorkspaceComposedSources(
@@ -56,7 +66,7 @@ function readSourceFilesForComposedApply(
   options: ComposeSourceFilesOptions = {},
 ): ReturnType<typeof useGraphStore.getState>['sourceFiles'] {
   const list = Array.isArray(sourceFiles) ? sourceFiles : []
-  if (options.includeWorkspaceBacked === true) return list
+  if (shouldIncludeWorkspaceBackedSources(options)) return list
   return list.filter(file => !isWorkspaceBackedSourceFile(file))
 }
 
@@ -68,6 +78,8 @@ function resetPendingComposedGraphApplyState() {
 }
 
 function readCurrentComposedGraphSignature(options: ComposeSourceFilesOptions = {}): string {
+  const precomputedSignature = String(options.precomputedSignature || '').trim()
+  if (precomputedSignature) return precomputedSignature
   try {
     return buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles, options)
   } catch {
@@ -88,7 +100,11 @@ function ensureWorkspaceOverlayComposeRetrySubscription() {
       const includeWorkspaceBacked = pendingComposeAfterWorkspaceOverlayCloseIncludesWorkspaceBacked
       pendingComposeAfterWorkspaceOverlayClose = false
       pendingComposeAfterWorkspaceOverlayCloseIncludesWorkspaceBacked = false
-      scheduleApplyComposedGraphFromSourceFiles(includeWorkspaceBacked ? { includeWorkspaceBacked: true } : undefined)
+      if (includeWorkspaceBacked) {
+        scheduleApplyGraphOwnerComposedGraphFromSourceFiles()
+        return
+      }
+      scheduleApplyComposedGraphFromSourceFiles()
     },
   )
 }
@@ -166,10 +182,25 @@ function requestWorkspaceOpenFlowEditorFit(graphData: ReturnType<typeof composeG
   st.requestZoom('fit', { intent: 'fitToView' })
 }
 
+export function scheduleApplyGraphOwnerComposedGraphFromSourceFiles() {
+  scheduleApplyComposedGraphFromSourceFiles(buildExplicitGraphOwnerComposeOptions())
+}
+
+export function scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature(precomputedSignature: string) {
+  scheduleApplyComposedGraphFromSourceFiles({
+    ...buildExplicitGraphOwnerComposeOptions(),
+    precomputedSignature,
+  })
+}
+
+export function applyGraphOwnerComposedGraphFromSourceFiles() {
+  applyComposedGraphFromSourceFiles(buildExplicitGraphOwnerComposeOptions())
+}
+
 export function scheduleApplyComposedGraphFromSourceFiles(options: ComposeSourceFilesOptions = {}) {
   ensureWorkspaceOverlayComposeRetrySubscription()
   const currentSourceFiles = useGraphStore.getState().sourceFiles
-  const includeWorkspaceBacked = options.includeWorkspaceBacked === true
+  const includeWorkspaceBacked = shouldIncludeWorkspaceBackedSources(options)
   if (!includeWorkspaceBacked) {
     if (!hasEnabledNonWorkspaceComposedSources(currentSourceFiles)) {
       resetPendingComposedGraphApplyState()
@@ -190,9 +221,11 @@ export function scheduleApplyComposedGraphFromSourceFiles(options: ComposeSource
     return
   }
   const requestedIncludesWorkspaceBacked = includeWorkspaceBacked || pendingComposeIncludesWorkspaceBackedSources
-  const requestedSignature = readCurrentComposedGraphSignature({
-    includeWorkspaceBacked: requestedIncludesWorkspaceBacked,
-  })
+  const requestedSignature = readCurrentComposedGraphSignature(
+    requestedIncludesWorkspaceBacked
+      ? { ...buildExplicitGraphOwnerComposeOptions(), ...(options.precomputedSignature ? { precomputedSignature: options.precomputedSignature } : {}) }
+      : options.precomputedSignature ? { precomputedSignature: options.precomputedSignature } : undefined,
+  )
   if (requestedSignature && requestedSignature === lastAppliedComposedGraphSignature) return
   if (includeWorkspaceBacked) pendingComposeIncludesWorkspaceBackedSources = true
   if (pendingComposeRaf != null && requestedSignature && requestedSignature === pendingComposedGraphSignature) return
@@ -200,22 +233,27 @@ export function scheduleApplyComposedGraphFromSourceFiles(options: ComposeSource
   if (pendingComposeRaf != null) return
   const w = typeof window !== 'undefined' ? window : null
   if (!w || typeof w.requestAnimationFrame !== 'function') {
-    const applyOptions = pendingComposeIncludesWorkspaceBackedSources ? { includeWorkspaceBacked: true } : undefined
+    const applyOptions = pendingComposeIncludesWorkspaceBackedSources
+      ? buildExplicitGraphOwnerComposeOptions()
+      : undefined
     pendingComposeIncludesWorkspaceBackedSources = false
     applyComposedGraphFromSourceFiles(applyOptions)
     return
   }
   pendingComposeRaf = w.requestAnimationFrame(() => {
     pendingComposeRaf = null
-    const applyOptions = pendingComposeIncludesWorkspaceBackedSources ? { includeWorkspaceBacked: true } : undefined
+    const applyOptions = pendingComposeIncludesWorkspaceBackedSources
+      ? buildExplicitGraphOwnerComposeOptions()
+      : undefined
     pendingComposeIncludesWorkspaceBackedSources = false
     applyComposedGraphFromSourceFiles(applyOptions)
   })
 }
 
 export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOptions = {}) {
-  const includeWorkspaceBacked = options.includeWorkspaceBacked === true
-  const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature({ includeWorkspaceBacked })
+  const includeWorkspaceBacked = shouldIncludeWorkspaceBackedSources(options)
+  const composeScopeOptions = includeWorkspaceBacked ? buildExplicitGraphOwnerComposeOptions() : undefined
+  const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature(composeScopeOptions)
   const store = useGraphStore.getState()
   if (!includeWorkspaceBacked && !hasEnabledNonWorkspaceComposedSources(store.sourceFiles)) {
     resetPendingComposedGraphApplyState()
@@ -226,7 +264,7 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
     return
   }
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(store)
-  const sourceFilesForComposition = readSourceFilesForComposedApply(store.sourceFiles, { includeWorkspaceBacked })
+  const sourceFilesForComposition = readSourceFilesForComposedApply(store.sourceFiles, composeScopeOptions)
   const hasEnabledSourceFiles = sourceFilesForComposition.some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
     if (composeSignature) lastAppliedComposedGraphSignature = composeSignature

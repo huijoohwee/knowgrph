@@ -6,6 +6,8 @@ import { Z_INDEX_MENU } from '@/lib/ui/zIndex'
 
 export type DetailsMenuApi = {
   close: () => void
+  open: () => void
+  toggle: () => void
 }
 
 export type DetailsMenuProps = {
@@ -13,10 +15,17 @@ export type DetailsMenuProps = {
   detailsClassName?: string
   summaryClassName?: string
   menuClassName?: string
+  triggerElement?: 'summary' | 'button'
   summary: React.ReactNode
   menu: React.ReactNode | ((api: DetailsMenuApi) => React.ReactNode)
   shouldToggleFromSummaryEvent?: (e: React.MouseEvent<HTMLElement>) => boolean
-  onSummaryPointerDown?: (e: React.PointerEvent<HTMLElement>) => void
+  onSummaryPointerDown?: (e: React.PointerEvent<HTMLElement>, api: DetailsMenuApi) => void
+  onSummaryMouseDown?: (e: React.MouseEvent<HTMLElement>, api: DetailsMenuApi) => void
+  onSummaryClick?: (e: React.MouseEvent<HTMLElement>, api: DetailsMenuApi) => void
+  onMenuPointerDownCapture?: (e: React.PointerEvent<HTMLElement>) => void
+  onMenuMouseDownCapture?: (e: React.MouseEvent<HTMLElement>) => void
+  onMenuPointerUpCapture?: (e: React.PointerEvent<HTMLElement>) => void
+  onMenuMouseUpCapture?: (e: React.MouseEvent<HTMLElement>) => void
   portal?: boolean
   portalPlacement?: 'bottom-start' | 'bottom-end'
   portalGapPx?: number
@@ -24,19 +33,19 @@ export type DetailsMenuProps = {
 
 export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuProps) {
   const detailsRef = React.useRef<HTMLDetailsElement | null>(null)
+  const containerRef = React.useRef<HTMLElement | null>(null)
   const summaryRef = React.useRef<HTMLElement | null>(null)
   const portalRootRef = React.useRef<HTMLDivElement | null>(null)
   const [isOpen, setIsOpen] = React.useState(false)
   const [portalStyle, setPortalStyle] = React.useState<React.CSSProperties | null>(null)
+  const triggerElement = props.triggerElement || 'summary'
+  const usesSummaryTrigger = triggerElement === 'summary'
 
   const close = React.useCallback(() => {
     const el = detailsRef.current
-    if (!el) return
-    el.open = false
+    if (el) el.open = false
     setIsOpen(false)
   }, [])
-
-  const menu = typeof props.menu === 'function' ? props.menu({ close }) : props.menu
 
   const updatePortalPosition = React.useCallback(() => {
     const anchor = summaryRef.current
@@ -95,6 +104,30 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       return next
     })
   }, [props.portalGapPx, props.portalPlacement])
+  const syncOpenedPortal = React.useCallback(() => {
+    if (!props.portal) return
+    try {
+      updatePortalPosition()
+      requestAnimationFrame(() => updatePortalPosition())
+    } catch {
+      void 0
+    }
+  }, [props.portal, updatePortalPosition])
+  const open = React.useCallback(() => {
+    const el = detailsRef.current
+    if (el) el.open = true
+    setIsOpen(true)
+    syncOpenedPortal()
+  }, [syncOpenedPortal])
+  const toggle = React.useCallback(() => {
+    const el = detailsRef.current
+    const next = el ? !el.open : !isOpen
+    if (el) el.open = next
+    setIsOpen(next)
+    if (next) syncOpenedPortal()
+  }, [isOpen, syncOpenedPortal])
+  const api = React.useMemo<DetailsMenuApi>(() => ({ close, open, toggle }), [close, open, toggle])
+  const menu = typeof props.menu === 'function' ? props.menu(api) : props.menu
 
   React.useEffect(() => {
     if (!props.portal) return
@@ -120,10 +153,10 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
       if (now - openedAt < 120) return
       const target = e.target as Node | null
-      const details = detailsRef.current
+      const root = detailsRef.current || containerRef.current
       const portalRoot = portalRootRef.current
       if (props.portal && !portalRoot) return
-      if (details && target && details.contains(target)) return
+      if (root && target && root.contains(target)) return
       if (portalRoot && target && portalRoot.contains(target)) return
       close()
     }
@@ -164,60 +197,58 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     return () => observer.disconnect()
   }, [isOpen, props.portal, updatePortalPosition])
 
-  return (
+  const triggerClickCapture = props.shouldToggleFromSummaryEvent
+    ? (e: React.MouseEvent<HTMLElement>) => {
+        const allow = props.shouldToggleFromSummaryEvent?.(e)
+        if (allow) return
+        e.preventDefault()
+        close()
+        try {
+          setTimeout(() => close(), 0)
+        } catch {
+          void 0
+        }
+      }
+    : undefined
+  const triggerProps = {
+    className: props.summaryClassName || '',
+    'aria-label': props.ariaLabel,
+    ref: (el: HTMLElement | null) => {
+      summaryRef.current = el
+    },
+    onPointerDown: props.onSummaryPointerDown ? (e: React.PointerEvent<HTMLElement>) => props.onSummaryPointerDown?.(e, api) : undefined,
+    onMouseDown: props.onSummaryMouseDown ? (e: React.MouseEvent<HTMLElement>) => props.onSummaryMouseDown?.(e, api) : undefined,
+    onClick: props.onSummaryClick ? (e: React.MouseEvent<HTMLElement>) => props.onSummaryClick?.(e, api) : undefined,
+    onClickCapture: triggerClickCapture,
+  }
+  const inlineMenu = (
+    <div
+      aria-hidden="true"
+      className={props.menuClassName || ''}
+      style={{ display: props.portal ? 'none' : isOpen || usesSummaryTrigger ? undefined : 'none' }}
+      onPointerDownCapture={props.onMenuPointerDownCapture}
+      onMouseDownCapture={props.onMenuMouseDownCapture}
+      onPointerUpCapture={props.onMenuPointerUpCapture}
+      onMouseUpCapture={props.onMenuMouseUpCapture}
+    >
+      {props.portal ? null : menu}
+    </div>
+  )
+
+  return usesSummaryTrigger ? (
     <details
       ref={detailsRef}
       className={props.detailsClassName || ''}
       onToggle={e => {
         const next = (e.currentTarget as HTMLDetailsElement).open
         setIsOpen(next)
-        if (next && props.portal) {
-          try {
-            updatePortalPosition()
-            requestAnimationFrame(() => updatePortalPosition())
-          } catch {
-            void 0
-          }
-        }
+        if (next) syncOpenedPortal()
       }}
     >
-      <summary
-        className={props.summaryClassName || ''}
-        aria-label={props.ariaLabel}
-        ref={el => {
-          summaryRef.current = el
-        }}
-        onPointerDown={props.onSummaryPointerDown}
-        onClickCapture={
-          props.shouldToggleFromSummaryEvent
-            ? (e) => {
-                const allow = props.shouldToggleFromSummaryEvent?.(e)
-                if (allow) return
-                e.preventDefault()
-                const details = detailsRef.current
-                if (details?.open) details.open = false
-                try {
-                  setTimeout(() => {
-                    const d = detailsRef.current
-                    if (d?.open) d.open = false
-                  }, 0)
-                } catch {
-                  void 0
-                }
-              }
-            : undefined
-        }
-      >
+      <summary {...triggerProps}>
         {props.summary}
       </summary>
-      <div
-        aria-hidden="true"
-        className={props.menuClassName || ''}
-        style={{ display: props.portal ? 'none' : undefined }}
-      >
-        {props.portal ? null : menu}
-      </div>
-
+      {inlineMenu}
       {props.portal && isOpen && menu && portalStyle
         ? createPortal(
             <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
@@ -236,6 +267,10 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
                 style={{ ...portalStyle, pointerEvents: 'auto' }}
                 className="kg-details-menu-portal"
                 data-kg-details-menu-portal="true"
+                onPointerDownCapture={props.onMenuPointerDownCapture}
+                onMouseDownCapture={props.onMenuMouseDownCapture}
+                onPointerUpCapture={props.onMenuPointerUpCapture}
+                onMouseUpCapture={props.onMenuMouseUpCapture}
               >
                 {menu}
               </div>
@@ -244,5 +279,46 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
           )
         : null}
     </details>
+  ) : (
+    <div
+      ref={el => {
+        containerRef.current = el
+      }}
+      className={props.detailsClassName || ''}
+    >
+      <button type="button" {...triggerProps} aria-expanded={isOpen}>
+        {props.summary}
+      </button>
+      {inlineMenu}
+      {props.portal && isOpen && menu && portalStyle
+        ? createPortal(
+            <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
+              <div
+                ref={el => {
+                  portalRootRef.current = el
+                  if (!el) return
+                  updatePortalPosition()
+                  if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(() => {
+                      updatePortalPosition()
+                      window.requestAnimationFrame(updatePortalPosition)
+                    })
+                  }
+                }}
+                style={{ ...portalStyle, pointerEvents: 'auto' }}
+                className="kg-details-menu-portal"
+                data-kg-details-menu-portal="true"
+                onPointerDownCapture={props.onMenuPointerDownCapture}
+                onMouseDownCapture={props.onMenuMouseDownCapture}
+                onPointerUpCapture={props.onMenuPointerUpCapture}
+                onMouseUpCapture={props.onMenuMouseUpCapture}
+              >
+                {menu}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
   )
 })

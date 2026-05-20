@@ -25,6 +25,7 @@ import { buildSourceFileParseIdentityHash } from '@/features/source-files/source
 import { buildSourceFileLifecycleState, buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import { mapLimit } from '@/lib/async/mapLimit'
 import { SOURCE_FILES_REPARSE_CONCURRENCY } from '@/lib/config'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -160,7 +161,7 @@ function syncDocumentViewFromSourceFile(
     const markdown = trimmed ? ['```' + fencedLang, trimmed, '```', ''].join('\n') : text
     if (!baselineLocked) {
       try {
-        store.setWorkspaceViewMode('editor')
+        openMarkdownWorkspaceEditorPane(store)
       } catch {
         void 0
       }
@@ -177,7 +178,7 @@ function syncDocumentViewFromSourceFile(
   const normalized = normalizeMermaidMmdToMarkdown(name, text)
   if (!baselineLocked) {
     try {
-      store.setWorkspaceViewMode('editor')
+      openMarkdownWorkspaceEditorPane(store)
     } catch {
       void 0
     }

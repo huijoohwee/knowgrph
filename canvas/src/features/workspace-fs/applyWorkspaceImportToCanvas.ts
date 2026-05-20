@@ -20,7 +20,10 @@ import {
 } from './sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from './syncToSourceFiles'
 import { runInIdle } from '@/features/panels/utils/idle'
-import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import {
+  scheduleApplyComposedGraphFromSourceFiles,
+  scheduleApplyGraphOwnerComposedGraphFromSourceFiles,
+} from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { resolveWorkspaceSourceFileInlineText } from './workspaceInlineText'
@@ -30,6 +33,7 @@ type ApplyWorkspaceImportToCanvasOpts = {
   skipComposedGraphApply?: boolean
   workspaceEntries?: WorkspaceEntry[]
   sourcesByPath?: WorkspaceSourceIndex
+  premergedSourceFiles?: SourceFile[]
 }
 
 type ApplyWorkspaceImportToCanvasResult = {
@@ -121,12 +125,15 @@ export async function applyWorkspaceImportToCanvas(args: {
   const store = useGraphStore.getState()
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   const fs = args.fs
-  const workspaceEntries = Array.isArray(args.opts?.workspaceEntries) ? args.opts.workspaceEntries : await fs.listEntries()
-  const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args.opts?.sourcesByPath)
-  const merged = mergeWorkspaceEntriesIntoSourceFiles({
+  const premergedSourceFiles = Array.isArray(args.opts?.premergedSourceFiles) ? args.opts?.premergedSourceFiles : null
+  const workspaceEntries = premergedSourceFiles
+    ? []
+    : Array.isArray(args.opts?.workspaceEntries) ? args.opts.workspaceEntries : await fs.listEntries()
+  const sourcesByPath = premergedSourceFiles ? null : resolveWorkspaceSourceIndexSnapshot(args.opts?.sourcesByPath)
+  const merged = premergedSourceFiles || mergeWorkspaceEntriesIntoSourceFiles({
     existing,
     workspaceEntries,
-    sourcesByPath,
+    sourcesByPath: sourcesByPath || undefined,
     forceIncludePaths: createdPaths,
     forceIncludeOnly: true,
   })
@@ -297,7 +304,11 @@ export async function applyWorkspaceImportToCanvas(args: {
       !!preferredInteractiveImportRawText
       || sawFrontmatterOnlyDoc
     if (!skipComposedGraphApply && !preserveInteractiveImportLanding) {
-      scheduleApplyComposedGraphFromSourceFiles()
+      if (applyToGraph) {
+        scheduleApplyGraphOwnerComposedGraphFromSourceFiles()
+      } else {
+        scheduleApplyComposedGraphFromSourceFiles()
+      }
     }
     applyInteractiveImportModes({
       graphData: preferredInteractiveImportGraphData,

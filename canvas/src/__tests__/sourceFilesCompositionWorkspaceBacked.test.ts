@@ -1,7 +1,10 @@
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import {
+  applyComposedGraphFromSourceFiles,
+  applyGraphOwnerComposedGraphFromSourceFiles,
+} from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import {
   buildSourceFilesCompositionSignature,
   isWorkspaceBackedSourceFile,
@@ -57,14 +60,22 @@ export function testSourceFilesCompositionSignatureSkipsWorkspaceBackedByDefault
 
   const baseWithWorkspaceSignature = buildSourceFilesCompositionSignature(
     [localFile, workspaceFile],
-    { includeWorkspaceBacked: true },
+    { includeWorkspaceBacked: true, intent: 'explicit-graph-owner' },
   )
   const changedWithWorkspaceSignature = buildSourceFilesCompositionSignature(
     [localFile, changedWorkspaceFile],
-    { includeWorkspaceBacked: true },
+    { includeWorkspaceBacked: true, intent: 'explicit-graph-owner' },
   )
   if (changedWithWorkspaceSignature === baseWithWorkspaceSignature) {
     throw new Error('expected explicit workspace-backed composition signatures to track workspace text/graph changes')
+  }
+
+  const ignoredImplicitWorkspaceSignature = buildSourceFilesCompositionSignature(
+    [localFile, workspaceFile],
+    { includeWorkspaceBacked: true },
+  )
+  if (ignoredImplicitWorkspaceSignature !== baseDefaultSignature) {
+    throw new Error('expected workspace-backed composition signatures to require explicit graph-owner intent')
   }
 }
 
@@ -103,9 +114,82 @@ export function testComposedGraphApplySkipsWorkspaceBackedLayersByDefault() {
     }
 
     applyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
+    const ignoredImplicitNodeIds = useGraphStore.getState().graphData.nodes.map(node => node.id).join('|')
+    if (ignoredImplicitNodeIds !== 'source:local::local') {
+      throw new Error(`expected workspace-backed compose to require explicit graph-owner intent, got ${ignoredImplicitNodeIds}`)
+    }
+
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const explicitNodeIds = useGraphStore.getState().graphData.nodes.map(node => node.id).join('|')
     if (explicitNodeIds !== 'source:local::local|source:workspace::workspace') {
       throw new Error(`expected explicit workspace-backed composition to include workspace layers, got ${explicitNodeIds}`)
+    }
+  } finally {
+    bootstrap.restore()
+  }
+}
+
+export function testComposedWorkspaceBackedGraphApplyDoesNotCarryForwardPreviousLayoutStateAcrossContentChanges() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.clearSourceFiles()
+    store.setDocumentStructureBaselineLock(false)
+    store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as GraphData)
+    store.addSourceFile({
+      id: 'source:workspace',
+      name: 'workspace.md',
+      text: '# Workspace A',
+      enabled: true,
+      status: 'parsed',
+      parsedTextHash: 'workspace-hash-a',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'workspace', label: 'Workspace A', type: 'Thing', x: 10, y: 20, properties: {} }],
+        edges: [],
+        metadata: { kind: 'frontmatter-flow', source: 'workspace:/docs/workspace.md', sourceLayerHash: 'doc-a' },
+      } as GraphData,
+      source: { kind: 'local', path: 'workspace:/docs/workspace.md' },
+    })
+
+    applyGraphOwnerComposedGraphFromSourceFiles()
+    store.setDesignFramePosMany({ 'source:workspace::workspace': { x: 120, y: 220 } })
+    store.setFlowWidgetPinnedByNodeId({ 'source:workspace::workspace': true })
+    store.setFlowWidgetPosByNodeId({ 'source:workspace::workspace': { top: 300, left: 420 } })
+    store.setFlowWidgetWorldPosByNodeId({ 'source:workspace::workspace': { x: 12, y: 24 } })
+
+    store.setSourceFiles([
+      {
+        id: 'source:workspace',
+        name: 'workspace.md',
+        text: '# Workspace B',
+        enabled: true,
+        status: 'parsed',
+        parsedTextHash: 'workspace-hash-b',
+        parsedGraphData: {
+          type: 'Graph',
+          nodes: [{ id: 'workspace', label: 'Workspace B', type: 'Thing', x: 640, y: 360, properties: { version: 'b' } }],
+          edges: [],
+          metadata: { kind: 'frontmatter-flow', source: 'workspace:/docs/workspace.md', sourceLayerHash: 'doc-b' },
+        } as GraphData,
+        source: { kind: 'local', path: 'workspace:/docs/workspace.md' },
+      },
+    ] as never)
+
+    applyGraphOwnerComposedGraphFromSourceFiles()
+    const after = useGraphStore.getState()
+    if (after.designFramePosById['source:workspace::workspace'] !== undefined) {
+      throw new Error('expected composed workspace-backed content changes to reset design-frame layout carry-forward')
+    }
+    if (after.flowWidgetPinnedByNodeId['source:workspace::workspace'] !== undefined) {
+      throw new Error('expected composed workspace-backed content changes to reset pinned widget carry-forward')
+    }
+    if (after.flowWidgetPosByNodeId['source:workspace::workspace'] !== undefined) {
+      throw new Error('expected composed workspace-backed content changes to reset widget screen-position carry-forward')
+    }
+    if (after.flowWidgetWorldPosByNodeId['source:workspace::workspace'] !== undefined) {
+      throw new Error('expected composed workspace-backed content changes to reset widget world-position carry-forward')
     }
   } finally {
     bootstrap.restore()

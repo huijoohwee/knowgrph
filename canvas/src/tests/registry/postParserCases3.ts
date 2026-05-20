@@ -1,6 +1,17 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
+  ["collaboration.protocol.inviteAnswerRoster.preserveOwnerMetadata","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationProtocolPreservesOwnerInviteAndRosterMetadata"],
+  ["collaboration.store.followTarget.scopedToLiveRemotePeers","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationStoreScopesFollowTargetToLiveRemotePeers"],
+  ["ui.mainPanel.collaboration.rendersPeerOwnershipRoster","@/__tests__/mainPanelCollaboration.test.tsx","testMainPanelCollaborationViewRendersPeerOwnershipRoster"],
+  ["ui.mainPanel.collaboration.ownerGuestRows.showRemoveAction","@/__tests__/mainPanelCollaboration.test.tsx","testMainPanelCollaborationViewShowsRemoveActionOnlyForOwnerGuestRows"],
+  ["ui.mainPanel.collaboration.actions.registrationStabilizes","@/__tests__/mainPanelCollaboration.test.tsx","testMainPanelCollaborationViewStabilizesRegisteredActions"],
+  ["collaboration.runtime.hostRelay.multipeerRosterPresenceAndDocument","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationRuntimeRelaysRosterPresenceAndDocumentAcrossGuests"],
+  ["collaboration.runtime.hostRelay.disconnect.removesPeerAndClearsFollowTarget","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationRuntimeRemovesDisconnectedPeerAndClearsFollowTarget"],
+  ["collaboration.runtime.followMode.revealsOnlyTargetedPeer","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationRuntimeFollowModeRevealsOnlyTargetedPeer"],
+  ["collaboration.runtime.ownerRemoval.keepsSessionAliveAndBroadcastsRoster","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationRuntimeOwnerRemovalKeepsSessionAliveAndBroadcastsRoster"],
+  ["collaboration.runtime.guest.hostDisconnect.resetsSession","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationRuntimeGuestResetsWhenOwnerDisconnects"],
+  ["collaboration.runtime.host.remount.preservesPendingInvite","@/__tests__/mainPanelCollaboration.test.tsx","testP2PCollaborationRuntimePreservesPendingHostInviteAcrossRemount"],
   ["ui.panels.tablist.ariaRoles","@/__tests__/panelSemanticContract.test","testPanelHeaderUsesAriaTablist"],
   ["ui.panels.container.usesKgPanelBg","@/__tests__/panelSemanticContract.test","testMainPanelContainerUsesKgPanelBg"],
   ["ui.panels.shell.responsiveRowScrolling","@/__tests__/panelSemanticContract.test","testPanelShellUsesResponsiveRowScrolling"],

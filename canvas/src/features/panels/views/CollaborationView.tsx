@@ -1,5 +1,5 @@
 import React from 'react'
-import { Users, Link2, ArrowRightLeft, LocateFixed, Radio, Copy, PlugZap, Plug } from 'lucide-react'
+import { Users, Link2, ArrowRightLeft, LocateFixed, Radio, Copy, PlugZap, Plug, UserX } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import {
@@ -46,22 +46,27 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   const statusText = useP2PCollaborationStore(s => s.statusText)
   const errorText = useP2PCollaborationStore(s => s.errorText)
   const sessionId = useP2PCollaborationStore(s => s.sessionId)
+  const localPeerId = useP2PCollaborationStore(s => s.localPeerId)
+  const ownerPeerId = useP2PCollaborationStore(s => s.ownerPeerId)
   const inviteInput = useP2PCollaborationStore(s => s.inviteInput)
   const inviteToken = useP2PCollaborationStore(s => s.inviteToken)
   const inviteUrl = useP2PCollaborationStore(s => s.inviteUrl)
   const answerInput = useP2PCollaborationStore(s => s.answerInput)
   const answerToken = useP2PCollaborationStore(s => s.answerToken)
   const followModeEnabled = useP2PCollaborationStore(s => s.followModeEnabled)
+  const followPeerId = useP2PCollaborationStore(s => s.followPeerId)
   const localCaretLine = useP2PCollaborationStore(s => s.localCaretLine)
-  const remotePeer = useP2PCollaborationStore(s => s.remotePeer)
+  const peers = useP2PCollaborationStore(s => s.peers)
   const setDisplayName = useP2PCollaborationStore(s => s.setDisplayName)
   const setInviteInput = useP2PCollaborationStore(s => s.setInviteInput)
   const setAnswerInput = useP2PCollaborationStore(s => s.setAnswerInput)
   const setFollowModeEnabled = useP2PCollaborationStore(s => s.setFollowModeEnabled)
+  const setFollowPeerId = useP2PCollaborationStore(s => s.setFollowPeerId)
   const queueStartHost = useP2PCollaborationStore(s => s.queueStartHost)
   const queueJoinInvite = useP2PCollaborationStore(s => s.queueJoinInvite)
   const queueApplyAnswer = useP2PCollaborationStore(s => s.queueApplyAnswer)
   const queueDisconnect = useP2PCollaborationStore(s => s.queueDisconnect)
+  const queueRemovePeer = useP2PCollaborationStore(s => s.queueRemovePeer)
   const [collapsedBySection, setCollapsedBySection] = React.useState<Record<SectionId, boolean>>(() => buildCollapsedState(false))
 
   const normalizedQuery = React.useMemo(() => String(searchQuery || '').trim().toLowerCase(), [searchQuery])
@@ -70,14 +75,35 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     () => SECTION_ORDER.every(sectionId => collapsedBySection[sectionId]),
     [collapsedBySection],
   )
+  const remotePeers = React.useMemo(() => peers.filter(peer => !peer.isLocal), [peers])
+  const connectedRemotePeers = React.useMemo(
+    () => remotePeers.filter(peer => peer.connectionState === 'connected'),
+    [remotePeers],
+  )
+  const isOwner = Boolean(localPeerId && ownerPeerId && localPeerId === ownerPeerId)
+  const hostActionLabel = role === 'host' ? 'Generate Invite' : 'Start Host'
+  const collapseAll = React.useCallback(() => {
+    setCollapsedBySection(buildCollapsedState(true))
+  }, [])
+  const expandAll = React.useCallback(() => {
+    setCollapsedBySection(buildCollapsedState(false))
+  }, [])
+  const registeredActions = React.useMemo(() => ({
+    collapseAll,
+    expandAll,
+    allCollapsed,
+  }), [allCollapsed, collapseAll, expandAll])
 
   React.useEffect(() => {
-    onRegisterActions?.({
-      collapseAll: () => setCollapsedBySection(buildCollapsedState(true)),
-      expandAll: () => setCollapsedBySection(buildCollapsedState(false)),
-      allCollapsed,
-    })
-  }, [allCollapsed, onRegisterActions])
+    if (!followModeEnabled) return
+    if (followPeerId) return
+    if (connectedRemotePeers.length !== 1) return
+    setFollowPeerId(connectedRemotePeers[0]?.peerId || null)
+  }, [connectedRemotePeers, followModeEnabled, followPeerId, setFollowPeerId])
+
+  React.useEffect(() => {
+    onRegisterActions?.(registeredActions)
+  }, [onRegisterActions, registeredActions])
 
   const toggleSection = React.useCallback((sectionId: SectionId) => {
     setCollapsedBySection(prev => ({ ...prev, [sectionId]: !prev[sectionId] }))
@@ -105,6 +131,8 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   const activeButtonClassName = `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
   const rowValueClassName = 'flex flex-wrap items-center justify-start gap-1 sm:justify-end'
   const noteClassName = `text-xs ${UI_THEME_TOKENS.text.secondary}`
+  const statusPillClassName = `inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
+  const secondaryPillClassName = `${statusPillClassName} ${UI_THEME_TOKENS.text.secondary}`
 
   const renderHeader = (
     <header className={`sticky top-0 z-20 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
@@ -119,8 +147,8 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center">
           <ExpandCollapseAllButton
             allCollapsed={allCollapsed}
-            onExpandAll={() => setCollapsedBySection(buildCollapsedState(false))}
-            onCollapseAll={() => setCollapsedBySection(buildCollapsedState(true))}
+            onExpandAll={expandAll}
+            onCollapseAll={collapseAll}
             titleExpand="Expand"
             titleCollapse="Collapse (Default)"
           />
@@ -153,14 +181,46 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
-              <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}>
+              <span className={statusPillClassName}>
                 {role === 'idle' ? 'Idle' : `${role} · ${phase}`}
               </span>
+              {ownerPeerId ? (
+                <span className={secondaryPillClassName}>
+                  owner {ownerPeerId.slice(0, 8)}
+                </span>
+              ) : null}
+              {localPeerId ? (
+                <span className={secondaryPillClassName}>
+                  you {localPeerId.slice(0, 8)}
+                </span>
+              ) : null}
               {sessionId ? (
-                <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                <span className={secondaryPillClassName}>
                   {sessionId.slice(0, 12)}
                 </span>
               ) : null}
+            </div>
+          </RightAlignedValueCell>
+        )}
+      />
+    ),
+    matchesQuery('Peers', peers.length, connectedRemotePeers.length, ownerPeerId) && (
+      <KeyTypeValueRow
+        key="session-peer-count"
+        keyNode="Peer Count"
+        typeNode={<Users className={iconSizeClass} aria-hidden />}
+        valueNode={(
+          <RightAlignedValueCell>
+            <div className={rowValueClassName}>
+              <span className={statusPillClassName}>
+                total {peers.length}
+              </span>
+              <span className={secondaryPillClassName}>
+                remote {remotePeers.length}
+              </span>
+              <span className={secondaryPillClassName}>
+                connected {connectedRemotePeers.length}
+              </span>
             </div>
           </RightAlignedValueCell>
         )}
@@ -183,7 +243,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     matchesQuery('Follow mode', followModeEnabled ? 'on' : 'off', localCaretLine) && (
       <KeyTypeValueRow
         key="session-follow-mode"
-        keyNode="Follow Remote"
+        keyNode="Follow Mode"
         typeNode={<LocateFixed className={iconSizeClass} aria-hidden />}
         valueNode={(
           <RightAlignedValueCell>
@@ -202,6 +262,9 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
               >
                 Off
               </button>
+              <span className={noteClassName}>
+                {followPeerId ? `Target ${followPeerId.slice(0, 8)}` : 'Select a peer below'}
+              </span>
               <span className={noteClassName}>
                 {localCaretLine == null ? 'Local cursor idle' : `Local line ${localCaretLine}`}
               </span>
@@ -223,7 +286,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                 className={activeButtonClassName}
                 onClick={() => queueStartHost()}
               >
-                Start Host
+                {hostActionLabel}
               </button>
               <button
                 type="button"
@@ -249,10 +312,10 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
           <RightAlignedValueCell>
             <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
               <RightAlignedTooltipInput
-                tooltip="Share this invite URL with the guest. No server signaling is used."
+                tooltip="Share this invite URL with one guest. Generate another invite for each additional peer."
                 value={inviteUrl}
                 readOnly
-                placeholder="Host session generates the invite link."
+                placeholder="Host generates one invite per guest."
                 containerClassName="min-w-[14rem] flex-1"
               />
               <button
@@ -364,36 +427,70 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   ].filter(Boolean)
 
   const peerRows = [
-    matchesQuery('Peer', remotePeer?.displayName, remotePeer?.documentKey, remotePeer?.caretLine) && (
-      <KeyTypeValueRow
-        key="peer-remote"
-        keyNode="Remote Peer"
-        typeNode={<Users className={iconSizeClass} aria-hidden />}
-        valueNode={(
-          <RightAlignedValueCell>
-            <div className={rowValueClassName}>
-              {remotePeer ? (
-                <>
-                  <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}>
-                    {remotePeer.displayName}
+    ...peers
+      .filter(peer => matchesQuery(peer.displayName, peer.documentKey, peer.ownership, peer.connectionState, peer.peerId))
+      .map(peer => (
+        <KeyTypeValueRow
+          key={`peer-roster-${peer.peerId}`}
+          keyNode={peer.displayName}
+          typeNode={<Users className={iconSizeClass} aria-hidden />}
+          valueNode={(
+            <RightAlignedValueCell>
+              <div className={rowValueClassName}>
+                <span className={statusPillClassName}>
+                  {peer.isLocal ? 'You' : peer.ownership === 'owner' ? 'Owner' : 'Guest'}
+                </span>
+                <span className={secondaryPillClassName}>
+                  {peer.connectionState}
+                </span>
+                {peer.documentKey ? (
+                  <span className={secondaryPillClassName}>
+                    {peer.documentKey}
                   </span>
-                  {remotePeer.documentKey ? (
-                    <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                      {remotePeer.documentKey}
-                    </span>
-                  ) : null}
-                  <span className={noteClassName}>
-                    {remotePeer.caretLine == null ? 'Cursor idle' : `Line ${remotePeer.caretLine}`}
-                  </span>
-                </>
-              ) : (
-                <span className={noteClassName}>No remote peer connected yet.</span>
-              )}
-            </div>
-          </RightAlignedValueCell>
-        )}
-      />
-    ),
+                ) : null}
+                <span className={noteClassName}>
+                  {peer.caretLine == null ? 'Cursor idle' : `Line ${peer.caretLine}`}
+                </span>
+                {!peer.isLocal ? (
+                  <>
+                    <button
+                      type="button"
+                      className={followModeEnabled && followPeerId === peer.peerId ? activeButtonClassName : buttonClassName}
+                      onClick={() => {
+                        setFollowModeEnabled(true)
+                        setFollowPeerId(peer.peerId)
+                      }}
+                    >
+                      Follow
+                    </button>
+                    <button
+                      type="button"
+                      className={!followModeEnabled || followPeerId !== peer.peerId ? buttonClassName : activeButtonClassName}
+                      onClick={() => {
+                        if (followPeerId === peer.peerId) {
+                          setFollowPeerId(null)
+                        }
+                      }}
+                    >
+                      Unfollow
+                    </button>
+                    {isOwner && peer.ownership !== 'owner' ? (
+                      <button
+                        type="button"
+                        className={buttonClassName}
+                        onClick={() => queueRemovePeer(peer.peerId)}
+                      >
+                        <UserX className={iconSizeClass} aria-hidden />
+                        Remove
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            </RightAlignedValueCell>
+          )}
+        />
+      )),
     matchesQuery('Transport', phase, statusText) && (
       <KeyTypeValueRow
         key="peer-transport"
@@ -402,7 +499,9 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         valueNode={(
           <RightAlignedValueCell>
             <span className={noteClassName}>
-              {phase === 'connected' ? 'P2P data channel open' : 'Awaiting active peer channel'}
+              {role === 'host'
+                ? (phase === 'connected' ? 'Owner relays presence and document sync across guests.' : 'Awaiting connected guests or a new invite answer.')
+                : (phase === 'connected' ? 'Connected to the owner relay channel.' : 'Awaiting owner channel.')}
             </span>
           </RightAlignedValueCell>
         )}
@@ -414,7 +513,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     { id: 'session', title: 'Session', rows: sessionRows },
     { id: 'invite', title: 'Invite', rows: inviteRows },
     { id: 'answer', title: 'Answer', rows: answerRows },
-    { id: 'peer', title: 'Peer', rows: peerRows },
+    { id: 'peer', title: 'Peers', rows: peerRows },
   ] satisfies Array<{ id: SectionId; title: string; rows: React.ReactNode[] }>).filter(
     section => section.rows.length > 0 || !normalizedQuery,
   )

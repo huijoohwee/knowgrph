@@ -9,6 +9,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'source file management',
@@ -142,14 +143,13 @@ export function SourceFileManagementSettingsRows({
 
   const openSourceFiles = React.useCallback(() => {
     requestMarkdownExplorerSourceFilesOpen()
-    setWorkspaceViewMode('editor')
-    setEditorWorkspacePane('markdown')
-  }, [setEditorWorkspacePane, setWorkspaceViewMode])
+    openMarkdownWorkspaceEditorPane(useGraphStore.getState())
+  }, [])
 
   const recomposeSourceFiles = React.useCallback(async () => {
     try {
       const mod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
-      mod.scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
+      mod.scheduleApplyComposedGraphFromSourceFiles()
       pushUiToast({
         id: `source-files-recompose-${Date.now().toString(36)}`,
         kind: 'neutral',
@@ -178,10 +178,9 @@ export function SourceFileManagementSettingsRows({
       const fs = await mod.getWorkspaceFs()
       await fs.ensureSeed()
       requestMarkdownExplorerSourceFilesOpen()
-      setWorkspaceViewMode('editor')
-      setEditorWorkspacePane('markdown')
+      openMarkdownWorkspaceEditorPane(useGraphStore.getState())
       const composeMod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
-      composeMod.scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
+      composeMod.scheduleApplyComposedGraphFromSourceFiles()
       pushUiToast({
         id: 'source-files-defaults-restored',
         kind: 'success',
@@ -201,7 +200,7 @@ export function SourceFileManagementSettingsRows({
     } finally {
       setIsRestoringDefaults(false)
     }
-  }, [isRestoringDefaults, pushUiToast, setEditorWorkspacePane, setWorkspaceViewMode])
+  }, [isRestoringDefaults, pushUiToast])
 
   if (!shouldShow) return null
 

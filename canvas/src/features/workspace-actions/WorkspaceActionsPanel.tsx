@@ -5,6 +5,7 @@ import type { ExampleConfig, ExampleId } from '@/features/parsers/examplesCatalo
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onApplyExample: (exampleId: ExampleId) => void }) {
   const { examples, onApplyExample } = props
@@ -26,7 +27,7 @@ export function WorkspaceActionsPanel(props: { examples: ExampleConfig[]; onAppl
   }))
 
   const handleOpenMarkdownSourceFiles = React.useCallback(() => {
-    useGraphStore.getState().setWorkspaceViewMode('editor')
+    openMarkdownWorkspaceEditorPane(useGraphStore.getState())
   }, [])
 
   return (

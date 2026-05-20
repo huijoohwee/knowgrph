@@ -5,7 +5,7 @@
 **Status**: Proposed
 **Scope**: Authentication, authorization, real-time multi-user CRUD collaboration on workspaces, documents, graph snapshots
 
-**Implementation Note (2026-05-20)**: Dev now ships a separate `MainPanel Collaboration` pilot for pure no-server WebRTC P2P on the active workspace document using a 2-step invite/answer handshake, live document sync, remote caret presence, and follow mode. This pilot does not replace the larger authenticated multi-user D1/Worker plan defined below.
+**Implementation Note (2026-05-20)**: Dev now ships a separate `MainPanel Collaboration` pilot for pure no-server WebRTC P2P on the active workspace document using a 2-step invite/answer handshake, host-owned multi-peer relay, explicit peer roster and ownership badges, live document sync, remote caret presence, and targeted follow mode. This pilot does not replace the larger authenticated multi-user D1/Worker plan defined below.
 
 ---
 

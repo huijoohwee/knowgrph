@@ -247,7 +247,7 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
     expectedMarkdownSnippet: '<u>Viewer</u>',
     expectedEditorHtmlSnippet: '<u>Viewer</u>',
-    action: async ({ dom, toolbar }) => {
+    action: async ({ dom, doc, toolbar }) => {
       const button = toolbar.querySelector('button[title="Underline"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected underline button')
       await pressToolbarControl(dom, button)
@@ -258,11 +258,11 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
     expectedMarkdownSnippet: '==Viewer==',
     expectedEditorHtmlSnippet: 'data-kg-default-highlight="1"',
-    action: async ({ dom, toolbar }) => {
-      const summary = toolbar.querySelector('summary[title="Highlight"]') as HTMLElement | null
-      if (!summary) throw new Error('expected highlight summary')
-      await pressToolbarControl(dom, summary, 2)
-      const button = toolbar.querySelector('menu[aria-label="Highlight menu"] button') as HTMLButtonElement | null
+    action: async ({ dom, doc, toolbar }) => {
+      const trigger = toolbar.querySelector('button[aria-label="Highlight"]') as HTMLElement | null
+      if (!trigger) throw new Error('expected highlight trigger')
+      await pressToolbarControl(dom, trigger, 2)
+      const button = doc.querySelector('menu[aria-label="Highlight menu"] button') as HTMLButtonElement | null
       if (!button) throw new Error('expected default highlight button')
       await pressToolbarControl(dom, button)
     },
@@ -272,11 +272,11 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
     expectedMarkdownSnippet: '`#EF4444:Viewer`',
     expectedEditorHtmlSnippet: 'data-kg-sigil-color="#EF4444"',
-    action: async ({ dom, toolbar }) => {
-      const summary = toolbar.querySelector('summary[title="Text color"]') as HTMLElement | null
-      if (!summary) throw new Error('expected text color summary')
-      await pressToolbarControl(dom, summary, 2)
-      const button = toolbar.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    action: async ({ dom, doc, toolbar }) => {
+      const trigger = toolbar.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+      if (!trigger) throw new Error('expected text color trigger')
+      await pressToolbarControl(dom, trigger, 2)
+      const button = doc.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
       if (!button) throw new Error('expected text color button')
       await pressToolbarControl(dom, button)
     },
@@ -306,11 +306,11 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
     expectedMarkdownSnippet: '- [ ] Viewer sync line one',
     expectedJsonSnippet: '[ ] Viewer sync line one',
-    action: async ({ dom, toolbar }) => {
-      const summary = toolbar.querySelector('summary[title="More"]') as HTMLElement | null
-      if (!summary) throw new Error('expected more summary')
-      await pressToolbarControl(dom, summary, 2)
-      const buttons = Array.from(toolbar.querySelectorAll('menu[aria-label="More actions"] button')) as HTMLButtonElement[]
+    action: async ({ dom, doc, toolbar }) => {
+      const trigger = toolbar.querySelector('button[aria-label="More"]') as HTMLElement | null
+      if (!trigger) throw new Error('expected more trigger')
+      await pressToolbarControl(dom, trigger, 2)
+      const buttons = Array.from(doc.querySelectorAll('menu[aria-label="More actions"] button')) as HTMLButtonElement[]
       const checklistButton = buttons.find(candidate => String(candidate.textContent || '').trim() === 'Checklist') || null
       if (!checklistButton) throw new Error('expected checklist button')
       await pressToolbarControl(dom, checklistButton)

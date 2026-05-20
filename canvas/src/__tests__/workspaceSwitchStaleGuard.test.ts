@@ -246,8 +246,8 @@ export const testMarkdownWorkspaceSelectionKeepsFrontmatterFileSwitchPassive = (
   if (!text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
     throw new Error('Expected Source Files frontmatter replay to keep original markdown flow blocks instead of normalizing to webpage key/value markdown')
   }
-  if (!text.includes('hashStringToHexCached(`markdown-workspace-switch:${activeDocumentKey || \'document\'}`, text)')) {
-    throw new Error('Expected plain document switch signatures to hash text through the bounded text cache instead of joining full markdown into scheduler signatures')
+  if (!text.includes("hashStringToHexSharedContentCached(text, 'markdown-workspace-switch')")) {
+    throw new Error('Expected plain document switch signatures to reuse the shared-content text hash cache instead of rescanning identical markdown under a switch-local cache key')
   }
   if (text.includes("'markdown-workspace-document-switch-apply',\n      activeDocumentKey,\n      nextText,")) {
     throw new Error('Expected plain document switch signatures not to embed full markdown text in signature parts')

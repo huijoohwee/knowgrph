@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 export const PARSER_WORKSPACE_FOLDER = '/parser'
 export const PARSER_SCRIPT_WORKSPACE_PATH = '/parser/parser.py'
@@ -50,11 +51,7 @@ export async function ensureParserScriptWorkspaceFile(): Promise<void> {
 }
 
 export function openParserScriptWorkspaceFile(): void {
-  try {
-    useGraphStore.getState().setWorkspaceViewMode('editor')
-  } catch {
-    void 0
-  }
+  openMarkdownWorkspaceEditorPane(useGraphStore.getState())
   void (async () => {
     try {
       await ensureParserScriptWorkspaceFile()
@@ -64,4 +61,3 @@ export function openParserScriptWorkspaceFile(): void {
     }
   })()
 }
-

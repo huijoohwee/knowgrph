@@ -10,7 +10,7 @@ import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetE
 import { parseCanvasWorkspaceFrontmatterPreset, type CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
 import {
   buildWorkspaceGraphMutationTransitionState,
   isWorkspaceGraphMutationBlocked,
@@ -55,7 +55,7 @@ function buildCanvasWorkspacePresetApplyKey(preset: CanvasWorkspaceFrontmatterPr
 function buildMarkdownApplyRequestSemanticKey(request: PendingMarkdownApplyRequest): string {
   const name = String(request.name || '').trim()
   const text = String(request.text || '')
-  const textHash = hashStringToHexCached(`markdown-document-graph-apply:${name || 'document'}`, text)
+  const textHash = hashStringToHexSharedContentCached(text, 'markdown-document-graph-apply')
   return buildScopedGraphSemanticKey('markdown-document-graph-apply-request', {
     graphSemanticKey: [
       name,
@@ -75,7 +75,7 @@ function buildMarkdownDocumentSwitchMutationSemanticKey(args: {
 }): string {
   const name = String(args.name || '').trim()
   const text = String(args.text || '')
-  const textHash = hashStringToHexCached(`markdown-document-source-switch:${name || 'document'}`, text)
+  const textHash = hashStringToHexSharedContentCached(text, 'markdown-document-source-switch')
   return buildScopedGraphSemanticKey('markdown-document-source-switch', {
     graphSemanticKey: [
       name,
@@ -242,8 +242,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     if (!name) return false
     const rawText = String(args?.text || '')
     const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
-    const shouldResolveCanvasPreset = args?.applyViewPreset !== false || args?.applyToGraph === true
     const hasProvidedCanvasPreset = Object.prototype.hasOwnProperty.call(args || {}, 'canvasWorkspacePreset')
+    const shouldApplyExplicitCanvasPreset = hasProvidedCanvasPreset && !!args.canvasWorkspacePreset
+    const shouldResolveCanvasPreset =
+      shouldApplyExplicitCanvasPreset ||
+      args?.applyViewPreset !== false ||
+      args?.applyToGraph === true
     const parsedTextPreset = shouldResolveCanvasPreset
       ? (hasProvidedCanvasPreset ? args.canvasWorkspacePreset ?? null : parseCanvasWorkspaceFrontmatterPreset(text))
       : null
@@ -255,7 +259,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       applyViewPreset: args?.applyViewPreset,
     })
 
-    if (args?.applyViewPreset !== false && text.trim()) {
+    if ((args?.applyViewPreset !== false || shouldApplyExplicitCanvasPreset) && text.trim()) {
       try {
         const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
         applyCanvasFrontmatterPreset({

@@ -8,6 +8,7 @@ import { readSourceFileParsedState } from '@/features/source-files/sourceFilePar
 
 export type SourceFilesCompositionSignatureOptions = {
   includeWorkspaceBacked?: boolean
+  intent?: 'explicit-graph-owner'
 }
 
 type SourceFileLike = {
@@ -41,12 +42,16 @@ const readPersistableSourceFiles = (value: unknown): SourceFileLike[] => {
     .filter(entry => !isWorkspaceBackedSourceFile(entry))
 }
 
+const shouldIncludeWorkspaceBackedSourceFiles = (
+  options: SourceFilesCompositionSignatureOptions = {},
+): boolean => options.includeWorkspaceBacked === true && options.intent === 'explicit-graph-owner'
+
 export const readSourceFilesForComposition = (
   value: unknown,
   options: SourceFilesCompositionSignatureOptions = {},
 ): SourceFileLike[] => {
   const items = Array.isArray(value) ? value : []
-  const includeWorkspaceBacked = options.includeWorkspaceBacked === true
+  const includeWorkspaceBacked = shouldIncludeWorkspaceBackedSourceFiles(options)
   return items
     .map(entry => entry as SourceFileLike)
     .filter(entry => includeWorkspaceBacked || !isWorkspaceBackedSourceFile(entry))

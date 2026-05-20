@@ -35,13 +35,18 @@ function readCanonicalGraphIdentity(raw: unknown): string {
 }
 
 function readGraphSourceIdentity(graph: GraphData | null | undefined): string {
-  const semanticGraphKey = buildGraphMetaKeyIgnoringPending(graph)
-  if (semanticGraphKey) return semanticGraphKey
   const meta = ((graph || null)?.metadata || {}) as Record<string, unknown>
+  const sourceLayerComposition = String(meta.sourceLayerComposition || '').trim()
+  if (sourceLayerComposition === 'compose') {
+    const composedGraphKey = buildGraphMetaKeyIgnoringPending(graph)
+    if (composedGraphKey) return `compose:${composedGraphKey}`
+  }
   const kind = String(meta.kind || '').trim()
   const source = String(meta.source || '').trim()
-  if (!kind || !source) return ''
-  return `${kind}:${source}`
+  if (kind && source) return `${kind}:${source}`
+  const semanticGraphKey = buildGraphMetaKeyIgnoringPending(graph)
+  if (semanticGraphKey) return semanticGraphKey
+  return ''
 }
 
 function getCanonicalLookupValue<T>(lookup: ReadonlyMap<string, T>, rawId: unknown): T | undefined {
@@ -190,6 +195,7 @@ function resolveCommittedFlowWidgetScreenPositions(args: {
     posByNodeId: args.posByNodeId,
     pinnedByNodeId: args.pinnedByNodeId,
     preserveBalancedCollective: args.preserveStableSameSourceOverlayState,
+    preserveStableSameSourceOverlayState: args.preserveStableSameSourceOverlayState,
   })
 }
 
@@ -258,6 +264,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         stableSameSourceNodeLayout: hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase),
         preserveBalancedCollective: carryForwardBalancedFloatingCollectiveState,
       })
+    const carryForwardSameSourceDesignFrameState = carryForwardSameSourceUiState
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
@@ -280,11 +287,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const designFramePosKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFramePosByKey, collapsedKey) : false
       const designFrameSizeKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFrameSizeByKey, collapsedKey) : false
       const nextDesignFramePos =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFramePosKeyMissing
           ? { ...(s.designFramePosById || {}) }
           : collapsedKey ? (designFramePosByKey[collapsedKey] || {}) : s.designFramePosById
       const nextDesignFrameSize =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFrameSizeKeyMissing
           ? { ...(s.designFrameSizeById || {}) }
           : collapsedKey ? (designFrameSizeByKey[collapsedKey] || {}) : s.designFrameSizeById
       const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
@@ -327,11 +334,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
           ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
           : designByKey
       const nextDesignFramePosByKey =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFramePosKeyMissing
           ? { ...designFramePosByKey, [collapsedKey]: nextDesignFramePos }
           : designFramePosByKey
       const nextDesignFrameSizeByKey =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFrameSizeKeyMissing
           ? { ...designFrameSizeByKey, [collapsedKey]: nextDesignFrameSize }
           : designFrameSizeByKey
       const nextPinnedByKey =
@@ -509,6 +516,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         stableSameSourceNodeLayout: hasStableSameSourceNodeLayout(currentGraph, nextGraphData),
         preserveBalancedCollective: carryForwardBalancedFloatingCollectiveState,
       })
+    const carryForwardSameSourceDesignFrameState = carryForwardSameSourceUiState
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
@@ -528,11 +536,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const designFramePosKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFramePosByKey, collapsedKey) : false
       const designFrameSizeKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFrameSizeByKey, collapsedKey) : false
       const nextDesignFramePos =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFramePosKeyMissing
           ? { ...(s.designFramePosById || {}) }
           : collapsedKey ? (designFramePosByKey[collapsedKey] || {}) : s.designFramePosById
       const nextDesignFrameSize =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFrameSizeKeyMissing
           ? { ...(s.designFrameSizeById || {}) }
           : collapsedKey ? (designFrameSizeByKey[collapsedKey] || {}) : s.designFrameSizeById
       const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
@@ -575,11 +583,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
           ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
           : designByKey
       const nextDesignFramePosByKey =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFramePosKeyMissing
           ? { ...designFramePosByKey, [collapsedKey]: nextDesignFramePos }
           : designFramePosByKey
       const nextDesignFrameSizeByKey =
-        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+        collapsedKey && carryForwardSameSourceDesignFrameState && designFrameSizeKeyMissing
           ? { ...designFrameSizeByKey, [collapsedKey]: nextDesignFrameSize }
           : designFrameSizeByKey
       const nextPinnedByKey =

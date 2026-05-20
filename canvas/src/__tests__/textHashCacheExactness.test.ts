@@ -1,4 +1,4 @@
-import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { hashStringToHexCached, hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 
 export function testTextHashCacheRejectsSampleSignatureStaleness() {
@@ -23,5 +23,32 @@ export function testTextHashCacheRejectsSampleSignatureStaleness() {
   }
   if (cachedA === cachedB) {
     throw new Error('expected changed same-key text to produce a distinct cached hash')
+  }
+}
+
+export function testSharedContentTextHashCacheRejectsSampleSignatureStaleness() {
+  const head = 'x'.repeat(640)
+  const midGap = 'q'.repeat(512)
+  const tail = 'y'.repeat(640)
+  const textA = `${head}shared-first!${midGap}${tail}`
+  const textB = `${head}shared-second${midGap}${tail}`
+
+  if (textA.length !== textB.length) {
+    throw new Error('test fixture must keep equal-length texts to exercise shared-content cache exactness')
+  }
+
+  const cachedA = hashStringToHexSharedContentCached(textA, 'shared-text-exactness')
+  const cachedB = hashStringToHexSharedContentCached(textB, 'shared-text-exactness')
+  const expectedA = hashStringToHex(textA)
+  const expectedB = hashStringToHex(textB)
+
+  if (cachedA !== expectedA) {
+    throw new Error('expected shared-content text hash cache to preserve the exact hash for the first text')
+  }
+  if (cachedB !== expectedB) {
+    throw new Error('expected shared-content text hash cache to recompute changed same-shape text exactly instead of reusing stale content')
+  }
+  if (cachedA === cachedB) {
+    throw new Error('expected changed shared-content text to produce a distinct cached hash')
   }
 }

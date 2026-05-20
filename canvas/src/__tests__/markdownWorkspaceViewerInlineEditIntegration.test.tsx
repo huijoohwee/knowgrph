@@ -257,13 +257,13 @@ export async function testMarkdownWorkspaceViewerInlineEditInteractionDoesNotFre
     const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
     if (!toolbar) throw new Error('expected floating selection toolbar in viewer inline edit')
 
-    const summary = toolbar.querySelector('summary[title="Text color"]') as HTMLElement | null
-    if (!summary) throw new Error('expected text color summary in viewer floating toolbar')
+    const summary = toolbar.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color trigger in viewer floating toolbar')
     summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
     summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     summary.click()
     await tick(2)
-    const redBtn = toolbar.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    const redBtn = doc.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
     if (!redBtn) throw new Error('expected text color button in viewer floating toolbar')
     redBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     redBtn.click()
@@ -774,15 +774,15 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarSyncsSplitMarkdo
 
     const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
     if (!toolbar) throw new Error('expected floating selection toolbar for split sync test')
-    const summary = toolbar.querySelector('summary[title="Text color"]') as HTMLElement | null
-    if (!summary) throw new Error('expected text color summary in split sync toolbar')
+    const summary = toolbar.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color trigger in split sync toolbar')
     await act(async () => {
       summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
       summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       summary.click()
       await tick(2)
     })
-    const redBtn = toolbar.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+    const redBtn = doc.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
     if (!redBtn) throw new Error('expected text color button in split sync toolbar')
     await act(async () => {
       redBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))

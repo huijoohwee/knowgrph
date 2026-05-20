@@ -11,7 +11,7 @@ import {
   WORKSPACE_ROOT_PATH,
 } from '@/features/workspace-fs/path'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
-import { getWorkspaceSeedFiles, isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -197,6 +197,11 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             return res.changed ? res.text : null
           })()
           const nextText = sanitized ?? rawNext
+          const textHash = buildSourceFileParseIdentityHash({
+            cacheNamespace: `workspace-import:${path}`,
+            name: workspaceDocumentKey(path),
+            text: nextText,
+          })
           if (sanitized) {
             try {
               await writeWorkspaceFileAndSync({
@@ -228,25 +233,17 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 }),
               )
             }
-            const textHash = buildSourceFileParseIdentityHash({
-              cacheNamespace: `workspace-import:${path}`,
-              name: workspaceDocumentKey(path),
-              text: nextText,
-            })
             const previouslyIndexedHash = args.lastIndexedByPathRef.current.get(path)
             const alreadyIndexedForTextHash = typeof previouslyIndexedHash === 'string' && previouslyIndexedHash === textHash
             if (!alreadyIndexedForTextHash) {
-              const shouldApplyWorkspaceSwitchGraph =
-                isInitializationWorkspacePath(path) &&
-                nextText.length <= WORKSPACE_SWITCH_HEAVY_PARSE_MAX_CHARS
               pushWorkspaceTextToActiveMarkdownDocument({
                 activeDocumentKey: args.activeDocumentKey,
                 activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
                 setActiveMarkdownDocument: args.setActiveMarkdownDocument,
                 text: nextText,
                 applyViewPreset: false,
-                applyToGraph: shouldApplyWorkspaceSwitchGraph,
-                forceApplyToGraph: shouldApplyWorkspaceSwitchGraph,
+                applyToGraph: false,
+                forceApplyToGraph: false,
                 normalizeWebpageFrontmatterToMarkdown: false,
               })
             }
@@ -268,11 +265,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
           }
 
           if (args.activeDocumentKey && nextText.trim()) {
-            const hash = buildSourceFileParseIdentityHash({
-              cacheNamespace: `workspace-import:${path}`,
-              name: workspaceDocumentKey(path),
-              text: nextText,
-            })
+            const hash = textHash
             const existingWorkspaceSourceForPath = findWorkspaceSourceFileByPath(path)
             const workspaceSourceAlreadyIndexedForSameHash = !!(
               existingWorkspaceSourceForPath &&

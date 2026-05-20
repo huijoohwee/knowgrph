@@ -2,6 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 export const SCHEMA_WORKSPACE_FOLDER = '/schema'
 export const SCHEMA_CONFIG_WORKSPACE_PATH = '/schema/schema.json'
@@ -47,11 +48,7 @@ export async function ensureSchemaConfigWorkspaceFile(): Promise<void> {
 }
 
 export function openSchemaConfigWorkspaceFile(): void {
-  try {
-    useGraphStore.getState().setWorkspaceViewMode('editor')
-  } catch {
-    void 0
-  }
+  openMarkdownWorkspaceEditorPane(useGraphStore.getState())
   void (async () => {
     try {
       await ensureSchemaConfigWorkspaceFile()
@@ -61,4 +58,3 @@ export function openSchemaConfigWorkspaceFile(): void {
     }
   })()
 }
-

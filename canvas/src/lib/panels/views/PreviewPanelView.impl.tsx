@@ -8,6 +8,7 @@ import type {
   TokensImage,
 } from '@/features/markdown/ui/MarkdownTokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import {
   type TokenWithLines,
@@ -66,7 +67,6 @@ export default function PreviewPanelView() {
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const selectNode = useGraphStore(s => s.selectNode)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const updateNode = useGraphStore(s => s.updateNode)
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
@@ -563,7 +563,7 @@ export default function PreviewPanelView() {
       try {
         setSelectionSource('toolbar')
         selectNode(item.nodeId)
-        setWorkspaceViewMode('editor')
+        openMarkdownWorkspaceEditorPane(useGraphStore.getState())
       } catch {
         void 0
       }

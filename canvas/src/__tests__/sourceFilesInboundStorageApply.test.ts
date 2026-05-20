@@ -1,7 +1,7 @@
 import { applyPulledKnowgrphStorageChangesToSourceFiles } from '@/features/source-files/sourceFilesInboundStorageApply'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-export function testPulledKnowgrphStorageChangesMaterializeIntoVisibleSourceFilesAndComposeGraph() {
+export function testPulledKnowgrphStorageChangesMaterializeIntoVisibleSourceFilesWithoutAutoComposingWorkspaceDocs() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setSourceFiles([])
 
@@ -54,8 +54,8 @@ export function testPulledKnowgrphStorageChangesMaterializeIntoVisibleSourceFile
   if (!file) throw new Error('expected pulled remote document to become a visible source file')
   if (String(file.text || '') !== '# Remote Demo') throw new Error('expected visible source file text to reflect pulled remote markdown')
   if ((file.parsedGraphData?.nodes || []).length !== 1) throw new Error('expected visible source file to carry pulled graph snapshot data')
-  if (!Array.isArray(store.graphData?.nodes) || store.graphData.nodes.length < 1) {
-    throw new Error('expected pulled remote source file to recompose into a non-empty visible canvas graph automatically')
+  if (Array.isArray(store.graphData?.nodes) && store.graphData.nodes.length > 0) {
+    throw new Error('expected pulled workspace-backed source files to stay visible-only and avoid automatic canvas recomposition')
   }
 }
 

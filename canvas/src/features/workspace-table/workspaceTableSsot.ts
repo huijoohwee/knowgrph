@@ -95,11 +95,8 @@ export function openWorkspaceEditorPane(args: OpenWorkspaceEditorPaneArgs) {
       args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })
       return
     }
-    if (args.workspaceViewMode !== 'editor') {
-      args.setWorkspaceViewMode('editor')
-      return
-    }
-    args.setWorkspaceCanvasPaneOpen(true)
+    if (args.workspaceViewMode !== 'editor') args.setWorkspaceViewMode('editor')
+    if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)
   }
 }
 

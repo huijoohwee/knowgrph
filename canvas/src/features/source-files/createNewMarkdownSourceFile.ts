@@ -2,6 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 export type CreateNewMarkdownSourceFileArgs = {
   parentPath?: string | null
@@ -11,8 +12,7 @@ export function createNewMarkdownSourceFileAndOpenViewer(
   args?: CreateNewMarkdownSourceFileArgs,
 ): { id: string; name: string } | null {
   try {
-    const store = useGraphStore.getState()
-    store.setWorkspaceViewMode('editor')
+    openMarkdownWorkspaceEditorPane(useGraphStore.getState())
 
     void (async () => {
       try {

@@ -18,7 +18,9 @@ export type P2PCollaborationPhase =
 export type P2PInvitePayload = {
   v: typeof P2P_COLLAB_PROTOCOL_VERSION
   kind: 'invite'
+  inviteId: string
   sessionId: string
+  ownerPeerId: string
   hostPeerId: string
   hostDisplayName: string
   documentKey: string
@@ -29,26 +31,43 @@ export type P2PInvitePayload = {
 export type P2PAnswerPayload = {
   v: typeof P2P_COLLAB_PROTOCOL_VERSION
   kind: 'answer'
+  inviteId: string
   sessionId: string
+  ownerPeerId: string
   guestPeerId: string
   guestDisplayName: string
   answer: RTCSessionDescriptionInit
   createdAt: number
 }
 
+export type P2PCollaborationWirePeerRole = 'owner' | 'guest'
+
+export type P2PCollaborationPeerSnapshot = {
+  peerId: string
+  displayName: string
+  documentKey: string
+  caretLine: number | null
+  connectedAt: number
+  lastSeenAt: number
+  ownership: P2PCollaborationWirePeerRole
+}
+
 export type P2PCollaborationWireMessage =
   | {
       v: typeof P2P_COLLAB_PROTOCOL_VERSION
       kind: 'hello'
+      sessionId: string
       peerId: string
       displayName: string
       documentKey: string
       caretLine: number | null
+      ownership: P2PCollaborationWirePeerRole
       sentAt: number
     }
   | {
       v: typeof P2P_COLLAB_PROTOCOL_VERSION
       kind: 'document-sync'
+      sessionId: string
       peerId: string
       documentKey: string
       text: string
@@ -58,10 +77,20 @@ export type P2PCollaborationWireMessage =
   | {
       v: typeof P2P_COLLAB_PROTOCOL_VERSION
       kind: 'presence'
+      sessionId: string
       peerId: string
       displayName: string
       documentKey: string
       caretLine: number | null
+      ownership: P2PCollaborationWirePeerRole
+      sentAt: number
+    }
+  | {
+      v: typeof P2P_COLLAB_PROTOCOL_VERSION
+      kind: 'session-roster'
+      sessionId: string
+      ownerPeerId: string
+      peers: P2PCollaborationPeerSnapshot[]
       sentAt: number
     }
 
@@ -112,6 +141,32 @@ function parsePayloadFromInput(input: string, paramName: string): unknown {
   return decodePayloadToken(paramValue)
 }
 
+function isWirePeerRole(value: unknown): value is P2PCollaborationWirePeerRole {
+  return value === 'owner' || value === 'guest'
+}
+
+function parseCaretLine(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(1, Math.floor(value))
+    : null
+}
+
+function isPeerSnapshot(value: unknown): value is P2PCollaborationPeerSnapshot {
+  if (!value || typeof value !== 'object') return false
+  const snapshot = value as Partial<P2PCollaborationPeerSnapshot>
+  return (
+    typeof snapshot.peerId === 'string'
+    && typeof snapshot.displayName === 'string'
+    && typeof snapshot.documentKey === 'string'
+    && isWirePeerRole(snapshot.ownership)
+    && typeof snapshot.connectedAt === 'number'
+    && Number.isFinite(snapshot.connectedAt)
+    && typeof snapshot.lastSeenAt === 'number'
+    && Number.isFinite(snapshot.lastSeenAt)
+    && (snapshot.caretLine == null || (typeof snapshot.caretLine === 'number' && Number.isFinite(snapshot.caretLine)))
+  )
+}
+
 export function encodeP2PInvitePayload(payload: P2PInvitePayload): string {
   return encodePayloadToken(payload)
 }
@@ -130,13 +185,18 @@ export function parseP2PInviteInput(input: string): P2PInvitePayload {
   if (!payload.sessionId || !payload.hostPeerId || !payload.hostDisplayName) {
     throw new Error('Incomplete collaboration invite payload')
   }
+  if (!payload.ownerPeerId || !payload.inviteId) {
+    throw new Error('Incomplete collaboration invite metadata')
+  }
   if (!isSessionDescriptionInit(payload.offer) || payload.offer.type !== 'offer') {
     throw new Error('Invalid collaboration offer payload')
   }
   return {
     v: P2P_COLLAB_PROTOCOL_VERSION,
     kind: 'invite',
+    inviteId: String(payload.inviteId),
     sessionId: String(payload.sessionId),
+    ownerPeerId: String(payload.ownerPeerId),
     hostPeerId: String(payload.hostPeerId),
     hostDisplayName: String(payload.hostDisplayName),
     documentKey: String(payload.documentKey || ''),
@@ -155,13 +215,18 @@ export function parseP2PAnswerInput(input: string): P2PAnswerPayload {
   if (!payload.sessionId || !payload.guestPeerId || !payload.guestDisplayName) {
     throw new Error('Incomplete collaboration answer payload')
   }
+  if (!payload.ownerPeerId || !payload.inviteId) {
+    throw new Error('Incomplete collaboration answer metadata')
+  }
   if (!isSessionDescriptionInit(payload.answer) || payload.answer.type !== 'answer') {
     throw new Error('Invalid collaboration answer payload')
   }
   return {
     v: P2P_COLLAB_PROTOCOL_VERSION,
     kind: 'answer',
+    inviteId: String(payload.inviteId),
     sessionId: String(payload.sessionId),
+    ownerPeerId: String(payload.ownerPeerId),
     guestPeerId: String(payload.guestPeerId),
     guestDisplayName: String(payload.guestDisplayName),
     answer: payload.answer,
@@ -179,6 +244,58 @@ export function buildP2PInviteUrl(inviteToken: string, locationHref: string): st
 export function readP2PInviteTokenFromLocation(locationHref: string): string {
   const url = new URL(locationHref)
   return String(url.searchParams.get(P2P_COLLAB_INVITE_SEARCH_PARAM) || '').trim()
+}
+
+export function parseP2PCollaborationWireMessage(raw: string): P2PCollaborationWireMessage | null {
+  try {
+    const parsed = JSON.parse(String(raw || '')) as Partial<P2PCollaborationWireMessage>
+    if (!parsed || parsed.v !== P2P_COLLAB_PROTOCOL_VERSION || typeof parsed.kind !== 'string' || typeof parsed.sessionId !== 'string') {
+      return null
+    }
+    if (parsed.kind === 'hello' || parsed.kind === 'presence') {
+      if (!isWirePeerRole(parsed.ownership)) return null
+      return {
+        v: P2P_COLLAB_PROTOCOL_VERSION,
+        kind: parsed.kind,
+        sessionId: parsed.sessionId,
+        peerId: String(parsed.peerId || ''),
+        displayName: String(parsed.displayName || ''),
+        documentKey: String(parsed.documentKey || ''),
+        caretLine: parseCaretLine(parsed.caretLine),
+        ownership: parsed.ownership,
+        sentAt: Number(parsed.sentAt || Date.now()),
+      }
+    }
+    if (parsed.kind === 'document-sync') {
+      return {
+        v: P2P_COLLAB_PROTOCOL_VERSION,
+        kind: 'document-sync',
+        sessionId: parsed.sessionId,
+        peerId: String(parsed.peerId || ''),
+        documentKey: String(parsed.documentKey || ''),
+        text: String(parsed.text || ''),
+        textHash: String(parsed.textHash || ''),
+        sentAt: Number(parsed.sentAt || Date.now()),
+      }
+    }
+    if (parsed.kind === 'session-roster') {
+      const peers = Array.isArray(parsed.peers) ? parsed.peers.filter(isPeerSnapshot) : []
+      return {
+        v: P2P_COLLAB_PROTOCOL_VERSION,
+        kind: 'session-roster',
+        sessionId: parsed.sessionId,
+        ownerPeerId: String(parsed.ownerPeerId || ''),
+        peers: peers.map(peer => ({
+          ...peer,
+          caretLine: parseCaretLine(peer.caretLine),
+        })),
+        sentAt: Number(parsed.sentAt || Date.now()),
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
 }
 
 export function buildDefaultCollaborationDisplayName(): string {

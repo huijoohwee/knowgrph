@@ -474,8 +474,8 @@ export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
   if (!sourceFileRowsText.includes('Restore D1/docs defaults') || !sourceFileRowsText.includes('Open Source Files')) {
     throw new Error('Expected Source File Management settings rows to expose D1/docs restore and Source Files open actions')
   }
-  if (!sourceFileRowsText.includes('scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })')) {
-    throw new Error('Expected Source File Management settings rows to recompose D1/workspace-backed Source Files explicitly')
+  if (!sourceFileRowsText.includes('scheduleApplyComposedGraphFromSourceFiles()')) {
+    throw new Error('Expected Source File Management settings rows to reuse the canonical passive Source Files recomposition scheduler')
   }
   if (!sourceFileRowsText.includes('Import local files remains an explicit manual action')) {
     throw new Error('Expected Source File Management settings rows to document the manual-only local import boundary')

@@ -83,8 +83,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!markdownInlineMenusText.includes('uiToolbarRowScrollClassName') || markdownInlineMenusText.includes('flex flex-wrap gap-1')) {
     throw new Error('expected inline markdown bubble menus to scroll on one toolbar-owned row')
   }
-  if (!markdownBubbleToolbarText.includes('allowOverflowVisible') || markdownBubbleToolbarText.includes('flex flex-wrap items-center gap-1')) {
-    throw new Error('expected Viewer floating selection toolbar menus to avoid wrapped rows and allow visible overlay overflow for live menu hit targets')
+  if (
+    !markdownBubbleToolbarText.includes('allowOverflowVisible') ||
+    !markdownBubbleToolbarText.includes('uiToolbarRowScrollListClassName') ||
+    !markdownBubbleToolbarText.includes('uiToolbarResponsiveRowScrollClassName') ||
+    !markdownBubbleToolbarText.includes('uiToolbarTouchRowScrollClassName') ||
+    !markdownBubbleToolbarText.includes("touchAction: 'pan-x manipulation'") ||
+    markdownBubbleToolbarText.includes('flex flex-wrap items-center gap-1')
+  ) {
+    throw new Error('expected Viewer floating selection toolbar menus to reuse the shared list, row-scroll, touch-scroll, and visible-overflow mobile toolbar primitives')
   }
   if (!settingsUiText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !settingsUiText.includes('uiToolbarRowScrollClassName')) {
     throw new Error('expected Settings previews to use responsive inline rows and shared row scrolling')

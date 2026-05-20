@@ -116,12 +116,12 @@ export async function testInlineEditToolbarMoreMenuIncludesSelectionActionsAndNo
     const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
     if (!toolbar) throw new Error('expected inline selection toolbar')
 
-    const moreSummary = toolbar.querySelector('summary[title="More"]') as HTMLElement | null
-    if (!moreSummary) throw new Error('expected More summary in inline toolbar')
+    const moreSummary = toolbar.querySelector('button[aria-label="More"]') as HTMLElement | null
+    if (!moreSummary) throw new Error('expected More trigger in inline toolbar')
     moreSummary.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick(2)
 
-    const showOnCanvas = findButtonByExactText(toolbar, 'Show on Canvas')
+    const showOnCanvas = findButtonByExactText(doc.body, 'Show on Canvas')
     if (!showOnCanvas) throw new Error('expected Show on Canvas inside inline toolbar More menu')
     showOnCanvas.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick(2)
@@ -133,4 +133,3 @@ export async function testInlineEditToolbarMoreMenuIncludesSelectionActionsAndNo
     restore()
   }
 }
-

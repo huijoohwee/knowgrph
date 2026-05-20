@@ -9,6 +9,7 @@ import {
   ACTIVE_WORKSPACE_SYNC_MAX_ATTEMPTS,
   ACTIVE_WORKSPACE_SYNC_RETRY_MS,
 } from './settingsView.constants'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 type WorkspaceKind = 'chatHistory' | 'knowgrph'
 
@@ -39,9 +40,6 @@ export function useSettingsWorkspaceActions({
   const bridgeImportLocalFiles = bridge.importLocalFiles
   const bridgeImportUrl = bridge.importUrl
   const pushUiToast = useGraphStore(s => s.pushUiToast)
-  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
-  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
-
   React.useEffect(() => {
     const timeouts = activeWorkspaceSyncTimeoutsRef.current
     return () => {
@@ -56,10 +54,9 @@ export function useSettingsWorkspaceActions({
 
   const openWorkspaceFile = React.useCallback((path: string) => {
     const normalized = normalizeWorkspacePath(path)
-    setWorkspaceViewMode('editor')
-    setEditorWorkspacePane('markdown')
+    openMarkdownWorkspaceEditorPane(useGraphStore.getState())
     useMarkdownExplorerStore.getState().setActivePath(normalized)
-  }, [setEditorWorkspacePane, setWorkspaceViewMode])
+  }, [])
 
   const syncPathFromActiveWorkspaceFile = React.useCallback((kind: WorkspaceKind, attempt = 0) => {
     const active = useMarkdownExplorerStore.getState().activePath

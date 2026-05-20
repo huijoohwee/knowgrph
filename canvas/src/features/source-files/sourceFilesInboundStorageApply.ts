@@ -199,7 +199,7 @@ const scheduleBlankPulledDocsHydration = (args: {
     })
     if (!changed) return
     state.setSourceFiles(next)
-    scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
+    scheduleApplyComposedGraphFromSourceFiles()
   })()
 }
 
@@ -320,7 +320,11 @@ const buildSourceFileFromStorageDocument = (
 export const applyPulledKnowgrphStorageChangesToSourceFiles = (args: {
   workspaceId: string
   changes: KnowgrphStoragePullResponse['changes']
-}): { applied: boolean; nextCount: number } => {
+}): {
+  applied: boolean
+  nextCount: number
+  sourceFilesSnapshot: SourceFile[]
+} => {
   const current = useGraphStore.getState()
   const currentSourceFiles = Array.isArray(current.sourceFiles) ? current.sourceFiles : []
   const next = currentSourceFiles.slice()
@@ -395,9 +399,15 @@ export const applyPulledKnowgrphStorageChangesToSourceFiles = (args: {
       tasks: blankPulledDocHydrationTasks,
     })
   }
-  if (!changed) return { applied: false, nextCount: currentSourceFiles.length }
+  if (!changed) {
+    return {
+      applied: false,
+      nextCount: currentSourceFiles.length,
+      sourceFilesSnapshot: currentSourceFiles,
+    }
+  }
   current.setSourceFiles(next)
-  scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })
+  scheduleApplyComposedGraphFromSourceFiles()
   void (async () => {
     try {
       const mod = (await import('@/features/workspace-fs/workspaceFs')) as typeof import('@/features/workspace-fs/workspaceFs')
@@ -407,5 +417,9 @@ export const applyPulledKnowgrphStorageChangesToSourceFiles = (args: {
       void 0
     }
   })()
-  return { applied: true, nextCount: next.length }
+  return {
+    applied: true,
+    nextCount: next.length,
+    sourceFilesSnapshot: next,
+  }
 }

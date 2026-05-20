@@ -3,13 +3,15 @@ import {
   buildDefaultCollaborationDisplayName,
   type P2PCollaborationPhase,
   type P2PCollaborationRole,
+  type P2PCollaborationWirePeerRole,
 } from './p2pCollaborationProtocol'
 
-export type P2PCollaborationCommandKind = 'start-host' | 'join-invite' | 'apply-answer' | 'disconnect'
+export type P2PCollaborationCommandKind = 'start-host' | 'join-invite' | 'apply-answer' | 'disconnect' | 'remove-peer'
 
 export type P2PCollaborationCommand = {
   id: number
   kind: P2PCollaborationCommandKind
+  peerId?: string
 }
 
 export type P2PCollaborationRemotePeer = {
@@ -19,7 +21,29 @@ export type P2PCollaborationRemotePeer = {
   caretLine: number | null
   connectedAt: number
   lastSeenAt: number
+  ownership: P2PCollaborationWirePeerRole
+  isLocal: boolean
+  connectionState: 'invited' | 'connecting' | 'connected'
 }
+
+type P2PCollaborationStoreSessionPatch = Partial<
+  Pick<
+    P2PCollaborationStoreState,
+    | 'role'
+    | 'phase'
+    | 'statusText'
+    | 'errorText'
+    | 'sessionId'
+    | 'localPeerId'
+    | 'ownerPeerId'
+    | 'inviteToken'
+    | 'inviteUrl'
+    | 'inviteInput'
+    | 'answerToken'
+    | 'answerInput'
+    | 'followPeerId'
+  >
+>
 
 type P2PCollaborationStoreState = {
   displayName: string
@@ -28,36 +52,52 @@ type P2PCollaborationStoreState = {
   statusText: string
   errorText: string
   sessionId: string | null
+  localPeerId: string | null
+  ownerPeerId: string | null
   inviteInput: string
   inviteToken: string
   inviteUrl: string
   answerInput: string
   answerToken: string
   followModeEnabled: boolean
+  followPeerId: string | null
   localCaretLine: number | null
-  remotePeer: P2PCollaborationRemotePeer | null
+  peers: P2PCollaborationRemotePeer[]
   pendingCommand: P2PCollaborationCommand | null
   commandSeq: number
   setDisplayName: (value: string) => void
   setInviteInput: (value: string) => void
   setAnswerInput: (value: string) => void
   setFollowModeEnabled: (value: boolean) => void
+  setFollowPeerId: (value: string | null) => void
   setLocalCaretLine: (value: number | null) => void
   seedInviteInputFromLocation: (value: string) => void
+  setSessionState: (patch: P2PCollaborationStoreSessionPatch) => void
+  upsertPeer: (value: P2PCollaborationRemotePeer) => void
+  replacePeers: (peers: P2PCollaborationRemotePeer[]) => void
+  removePeer: (peerId: string) => void
   queueStartHost: () => void
   queueJoinInvite: () => void
   queueApplyAnswer: () => void
   queueDisconnect: () => void
-  markPreparingHost: () => void
-  markAwaitingAnswer: (args: { sessionId: string; inviteToken: string; inviteUrl: string }) => void
-  markPreparingGuest: () => void
-  markAwaitingHost: (args: { sessionId: string; answerToken: string }) => void
-  markConnecting: (args: { role: P2PCollaborationRole; sessionId: string | null; statusText?: string }) => void
-  markConnected: (args: { role: 'host' | 'guest'; sessionId: string; remotePeer: P2PCollaborationRemotePeer }) => void
-  updateRemotePeer: (value: P2PCollaborationRemotePeer | null) => void
+  queueRemovePeer: (peerId: string) => void
   setRuntimeStatus: (statusText: string) => void
   setRuntimeError: (errorText: string) => void
   resetSession: (statusText?: string) => void
+}
+
+function sortPeers(peers: P2PCollaborationRemotePeer[]): P2PCollaborationRemotePeer[] {
+  return [...peers].sort((left, right) => {
+    if (left.ownership !== right.ownership) return left.ownership === 'owner' ? -1 : 1
+    if (left.isLocal !== right.isLocal) return left.isLocal ? -1 : 1
+    return left.displayName.localeCompare(right.displayName)
+  })
+}
+
+function normalizeFollowPeerId(peers: P2PCollaborationRemotePeer[], followPeerId: string | null): string | null {
+  const normalized = String(followPeerId || '').trim()
+  if (!normalized) return null
+  return peers.some(peer => peer.peerId === normalized && !peer.isLocal) ? normalized : null
 }
 
 const initialState = (): Pick<
@@ -68,14 +108,17 @@ const initialState = (): Pick<
   | 'statusText'
   | 'errorText'
   | 'sessionId'
+  | 'localPeerId'
+  | 'ownerPeerId'
   | 'inviteInput'
   | 'inviteToken'
   | 'inviteUrl'
   | 'answerInput'
   | 'answerToken'
   | 'followModeEnabled'
+  | 'followPeerId'
   | 'localCaretLine'
-  | 'remotePeer'
+  | 'peers'
   | 'pendingCommand'
   | 'commandSeq'
 > => ({
@@ -85,20 +128,23 @@ const initialState = (): Pick<
   statusText: 'Idle',
   errorText: '',
   sessionId: null,
+  localPeerId: null,
+  ownerPeerId: null,
   inviteInput: '',
   inviteToken: '',
   inviteUrl: '',
   answerInput: '',
   answerToken: '',
   followModeEnabled: false,
+  followPeerId: null,
   localCaretLine: null,
-  remotePeer: null,
+  peers: [],
   pendingCommand: null,
   commandSeq: 0,
 })
 
-function nextCommand(kind: P2PCollaborationCommandKind, commandSeq: number): P2PCollaborationCommand {
-  return { id: commandSeq + 1, kind }
+function nextCommand(kind: P2PCollaborationCommandKind, commandSeq: number, args?: { peerId?: string }): P2PCollaborationCommand {
+  return { id: commandSeq + 1, kind, peerId: args?.peerId }
 }
 
 export const useP2PCollaborationStore = create<P2PCollaborationStoreState>((set, get) => ({
@@ -118,6 +164,13 @@ export const useP2PCollaborationStore = create<P2PCollaborationStoreState>((set,
   setFollowModeEnabled: value => {
     set(state => (state.followModeEnabled === value ? state : { followModeEnabled: value }))
   },
+  setFollowPeerId: value => {
+    const next = String(value || '').trim() || null
+    set(state => {
+      const normalized = normalizeFollowPeerId(state.peers, next)
+      return state.followPeerId === normalized ? state : { followPeerId: normalized }
+    })
+  },
   setLocalCaretLine: value => {
     set(state => (state.localCaretLine === value ? state : { localCaretLine: value }))
   },
@@ -127,6 +180,47 @@ export const useP2PCollaborationStore = create<P2PCollaborationStoreState>((set,
     set(state => {
       if (String(state.inviteInput || '').trim()) return state
       return { inviteInput: next }
+    })
+  },
+  setSessionState: patch => {
+    set(state => {
+      const nextPatch: P2PCollaborationStoreSessionPatch = { ...patch }
+      if ('followPeerId' in nextPatch) {
+        nextPatch.followPeerId = normalizeFollowPeerId(state.peers, nextPatch.followPeerId || null)
+      }
+      return nextPatch
+    })
+  },
+  upsertPeer: value => {
+    set(state => {
+      const nextPeers = sortPeers([
+        ...state.peers.filter(peer => peer.peerId !== value.peerId),
+        value,
+      ])
+      return {
+        peers: nextPeers,
+        followPeerId: normalizeFollowPeerId(nextPeers, state.followPeerId),
+      }
+    })
+  },
+  replacePeers: peers => {
+    set(state => {
+      const nextPeers = sortPeers(peers)
+      return {
+        peers: nextPeers,
+        followPeerId: normalizeFollowPeerId(nextPeers, state.followPeerId),
+      }
+    })
+  },
+  removePeer: peerId => {
+    const normalizedPeerId = String(peerId || '').trim()
+    if (!normalizedPeerId) return
+    set(state => {
+      const nextPeers = sortPeers(state.peers.filter(peer => peer.peerId !== normalizedPeerId))
+      return {
+        peers: nextPeers,
+        followPeerId: normalizeFollowPeerId(nextPeers, state.followPeerId),
+      }
     })
   },
   queueStartHost: () => {
@@ -161,83 +255,14 @@ export const useP2PCollaborationStore = create<P2PCollaborationStoreState>((set,
       errorText: '',
     })
   },
-  markPreparingHost: () => {
+  queueRemovePeer: peerId => {
+    const normalizedPeerId = String(peerId || '').trim()
+    if (!normalizedPeerId) return
+    const state = get()
     set({
-      role: 'host',
-      phase: 'preparing-invite',
-      statusText: 'Preparing invite…',
+      pendingCommand: nextCommand('remove-peer', state.commandSeq, { peerId: normalizedPeerId }),
+      commandSeq: state.commandSeq + 1,
       errorText: '',
-      sessionId: null,
-      inviteToken: '',
-      inviteUrl: '',
-      answerInput: '',
-      answerToken: '',
-      remotePeer: null,
-    })
-  },
-  markAwaitingAnswer: ({ sessionId, inviteToken, inviteUrl }) => {
-    set({
-      role: 'host',
-      phase: 'awaiting-answer',
-      statusText: 'Invite ready. Waiting for guest answer…',
-      errorText: '',
-      sessionId,
-      inviteToken,
-      inviteUrl,
-      remotePeer: null,
-    })
-  },
-  markPreparingGuest: () => {
-    set({
-      role: 'guest',
-      phase: 'preparing-answer',
-      statusText: 'Preparing guest answer…',
-      errorText: '',
-      sessionId: null,
-      answerToken: '',
-      remotePeer: null,
-    })
-  },
-  markAwaitingHost: ({ sessionId, answerToken }) => {
-    set({
-      role: 'guest',
-      phase: 'awaiting-host',
-      statusText: 'Answer ready. Send it back to the host.',
-      errorText: '',
-      sessionId,
-      answerToken,
-    })
-  },
-  markConnecting: ({ role, sessionId, statusText }) => {
-    set({
-      role,
-      phase: 'connecting',
-      sessionId,
-      statusText: statusText || 'Connecting peer session…',
-      errorText: '',
-    })
-  },
-  markConnected: ({ role, sessionId, remotePeer }) => {
-    set({
-      role,
-      phase: 'connected',
-      statusText: `Connected to ${remotePeer.displayName}`,
-      errorText: '',
-      sessionId,
-      remotePeer,
-    })
-  },
-  updateRemotePeer: value => {
-    set(state => {
-      if (
-        state.remotePeer?.peerId === value?.peerId
-        && state.remotePeer?.documentKey === value?.documentKey
-        && state.remotePeer?.caretLine === value?.caretLine
-        && state.remotePeer?.lastSeenAt === value?.lastSeenAt
-      ) {
-        return state
-      }
-      return { remotePeer: value }
     })
   },
   setRuntimeStatus: statusText => {
@@ -261,11 +286,14 @@ export const useP2PCollaborationStore = create<P2PCollaborationStoreState>((set,
       statusText: nextStatusText,
       errorText: '',
       sessionId: null,
+      localPeerId: null,
+      ownerPeerId: null,
       inviteToken: '',
       inviteUrl: '',
       answerToken: '',
+      followPeerId: null,
       localCaretLine: null,
-      remotePeer: null,
+      peers: [],
     }))
   },
 }))

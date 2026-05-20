@@ -59,3 +59,16 @@ export const hashStringToHexCached = (cacheKey: string, rawText: string): string
   prune()
   return hash
 }
+
+const buildSharedTextContentCacheKey = (rawText: string, scope?: string): string => {
+  const text = String(rawText ?? '')
+  const prefix = text.slice(0, 96)
+  const suffix = text.length > 96 ? text.slice(-96) : ''
+  const normalizedScope = String(scope || '').trim() || 'shared-text'
+  return `${normalizedScope}:${text.length}:${prefix}:${suffix}`
+}
+
+export const hashStringToHexSharedContentCached = (rawText: string, scope?: string): string => {
+  const text = String(rawText ?? '')
+  return hashStringToHexCached(buildSharedTextContentCacheKey(text, scope), text)
+}

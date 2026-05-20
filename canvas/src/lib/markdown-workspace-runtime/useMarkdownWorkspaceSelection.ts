@@ -21,7 +21,7 @@ import {
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from './markdownWorkspaceSelectionSync'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
 import {
   buildCanvasWorkspacePresetSwitchSemanticKey,
   hasCanvasWorkspacePresetForSwitch,
@@ -64,7 +64,7 @@ function buildWorkspaceDocumentSwitchSignature(args: {
 }): string {
   const activeDocumentKey = String(args.activeDocumentKey || '').trim()
   const text = String(args.text || '')
-  const textHash = hashStringToHexCached(`markdown-workspace-switch:${activeDocumentKey || 'document'}`, text)
+  const textHash = hashStringToHexSharedContentCached(text, 'markdown-workspace-switch')
   return hashSignatureParts([
     'markdown-workspace-document-switch-apply',
     activeDocumentKey,

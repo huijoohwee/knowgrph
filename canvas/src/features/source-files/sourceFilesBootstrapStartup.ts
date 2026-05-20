@@ -2,21 +2,36 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
 import {
+  buildActiveWorkspaceRuntimeSourceFilesSnapshot,
   buildMaterializedWorkspaceActivePathKey,
   buildMaterializedWorkspaceForceIncludePaths,
   hydrateWorkspaceEntriesInlineText,
   materializeActiveWorkspaceEntryIntoSourceFiles,
   readReusableWorkspaceEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
-  resolveInitialWorkspaceStartupState,
 } from '@/features/source-files/sourceFilesRuntimeShared'
+import { resolveInitialWorkspaceStartupState } from '@/features/source-files/sourceFilesRuntimeStartup'
 import { buildSourceFilesCompositionSignature } from '@/features/source-files/sourceFilesSignatures'
 import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
-import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
-import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import type { SourceFilesWorkspaceState } from '@/features/source-files/sourceFilesWorkspaceState'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
+
+type BootstrapWorkspaceMaterializationArgs = {
+  startupState?: Awaited<ReturnType<typeof resolveInitialWorkspaceStartupState>>
+  fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
+  existingSourceFiles?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
+  sourcesByPath?: ReturnType<typeof resolveWorkspaceSourceIndexSnapshot> | null
+}
+
+type BootstrapWorkspaceMaterializationContext = {
+  startupActivePath: ReturnType<typeof resolveMaterializedWorkspaceActivePath>
+  hydratedEntries: Awaited<ReturnType<typeof hydrateWorkspaceEntriesInlineText>>
+  mergedSourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
+  startupSourcesByPath: ReturnType<typeof resolveWorkspaceSourceIndexSnapshot>
+  workspaceFs: Awaited<ReturnType<typeof getWorkspaceFs>>
+}
 
 export function restoreBootstrapPersistedSourceFiles(args: {
   persistedSourceFiles: unknown[]
@@ -38,9 +53,23 @@ export async function runBootstrapSourceFileHydration(): Promise<void> {
   __canvasStartupDebug.sourceBootstrapLastHydrateFinishedAtMs = Date.now()
 }
 
-export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string> {
-  const startup = await resolveInitialWorkspaceStartupState()
-  const fs = await getWorkspaceFs()
+function readBootstrapExistingSourceFiles(
+  sourceFiles?: BootstrapWorkspaceMaterializationArgs['existingSourceFiles'],
+): ReturnType<typeof useGraphStore.getState>['sourceFiles'] {
+  return Array.isArray(sourceFiles) ? sourceFiles : (Array.isArray(useGraphStore.getState().sourceFiles) ? useGraphStore.getState().sourceFiles : [])
+}
+
+function readBootstrapSourceIndexSnapshot(
+  snapshot?: BootstrapWorkspaceMaterializationArgs['sourcesByPath'],
+): ReturnType<typeof resolveWorkspaceSourceIndexSnapshot> {
+  return snapshot || resolveWorkspaceSourceIndexSnapshot(undefined)
+}
+
+export async function prepareBootstrapWorkspaceMaterialization(
+  args: BootstrapWorkspaceMaterializationArgs = {},
+): Promise<BootstrapWorkspaceMaterializationContext> {
+  const startup = args.startupState || await resolveInitialWorkspaceStartupState()
+  const fs = args.fs || await getWorkspaceFs()
   const startupActivePath = resolveMaterializedWorkspaceActivePath({
     activePathOverride: startup.activePath,
   })
@@ -51,37 +80,65 @@ export async function materializeBootstrapWorkspaceSourceFiles(): Promise<string
       activePathOverride: startupActivePath,
     }),
   })
-  const startupSourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
-  const store = useGraphStore.getState()
-  const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-  const merged = mergeWorkspaceEntriesIntoSourceFiles({
-    existing,
-    workspaceEntries: hydratedEntries,
-    sourcesByPath: startupSourcesByPath,
-    forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
-      activePathOverride: startupActivePath,
-    }),
-    forceIncludeOnly: true,
-    workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
-  })
-  if (merged !== existing) {
-    store.setSourceFiles(merged)
+  const startupSourcesByPath = readBootstrapSourceIndexSnapshot(args.sourcesByPath)
+  const existingSourceFiles = readBootstrapExistingSourceFiles(args.existingSourceFiles)
+  const mergedSourceFiles = startupActivePath
+    ? buildActiveWorkspaceRuntimeSourceFilesSnapshot({
+        activePath: startupActivePath,
+        existingSourceFiles,
+        workspaceEntries: hydratedEntries,
+        sourcesByPath: startupSourcesByPath || undefined,
+        workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+      }).mergedSourceFiles
+    : existingSourceFiles
+  return {
+    startupActivePath,
+    hydratedEntries,
+    mergedSourceFiles,
+    startupSourcesByPath,
+    workspaceFs: fs,
   }
-  await materializeActiveWorkspaceEntryIntoSourceFiles({
-    activePathOverride: startupActivePath,
-    workspaceEntries: readReusableWorkspaceEntriesSnapshot(hydratedEntries),
-    sourcesByPath: startupSourcesByPath,
-    applyToGraph: true,
-  })
-  return buildMaterializedWorkspaceActivePathKey({
-    activePathOverride: startupActivePath,
-  })
 }
 
-export function scheduleBootstrapComposedGraphSync(): string {
-  const compositionSignature = buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles)
+export async function materializeBootstrapWorkspaceSourceFiles(
+  args: BootstrapWorkspaceMaterializationArgs = {},
+): Promise<{
+  activePathKey: string
+  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
+  sourcesByPath: ReturnType<typeof resolveWorkspaceSourceIndexSnapshot>
+  workspaceEntries: ReturnType<typeof readReusableWorkspaceEntriesSnapshot>
+  workspaceFs: Awaited<ReturnType<typeof getWorkspaceFs>>
+}> {
+  const context = await prepareBootstrapWorkspaceMaterialization(args)
+  await materializeActiveWorkspaceEntryIntoSourceFiles({
+    activePathOverride: context.startupActivePath,
+    fs: context.workspaceFs,
+    activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
+    sourcesByPath: context.startupSourcesByPath,
+    premergedSourceFiles: context.mergedSourceFiles,
+    applyToGraph: true,
+  })
+  return {
+    activePathKey: buildMaterializedWorkspaceActivePathKey({
+      activePathOverride: context.startupActivePath,
+    }),
+    sourceFiles: context.mergedSourceFiles,
+    sourcesByPath: context.startupSourcesByPath,
+    workspaceEntries: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
+    workspaceFs: context.workspaceFs,
+  }
+}
+
+export function scheduleBootstrapComposedGraphSync(args?: {
+  sourceFiles?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
+}): string {
+  const sourceFiles = Array.isArray(args?.sourceFiles) ? args?.sourceFiles : useGraphStore.getState().sourceFiles
+  const compositionSignature = buildSourceFilesCompositionSignature(sourceFiles, {
+    includeWorkspaceBacked: true,
+    intent: 'explicit-graph-owner',
+  })
   try {
-    scheduleApplyComposedGraphFromSourceFiles()
+    scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature(compositionSignature)
   } catch {
     void 0
   }

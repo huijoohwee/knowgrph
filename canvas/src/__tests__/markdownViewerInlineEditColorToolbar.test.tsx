@@ -127,8 +127,8 @@ export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlM
     dom.window.document.dispatchEvent(new dom.window.Event('selectionchange'))
     await tick(3)
 
-    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
-    if (!summary) throw new Error('expected text color toolbar summary')
+    const summary = dom.window.document.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar trigger')
     summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
     summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     summary.click()
@@ -248,8 +248,8 @@ export async function testMarkdownViewerInlineEditToolbarTextColorMenuKeepsEdito
     editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 1 }))
     await tick(3)
 
-    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
-    if (!summary) throw new Error('expected text color toolbar summary')
+    const summary = dom.window.document.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar trigger')
     summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
     summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     summary.click()
@@ -597,8 +597,8 @@ export async function testMarkdownViewerInlineEditToolbarTextColorCommitsSigilMa
     editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
     await tick(3)
 
-    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
-    if (!summary) throw new Error('expected text color toolbar summary')
+    const summary = dom.window.document.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar trigger')
     summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
     summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     summary.click()
@@ -727,8 +727,8 @@ export async function testMarkdownViewerInlineEditToolbarTextColorOverlappingExi
     editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
     await tick(3)
 
-    const summary = dom.window.document.querySelector('summary[title="Text color"]') as HTMLElement | null
-    if (!summary) throw new Error('expected text color toolbar summary')
+    const summary = dom.window.document.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+    if (!summary) throw new Error('expected text color toolbar trigger')
     summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
     summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
     summary.click()

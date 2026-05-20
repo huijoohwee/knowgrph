@@ -117,6 +117,7 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
   posByNodeId: Record<string, { top: number; left: number }>
   pinnedByNodeId?: Record<string, boolean>
   preserveBalancedCollective?: boolean
+  preserveStableSameSourceOverlayState?: boolean
 }): Record<string, { top: number; left: number }> {
   const graphData = args.graphData
   const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
@@ -134,6 +135,17 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
   }
   const next = { ...(args.posByNodeId || {}) }
   let changed = false
+  let positionedAutoManagedCount = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    const id = String(node?.id || '').trim()
+    if (!id || !next[id]) continue
+    positionedAutoManagedCount += 1
+  }
+  if (args.preserveStableSameSourceOverlayState === true && positionedAutoManagedCount <= 1) {
+    return args.posByNodeId
+  }
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     const id = String(node?.id || '').trim()
@@ -174,6 +186,8 @@ export function shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit(args: {
 }): boolean {
   if (args.preserveBalancedCollective === true) return true
   const kind = String((((args.graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
-  if (kind === 'frontmatter-flow') return false
+  if (kind === 'frontmatter-flow') {
+    return args.carryForwardSameSourceUiState === true && args.stableSameSourceNodeLayout === true
+  }
   return args.carryForwardSameSourceUiState === true && args.stableSameSourceNodeLayout === true
 }
