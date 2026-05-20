@@ -532,6 +532,15 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       const selectedText = selectedTextSnapshot || selected.trim()
       const selectedMarkdownToken = selectedMarkdownTokenSnapshot || selected
       if (!selectedText || !selected) return
+      if (/^<!--[\s\S]*?-->$/.test(String(selectedMarkdownToken || '').trim())) {
+        setCommentPreview({
+          show: true,
+          leftPx: bubble.leftPx,
+          topPx: bubble.topPx + 28,
+          text: selectedText,
+        })
+        return
+      }
       const nextDraft = `${draft.slice(0, start)}<!-- ${selectedMarkdownToken} -->${draft.slice(end)}`
       publishMarkdownDraftWithoutDomMutation(nextDraft)
       setCommentPreview({

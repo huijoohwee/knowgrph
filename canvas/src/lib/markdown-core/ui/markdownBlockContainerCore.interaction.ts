@@ -132,7 +132,7 @@ export const getMarkdownProbeEvents = (): unknown[] => {
 }
 
 const WORD_CHAR_RE = /[\p{L}\p{N}\p{M}_-]/u
-const SEMANTIC_TOKEN_RE = /(?:\[\^[^\]\n]+\]|@comment:[^\s`]+|@node:[^\s`]+|@edge:[^\s`]+|@key:[^\n`]+|@ui:[^\n`]+|\$(?:id|url|enum|date|hash):[^\s`]+)/u
+const SEMANTIC_TOKEN_RE = /(?:<!--[\s\S]*?-->|\[\^[^\]\n]+\]|@comment:[^\s`]+|@node:[^\s`]+|@edge:[^\s`]+|@key:[^\n`]+|@ui:[^\n`]+|\$(?:id|url|enum|date|hash):[^\s`]+)/u
 
 export const findFirstSelectableSegment = (text: string): { start: number; end: number } | null => {
   const value = String(text || '')

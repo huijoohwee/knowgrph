@@ -94,6 +94,36 @@ const readCleanSemanticValue = (raw: string): string => {
   return String(raw || '').replace(/\s+/g, ' ').trim()
 }
 
+const hasVariableInterpolation = (value: string): boolean => {
+  return /{{[\s\S]*?}}/.test(String(value || ''))
+}
+
+const isValidUiPathValue = (value: string): boolean => {
+  const raw = String(value || '')
+  if (!raw.trim()) return false
+  if (hasVariableInterpolation(raw)) return false
+  if (/[/>]/.test(raw)) return false
+  return true
+}
+
+const isValidShortcutValue = (value: string): boolean => {
+  const raw = String(value || '')
+  if (!raw.trim()) return false
+  if (hasVariableInterpolation(raw)) return false
+  return true
+}
+
+const isValidTypedUrlValue = (value: string): boolean => {
+  const raw = String(value || '').trim()
+  if (!/^[a-zA-Z][a-zA-Z\d+.-]*:\/\/\S+$/.test(raw)) return false
+  try {
+    const url = new URL(raw)
+    return !!url.protocol && url.protocol !== ':'
+  } catch {
+    return false
+  }
+}
+
 const normalizeHex6 = (value: string): string | null => {
   const raw = String(value || '').trim()
   if (!HEX6_RE.test(raw)) return null
@@ -196,7 +226,7 @@ export const parseMarkdownInlineCodeSemantic = (rawCell: string): MarkdownInline
   const keyMatch = source.code.match(/^@key:(.+)$/)
   if (keyMatch) {
     const value = readCleanSemanticValue(String(keyMatch[1] || ''))
-    if (!value) return null
+    if (!isValidShortcutValue(value)) return null
     return {
       kind: 'value',
       raw: source.raw || `\`${source.code}\``,
@@ -210,7 +240,7 @@ export const parseMarkdownInlineCodeSemantic = (rawCell: string): MarkdownInline
   const uiMatch = source.code.match(/^@ui:(.+)$/)
   if (uiMatch) {
     const value = readCleanSemanticValue(String(uiMatch[1] || ''))
-    if (!value) return null
+    if (!isValidUiPathValue(value)) return null
     return {
       kind: 'value',
       raw: source.raw || `\`${source.code}\``,
@@ -226,16 +256,18 @@ export const parseMarkdownInlineCodeSemantic = (rawCell: string): MarkdownInline
     const valueKind = String(typedMatch[1] || '').trim().toLowerCase() as MarkdownInlineCodeSemanticValueKind
     const value = readCleanSemanticValue(String(typedMatch[2] || ''))
     if (!value) return null
+    if (valueKind === 'url' && !isValidTypedUrlValue(value)) return null
     if (valueKind === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
     if (valueKind === 'hash' && !HEX6_RE.test(value)) return null
+    const normalizedValue = valueKind === 'hash' ? value.toUpperCase() : value
     return {
       kind: 'value',
       raw: source.raw || `\`${source.code}\``,
       code: source.code,
-      displayText: value,
+      displayText: normalizedValue,
       badgeLabel: valueKind,
       valueKind,
-      value,
+      value: normalizedValue,
     }
   }
   return null

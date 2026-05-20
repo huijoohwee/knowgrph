@@ -4,6 +4,10 @@ import { hasExpandedSelectionInRoot } from './markdownBlockContainerCore.interac
 
 type SelectionOffsets = { startOffset: number; endOffset: number }
 
+const SELECTABLE_HTML_TOKEN_SELECTOR = '[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],[data-kg-comment="1"]'
+const CANONICAL_HTML_TOKEN_SELECTOR = `${SELECTABLE_HTML_TOKEN_SELECTOR},[data-kg-sigil="1"],code`
+const ANNOTATION_WRAPPER_SELECTOR = '[data-kg-sigil="1"],[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],[data-kg-comment="1"],code,mark,[data-kg-default-highlight="1"]'
+
 export const useMarkdownBlockContainerHtmlFormatting = (args: {
   editorRef: React.RefObject<HTMLElement | null>
   getSelectionOffsets: () => SelectionOffsets | null
@@ -94,7 +98,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
   const readSelectableTokenElement = React.useCallback((root: HTMLElement, node: Node | null): HTMLElement | null => {
     const element = node?.nodeType === Node.ELEMENT_NODE ? (node as Element) : node?.parentElement || null
     if (!element) return null
-    const token = element.closest('[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"]') as HTMLElement | null
+    const token = element.closest(SELECTABLE_HTML_TOKEN_SELECTOR) as HTMLElement | null
     return token && root.contains(token) ? token : null
   }, [])
 
@@ -173,6 +177,8 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     if (commentNode && root.contains(commentNode)) {
       const rawText = String(commentNode.getAttribute('data-kg-comment-text') || '').trim()
       if (rawText) return rawText
+      const rawComment = String(commentNode.getAttribute('data-kg-comment-raw') || '').trim()
+      if (rawComment) return rawComment
     }
     return String(range.cloneContents().textContent || '').trim()
   }, [args, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
@@ -188,6 +194,11 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     const container = range.commonAncestorContainer
     const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
     if (!node) return null
+    const commentNode = node.closest('[data-kg-comment="1"]') as HTMLElement | null
+    if (commentNode && root.contains(commentNode)) {
+      const raw = String(commentNode.getAttribute('data-kg-comment-raw') || '').trim()
+      if (raw) return raw
+    }
     const semanticNode = node.closest('[data-kg-inline-code-token="1"]') as HTMLElement | null
     if (semanticNode && root.contains(semanticNode)) {
       const raw = String(semanticNode.getAttribute('data-kg-inline-code-raw') || '').trim()
@@ -246,7 +257,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     const readFormattingTokenElement = (targetNode: Node | null): HTMLElement | null => {
       const element = targetNode?.nodeType === Node.ELEMENT_NODE ? (targetNode as Element) : targetNode?.parentElement || null
       if (!element) return null
-      const token = element.closest('[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],[data-kg-sigil="1"],code') as HTMLElement | null
+      const token = element.closest(CANONICAL_HTML_TOKEN_SELECTOR) as HTMLElement | null
       return token && root.contains(token) ? token : null
     }
     const readBoundaryFormattingTokenElement = (boundaryContainer: Node, boundaryOffset: number, preferPrevious: boolean): HTMLElement | null => {
@@ -272,6 +283,11 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
         return document.createTextNode(selectedText)
       }
       if (!semanticTokenNode || !root.contains(semanticTokenNode)) return null
+      if (semanticTokenNode.hasAttribute('data-kg-comment')) {
+        const rawComment = String(semanticTokenNode.getAttribute('data-kg-comment-raw') || '').trim()
+        if (rawComment) return document.createTextNode(rawComment)
+        return null
+      }
       if (semanticTokenNode.hasAttribute('data-kg-footnote-ref')) {
         const label = String(semanticTokenNode.getAttribute('data-kg-footnote-label') || semanticTokenNode.textContent || '').trim()
         if (!label) return null
@@ -434,7 +450,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       const readAnnotationElement = (containerNode: Node): HTMLElement | null => {
         const element = containerNode.nodeType === Node.ELEMENT_NODE ? (containerNode as Element) : containerNode.parentElement
         if (!element) return null
-        const annotation = element.closest('[data-kg-sigil="1"],[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],code,mark,[data-kg-default-highlight="1"]') as HTMLElement | null
+        const annotation = element.closest(ANNOTATION_WRAPPER_SELECTOR) as HTMLElement | null
         return annotation && root.contains(annotation) ? annotation : null
       }
       const startAnnotation = readAnnotationElement(expanded.startContainer)
@@ -456,9 +472,12 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       args.emitLiveDraftTextFromDom?.()
       return
     }
-    const codeNode = node.closest('code,[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"]') as HTMLElement | null
+    const codeNode = node.closest('code,[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],[data-kg-comment="1"]') as HTMLElement | null
     const withinSingleCode = !!codeNode && codeNode.contains(range.startContainer) && codeNode.contains(range.endContainer)
     if (withinSingleCode) {
+      if (codeNode.hasAttribute('data-kg-comment')) {
+        return
+      }
       if (codeNode.hasAttribute('data-kg-footnote-ref')) {
         return
       }

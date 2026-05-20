@@ -22,11 +22,6 @@ import {
 } from './markdownWorkspaceSelectionSync'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
-import {
-  buildCanvasWorkspacePresetSwitchSemanticKey,
-  hasCanvasWorkspacePresetForSwitch,
-  readCanvasWorkspacePresetSwitchContext,
-} from './workspaceSwitchPreset'
 import { buildWorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
 export type MarkdownWorkspaceSelectionArgs = {
@@ -183,83 +178,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     args.setActiveTextProgrammatic,
   ])
 
-  const lastFrontmatterSwitchApplySigRef = React.useRef<string>('')
-  const frontmatterSwitchApplyInFlightSigRef = React.useRef<string>('')
-  const lastFrontmatterSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
-  const cancelFrontmatterSwitchApply = React.useCallback(() => {
-    lastFrontmatterSwitchApplySigRef.current = ''
-    frontmatterSwitchApplyInFlightSigRef.current = ''
-    lastFrontmatterSwitchApplyAttemptRef.current = { sig: '', atMs: 0 }
-  }, [])
-  React.useEffect(() => cancelFrontmatterSwitchApply, [cancelFrontmatterSwitchApply])
-  React.useEffect(() => {
-    if (activeEntryKind === 'folder') {
-      cancelFrontmatterSwitchApply()
-      return
-    }
-    if (!activeDocumentKey) {
-      cancelFrontmatterSwitchApply()
-      return
-    }
-    const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
-    if (!nextText.trim()) {
-      cancelFrontmatterSwitchApply()
-      return
-    }
-    const presetContext = readCanvasWorkspacePresetSwitchContext(nextText)
-    if (!presetContext) {
-      cancelFrontmatterSwitchApply()
-      return
-    }
-
-    const nextSig = buildCanvasWorkspacePresetSwitchSemanticKey({
-      activeDocumentKey,
-      rawBlock: presetContext.rawBlock,
-      updatedAtMs: activeEntry?.updatedAtMs,
-    })
-    const nowMs = Date.now()
-    const lastAttempt = lastFrontmatterSwitchApplyAttemptRef.current
-    if (
-      lastAttempt.sig === nextSig &&
-      nowMs - lastAttempt.atMs < 400
-    ) {
-      return
-    }
-    if (frontmatterSwitchApplyInFlightSigRef.current === nextSig) return
-    if (lastFrontmatterSwitchApplySigRef.current === nextSig) return
-    lastFrontmatterSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
-    frontmatterSwitchApplyInFlightSigRef.current = nextSig
-    lastFrontmatterSwitchApplySigRef.current = nextSig
-
-    void (async () => {
-      try {
-        await applyActiveMarkdownDocumentPayload({
-          setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-          name: activeDocumentKey,
-          text: nextText,
-          sourceUrl: activeDocumentSourceUrl,
-          autoEnableFrontmatter: false,
-          applyViewPreset: false,
-          applyToGraph: false,
-          canvasWorkspacePreset: presetContext.preset,
-          normalizeWebpageFrontmatterToMarkdown: false,
-        })
-      } finally {
-        if (frontmatterSwitchApplyInFlightSigRef.current === nextSig) {
-          frontmatterSwitchApplyInFlightSigRef.current = ''
-        }
-      }
-    })()
-  }, [
-    activeDocumentKey,
-    activeDocumentSourceUrl,
-    activeEntry,
-    activeEntryKind,
-    activeEntryText,
-    cancelFrontmatterSwitchApply,
-    args.setActiveMarkdownDocument,
-  ])
-
   const lastDocumentSwitchApplySigRef = React.useRef<string>('')
   const documentSwitchApplyInFlightSigRef = React.useRef<string>('')
   const lastDocumentSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
@@ -270,7 +188,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     if (!activeDocumentKey) return
     const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
     if (!nextText.trim()) return
-    if (hasCanvasWorkspacePresetForSwitch(nextText)) return
 
     const nextSig = buildWorkspaceDocumentSwitchSignature({
       activeDocumentKey,

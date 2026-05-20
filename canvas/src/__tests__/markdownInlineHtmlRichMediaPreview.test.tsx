@@ -179,6 +179,8 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
       '',
       'Typed: `@key:status` `@ui:viewer.toolbar` `$id:ABC-42` `$url:https://example.com/docs` `$enum:pending` `$date:2026-05-20` `$hash:#EF4444`',
       '',
+      'Invalid: `@ui:File > Export` `$url:example.com/docs` `@key:{{draft}}`',
+      '',
       'Footnote ref[^1]',
       '',
       '[^1]: Citation body',
@@ -256,6 +258,19 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
     })
     if (rawSemanticCode) {
       throw new Error(`expected Master Sigil semantic tokens not to fall back to raw inline code; html=${container.innerHTML}`)
+    }
+
+    const invalidUiCode = Array.from(container.querySelectorAll('code')).find(node => String(node.textContent || '').includes('@ui:File > Export'))
+    if (!invalidUiCode) {
+      throw new Error(`expected invalid @ui sigil using ">" to stay raw inline code; html=${container.innerHTML}`)
+    }
+    const invalidUrlCode = Array.from(container.querySelectorAll('code')).find(node => String(node.textContent || '').includes('$url:example.com/docs'))
+    if (!invalidUrlCode) {
+      throw new Error(`expected invalid $url sigil without scheme to stay raw inline code; html=${container.innerHTML}`)
+    }
+    const invalidKeyCode = Array.from(container.querySelectorAll('code')).find(node => String(node.textContent || '').includes('@key:{{draft}}'))
+    if (!invalidKeyCode) {
+      throw new Error(`expected invalid @key sigil with interpolation to stay raw inline code; html=${container.innerHTML}`)
     }
 
     const footnoteRef = container.querySelector('sup a[title="Footnote 1"]') as HTMLAnchorElement | null

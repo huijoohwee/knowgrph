@@ -1,6 +1,7 @@
 import React from 'react'
 import { getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
+import { parseMarkdownCommentMarker } from '@/lib/markdown/markdownCommentMarker'
 import { areReplacementLinesNoop } from '@/features/markdown/ui/markdownEditParitySsot'
 import { rewriteInlineCodeSigilsToStyledSpansHtml, rewriteSigilSpansToInlineCodeHtml } from '@/features/markdown/ui/markdownSigil'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
@@ -10,6 +11,7 @@ import { buildReplacementLinesFromDraftWithPrefixes, HTML_TO_MARKDOWN_UNIFIED_DE
 const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
 
 const COMMENT_INDICATOR_TEXT = '...'
+const REVIEW_COMMENT_MAX_WIDTH_CH = 36
 
 const escapeHtmlAttr = (value: string): string => {
   return String(value || '')
@@ -20,13 +22,28 @@ const escapeHtmlAttr = (value: string): string => {
     .replace(/>/g, '&gt;')
 }
 
-const applyCommentIndicatorAttrs = (span: HTMLElement, commentText: string) => {
+const applyCommentIndicatorAttrs = (span: HTMLElement, args: {
+  rawComment: string
+  previewText: string
+  hidden?: boolean
+  compact?: boolean
+  reviewComment?: boolean
+}) => {
+  const previewText = String(args.previewText || '').trim()
+  const rawComment = String(args.rawComment || '').trim()
   span.setAttribute('data-kg-comment', '1')
-  span.setAttribute('data-kg-comment-text', commentText)
+  span.setAttribute('data-kg-comment-text', previewText)
+  span.setAttribute('data-kg-comment-raw', rawComment)
   span.setAttribute('role', 'note')
-  span.setAttribute('tabindex', '0')
   span.setAttribute('aria-label', 'Comment preview')
-  span.setAttribute('title', 'Comment preview')
+  span.setAttribute('title', previewText || 'Comment preview')
+  if (args.hidden) {
+    span.setAttribute('data-kg-comment-hidden', '1')
+    span.style.display = 'none'
+    span.textContent = rawComment
+    return
+  }
+  span.setAttribute('tabindex', '0')
   span.style.opacity = '0.8'
   span.style.fontStyle = 'normal'
   span.style.fontWeight = '500'
@@ -34,18 +51,42 @@ const applyCommentIndicatorAttrs = (span: HTMLElement, commentText: string) => {
   span.style.textDecorationLine = 'underline'
   span.style.textDecorationStyle = 'dotted'
   span.style.textUnderlineOffset = '0.15em'
-  span.textContent = COMMENT_INDICATOR_TEXT
+  if (args.reviewComment) {
+    span.setAttribute('data-kg-comment-review', '1')
+    span.style.display = 'inline-block'
+    span.style.maxWidth = `${REVIEW_COMMENT_MAX_WIDTH_CH}ch`
+    span.style.overflow = 'hidden'
+    span.style.textOverflow = 'ellipsis'
+    span.style.whiteSpace = 'nowrap'
+    span.style.verticalAlign = 'bottom'
+    span.textContent = rawComment
+    return
+  }
+  span.textContent = args.compact ? COMMENT_INDICATOR_TEXT : rawComment
 }
 
-const buildCommentIndicatorHtml = (commentText: string): string => {
-  const text = String(commentText || '').trim()
-  return `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(text)}" role="note" tabindex="0" aria-label="Comment preview" title="Comment preview" style="opacity:0.8;font-style:normal;font-weight:500;cursor:pointer;text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:0.15em;">${COMMENT_INDICATOR_TEXT}</span>`
+const buildCommentIndicatorHtml = (rawComment: string): string => {
+  const parsed = parseMarkdownCommentMarker(rawComment)
+  const span = `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(parsed.kind === 'review-comment' ? parsed.previewText : parsed.kind === 'plain-comment' ? parsed.previewText : '')}" data-kg-comment-raw="${escapeHtmlAttr(parsed.raw)}"></span>`
+  if (parsed.kind === 'author-note' || parsed.kind === 'appendix-open' || parsed.kind === 'appendix-close' || parsed.kind === 'comment-close' || parsed.kind === 'machine-marker') {
+    return span.replace('></span>', ' data-kg-comment-hidden="1" style="display:none;"></span>')
+  }
+  if (parsed.kind === 'review-comment') {
+    return span.replace(
+      '></span>',
+      ` data-kg-comment-review="1" role="note" tabindex="0" aria-label="Comment preview" title="${escapeHtmlAttr(parsed.previewText || 'Comment preview')}" style="opacity:0.8;font-style:normal;font-weight:500;cursor:pointer;text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:0.15em;display:inline-block;max-width:${REVIEW_COMMENT_MAX_WIDTH_CH}ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;">${escapeHtmlAttr(parsed.raw)}</span>`,
+    )
+  }
+  return span.replace(
+    '></span>',
+    ` role="note" tabindex="0" aria-label="Comment preview" title="${escapeHtmlAttr(parsed.previewText || 'Comment preview')}" style="opacity:0.8;font-style:normal;font-weight:500;cursor:pointer;text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:0.15em;">${COMMENT_INDICATOR_TEXT}</span>`,
+  )
 }
 
 export const rewriteInlineEditorCommentIndicatorsHtml = (html: string): string => {
   const raw = String(html || '')
   if (!raw.trim()) return raw
-  return raw.replace(/<!--([\s\S]*?)-->/g, (_, commentText: string) => buildCommentIndicatorHtml(commentText))
+  return raw.replace(/<!--([\s\S]*?)-->/g, (match) => buildCommentIndicatorHtml(String(match || '')))
 }
 
 const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
@@ -67,18 +108,35 @@ const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
     if (!label) return
     node.replaceWith(doc.createTextNode(`[^${label.replace(/^\[\^?/, '').replace(/\]$/, '')}]`))
   })
-  const comments = Array.from(root.childNodes).filter(node => node.nodeType === Node.COMMENT_NODE)
   const commentWalker = doc.createTreeWalker(root, NodeFilter.SHOW_COMMENT)
+  const comments: Comment[] = []
   let commentNode = commentWalker.nextNode()
   while (commentNode) {
-    comments.push(commentNode)
+    comments.push(commentNode as Comment)
     commentNode = commentWalker.nextNode()
   }
   for (let i = 0; i < comments.length; i += 1) {
-    const comment = comments[i] as Comment
-    const commentText = String(comment.nodeValue || '').trim()
+    const comment = comments[i]!
+    const rawComment = `<!--${String(comment.nodeValue || '')}-->`
+    const parsed = parseMarkdownCommentMarker(rawComment)
     const span = doc.createElement('span')
-    applyCommentIndicatorAttrs(span, commentText)
+    applyCommentIndicatorAttrs(span, {
+      rawComment: parsed.raw,
+      previewText:
+        parsed.kind === 'review-comment'
+          ? parsed.previewText
+          : parsed.kind === 'plain-comment'
+          ? parsed.previewText
+          : '',
+      hidden:
+        parsed.kind === 'author-note'
+        || parsed.kind === 'appendix-open'
+        || parsed.kind === 'appendix-close'
+        || parsed.kind === 'comment-close'
+        || parsed.kind === 'machine-marker',
+      compact: parsed.kind === 'plain-comment',
+      reviewComment: parsed.kind === 'review-comment',
+    })
     comment.replaceWith(span)
   }
   const textNodes: Text[] = []
@@ -277,8 +335,9 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     const commentNodes = Array.from(workingRoot.querySelectorAll('[data-kg-comment="1"]'))
     commentNodes.forEach(node => {
       const token = `KGHTMLCOMMENTTOKEN${preservedComments.length}KG`
-      const text = String(node.getAttribute('data-kg-comment-text') || node.textContent || '').replace(/\r/g, '')
-      preservedComments.push(`<!-- ${text} -->`)
+      const rawComment = String(node.getAttribute('data-kg-comment-raw') || '').replace(/\r/g, '').trim()
+      const text = String(node.getAttribute('data-kg-comment-text') || node.textContent || '').replace(/\r/g, '').trim()
+      preservedComments.push(rawComment || `<!-- ${text} -->`)
       node.replaceWith(workingRoot.ownerDocument.createTextNode(token))
     })
     const html = rewriteSigilSpansToInlineCodeHtml(workingRoot.innerHTML)

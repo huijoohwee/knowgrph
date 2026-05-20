@@ -21,8 +21,14 @@ export function testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults() {
   if (!text.includes("name: String(latest.name || '')")) {
     throw new Error('expected parse writeback identity to include latest source file name')
   }
-  if (!hashText.includes('SOURCE_FILE_PARSE_SEMANTICS_VERSION = 2')) {
+  if (!hashText.includes('SOURCE_FILE_PARSE_SEMANTICS_VERSION = 3')) {
     throw new Error('expected source file parse identity to carry an explicit semantics version for startup invalidation')
+  }
+  if (!hashText.includes('buildScopedGraphSemanticKey')) {
+    throw new Error('expected source file parse identity to use the shared scoped semantic-key helper')
+  }
+  if (!hashText.includes("hashStringToHexSharedContentCached(text, `source-file-parse-text:v${SOURCE_FILE_PARSE_SEMANTICS_VERSION}`)")) {
+    throw new Error('expected source file parse identity to hash large source text separately instead of embedding it in semantic-key parts')
   }
 }
 
@@ -1690,7 +1696,7 @@ export function testMarkdownDocumentSettersStayDecoupledFromWorkspaceViewMode() 
   if (!importEffectsText.includes('openMarkdownWorkspaceEditorPane(state)')) {
     throw new Error('expected toolbar markdown imports to own explicit workspace mode changes at the caller')
   }
-  if (!ingestText.includes("store.setWorkspaceViewMode('editor')")) {
+  if (!ingestText.includes('openMarkdownWorkspaceEditorPane(store)')) {
     throw new Error('expected source-file ingest to open editor mode explicitly instead of routing through the markdown document setter')
   }
   if (!youtubeText.includes("state.setWorkspaceViewMode('editor')")) {

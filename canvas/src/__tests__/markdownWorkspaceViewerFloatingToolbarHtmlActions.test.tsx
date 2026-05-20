@@ -642,6 +642,89 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInl
   })
 }
 
+export async function testMarkdownWorkspaceViewerHtmlCommentMarkersDifferentiateAuthorNotesAndAppendixReviewComments() {
+  await runViewerToolbarActionCase({
+    activeText: 'Before <!-- // @todo: keep hidden from viewer body --> <!-- comment | id: c-001 | author: A. Hui | text: Long annotation in appendix for AI-ready phrasing. --> after',
+    commitAfterAction: false,
+    expectedMarkdownSnippet: '<!-- comment | id: c-001 | author: A. Hui | text: Long annotation in appendix for AI-ready phrasing. -->',
+    expectedJsonSnippet: null,
+    expectedEditorHtmlSnippet: 'data-kg-comment-review="1"',
+    action: async ({ dom, doc }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor for appendix comment marker test')
+      await waitForCondition(() => !!liveEditor.querySelector('[data-kg-comment-review="1"]'), 20, 5)
+      const reviewComment = liveEditor.querySelector('[data-kg-comment-review="1"]') as HTMLElement | null
+      if (!reviewComment) {
+        throw new Error(`expected appendix review comment marker to stay previewable on edit surface; html=${liveEditor.innerHTML}`)
+      }
+      if (!String(reviewComment.getAttribute('data-kg-comment-text') || '').includes('A. Hui c-001: Long annotation in appendix for AI-ready phrasing.')) {
+        throw new Error(`expected review comment marker to expose parsed preview text; raw=${JSON.stringify(reviewComment.getAttribute('data-kg-comment-text') || '')}`)
+      }
+      const hiddenMarkers = liveEditor.querySelectorAll('[data-kg-comment-hidden="1"]')
+      if (hiddenMarkers.length < 1) {
+        throw new Error(`expected author notes to stay hidden but preserved on the edit surface; html=${liveEditor.innerHTML}`)
+      }
+      await act(async () => {
+        reviewComment.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      await waitForCondition(() => !!doc.querySelector('[data-kg-comment-rich-media-preview="1"]'), 20, 5)
+      const preview = doc.querySelector('[data-kg-comment-rich-media-preview="1"]') as HTMLElement | null
+      if (!preview) throw new Error('expected review comment marker hover to reveal the shared comment preview overlay')
+      if (!String(preview.textContent || '').includes('Long annotation in appendix for AI-ready phrasing.')) {
+        throw new Error(`expected review comment preview to show the appendix comment text; text=${JSON.stringify(preview.textContent || '')}`)
+      }
+    },
+  })
+}
+
+export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSelectionPreservesWholeExistingReviewCommentToken() {
+  const rawComment = '<!-- comment | id: c-001 | author: A. Hui | text: Long annotation in appendix for AI-ready phrasing. -->'
+  await runViewerToolbarActionCase({
+    activeText: `Before ${rawComment} after`,
+    commitAfterAction: false,
+    expectedMarkdownSnippet: rawComment,
+    expectedJsonSnippet: rawComment,
+    expectedEditorHtmlSnippet: 'data-kg-comment-review="1"',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      await waitForCondition(() => !!liveEditor.querySelector('[data-kg-comment-review="1"]'), 20, 5)
+      const reviewComment = liveEditor.querySelector('[data-kg-comment-review="1"]') as HTMLElement | null
+      if (!reviewComment) throw new Error(`expected review comment token in live editor; html=${liveEditor.innerHTML}`)
+      const commentTextNode = findTextNodeBySubstring(reviewComment, 'Long annotation')
+      if (!commentTextNode) throw new Error(`expected selectable text node inside review comment token; html=${reviewComment.outerHTML}`)
+      const textValue = String(commentTextNode.nodeValue || '')
+      const start = textValue.indexOf('Long annotation')
+      const range = doc.createRange()
+      range.setStart(commentTextNode, start)
+      range.setEnd(commentTextNode, start + 'Long annotation'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected comment button')
+      await pressToolbarControl(dom, button)
+      await waitForCondition(() => !!doc.querySelector('[data-kg-comment-rich-media-preview="1"]'), 20, 5)
+      const preview = doc.querySelector('[data-kg-comment-rich-media-preview="1"]') as HTMLElement | null
+      if (!preview) throw new Error('expected existing review comment selection to open preview instead of nesting HTML comments')
+      if (!String(preview.textContent || '').includes('Long annotation in appendix for AI-ready phrasing.')) {
+        throw new Error(`expected review comment preview to reuse parsed appendix comment text; text=${JSON.stringify(preview.textContent || '')}`)
+      }
+      const editorHtml = String(liveEditor.innerHTML || '')
+      if ((editorHtml.match(/data-kg-comment-review="1"/g) || []).length !== 1) {
+        throw new Error(`expected existing review comment selection not to duplicate/nest rendered comment markers; html=${editorHtml}`)
+      }
+    },
+  })
+}
+
 export async function testMarkdownWorkspaceViewerBubbleToolbarFormatsWholeSemanticAndFootnoteTokens() {
   await runViewerToolbarActionCase({
     activeText: 'Semantic `@comment:c-42` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
