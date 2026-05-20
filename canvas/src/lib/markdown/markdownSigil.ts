@@ -8,6 +8,52 @@ export type MarkdownSigil = {
   background: string | null
 }
 
+export type MarkdownInlineCodeSemanticReferenceKind =
+  | 'node'
+  | 'edge'
+  | 'media'
+  | 'media-row'
+  | 'comment'
+  | 'callout'
+
+export type MarkdownInlineCodeSemanticValueKind =
+  | 'key'
+  | 'ui-path'
+  | 'id'
+  | 'url'
+  | 'enum'
+  | 'date'
+  | 'hash'
+
+export type MarkdownInlineCodeSemantic =
+  | {
+      kind: 'annotation'
+      raw: string
+      code: string
+      displayText: string
+      badgeLabel: 'annotate'
+      color: string | null
+      background: string | null
+    }
+  | {
+      kind: 'reference'
+      raw: string
+      code: string
+      displayText: string
+      badgeLabel: MarkdownInlineCodeSemanticReferenceKind
+      referenceKind: MarkdownInlineCodeSemanticReferenceKind
+      value: string
+    }
+  | {
+      kind: 'value'
+      raw: string
+      code: string
+      displayText: string
+      badgeLabel: MarkdownInlineCodeSemanticValueKind
+      valueKind: MarkdownInlineCodeSemanticValueKind
+      value: string
+    }
+
 export type MarkdownAnnotation = MarkdownSigil & {
   raw: string
   start: number
@@ -27,6 +73,26 @@ const DEFAULT_HIGHLIGHT_RE = /==([\s\S]*?)==/g
 const MAX_ANNOTATIONS = 512
 const MAX_ANNOTATION_TEXT_LENGTH = 320
 const ANNOTATION_CACHE = new LRUCache<string, MarkdownAnnotation[]>(80, 2 * 60_000)
+const INLINE_CODE_SEMANTIC_MAX_LENGTH = 320
+
+const unwrapInlineCodeSource = (rawCell: string): { raw: string; code: string } => {
+  const raw = String(rawCell || '').trim()
+  if (!raw) return { raw: '', code: '' }
+  if (raw.startsWith('`') && raw.endsWith('`') && raw.length >= 2) {
+    return {
+      raw,
+      code: raw.slice(1, -1),
+    }
+  }
+  return {
+    raw,
+    code: raw,
+  }
+}
+
+const readCleanSemanticValue = (raw: string): string => {
+  return String(raw || '').replace(/\s+/g, ' ').trim()
+}
 
 const normalizeHex6 = (value: string): string | null => {
   const raw = String(value || '').trim()
@@ -62,6 +128,119 @@ export const parseMarkdownSigil = (rawCell: string): MarkdownSigil | null => {
   }
 }
 
+export const parseMarkdownInlineCodeSemantic = (rawCell: string): MarkdownInlineCodeSemantic | null => {
+  const source = unwrapInlineCodeSource(rawCell)
+  if (!source.code || source.code.length > INLINE_CODE_SEMANTIC_MAX_LENGTH) return null
+  const annotation = parseMarkdownSigil(source.code)
+  if (annotation) {
+    return {
+      kind: 'annotation',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: readCleanSemanticValue(annotation.text) || source.code,
+      badgeLabel: 'annotate',
+      color: annotation.color,
+      background: annotation.background,
+    }
+  }
+  const nodeMatch = source.code.match(/^@node:(.+)$/)
+  if (nodeMatch) {
+    const value = readCleanSemanticValue(String(nodeMatch[1] || ''))
+    if (!value) return null
+    const referenceKind: MarkdownInlineCodeSemanticReferenceKind =
+      value.startsWith('callout-')
+        ? 'callout'
+        : value.startsWith('mr-')
+        ? 'media-row'
+        : value.startsWith('m-')
+        ? 'media'
+        : 'node'
+    return {
+      kind: 'reference',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: value,
+      badgeLabel: referenceKind,
+      referenceKind,
+      value,
+    }
+  }
+  const edgeMatch = source.code.match(/^@edge:(.+)$/)
+  if (edgeMatch) {
+    const value = readCleanSemanticValue(String(edgeMatch[1] || ''))
+    if (!value) return null
+    return {
+      kind: 'reference',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: value,
+      badgeLabel: 'edge',
+      referenceKind: 'edge',
+      value,
+    }
+  }
+  const commentMatch = source.code.match(/^@comment:(.+)$/)
+  if (commentMatch) {
+    const value = readCleanSemanticValue(String(commentMatch[1] || ''))
+    if (!value) return null
+    return {
+      kind: 'reference',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: value,
+      badgeLabel: 'comment',
+      referenceKind: 'comment',
+      value,
+    }
+  }
+  const keyMatch = source.code.match(/^@key:(.+)$/)
+  if (keyMatch) {
+    const value = readCleanSemanticValue(String(keyMatch[1] || ''))
+    if (!value) return null
+    return {
+      kind: 'value',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: value,
+      badgeLabel: 'key',
+      valueKind: 'key',
+      value,
+    }
+  }
+  const uiMatch = source.code.match(/^@ui:(.+)$/)
+  if (uiMatch) {
+    const value = readCleanSemanticValue(String(uiMatch[1] || ''))
+    if (!value) return null
+    return {
+      kind: 'value',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: value,
+      badgeLabel: 'ui-path',
+      valueKind: 'ui-path',
+      value,
+    }
+  }
+  const typedMatch = source.code.match(/^\$(id|url|enum|date|hash):(.+)$/)
+  if (typedMatch) {
+    const valueKind = String(typedMatch[1] || '').trim().toLowerCase() as MarkdownInlineCodeSemanticValueKind
+    const value = readCleanSemanticValue(String(typedMatch[2] || ''))
+    if (!value) return null
+    if (valueKind === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+    if (valueKind === 'hash' && !HEX6_RE.test(value)) return null
+    return {
+      kind: 'value',
+      raw: source.raw || `\`${source.code}\``,
+      code: source.code,
+      displayText: value,
+      badgeLabel: valueKind,
+      valueKind,
+      value,
+    }
+  }
+  return null
+}
+
 export const buildMarkdownSigil = (args: {
   text: string
   color?: string | null
@@ -94,12 +273,12 @@ export const unwrapDefaultHighlight = (raw: string): { text: string; wrapped: bo
 export const readMarkdownSigilDisplayText = (raw: string): string => {
   const source = String(raw || '').trim()
   if (!source) return ''
-  const direct = parseMarkdownSigil(source)
-  if (direct) return readCleanAnnotationText(direct.text) || source
+  const semantic = parseMarkdownInlineCodeSemantic(source)
+  if (semantic) return semantic.displayText || source
   const unwrapped = unwrapDefaultHighlight(source)
   if (unwrapped.wrapped) {
-    const nested = parseMarkdownSigil(unwrapped.text)
-    return readCleanAnnotationText(nested ? nested.text : unwrapped.text) || source
+    const nested = parseMarkdownInlineCodeSemantic(unwrapped.text)
+    return readCleanAnnotationText(nested ? nested.displayText : unwrapped.text) || source
   }
   if (!hasMarkdownAnnotationSyntax(source)) return source
   return stripMarkdownAnnotationSigilsToText(source).replace(/\s+/g, ' ').trim() || source
@@ -216,8 +395,8 @@ export const stripMarkdownAnnotationSigilsToText = (markdown: string): string =>
     })
   }
   text = text.replace(INLINE_CODE_RE, (match) => {
-    const parsed = parseMarkdownSigil(String(match || ''))
-    return parsed ? ` ${parsed.text} ` : ' '
+    const parsed = parseMarkdownInlineCodeSemantic(String(match || ''))
+    return parsed ? ` ${parsed.displayText} ` : ' '
   })
   return text
 }

@@ -4,6 +4,9 @@ import type {
 } from '@/features/geospatial/markdownGeoDatasetContract'
 
 export type HighlightedLineRange = { start: number; end: number } | null
+export type MarkdownInlineDraftTextChangeOptions = {
+  reflectInViewer?: boolean
+}
 
 export type InlineRenderOpts = {
   activeDocumentPath: string
@@ -53,7 +56,7 @@ export type RenderOpts = InlineRenderOpts & {
   onInsertLineAfter?: (afterLine: number) => void
   onReplaceLineRange?: (args: { startLine: number; endLine: number; replacementLines: string[] }) => void
   onInlineEditStateChange?: (active: boolean) => void
-  onInlineDraftTextChange?: (nextText: string) => void
+  onInlineDraftTextChange?: (nextText: string, options?: MarkdownInlineDraftTextChangeOptions) => void
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
   markdownBlockControlsEnabled?: boolean
   markdownBlockGutterEnabled?: boolean

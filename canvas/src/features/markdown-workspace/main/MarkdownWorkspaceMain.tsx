@@ -158,7 +158,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const [viewerKind, setViewerKind] = React.useState<MarkdownWorkspaceDerivedViewerKind>('markdown')
   const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>('read')
   const jsonMarkdownRoundTripRef = React.useRef<{ sourceKey: string; markdownText: string } | null>(null)
-  const [viewerInlineDraftText, setViewerInlineDraftText] = React.useState<string | null>(null)
+  const [viewerInlineMarkdownDraftText, setViewerInlineMarkdownDraftText] = React.useState<string | null>(null)
+  const [viewerInlineViewerText, setViewerInlineViewerText] = React.useState<string | null>(null)
   React.useEffect(() => {
     if (layoutMode !== 'editor') return
     if (viewerKind === 'markdown' || viewerKind === 'json') return
@@ -281,9 +282,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const isJsonMarkdownEditing = !isMarkdown && viewerKind === 'markdown' && !!jsonDerivedMarkdownBase
   const [jsonDerivedMarkdownDraft, setJsonDerivedMarkdownDraft] = React.useState<string | null>(null)
   const jsonDerivedMarkdownSeedRef = React.useRef<string>('')
-  const editableMarkdownText = viewerInlineDraftText ?? (isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : activeText)
+  const editableMarkdownText = viewerInlineMarkdownDraftText ?? (isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : activeText)
   React.useEffect(() => {
-    setViewerInlineDraftText(null)
+    setViewerInlineMarkdownDraftText(null)
+    setViewerInlineViewerText(null)
   }, [activeDocumentKey])
   React.useEffect(() => {
     if (!isJsonMarkdownEditing || !jsonDerivedMarkdownBase) {
@@ -303,11 +305,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const commitMarkdownEditText = React.useCallback(
     (nextText: string) => {
       if (!isJsonMarkdownEditing) {
-        setViewerInlineDraftText(null)
+        setViewerInlineMarkdownDraftText(null)
+        setViewerInlineViewerText(null)
         setActiveText(nextText)
         return
       }
-      setViewerInlineDraftText(null)
+      setViewerInlineMarkdownDraftText(null)
+      setViewerInlineViewerText(null)
       const nextMarkdownText = String(nextText || '')
       setJsonDerivedMarkdownDraft(prev => (prev === nextMarkdownText ? prev : nextMarkdownText))
       const nextJsonText = serializeJsonMarkdownDraftToSourceText({
@@ -369,7 +373,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const needsMarkdownViewerText = !showWebpageHtml || markdownPaneVisible || viewerPaneVisible
   const sourceViewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
-  const viewerTextRaw = needsMarkdownViewerText ? (viewerInlineDraftText ?? markdownEditText ?? sourceViewerTextRaw) : ''
+  const viewerTextRaw = needsMarkdownViewerText ? (viewerInlineViewerText ?? markdownEditText ?? sourceViewerTextRaw) : ''
   const viewerText = React.useMemo(
     () => {
       if (!needsMarkdownViewerText) return ''
@@ -510,13 +514,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock
   const onReplaceLineRange = disableViewerMutations ? undefined : handleReplaceLineRange
   const handleInlineEditStateChange = React.useCallback((active: boolean) => {
-    if (!active) setViewerInlineDraftText(null)
+    if (!active) {
+      setViewerInlineMarkdownDraftText(null)
+      setViewerInlineViewerText(null)
+    }
     if (viewerInlineEditActiveRef.current === active) return
     viewerInlineEditActiveRef.current = active
     onViewerInlineEditStateChange?.(active)
   }, [onViewerInlineEditStateChange])
-  const handleInlineDraftTextChange = React.useCallback((nextText: string) => {
-    setViewerInlineDraftText(prev => (prev === nextText ? prev : nextText))
+  const handleInlineDraftTextChange = React.useCallback((nextText: string, options?: { reflectInViewer?: boolean }) => {
+    setViewerInlineMarkdownDraftText(prev => (prev === nextText ? prev : nextText))
+    if (options?.reflectInViewer === false) return
+    setViewerInlineViewerText(prev => (prev === nextText ? prev : nextText))
   }, [])
   const renderMarkdownEditorPane = React.useCallback(
     () => markdownPaneVisible ? (

@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-05-20
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Source Files bootstrap scheduling | Reduce Source Files switching overhead and drift | Centralize seed-sync and rematerialize scheduling behind request-owned helpers; reuse caller-owned sourceFiles snapshots; forbid duplicate request shaping across mount/poll/wake/mutation bursts. | `knowgrph/canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx` | Source Files bootstrap runtime | seed-sync lifecycle helpers + prepared requests | Workspace FS events + seed poll | Coalesced seed + rematerialize scheduling | Capture one prepared seed-sync payload per run; schedule rematerialize from prepared request when available, else resolve once. | Mirror the updated runtime patterns into `docs/documents` + AgenticRAG schema notes. | 2026-05-20 |
+
 ## 2026-05-19
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

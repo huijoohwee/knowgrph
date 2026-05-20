@@ -202,8 +202,8 @@ export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQue
   if (!text.includes("syncSourceFilesToKnowgrphStorage")) {
     throw new Error('expected source-files bootstrap to integrate source-file edits with storage outbox enqueueing')
   }
-  if (!text.includes("scheduleKnowgrphStorageQueueSync(next as never)")) {
-    throw new Error('expected source-files persistence subscription to enqueue storage sync from live source-file edits')
+  if (!text.includes("const request = resolveSourceFilesPersistenceEffectRequest(next as never)") || !text.includes("applySourceFilesPersistenceEffectRequest(request)")) {
+    throw new Error('expected source-files persistence subscription to enqueue storage sync from live source-file edits through the dedicated persistence effect request path')
   }
   if (!text.includes("onPulledChangesApplied")) {
     throw new Error('expected source-files bootstrap to register an inbound pulled-changes apply hook for visible sourceFiles updates')

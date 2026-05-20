@@ -158,6 +158,8 @@ sequenceDiagram
   - `knowgrph/canvas/src/features/source-files/workspaceSeedSourceFiles.ts` keeps the canonical source-file aliases for the 3-file initialization family aligned with the root-level workspace paths.
 - **Workspace Seed Bootstrap (Knowgrph)**:
   - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
+- **Source Files Runtime Bootstrap (Knowgrph)**:
+  - `knowgrph/canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx` coalesces seed-sync, rematerialization, and storage bridge scheduling through request-owned helpers to keep Source Files, Workspace, and Storage in sync on the same tick.
 - **Curation UI (Singabldr)**:
   - `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
   - `knowgrph/canvas/src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` wires selection and active workspace path to `setMarkdownDocument(...)`.
@@ -178,6 +180,7 @@ sequenceDiagram
 | Workspace FS | In-memory FS | `workspaceFsMemory.ts` | Built |
 | Workspace FS | Change events | `workspaceFsEvents.ts` | Built |
 | Workspace FS | Bootstrap startup | `sourceFilesBootstrapStartup.ts` | Built |
+| SF ↔ Storage | Runtime bootstrap | `SourceFilesPersistenceBootstrap.tsx` | Built |
 | Curation UI | Explorer sidebar | `MarkdownPanelLayout.tsx` (Singabldr) | Built |
 | Curation UI | Workspace runtime | `MarkdownWorkspaceRuntime.impl.tsx` | Built |
 | Curation UI | Toolbar ingest controls | `MarkdownWorkspaceToolbar.tsx` | Built |

@@ -100,7 +100,7 @@ export type MarkdownPreviewViewerProps = {
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
-  onInlineDraftTextChange?: (nextText: string) => void
+  onInlineDraftTextChange?: (nextText: string, options?: import('@/features/markdown/ui/MarkdownRendererTypes').MarkdownInlineDraftTextChangeOptions) => void
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {

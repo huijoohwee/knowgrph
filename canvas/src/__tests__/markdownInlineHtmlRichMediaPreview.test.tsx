@@ -89,3 +89,186 @@ export async function testMarkdownPreviewRendersInlineHtmlRichMedia() {
     restoreDom()
   }
 }
+
+export async function testMarkdownPreviewRendersNestedInlineHtmlWrappers() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const markdownText = [
+      'Before <a href="https://example.com/docs"><strong>Read docs</strong></a> After',
+      '',
+      'Before <span style="color:#EF4444"><em>hot</em></span> After',
+      '',
+      'Before <abbr title="Application Programming Interface"><strong>API</strong></abbr> After',
+      '',
+    ].join('\n')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const anchor = container.querySelector('a[href="https://example.com/docs"]') as HTMLAnchorElement | null
+    if (!anchor) throw new Error(`expected inline HTML anchor wrapper to render; html=${container.innerHTML}`)
+    const strong = anchor.querySelector('strong')
+    if (!strong || String(strong.textContent || '') !== 'Read docs') {
+      throw new Error(`expected inline HTML anchor to preserve nested strong content; html=${container.innerHTML}`)
+    }
+
+    const styledSpan = Array.from(container.querySelectorAll('span')).find(
+      element => element.querySelector('em') && String(element.textContent || '').includes('hot'),
+    ) as HTMLSpanElement | undefined
+    if (!styledSpan) throw new Error(`expected inline HTML span wrapper to render; html=${container.innerHTML}`)
+    if (!String(styledSpan.style.color || '').trim()) {
+      throw new Error(`expected inline HTML span wrapper to preserve safe inline style; html=${container.innerHTML}`)
+    }
+
+    const abbr = container.querySelector('abbr[title="Application Programming Interface"]') as HTMLElement | null
+    if (!abbr) throw new Error(`expected inline HTML abbr wrapper to render; html=${container.innerHTML}`)
+    if (!abbr.querySelector('strong') || String(abbr.textContent || '') !== 'API') {
+      throw new Error(`expected inline HTML abbr to preserve nested inline children; html=${container.innerHTML}`)
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const markdownText = [
+      'Refs: `@comment:c-42` `@node:callout-alert-1` `@node:m-hero` `@edge:n-a:out→n-b:in`',
+      '',
+      'Typed: `@key:status` `@ui:viewer.toolbar` `$id:ABC-42` `$url:https://example.com/docs` `$enum:pending` `$date:2026-05-20` `$hash:#EF4444`',
+      '',
+      'Footnote ref[^1]',
+      '',
+      '[^1]: Citation body',
+      '',
+    ].join('\n')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 12; i += 1) await tick()
+
+    const commentRef = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="comment"]') as HTMLElement | null
+    if (!commentRef || !String(commentRef.textContent || '').includes('c-42')) {
+      throw new Error(`expected comment reference sigil to render as semantic inline token; html=${container.innerHTML}`)
+    }
+
+    const calloutRef = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="callout"]') as HTMLElement | null
+    if (!calloutRef || !String(calloutRef.textContent || '').includes('callout-alert-1')) {
+      throw new Error(`expected callout reference sigil to render as semantic inline token; html=${container.innerHTML}`)
+    }
+
+    const mediaRef = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="media"]') as HTMLElement | null
+    if (!mediaRef || !String(mediaRef.textContent || '').includes('m-hero')) {
+      throw new Error(`expected media reference sigil to render as semantic inline token; html=${container.innerHTML}`)
+    }
+
+    const edgeRef = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="edge"]') as HTMLElement | null
+    if (!edgeRef || !String(edgeRef.textContent || '').includes('n-a:out')) {
+      throw new Error(`expected edge reference sigil to render as semantic inline token; html=${container.innerHTML}`)
+    }
+
+    const keyValue = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="key"]') as HTMLElement | null
+    if (!keyValue || !String(keyValue.textContent || '').includes('status')) {
+      throw new Error(`expected @key inline semantic token to render; html=${container.innerHTML}`)
+    }
+
+    const urlValue = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="url"] a[href="https://example.com/docs"]') as HTMLAnchorElement | null
+    if (!urlValue) {
+      throw new Error(`expected $url inline semantic token to render a safe anchor; html=${container.innerHTML}`)
+    }
+
+    const hashValue = container.querySelector('[data-kg-inline-code-token="1"][data-kg-inline-code-badge="hash"]') as HTMLElement | null
+    if (!hashValue || !String(hashValue.textContent || '').includes('#EF4444')) {
+      throw new Error(`expected $hash inline semantic token to render; html=${container.innerHTML}`)
+    }
+
+    const rawSemanticCode = Array.from(container.querySelectorAll('code')).find(node => {
+      const text = String(node.textContent || '')
+      return text.includes('@comment:c-42') || text.includes('$url:https://example.com/docs') || text.includes('$hash:#EF4444')
+    })
+    if (rawSemanticCode) {
+      throw new Error(`expected Master Sigil semantic tokens not to fall back to raw inline code; html=${container.innerHTML}`)
+    }
+
+    const footnoteRef = container.querySelector('sup a[title="Footnote 1"]') as HTMLAnchorElement | null
+    if (!footnoteRef) throw new Error(`expected footnote reference to render; html=${container.innerHTML}`)
+    if (!String(footnoteRef.getAttribute('href') || '').startsWith('#fn')) {
+      throw new Error(`expected footnote reference to point at a footnote anchor; html=${container.innerHTML}`)
+    }
+    if (String(footnoteRef.getAttribute('title') || '') !== 'Footnote 1') {
+      throw new Error(`expected footnote reference to expose caption title; html=${container.innerHTML}`)
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}

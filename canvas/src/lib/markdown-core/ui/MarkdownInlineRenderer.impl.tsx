@@ -32,12 +32,12 @@ import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/p
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
-import { parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
+import { parseMarkdownInlineCodeSemantic, parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
 import {
   buildMarkdownVariableSsotAnchorId,
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
-import { renderInlineHtmlToken } from './markdownInlineHtmlToken'
+import { renderInlineHtmlElement, renderInlineHtmlToken } from './markdownInlineHtmlToken'
 import { YouTubeTimestampPreviewLink } from './MarkdownYouTubeTimestampPreviewLink'
 
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
@@ -138,6 +138,11 @@ const encodeUtf8ToBase64 = (text: string): string => {
 }
 
 const INLINE_HTML_WRAPPER_TAGS = new Set([
+  'a',
+  'abbr',
+  'button',
+  'code',
+  'span',
   'u',
   'strong',
   'b',
@@ -148,9 +153,11 @@ const INLINE_HTML_WRAPPER_TAGS = new Set([
   'sub',
   'sup',
   'mark',
+  'v-click',
+  'v-mark',
 ])
 
-const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' | 'close' } | null => {
+const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' | 'close'; raw: string } | null => {
   const generic = token as unknown as TokensGeneric
   if (generic.type !== 'html') return null
   const raw = String((token as unknown as TokensHTML).text || '').trim()
@@ -158,7 +165,7 @@ const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' |
   const closeMatch = raw.match(/^<\s*\/\s*([A-Za-z0-9-]+)\s*>$/)
   if (closeMatch) {
     const tag = String(closeMatch[1] || '').toLowerCase()
-    if (INLINE_HTML_WRAPPER_TAGS.has(tag)) return { tag, kind: 'close' }
+    if (INLINE_HTML_WRAPPER_TAGS.has(tag)) return { tag, kind: 'close', raw }
     return null
   }
   if (/\/\s*>$/.test(raw)) return null
@@ -166,24 +173,7 @@ const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' |
   if (!openMatch) return null
   const tag = String(openMatch[1] || '').toLowerCase()
   if (!INLINE_HTML_WRAPPER_TAGS.has(tag)) return null
-  return { tag, kind: 'open' }
-}
-
-const renderInlineHtmlWrapper = (tag: string, key: string, children: React.ReactNode): React.ReactNode => {
-  if (tag === 'u') return <u key={key}>{children}</u>
-  if (tag === 'strong' || tag === 'b') return <strong key={key}>{children}</strong>
-  if (tag === 'em' || tag === 'i') return <em key={key}>{children}</em>
-  if (tag === 's' || tag === 'del') return <del key={key}>{children}</del>
-  if (tag === 'sub') return <sub key={key}>{children}</sub>
-  if (tag === 'sup') return <sup key={key}>{children}</sup>
-  if (tag === 'mark') {
-    return (
-      <mark key={key} className={`${UI_THEME_TOKENS.status.warning} px-0.5 rounded-sm`}>
-        {children}
-      </mark>
-    )
-  }
-  return <React.Fragment key={key}>{children}</React.Fragment>
+  return { tag, kind: 'open', raw }
 }
 
 const normalizeSvgDataUriForImg = (src: string): string => {
@@ -246,6 +236,80 @@ const splitVariableRefs = (text: string): Array<
   return out
 }
 
+const INLINE_SEMANTIC_BADGE_CLASS = [
+  'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 align-baseline leading-none',
+  'border-slate-300/70 bg-slate-100/80 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200',
+].join(' ')
+
+const INLINE_SEMANTIC_LABEL_CLASS = [
+  'uppercase tracking-wide text-[10px] font-semibold',
+  UI_THEME_TOKENS.text.secondary,
+].join(' ')
+
+const INLINE_SEMANTIC_VALUE_CLASS = 'font-medium'
+
+const getInlineSemanticToneClassName = (badgeLabel: string): string => {
+  const label = String(badgeLabel || '').trim().toLowerCase()
+  if (label === 'comment') return `${UI_THEME_TOKENS.status.warning} border-amber-300/70 dark:border-amber-700/70`
+  if (label === 'callout') return `${UI_THEME_TOKENS.status.info} border-sky-300/70 dark:border-sky-700/70`
+  if (label === 'node' || label === 'edge' || label === 'media' || label === 'media-row') {
+    return `${UI_THEME_TOKENS.status.info} border-sky-300/70 dark:border-sky-700/70`
+  }
+  if (label === 'url') return `${UI_THEME_TOKENS.status.success} border-emerald-300/70 dark:border-emerald-700/70`
+  if (label === 'date' || label === 'hash') return `${UI_THEME_TOKENS.status.warning} border-amber-300/70 dark:border-amber-700/70`
+  return ''
+}
+
+const renderInlineCodeSemanticToken = (
+  rawText: string,
+  key: string,
+  activeDocumentPath: string | undefined,
+): React.ReactNode | null => {
+  const semantic = parseMarkdownInlineCodeSemantic(rawText)
+  if (!semantic) return null
+  if (semantic.kind === 'annotation') {
+    return (
+      <span
+        key={key}
+        data-kg-sigil="1"
+        style={readMarkdownSigilInlineStyle({
+          text: semantic.displayText,
+          color: semantic.color,
+          background: semantic.background,
+        })}
+      >
+        {semantic.displayText}
+      </span>
+    )
+  }
+  const className = [INLINE_SEMANTIC_BADGE_CLASS, getInlineSemanticToneClassName(semantic.badgeLabel)].filter(Boolean).join(' ')
+  const valueNode =
+    semantic.kind === 'value' && semantic.valueKind === 'url' && isAbsoluteWebUrl(semantic.value) && isSafeHref(semantic.value)
+      ? (() => {
+          const href = resolveHref(semantic.value, activeDocumentPath)
+          const anchor = buildAnchorAttrs(href)
+          return (
+            <a href={href || undefined} target={anchor.target} rel={anchor.rel} className={anchor.className}>
+              {semantic.displayText}
+            </a>
+          )
+        })()
+      : <span className={INLINE_SEMANTIC_VALUE_CLASS}>{semantic.displayText}</span>
+  return (
+    <span
+      key={key}
+      data-kg-inline-code-token="1"
+      data-kg-inline-code-kind={semantic.kind}
+      data-kg-inline-code-badge={semantic.badgeLabel}
+      data-kg-inline-code-raw={semantic.code}
+      className={className}
+    >
+      <span className={INLINE_SEMANTIC_LABEL_CLASS}>{semantic.badgeLabel}</span>
+      {valueNode}
+    </span>
+  )
+}
+
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
   const fragmentOpts = opts.fragmentOptions || null
@@ -271,7 +335,17 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           }
         }
         if (closeIndex > i) {
-          out.push(renderInlineHtmlWrapper(wrapper.tag, `${wrapper.tag}:${i}`, renderTokens(list.slice(i + 1, closeIndex), insideLink)))
+          const wrapperChildren = renderTokens(list.slice(i + 1, closeIndex), insideLink || wrapper.tag === 'a')
+          out.push(renderInlineHtmlElement({
+            raw: wrapper.raw,
+            key: `${wrapper.tag}:${i}`,
+            opts,
+            uiPanelTextFontClass,
+            uiPanelMonospaceTextClass,
+            inlineCodeClassName,
+            fragmentIndexRef,
+            children: wrapperChildren,
+          }))
           i = closeIndex
           continue
         }
@@ -365,14 +439,18 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'footnote_ref') {
       const ref = t as unknown as TokensFootnoteRef
+      const footnoteLabel = String(ref.label || ref.id || '').trim() || String(ref.id || '')
+      const footnoteTitle = String(ref.caption || '').trim() || `Footnote ${footnoteLabel}`
       return (
         <sup key={key} id={`fnref${ref.id}`} className="scroll-mt-16">
           <a
             href={`#fn${ref.id}`}
             className={`${UI_THEME_TOKENS.icon.active} no-underline font-medium px-0.5`}
             aria-describedby={`fn${ref.id}`}
+            aria-label={footnoteTitle}
+            title={footnoteTitle}
           >
-            {ref.label}
+            {footnoteLabel}
           </a>
         </sup>
       )
@@ -496,6 +574,8 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       )
     }
     if (tt.type === 'code') {
+      const semanticToken = renderInlineCodeSemanticToken((t as unknown as TokensCode).text, key, activeDocumentPath)
+      if (semanticToken) return semanticToken
       const sigil = parseMarkdownSigil((t as unknown as TokensCode).text)
       if (sigil) {
         return (

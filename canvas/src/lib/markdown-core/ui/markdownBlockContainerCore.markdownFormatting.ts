@@ -34,9 +34,9 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   readSelectionOffsetsForFormatting: () => { startOffset: number; endOffset: number } | null
   execInline: (cmd: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'removeFormat') => void
   insertHtmlAroundSelection: (payload: { leftHtml: string; rightHtml: string }) => void
-  applyCommentToHtmlSelection: () => string | null
   applyDefaultHighlightToHtmlSelection: () => void
   applyUnderlineToHtmlSelection: () => void
+  clearHtmlFormattingSelection: () => void
   applySigilToHtmlSelection: (payload: { color?: string; background?: string }) => void
   restoreCachedHtmlSelection: () => void
 }) => {
@@ -389,12 +389,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
 
   const applyClearFormatting = React.useCallback(() => {
     if (args.editorPresentation === 'html') {
-      args.execInline('removeFormat')
-      try {
-        document.execCommand('unlink', false)
-      } catch {
-        void 0
-      }
+      args.clearHtmlFormattingSelection()
       return
     }
     const sel = args.getSelectionOffsets()

@@ -689,8 +689,8 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('const drainWorkspaceRematerializeRequests = React.useCallback(async (initialRequest?: WorkspaceRematerializeRequest | null) => {')) {
     throw new Error('expected source files bootstrap rematerialization scheduling to centralize in-flight draining and queued reruns in a dedicated helper')
   }
-  if (!bootstrapText.includes('const scheduleWorkspaceRematerialize = React.useCallback((args?: {')) {
-    throw new Error('expected source files bootstrap rematerialization effect to delegate debounced scheduling to a dedicated helper')
+  if (!bootstrapText.includes('const scheduleWorkspaceRematerializeRequest = React.useCallback((request: WorkspaceRematerializeRequest | null) => {') || !bootstrapText.includes('const scheduleWorkspaceRematerialize = React.useCallback((args?: {')) {
+    throw new Error('expected source files bootstrap rematerialization scheduling to centralize both prepared-request scheduling and fallback request resolution behind dedicated helpers')
   }
   if (!bootstrapText.includes('const pendingWorkspaceRematerializeRequestRef = React.useRef<WorkspaceRematerializeRequest | null>(null)')) {
     throw new Error('expected source files bootstrap rematerialization scheduling to retain the latest debounced rematerialize request across mutation bursts')
@@ -698,11 +698,16 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('await runWorkspaceRematerializeRequest(request)') || !bootstrapText.includes('pendingWorkspaceRematerializeRequestRef.current = request')) {
     throw new Error('expected rematerialize scheduling to drain dedicated rematerialize requests and retain the latest burst request while work is in flight')
   }
-  if (!bootstrapText.includes('scheduleWorkspaceRematerializeRef.current = sourceFilesSnapshot => {') || !bootstrapText.includes('scheduleWorkspaceRematerialize({')) {
-    throw new Error('expected the rematerialize effect shell to bind the dedicated scheduler helper instead of owning inline scheduling logic')
+  if (
+    !bootstrapText.includes('scheduleWorkspaceRematerializeRequest(resolveWorkspaceRematerializeRequest(args))') ||
+    !bootstrapText.includes('scheduleWorkspaceRematerializeRef.current = request => {') ||
+    !bootstrapText.includes('scheduleWorkspaceRematerializeRequest(request)') ||
+    !bootstrapText.includes('scheduleWorkspaceRematerialize()')
+  ) {
+    throw new Error('expected the rematerialize effect shell to bind the dedicated prepared-request scheduler and fallback resolver instead of owning inline scheduling logic')
   }
-  if (!bootstrapText.includes('type BootstrapMountRequest = {')) {
-    throw new Error('expected source files bootstrap startup mount flow to centralize first-load orchestration payloads behind a dedicated request type')
+  if (!bootstrapText.includes('type BootstrapMountRequest = {') || !bootstrapText.includes('type BootstrapMountSideEffectsRequest = {')) {
+    throw new Error('expected source files bootstrap startup mount flow to centralize first-load orchestration and startup side effects behind dedicated request types')
   }
   if (!bootstrapText.includes('const resolveBootstrapMountRequest = React.useCallback((args: {')) {
     throw new Error('expected source files bootstrap startup mount flow to centralize first-load request resolution in a dedicated helper')
@@ -710,11 +715,17 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('const applyBootstrapMountRequest = React.useCallback((request: BootstrapMountRequest) => {')) {
     throw new Error('expected source files bootstrap startup mount flow to centralize ref wiring, persisted restore, and first scheduling in a dedicated helper')
   }
-  if (!bootstrapText.includes('initialRematerializeRequest: resolveWorkspaceRematerializeRequest({') || !bootstrapText.includes('initialActivePathRequest: resolveActivePathMaterializationRequest({')) {
+  if (!bootstrapText.includes('rematerializeRequest: resolveWorkspaceRematerializeRequest({') || !bootstrapText.includes('initialActivePathRequest: resolveActivePathMaterializationRequest({')) {
     throw new Error('expected source files bootstrap startup mount flow to reuse dedicated rematerialize and active-path request resolvers before the first scheduled rematerialize')
   }
-  if (!bootstrapText.includes('pendingWorkspaceRematerializeRequestRef.current = request.initialRematerializeRequest') || !bootstrapText.includes('queuedActivePathMaterializeRef.current = request.initialActivePathRequest')) {
-    throw new Error('expected source files bootstrap startup mount flow to retain the initial rematerialize and active-path requests instead of recomputing adjacent request context')
+  if (!bootstrapText.includes('const applyBootstrapInitialRematerializeRequest = React.useCallback((request: WorkspaceRematerializeRequest | null): boolean => {') || !bootstrapText.includes('scheduleWorkspaceRematerializeRef.current?.(request)') || !bootstrapText.includes('const applyBootstrapFallbackRematerializeRequest = React.useCallback(() => {') || !bootstrapText.includes('const applyBootstrapSideEffectsRequest = React.useCallback((request: BootstrapMountSideEffectsRequest) => {') || !bootstrapText.includes('applyBootstrapInitialActivePathRequest(request.initialActivePathRequest)') || !bootstrapText.includes('applyBootstrapSideEffectsRequest(request.bootstrapSideEffectsRequest)')) {
+    throw new Error('expected source files bootstrap startup mount flow to hand off startup side effects through dedicated bootstrap helpers and reuse the prepared rematerialize request instead of recomputing adjacent request context')
+  }
+  if (!bootstrapText.includes('const applyBootstrapMaterializationResult = React.useCallback((bootstrapMaterialization: BootstrapMountRequest[\'bootstrapMaterialization\']) => {') || !bootstrapText.includes('applyBootstrapMaterializationResult(request.bootstrapMaterialization)')) {
+    throw new Error('expected source files bootstrap startup mount flow to centralize bootstrap materialization cache and ref wiring behind a dedicated helper instead of keeping it inline in the apply path')
+  }
+  if (!bootstrapText.includes('const applyBootstrapWorkspaceState = React.useCallback((persistedWorkspace: SourceFilesWorkspaceState) => {') || !bootstrapText.includes('applyBootstrapWorkspaceState(request.persistedWorkspace)')) {
+    throw new Error('expected source files bootstrap startup mount flow to centralize persisted workspace restore and hydration state writes behind a dedicated helper instead of keeping them inline in the apply path')
   }
   if (!bootstrapText.includes('const bootstrapMountRequest = resolveBootstrapMountRequest({') || !bootstrapText.includes('applyBootstrapMountRequest(bootstrapMountRequest)')) {
     throw new Error('expected the startup mount effect shell to delegate first-load orchestration to the dedicated bootstrap mount helpers')
@@ -722,8 +733,8 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('sourcesByPath: readReusableWorkspaceSourceIndexSnapshot(),')) {
     throw new Error('expected bootstrap startup materialization to reuse the cached source-index snapshot helper instead of forcing a fresh snapshot read')
   }
-  if (!bootstrapText.includes('sourceFiles: bootstrapMaterialization.sourceFiles,')) {
-    throw new Error('expected bootstrap composed-graph scheduling to reuse the startup materialization source-files snapshot instead of rereading store state')
+  if (!bootstrapText.includes('bootstrapSideEffectsRequest: {') || !bootstrapText.includes('composeRequest: args.bootstrapMaterialization') || !bootstrapText.includes('const applyBootstrapComposeRequest = React.useCallback((args: {') || !bootstrapText.includes('const applyBootstrapSideEffectsRequest = React.useCallback((request: BootstrapMountSideEffectsRequest) => {') || !bootstrapText.includes('sourceFilesSnapshot: request.sourceFilesSnapshot,') || !bootstrapStartupText.includes('precomputedSignature?: string')) {
+    throw new Error('expected bootstrap composed-graph and rematerialize scheduling to reuse one shared startup side-effects request with a precomputed compose signature instead of reshaping payloads inline')
   }
   if (!runtimeMaterializationText.includes('resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)')) {
     throw new Error('expected workspace bootstrap materialization to centralize source-index snapshot reuse vs reload decisions in the dedicated materialization helper')
@@ -801,6 +812,9 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('type WorkspaceSeedSyncRequest = {')) {
     throw new Error('expected source files bootstrap workspace seed sync to centralize poll/wake payloads behind a dedicated request type')
   }
+  if (!bootstrapText.includes('type PreparedWorkspaceSeedSyncRequest = WorkspaceSeedSyncRequest & {') || !bootstrapText.includes('const resolvePreparedWorkspaceSeedSyncRequest = React.useCallback((')) {
+    throw new Error('expected source files bootstrap workspace seed sync to capture one prepared execution payload with caller-owned sourceFiles snapshot before handling changed seed results')
+  }
   if (!bootstrapText.includes('const pendingEnsureSeedMutationRequestRef = React.useRef<WorkspaceFsMutationRequest | null>(null)')) {
     throw new Error('expected source files bootstrap workspace seed sync to retain one prepared ensure-seed mutation request for the matching workspace-fs event')
   }
@@ -816,20 +830,45 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('pendingEnsureSeedMutationRequestRef.current = request')) {
     throw new Error('expected ensure-seed request preparation to retain the prepared mutation request for the follow-up workspace-fs event')
   }
-  if (!bootstrapText.includes('const scheduleNextWorkspaceSeedSync = (args: {') || !bootstrapText.includes('nextRequest: WorkspaceSeedSyncRequest')) {
-    throw new Error('expected workspace seed sync polling to centralize backoff scheduling around the dedicated seed-sync request shape')
+  if (
+    !bootstrapText.includes('type WorkspaceSeedSyncLifecycleState = {') ||
+    !bootstrapText.includes('const clearWorkspaceSeedSyncTimer = React.useCallback((lifecycleState: WorkspaceSeedSyncLifecycleState) => {') ||
+    !bootstrapText.includes('const resetWorkspaceSeedSyncWakeLifecycle = React.useCallback((lifecycleState: WorkspaceSeedSyncLifecycleState) => {') ||
+    !bootstrapText.includes('const scheduleNextWorkspaceSeedSync = React.useCallback((args: {') ||
+    !bootstrapText.includes('const scheduleNextWorkspaceSeedSyncPoll = React.useCallback((args: {') ||
+    !bootstrapText.includes('nextRequest: WorkspaceSeedSyncRequest') ||
+    !bootstrapText.includes('const cleanupWorkspaceSeedSyncLifecycle = React.useCallback((lifecycleState: WorkspaceSeedSyncLifecycleState) => {')
+  ) {
+    throw new Error('expected workspace seed sync polling lifecycle to centralize timer clearing, wake reset, backoff scheduling, and cleanup behind dedicated helpers')
   }
   if (!bootstrapText.includes('const runWorkspaceSeedSync = async (request: WorkspaceSeedSyncRequest) => {')) {
     throw new Error('expected workspace seed sync polling and wake flows to delegate ensureSeed execution through a dedicated request runner')
   }
-  if (!bootstrapText.includes('prepareEnsureSeedMutationRequest()')) {
-    throw new Error('expected workspace seed sync runner to prepare one canonical ensure-seed mutation request before the workspace-fs event fanout')
+  if (
+    !bootstrapText.includes('const preparedRequest = resolvePreparedWorkspaceSeedSyncRequest(request)') ||
+    !bootstrapText.includes('const applyPreparedWorkspaceSeedSyncRequest = React.useCallback((request: PreparedWorkspaceSeedSyncRequest) => {') ||
+    !bootstrapText.includes('sourceFilesSnapshot: request.sourceFilesSnapshot,') ||
+    !bootstrapText.includes('const handleWorkspaceSeedSyncRequestSuccess = React.useCallback((args: {') ||
+    !bootstrapText.includes('const handleWorkspaceSeedSyncRequestFailure = React.useCallback((args: {') ||
+    !bootstrapText.includes('applyPreparedWorkspaceSeedSyncRequest(args.preparedRequest)') ||
+    !bootstrapText.includes('handleWorkspaceSeedSyncRequestSuccess({') ||
+    !bootstrapText.includes('handleWorkspaceSeedSyncRequestFailure({')
+  ) {
+    throw new Error('expected workspace seed sync runner to capture one prepared request payload and delegate success/failure fanout through dedicated helpers that reuse its caller-owned sourceFiles snapshot')
   }
-  if (!bootstrapText.includes("void runWorkspaceSeedSync({ source: 'bootstrap:wake' })") || !bootstrapText.includes("void runWorkspaceSeedSync({ source: 'bootstrap:mount' })")) {
-    throw new Error('expected workspace seed sync wake and mount flows to reuse the shared seed-sync request runner instead of duplicating ensureSeed logic inline')
+  if (
+    !bootstrapText.includes("const WORKSPACE_SEED_SYNC_POLL_REQUEST: WorkspaceSeedSyncRequest = { source: 'bootstrap:poll' }") ||
+    !bootstrapText.includes("const WORKSPACE_SEED_SYNC_WAKE_REQUEST: WorkspaceSeedSyncRequest = { source: 'bootstrap:wake' }") ||
+    !bootstrapText.includes("const WORKSPACE_SEED_SYNC_MOUNT_REQUEST: WorkspaceSeedSyncRequest = { source: 'bootstrap:mount' }") ||
+    !bootstrapText.includes('nextRequest: WORKSPACE_SEED_SYNC_POLL_REQUEST,') ||
+    !bootstrapText.includes('scheduleNextWorkspaceSeedSyncPoll({') ||
+    !bootstrapText.includes('void runWorkspaceSeedSync(WORKSPACE_SEED_SYNC_WAKE_REQUEST)') ||
+    !bootstrapText.includes('void runWorkspaceSeedSync(WORKSPACE_SEED_SYNC_MOUNT_REQUEST)')
+  ) {
+    throw new Error('expected workspace seed sync mount, poll, and wake flows to reuse canonical seed-sync request constants instead of reshaping equivalent request payloads inline')
   }
-  if (!bootstrapText.includes('pendingEnsureSeedMutationRequestRef.current = null')) {
-    throw new Error('expected workspace seed sync cleanup and failure paths to clear any prepared ensure-seed mutation request')
+  if (!bootstrapText.includes('const clearPreparedEnsureSeedMutationRequest = React.useCallback(() => {') || !bootstrapText.includes('clearPreparedEnsureSeedMutationRequest()') || !bootstrapText.includes('cleanupWorkspaceSeedSyncLifecycle(lifecycleState)')) {
+    throw new Error('expected workspace seed sync cleanup and failure paths to clear any prepared ensure-seed mutation request through dedicated lifecycle helpers')
   }
   if (!runtimeMaterializationText.includes('const shouldApplyToGraph = args?.applyToGraph === true')) {
     throw new Error('expected shared materialization runtime to require explicit graph ownership inside the dedicated materialization helper instead of implicit initialization-path apply')
@@ -1247,8 +1286,8 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('knowgrphInboundApplyInFlightRef.current = false')) {
     throw new Error('expected source files bootstrap storage pull apply path to always clear inbound apply in-flight guard')
   }
-  if (!text.includes('if (!knowgrphInboundApplyInFlightRef.current) {')) {
-    throw new Error('expected source files persistence subscription to skip queuing outbound storage sync during inbound pull apply windows')
+  if (!text.includes('const applySourceFilesPersistenceStorageRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {') || !text.includes('if (knowgrphInboundApplyInFlightRef.current) return')) {
+    throw new Error('expected source files persistence side effects to skip queuing outbound storage sync during inbound pull apply windows through the dedicated storage helper')
   }
   if (!text.includes('type KnowgrphStorageQueueRequest = {') || !text.includes('const pendingKnowgrphStorageQueueRequestRef = React.useRef<KnowgrphStorageQueueRequest | null>(null)')) {
     throw new Error('expected source files storage queue scheduling to centralize latest debounced sync payloads behind a dedicated knowgrph storage queue request')
@@ -1292,6 +1331,15 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('const handleKnowgrphStorageQueueRequestSuccess = React.useCallback((args: {') || !text.includes('const handleKnowgrphStorageQueueRequestFailure = React.useCallback((request: KnowgrphStorageQueueRequest) => {')) {
     throw new Error('expected source files storage queue execution to centralize success and failure state transitions behind dedicated helpers')
   }
+  if (!text.includes('type KnowgrphStorageQueueSyncFollowUpRequest = {') || !text.includes('const resolveKnowgrphStorageQueueSyncFollowUpRequest = React.useCallback((args: {')) {
+    throw new Error('expected source files storage queue follow-up scheduling to centralize request-owned conflict-sync payload resolution behind a dedicated helper')
+  }
+  if (!text.includes('const runKnowgrphStorageQueueSyncFollowUpRequest = React.useCallback((request: KnowgrphStorageQueueSyncFollowUpRequest) => {')) {
+    throw new Error('expected source files storage queue follow-up scheduling to centralize sync execution behind a dedicated follow-up request runner')
+  }
+  if (!text.includes('const handleKnowgrphStorageQueueSyncCompleted = React.useCallback((result: {')) {
+    throw new Error('expected source files storage queue follow-up sync completion to centralize conflict notification behind a dedicated helper')
+  }
   if (!text.includes('const scheduleKnowgrphStorageQueueSyncFollowUp = React.useCallback((args: {')) {
     throw new Error('expected source files storage queue success path to centralize post-sync conflict follow-up scheduling behind a dedicated helper')
   }
@@ -1301,14 +1349,17 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('const scheduleKnowgrphStorageQueueRequest = React.useCallback((request: KnowgrphStorageQueueRequest | null) => {')) {
     throw new Error('expected source files storage queue scheduling to centralize request-owned debounce execution in a dedicated helper')
   }
+  if (!text.includes('const drainKnowgrphStorageQueueRequest = React.useCallback(() => {')) {
+    throw new Error('expected source files storage queue scheduling to centralize debounced request draining behind a dedicated helper')
+  }
   if (!text.includes('const applySourceFilesPersistenceEffectRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {')) {
     throw new Error('expected source files persistence subscription to centralize storage queue scheduling and compose apply decisions behind a dedicated request runner')
   }
   if (!text.includes('if (lastQueuedKnowgrphStorageSignatureRef.current === request.signature) return') || !text.includes('if (pendingKnowgrphStorageQueueRequestRef.current?.signature === request.signature) return')) {
     throw new Error('expected source files storage queue scheduling to skip redundant debounce churn when the same storage signature is already applied or already pending')
   }
-  if (!text.includes('const nextRequest = pendingKnowgrphStorageQueueRequestRef.current') || !text.includes('runKnowgrphStorageQueueRequest(nextRequest)')) {
-    throw new Error('expected source files storage queue scheduling to drain the latest pending knowgrph storage request instead of rereading sourceFiles from store state inside the delayed task')
+  if (!text.includes('const nextRequest = pendingKnowgrphStorageQueueRequestRef.current') || !text.includes('runKnowgrphStorageQueueRequest(nextRequest)') || !text.includes('scheduleWorkspaceSyncTask(') || !text.includes('drainKnowgrphStorageQueueRequest,')) {
+    throw new Error('expected source files storage queue scheduling to centralize debounced draining behind a helper that runs the latest pending knowgrph storage request instead of rereading sourceFiles from store state inside the delayed task')
   }
   if (!text.includes('handleKnowgrphStorageQueueRequestSuccess({') || !text.includes('handleKnowgrphStorageQueueRequestFailure(request)')) {
     throw new Error('expected source files storage queue runner to delegate result-state mutations to the dedicated success and failure helpers')
@@ -1316,11 +1367,38 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('scheduleKnowgrphStorageQueueSyncFollowUp({')) {
     throw new Error('expected source files storage queue success handler to delegate post-sync conflict follow-up scheduling to the dedicated helper')
   }
+  if (!text.includes('const request = resolveKnowgrphStorageQueueSyncFollowUpRequest(args)') || !text.includes('if (!request) return')) {
+    throw new Error('expected source files storage queue follow-up scheduler to consume a dedicated follow-up request instead of assembling conflict-sync payloads inline')
+  }
+  if (!text.includes('runKnowgrphStorageQueueSyncFollowUpRequest(request)')) {
+    throw new Error('expected source files storage queue follow-up scheduler to delegate execution to the dedicated follow-up request runner')
+  }
+  if (!text.includes('onSyncCompleted: handleKnowgrphStorageQueueSyncCompleted')) {
+    throw new Error('expected source files storage queue follow-up scheduling to reuse the dedicated sync-completed helper instead of inlining conflict-notify logic')
+  }
   if (!text.includes('applyKnowgrphStorageQueueTransition({')) {
     throw new Error('expected inbound storage apply to reuse the dedicated queue-state transition helper after applying pulled changes')
   }
   if (!text.includes('const request = resolveKnowgrphStorageWorkspaceRequest({') || !text.includes('applyKnowgrphStorageWorkspaceRequest(request)')) {
     throw new Error('expected source files workspace-state subscription effect to become a thin shell over dedicated knowgrph storage workspace lifecycle helpers')
+  }
+  if (!text.includes('const sourceFilesSnapshot = readCallerOwnedSourceFilesSnapshot(args.sourceFilesSnapshot)')) {
+    throw new Error('expected knowgrph storage workspace lifecycle request resolution to reuse a caller-owned or shared live sourceFiles snapshot instead of falling back to raw store reads')
+  }
+  if (!text.includes('const sourceFilesSnapshot = readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot)')) {
+    throw new Error('expected knowgrph storage queue request resolution to reuse a caller-owned or shared live sourceFiles snapshot instead of falling back to raw store reads')
+  }
+  if (!text.includes('const readKnowgrphStorageWorkspaceId = React.useCallback((args?: {') || !text.includes('const workspaceId = readKnowgrphStorageWorkspaceId({')) {
+    throw new Error('expected knowgrph storage queue and workspace lifecycle request resolution to reuse one dedicated workspace ID selector instead of recomputing adjacent workspace ID branches inline')
+  }
+  if (!text.includes('const readKnowgrphStorageSyncSignature = React.useCallback((args: {') || !text.includes('storageSyncSignature: args?.storageSyncSignature,')) {
+    throw new Error('expected knowgrph storage queue, lifecycle, and persistence paths to reuse one dedicated storage signature selector instead of rebuilding adjacent storage-signature branches inline')
+  }
+  if (!text.includes('const readBootstrapMountSourceFilesSnapshot = React.useCallback((args: {')) {
+    throw new Error('expected source files bootstrap mount to centralize startup sourceFiles snapshot selection behind a dedicated helper')
+  }
+  if (!text.includes('const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null) => {')) {
+    throw new Error('expected source files bootstrap mount to centralize initial active-path request handoff behind a dedicated helper')
   }
   if (!text.includes('scheduleKnowgrphStorageQueueRequest(request.initialQueueRequest)')) {
     throw new Error('expected knowgrph storage workspace lifecycle apply path to reuse the prebuilt initial queue request instead of rebuilding queue request context downstream')
@@ -1334,8 +1412,14 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('onSyncCompleted: handleKnowgrphStorageSyncCompleted') || !text.includes('onPulledChangesApplied: handleKnowgrphStoragePulledChangesApplied')) {
     throw new Error('expected knowgrph storage workspace runtime startup to reuse the dedicated runtime callback helpers instead of inlining callback bodies')
   }
-  if (!text.includes('knowgrphStorageQueueRequest: resolveKnowgrphStorageQueueRequest({') || !text.includes('compositionSignature: shouldScheduleCompose ? buildSourceFilesCompositionSignature(snapshot) : \'\'')) {
-    throw new Error('expected source files persistence effect request resolution to precompute both the canonical storage queue request and compose signature from the same snapshot')
+  if (!text.includes('type SourceFilesComposeRequest = {') || !text.includes('const storageSyncSignature = readKnowgrphStorageSyncSignature({') || !text.includes('const readSourceFilesCompositionSignature = React.useCallback((args: {') || !text.includes('const resolveSourceFilesComposeRequest = React.useCallback((args: {') || !text.includes('knowgrphStorageQueueRequest: resolveKnowgrphStorageQueueRequest({') || !text.includes('storageSyncSignature,') || !text.includes('composeRequest: resolveSourceFilesComposeRequest({')) {
+    throw new Error('expected source files persistence and bootstrap compose handling to reuse one shared compose request shape plus dedicated signature helpers instead of shaping compose payloads independently')
+  }
+  if (!text.includes('const snapshot = readCallerOwnedSourceFilesSnapshot(sourceFilesSnapshot)')) {
+    throw new Error('expected source files persistence effect request resolution to reuse a caller-owned or shared live sourceFiles snapshot instead of falling back to raw store reads')
+  }
+  if (!text.includes('const applySourceFilesPersistenceStorageRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {') || !text.includes('const applySuppressedSourceFilesPersistenceComposeRequest = React.useCallback((compositionSignature: string): boolean => {') || !text.includes('const scheduleSourceFilesPersistenceComposeRequest = React.useCallback((compositionSignature: string) => {') || !text.includes('const applySourceFilesPersistenceComposeRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {') || !text.includes('applySourceFilesPersistenceStorageRequest(request)') || !text.includes('applySourceFilesPersistenceComposeRequest(request)')) {
+    throw new Error('expected source files persistence side effects to delegate storage scheduling, compose suppression, and compose scheduling through dedicated helpers instead of keeping inline apply branches')
   }
   if (!text.includes('const startForWorkspaceSelection = (selection: KnowgrphStorageWorkspaceSelection) => {') || !text.includes('s => readKnowgrphStorageWorkspaceSelection(s)')) {
     throw new Error('expected source files workspace-state subscription to thread one caller-owned workspace selection through the knowgrph storage workspace resolver instead of rereading store state inline')
@@ -1346,14 +1430,29 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('const readCallerOwnedSourceFilesSnapshot = React.useCallback((') || !text.includes('if (Array.isArray(latestSourceFilesSnapshotRef.current)) return latestSourceFilesSnapshotRef.current')) {
     throw new Error('expected source files runtime mutation paths to prefer a caller-owned snapshot first and otherwise reuse the shared live sourceFiles snapshot ref before falling back to store reads')
   }
-  if (!text.includes('if (!request.shouldScheduleCompose) return')) {
-    throw new Error('expected source files persistence effect runner to skip composed graph apply scheduling for workspace-only source switching')
+  if (!text.includes('const sourceFilesSnapshot = readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot)') || !text.includes('const snapshot = readCallerOwnedSourceFilesSnapshot(sourceFiles)')) {
+    throw new Error('expected source files rematerialization and workspace-candidate gating paths to reuse the caller-owned/shared-live sourceFiles snapshot helper instead of raw store fallback reads')
+  }
+  if (!text.includes('sourceFilesSnapshot: readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot),')) {
+    throw new Error('expected active-path materialization request resolution to reuse the caller-owned/shared-live sourceFiles snapshot helper instead of raw store fallback reads')
+  }
+  if (!text.includes('const clearActivePathMaterializationRequest = React.useCallback(() => {') || !text.includes('const queueActivePathMaterializationRequest = React.useCallback((request: ActivePathMaterializationRequest) => {') || !text.includes('const shouldSkipActivePathMaterializationRequest = React.useCallback((request: ActivePathMaterializationRequest): boolean => {')) {
+    throw new Error('expected active-path materialization to centralize missing-request reset, queued retry retention, and skip gating behind dedicated request helpers')
+  }
+  if (!text.includes('if (!request.composeRequest.shouldScheduleCompose) return') || !text.includes('if (applySuppressedSourceFilesPersistenceComposeRequest(compositionSignature)) return') || !text.includes('scheduleSourceFilesPersistenceComposeRequest(compositionSignature)')) {
+    throw new Error('expected source files persistence compose handling to skip workspace-only source switching and delegate suppression plus scheduling through dedicated helpers')
   }
   if (!text.includes('const request = resolveSourceFilesPersistenceEffectRequest(next as never)') || !text.includes('applySourceFilesPersistenceEffectRequest(request)')) {
     throw new Error('expected source files persistence subscription to become a thin shell over the dedicated persistence effect request and runner helpers')
   }
   if (!text.includes('const syncForActivePathSelection = (selection: ActivePathMaterializationSelection) => {') || !text.includes('syncForActivePathSelection(readActivePathMaterializationSelection(state))')) {
     throw new Error('expected source files active-path effect to become a thin shell over the dedicated active-path selection helper instead of rereading sourceFiles inline on every explorer path change')
+  }
+  if (!text.includes('clearActivePathMaterializationRequest()') || !text.includes('queueActivePathMaterializationRequest(request)') || !text.includes('if (shouldSkipActivePathMaterializationRequest(request)) return')) {
+    throw new Error('expected active-path sync execution path to reuse the dedicated request helpers instead of mutating retry/skip state inline')
+  }
+  if (!text.includes('const sourceFilesSnapshot = readBootstrapMountSourceFilesSnapshot({') || !text.includes('applyBootstrapInitialActivePathRequest(request.initialActivePathRequest)')) {
+    throw new Error('expected source files bootstrap mount resolution and apply paths to reuse dedicated startup helpers for sourceFiles snapshot selection and initial active-path request handoff')
   }
   if (!text.includes('sourceFilesSnapshot: latestSourceFilesSnapshotRef.current,')) {
     throw new Error('expected source files active-path and workspace lifecycle selection helpers to reuse the shared live sourceFiles snapshot ref instead of building fresh snapshots per subscription path')

@@ -132,6 +132,7 @@ export const getMarkdownProbeEvents = (): unknown[] => {
 }
 
 const WORD_CHAR_RE = /[\p{L}\p{N}\p{M}_-]/u
+const SEMANTIC_TOKEN_RE = /(?:\[\^[^\]\n]+\]|@comment:[^\s`]+|@node:[^\s`]+|@edge:[^\s`]+|@key:[^\n`]+|@ui:[^\n`]+|\$(?:id|url|enum|date|hash):[^\s`]+)/u
 
 export const findFirstSelectableSegment = (text: string): { start: number; end: number } | null => {
   const value = String(text || '')
@@ -158,6 +159,16 @@ export const expandSelectionSegmentAt = (text: string, cursorOffset: number): { 
   if (!value) return null
   const maxCursor = Math.max(0, Math.min(value.length - 1, Math.floor(cursorOffset)))
   if (value.length <= 0) return null
+  const semanticMatches = value.matchAll(new RegExp(SEMANTIC_TOKEN_RE.source, 'gu'))
+  for (const match of semanticMatches) {
+    const matchedText = String(match[0] || '')
+    const start = typeof match.index === 'number' ? match.index : -1
+    if (start < 0 || !matchedText) continue
+    const end = start + matchedText.length
+    if (maxCursor >= start && maxCursor < end) {
+      return { start, end }
+    }
+  }
   const isWordChar = (ch: string): boolean => WORD_CHAR_RE.test(ch)
   const isSegmentChar = (ch: string): boolean => isWordChar(ch) || !/\s/u.test(ch)
   let cursor = maxCursor

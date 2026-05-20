@@ -313,6 +313,8 @@ flowchart TB
 | Conflict UX | History log surface | `features/panels/views/HistoryView.tsx` | Built |
 | Conflict UX | Action buttons | `components/ui/UiActionButtons.tsx` | Built |
 
+`SourceFilesPersistenceBootstrap.tsx` is the client-side SSOT orchestrator: seed-sync and rematerialize scheduling accept prepared requests when available, fall back to one resolver otherwise, and reuse caller-owned `sourceFiles` snapshots to keep Storage ↔ Source Files ↔ Workspace parity without redundant store reads.
+
 ### Cloudflare (cloudflare/)
 
 | Layer | Component | File | Status |

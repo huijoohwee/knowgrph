@@ -1,5 +1,5 @@
 import React from 'react'
-import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
+import { parseMarkdownInlineCodeSemantic, parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
 import { hasExpandedSelectionInRoot } from './markdownBlockContainerCore.interaction'
 
 type SelectionOffsets = { startOffset: number; endOffset: number }
@@ -91,6 +91,32 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     return null
   }, [args])
 
+  const readSelectableTokenElement = React.useCallback((root: HTMLElement, node: Node | null): HTMLElement | null => {
+    const element = node?.nodeType === Node.ELEMENT_NODE ? (node as Element) : node?.parentElement || null
+    if (!element) return null
+    const token = element.closest('[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"]') as HTMLElement | null
+    return token && root.contains(token) ? token : null
+  }, [])
+
+  const expandSelectionToSemanticToken = React.useCallback((root: HTMLElement, selection: Selection | null): Range | null => {
+    const sel = selection
+    if (!sel || sel.rangeCount <= 0) return null
+    const liveRange = sel.getRangeAt(0)
+    const startToken = readSelectableTokenElement(root, liveRange.startContainer)
+    const endToken = readSelectableTokenElement(root, liveRange.endContainer)
+    if (!startToken && !endToken) return null
+    const expanded = liveRange.cloneRange()
+    if (startToken) expanded.setStartBefore(startToken)
+    if (endToken) expanded.setEndAfter(endToken)
+    try {
+      sel.removeAllRanges()
+      sel.addRange(expanded)
+    } catch {
+      void 0
+    }
+    return expanded
+  }, [readSelectableTokenElement])
+
   const readSelectionOffsetsForFormatting = React.useCallback((): SelectionOffsets | null => {
     const selection = args.getSelectionOffsets()
     if (selection && selection.startOffset !== selection.endOffset) {
@@ -104,19 +130,22 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     const root = focusRootForFormatting()
     if (!root) return
     restoreSelectionForFormatting()
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    expandSelectionToSemanticToken(root, sel)
     try {
       document.execCommand(cmd, false)
     } catch {
       void 0
     }
     args.emitLiveDraftTextFromDom?.()
-  }, [args.emitLiveDraftTextFromDom, focusRootForFormatting, restoreSelectionForFormatting])
+  }, [args.emitLiveDraftTextFromDom, expandSelectionToSemanticToken, focusRootForFormatting, restoreSelectionForFormatting])
 
   const insertHtmlAroundSelection = React.useCallback((payload: { leftHtml: string; rightHtml: string }) => {
     const root = focusRootForFormatting()
     if (!root) return
     restoreSelectionForFormatting()
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    expandSelectionToSemanticToken(root, sel)
     if (!sel || !hasExpandedSelectionInRoot({ root, selection: sel })) return
     const range = sel.getRangeAt(0)
     const wrap = document.createElement('div')
@@ -128,9 +157,9 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       void 0
     }
     args.emitLiveDraftTextFromDom?.()
-  }, [args.emitLiveDraftTextFromDom, focusRootForFormatting, restoreSelectionForFormatting])
+  }, [args.emitLiveDraftTextFromDom, expandSelectionToSemanticToken, focusRootForFormatting, restoreSelectionForFormatting])
 
-  const applyCommentToHtmlSelection = React.useCallback((): string | null => {
+  const readCommentTextFromHtmlSelection = React.useCallback((): string | null => {
     const root = focusRootForFormatting()
     if (!root) return null
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
@@ -138,24 +167,32 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     restoreSelectionForFormatting()
     const range = pickExpandedRangeInRoot(root, sel)
     if (!range) return null
-    const frag = range.extractContents()
-    const selectedText = String(frag.textContent || '').trim()
-    const span = document.createElement('span')
-    span.setAttribute('data-kg-comment', '1')
-    span.style.opacity = '0.65'
-    span.style.fontStyle = 'italic'
-    span.appendChild(frag)
-    range.insertNode(span)
-    try {
-      range.setStart(span, 0)
-      range.setEnd(span, span.childNodes.length)
-      sel.removeAllRanges()
-      sel.addRange(range)
-    } catch {
-      void 0
-    }
-    return selectedText
+    return String(range.cloneContents().textContent || '').trim()
   }, [args, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
+
+  const readMarkdownTokenFromHtmlSelection = React.useCallback((): string | null => {
+    const root = focusRootForFormatting()
+    if (!root) return null
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return null
+    restoreSelectionForFormatting()
+    const range = pickExpandedRangeInRoot(root, sel)
+    if (!range) return null
+    const container = range.commonAncestorContainer
+    const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
+    if (!node) return null
+    const semanticNode = node.closest('[data-kg-inline-code-token="1"]') as HTMLElement | null
+    if (semanticNode && root.contains(semanticNode)) {
+      const raw = String(semanticNode.getAttribute('data-kg-inline-code-raw') || '').trim()
+      if (raw) return `\`${raw}\``
+    }
+    const footnoteNode = node.closest('[data-kg-footnote-ref="1"]') as HTMLElement | null
+    if (footnoteNode && root.contains(footnoteNode)) {
+      const label = String(footnoteNode.getAttribute('data-kg-footnote-label') || footnoteNode.textContent || '').trim()
+      if (label) return `[^${label.replace(/^\[\^?/, '').replace(/\]$/, '')}]`
+    }
+    return String(range.cloneContents().textContent || '').trim() || null
+  }, [expandSelectionToSemanticToken, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
 
   const applyDefaultHighlightToHtmlSelection = React.useCallback(() => {
     const root = focusRootForFormatting()
@@ -163,6 +200,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel) return
     restoreSelectionForFormatting()
+    expandSelectionToSemanticToken(root, sel)
     const range = pickExpandedRangeInRoot(root, sel)
     if (!range) return
     const frag = range.extractContents()
@@ -180,11 +218,121 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       void 0
     }
     args.emitLiveDraftTextFromDom?.()
-  }, [args, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
+  }, [args, expandSelectionToSemanticToken, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
 
   const applyUnderlineToHtmlSelection = React.useCallback(() => {
     execInline('underline')
   }, [execInline])
+
+  const clearHtmlFormattingSelection = React.useCallback(() => {
+    const root = focusRootForFormatting()
+    if (!root) return
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return
+    restoreSelectionForFormatting()
+    expandSelectionToSemanticToken(root, sel)
+    const range = pickExpandedRangeInRoot(root, sel)
+    if (!range) return
+    const container = range.commonAncestorContainer
+    const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
+    if (!node || !root.contains(node)) return
+    const readFormattingTokenElement = (targetNode: Node | null): HTMLElement | null => {
+      const element = targetNode?.nodeType === Node.ELEMENT_NODE ? (targetNode as Element) : targetNode?.parentElement || null
+      if (!element) return null
+      const token = element.closest('[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],[data-kg-sigil="1"],code') as HTMLElement | null
+      return token && root.contains(token) ? token : null
+    }
+    const readBoundaryFormattingTokenElement = (boundaryContainer: Node, boundaryOffset: number, preferPrevious: boolean): HTMLElement | null => {
+      if (boundaryContainer.nodeType !== Node.ELEMENT_NODE) return readFormattingTokenElement(boundaryContainer)
+      const element = boundaryContainer as Element
+      const childIndex = preferPrevious ? boundaryOffset - 1 : boundaryOffset
+      const childNode = childIndex >= 0 && childIndex < element.childNodes.length ? element.childNodes[childIndex] : null
+      return readFormattingTokenElement(childNode) || readFormattingTokenElement(boundaryContainer)
+    }
+    const readFormattingWrapperElement = (targetNode: Node | null): HTMLElement | null => {
+      const element = targetNode?.nodeType === Node.ELEMENT_NODE ? (targetNode as Element) : targetNode?.parentElement || null
+      if (!element) return null
+      const wrapper = element.closest('[data-kg-sigil="1"],[data-kg-default-highlight="1"],mark,a,u,strong,b,em,i,s,del,sub,sup') as HTMLElement | null
+      return wrapper && root.contains(wrapper) ? wrapper : null
+    }
+    const semanticTokenNode =
+      readBoundaryFormattingTokenElement(range.startContainer, range.startOffset, false)
+      || readBoundaryFormattingTokenElement(range.endContainer, range.endOffset, true)
+      || readFormattingTokenElement(node)
+    const readCanonicalReplacementNode = (): Node | null => {
+      const selectedText = String(range.cloneContents().textContent || '').trim()
+      if ((!semanticTokenNode || !root.contains(semanticTokenNode)) && /^\[\^[^\]\n]+\]$/.test(selectedText)) {
+        return document.createTextNode(selectedText)
+      }
+      if (!semanticTokenNode || !root.contains(semanticTokenNode)) return null
+      if (semanticTokenNode.hasAttribute('data-kg-footnote-ref')) {
+        const label = String(semanticTokenNode.getAttribute('data-kg-footnote-label') || semanticTokenNode.textContent || '').trim()
+        if (!label) return null
+        return document.createTextNode(`[^${label.replace(/^\[\^?/, '').replace(/\]$/, '')}]`)
+      }
+      if (semanticTokenNode.hasAttribute('data-kg-inline-code-token')) {
+        const raw = String(semanticTokenNode.getAttribute('data-kg-inline-code-raw') || '').trim()
+        if (raw) {
+          const code = document.createElement('code')
+          code.textContent = raw
+          return code
+        }
+      }
+      const rawText = String(semanticTokenNode.textContent || '').trim()
+      if (!rawText) return null
+      const parsedSemantic = parseMarkdownInlineCodeSemantic(rawText)
+      if (parsedSemantic && parsedSemantic.kind !== 'annotation') {
+        const code = document.createElement('code')
+        code.textContent = parsedSemantic.code
+        return code
+      }
+      return null
+    }
+    const replacement = readCanonicalReplacementNode()
+    if (replacement) {
+      const isFormattingWrapper = (element: HTMLElement): boolean => {
+        const tag = String(element.tagName || '').toLowerCase()
+        if (element.hasAttribute('data-kg-sigil')) return true
+        if (element.hasAttribute('data-kg-default-highlight')) return true
+        if (tag === 'mark' || tag === 'a' || tag === 'u' || tag === 'strong' || tag === 'b' || tag === 'em' || tag === 'i' || tag === 's' || tag === 'del' || tag === 'sub' || tag === 'sup') {
+          return true
+        }
+        return false
+      }
+      let outermost = semanticTokenNode || readFormattingWrapperElement(range.startContainer) || readFormattingWrapperElement(range.endContainer)
+      if (!outermost) return
+      let current = semanticTokenNode?.parentElement || null
+      if (!current && outermost) current = outermost.parentElement
+      while (current && current !== root && root.contains(current) && isFormattingWrapper(current)) {
+        outermost = current
+        current = current.parentElement
+      }
+      outermost.replaceWith(replacement)
+      if (replacement.nodeType === Node.ELEMENT_NODE) {
+        try {
+          const nextRange = document.createRange()
+          nextRange.selectNodeContents(replacement)
+          sel.removeAllRanges()
+          sel.addRange(nextRange)
+        } catch {
+          void 0
+        }
+      }
+      args.emitLiveDraftTextFromDom?.()
+      return
+    }
+    try {
+      document.execCommand('removeFormat', false)
+    } catch {
+      void 0
+    }
+    try {
+      document.execCommand('unlink', false)
+    } catch {
+      void 0
+    }
+    args.emitLiveDraftTextFromDom?.()
+  }, [args.emitLiveDraftTextFromDom, expandSelectionToSemanticToken, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
 
   const applySigilToHtmlSelection = React.useCallback((payload: { color?: string; background?: string }) => {
     const root = focusRootForFormatting()
@@ -192,6 +340,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel) return
     restoreSelectionForFormatting()
+    expandSelectionToSemanticToken(root, sel)
     const findFirstWordRange = (): Range | null => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
       let node = walker.nextNode() as Text | null
@@ -239,8 +388,14 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
         if (!nextColor && color) nextColor = color
         if (!nextBg && background) nextBg = background
       }
-      const codeNodes = Array.from(wrapper.querySelectorAll('code')) as HTMLElement[]
+      const codeNodes = Array.from(wrapper.querySelectorAll('code,[data-kg-inline-code-token="1"]')) as HTMLElement[]
       codeNodes.reverse().forEach(codeNode => {
+        if (codeNode.hasAttribute('data-kg-inline-code-token')) {
+          const raw = String(codeNode.getAttribute('data-kg-inline-code-raw') || '').trim()
+          if (!raw) return
+          codeNode.replaceWith(document.createTextNode(raw))
+          return
+        }
         const parsed = parseMarkdownSigil(String(codeNode.textContent || ''))
         if (!parsed) return
         mergeSigilState(parsed.color, parsed.background)
@@ -272,7 +427,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       const readAnnotationElement = (containerNode: Node): HTMLElement | null => {
         const element = containerNode.nodeType === Node.ELEMENT_NODE ? (containerNode as Element) : containerNode.parentElement
         if (!element) return null
-        const annotation = element.closest('[data-kg-sigil="1"],code,mark,[data-kg-default-highlight="1"]') as HTMLElement | null
+        const annotation = element.closest('[data-kg-sigil="1"],[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],code,mark,[data-kg-default-highlight="1"]') as HTMLElement | null
         return annotation && root.contains(annotation) ? annotation : null
       }
       const startAnnotation = readAnnotationElement(expanded.startContainer)
@@ -294,9 +449,25 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       args.emitLiveDraftTextFromDom?.()
       return
     }
-    const codeNode = node.closest('code') as HTMLElement | null
+    const codeNode = node.closest('code,[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"]') as HTMLElement | null
     const withinSingleCode = !!codeNode && codeNode.contains(range.startContainer) && codeNode.contains(range.endContainer)
     if (withinSingleCode) {
+      if (codeNode.hasAttribute('data-kg-footnote-ref')) {
+        return
+      }
+      if (codeNode.hasAttribute('data-kg-inline-code-token')) {
+        const raw = String(codeNode.getAttribute('data-kg-inline-code-raw') || '').trim()
+        if (!raw) return
+        const span = document.createElement('span')
+        span.setAttribute('data-kg-sigil', '1')
+        if (payload.color) span.setAttribute('data-kg-sigil-color', payload.color)
+        if (payload.background) span.setAttribute('data-kg-sigil-bg', payload.background)
+        span.textContent = raw
+        applySpanStyle(span)
+        codeNode.replaceWith(span)
+        args.emitLiveDraftTextFromDom?.()
+        return
+      }
       const parsed = parseMarkdownSigil(String(codeNode?.textContent || ''))
       if (!parsed) return
       const nextColor = payload.color ?? parsed.color
@@ -330,7 +501,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       void 0
     }
     args.emitLiveDraftTextFromDom?.()
-  }, [args, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
+  }, [args, expandSelectionToSemanticToken, focusRootForFormatting, pickExpandedRangeInRoot, restoreSelectionForFormatting])
 
   const restoreCachedHtmlSelection = React.useCallback(() => {
     restoreSelectionForFormatting()
@@ -340,9 +511,11 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
-    applyCommentToHtmlSelection,
+    readCommentTextFromHtmlSelection,
+    readMarkdownTokenFromHtmlSelection,
     applyDefaultHighlightToHtmlSelection,
     applyUnderlineToHtmlSelection,
+    clearHtmlFormattingSelection,
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   }

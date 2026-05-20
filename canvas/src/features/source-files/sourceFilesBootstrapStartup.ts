@@ -131,12 +131,14 @@ export async function materializeBootstrapWorkspaceSourceFiles(
 
 export function scheduleBootstrapComposedGraphSync(args?: {
   sourceFiles?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
+  precomputedSignature?: string
 }): string {
   const sourceFiles = Array.isArray(args?.sourceFiles) ? args?.sourceFiles : useGraphStore.getState().sourceFiles
-  const compositionSignature = buildSourceFilesCompositionSignature(sourceFiles, {
-    includeWorkspaceBacked: true,
-    intent: 'explicit-graph-owner',
-  })
+  const compositionSignature = String(args?.precomputedSignature || '').trim()
+    || buildSourceFilesCompositionSignature(sourceFiles, {
+      includeWorkspaceBacked: true,
+      intent: 'explicit-graph-owner',
+    })
   try {
     scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature(compositionSignature)
   } catch {

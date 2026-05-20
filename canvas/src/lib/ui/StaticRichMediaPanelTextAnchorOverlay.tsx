@@ -12,7 +12,7 @@ export function StaticRichMediaPanelTextAnchorOverlay(props: {
   onClose?: () => void
   widthPx?: number
   heightPx?: number
-  containerProps?: React.HTMLAttributes<HTMLElement>
+  containerProps?: React.HTMLAttributes<HTMLElement> & Record<`data-${string}`, string | undefined>
 }) {
   const widthPx = typeof props.widthPx === 'number' && props.widthPx > 0 ? props.widthPx : 280
   const heightPx = typeof props.heightPx === 'number' && props.heightPx > 0 ? props.heightPx : 156

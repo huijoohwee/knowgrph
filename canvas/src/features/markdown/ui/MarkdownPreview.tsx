@@ -10,7 +10,11 @@ import {
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
 import { buildSlidePreview } from '@/features/markdown/ui/markdownPresentationSlides'
 import { splitMarkdownLines } from '@/lib/markdown'
-import type { HighlightedLineRange, MarkdownGeoDatasetIntegration } from './MarkdownRendererTypes'
+import type {
+  HighlightedLineRange,
+  MarkdownGeoDatasetIntegration,
+  MarkdownInlineDraftTextChangeOptions,
+} from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
 import { MarkdownPreviewPresentation, SlidesSidebar } from '@/features/markdown/ui/MarkdownPreviewPresentation'
@@ -97,7 +101,7 @@ type MarkdownPreviewProps = {
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
-  onInlineDraftTextChange?: (nextText: string) => void
+  onInlineDraftTextChange?: (nextText: string, options?: MarkdownInlineDraftTextChangeOptions) => void
   markdownTokenStoreSync?: boolean
 }
 

@@ -21,6 +21,16 @@ const waitForCondition = async (condition: () => boolean, attempts: number = 60,
   return condition()
 }
 
+const findTextNodeBySubstring = (root: Node, needle: string): Text | null => {
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let current = walker.nextNode() as Text | null
+  while (current) {
+    if (String(current.nodeValue || '').includes(needle)) return current
+    current = walker.nextNode() as Text | null
+  }
+  return null
+}
+
 const pressToolbarControl = async (
   dom: ReturnType<typeof initJsdomHarness>['dom'],
   element: HTMLElement,
@@ -286,8 +296,6 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
     activeText: ['Viewer sync line one', '', 'Viewer sync line two'].join('\n'),
     expectedMarkdownSnippet: '<!-- Viewer --> sync line one',
     expectedJsonSnippet: null,
-    expectedEditorHtmlSnippet: 'data-kg-comment="1"',
-    commitAfterAction: true,
     action: async ({ dom, doc }) => {
       const button = doc.querySelector('menu[aria-label="Inline selection toolbar"] button[title="Comment"]') as HTMLButtonElement | null
       if (!button) throw new Error('expected comment button')
@@ -298,6 +306,11 @@ export async function testMarkdownWorkspaceViewerFloatingToolbarHtmlActionsSyncM
       if (!panel) {
         const body = String(dom.window.document.body.innerHTML || '')
         throw new Error(`expected comment action to reuse the shared Rich Media Panel preview; hasPreview=${body.includes('data-kg-comment-rich-media-preview')}; hasPanel=${body.includes('data-kg-rich-media-panel')}; hasEditor=${body.includes('contenteditable="true"')}; hasComment=${body.includes('data-kg-comment')}`)
+      }
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor after comment preview action')
+      if (String(liveEditor.innerHTML || '').includes('data-kg-comment')) {
+        throw new Error(`expected comment preview action not to mutate WYSIWYG surface; got ${JSON.stringify(liveEditor.innerHTML || '')}`)
       }
     },
   })
@@ -452,4 +465,239 @@ export async function testMarkdownWorkspaceViewerTaskRowUnderlineKeepsRenderedUn
     }
     restore()
   }
+}
+
+export async function testMarkdownWorkspaceViewerBubbleToolbarCommentSupportsInlineSemanticAndFootnoteSelections() {
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@comment:c-42` and `@node:callout-alert-1` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '<!-- `@comment:c-42` -->',
+    expectedJsonSnippet: null,
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      if (!String(liveEditor.innerHTML || '').includes('data-kg-inline-code-token="1"')) {
+        throw new Error(`expected semantic inline tokens on edit surface; html=${liveEditor.innerHTML}`)
+      }
+      if (!String(liveEditor.textContent || '').includes('[^1]')) {
+        throw new Error(`expected footnote ref text to remain selectable on edit surface; html=${liveEditor.innerHTML}`)
+      }
+      const textNode = findTextNodeBySubstring(liveEditor, '@comment:c-42')
+      if (!textNode) throw new Error(`expected semantic text node for comment ref; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('@comment:c-42')
+      if (start < 0) throw new Error('expected comment ref start offset')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '@comment:c-42'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected comment button')
+      await pressToolbarControl(dom, button)
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]'), 20, 5)
+    },
+  })
+
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@comment:c-42` and `@node:callout-alert-1` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '<!-- [^1] -->',
+    expectedJsonSnippet: null,
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '[^1]')
+      if (!textNode) throw new Error(`expected footnote ref text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('[^1]')
+      if (start < 0) throw new Error('expected footnote ref start offset')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '[^1]'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Comment"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected comment button')
+      await pressToolbarControl(dom, button)
+      await waitForCondition(() => !!dom.window.document.querySelector('[data-kg-comment-rich-media-preview="1"] [data-kg-rich-media-panel="1"]'), 20, 5)
+    },
+  })
+}
+
+export async function testMarkdownWorkspaceViewerBubbleToolbarFormatsWholeSemanticAndFootnoteTokens() {
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@comment:c-42` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '==`@comment:c-42`==',
+    expectedJsonSnippet: '==`@comment:c-42`==',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '@comment:c-42')
+      if (!textNode) throw new Error(`expected semantic text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('@comment:c-42')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '@comment:c-42'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const trigger = toolbar.querySelector('button[aria-label="Highlight"]') as HTMLElement | null
+      if (!trigger) throw new Error('expected highlight trigger')
+      await pressToolbarControl(dom, trigger, 2)
+      const button = doc.querySelector('menu[aria-label="Highlight menu"] button') as HTMLButtonElement | null
+      if (!button) throw new Error('expected highlight menu button')
+      await pressToolbarControl(dom, button)
+    },
+  })
+
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@comment:c-42` and `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '`#EF4444:@key:Ctrl+S`',
+    expectedJsonSnippet: '`#EF4444:@key:Ctrl+S`',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '@key:Ctrl+S')
+      if (!textNode) throw new Error(`expected semantic text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('@key:Ctrl+S')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '@key:Ctrl+S'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const trigger = toolbar.querySelector('button[aria-label="Text color"]') as HTMLElement | null
+      if (!trigger) throw new Error('expected text color trigger')
+      await pressToolbarControl(dom, trigger, 2)
+      const button = doc.querySelector('menu[aria-label="Text color menu"] button') as HTMLButtonElement | null
+      if (!button) throw new Error('expected text color menu button')
+      await pressToolbarControl(dom, button)
+    },
+  })
+
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@comment:c-42` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '[^1]',
+    expectedJsonSnippet: '[^1]',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '[^1]')
+      if (!textNode) throw new Error(`expected footnote text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('[^1]')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '[^1]'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Link"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected link button')
+      await pressToolbarControl(dom, button)
+      const popover = doc.querySelector('section[aria-label="Edit link"],input[placeholder="https://example.com"]')
+      if (!popover) {
+        throw new Error(`expected link popover to open from whole footnote token selection; html=${doc.body.innerHTML}`)
+      }
+    },
+  })
+}
+
+export async function testMarkdownWorkspaceViewerBubbleToolbarClearFormattingPreservesCanonicalSemanticAndFootnoteTokens() {
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `#EF4444:@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: '`@key:Ctrl+S`',
+    expectedJsonSnippet: '`@key:Ctrl+S`',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '@key:Ctrl+S')
+      if (!textNode) throw new Error(`expected semantic text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('@key:Ctrl+S')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '@key:Ctrl+S'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const button = toolbar.querySelector('button[title="Clear formatting"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected clear formatting button')
+      await pressToolbarControl(dom, button)
+    },
+  })
+
+  await runViewerToolbarActionCase({
+    activeText: 'Semantic `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
+    expectedMarkdownSnippet: 'footnote [^1]',
+    expectedJsonSnippet: 'footnote \\\\[^1]',
+    action: async ({ dom, doc, toolbar }) => {
+      const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
+      if (!liveEditor) throw new Error('expected live inline editor')
+      const textNode = findTextNodeBySubstring(liveEditor, '[^1]')
+      if (!textNode) throw new Error(`expected footnote text node; html=${liveEditor.innerHTML}`)
+      const textValue = String(textNode.nodeValue || '')
+      const start = textValue.indexOf('[^1]')
+      const range = doc.createRange()
+      range.setStart(textNode, start)
+      range.setEnd(textNode, start + '[^1]'.length)
+      const selection = dom.window.getSelection()
+      if (!selection) throw new Error('expected selection object')
+      selection.removeAllRanges()
+      selection.addRange(range)
+      doc.dispatchEvent(new dom.window.Event('selectionchange'))
+      await act(async () => {
+        liveEditor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+        await tick(4)
+      })
+      const highlightTrigger = toolbar.querySelector('button[aria-label="Highlight"]') as HTMLElement | null
+      if (!highlightTrigger) throw new Error('expected highlight trigger')
+      await pressToolbarControl(dom, highlightTrigger, 2)
+      const highlightButton = doc.querySelector('menu[aria-label="Highlight menu"] button') as HTMLButtonElement | null
+      if (!highlightButton) throw new Error('expected highlight menu button')
+      await pressToolbarControl(dom, highlightButton)
+      const button = toolbar.querySelector('button[title="Clear formatting"]') as HTMLButtonElement | null
+      if (!button) throw new Error('expected clear formatting button')
+      await pressToolbarControl(dom, button)
+    },
+  })
 }

@@ -22,6 +22,12 @@ const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
   }
   const root = doc.body.firstElementChild as HTMLElement | null
   if (!root) return raw
+  const footnoteRefNodes = Array.from(root.querySelectorAll('[data-kg-footnote-ref="1"]')) as HTMLElement[]
+  footnoteRefNodes.forEach(node => {
+    const label = String(node.getAttribute('data-kg-footnote-label') || node.textContent || '').trim()
+    if (!label) return
+    node.replaceWith(doc.createTextNode(`[^${label.replace(/^\[\^?/, '').replace(/\]$/, '')}]`))
+  })
   const comments = Array.from(root.childNodes).filter(node => node.nodeType === Node.COMMENT_NODE)
   const commentWalker = doc.createTreeWalker(root, NodeFilter.SHOW_COMMENT)
   let commentNode = commentWalker.nextNode()
@@ -49,7 +55,7 @@ const rewriteInlineEditorAnnotationsToStyledHtml = (html: string): string => {
     const textNode = textNodes[i]!
     const parent = textNode.parentElement
     if (!parent) continue
-    if (parent.closest('code,[data-kg-sigil="1"],[data-kg-comment="1"],mark,[data-kg-default-highlight="1"]')) continue
+    if (parent.closest('code,[data-kg-sigil="1"],[data-kg-inline-code-token="1"],[data-kg-footnote-ref="1"],[data-kg-comment="1"],mark,[data-kg-default-highlight="1"]')) continue
     const rawText = String(textNode.nodeValue || '')
     if (!rawText.includes('==')) continue
     const regex = /==([\s\S]+?)==/g
@@ -101,7 +107,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
   hostRef: React.MutableRefObject<HTMLElement | null>
   setEditing: React.Dispatch<React.SetStateAction<boolean>>
   setSessionEditLineRange: React.Dispatch<React.SetStateAction<{ startLine: number; endLine: number } | null>>
-  onDraftTextChange?: (nextText: string) => void
+  onDraftTextChange?: (nextText: string, options?: { reflectInViewer?: boolean }) => void
 }) => {
   const hasSemanticRichMarkup = React.useCallback((root: HTMLElement): boolean => {
     const nodes = Array.from(root.querySelectorAll('*'))
@@ -111,6 +117,8 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       if (tag === 'span') {
         const hasSemanticSpanState =
           element.hasAttribute('data-kg-sigil')
+          || element.hasAttribute('data-kg-inline-code-token')
+          || element.hasAttribute('data-kg-footnote-ref')
           || element.hasAttribute('data-kg-comment')
           || element.hasAttribute('data-kg-sigil-color')
           || element.hasAttribute('data-kg-sigil-bg')
@@ -187,7 +195,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     })
   }, [args.editDefaultLinePrefix, args.editLinePrefixesRef, args.hasEditStripLinePrefix, args.initialPresentTextRef])
 
-  const emitDraftTextChange = React.useCallback((draft: string) => {
+  const emitDraftTextChange = React.useCallback((draft: string, options?: { reflectInViewer?: boolean }) => {
     if (!args.onDraftTextChange || !Array.isArray(args.sourceLines)) return
     const replacementLines = buildReplacementLinesFromDraft(draft)
     const currentMarkdownText = args.sourceLines.join('\n')
@@ -198,8 +206,15 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       replacementLines,
     })
     if (nextMarkdownText === currentMarkdownText) return
-    args.onDraftTextChange(nextMarkdownText)
+    args.onDraftTextChange(nextMarkdownText, options)
   }, [args, buildReplacementLinesFromDraft])
+
+  const publishMarkdownDraftWithoutDomMutation = React.useCallback((draft: string) => {
+    args.draftRef.current = draft
+    const root = args.editorRef.current
+    if (root) args.lastSerializedEditorHtmlRef.current = String(root.innerHTML || '')
+    emitDraftTextChange(draft, { reflectInViewer: false })
+  }, [args.draftRef, args.editorRef, args.lastSerializedEditorHtmlRef, emitDraftTextChange])
 
   const serializeHtmlRootToDraft = React.useCallback(async (root: HTMLElement | null): Promise<string | null> => {
     if (!root) return null
@@ -421,6 +436,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     getSelectionOffsets,
     setSelectionByOffsets,
     setDraftToDom,
+    publishMarkdownDraftWithoutDomMutation,
     readCurrentMarkdownDraft,
     emitHtmlDraftTextChangeFromEditorDom,
     getDraft,

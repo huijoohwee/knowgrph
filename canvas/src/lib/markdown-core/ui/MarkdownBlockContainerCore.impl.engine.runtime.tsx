@@ -57,7 +57,7 @@ type MarkdownBlockContainerProps = {
   editLeftRailClassName?: string
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
-  onInlineDraftTextChange?: (nextText: string) => void
+  onInlineDraftTextChange?: (nextText: string, options?: { reflectInViewer?: boolean }) => void
   editDisableRichUi?: boolean
   editStaticChildren?: React.ReactNode
   editStaticChildrenMode?: 'flow' | 'overlay' | 'passthrough'
@@ -176,10 +176,33 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const editorPresentation = editPresentation === 'html' ? 'html' : 'markdown'
   const htmlRenderMode = editHtmlRender === 'block' ? 'block' : 'inline'
   const normalizeRenderedBlockHtmlForEditor = React.useCallback((renderedHtml: string): string => {
-    if (!editListMode) return String(renderedHtml || '').trimEnd()
-    return String(renderedHtml || '')
-      .replace(/>\s+</g, '><')
-      .trim()
+    const raw = editListMode
+      ? String(renderedHtml || '').replace(/>\s+</g, '><').trim()
+      : String(renderedHtml || '').trimEnd()
+    if (!raw.trim() || typeof DOMParser === 'undefined') return raw
+    let doc: Document
+    try {
+      doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+    } catch {
+      return raw
+    }
+    const root = doc.body.firstElementChild as HTMLElement | null
+    if (!root) return raw
+    const footnoteRefs = Array.from(root.querySelectorAll('sup > a[href^="#fn"]')) as HTMLAnchorElement[]
+    footnoteRefs.forEach(anchor => {
+      const label = String(anchor.textContent || '').trim()
+      if (!label) return
+      const span = doc.createElement('span')
+      span.setAttribute('data-kg-footnote-ref', '1')
+      span.setAttribute('data-kg-footnote-label', label)
+      span.style.verticalAlign = 'super'
+      span.style.fontSize = '0.8em'
+      span.textContent = `[^${label}]`
+      const sup = anchor.parentElement
+      if (sup && String(sup.tagName || '').toLowerCase() === 'sup') sup.replaceWith(span)
+      else anchor.replaceWith(span)
+    })
+    return root.innerHTML
   }, [editListMode])
   const {
     edgeTrimRafRef,
@@ -212,6 +235,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     getSelectionOffsets,
     setSelectionByOffsets,
     setDraftToDom,
+    publishMarkdownDraftWithoutDomMutation,
     readCurrentMarkdownDraft,
     emitHtmlDraftTextChangeFromEditorDom,
     getDraft,
@@ -247,9 +271,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
-    applyCommentToHtmlSelection,
+    readCommentTextFromHtmlSelection,
+    readMarkdownTokenFromHtmlSelection,
     applyDefaultHighlightToHtmlSelection,
     applyUnderlineToHtmlSelection,
+    clearHtmlFormattingSelection,
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   } = useMarkdownBlockContainerHtmlFormatting({
@@ -375,9 +401,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
-    applyCommentToHtmlSelection,
     applyDefaultHighlightToHtmlSelection,
     applyUnderlineToHtmlSelection,
+    clearHtmlFormattingSelection,
     applySigilToHtmlSelection,
     restoreCachedHtmlSelection,
   })
@@ -387,23 +413,28 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       return
     }
     restoreCachedHtmlSelection()
-    const fallbackSelectedText = (() => {
-      const selection = readSelectionOffsetsForFormatting() || getSelectionOffsets()
-      if (!selection || selection.startOffset === selection.endOffset) return ''
-      const draft = getDraft()
-      const start = Math.max(0, Math.min(draft.length, Math.min(selection.startOffset, selection.endOffset)))
-      const end = Math.max(0, Math.min(draft.length, Math.max(selection.startOffset, selection.endOffset)))
-      return draft.slice(start, end).trim()
+    const selection = readSelectionOffsetsForFormatting() || getSelectionOffsets()
+    if (!selection || selection.startOffset === selection.endOffset) return
+    void (async () => {
+      const draft = await readCurrentMarkdownDraft()
+      const a = Math.max(0, Math.min(draft.length, selection.startOffset))
+      const b = Math.max(0, Math.min(draft.length, selection.endOffset))
+      const start = Math.min(a, b)
+      const end = Math.max(a, b)
+      const selected = draft.slice(start, end)
+      const selectedText = readCommentTextFromHtmlSelection() || selected.trim()
+      const selectedMarkdownToken = readMarkdownTokenFromHtmlSelection() || selected
+      if (!selectedText || !selected) return
+      const nextDraft = `${draft.slice(0, start)}<!-- ${selectedMarkdownToken} -->${draft.slice(end)}`
+      publishMarkdownDraftWithoutDomMutation(nextDraft)
+      setCommentPreview({
+        show: true,
+        leftPx: bubble.leftPx,
+        topPx: bubble.topPx + 28,
+        text: selectedText,
+      })
     })()
-    const selectedText = applyCommentToHtmlSelection() || fallbackSelectedText
-    if (!selectedText) return
-    setCommentPreview({
-      show: true,
-      leftPx: bubble.leftPx,
-      topPx: bubble.topPx + 28,
-      text: selectedText,
-    })
-  }, [applyCommentToHtmlSelection, applyWrap, bubble.leftPx, bubble.topPx, editorPresentation, getDraft, getSelectionOffsets, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
+  }, [applyWrap, bubble.leftPx, bubble.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
   const {
     holdToolbarInteraction,
     updateBubble,

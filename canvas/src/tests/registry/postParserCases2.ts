@@ -113,6 +113,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["markdown.preview.youtubeTimestampHoverPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testMarkdownPreviewShowsYouTubeTimestampPreviewOnHoverAndTap"],
   ["markdown.preview.importedYouTubeTimestampPreview","@/__tests__/markdownEmbedSnapshotPreview.test","testImportUrlYouTubeTimestampMarkdownRendersNormalLinkWithSharedPreview"],
   ["markdown.preview.rendersInlineHtmlRichMedia","@/__tests__/markdownInlineHtmlRichMediaPreview.test","testMarkdownPreviewRendersInlineHtmlRichMedia"],
+  ["markdown.preview.rendersNestedInlineHtmlWrappers","@/__tests__/markdownInlineHtmlRichMediaPreview.test","testMarkdownPreviewRendersNestedInlineHtmlWrappers"],
+  ["markdown.preview.rendersMasterSigilSemanticInlineTokens","@/__tests__/markdownInlineHtmlRichMediaPreview.test","testMarkdownPreviewRendersMasterSigilSemanticInlineTokens"],
   ["markdown.preview.rendersMarkdownImageVideoAudioIframe","@/__tests__/markdownImageRichMediaPreview.test","testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe"],
   ["graphCanvas.richMedia.iframeNodes.hideBody","@/__tests__/graphCanvasIframeNodesHideBody.test","testGraphCanvasIframeNodesHideBodyWhenRichMediaOn"],
   ["graphCanvas.richMedia.overlayPool.clippedNodesKeepBody","@/__tests__/graphCanvasIframeNodesHideBody.test","testGraphCanvasMediaNodesKeepBodyWhenOverlayPoolClips"],
