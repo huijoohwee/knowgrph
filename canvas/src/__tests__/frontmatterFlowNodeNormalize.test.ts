@@ -1,5 +1,6 @@
 import { normalizeNodes } from '@/features/parsers/markdownFrontmatterFlowGraph.nodes'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph.core'
+import { readSubgraphs } from '@/lib/graph/subgraphs'
 
 type ExpectValue = {
   toBe: (expected: unknown) => void
@@ -192,5 +193,41 @@ describe('normalizeNodes frontmatter flow defaults', () => {
     expect(textNode?.x).not.toBe(panelNode?.x)
     expect(imageNode?.x).not.toBeUndefined()
     expect(videoNode?.x).not.toBeUndefined()
+  })
+
+  it('projects flow subgraphs into canonical canvas group metadata', () => {
+    const doc = [
+      '---',
+      'flow:',
+      '  direction: LR',
+      '  nodes:',
+      '    - id: n-trigger',
+      '      type: input',
+      '      label: Trigger',
+      '      handles: {source: [signal]}',
+      '    - id: n-pack',
+      '      type: default',
+      '      label: Pack',
+      '      handles: {target: [signal], source: [context]}',
+      '    - id: n-process',
+      '      type: output',
+      '      label: Process',
+      '      handles: {target: [context]}',
+      '  subgraphs:',
+      '    - {id: sg-context, kind: subgraph, label: "Context", memberNodeIds: [n-trigger, n-pack], parentId: null}',
+      '    - {id: sg-run, kind: cluster, label: "Run", memberNodeIds: [n-process], parentId: null}',
+      '  edges:',
+      '    - {id: e1, source: n-trigger.signal, target: n-pack.signal}',
+      '    - {id: e2, source: n-pack.context, target: n-process.context}',
+      '---',
+    ].join('\n')
+    const parsed = tryParseMarkdownFrontmatterFlowGraph('subgraphs-test.md', doc)
+    expect(parsed).toBeTruthy()
+    const subgraphs = readSubgraphs(parsed?.graphData)
+    expect(subgraphs.length).toBe(2)
+    const byId = new Map(subgraphs.map(sg => [sg.id, sg]))
+    expect(byId.get('sg-context')?.memberNodeIds.join(',')).toBe('n-pack,n-trigger')
+    expect(byId.get('sg-context')?.kind).toBe('subgraph')
+    expect(byId.get('sg-run')?.kind).toBe('cluster')
   })
 })

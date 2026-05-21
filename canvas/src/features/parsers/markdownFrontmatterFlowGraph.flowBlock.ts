@@ -8,21 +8,18 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
-
+import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
+import { normalizeFlowSubgraphs } from '@/features/parsers/markdownFrontmatterFlowGraph.subgraphs'
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
-
 export const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 export const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
-
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
-
 function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
-
 function isChatKnowgrphFlowContractRelaxed(meta: Record<string, unknown>): boolean {
   if (meta['frontmatter:chatKnowgrphRelaxed'] === true) return true
   const topType = asString(meta.type).toLowerCase()
@@ -32,7 +29,6 @@ function isChatKnowgrphFlowContractRelaxed(meta: Record<string, unknown>): boole
   const docType = asString(doc.type).toLowerCase()
   return docType === 'chatknowgrph'
 }
-
 function asFiniteNumber(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v)) return v
   if (typeof v === 'string') {
@@ -41,7 +37,6 @@ function asFiniteNumber(v: unknown): number | null {
   }
   return null
 }
-
 function asBoolean(v: unknown): boolean | null {
   if (typeof v === 'boolean') return v
   if (typeof v === 'string') {
@@ -52,13 +47,11 @@ function asBoolean(v: unknown): boolean | null {
   }
   return null
 }
-
 function countIndent(rawLine: string): number {
   let i = 0
   while (i < rawLine.length && rawLine[i] === ' ') i += 1
   return i
 }
-
 function repairYamlInlineColonSpacing(raw: string): string {
   const src = String(raw || '')
   if (!src) return src
@@ -80,7 +73,6 @@ function repairYamlInlineColonSpacing(raw: string): string {
   }
   return out.join('\n')
 }
-
 export function repairFlowInlineEnvelopeBlockScalars(raw: string): string {
   const src = String(raw || '')
   if (!src) return src
@@ -860,15 +852,21 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     ...(asFiniteNumber(readFlowValue(flow.gridSize)) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(readFlowValue(flow.gridSize)) as number)) } : {}),
     ...(asBoolean(readFlowValue(flow.computed)) != null ? { computed: asBoolean(readFlowValue(flow.computed)) } : {}),
   }
+  const flowSubgraphs = normalizeFlowSubgraphs({
+    rawSubgraphs: readFlowValue(flow.subgraphs),
+    vars, flowVars, pathCache, declarationCache, resolvedStringCache,
+    nodeIds: new Set(normalizedNodes.map(node => asString(node.id)).filter(Boolean)),
+    resolveTemplateString,
+  })
 
   const next: Record<string, unknown> = {
     ...meta,
     nodes: normalizedNodes,
     connections: normalizedConnections,
+    ...(flowSubgraphs.length > 0 ? { [KG_SUBGRAPHS_KEY]: flowSubgraphs } : {}),
     [FRONTMATTER_FLOW_SETTINGS_KEY]: settings,
     ...(flowWarnings.length > 0 ? { [FRONTMATTER_FLOW_WARNINGS_KEY]: readFlowWarnings(flowWarnings) } : {}),
   }
   return next
 }
-
 export { FRONTMATTER_FLOW_SETTINGS_KEY, FRONTMATTER_FLOW_WARNINGS_KEY }

@@ -1172,7 +1172,7 @@ const buildFrontmatter = (args: {
     '            ? deliverArtifact(inputs.valid_md)',
     '            : null',
     '        })',
-    '      }',
+    '      }\n  subgraphs:\n    - {id: sg-p1, kind: subgraph, label: "Context Packaging", memberNodeIds: [n-trigger, n-pack], parentId: null}\n    - {id: sg-p2, kind: subgraph, label: "Generate + Validate", memberNodeIds: [n-process, n-validate], parentId: null}\n    - {id: sg-p3, kind: subgraph, label: "Deliver + Persist", memberNodeIds: [n-deliver], parentId: null}',
     '  edges:',
     '    - {id: e1, source: n-trigger,  sourceHandle: signal,     target: n-pack,     targetHandle: signal,     label: "signal",             animated: true}',
     '    - {id: e2, source: n-pack,     sourceHandle: context,    target: n-process,  targetHandle: context,    label: "context",            animated: true}',

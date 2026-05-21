@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT,
@@ -21,7 +21,11 @@ const readComputingFlowSample = (): string => {
 }
 
 const readBaseTemplateSample = (): string => {
-  const p = resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-chat-response-base-template.md')
+  const candidates = [
+    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-chat-response-base-template.md'),
+    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'template', 'kgc-ai-pipeline-chat-response-base-template.md'),
+  ]
+  const p = candidates.find(candidate => existsSync(candidate)) || candidates[0]!
   return readFileSync(p, 'utf8')
 }
 
@@ -85,6 +89,8 @@ export function testChatKgcResponseContractPromptAlignsWithBaseTemplateFixture()
     'title SHOULD resolve when product context is known',
     'Mention stack, payments, geospatial, workflow, or distribution details only when present',
     'pipeline[*].node / flow.nodes[*].id / mermaid: node IDs not in exact sync',
+    'flow.subgraphs[*]',
+    'parser projects flow.subgraphs into kg:subgraphs metadata',
     'n-trigger, n-pack, n-process, n-validate, n-deliver',
     'V-07',
     '## Customization Guide',
@@ -183,6 +189,8 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
   const requiredFrontmatterSnippets = [
     'feedback_arcs:',
     'forward_edges:',
+    'subgraphs:',
+    'sg-p1',
     'direction:  {key: direction,  type: string,  value: LR}',
     'compute:       {key: compute,       type: function, value: |',
     'click n-trigger  "#pipeline" "S01 · trigger / input"',

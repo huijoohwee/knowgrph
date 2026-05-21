@@ -10,6 +10,7 @@ import {
   tryParseFlowBlockFromFrontmatterLines,
   tryParseFlowBlockFromMarkdownBodyLines,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
+import { buildFrontmatterFlowSourceLayerHash } from '@/features/parsers/markdownFrontmatterFlowGraph.sourceKey'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
@@ -561,30 +562,6 @@ function readFrontmatterFlowDirection(metaRecord: Record<string, unknown>): 'LR'
     : null
   const raw = settings ? asString(settings.direction).toUpperCase() : ''
   return raw === 'RL' || raw === 'TB' || raw === 'BT' ? raw : 'LR'
-}
-
-function buildFrontmatterFlowSourceLayerHash(args: {
-  stableId: string
-  nodes: ReadonlyArray<GraphNode>
-  edges: ReadonlyArray<GraphEdge>
-}): string {
-  const stableId = String(args.stableId || '').trim()
-  const nodeSig = (Array.isArray(args.nodes) ? args.nodes : [])
-    .map(node => {
-      const id = asString(node?.id)
-      const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? Math.round(node.x) : 'na'
-      const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? Math.round(node.y) : 'na'
-      return `${id}|${x}|${y}`
-    })
-    .filter(Boolean)
-    .sort()
-    .join(';')
-  const edgeSig = (Array.isArray(args.edges) ? args.edges : [])
-    .map(edge => `${asString(edge?.id)}|${asString(edge?.source)}|${asString(edge?.target)}`)
-    .filter(Boolean)
-    .sort()
-    .join(';')
-  return hashText(`frontmatter-flow|${stableId}|nodes:${nodeSig}|edges:${edgeSig}`)
 }
 
 function shouldSeedBalancedNodeLayout(nodes: ReadonlyArray<GraphNode>): boolean {
@@ -1291,6 +1268,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
       stableId,
       nodes: layoutedNodes,
       edges,
+      subgraphs: [],
     })
     const socketTypes = readSocketTypes(metaRecord)
     const warnings = [...readFlowWarnings(metaRecord), ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared })]
@@ -1488,6 +1466,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     stableId,
     nodes: layoutedNodes,
     edges,
+    subgraphs,
   })
 
   const socketTypes = readSocketTypes(metaRecord)
