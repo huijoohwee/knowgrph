@@ -18,6 +18,7 @@ import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { computeRadarGalaxyPositions2d } from '@/lib/graph/radarGalaxyLayout'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildFlowLayoutTopologyKey } from '@/components/FlowCanvas/flowLayoutTopologyKey'
 
 export function useFlowComputedPositions(args: {
   active: boolean
@@ -137,11 +138,8 @@ export function useFlowComputedPositions(args: {
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
     const semanticGraphKey = buildGraphMetaKeyIgnoringPending(g)
-    const sourceSeedHash = hashPositions(
-      extractNodePositions(nodeList as ReadonlyArray<{ id?: unknown; x?: unknown; y?: unknown }>),
-      nodeList.map(n => String(n?.id || '')).filter(Boolean),
-    )
-    const graphKey = `graph:${semanticGraphKey}:${nodeList.length}:${edgeList.length}:${layoutVariant}:${sourceSeedHash}`
+    const topologySignature = buildFlowLayoutTopologyKey({ semanticGraphKey, nodes: nodeList, edges: edgeList })
+    const graphKey = `graph:${topologySignature}:${layoutVariant}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 

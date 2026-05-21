@@ -167,11 +167,9 @@ function syncDocumentViewFromSourceFile(
       }
     }
     void store.setActiveMarkdownDocument({
-      name,
-      text: markdown,
-      normalizeMermaidMmd: false,
-      sourceUrl: sourceUrl || null,
-      jsonSourceText: null,
+      name, text: markdown, normalizeMermaidMmd: false,
+      sourceUrl: sourceUrl || null, jsonSourceText: null, autoEnableFrontmatter: false,
+      applyViewPreset: false,
     })
     return
   }
@@ -184,12 +182,11 @@ function syncDocumentViewFromSourceFile(
     }
   }
   void store.setActiveMarkdownDocument({
-    name,
-    text: normalized,
-    normalizeMermaidMmd: false,
-    sourceUrl: sourceUrl || null,
+    name, text: normalized, normalizeMermaidMmd: false,
+    sourceUrl: sourceUrl || null, autoEnableFrontmatter: false,
+    applyViewPreset: opts?.applyToGraph === true,
     applyToGraph: opts?.applyToGraph ?? true,
-    forceApplyToGraph: true,
+    forceApplyToGraph: opts?.applyToGraph === true,
   })
 }
 

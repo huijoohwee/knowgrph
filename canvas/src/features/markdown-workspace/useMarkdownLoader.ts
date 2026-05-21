@@ -99,6 +99,8 @@ export function useMarkdownLoader(
             normalizeMermaidMmd: false,
             sourceUrl: null,
             jsonSourceText: null,
+            autoEnableFrontmatter: false,
+            applyViewPreset: false,
           })
         } catch {
           void 0
@@ -143,7 +145,13 @@ export function useMarkdownLoader(
       if (!name) return
       try {
         const state = useGraphStore.getState()
-        void state.setActiveMarkdownDocument({ name, text: next, normalizeMermaidMmd: false })
+        void state.setActiveMarkdownDocument({
+          name,
+          text: next,
+          normalizeMermaidMmd: false,
+          autoEnableFrontmatter: false,
+          applyViewPreset: false,
+        })
       } catch {
         setMarkdownDocument(name, next)
       }
