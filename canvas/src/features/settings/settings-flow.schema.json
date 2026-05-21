@@ -105,8 +105,8 @@
   },
   "uiIconScale": {
     "area": "UI Density: Icons",
-    "responsibility": "Global icon scale (toolbar, panels, markdown workspace, and bottom-surface controls)",
-    "notes": "Options: compact (smaller icons, denser UI) or default (larger icons, more spacious). Applied via getIconSizeClass across HeaderActions, Toolbar, SearchPanel, History panels, Launch Spotlight status, Help/Workflow headers, Graph Fields icon legend, markdown workspace controls, and remaining bottom-surface toolbars.",
+    "responsibility": "Global icon scale (toolbar, panels, bottom surface)",
+    "notes": "Options: compact (smaller icons, denser UI) or default (larger icons, more spacious). Applied via getIconSizeClass across HeaderActions, Toolbar, SearchPanel, History panels, Launch Spotlight status, Help/Workflow headers, Help Icon Library legend, and bottom-surface toolbars.",
     "modules": [
       "canvas/src/features/settings/registry-ui.ui.ts",
       "canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts",
@@ -684,7 +684,7 @@
   },
   "chatApiKey": {
     "area": "Chat",
-    "responsibility": "Ephemeral API key (in-memory only, never localStorage)",
+    "responsibility": "BYOK API key (in-memory only, never localStorage)",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.ui.ts",
@@ -1614,7 +1614,7 @@
   },
   "chatContextScope": {
     "area": "Chat",
-    "responsibility": "chat context scope",
+    "responsibility": "Chat context scope for selection, workspace, or hybrid AI prompts",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.ui.ts",
@@ -1632,7 +1632,7 @@
   },
   "integrationConfigsJson": {
     "area": "Integrations",
-    "responsibility": "integration configs json",
+    "responsibility": "JSON settings for AI chat routing and simulation command defaults",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.ui.ts",
@@ -1894,7 +1894,7 @@
   },
   "autoEnableGeospatialOnGeoImport": {
     "area": "Geo",
-    "responsibility": "auto enable geospatial on geo import",
+    "responsibility": "Auto-enable Geospatial Mode after Geo imports",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.import-geo.ts",
@@ -1911,7 +1911,7 @@
     "lineRange": "canvas/src/features/settings/registry-ui.import-geo.ts:L8; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L58; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L79"
   },
   "maps.grabmaps.authMode": {
-    "area": "GrabMaps Directions Request",
+    "area": "GrabMaps",
     "responsibility": "GrabMaps auth mode (BYOK or server-managed)",
     "notes": "",
     "modules": [
@@ -1929,7 +1929,7 @@
     "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L20; canvas/src/hooks/store/store-types/graph-state-files.ts:L88; canvas/src/hooks/store/uiSliceIntegrationActions.ts:L12"
   },
   "maps.grabmaps.apiKey": {
-    "area": "GrabMaps Directions Request",
+    "area": "GrabMaps",
     "responsibility": "GrabMaps BYOK API key (session only)",
     "notes": "",
     "modules": [
@@ -2358,7 +2358,7 @@
   },
   "maps.grabmaps.mcp.searchPlaces.radius": {
     "area": "GrabMaps MCP Configuration",
-    "responsibility": "search_places radius in meters",
+    "responsibility": "search_places MCP-only contextual bias radius",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.grabmaps.ts"
@@ -2456,7 +2456,7 @@
   },
   "maps.grabmaps.mcp.nearbySearch.radius": {
     "area": "GrabMaps MCP Configuration",
-    "responsibility": "nearby_search radius in meters",
+    "responsibility": "nearby_search radius in kilometres",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.grabmaps.ts"
@@ -2874,7 +2874,7 @@
   },
   "monacoLanguageJsonEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco language json enabled",
+    "responsibility": "Enable Monaco JSON language support",
     "notes": "When disabled, JSON Monaco surfaces fall back to plaintext.",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -2892,7 +2892,7 @@
   },
   "monacoLanguageJsonLoadMode": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco language json load mode",
+    "responsibility": "Load mode for Monaco JSON language support",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -2910,7 +2910,7 @@
   },
   "monacoLanguageSqlEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco language sql enabled",
+    "responsibility": "Enable Monaco SQL language support",
     "notes": "When disabled, SQL Monaco surfaces fall back to plaintext.",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -2928,7 +2928,7 @@
   },
   "monacoLanguageSqlLoadMode": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco language sql load mode",
+    "responsibility": "Load mode for Monaco SQL language support",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -2946,7 +2946,7 @@
   },
   "monacoLanguageYamlEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco language yaml enabled",
+    "responsibility": "Enable Monaco YAML language support",
     "notes": "When disabled, YAML Monaco surfaces fall back to plaintext.",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -2964,7 +2964,7 @@
   },
   "monacoLanguageYamlLoadMode": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco language yaml load mode",
+    "responsibility": "Load mode for Monaco YAML language support",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -2982,7 +2982,7 @@
   },
   "monacoWorkerJsonEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco worker json enabled",
+    "responsibility": "Enable Monaco JSON worker",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3000,7 +3000,7 @@
   },
   "monacoWorkerJsonLoadMode": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco worker json load mode",
+    "responsibility": "Load mode for Monaco JSON worker",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3018,7 +3018,7 @@
   },
   "monacoHoverEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco hover enabled",
+    "responsibility": "Enable Monaco hover tooltips",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3054,7 +3054,7 @@
   },
   "monacoQuickSuggestionsEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco quick suggestions enabled",
+    "responsibility": "Enable Monaco quick suggestions",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3090,7 +3090,7 @@
   },
   "monacoParameterHintsEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco parameter hints enabled",
+    "responsibility": "Enable Monaco parameter hints",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3108,7 +3108,7 @@
   },
   "monacoLineNumbersEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco line numbers enabled",
+    "responsibility": "Show Monaco line numbers",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3126,7 +3126,7 @@
   },
   "monacoFoldingEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco folding enabled",
+    "responsibility": "Enable Monaco code folding",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -3144,7 +3144,7 @@
   },
   "monacoMinimapEnabled": {
     "area": "Editor: Monaco",
-    "responsibility": "monaco minimap enabled",
+    "responsibility": "Show Monaco minimap",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.monaco.ts",
@@ -6625,7 +6625,7 @@
     "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L157; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L147; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L88"
   },
   "enableVirtualTables": {
-    "area": "Graph Data Table Virtualization",
+    "area": "Multi-dimensional Table Virtualization",
     "responsibility": "Virtualized tables",
     "notes": "",
     "modules": [
@@ -6695,7 +6695,7 @@
   },
   "canvas3dMode": {
     "area": "Canvas Rendering",
-    "responsibility": "3D renderer mode (default or voxel)",
+    "responsibility": "3D renderer mode (default, XR, or voxel)",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
@@ -6786,7 +6786,7 @@
   "flowEditorOverlayWheelProxyEnabled": {
     "area": "Canvas Interaction (Flow Editor)",
     "responsibility": "Enable wheel zoom/pan proxy when pointer is over Flow Editor fly-out overlays",
-    "notes": "When enabled, wheel gestures over Node Quick Editor overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.",
+    "notes": "When enabled, wheel gestures over Widget overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.",
     "modules": [
       "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts",
@@ -6894,7 +6894,7 @@
   "wheelZoomCtrlMetaBoostMultiplier": {
     "area": "Canvas Interaction (Wheel Zoom)",
     "responsibility": "Ctrl/Meta wheel zoom boost multiplier (trackpad pinch)",
-    "notes": "clamps to [1,40]. Used by D3, Flow, and FlowEditor 2D renderers.",
+    "notes": "clamps to [1,400]. Used by D3, Flow, and FlowEditor 2D renderers.",
     "modules": [
       "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts",
@@ -7017,20 +7017,18 @@
     "area": "Orchestrator Traversal",
     "responsibility": "Delay between traversal steps in Orchestrator (ms)",
     "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts"
-    ],
+    "modules": [],
     "classes": [],
     "functions": [],
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1042"
+    "lineRange": ""
   },
   "graph.behavior.selectMode": {
     "area": "Canvas Interaction",
     "responsibility": "Node selection mode (single, multi, lasso)",
-    "notes": "Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Graph Data Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.",
+    "notes": "Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Multi-dimensional Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.",
     "modules": [
       "canvas/src/hooks/store/schemaSlice.ts",
       "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
@@ -9682,7 +9680,7 @@
   "payments.stripe.secretKey": {
     "area": "Stripe Payment API",
     "responsibility": "Stripe secret key (server-side)",
-    "notes": "Keep secret keys server-side only; do not expose in client code.",
+    "notes": "Keep secret keys server-side only; configure STRIPE_RESTRICTED_KEY or STRIPE_SECRET_KEY on the payment server runtime.",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
     ],
@@ -9710,7 +9708,7 @@
   "payments.stripe.webhookSecret": {
     "area": "Stripe Payment API",
     "responsibility": "Stripe webhook signing secret",
-    "notes": "Used to verify webhook signatures.",
+    "notes": "Server-managed only; used by the payment server runtime to verify webhook signatures. Configure Stripe secrets on the server runtime that owns /api/payments/stripe/checkout/session. Cloudflare Pages project variables are available to Pages builds/functions, but they are not read by separate Worker routes. Stripe Projects can provision and sync credentials locally; copy only required server secret names into the payment server runtime.",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
     ],
@@ -9772,8 +9770,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L99; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L146"
   },
   "payments.stripe.mcp.serverKey": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Stripe MCP server key inside mcpServers",
+    "area": "—",
+    "responsibility": "server key",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
@@ -9786,8 +9784,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L110"
   },
   "payments.stripe.mcp.remoteUrl": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Stripe remote MCP server URL",
+    "area": "—",
+    "responsibility": "remote url",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
@@ -9800,8 +9798,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L116"
   },
   "payments.stripe.mcp.connectionMode": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Stripe MCP connection mechanism label",
+    "area": "—",
+    "responsibility": "connection mode",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
@@ -9814,8 +9812,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L122"
   },
   "payments.stripe.mcp.localCommand": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Local Stripe MCP launcher command",
+    "area": "—",
+    "responsibility": "local command",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
@@ -9828,8 +9826,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L129"
   },
   "payments.stripe.mcp.localArgs": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Local Stripe MCP launcher args JSON array",
+    "area": "—",
+    "responsibility": "local args",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
@@ -9842,8 +9840,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L135"
   },
   "payments.stripe.mcp.startupTimeoutMs": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Stripe MCP startup timeout in milliseconds",
+    "area": "—",
+    "responsibility": "startup timeout (ms)",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"
@@ -9856,8 +9854,8 @@
     "lineRange": "canvas/src/features/settings/registry-payments.ts:L141"
   },
   "payments.stripe.mcp.requireConfirmation": {
-    "area": "Stripe MCP Configuration",
-    "responsibility": "Require human confirmation before payment-mutating MCP tool calls",
+    "area": "—",
+    "responsibility": "require confirmation",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-payments.ts"

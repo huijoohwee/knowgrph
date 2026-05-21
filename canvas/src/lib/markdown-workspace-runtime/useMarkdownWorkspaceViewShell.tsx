@@ -70,11 +70,9 @@ export function useMarkdownWorkspaceViewShell(args: {
   const onSelectFile = React.useCallback(
     (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
-      React.startTransition(() => {
-        setSelectionSource('editor')
-        setActivePathSafe(normalized)
-        setSelectionPathSafe(normalized)
-      })
+      setSelectionSource('editor')
+      setActivePathSafe(normalized)
+      setSelectionPathSafe(normalized)
     },
     [setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )

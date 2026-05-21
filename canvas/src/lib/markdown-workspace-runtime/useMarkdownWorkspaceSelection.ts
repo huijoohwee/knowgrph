@@ -23,6 +23,7 @@ import {
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
 import { buildWorkspaceEntriesIndex } from './workspaceEntriesIndex'
+import type { MarkdownWorkspaceRuntimeGetFs } from './markdownWorkspaceRuntime.types'
 
 export type MarkdownWorkspaceSelectionArgs = {
   activePath: WorkspacePath | null
@@ -35,6 +36,7 @@ export type MarkdownWorkspaceSelectionArgs = {
   markdownDocumentName: string
   markdownDocumentText: string
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
+  getFs: MarkdownWorkspaceRuntimeGetFs
   sourcesByPath: WorkspaceSourceIndex
   viewerInlineEditActive: boolean
   activeRef: React.MutableRefObject<boolean>
@@ -135,10 +137,9 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const nextPath = args.activePath
     const prevPath = previousActivePathRef.current
     previousActivePathRef.current = nextPath
-    switchedActivePathRef.current =
-      nextPath && prevPath && prevPath !== nextPath
-        ? { prev: prevPath, next: nextPath }
-        : null
+    if (nextPath && prevPath && prevPath !== nextPath) {
+      switchedActivePathRef.current = { prev: prevPath, next: nextPath }
+    }
     if (!nextPath || !prevPath || prevPath === nextPath || activeEntryKind === 'folder' || !args.activeRef.current) return
     const currentText = String(args.activeTextRef.current || '')
     if (!currentText) return
@@ -162,19 +163,37 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const switched = switchedActivePathRef.current
     if (!switched) return
     const nextPath = switched.next
+    if (nextPath !== args.activePath) return
     if (activeEntryKind === 'folder') return
-    const nextText = typeof activeEntryText === 'string' ? String(activeEntryText) : ''
-    if (!nextText.trim()) return
-    const currentText = String(args.activeTextRef.current || '')
-    if (currentText === nextText) return
-    args.setActiveTextProgrammatic(nextText)
-    args.lastLoadedRef.current = { path: nextPath, text: nextText }
+    let cancelled = false
+    const run = async () => {
+      let nextText = typeof activeEntryText === 'string' ? String(activeEntryText) : ''
+      if (!nextText.trim()) {
+        const fs = await args.getFs()
+        if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
+        nextText = String((await fs.readFileText(nextPath).catch(() => '')) || '')
+      }
+      if (!nextText.trim()) return
+      if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
+      const currentText = String(args.activeTextRef.current || '')
+      if (currentText !== nextText) {
+        args.setActiveTextProgrammatic(nextText)
+      }
+      args.lastLoadedRef.current = { path: nextPath, text: nextText }
+      args.patchWorkspaceEntryInlineText(nextPath, nextText)
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
   }, [
     activeEntryKind,
     activeEntryText,
     args.activePath,
     args.activeTextRef,
+    args.getFs,
     args.lastLoadedRef,
+    args.patchWorkspaceEntryInlineText,
     args.setActiveTextProgrammatic,
   ])
 
@@ -184,53 +203,80 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   React.useEffect(() => {
     const switched = switchedActivePathRef.current
     if (!switched) return
+    if (switched.next !== args.activePath) return
     if (activeEntryKind === 'folder') return
     if (!activeDocumentKey) return
-    const nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
-    if (!nextText.trim()) return
-
-    const nextSig = buildWorkspaceDocumentSwitchSignature({
-      activeDocumentKey,
-      text: nextText,
-      updatedAtMs: activeEntry?.updatedAtMs,
-    })
-    const nowMs = Date.now()
-    const lastAttempt = lastDocumentSwitchApplyAttemptRef.current
-    if (
-      lastAttempt.sig === nextSig &&
-      nowMs - lastAttempt.atMs < 400
-    ) {
-      return
-    }
-    if (documentSwitchApplyInFlightSigRef.current === nextSig) return
-    if (lastDocumentSwitchApplySigRef.current === nextSig) return
-    lastDocumentSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
-    documentSwitchApplyInFlightSigRef.current = nextSig
-    lastDocumentSwitchApplySigRef.current = nextSig
+    const inlineText = typeof activeEntryText === 'string' ? activeEntryText : ''
+    const loaded = args.lastLoadedRef.current
+    let cancelled = false
     void (async () => {
+      let nextText = inlineText.trim()
+        ? inlineText
+        : loaded?.path === switched.next
+          ? String(loaded.text || '')
+          : ''
+      if (!nextText.trim()) {
+        const fs = await args.getFs()
+        if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
+        nextText = String((await fs.readFileText(switched.next).catch(() => '')) || '')
+      }
+      if (!nextText.trim()) return
+      if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
+
+      const nextSig = buildWorkspaceDocumentSwitchSignature({
+        activeDocumentKey,
+        text: nextText,
+        updatedAtMs: activeEntry?.updatedAtMs,
+      })
+      const nowMs = Date.now()
+      const lastAttempt = lastDocumentSwitchApplyAttemptRef.current
+      if (
+        lastAttempt.sig === nextSig &&
+        nowMs - lastAttempt.atMs < 400
+      ) {
+        return
+      }
+      if (documentSwitchApplyInFlightSigRef.current === nextSig) return
+      if (lastDocumentSwitchApplySigRef.current === nextSig) return
+      lastDocumentSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
+      documentSwitchApplyInFlightSigRef.current = nextSig
+      lastDocumentSwitchApplySigRef.current = nextSig
+      args.lastLoadedRef.current = { path: switched.next, text: nextText }
+      args.patchWorkspaceEntryInlineText(switched.next, nextText)
       try {
         await applyActiveMarkdownDocumentPayload({
           setActiveMarkdownDocument: args.setActiveMarkdownDocument,
           name: activeDocumentKey,
           text: nextText,
           sourceUrl: activeDocumentSourceUrl,
-          autoEnableFrontmatter: false,
-          applyViewPreset: false,
-          applyToGraph: false,
+          autoEnableFrontmatter: true,
+          applyViewPreset: true,
+          applyToGraph: true,
+          forceApplyToGraph: true,
           normalizeWebpageFrontmatterToMarkdown: false,
         })
       } finally {
         if (documentSwitchApplyInFlightSigRef.current === nextSig) {
           documentSwitchApplyInFlightSigRef.current = ''
         }
+        if (switchedActivePathRef.current?.next === switched.next) {
+          switchedActivePathRef.current = null
+        }
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [
+    args.activePath,
     activeDocumentKey,
     activeDocumentSourceUrl,
     activeEntry,
     activeEntryKind,
     activeEntryText,
+    args.getFs,
+    args.lastLoadedRef,
+    args.patchWorkspaceEntryInlineText,
     args.setActiveMarkdownDocument,
   ])
 

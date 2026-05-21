@@ -252,7 +252,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setActiveTextProgrammatic,
       markdownDocumentName,
       markdownDocumentText,
-      setActiveMarkdownDocument,
+      setActiveMarkdownDocument, getFs: explorerState.getFs,
       sourcesByPath,
       viewerInlineEditActive,
       activeRef,

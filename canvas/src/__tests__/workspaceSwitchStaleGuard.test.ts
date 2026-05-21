@@ -197,7 +197,7 @@ export const testMarkdownWorkspaceSelectionClearsStaleEditorTextBeforeSsotDocume
   }
 }
 
-export const testMarkdownWorkspaceSelectionKeepsFrontmatterFileSwitchPassive = () => {
+export const testMarkdownWorkspaceSelectionAppliesFrontmatterFileSwitchAtActiveDocumentBoundary = () => {
   const text = readUtf8(markdownWorkspaceSelectionPath())
   const viewShellText = readUtf8(markdownWorkspaceViewShellPath())
   const presetHelperPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'workspaceSwitchPreset.ts')
@@ -213,7 +213,7 @@ export const testMarkdownWorkspaceSelectionKeepsFrontmatterFileSwitchPassive = (
     text.includes('buildCanvasWorkspacePresetSwitchSemanticKey') ||
     text.includes('canvasWorkspacePreset:')
   ) {
-    throw new Error('Expected Source Files switching to avoid parsing or applying YAML Canvas frontmatter presets')
+    throw new Error('Expected Source Files switching to avoid local YAML Canvas preset aliases outside the active document owner')
   }
   if (text.includes('primeStrictFrontmatterFlowEditorMode') || text.includes('shouldPrimeStrictFlowEditorModeForWorkspaceText')) {
     throw new Error('Expected markdown workspace selection to avoid stale Flow Editor-only preset priming')
@@ -227,11 +227,17 @@ export const testMarkdownWorkspaceSelectionKeepsFrontmatterFileSwitchPassive = (
   if (text.includes('FRONTMATTER_SWITCH_GRAPH_APPLY_DELAY_MS') || text.includes('frontmatterSwitchGraphApplyTimerRef') || text.includes('applyGraphAfterSelection')) {
     throw new Error('Expected markdown workspace selection not to schedule graph apply from Source Files selection state')
   }
-  if (!text.includes('applyViewPreset: false,\n          applyToGraph: false')) {
-    throw new Error('Expected markdown workspace selection to sync the active document without applying YAML Canvas view presets')
+  if (!text.includes('autoEnableFrontmatter: true,\n          applyViewPreset: true,\n          applyToGraph: true')) {
+    throw new Error('Expected markdown workspace selection to apply selected file content and YAML Canvas view presets through the active document owner')
   }
-  if (text.includes('applyToGraph: true')) {
-    throw new Error('Expected markdown workspace selection not to mutate Canvas graph data while switching Source Files')
+  if (!text.includes('forceApplyToGraph: true')) {
+    throw new Error('Expected markdown workspace selection to force the selected file to replace stale Canvas graph data')
+  }
+  if (!text.includes('if (nextPath && prevPath && prevPath !== nextPath) {') || !text.includes('if (switched.next !== args.activePath) return')) {
+    throw new Error('Expected markdown workspace selection to keep the pending file switch stable until the active document owner consumes the matching path')
+  }
+  if (!text.includes('await fs.readFileText(nextPath).catch(() => \'\')') || !text.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
+    throw new Error('Expected markdown workspace selection to hydrate metadata-only workspace entries from the shared workspace fs before applying selected file frontmatter')
   }
   if (!text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
     throw new Error('Expected Source Files frontmatter replay to keep original markdown flow blocks instead of normalizing to webpage key/value markdown')
