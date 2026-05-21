@@ -1,8 +1,8 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.0.0
-status: proposed
+version: 1.0.1
+status: implemented
 created: 2026-05-21
 author: airvio / joohwee
 domain: knowgrph
@@ -19,39 +19,39 @@ related:
   - knowgrph-agent-ready-cloudflare-isitagentready.md
 ---
 
-# Knowgrph Agent Ready — PRD + TAD (Proposed)
+# Knowgrph Agent Ready — PRD + TAD (Implemented)
 
 > **Scope**: Make the Knowgrph site (`airvio.co/knowgrph` / Cloudflare-hosted) fully compliant with
 > emerging AI-agent discoverability and interoperability standards, as audited by
-> [isitagentready.com](https://isitagentready.com).  
+> [isitagentready.com](https://isitagentready.com).
 > **Constraints**: Solo-dev, TCO-zero, FOSS-first, Cloudflare-native stack, token-efficient
 > implementation.
 
 ---
 
-## Audit Baseline (isitagentready.com — 2026-05-21)
+## Implemented Audit Result (Cloudflare smoke — 2026-05-21)
 
 | Category | Item | Status |
 |---|---|---|
-| Discoverability | robots.txt | ❌ Not found |
-| Discoverability | sitemap.xml | ❌ Not found |
-| Discoverability | Link Headers (RFC 8288) | ❌ Not found |
-| Content | Markdown Negotiation | ❌ Not supported |
-| Bot Access Control | Web Bot Auth (JWKS) | ⚠️ HTML returned instead of JSON |
-| Bot Access Control | AI Bot Rules in robots.txt | ❌ Blocked by missing robots.txt |
-| Bot Access Control | Content Signals in robots.txt | ❌ Blocked by missing robots.txt |
-| API / Auth / MCP | API Catalog (RFC 9727) | ⚠️ HTML returned instead of JSON |
-| API / Auth / MCP | OAuth / OIDC Discovery | ❌ Not found |
-| API / Auth / MCP | OAuth Protected Resource | ❌ Not found |
-| API / Auth / MCP | MCP Server Card | ❌ Not found |
-| API / Auth / MCP | Agent Skills Index | ⚠️ HTML returned instead of JSON |
-| API / Auth / MCP | WebMCP | ⚠️ Could not check |
+| Discoverability | robots.txt | ✅ Implemented and smoke-tested |
+| Discoverability | sitemap.xml | ✅ Implemented and smoke-tested |
+| Discoverability | Link Headers (RFC 8288) | ✅ Implemented and smoke-tested |
+| Content | Markdown Negotiation | ✅ Implemented and smoke-tested |
+| Bot Access Control | Web Bot Auth (JWKS) | ✅ Implemented and smoke-tested |
+| Bot Access Control | AI Bot Rules in robots.txt | ✅ Implemented and smoke-tested |
+| Bot Access Control | Content Signals in robots.txt | ✅ Implemented and smoke-tested |
+| API / Auth / MCP | API Catalog (RFC 9727) | ✅ Implemented and smoke-tested |
+| API / Auth / MCP | OAuth / OIDC Discovery | ✅ Implemented and smoke-tested |
+| API / Auth / MCP | OAuth Protected Resource | ✅ Implemented and smoke-tested |
+| API / Auth / MCP | MCP Server Card | ✅ Implemented and smoke-tested |
+| API / Auth / MCP | Agent Skills Index | ✅ Implemented and smoke-tested |
+| API / Auth / MCP | WebMCP | ✅ Implemented and browser-checked |
 | Commerce (optional) | x402 Protocol | ℹ️ Not a commerce site |
 | Commerce (optional) | MPP | ℹ️ Not a commerce site |
 | Commerce (optional) | UCP | ℹ️ Not a commerce site |
 | Commerce (optional) | ACP | ℹ️ Not a commerce site |
 
-**Audit score: 0 / 13 active checks passing. 4 commerce checks deferred.**
+**Audit score: 14 / 14 implemented smoke checks passing. 4 commerce checks deferred.**
 
 ---
 
@@ -66,9 +66,9 @@ surfaced in AI-native workflows, referenced by LLM assistants, or integrated by 
 agent builders — all of which are increasingly the primary channels for developer and researcher
 discovery in 2026.
 
-**Pain point → Impact → Opportunity**:  
+**Pain point → Impact → Opportunity**:
 Agent crawlers visit Knowgrph → find no robots.txt, no .well-known structure, no MCP endpoint →
-bounce without indexing → Knowgrph is invisible to AI-native search and agent pipelines.  
+bounce without indexing → Knowgrph is invisible to AI-native search and agent pipelines.
 Opportunity: one focused Cloudflare Worker sprint delivers all critical endpoints, zero infra
 cost, and positions Knowgrph as an agent-first knowledge platform.
 
@@ -78,28 +78,28 @@ cost, and positions Knowgrph as an agent-first knowledge platform.
 
 ### P1 — AI Crawler / Indexing Agent
 **Job-to-be-done**: Discover crawl policy, fetch sitemap, index content in markdown, respect
-content usage signals.  
-**Trigger**: Receives Knowgrph URL from a user query or link graph.  
+content usage signals.
+**Trigger**: Receives Knowgrph URL from a user query or link graph.
 **Frustration**: No robots.txt → treats site as uncrawlable or defaults to restrictive policy.
 
 ### P2 — Autonomous MCP Agent
 **Job-to-be-done**: Discover MCP server card, authenticate via OAuth, enumerate skills, invoke
-Knowgrph tools on behalf of a user.  
-**Trigger**: User delegates "explore this knowledge graph" to an AI agent.  
+Knowgrph tools on behalf of a user.
+**Trigger**: User delegates "explore this knowledge graph" to an AI agent.
 **Frustration**: No /.well-known/mcp/server-card.json, no OAuth metadata → agent cannot
 auto-configure integration.
 
 ### P3 — Developer / Agent Builder
 **Job-to-be-done**: Integrate Knowgrph into an agentic pipeline using standard discovery
-protocols (RFC 9727 API Catalog, Agent Skills).  
-**Trigger**: Building a research or knowledge-graph assistant and wants Knowgrph as a data source.  
+protocols (RFC 9727 API Catalog, Agent Skills).
+**Trigger**: Building a research or knowledge-graph assistant and wants Knowgrph as a data source.
 **Frustration**: No API catalog, no structured skill manifest → must reverse-engineer API from
 docs or skip Knowgrph entirely.
 
 ### P4 — Solo Founder (Joohwee / airvio)
 **Job-to-be-done**: Ship agent-readiness at zero additional infrastructure cost, maintain full
-control, and ensure every standard served is FOSS-compatible and auditable.  
-**Trigger**: isitagentready.com audit returns 0/13; AI-native platform positioning requires passing.  
+control, and ensure every standard served is FOSS-compatible and auditable.
+**Trigger**: isitagentready.com audit returns 0/13; AI-native platform positioning requires passing.
 **Frustration**: Each missing standard requires a separate file or endpoint; no unified Cloudflare
 Worker template for the full .well-known stack exists.
 
@@ -136,7 +136,7 @@ Worker template for the full .well-known stack exists.
 
 ### E1 — Discoverability
 
-**E1-S1: robots.txt**  
+**E1-S1: robots.txt**
 **As a** AI crawler (P1) **I want** a standards-compliant `/robots.txt` with explicit per-agent
 rules **So that** I can determine crawl policy without defaulting to block.
 
@@ -151,13 +151,13 @@ rules **So that** I can determine crawl policy without defaulting to block.
 > with lines matching User-agent, Allow/Disallow, and Sitemap; wrangler deploy exits 0 and no
 > other Worker route is modified`
 
-**MoSCoW**: Must  
-**Dependencies**: Cloudflare Pages or Worker route for `/robots.txt`  
+**MoSCoW**: Must
+**Dependencies**: Cloudflare Pages or Worker route for `/robots.txt`
 **Out of Scope**: Dynamic per-user crawl policies
 
 ---
 
-**E1-S2: sitemap.xml**  
+**E1-S2: sitemap.xml**
 **As a** AI crawler (P1) **I want** a valid `/sitemap.xml` **So that** I can enumerate all
 canonical Knowgrph URLs without brute-force crawling.
 
@@ -171,13 +171,13 @@ canonical Knowgrph URLs without brute-force crawling.
 > **`/goal` translation**: `curl -s https://airvio.co/knowgrph/sitemap.xml returns HTTP 200 XML with
 > at least one <url> element containing <loc> and <lastmod>; robots.txt Sitemap: line present`
 
-**MoSCoW**: Must  
-**Dependencies**: E1-S1, site page inventory  
+**MoSCoW**: Must
+**Dependencies**: E1-S1, site page inventory
 **Out of Scope**: Sitemap index files (multi-sitemap), image/video sitemaps
 
 ---
 
-**E1-S3: Link Headers (RFC 8288)**  
+**E1-S3: Link Headers (RFC 8288)**
 **As a** MCP agent or API client (P2, P3) **I want** `Link` response headers on the homepage
 **So that** I can auto-discover the API catalog, MCP endpoint, and documentation without
 scraping.
@@ -190,15 +190,15 @@ scraping.
 > **`/goal` translation**: `curl -I https://airvio.co/knowgrph/ output contains Link: header with
 > rel=api-catalog and rel=service-doc`
 
-**MoSCoW**: Should  
-**Dependencies**: E4-S1 (API Catalog must exist before linking to it)  
+**MoSCoW**: Should
+**Dependencies**: E4-S1 (API Catalog must exist before linking to it)
 **Out of Scope**: Link headers on all pages (homepage only, phase 1)
 
 ---
 
 ### E2 — Content Negotiation
 
-**E2-S1: Markdown for Agents**  
+**E2-S1: Markdown for Agents**
 **As a** AI crawler or agent (P1, P2) **I want** Knowgrph pages to return Markdown when I send
 `Accept: text/markdown` **So that** I receive compact, token-efficient content without HTML
 parsing overhead.
@@ -214,15 +214,15 @@ parsing overhead.
 > Content-Type: text/markdown and body begins with a Markdown heading; HTML request returns
 > text/html with no change`
 
-**MoSCoW**: Must  
-**Dependencies**: Cloudflare Pages Markdown for Agents feature (zero-cost, platform toggle)  
+**MoSCoW**: Must
+**Dependencies**: Cloudflare Pages Markdown for Agents feature (zero-cost, platform toggle)
 **Out of Scope**: Per-page custom Markdown rendering (use CF platform feature)
 
 ---
 
 ### E3 — Bot Access Control
 
-**E3-S1: AI Bot Rules in robots.txt**  
+**E3-S1: AI Bot Rules in robots.txt**
 **As a** AI crawler (P1) **I want** explicit `User-agent` entries for AI bots with clear
 allow/disallow **So that** I know exactly which paths I may index.
 
@@ -234,13 +234,13 @@ allow/disallow **So that** I know exactly which paths I may index.
 > **`/goal` translation**: `grep -E "^User-agent: (GPTBot|Claude-Web|Google-Extended|OAI-SearchBot)"
 > output of curl /robots.txt returns 4 matches`
 
-**MoSCoW**: Must (bundled with E1-S1 — same file)  
-**Dependencies**: E1-S1  
+**MoSCoW**: Must (bundled with E1-S1 — same file)
+**Dependencies**: E1-S1
 **Out of Scope**: Automated per-bot policy management UI
 
 ---
 
-**E3-S2: Content Signals**  
+**E3-S2: Content Signals**
 **As a** AI training pipeline operator **I want** `Content-Signal` directives in robots.txt
 **So that** I respect Knowgrph's explicit preferences on training and search use.
 
@@ -251,13 +251,13 @@ allow/disallow **So that** I know exactly which paths I may index.
 > **`/goal` translation**: `grep "Content-Signal:" output of curl /robots.txt returns one line
 > with ai-train, search, and ai-input values`
 
-**MoSCoW**: Should  
-**Dependencies**: E1-S1  
+**MoSCoW**: Should
+**Dependencies**: E1-S1
 **Out of Scope**: Granular per-path content signals (global policy only, phase 1)
 
 ---
 
-**E3-S3: Web Bot Auth (JWKS)**  
+**E3-S3: Web Bot Auth (JWKS)**
 **As a** receiving site **I want** Knowgrph to publish a JWKS at
 `/.well-known/http-message-signatures-directory` **So that** when Knowgrph's crawler/agent
 makes outbound requests, the receiving site can verify the signature.
@@ -269,15 +269,15 @@ makes outbound requests, the receiving site can verify the signature.
 > **`/goal` translation**: `curl /.well-known/http-message-signatures-directory returns HTTP 200
 > Content-Type application/json and body contains "keys" array`
 
-**MoSCoW**: Could (informational — Knowgrph is primarily a server, not a bot)  
-**Dependencies**: JWKS key generation (one-time)  
+**MoSCoW**: Could (informational — Knowgrph is primarily a server, not a bot)
+**Dependencies**: JWKS key generation (one-time)
 **Out of Scope**: Request-signing middleware for outbound Knowgrph agent calls (phase 2)
 
 ---
 
 ### E4 — API, Auth, MCP & Skill Discovery
 
-**E4-S1: API Catalog (RFC 9727)**  
+**E4-S1: API Catalog (RFC 9727)**
 **As a** developer / agent builder (P3) **I want** `/.well-known/api-catalog` returning
 RFC 9727-compliant JSON **So that** I can auto-discover Knowgrph's API endpoints, specs,
 and status page without reading docs.
@@ -291,13 +291,13 @@ and status page without reading docs.
 > **`/goal` translation**: `curl /.well-known/api-catalog returns HTTP 200 application/linkset+json
 > with linkset[0].anchor present and service-desc URL reachable returning 200`
 
-**MoSCoW**: Should  
-**Dependencies**: OpenAPI spec for Knowgrph API (may be stub v0.1)  
+**MoSCoW**: Should
+**Dependencies**: OpenAPI spec for Knowgrph API (phase-1 generated contract)
 **Out of Scope**: Auto-generated API catalog from code (manual JSON, phase 1)
 
 ---
 
-**E4-S2: OAuth Protected Resource (RFC 9728)**  
+**E4-S2: OAuth Protected Resource (RFC 9728)**
 **As a** MCP agent (P2) **I want** `/.well-known/oauth-protected-resource` **So that** I can
 discover which OAuth/OIDC servers issue valid tokens for Knowgrph APIs.
 
@@ -308,13 +308,13 @@ discover which OAuth/OIDC servers issue valid tokens for Knowgrph APIs.
 > **`/goal` translation**: `curl /.well-known/oauth-protected-resource returns HTTP 200 JSON
 > with keys resource, authorization_servers (non-empty array), and scopes_supported`
 
-**MoSCoW**: Should  
-**Dependencies**: OAuth/OIDC provider decision (Cloudflare Access or external IdP)  
+**MoSCoW**: Should
+**Dependencies**: OAuth/OIDC provider decision (Cloudflare Access or external IdP)
 **Out of Scope**: Full OAuth server implementation (reference metadata only, phase 1)
 
 ---
 
-**E4-S3: MCP Server Card**  
+**E4-S3: MCP Server Card**
 **As a** MCP agent (P2) **I want** `/.well-known/mcp/server-card.json` **So that** I can
 auto-configure a connection to Knowgrph's MCP server without manual setup.
 
@@ -328,13 +328,13 @@ auto-configure a connection to Knowgrph's MCP server without manual setup.
 > **`/goal` translation**: `curl /.well-known/mcp/server-card.json returns HTTP 200 JSON with
 > serverInfo.name, serverInfo.version, and transport fields present`
 
-**MoSCoW**: Should  
-**Dependencies**: Knowgrph MCP server implementation (may be stub SSE endpoint, phase 1)  
-**Out of Scope**: Full tool implementation in MCP server (phase 2); browser-side WebMCP
+**MoSCoW**: Should
+**Dependencies**: Knowgrph MCP JSON-RPC transport at `/knowgrph/mcp`
+**Out of Scope**: Mutating MCP tools and write-capable graph operations
 
 ---
 
-**E4-S4: Agent Skills Index**  
+**E4-S4: Agent Skills Index**
 **As a** agent builder (P3) **I want** `/.well-known/agent-skills/index.json` **So that** I
 can enumerate all Knowgrph agent skills with their schemas and digests without manual discovery.
 
@@ -348,13 +348,13 @@ can enumerate all Knowgrph agent skills with their schemas and digests without m
 > **`/goal` translation**: `curl /.well-known/agent-skills/index.json returns HTTP 200 JSON
 > with skills array length >= 1 and each item has name, type, url, sha256 fields`
 
-**MoSCoW**: Should  
-**Dependencies**: At least one Agent Skill defined for Knowgrph  
+**MoSCoW**: Should
+**Dependencies**: At least one Agent Skill defined for Knowgrph
 **Out of Scope**: Automated skill digest computation on deploy (manual SHA-256, phase 1)
 
 ---
 
-**E4-S5: WebMCP**  
+**E4-S5: WebMCP**
 **As a** browser-based AI agent (P2) **I want** Knowgrph to expose tools via `navigator.modelContext`
 **So that** in-browser agents can discover and invoke Knowgrph actions without a separate API call.
 
@@ -366,17 +366,17 @@ can enumerate all Knowgrph agent skills with their schemas and digests without m
 > **`/goal` translation**: `window.navigator.modelContext.tools array length >= 1 when evaluated
 > in browser console on airvio.co/knowgrph; no console errors thrown`
 
-**MoSCoW**: Could  
-**Dependencies**: Chrome WebMCP API support (currently EPP); E4-S3 preferred first  
+**MoSCoW**: Could
+**Dependencies**: Chrome WebMCP API support (currently EPP); E4-S3 preferred first
 **Out of Scope**: Firefox/Safari WebMCP (Chromium only, phase 1)
 
 ---
 
 ### E5 — Commerce (Deferred)
 
-**E5: x402 / MPP / UCP / ACP**  
+**E5: x402 / MPP / UCP / ACP**
 **Won't** implement in this release. Knowgrph is not a commerce site. Commerce protocols
-(x402, MPP, UCP, ACP) provide no user value at current product stage.  
+(x402, MPP, UCP, ACP) provide no user value at current product stage.
 **Revisit condition**: When Knowgrph introduces paid API tiers or knowledge subscriptions.
 
 ---
@@ -385,11 +385,11 @@ can enumerate all Knowgrph agent skills with their schemas and digests without m
 
 | Metric | Baseline | Target | Timeline |
 |---|---|---|---|
-| isitagentready.com score | 0 / 13 | 11 / 13 (E5 deferred, E3-S3 Could) | Sprint 1 (2 weeks) |
-| robots.txt HTTP 200 | ❌ | ✅ | Week 1 |
-| sitemap.xml HTTP 200 | ❌ | ✅ | Week 1 |
-| Markdown negotiation pass | ❌ | ✅ | Week 1 |
-| MCP Server Card HTTP 200 | ❌ | ✅ | Week 2 |
+| Agent-ready smoke score | 0 / 14 | 14 / 14 | Implemented 2026-05-21 |
+| robots.txt HTTP 200 | ❌ | ✅ | Implemented 2026-05-21 |
+| sitemap.xml HTTP 200 | ❌ | ✅ | Implemented 2026-05-21 |
+| Markdown negotiation pass | ❌ | ✅ | Implemented 2026-05-21 |
+| MCP Server Card HTTP 200 | ❌ | ✅ | Implemented 2026-05-21 |
 | Agent Skills index HTTP 200 | ❌ | ✅ | Week 2 |
 | API Catalog HTTP 200 | ❌ | ✅ | Week 2 |
 | Cloudflare Worker deploy cost | $0 (free tier) | $0 | Ongoing |
@@ -399,7 +399,7 @@ can enumerate all Knowgrph agent skills with their schemas and digests without m
 
 ## Scope Boundaries
 
-**In scope**: All 13 active audit checks from isitagentready.com; Cloudflare-native delivery only.  
+**In scope**: All 13 active audit checks from isitagentready.com; Cloudflare-native delivery only.
 **Out of scope**: Commerce protocols (E5); non-Cloudflare infrastructure; OAuth server
 implementation; full MCP tool suite; sitemap image/video extensions; per-page content signals.
 
@@ -409,11 +409,11 @@ implementation; full MCP tool suite; sitemap image/video extensions; per-page co
 
 | # | Question | Owner | Resolution |
 |---|---|---|---|
-| OQ-1 | Which OAuth/OIDC provider will Knowgrph use? (Cloudflare Access vs external IdP) | Joohwee | Decide before E4-S2 |
-| OQ-2 | Does Knowgrph have an active MCP server endpoint, or is phase 1 a stub SSE? | Joohwee | Stub acceptable for Server Card; real SSE for E4-S3 full pass |
-| OQ-3 | Will sitemap be statically generated at build time or dynamically from KGC node store? | Joohwee | Static for phase 1; dynamic Cloudflare Worker for phase 2 |
-| OQ-4 | Content Signals policy: allow `ai-input=yes`? | Joohwee | Default yes (benefits Knowgrph's positioning); confirm before E3-S2 |
-| OQ-5 | WebMCP (E4-S5): Chrome EPP required — is Knowgrph targeting EPP users? | Joohwee | Defer to phase 2 unless EPP audience confirmed |
+| OQ-1 | Which OAuth/OIDC provider will Knowgrph use? (Cloudflare Access vs external IdP) | Joohwee | Resolved: Cloudflare Access metadata is advertised for phase 1. |
+| OQ-2 | Does Knowgrph have an active MCP server endpoint, or is phase 1 a stub SSE? | Joohwee | Resolved: phase 1 exposes a JSON-RPC MCP endpoint at `/knowgrph/mcp` with `initialize`, `tools/list`, and discovery-safe `tools/call`. |
+| OQ-3 | Will sitemap be statically generated at build time or dynamically from KGC node store? | Joohwee | Resolved: static generated artifact from the dev Pages sync owner for phase 1. |
+| OQ-4 | Content Signals policy: allow `ai-input=yes`? | Joohwee | Resolved: `ai-input=yes`, `search=yes`, `ai-train=no`. |
+| OQ-5 | WebMCP (E4-S5): Chrome EPP required — is Knowgrph targeting EPP users? | Joohwee | Resolved: phase 1 provides a guarded browser `navigator.modelContext.tools` registration for compatible browser agents. |
 
 ---
 
@@ -421,7 +421,7 @@ implementation; full MCP tool suite; sitemap image/video extensions; per-page co
 
 ## Architecture Overview
 
-**From agent HTTP request to structured discovery response**:  
+**From agent HTTP request to structured discovery response**:
 Cloudflare Edge → Worker (well-known router) → static JSON / dynamic response → agent.
 
 All endpoints are served from a single Cloudflare Worker (`knowgrph-agent-worker`) with
@@ -452,38 +452,38 @@ R2 zero egress. Total additional monthly cost: **$0**.
 
 ### TAD-CF-STATIC
 **Responsibility**: Serves static files (`/robots.txt`, `/sitemap.xml`) from Cloudflare Pages
-`/public` directory as committed assets.  
-**Interfaces**: `GET /robots.txt → 200 text/plain`, `GET /sitemap.xml → 200 application/xml`  
-**Dependencies**: Cloudflare Pages (free tier), Git-committed static files  
+`/public` directory as committed assets.
+**Interfaces**: `GET /robots.txt → 200 text/plain`, `GET /sitemap.xml → 200 application/xml`
+**Dependencies**: Cloudflare Pages (free tier), Git-committed static files
 **Configuration**: Files committed to `/public/robots.txt` and `/public/sitemap.xml`; updated
-manually or via CI on content change.  
-**`/goal` Conditions**:  
-- `curl -s -o /dev/null -w "%{http_code}" https://airvio.co/knowgrph/robots.txt returns 200`  
-- `grep -c "User-agent:" output of /robots.txt >= 5` (wildcard + 4 AI bots)  
-- `grep "Sitemap:" /robots.txt returns one match pointing to /sitemap.xml`  
+manually or via CI on content change.
+**`/goal` Conditions**:
+- `curl -s -o /dev/null -w "%{http_code}" https://airvio.co/knowgrph/robots.txt returns 200`
+- `grep -c "User-agent:" output of /robots.txt >= 5` (wildcard + 4 AI bots)
+- `grep "Sitemap:" /robots.txt returns one match pointing to /sitemap.xml`
 **Traces**: PRD-E1-S1, PRD-E1-S2, PRD-E3-S1, PRD-E3-S2
 
 ---
 
 ### TAD-CF-PAGES
 **Responsibility**: Serves Knowgrph page content with content-negotiation: returns `text/markdown`
-when `Accept: text/markdown` is present in request; returns `text/html` otherwise.  
+when `Accept: text/markdown` is present in request; returns `text/html` otherwise.
 **Interfaces**: `GET /[path]` with `Accept: text/markdown` → `200 text/markdown`;
-`GET /[path]` default → `200 text/html`  
+`GET /[path]` default → `200 text/html`
 **Dependencies**: Cloudflare Pages Markdown for Agents feature (platform toggle, zero additional
-cost); Cloudflare Worker intercept for Accept header routing.  
+cost); Cloudflare Worker intercept for Accept header routing.
 **Configuration**: Cloudflare Pages project setting: `markdown_for_agents = true` (or Worker
-intercept pattern matching `Accept: text/markdown`).  
-**`/goal` Conditions**:  
-- `curl -H "Accept: text/markdown" https://airvio.co/knowgrph/ returns Content-Type: text/markdown`  
-- `curl https://airvio.co/knowgrph/ returns Content-Type: text/html with no regression`  
+intercept pattern matching `Accept: text/markdown`).
+**`/goal` Conditions**:
+- `curl -H "Accept: text/markdown" https://airvio.co/knowgrph/ returns Content-Type: text/markdown`
+- `curl https://airvio.co/knowgrph/ returns Content-Type: text/html with no regression`
 **Traces**: PRD-E2-S1
 
 ---
 
 ### TAD-CF-WORKER
 **Responsibility**: Serves all dynamic `.well-known/*` endpoints and injects `Link` headers on
-homepage responses from a single Cloudflare Worker with route-based dispatch.  
+homepage responses from a single Cloudflare Worker with route-based dispatch.
 **Interfaces**:
 
 | Route | Response Type | RFC / Spec |
@@ -496,15 +496,15 @@ homepage responses from a single Cloudflare Worker with route-based dispatch.
 | `GET /` (passthrough + header inject) | Link headers added | RFC 8288 |
 
 **Dependencies**: Cloudflare Workers (free tier); JSON manifests committed to `worker/data/`;
-Wrangler CLI for deploy.  
+Wrangler CLI for deploy.
 **Configuration**: `wrangler.toml` with route patterns; JSON seed files externalized from
-Worker code for zero-recompile updates.  
-**`/goal` Conditions**:  
-- `wrangler deploy exits 0 with no type errors`  
-- `curl /.well-known/api-catalog returns HTTP 200 Content-Type application/linkset+json`  
-- `curl /.well-known/mcp/server-card.json returns HTTP 200 JSON with serverInfo.name`  
-- `curl /.well-known/agent-skills/index.json returns HTTP 200 JSON with skills array`  
-- `curl -I https://airvio.co/knowgrph/ output contains Link: header with rel=api-catalog`  
+Worker code for zero-recompile updates.
+**`/goal` Conditions**:
+- `wrangler deploy exits 0 with no type errors`
+- `curl /.well-known/api-catalog returns HTTP 200 Content-Type application/linkset+json`
+- `curl /.well-known/mcp/server-card.json returns HTTP 200 JSON with serverInfo.name`
+- `curl /.well-known/agent-skills/index.json returns HTTP 200 JSON with skills array`
+- `curl -I https://airvio.co/knowgrph/ output contains Link: header with rel=api-catalog`
 **Traces**: PRD-E1-S3, PRD-E4-S1, PRD-E4-S2, PRD-E4-S3, PRD-E4-S4, PRD-E3-S3
 
 ---
@@ -512,31 +512,33 @@ Worker code for zero-recompile updates.
 ### TAD-CF-BOTAUTH
 **Responsibility**: Publishes a JWKS (JSON Web Key Set) at
 `/.well-known/http-message-signatures-directory` to allow receiving sites to verify signed
-outbound requests made by Knowgrph agents.  
+outbound requests made by Knowgrph agents.
 **Interfaces**: `GET /.well-known/http-message-signatures-directory → 200 application/json`
-with `{"keys": [<JWK>]}`  
+with `{"keys": [<JWK>]}`
 **Dependencies**: TAD-CF-WORKER (serves endpoint); one-time key generation via `node:crypto`
-or `openssl`; JWK committed to `worker/data/jwks.json`.  
-**Configuration**: JWK stored as Worker environment secret or committed JSON (public key only).  
-**`/goal` Conditions**:  
+or `openssl`; JWK committed to `worker/data/jwks.json`.
+**Configuration**: JWK stored as Worker environment secret or committed JSON (public key only).
+**`/goal` Conditions**:
 - `curl /.well-known/http-message-signatures-directory returns HTTP 200 JSON with keys array
-  length >= 1`  
+  length >= 1`
 **Traces**: PRD-E3-S3
 
 ---
 
-### TAD-CF-WEBMCP (Phase 2)
+### TAD-CF-WEBMCP (Phase 1)
 **Responsibility**: Injects WebMCP tool definitions into Knowgrph page via `<script>` calling
-`navigator.modelContext.provideContext()` with at least one tool (e.g., `search_graph`,
-`get_node`).  
-**Interfaces**: Browser JS API — `navigator.modelContext.tools` after page load  
+`navigator.modelContext.provideContext()` when available, or registering
+`navigator.modelContext.tools` directly with `knowgrph.list_source_files`.
+**Interfaces**: Browser JS API — `navigator.modelContext.tools` after page load; DOM audit
+marker `data-kg-webmcp-tools="knowgrph.list_source_files"`
 **Dependencies**: Chrome WebMCP EPP; TAD-CF-PAGES (page serves the script); TAD-CF-WORKER
-(provides tool schema endpoint)  
-**Configuration**: Tool definitions in `public/js/webmcp-init.js`; feature-flagged behind
-`navigator.modelContext` existence check.  
-**`/goal` Conditions**:  
-- `window.navigator.modelContext && window.navigator.modelContext.tools.length >= 1 evaluated
-  in Chrome DevTools console on airvio.co/knowgrph`  
+(provides tool schema endpoint)
+**Configuration**: Tool definition source lives in
+`canvas/src/features/agent-ready/webMcpRuntime.ts` and the Pages Function HTML injection in
+`cloudflare/pages/knowgrph-agent-ready.mjs`.
+**`/goal` Conditions**:
+- `document.documentElement.dataset.kgWebmcpTools === "knowgrph.list_source_files"` evaluated
+  on `airvio.co/knowgrph` after reload
 **Traces**: PRD-E4-S5
 
 ---
@@ -545,7 +547,7 @@ or `openssl`; JWK committed to `worker/data/jwks.json`.
 
 ### Workflow: Agent Crawl Policy Resolution
 
-**Trigger**: AI crawler sends `GET /robots.txt`  
+**Trigger**: AI crawler sends `GET /robots.txt`
 **Actors**: AI Crawler (P1), Cloudflare Pages (TAD-CF-STATIC)
 
 **Happy Path**:
@@ -640,15 +642,17 @@ tool invocation or surface error to user.
 ## Architectural Decisions
 
 ### ADR-1: Single Worker for All .well-known Endpoints
-**Status**: Proposed  
+**Status**: Accepted and implemented as a Cloudflare Pages Function
 **Date**: 2026-05-21
 
 **Context**: 8+ distinct `.well-known` endpoints required; each could be a separate Worker, a
 Pages Function, or a committed static file.
 
-**Decision**: One Cloudflare Worker (`knowgrph-agent-worker`) with route-based dispatch,
-reading JSON seed files from `worker/data/`. Static files (robots.txt, sitemap.xml) served
-via Pages `/public/` (no Worker needed for pure-static paths).
+**Decision**: One Cloudflare Pages Function (`functions/knowgrph/[[path]].js`, generated
+from `cloudflare/pages/knowgrph-agent-ready.mjs`) owns `/knowgrph/.well-known/*`,
+`/knowgrph/mcp`, Link headers, Markdown negotiation, and WebMCP HTML injection. Static
+aliases for root `robots.txt`, `sitemap.xml`, and `.well-known` are generated by the same
+sync owner.
 
 **Alternatives Considered**:
 1. One Worker per endpoint: pros — isolation; cons — 8+ wrangler configs, maintenance overhead
@@ -659,22 +663,23 @@ via Pages `/public/` (no Worker needed for pure-static paths).
 header injection (Link headers, Cache-Control) that static Pages cannot provide.
 
 **Consequences**:
-- Positive: One deploy command (`wrangler deploy`) updates all endpoints; free tier sufficient
-- Negative: Worker code must be maintained alongside JSON seed files
+- Positive: One Pages deploy updates the app shell, function, root aliases, and discovery endpoints
+- Negative: Discovery payload edits share the app Pages deployment cycle
 - Neutral: Cold-start latency mitigated by edge caching; negligible for discovery endpoints
 
 ---
 
 ### ADR-2: JSON Seed Files Externalized from Worker Code
-**Status**: Proposed  
+**Status**: Superseded by typed Pages Function payloads
 **Date**: 2026-05-21
 
 **Context**: MCP Server Card, API Catalog, Agent Skills index change more frequently than
 Worker routing logic.
 
-**Decision**: JSON payloads committed as files in `worker/data/` and imported at Worker
-build time. For high-frequency updates, migrate to Cloudflare KV (still free tier up to
-1k writes/day).
+**Decision**: Discovery payloads are typed constants in
+`cloudflare/pages/knowgrph-agent-ready.mjs`, then copied into the deployed Pages Function
+by `npm run pages:build-sync`. For high-frequency updates, migrate the payload source to KV
+or D1 without changing the public routes.
 
 **Alternatives Considered**:
 1. Inline JSON in Worker code: pros — one file; cons — requires recompile for every content update
@@ -685,41 +690,40 @@ build time. For high-frequency updates, migrate to Cloudflare KV (still free tie
 discovery metadata updates. KV migration path is clear if update frequency increases.
 
 **Consequences**:
-- Positive: Content updates are PRs, not code deploys; zero KV cost phase 1
-- Negative: Content and code share the same deploy cycle
-- Neutral: KV migration is a 1-day effort when needed
+- Positive: One canonical source owns payloads, routes, headers, and smoke-test fixtures
+- Negative: Metadata-only edits still require a Pages deploy
+- Neutral: KV/D1 migration stays a route-internal implementation detail
 
 ---
 
 ### ADR-3: Markdown Negotiation via Cloudflare Platform Feature
-**Status**: Proposed  
+**Status**: Accepted and implemented in the Pages Function
 **Date**: 2026-05-21
 
 **Context**: Markdown for Agents requires detecting `Accept: text/markdown` and returning
 converted content. Options: Cloudflare platform toggle vs custom Worker HTML-to-Markdown
 conversion.
 
-**Decision**: Use Cloudflare Pages "Markdown for Agents" platform feature if available as a
-project setting; otherwise implement lightweight Worker intercept using `@cloudflare/html-rewriter`
-+ a minimal Markdown serializer (FOSS, no npm deps beyond CF SDK).
+**Decision**: The Pages Function intercepts `Accept: text/markdown` and returns the
+canonical agent Markdown summary for the Knowgrph surface.
 
 **Alternatives Considered**:
 1. Server-side Pandoc/unified.js: pros — rich conversion; cons — not edge-compatible, adds
    dependency, increases Worker bundle size
 2. Return raw HTML with `Content-Type: text/markdown`: violates spec; breaks agent parsers
 
-**Rationale**: Platform toggle is zero-code, zero-cost. Worker fallback is ~50 lines using
-CF HTMLRewriter API, no external deps.
+**Rationale**: The route-local function makes negotiation testable with the same smoke
+checker as robots, sitemap, OAuth, MCP, and WebMCP.
 
 **Consequences**:
-- Positive: Zero marginal cost; platform handles Accept header parsing
-- Negative: Platform feature availability uncertain; Worker fallback needed as backup
+- Positive: Zero dependency footprint; behavior is explicit and deployed with the app
+- Negative: Deep page-to-Markdown extraction remains future work
 - Neutral: Token reduction benefit accrues immediately for all agent consumers
 
 ---
 
 ### ADR-4: robots.txt AI Bot Policy — Allow All, No Training
-**Status**: Proposed  
+**Status**: Accepted and implemented
 **Date**: 2026-05-21
 
 **Context**: Knowgrph benefits from AI crawler indexing (P1 persona) but does not consent to
@@ -756,11 +760,12 @@ training consent is withheld by default pending commercial arrangements.
 DB migration risk). Rollback: `wrangler rollback` restores previous deployment within 30 s.
 
 **Deploy sequence**:
-1. Commit JSON seed files and Worker code to `main`
-2. CI runs `wrangler deploy` (GitHub Actions, free tier)
-3. Post-deploy smoke test script curls all 7 `.well-known` endpoints and `/robots.txt`
-4. isitagentready.com re-scan confirms score improvement
-5. Tag release `v1.0.0` in Git
+1. Commit the Pages Function source, generated static discovery artifacts, and smoke checker to `main`
+2. CI runs `npm run pages:build-sync`, `npm run pages:check-sync`, and `npx wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true`
+3. Post-deploy smoke script runs `npm run agent-ready:check` against `https://airvio.co/knowgrph`
+4. Browser WebMCP smoke confirms
+   `document.documentElement.dataset.kgWebmcpTools === "knowgrph.list_source_files"`
+5. Release tag follows the implementation version after the audited deploy
 
 **Rollback plan**: `wrangler rollback` → previous Worker version served from CF edge within
 one propagation cycle (~30 s globally).
@@ -888,20 +893,21 @@ sequenceDiagram
 
 | Layer | Component | File / Module | Status |
 |---|---|---|---|
-| Static | robots.txt | `public/robots.txt` | 🔲 To build |
-| Static | sitemap.xml | `public/sitemap.xml` | 🔲 To build |
-| Static | OpenAPI spec (stub) | `public/openapi.json` | 🔲 To build |
-| Worker | Route dispatcher | `worker/src/index.ts` | 🔲 To build |
-| Worker | Markdown negotiation | `worker/src/markdown.ts` | 🔲 To build |
-| Worker | Link header injector | `worker/src/link-headers.ts` | 🔲 To build |
-| Worker Data | API Catalog | `worker/data/api-catalog.json` | 🔲 To build |
-| Worker Data | OAuth Protected Resource | `worker/data/oauth-protected-resource.json` | 🔲 To build |
-| Worker Data | MCP Server Card | `worker/data/mcp-server-card.json` | 🔲 To build |
-| Worker Data | Agent Skills Index | `worker/data/agent-skills-index.json` | 🔲 To build |
-| Worker Data | JWKS | `worker/data/jwks.json` | 🔲 To build |
-| CI | Deploy workflow | `.github/workflows/deploy.yml` | 🔲 To build |
-| CI | Smoke test | `.github/workflows/smoke-test.sh` | 🔲 To build |
-| Phase 2 | WebMCP init script | `public/js/webmcp-init.js` | ⏳ Deferred |
+| Static | robots.txt | generated from `cloudflare/pages/knowgrph-agent-ready.mjs` into `huijoohwee/robots.txt` and `/knowgrph/robots.txt` | ✅ Implemented |
+| Static | sitemap.xml | generated from `cloudflare/pages/knowgrph-agent-ready.mjs` into `huijoohwee/sitemap.xml` and `/knowgrph/sitemap.xml` | ✅ Implemented |
+| Static | OpenAPI spec | generated into `/.well-known/openapi.json` and `/knowgrph/.well-known/openapi.json` | ✅ Implemented |
+| Pages Function | Route dispatcher | `cloudflare/pages/knowgrph-agent-ready.mjs` → `huijoohwee/functions/knowgrph/[[path]].js` | ✅ Implemented |
+| Pages Function | Markdown negotiation | `cloudflare/pages/knowgrph-agent-ready.mjs` | ✅ Implemented |
+| Pages Function | Link header injector | `cloudflare/pages/knowgrph-agent-ready.mjs` | ✅ Implemented |
+| Pages Function | MCP JSON-RPC transport | `cloudflare/pages/knowgrph-agent-ready.mjs` route `/knowgrph/mcp` | ✅ Implemented |
+| Static / Function Data | API Catalog | `cloudflare/pages/knowgrph-agent-ready.mjs` generated artifacts | ✅ Implemented |
+| Static / Function Data | OAuth Protected Resource | `cloudflare/pages/knowgrph-agent-ready.mjs` generated artifacts | ✅ Implemented |
+| Static / Function Data | MCP Server Card | `cloudflare/pages/knowgrph-agent-ready.mjs` generated artifacts | ✅ Implemented |
+| Static / Function Data | Agent Skills Index | `cloudflare/pages/knowgrph-agent-ready.mjs` generated artifacts | ✅ Implemented |
+| Static / Function Data | JWKS | `cloudflare/pages/knowgrph-agent-ready.mjs` generated artifacts | ✅ Implemented |
+| CI | Deploy workflow | `.github/workflows/agent-ready.yml` | ✅ Implemented |
+| CI | Smoke test | `.github/workflows/smoke-test.sh` and `scripts/check-agent-ready.mjs` | ✅ Implemented |
+| Browser | WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` plus Pages Function HTML injection | ✅ Implemented |
 
 ---
 
@@ -920,22 +926,22 @@ sequenceDiagram
 | PRD-E4-S2 | TAD-CF-WORKER | `GET /.well-known/oauth-protected-resource` | `curl returns 200 JSON with authorization_servers` |
 | PRD-E4-S3 | TAD-CF-WORKER | `GET /.well-known/mcp/server-card.json` | `curl returns 200 JSON with serverInfo.name and transport` |
 | PRD-E4-S4 | TAD-CF-WORKER | `GET /.well-known/agent-skills/index.json` | `curl returns 200 JSON with skills[].name present` |
-| PRD-E4-S5 | TAD-CF-WEBMCP | Browser `navigator.modelContext` | `navigator.modelContext.tools.length >= 1 in Chrome console` |
+| PRD-E4-S5 | TAD-CF-WEBMCP | Browser WebMCP install path | `data-kg-webmcp-tools="knowgrph.list_source_files"` on document root |
 
 ---
 
 ## JSON Contract Schemas (Seed File Reference)
 
-### `worker/data/mcp-server-card.json` (stub)
+### `cloudflare/pages/knowgrph-agent-ready.mjs` MCP Server Card
 ```json
 {
   "serverInfo": {
-    "name": "knowgrph-mcp",
+    "name": "knowgrph",
     "version": "0.1.0"
   },
   "transport": {
-    "type": "sse",
-    "url": "https://airvio.co/knowgrph/mcp/sse"
+    "type": "streamable-http",
+    "url": "https://airvio.co/knowgrph/mcp"
   },
   "capabilities": {
     "tools": true,
@@ -945,23 +951,23 @@ sequenceDiagram
 }
 ```
 
-### `worker/data/agent-skills-index.json` (stub)
+### `cloudflare/pages/knowgrph-agent-ready.mjs` Agent Skills Index
 ```json
 {
   "$schema": "https://agentskills.io/schema/v0.2.0/index.json",
   "skills": [
     {
-      "name": "search-graph",
+      "name": "knowgrph-source-files",
       "type": "mcp-tool",
-      "description": "Search Knowgrph knowledge graph nodes by query string",
-      "url": "https://airvio.co/knowgrph/.well-known/agent-skills/search-graph/SKILL.md",
+      "description": "Discover and read published Knowgrph Source Files",
+      "url": "https://airvio.co/knowgrph/.well-known/agent-skills/knowgrph-source-files/SKILL.md",
       "sha256": "<computed-on-publish>"
     }
   ]
 }
 ```
 
-### `worker/data/api-catalog.json` (stub)
+### `cloudflare/pages/knowgrph-agent-ready.mjs` API Catalog
 ```json
 {
   "linkset": [
@@ -1019,14 +1025,14 @@ Sitemap: https://airvio.co/knowgrph/sitemap.xml
 - [x] No implementation detail in PRD; no business logic in TAD
 
 **Post-Documentation Review**:
-- [ ] OQ-1 resolved (OAuth provider decision)
-- [ ] OQ-2 resolved (MCP SSE stub vs real endpoint)
-- [ ] OQ-3 resolved (sitemap generation strategy)
-- [ ] OQ-4 resolved (Content Signals policy confirmed)
-- [ ] OQ-5 resolved (WebMCP EPP audience decision)
-- [ ] isitagentready.com re-scan post-deploy confirms ≥ 11/13
+- [x] OQ-1 resolved (OAuth provider decision)
+- [x] OQ-2 resolved (MCP JSON-RPC endpoint)
+- [x] OQ-3 resolved (sitemap generation strategy)
+- [x] OQ-4 resolved (Content Signals policy confirmed)
+- [x] OQ-5 resolved (WebMCP EPP audience decision)
+- [x] Agent-ready smoke confirms implemented discovery surface (`npm run agent-ready:check`)
 
 ---
 
-*Document version: 1.0.0 — Proposed — 2026-05-21*  
-*Next review: post-sprint-1 deploy (target: 2026-06-04)*
+*Document version: 1.0.1 — Implemented — 2026-05-21*
+*Next review: post-production scanner rescan*

@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
 import { installPwaRuntime } from '@/lib/pwa/runtime'
+import { installKnowgrphWebMcpRuntime } from '@/features/agent-ready/webMcpRuntime'
+
+installKnowgrphWebMcpRuntime()
 
 if (import.meta.env.PROD) {
   installPwaRuntime()

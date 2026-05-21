@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
+import { buildAgentReadyStaticFiles } from '../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 const checkMode = process.argv.includes('--check')
 const __filename = fileURLToPath(import.meta.url)
@@ -13,6 +14,9 @@ const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
 const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
 const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
 const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
+const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
+const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
+const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
 const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
@@ -36,6 +40,8 @@ const preservedRelativeRoots = new Set([
 ])
 const GENERATED_REDIRECTS_START = '# BEGIN knowgrph generated top-level file routes'
 const GENERATED_REDIRECTS_END = '# END knowgrph generated top-level file routes'
+const GENERATED_AGENT_HEADERS_START = '# BEGIN knowgrph generated agent-ready headers'
+const GENERATED_AGENT_HEADERS_END = '# END knowgrph generated agent-ready headers'
 
 const existsDir = async (dir) => {
   try {
@@ -113,6 +119,8 @@ const fileHash = async (filePath) => {
   return createHash('sha256').update(buf).digest('hex')
 }
 
+const textHash = (value) => createHash('sha256').update(value).digest('hex')
+
 const addEntryScriptCacheKey = (html) =>
   html.replace(
     /(<script\b[^>]*\bsrc=")(\/knowgrph\/assets\/([^"?/]+\.js))(")/,
@@ -134,6 +142,23 @@ const fileNeedsUpdate = async (src, dest, rel) => {
   try {
     const [srcHash, dstHash] = await Promise.all([publishContentHash(src, rel), fileHash(dest)])
     return srcHash !== dstHash
+  } catch {
+    return true
+  }
+}
+
+const plainFileNeedsUpdate = async (src, dest) => {
+  try {
+    const [srcHash, dstHash] = await Promise.all([fileHash(src), fileHash(dest)])
+    return srcHash !== dstHash
+  } catch {
+    return true
+  }
+}
+
+const textFileNeedsUpdate = async (body, dest) => {
+  try {
+    return textHash(body) !== await fileHash(dest)
   } catch {
     return true
   }
@@ -194,6 +219,25 @@ const buildKnowgrphRedirects = (existing, rootFiles) => {
   return next
 }
 
+const buildAgentReadyHeaders = (existing, artifacts) => {
+  const headerLines = [
+    GENERATED_AGENT_HEADERS_START,
+    ...Object.entries(artifacts).flatMap(([rel, artifact]) => [
+      `/${rel}`,
+      `  Content-Type: ${artifact.contentType}`,
+      '  Cache-Control: public, max-age=3600',
+    ]),
+    GENERATED_AGENT_HEADERS_END,
+  ]
+  const nextBlock = headerLines.join('\n')
+  const managedBlockRegex = new RegExp(
+    `${GENERATED_AGENT_HEADERS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_AGENT_HEADERS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+  )
+  if (managedBlockRegex.test(existing)) return existing.replace(managedBlockRegex, nextBlock)
+  const trimmed = existing.endsWith('\n') ? existing.trimEnd() : existing
+  return `${trimmed}\n\n${nextBlock}\n`
+}
+
 if (!(await existsDir(distDir))) {
   throw new Error(`Missing build output directory: ${distDir}`)
 }
@@ -239,6 +283,16 @@ const rootFiles = sourceFiles
 const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
 const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
+const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
+const agentReadyArtifacts = await buildAgentReadyStaticFiles()
+const agentReadyStaticFilesToWrite = []
+for (const [rel, artifact] of Object.entries(agentReadyArtifacts)) {
+  const dst = path.resolve(githubRoot, 'huijoohwee', rel)
+  if (await textFileNeedsUpdate(artifact.body, dst)) agentReadyStaticFilesToWrite.push(rel)
+}
+const existingHeaders = await fs.readFile(headersPath, 'utf8')
+const nextHeaders = buildAgentReadyHeaders(existingHeaders, agentReadyArtifacts)
+const headersNeedUpdate = nextHeaders !== existingHeaders
 
 if (checkMode) {
   const hasDrift = (
@@ -247,6 +301,9 @@ if (checkMode) {
     publicFilesToCopy.length > 0 ||
     publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
+    agentReadyFunctionNeedsUpdate ||
+    agentReadyStaticFilesToWrite.length > 0 ||
+    headersNeedUpdate ||
     await existsDir(obsoleteLegacyMirrorDir)
   )
   if (hasDrift) {
@@ -272,6 +329,12 @@ if (checkMode) {
       if (publicFilesToRemove.length > 20) console.error(`  - ... ${publicFilesToRemove.length - 20} more`)
     }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
+    if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
+    if (agentReadyStaticFilesToWrite.length > 0) {
+      console.error(`  - root agent-ready static files needing sync (${agentReadyStaticFilesToWrite.length}):`)
+      for (const rel of agentReadyStaticFilesToWrite.slice(0, 20)) console.error(`  - ${rel}`)
+    }
+    if (headersNeedUpdate) console.error('  - `huijoohwee/_headers` generated agent-ready block is out of sync')
     if (await existsDir(obsoleteLegacyMirrorDir)) {
       console.error('  - obsolete legacy publish directory still exists')
     }
@@ -315,8 +378,23 @@ if (checkMode) {
   if (redirectsNeedUpdate) {
     await fs.writeFile(redirectsPath, nextRedirects, 'utf8')
   }
+  if (agentReadyFunctionNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadyFunctionTarget), { recursive: true })
+    await fs.copyFile(agentReadyFunctionSource, agentReadyFunctionTarget)
+  }
+  let agentReadyStaticUpdated = 0
+  for (const rel of agentReadyStaticFilesToWrite) {
+    const artifact = agentReadyArtifacts[rel]
+    const dst = path.resolve(githubRoot, 'huijoohwee', rel)
+    await fs.mkdir(path.dirname(dst), { recursive: true })
+    await fs.writeFile(dst, artifact.body, 'utf8')
+    agentReadyStaticUpdated += 1
+  }
+  if (headersNeedUpdate) {
+    await fs.writeFile(headersPath, nextHeaders, 'utf8')
+  }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }
