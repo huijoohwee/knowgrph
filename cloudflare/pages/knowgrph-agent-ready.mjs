@@ -5,9 +5,10 @@ const ROOT_URL = `${SITE_ORIGIN}/`;
 const UPDATED_AT = "2026-05-21";
 
 const linkHeaderValue = [
-  `<${APP_BASE_PATH}/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
-  `<${APP_BASE_PATH}/.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"`,
+  `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
+  `<${APP_BASE_PATH}/.well-known/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"`,
   `<${APP_BASE_PATH}/llms.txt>; rel="service-doc"; type="text/plain"`,
+  `<${APP_BASE_PATH}/.well-known/mcp/server-card.json>; rel="mcp-server-card"; type="application/json"`,
 ].join(", ");
 
 const jsonResponse = (body, contentType = "application/json; charset=utf-8") =>
@@ -37,6 +38,17 @@ const textResponse = (body, contentType) =>
       "content-type": contentType,
       "cache-control": "public, max-age=3600",
       "access-control-allow-origin": "*",
+    },
+  });
+
+const markdownResponse = (body) =>
+  new Response(body, {
+    status: 200,
+    headers: {
+      "content-type": "text/markdown; charset=utf-8",
+      "cache-control": "public, max-age=3600",
+      "access-control-allow-origin": "*",
+      "x-markdown-tokens": String(Math.ceil(String(body || "").length / 4)),
     },
   });
 
@@ -458,7 +470,7 @@ const routeResponse = async (request) => {
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
 
   if (handlesKnowgrphRoot(url.pathname) && wantsMarkdown(request)) {
-    return textResponse(markdownForAgents, "text/markdown; charset=utf-8");
+    return markdownResponse(markdownForAgents);
   }
 
   switch (pathname) {

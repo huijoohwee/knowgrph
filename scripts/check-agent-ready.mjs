@@ -31,7 +31,11 @@ const checks = [
     accept: '*/*',
     assert: async (response) => {
       const link = response.headers.get('link') || ''
-      return response.ok && link.includes('rel="api-catalog"') && link.includes('rel="service-doc"')
+      return response.ok
+        && link.includes('</.well-known/api-catalog>; rel="api-catalog"')
+        && link.includes('rel="service-desc"')
+        && link.includes('rel="service-doc"')
+        && link.includes('rel="mcp-server-card"')
     },
   },
   {
@@ -41,6 +45,7 @@ const checks = [
     assert: async (response, body) =>
       response.ok
       && response.headers.get('content-type')?.includes('text/markdown')
+      && Number(response.headers.get('x-markdown-tokens') || 0) > 0
       && body.trim().startsWith('# Knowgrph'),
   },
   {
