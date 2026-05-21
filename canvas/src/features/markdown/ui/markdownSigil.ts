@@ -160,7 +160,11 @@ export const rewriteInlineCodeSigilsToStyledSpansHtml = (html: string): string =
       if (parsed.background) {
         span.setAttribute('data-kg-sigil-bg', parsed.background)
       }
-      Object.assign(span.style, readMarkdownSigilInlineStyle(parsed))
+      Object.assign(span.style, readMarkdownSigilInlineStyle({
+        text: parsed.displayText,
+        color: parsed.color,
+        background: parsed.background,
+      }))
       span.textContent = parsed.displayText
     } else {
       span.setAttribute('data-kg-inline-code-raw', parsed.code)

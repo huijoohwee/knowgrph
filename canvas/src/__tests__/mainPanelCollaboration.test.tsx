@@ -557,7 +557,7 @@ export async function testMainPanelCollaborationViewShowsRemoveActionOnlyForOwne
     assertIncludes(text, 'Guest Removable')
     assertIncludes(text, 'Remove')
 
-    const buttons = Array.from(container.querySelectorAll('button'))
+    const buttons = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[])
       .map(button => (button.textContent || '').replace(/\s+/g, ' ').trim())
       .filter(Boolean)
     const removeButtons = buttons.filter(label => label.includes('Remove'))
@@ -909,7 +909,9 @@ export async function testP2PCollaborationRuntimeFollowModeRevealsOnlyTargetedPe
     })
 
     await waitForCondition(() => revealRemoteLines.includes(23))
-    if (revealRemoteLines.length !== 1) {
+    const revealRemoteLinesAfterTarget = Array.from(revealRemoteLines)
+    const targetedRevealLines = revealRemoteLinesAfterTarget.filter(line => line === 23)
+    if (targetedRevealLines.length !== 1 || revealRemoteLinesAfterTarget.length !== 1) {
       throw new Error(`expected exactly one targeted reveal, got ${revealRemoteLines.join(',')}`)
     }
   } finally {

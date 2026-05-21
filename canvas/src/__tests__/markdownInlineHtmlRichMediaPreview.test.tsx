@@ -145,7 +145,7 @@ export async function testMarkdownPreviewRendersNestedInlineHtmlWrappers() {
       throw new Error(`expected inline HTML anchor to preserve nested strong content; html=${container.innerHTML}`)
     }
 
-    const styledSpan = Array.from(container.querySelectorAll('span')).find(
+    const styledSpan = (Array.from(container.querySelectorAll('span')) as HTMLSpanElement[]).find(
       element => element.querySelector('em') && String(element.textContent || '').includes('hot'),
     ) as HTMLSpanElement | undefined
     if (!styledSpan) throw new Error(`expected inline HTML span wrapper to render; html=${container.innerHTML}`)
@@ -260,7 +260,7 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
       throw new Error(`expected $hash inline semantic token to render; html=${container.innerHTML}`)
     }
 
-    const rawSemanticCode = Array.from(container.querySelectorAll('code')).find(node => {
+    const rawSemanticCode = (Array.from(container.querySelectorAll('code')) as HTMLElement[]).find(node => {
       const text = String(node.textContent || '')
       return text.includes('@comment:c-42') || text.includes('$url:https://example.com/docs') || text.includes('$hash:#EF4444')
     })
@@ -268,15 +268,15 @@ export async function testMarkdownPreviewRendersMasterSigilSemanticInlineTokens(
       throw new Error(`expected Master Sigil semantic tokens not to fall back to raw inline code; html=${container.innerHTML}`)
     }
 
-    const invalidUiCode = Array.from(container.querySelectorAll('code')).find(node => String(node.textContent || '').includes('@ui:File > Export'))
+    const invalidUiCode = (Array.from(container.querySelectorAll('code')) as HTMLElement[]).find(node => String(node.textContent || '').includes('@ui:File > Export'))
     if (!invalidUiCode) {
       throw new Error(`expected invalid @ui sigil using ">" to stay raw inline code; html=${container.innerHTML}`)
     }
-    const invalidUrlCode = Array.from(container.querySelectorAll('code')).find(node => String(node.textContent || '').includes('$url:example.com/docs'))
+    const invalidUrlCode = (Array.from(container.querySelectorAll('code')) as HTMLElement[]).find(node => String(node.textContent || '').includes('$url:example.com/docs'))
     if (!invalidUrlCode) {
       throw new Error(`expected invalid $url sigil without scheme to stay raw inline code; html=${container.innerHTML}`)
     }
-    const invalidKeyCode = Array.from(container.querySelectorAll('code')).find(node => String(node.textContent || '').includes('@key:{{draft}}'))
+    const invalidKeyCode = (Array.from(container.querySelectorAll('code')) as HTMLElement[]).find(node => String(node.textContent || '').includes('@key:{{draft}}'))
     if (!invalidKeyCode) {
       throw new Error(`expected invalid @key sigil with interpolation to stay raw inline code; html=${container.innerHTML}`)
     }

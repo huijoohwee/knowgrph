@@ -948,7 +948,9 @@ export function testWorkspaceCanvasAutoApplySkipsWidgetMode() {
 
 export function testWorkspaceRefreshSetSourceFilesImmediatelySchedulesComposeApply() {
   const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceExplorerState.tsx')
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const text = readFileSync(runtimePath, 'utf8')
+  const bootstrapText = readFileSync(bootstrapPath, 'utf8')
 
   if (!text.includes('const scheduleApplyComposedFromSourceFiles = React.useCallback(async () => {')) {
     throw new Error('expected markdown workspace runtime refresh path to expose a dedicated composed-apply scheduler helper')

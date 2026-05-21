@@ -35,7 +35,7 @@ type BootstrapWorkspaceMaterializationContext = {
 
 export function restoreBootstrapPersistedSourceFiles(args: {
   persistedSourceFiles: unknown[]
-}): unknown[] {
+}): ReturnType<typeof useGraphStore.getState>['sourceFiles'] {
   const store = useGraphStore.getState()
   const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   if (current.length > 0) return current
@@ -43,7 +43,7 @@ export function restoreBootstrapPersistedSourceFiles(args: {
   if (persisted.length > 0) {
     store.setSourceFiles(persisted as never)
   }
-  return persisted
+  return persisted as ReturnType<typeof useGraphStore.getState>['sourceFiles']
 }
 
 export async function runBootstrapSourceFileHydration(): Promise<void> {

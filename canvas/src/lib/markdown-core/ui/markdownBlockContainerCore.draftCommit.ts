@@ -67,7 +67,8 @@ const applyCommentIndicatorAttrs = (span: HTMLElement, args: {
 
 const buildCommentIndicatorHtml = (rawComment: string): string => {
   const parsed = parseMarkdownCommentMarker(rawComment)
-  const span = `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(parsed.kind === 'review-comment' ? parsed.previewText : parsed.kind === 'plain-comment' ? parsed.previewText : parsed.kind === 'metadata-entry' ? parsed.previewText : '')}" data-kg-comment-raw="${escapeHtmlAttr(parsed.raw)}"></span>`
+  const previewText = parsed.kind === 'review-comment' || parsed.kind === 'plain-comment' || parsed.kind === 'metadata-entry' ? parsed.previewText : ''
+  const span = `<span data-kg-comment="1" data-kg-comment-text="${escapeHtmlAttr(previewText)}" data-kg-comment-raw="${escapeHtmlAttr(parsed.raw)}"></span>`
   if (parsed.kind === 'author-note' || parsed.kind === 'appendix-open' || parsed.kind === 'appendix-close' || parsed.kind === 'comment-close' || parsed.kind === 'machine-marker' || parsed.kind === 'metadata-entry') {
     return span.replace('></span>', ' data-kg-comment-hidden="1" style="display:none;"></span>')
   }
@@ -79,7 +80,7 @@ const buildCommentIndicatorHtml = (rawComment: string): string => {
   }
   return span.replace(
     '></span>',
-    ` role="note" tabindex="0" aria-label="Comment preview" title="${escapeHtmlAttr(parsed.previewText || 'Comment preview')}" style="opacity:0.8;font-style:normal;font-weight:500;cursor:pointer;text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:0.15em;">${COMMENT_INDICATOR_TEXT}</span>`,
+    ` role="note" tabindex="0" aria-label="Comment preview" title="${escapeHtmlAttr(previewText || 'Comment preview')}" style="opacity:0.8;font-style:normal;font-weight:500;cursor:pointer;text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:0.15em;">${COMMENT_INDICATOR_TEXT}</span>`,
   )
 }
 

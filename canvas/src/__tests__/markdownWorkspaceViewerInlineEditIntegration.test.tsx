@@ -71,10 +71,6 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('div')
-  const outsideButton = doc.createElement('button')
-  outsideButton.type = 'button'
-  outsideButton.textContent = 'outside'
-  doc.body.appendChild(outsideButton)
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   const snapshots: string[] = []
@@ -989,6 +985,10 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineS
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
   const container = doc.createElement('div')
+  const outsideButton = doc.createElement('button')
+  outsideButton.type = 'button'
+  outsideButton.textContent = 'outside'
+  doc.body.appendChild(outsideButton)
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -1111,6 +1111,10 @@ export async function testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineI
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
   const container = doc.createElement('div')
+  const outsideButton = doc.createElement('button')
+  outsideButton.type = 'button'
+  outsideButton.textContent = 'outside'
+  doc.body.appendChild(outsideButton)
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -1234,6 +1238,10 @@ export async function testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPre
   const restoreExecCommand = installInlineExecCommandStub(dom, ['underline'])
   const doc = dom.window.document
   const container = doc.createElement('div')
+  const outsideButton = doc.createElement('button')
+  outsideButton.type = 'button'
+  outsideButton.textContent = 'outside'
+  doc.body.appendChild(outsideButton)
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
 
@@ -1322,7 +1330,7 @@ export async function testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPre
 
     const editorAfterCommit = container.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (editorAfterCommit) throw new Error('expected inline editor to commit and close after focus leaves editor')
-    const renderedUnderline = Array.from(container.querySelectorAll('u')).find(node => String(node.textContent || '').includes('Viewer')) as HTMLElement | undefined
+    const renderedUnderline = (Array.from(container.querySelectorAll('u')) as HTMLElement[]).find(node => String(node.textContent || '').includes('Viewer'))
     if (!renderedUnderline) {
       throw new Error(`expected committed Viewer preview to keep rendered underline, got html=${JSON.stringify(container.innerHTML || '')}`)
     }
@@ -1486,9 +1494,9 @@ async function runViewerInlineCommitPreviewFormattingCase(args: {
 
     const editorAfterCommit = container.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (editorAfterCommit) throw new Error('expected inline editor to commit and close after explicit commit')
-    const renderedNode = Array.from(container.querySelectorAll(args.expectedSelector)).find(
+    const renderedNode = (Array.from(container.querySelectorAll(args.expectedSelector)) as HTMLElement[]).find(
       node => String(node.textContent || '').includes(args.expectedText),
-    ) as HTMLElement | undefined
+    )
     if (!renderedNode) {
       throw new Error(`expected committed Viewer preview to keep rendered formatting; source=${JSON.stringify(latestActiveText)} html=${JSON.stringify(container.innerHTML || '')}`)
     }

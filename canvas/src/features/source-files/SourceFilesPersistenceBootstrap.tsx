@@ -287,7 +287,7 @@ export function SourceFilesPersistenceBootstrap() {
   const runtimePersistenceScopeKey = WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE
   const knowgrphStorageScopeKey = WORKSPACE_SYNC_SCOPE_KNOWGRPH_STORAGE_RUNTIME_PERSISTENCE
   const hydratedRef = React.useRef(false)
-  const lastPersistedRef = React.useRef<unknown>(null)
+  const lastPersistedRef = React.useRef<ReturnType<typeof useGraphStore.getState>['sourceFiles'] | null>(null)
   const lastComposeSignatureRef = React.useRef('')
   const workspaceHydratedRef = React.useRef(false)
   const lastWorkspacePersistedRef = React.useRef<unknown>(null)
@@ -353,7 +353,7 @@ export function SourceFilesPersistenceBootstrap() {
     const unsubscribe = useGraphStore.subscribe(
       state => state.sourceFiles,
       sourceFiles => {
-        latestSourceFilesSnapshotRef.current = readCurrentSourceFilesSnapshot(sourceFiles)
+        latestSourceFilesSnapshotRef.current = readCurrentSourceFilesSnapshot(sourceFiles as ReturnType<typeof useGraphStore.getState>['sourceFiles'])
       },
       { equalityFn: areSourceFilesEqualByIdAndHash },
     )
@@ -685,7 +685,7 @@ export function SourceFilesPersistenceBootstrap() {
       })
     }
     markWorkspaceSeedSyncDebug(`workspace-fs:${request.op}`)
-    scheduleWorkspaceRematerializeRef.current?.(request.sourceFilesSnapshot)
+    scheduleWorkspaceRematerializeRef.current?.({ sourceFilesSnapshot: request.sourceFilesSnapshot })
   }, [readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
 
   const prepareEnsureSeedMutationRequest = React.useCallback((args?: {
