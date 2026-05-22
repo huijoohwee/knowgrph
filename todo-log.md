@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-05-22
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Agent-ready MCP and WebMCP rollout | Ship implementation-accurate MCP docs plus hardened deployed WebMCP lifecycle | Reuse shared tool contracts, harden browser and HTML fallback WebMCP lifecycle upstream, verify Dev->Preview->Live with the focused smoke, and keep publish artifacts mirror-generated only. | `knowgrph/{canvas/src/features/agent-ready,cloudflare/pages,scripts,docs/documents/knowgrph-mcp,mcp/README.md,todo-log.md}` + `huijoohwee/{content/knowgrph,knowgrph,functions/knowgrph/[[path]].js}` | Agent-ready Pages surface + browser WebMCP runtime + publish mirror | `installKnowgrphWebMcpRuntime`, exported `webMcpScript`, `check-agent-ready.mjs`, `pages:build-sync`, `pages:check-sync` | Shared tool contract, late `navigator.modelContext`, localhost/preview/prod storage reads, preview and live Pages deploys | Shipped late-binding `registerTool(tool, { signal })` WebMCP lifecycle, aligned MCP docs, clean source and mirror commits, preview/live smoke `27/27`, pushed commits `d666208d` and `321e4b4d` | Keep browser and HTML fallback lifecycle contract-equal, add future tools only as thin adapters over MainPanel -> FloatingPanel Chat -> KGC -> Canvas owners, and rerun preview/live smoke after future agent-ready changes. | 2026-05-22 |
+
 ## 2026-05-20
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
