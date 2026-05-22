@@ -33,6 +33,8 @@ const blockedRelativeRoots = new Set([
   'vendor/mermaid',
 ])
 const blockedRelativeFiles = new Set([
+  '_headers',
+  '_redirects',
   'unicorn-investors-test.json',
 ])
 const preservedRelativeRoots = new Set([
@@ -196,6 +198,12 @@ const removeEmptyDirs = async (rootDir) => {
 const buildKnowgrphRedirects = (existing, rootFiles) => {
   const generatedLines = [
     GENERATED_REDIRECTS_START,
+    '/knowgrph /knowgrph 200',
+    '/knowgrph/ /knowgrph/ 200',
+    '/knowgrph/mcp /knowgrph/mcp 200',
+    '/knowgrph/robots.txt /knowgrph/robots.txt 200',
+    '/knowgrph/sitemap.xml /knowgrph/sitemap.xml 200',
+    '/knowgrph/.well-known/* /knowgrph/.well-known/:splat 200',
     ...rootFiles.map(rel => `/knowgrph/${rel} /content/knowgrph/${rel} 200`),
     GENERATED_REDIRECTS_END,
   ]

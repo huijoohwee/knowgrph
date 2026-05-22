@@ -353,6 +353,22 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'")) {
     throw new Error('expected vite config to keep maplibre core isolated from render/source subchunks')
   }
+  const genericSrcFallbackIndex = viteConfigText.indexOf("if (moduleId.includes('/src/')) return undefined")
+  const graphStoreChunkIndex = viteConfigText.indexOf("if (moduleId.includes('/src/hooks/useGraphStore.ts') || moduleId.includes('/src/hooks/store/')) return 'graph-store'")
+  const canvasShellChunkIndex = viteConfigText.indexOf("if (moduleId.includes('/src/pages/Canvas.tsx') || moduleId.includes('/src/components/CanvasViewport.tsx')) return 'canvas-shell'")
+  const toolbarChunkIndex = viteConfigText.indexOf("return 'toolbar'")
+  if (!viteConfigText.includes('chunkSizeWarningLimit: 1700')) {
+    throw new Error('expected vite config chunk warning limit to match the intentional coarse Mermaid lazy chunk budget')
+  }
+  if (genericSrcFallbackIndex < 0) {
+    throw new Error('expected vite config to retain a generic src fallback after the targeted source chunk rules')
+  }
+  if (graphStoreChunkIndex < 0 || canvasShellChunkIndex < 0 || toolbarChunkIndex < 0) {
+    throw new Error('expected vite config to keep targeted source chunk rules for graph-store, canvas-shell, and toolbar')
+  }
+  if (genericSrcFallbackIndex < graphStoreChunkIndex || genericSrcFallbackIndex < canvasShellChunkIndex || genericSrcFallbackIndex < toolbarChunkIndex) {
+    throw new Error('expected vite config generic src fallback to stay after targeted source chunk rules so local coarse chunking remains active')
+  }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/')) return 'monaco-editor-browser'")) {
     throw new Error('expected vite config to split monaco browser editor internals into a separate coarse chunk')
   }

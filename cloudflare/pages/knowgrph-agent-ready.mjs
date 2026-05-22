@@ -48,6 +48,7 @@ const markdownResponse = (body) =>
       "content-type": "text/markdown; charset=utf-8",
       "cache-control": "public, max-age=3600",
       "access-control-allow-origin": "*",
+      "vary": "Accept",
       "x-markdown-tokens": String(Math.ceil(String(body || "").length / 4)),
     },
   });
@@ -243,8 +244,10 @@ const mcpServerCard = {
 
 const webMcpTool = {
   name: "knowgrph.list_source_files",
+  title: "List Source Files",
   description: "List published Knowgrph Source Files.",
   inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  annotations: { readOnlyHint: true },
   execute: async () => {
     const response = await fetch(`${SITE_ORIGIN}/api/storage/source-files`, { headers: { accept: "application/json" } });
     return response.json();
@@ -263,23 +266,54 @@ const webMcpScript = `(() => {
   }
   const tool = {
     name: ${JSON.stringify(webMcpTool.name)},
+    title: ${JSON.stringify(webMcpTool.title)},
     description: ${JSON.stringify(webMcpTool.description)},
     inputSchema: ${JSON.stringify(webMcpTool.inputSchema)},
+    annotations: ${JSON.stringify(webMcpTool.annotations)},
     execute: ${webMcpTool.execute.toString()}
   };
   if (typeof document !== "undefined" && document.documentElement) {
     document.documentElement.dataset.kgWebmcpTools = tool.name;
+    document.documentElement.dataset.kgWebmcpContext = tool.name;
   }
   const existing = nav.modelContext;
+  let installed = false;
   if (existing && typeof existing.provideContext === "function") {
     existing.provideContext({ tools: [tool] });
-    return;
+    installed = true;
+  }
+  if (existing && typeof existing.registerTool === "function") {
+    try {
+      existing.registerTool(tool);
+      installed = true;
+    } catch {
+      installed = true;
+    }
   }
   if (existing && Array.isArray(existing.tools)) {
     if (!existing.tools.some((entry) => entry && entry.name === tool.name)) existing.tools.push(tool);
+    installed = true;
+  }
+  if (installed) {
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.dataset.kgWebmcpContext = "installed";
+    }
     return;
   }
-  nav.modelContext = { tools: [tool] };
+  const fallback = { tools: [tool] };
+  try {
+    Object.defineProperty(nav, "modelContext", {
+      configurable: true,
+      enumerable: false,
+      value: fallback,
+      writable: true
+    });
+  } catch {
+    nav.modelContext = fallback;
+  }
+  if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.dataset.kgWebmcpContext = nav.modelContext && Array.isArray(nav.modelContext.tools) ? "fallback-readable" : "fallback-defined";
+  }
 })();`;
 
 const injectWebMcpScript = async (response) => {

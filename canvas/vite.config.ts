@@ -5416,7 +5416,9 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename: string, deps: string[]) =>
         deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
     },
-    chunkSizeWarningLimit: 500,
+    // Keep Vite warnings meaningful for entry/runtime regressions while allowing the
+    // intentionally coarse lazy Mermaid runtime chunk to remain source-owned and quiet.
+    chunkSizeWarningLimit: 1700,
     rollupOptions: {
       output: {
         ...(process.env.KG_LOW_MEM_BUILD === '1'
@@ -5473,7 +5475,8 @@ export default defineConfig(({ command }) => ({
                   return 'markdown-ast'
                 }
                 if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return 'mermaid'
-                if (moduleId.includes('/node_modules/mermaid/dist/') || moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
+                if (moduleId.includes('/node_modules/mermaid/dist/')) return 'mermaid'
+                if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
                 if (moduleId.endsWith('/node_modules/three/src/Three.js') || moduleId.endsWith('/node_modules/three/src/Three.Legacy.js')) return 'three-barrel'
                 if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
                 if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
@@ -5484,6 +5487,10 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/three/src/loaders/')) return 'three-loaders'
                 if (moduleId.includes('/node_modules/three/src/audio/')) return 'three-audio'
                 if (moduleId.includes('/node_modules/three/src/helpers/')) return 'three-helpers'
+                if (moduleId.includes('/node_modules/three/src/math/')) return 'three-math'
+                if (moduleId.includes('/node_modules/three/src/materials/')) return 'three-materials'
+                if (moduleId.includes('/node_modules/three/src/geometries/')) return 'three-geometries'
+                if (moduleId.includes('/node_modules/three/src/core/')) return 'three-scene-core'
                 if (moduleId.includes('/node_modules/three/src/')) return 'three-foundation'
                 if (moduleId.includes('/node_modules/three/')) return 'three-core'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/ui/')) return 'maplibre-ui'
@@ -5497,7 +5504,6 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
-                if (moduleId.includes('/src/')) return undefined
                 if (moduleId.includes('/src/lib/config-copy/') || moduleId.includes('/src/lib/config.ts')) return 'config-copy'
                 if (moduleId.includes('/src/lib/config.ls') || moduleId.includes('/src/lib/persistence')) return 'config-storage'
                 if (moduleId.includes('/src/hooks/useGraphStore.ts') || moduleId.includes('/src/hooks/store/')) return 'graph-store'
@@ -5645,6 +5651,7 @@ export default defineConfig(({ command }) => ({
                 ) {
                   return 'toolbar'
                 }
+                if (moduleId.includes('/src/')) return undefined
                 return undefined
               },
             }),

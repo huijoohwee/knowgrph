@@ -214,6 +214,28 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
   if (!parsed) throw new Error('Expected deterministic fallback to parse as a frontmatter flow graph')
 }
 
+export function testChatKgcFinalizeAppliesSavedWorkspaceDocumentToCanvas() {
+  const finalizeText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'sidePanelChat', 'useFinalizeAssistantSuccess.ts'), 'utf8')
+  const applyText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatKgcCanvasApply.ts'), 'utf8')
+  const requiredFinalizeSnippets = [
+    'applyChatKgcWorkspaceDocumentToCanvas',
+    'await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)',
+  ]
+  requiredFinalizeSnippets.forEach(snippet => {
+    if (!finalizeText.includes(snippet)) throw new Error(`Expected KGC finalize path to include: ${snippet}`)
+  })
+  const requiredApplySnippets = [
+    'shouldApplyImportedCanvasDocumentToGraph',
+    'setActiveMarkdownDocument({',
+    'applyViewPreset: true',
+    'applyToGraph: true',
+    'forceApplyToGraph: true',
+  ]
+  requiredApplySnippets.forEach(snippet => {
+    if (!applyText.includes(snippet)) throw new Error(`Expected KGC canvas apply bridge to include: ${snippet}`)
+  })
+}
+
 export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
   const template = readBaseTemplateSample().replace(/\r\n/g, '\n')
   const mutated = template

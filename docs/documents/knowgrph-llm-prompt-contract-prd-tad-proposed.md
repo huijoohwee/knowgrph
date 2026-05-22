@@ -26,10 +26,11 @@ This document is implementation-accurate for the current Knowgrph repo. It forbi
 3. `chatKnowgrph` mode prepends `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT`.
 4. LLM output must be one standalone Markdown document beginning with YAML frontmatter.
 5. `normalizeKgcAssistantBodyForStorage` accepts parseable KGC output or builds a deterministic fallback.
-6. `tryParseMarkdownFrontmatterFlowGraph` parses frontmatter `flow.nodes`, `flow.edges`, and `flow.subgraphs`.
-7. `flow.subgraphs` is projected into canonical `kg:subgraphs` graph metadata.
-8. `deriveGraphGroups` turns `kg:subgraphs` into Canvas groups and cluster underlays.
-9. Flow Editor renders interactive nodes, edges, handles, groups, and nested group relationships.
+6. `applyChatKgcWorkspaceDocumentToCanvas` reuses the workspace import apply policy and calls `setActiveMarkdownDocument(... applyToGraph: true)`.
+7. `tryParseMarkdownFrontmatterFlowGraph` parses frontmatter `flow.nodes`, `flow.edges`, and `flow.subgraphs`.
+8. `flow.subgraphs` is projected into canonical `kg:subgraphs` graph metadata.
+9. `deriveGraphGroups` turns `kg:subgraphs` into Canvas groups and cluster underlays.
+10. Flow Editor renders interactive nodes, edges, handles, groups, and nested group relationships.
 
 Forbidden implementation patterns:
 
@@ -130,6 +131,7 @@ flow:
 | MainPanel Integrations | `canvas/src/features/panels/views/SettingsView.tsx` and constants/helpers | Provider settings, auth mode, endpoint rows, API docs text. |
 | FloatingPanel Chat | `canvas/src/features/chat/SidePanelChat.tsx` | Chat UI, storage target, selected node context, shared graph lookup. |
 | Chat submission | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Builds provider request, injects KGC contract, validates/retries output. |
+| Chat-to-canvas apply | `canvas/src/features/chat/chatKgcCanvasApply.ts` | Reuses workspace import apply policy and store graph-apply owner after final KGC save. |
 | KGC response contract | `canvas/src/features/chat/chatResponseBaseContract.ts` | System prompt that requires frontmatter, `flow.nodes`, `flow.edges`, and `flow.subgraphs`. |
 | KGC fallback | `canvas/src/features/chat/chatHistoryWorkspace.kgc.baseFallback.ts` | Deterministic parseable fallback when model output is incomplete. |
 | KGC parser | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` and `.flowBlock.ts` | Converts frontmatter flow blocks into GraphData and canonical group metadata. |
@@ -145,12 +147,13 @@ flowchart LR
   B --> C[Provider request with KGC system prompt]
   C --> D[LLM Markdown frontmatter output]
   D --> E[normalizeKgcAssistantBodyForStorage]
-  E --> F[tryParseMarkdownFrontmatterFlowGraph]
-  F --> G[GraphData nodes and edges]
-  F --> H[kg:subgraphs metadata]
-  H --> I[deriveGraphGroups]
-  G --> J[Flow Editor Canvas]
-  I --> J
+  E --> F[applyChatKgcWorkspaceDocumentToCanvas]
+  F --> G[tryParseMarkdownFrontmatterFlowGraph]
+  G --> H[GraphData nodes and edges]
+  G --> I[kg:subgraphs metadata]
+  I --> J[deriveGraphGroups]
+  H --> K[Flow Editor Canvas]
+  J --> K
 ```
 
 ### Parser Contract
@@ -183,6 +186,7 @@ Focused validation for this contract:
 |---|---|
 | `frontmatterFlowNodeNormalize.test.ts` | Proves `flow.subgraphs` becomes canonical `kg:subgraphs` metadata. |
 | `chatResponseContractPrompt.test.ts` | Proves the KGC prompt and deterministic fallback require `flow.subgraphs`. |
+| `chatResponseContractPrompt.test.ts` | Proves final `chatKnowgrph` save applies the workspace document to Canvas through the shared graph-apply owner. |
 | `markdownDocumentGraphApplyDedupe.test.ts` | Guards upstream graph apply dedupe. |
 | `sidePanelChatSharedLookupRegression.test.ts` | Guards shared lookup/semantic-key usage in chat selection context. |
 

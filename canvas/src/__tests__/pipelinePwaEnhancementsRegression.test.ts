@@ -137,6 +137,9 @@ export function testPwaIndexHtmlIncludesInstallMeta() {
   if (!htmlText.includes('rel="manifest"')) {
     throw new Error('Expected index.html to include explicit manifest link for broader browser support')
   }
+  if (!htmlText.includes('href="%BASE_URL%manifest.webmanifest"')) {
+    throw new Error('Expected index.html manifest link to resolve from the configured base path so rewritten custom domains do not bind to an apex-root manifest')
+  }
 }
 
 export function testPwaHeadersIncludeSwAndManifestCacheControl() {

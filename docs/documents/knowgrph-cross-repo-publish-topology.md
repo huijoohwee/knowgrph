@@ -31,7 +31,7 @@ Cloudflare Pages
 
 `npm run pages:build-sync` owns the static SPA build and mirror sync. `npm run pages:build-sync-cloudflare` extends that path with `npm run storage:deploy`, which applies remote D1 migrations and deploys the `knowgrph-storage` Worker from `cloudflare/workers/knowgrph-storage/wrangler.toml`.
 
-`huijoohwee/content/knowgrph` is the primary Prod artifact mirror. `huijoohwee/knowgrph` is a generated public-route compatibility surface for managed root files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `settings-flow.json`, `sw.js`, and `assets/**`; it is not the source owner.
+`huijoohwee/content/knowgrph` is the primary Prod artifact mirror. `huijoohwee/knowgrph` is a generated public-route compatibility surface for managed root files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `settings-flow.json`, `sw.js`, and `assets/**`; it is not the source owner. Cloudflare Pages control files remain authoritative only at the publish repo root: `huijoohwee/_headers` and `huijoohwee/_redirects`. Mirrored nested `_headers` or `_redirects` under `content/knowgrph` are not deploy authority and should not be synced.
 
 ## Directives
 
@@ -50,7 +50,7 @@ Cloudflare Pages
 
 | Check | Command | Purpose |
 | --- | --- | --- |
-| Static mirror drift | `npm run pages:check-sync` | Confirms `canvas/dist`, `huijoohwee/content/knowgrph`, managed `huijoohwee/knowgrph` files, and generated `_redirects` agree. |
+| Static mirror drift | `npm run pages:check-sync` | Confirms `canvas/dist`, `huijoohwee/content/knowgrph`, managed `huijoohwee/knowgrph` files, and generated root `_headers` / `_redirects` agree while excluding mirrored nested control files. |
 | Static build + sync | `npm run pages:build-sync` | Rebuilds with `VITE_BASE_PATH=/knowgrph/` and syncs the Prod mirror. |
 | Static + Worker deploy | `npm run pages:build-sync-cloudflare` | Runs static build/sync and then `storage:deploy` for remote D1 migrations plus Worker deploy. |
 | Conflict gate | `npm run conflict:check` | Runs changed-file hygiene, static build, chunk budgets, conflict compliance, and publish sync drift checks. |

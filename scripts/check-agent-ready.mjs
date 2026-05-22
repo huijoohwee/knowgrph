@@ -46,6 +46,7 @@ const checks = [
       response.ok
       && response.headers.get('content-type')?.includes('text/markdown')
       && Number(response.headers.get('x-markdown-tokens') || 0) > 0
+      && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
       && body.trim().startsWith('# Knowgrph'),
   },
   {

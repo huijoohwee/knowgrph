@@ -2,7 +2,7 @@
 
 **Context**: Browser-based knowledge graph canvas deployed on Cloudflare Pages at `airvio.co/knowgrph`.
 **Intent**: Enable install-to-homescreen, offline shell caching, deferred install UX, and Web Share API integration.
-**Directive**: Use `vite-plugin-pwa` with Workbox generateSW; keep manifest, service worker, and runtime in one upstream source; forbid duplicate PWA configs or stale SW registrations.
+**Directive**: Use `vite-plugin-pwa` with Workbox generateSW; keep manifest, service worker, and runtime in one upstream source; forbid duplicate PWA configs, stale SW registrations, and conflicting deploy-time `_headers` ownership.
 
 ---
 
@@ -51,7 +51,7 @@ flowchart TB
   end
 
   subgraph Cloudflare["Cloudflare Pages"]
-    T[_headers] -->|no-cache| C
+    T[huijoohwee/_headers] -->|no-cache| C
     T -->|no-cache| B
     T -->|Service-Worker-Allowed: /| C
   end
@@ -68,7 +68,8 @@ flowchart TB
 | UI | Install button | `canvas/src/components/Toolbar.tsx` | Deployed |
 | Bootstrap | Share query handler | `canvas/src/features/canvas/CanvasQueryBootstrapRuntime.tsx` | Deployed |
 | HTML | Meta tags + icon links | `canvas/index.html` | Deployed |
-| Headers | Cache + SW headers | `canvas/public/_headers` | Deployed |
+| Headers source | Preview header template | `canvas/public/_headers` | Deployed |
+| Headers authority | Shared Pages header surface | `huijoohwee/_headers` | Deployed |
 | Icon | Apple touch icon | `canvas/public/apple-touch-icon.png` | Deployed |
 | Labels | UI label constant | `canvas/src/lib/config-copy/uiMeta.ts` | Deployed |
 | Query params | Share param constants | `canvas/src/lib/routing/queryParams.ts` | Deployed |
@@ -94,6 +95,9 @@ flowchart TB
 | `shortcuts` | Canvas, Editor workspace | Quick-launch entries |
 | `icons` | `favicon.svg` (any, maskable), `apple-touch-icon.png` (180x180) | Cross-platform icons |
 | `share_target` | `GET ./?share=1` with `title, text, url` params | Web Share API integration |
+
+`canvas/index.html` must reference the manifest through `%BASE_URL%manifest.webmanifest` so a
+rewrite from `/` to `/knowgrph/` cannot bind the page to an apex-root manifest by accident.
 
 ---
 
@@ -235,10 +239,13 @@ sequenceDiagram
 
 | Path | Header | Value | Rationale |
 |------|--------|-------|-----------|
-| `/sw.js` | `Cache-Control` | `no-cache, no-store, must-revalidate` | Prevent stale SW |
-| `/sw.js` | `Service-Worker-Allowed` | `/` | Allow root scope |
-| `/manifest.webmanifest` | `Cache-Control` | `no-cache, no-store, must-revalidate` | Instant manifest updates |
-| `/apple-touch-icon.png` | `Cache-Control` | `public, max-age=86400` | 1-day icon cache |
+| `/knowgrph/sw.js` | `Cache-Control` | `no-cache, no-store, must-revalidate` | Prevent stale Knowgrph SW |
+| `/knowgrph/manifest.webmanifest` | `Cache-Control` | `no-cache, no-store, must-revalidate` | Instant manifest updates |
+| `/knowgrph/apple-touch-icon.png` | `Cache-Control` | `public, max-age=86400` | 1-day icon cache |
+
+`canvas/public/_headers` remains a build-time preview artifact, but deployed authority lives in
+the shared Pages root `huijoohwee/_headers`. Nested mirrored `_headers` files inside
+`content/knowgrph` are not authoritative and should be excluded from publish sync.
 
 ---
 
@@ -268,7 +275,7 @@ Six test functions in `pipelinePwaEnhancementsRegression.test.ts`:
 |------|-----------|
 | `testPwaShellPrecachesHashedAssetsAndCachesLocalJson` | Precache glob, exclusions, runtime cache, shortcuts, apple-touch-icon, share_target |
 | `testPwaRuntimeTracksStandaloneInstallAndUpdateState` | Display modes, appinstalled, DOM attributes, SW events, auto-update, beforeinstallprompt, deferred install exports |
-| `testPwaIndexHtmlIncludesInstallMeta` | apple-touch-icon link, manifest link |
+| `testPwaIndexHtmlIncludesInstallMeta` | apple-touch-icon link, manifest link, base-aware manifest path |
 | `testPwaHeadersIncludeSwAndManifestCacheControl` | sw.js headers, Service-Worker-Allowed, manifest headers |
 | `testPwaToolbarInstallButtonWiresDeferredPrompt` | Toolbar imports, installable state, UI_LABELS |
 | `testPwaShareQueryParamsHandledInBootstrap` | Query param constants, bootstrap import, toast, URL cleanup |

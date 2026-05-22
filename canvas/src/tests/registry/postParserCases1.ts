@@ -1,5 +1,4 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
-
 export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["monaco.editor.longHtml.placeholderVisible","@/__tests__/monacoLongHtmlPlaceholderStyle.test","testMonacoLongHtmlPlaceholderIsVisibleAndEllipsized"],
   ["monaco.editor.htmlBlocks.previewNotInvisible","@/__tests__/monacoHtmlBlockPreviewNotInvisible.test","testMonacoHtmlBlockCollapseShowsPreview"],
@@ -359,6 +358,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["chat.responseContract.storage.kgcRejectsPseudoStructuredMarkdown","@/__tests__/chatResponseContractPrompt.test","testIsKgcStructuredMarkdownRejectsSnippetOnlyPseudoKgc"],
   ["chat.responseContract.storage.kgcNormalizesInvalidAssistantMarkdown","@/__tests__/chatResponseContractPrompt.test","testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicTurn"],
   ["chat.responseContract.storage.kgcCanonicalizesTraceAndOutputPaths","@/__tests__/chatResponseContractPrompt.test","testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonical"],
+  ["chat.responseContract.storage.kgcFinalizeAppliesCanvasGraph","@/__tests__/chatResponseContractPrompt.test","testChatKgcFinalizeAppliesSavedWorkspaceDocumentToCanvas"],
   ["chat.responseContract.storage.kgcWritesCompanionOutputArtifact","@/__tests__/chatHistoryWorkspaceOutput.test","testWriteKgcCompanionOutputTextCreatesSiblingWorkspaceArtifact"],
   ["chat.responseContract.storage.kgcWritesBinaryCompanionOutputArtifact","@/__tests__/chatHistoryWorkspaceOutput.test","testWriteKgcCompanionOutputBlobMirrorsBinaryArtifactToHostWriter"],
   ["chat.responseContract.storage.kgcStreamingDraftWritesTraceOnly","@/__tests__/chatHistoryWorkspacePersistence.test","testChatHistoryWorkspaceDraftWritesOnlyKgcTraceDuringStreaming"],

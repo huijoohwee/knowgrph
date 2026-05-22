@@ -11,6 +11,7 @@ import {
   toConciseBulletText,
 } from '../SidePanelChat.helpers'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
 
 export const useFinalizeAssistantSuccess = (args: {
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'
@@ -102,6 +103,7 @@ export const useFinalizeAssistantSuccess = (args: {
     const knowgrphPath = knowgrphRawPath ? normalizeWorkspacePath(knowgrphRawPath) : ''
     if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
       args.followWorkspaceMarkdownPath(knowgrphPath)
+      await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)
     }
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
     const conciseSource =
@@ -158,4 +160,3 @@ export const useFinalizeAssistantSuccess = (args: {
     args.streamFollowRef,
   ])
 }
-
