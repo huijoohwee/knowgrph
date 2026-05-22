@@ -48,6 +48,13 @@ const MOCK_CANVAS_GRAPH_DATA = {
 }
 
 const MOCK_CANVAS_SVG = '<svg viewBox="0 0 640 360" width="640" height="360"><g data-kg-node="start" /></svg>'
+const MOCK_THREE_CAMERA_POSE = {
+  position: { x: 10, y: 20, z: 30 },
+  quaternion: { x: 0, y: 0.5, z: 0, w: 0.8660254 },
+  target: { x: 1, y: 2, z: 3 },
+  fov: 45,
+  zoom: 1.25,
+}
 
 const createMockResponse = (url: string): Response =>
   ({
@@ -92,6 +99,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const previousSelectedNodeId = useGraphStore.getState().selectedNodeId
   const previousSelectedEdgeId = useGraphStore.getState().selectedEdgeId
   const previousCanvasSnapshotFns = useGraphStore.getState().canvasSnapshotFns
+  const previousThreeCameraSnapshotFns = useGraphStore.getState().threeCameraSnapshotFns
+  const previousCanvas3dMode = useGraphStore.getState().canvas3dMode
+  const previousViewPinned = useGraphStore.getState().viewPinned
 
   try {
     delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
@@ -144,8 +154,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectLocalCanvasTool = registeredTools.get('knowgrph.inspect_local_canvas_topology')
     const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
+    const inspectLocal3dCameraPoseTool = registeredTools.get('knowgrph.inspect_local_3d_camera_pose')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -165,11 +176,17 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       collapsedGroupIds: ['lane-main'],
       selectedNodeId: 'start',
       selectedEdgeId: 'edge-1',
+      canvas3dMode: 'xr',
+      viewPinned: true,
       canvasSnapshotFns: {
         '2d': {
           captureSvg: async () => MOCK_CANVAS_SVG,
           capturePng: async () => null,
         },
+      },
+      threeCameraSnapshotFns: {
+        capturePose: () => MOCK_THREE_CAMERA_POSE,
+        restorePose: () => void 0,
       },
     } as never)
     await listTool.execute()
@@ -179,6 +196,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const localStructure = await inspectLocalDocumentTool.execute()
     const localCanvasTopology = await inspectLocalCanvasTool.execute()
     const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
+    useGraphStore.setState({ canvasRenderMode: '3d' } as never)
+    const localThreeCameraPose = await inspectLocal3dCameraPoseTool.execute()
+    useGraphStore.setState({ canvasRenderMode: '2d' } as never)
     const inspection = await inspectTool.execute()
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
@@ -229,6 +249,15 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localCanvasSnapshot as { viewBox?: unknown }).viewBox !== '0 0 640 360') {
       throw new Error(`expected inspect_local_canvas_snapshot to report SVG viewBox, got ${JSON.stringify(localCanvasSnapshot)}`)
     }
+    if ((localThreeCameraPose as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_3d_camera_pose to report an available 3d camera pose, got ${JSON.stringify(localThreeCameraPose)}`)
+    }
+    if ((localThreeCameraPose as { canvas3dMode?: unknown }).canvas3dMode !== 'xr') {
+      throw new Error(`expected inspect_local_3d_camera_pose to report the active 3d mode, got ${JSON.stringify(localThreeCameraPose)}`)
+    }
+    if ((localThreeCameraPose as { pose?: { position?: { z?: unknown } } }).pose?.position?.z !== 30) {
+      throw new Error(`expected inspect_local_3d_camera_pose to report camera position, got ${JSON.stringify(localThreeCameraPose)}`)
+    }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)
     }
@@ -258,6 +287,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       selectedNodeId: previousSelectedNodeId,
       selectedEdgeId: previousSelectedEdgeId,
       canvasSnapshotFns: previousCanvasSnapshotFns,
+      threeCameraSnapshotFns: previousThreeCameraSnapshotFns,
+      canvas3dMode: previousCanvas3dMode,
+      viewPinned: previousViewPinned,
     } as never)
     resetKnowgrphWebMcpRuntimeForTests()
     restore()

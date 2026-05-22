@@ -6,6 +6,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocalWorkspaceDocument: 'inspect_local_workspace_document',
   inspectLocalCanvasTopology: 'inspect_local_canvas_topology',
   inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
+  inspectLocal3dCameraPose: 'inspect_local_3d_camera_pose',
   inspectAgentSurface: 'inspect_agent_surface',
 })
 
@@ -98,6 +99,13 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot),
           title: 'Inspect Local Canvas Snapshot',
           description: 'Inspect the active browser-local Knowgrph canvas SVG snapshot from the app runtime without calling published storage or Pages MCP routes.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose),
+          title: 'Inspect Local 3D Camera Pose',
+          description: 'Inspect the active browser-local Knowgrph 3D camera pose from the app runtime without calling published storage or Pages MCP routes.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }]
