@@ -2,7 +2,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
-import { buildAgentReadyStaticFiles } from '../cloudflare/pages/knowgrph-agent-ready.mjs'
+import {
+  agentReadyHomepageLinkHeaderValue,
+  buildAgentReadyStaticFiles,
+} from '../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 const checkMode = process.argv.includes('--check')
 const __filename = fileURLToPath(import.meta.url)
@@ -17,6 +20,23 @@ const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
+const agentReadyToolContractSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'knowgrphAgentReadyToolContract.mjs',
+)
+const agentReadyToolContractTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'knowgrphAgentReadyToolContract.mjs',
+)
 const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
@@ -44,6 +64,8 @@ const GENERATED_REDIRECTS_START = '# BEGIN knowgrph generated top-level file rou
 const GENERATED_REDIRECTS_END = '# END knowgrph generated top-level file routes'
 const GENERATED_AGENT_HEADERS_START = '# BEGIN knowgrph generated agent-ready headers'
 const GENERATED_AGENT_HEADERS_END = '# END knowgrph generated agent-ready headers'
+const GENERATED_AGENT_HOMEPAGE_HEADERS_START = '# BEGIN knowgrph generated homepage discovery headers'
+const GENERATED_AGENT_HOMEPAGE_HEADERS_END = '# END knowgrph generated homepage discovery headers'
 
 const existsDir = async (dir) => {
   try {
@@ -228,7 +250,7 @@ const buildKnowgrphRedirects = (existing, rootFiles) => {
 }
 
 const buildAgentReadyHeaders = (existing, artifacts) => {
-  const headerLines = [
+  const staticArtifactHeaderLines = [
     GENERATED_AGENT_HEADERS_START,
     ...Object.entries(artifacts).flatMap(([rel, artifact]) => [
       `/${rel}`,
@@ -237,13 +259,34 @@ const buildAgentReadyHeaders = (existing, artifacts) => {
     ]),
     GENERATED_AGENT_HEADERS_END,
   ]
-  const nextBlock = headerLines.join('\n')
-  const managedBlockRegex = new RegExp(
+  const staticArtifactBlock = staticArtifactHeaderLines.join('\n')
+  const staticArtifactBlockRegex = new RegExp(
     `${GENERATED_AGENT_HEADERS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_AGENT_HEADERS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
   )
-  if (managedBlockRegex.test(existing)) return existing.replace(managedBlockRegex, nextBlock)
-  const trimmed = existing.endsWith('\n') ? existing.trimEnd() : existing
-  return `${trimmed}\n\n${nextBlock}\n`
+  const homepageHeaderLines = [
+    GENERATED_AGENT_HOMEPAGE_HEADERS_START,
+    '/',
+    `  Link: ${agentReadyHomepageLinkHeaderValue}`,
+    '/index.html',
+    `  Link: ${agentReadyHomepageLinkHeaderValue}`,
+    GENERATED_AGENT_HOMEPAGE_HEADERS_END,
+  ]
+  const homepageHeaderBlock = homepageHeaderLines.join('\n')
+  const homepageHeaderBlockRegex = new RegExp(
+    `${GENERATED_AGENT_HOMEPAGE_HEADERS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_AGENT_HOMEPAGE_HEADERS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+  )
+  let next = existing
+  if (staticArtifactBlockRegex.test(next)) {
+    next = next.replace(staticArtifactBlockRegex, staticArtifactBlock)
+  } else {
+    const trimmed = next.endsWith('\n') ? next.trimEnd() : next
+    next = `${trimmed}\n\n${staticArtifactBlock}\n`
+  }
+  if (homepageHeaderBlockRegex.test(next)) {
+    return next.replace(homepageHeaderBlockRegex, homepageHeaderBlock)
+  }
+  const trimmed = next.endsWith('\n') ? next.trimEnd() : next
+  return `${trimmed}\n\n${homepageHeaderBlock}\n`
 }
 
 if (!(await existsDir(distDir))) {
@@ -292,6 +335,10 @@ const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
 const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
 const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
+const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(
+  agentReadyToolContractSource,
+  agentReadyToolContractTarget,
+)
 const agentReadyArtifacts = await buildAgentReadyStaticFiles()
 const agentReadyStaticFilesToWrite = []
 for (const [rel, artifact] of Object.entries(agentReadyArtifacts)) {
@@ -310,6 +357,7 @@ if (checkMode) {
     publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
     agentReadyFunctionNeedsUpdate ||
+    agentReadyToolContractNeedsUpdate ||
     agentReadyStaticFilesToWrite.length > 0 ||
     headersNeedUpdate ||
     await existsDir(obsoleteLegacyMirrorDir)
@@ -338,6 +386,7 @@ if (checkMode) {
     }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
     if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
+    if (agentReadyToolContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared tool contract is out of sync')
     if (agentReadyStaticFilesToWrite.length > 0) {
       console.error(`  - root agent-ready static files needing sync (${agentReadyStaticFilesToWrite.length}):`)
       for (const rel of agentReadyStaticFilesToWrite.slice(0, 20)) console.error(`  - ${rel}`)
@@ -390,6 +439,10 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyFunctionTarget), { recursive: true })
     await fs.copyFile(agentReadyFunctionSource, agentReadyFunctionTarget)
   }
+  if (agentReadyToolContractNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadyToolContractTarget), { recursive: true })
+    await fs.copyFile(agentReadyToolContractSource, agentReadyToolContractTarget)
+  }
   let agentReadyStaticUpdated = 0
   for (const rel of agentReadyStaticFilesToWrite) {
     const artifact = agentReadyArtifacts[rel]
@@ -403,6 +456,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

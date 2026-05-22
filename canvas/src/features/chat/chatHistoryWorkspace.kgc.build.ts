@@ -1,5 +1,6 @@
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
 import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
+import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
 import { enforceKgcQueryResponsiveContent } from './chatHistoryWorkspace.kgc.normalize'
 
 type KgcStorageNormalizeArgs = {
@@ -31,9 +32,11 @@ const wrapFence = (content: string, lang: string): string => {
 
 export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArgs): string => {
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
-  if (raw && isKgcStructuredMarkdown(raw)) {
+  const recovered = recoverStructuredKgcAssistantPayload(raw)
+  const kgc = typeof recovered.kgc === 'string' ? recovered.kgc.trim() : ''
+  if (kgc && isKgcStructuredMarkdown(kgc)) {
     return enforceKgcQueryResponsiveContent({
-      markdown: raw,
+      markdown: kgc,
       requestText: args.requestText,
       workspacePath: args.workspacePath,
     })

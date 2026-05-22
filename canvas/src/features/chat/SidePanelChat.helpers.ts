@@ -7,6 +7,7 @@ import {
   isResponsesEndpointUrl,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
+import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
 import type { ChatMessage } from './SidePanelChatSections'
 
 export const clampTemperature = (raw: unknown): number => {
@@ -330,35 +331,7 @@ export const CHAT_HISTORY_COALESCE_DELAY_MS = 220
 export const extractKgcBlockFromAssistantText = (
   raw: string,
 ): { answer: string; kgc: string | null } => {
-  const text = String(raw || '').replace(/\r\n/g, '\n')
-  const rx = /(^|\n)\s*```+kgc\s*\n([\s\S]*?)\n\s*```+/gi
-  const matches: Array<{ full: string; body: string }> = []
-  let m: RegExpExecArray | null
-  while ((m = rx.exec(text))) {
-    const full = String(m[0] || '')
-    const body = typeof m[2] === 'string' ? String(m[2] || '').trim() : ''
-    if (full && body) matches.push({ full, body })
-    if (matches.length > 2) break
-  }
-  if (matches.length !== 1) {
-    const trimmed = text.trim()
-    const looksLikeRawKgcDocument =
-      trimmed.startsWith('---') &&
-      (
-        trimmed.includes('\n$schema:') &&
-        trimmed.includes('\nruntime:') &&
-        trimmed.includes('\npipeline:') &&
-        trimmed.includes('\nmermaid:') &&
-        trimmed.includes('\nflow:')
-      )
-    if (looksLikeRawKgcDocument) {
-      return { answer: '', kgc: trimmed }
-    }
-    return { answer: trimmed, kgc: null }
-  }
-  const match = matches[0]
-  const answer = text.replace(match.full, '').trim()
-  return { answer, kgc: match.body }
+  return recoverStructuredKgcAssistantPayload(raw)
 }
 const CHAT_HISTORY_CACHE_LIMIT = 80
 const chatHistoryCache = new Map<string, ChatMessage[]>()

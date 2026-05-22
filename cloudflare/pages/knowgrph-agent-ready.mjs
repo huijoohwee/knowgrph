@@ -1,12 +1,25 @@
+import {
+  buildKnowgrphAgentReadyToolContracts,
+  KNOWGRPH_AGENT_READY_TOOL_IDS,
+} from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
+
 const SITE_ORIGIN = "https://airvio.co";
 const APP_BASE_PATH = "/knowgrph";
 const APP_URL = `${SITE_ORIGIN}${APP_BASE_PATH}/`;
 const ROOT_URL = `${SITE_ORIGIN}/`;
 const DEFAULT_WORKSPACE_ID = "kgws:canonical-docs";
 const UPDATED_AT = "2026-05-21";
+const HEALTH_PATH = `${APP_BASE_PATH}/health`;
+const HEALTH_URL = `${SITE_ORIGIN}${HEALTH_PATH}`;
+const A2A_AGENT_CARD_PATH = "/.well-known/agent-card.json";
+const APP_A2A_AGENT_CARD_PATH = `${APP_BASE_PATH}/.well-known/agent-card.json`;
+const A2A_AGENT_CARD_URL = `${SITE_ORIGIN}${A2A_AGENT_CARD_PATH}`;
 const STORAGE_SOURCE_FILES_URL = `${SITE_ORIGIN}/api/storage/source-files`;
 const STORAGE_DEFAULT_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath}`;
 const STORAGE_WORKSPACE_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}`;
+const AGENT_READY_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
+  defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+});
 
 const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
   const normalizedCanonicalPath = String(canonicalPath || "").trim();
@@ -18,11 +31,13 @@ const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
 
 const normalizeToolString = (value) => String(value || "").trim();
 
-const linkHeaderValue = [
+export const agentReadyHomepageLinkHeaderValue = [
   `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
   `<${APP_BASE_PATH}/.well-known/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"`,
   `<${APP_BASE_PATH}/llms.txt>; rel="service-doc"; type="text/plain"`,
+  `<${HEALTH_PATH}>; rel="status"; type="application/health+json"`,
   `<${APP_BASE_PATH}/.well-known/mcp/server-card.json>; rel="mcp-server-card"; type="application/json"`,
+  `<${A2A_AGENT_CARD_PATH}>; rel="describedby"; type="application/json"`,
 ].join(", ");
 
 const jsonResponse = (body, contentType = "application/json; charset=utf-8") =>
@@ -64,6 +79,16 @@ const markdownResponse = (body) =>
       "access-control-allow-origin": "*",
       "vary": "Accept",
       "x-markdown-tokens": String(Math.ceil(String(body || "").length / 4)),
+    },
+  });
+
+const healthResponse = (body) =>
+  new Response(JSON.stringify(body, null, 2), {
+    status: 200,
+    headers: {
+      "content-type": "application/health+json; charset=utf-8",
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
     },
   });
 
@@ -120,12 +145,16 @@ Knowgrph is an agent-readable knowledge graph workspace served at ${APP_URL}.
 - Crawl policy: ${APP_URL}robots.txt
 - Sitemap: ${APP_URL}sitemap.xml
 - API catalog: ${APP_URL}.well-known/api-catalog
+- Health: ${HEALTH_URL}
 - MCP server card: ${APP_URL}.well-known/mcp/server-card.json
+- A2A Agent Card: ${A2A_AGENT_CARD_URL}
 - Agent skills: ${APP_URL}.well-known/agent-skills/index.json
 - LLM reference: ${APP_URL}llms.txt
 
 ## APIs
 
+- Agent-ready status: ${HEALTH_URL}
+- HTTP MCP: ${APP_URL}mcp
 - Storage API: ${SITE_ORIGIN}/api/storage/
 - Source Files index: ${STORAGE_SOURCE_FILES_URL}
 - Default Source File documents: ${STORAGE_DEFAULT_DOC_PATTERN}
@@ -148,9 +177,19 @@ const apiCatalog = {
           type: "text/plain",
         },
       ],
+      status: [
+        {
+          href: HEALTH_URL,
+          type: "application/health+json",
+        },
+      ],
       "service-meta": [
         {
           href: `${APP_URL}.well-known/mcp/server-card.json`,
+          type: "application/json",
+        },
+        {
+          href: A2A_AGENT_CARD_URL,
           type: "application/json",
         },
       ],
@@ -166,10 +205,51 @@ const openApi = {
     description: "Agent discovery surface for the Knowgrph Cloudflare deployment.",
   },
   servers: [
-    { url: `${SITE_ORIGIN}/api/storage`, description: "Knowgrph storage worker" },
+    { url: SITE_ORIGIN, description: "Knowgrph Cloudflare deployment" },
   ],
   paths: {
-    "/llms.txt": {
+    [HEALTH_PATH]: {
+      get: {
+        summary: "Read the Knowgrph agent-ready health status",
+        responses: {
+          "200": { description: "Health status in application/health+json format" },
+        },
+      },
+    },
+    [`${APP_BASE_PATH}/mcp`]: {
+      get: {
+        summary: "Read MCP transport metadata",
+        responses: {
+          "200": { description: "MCP transport metadata" },
+        },
+      },
+      post: {
+        summary: "Send a JSON-RPC MCP request",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: true,
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "JSON-RPC result payload" },
+        },
+      },
+    },
+    [APP_A2A_AGENT_CARD_PATH]: {
+      get: {
+        summary: "Read the Knowgrph A2A Agent Card",
+        responses: {
+          "200": { description: "A2A Agent Card JSON" },
+        },
+      },
+    },
+    "/api/storage/llms.txt": {
       get: {
         summary: "Read the Source Files LLM index",
         responses: {
@@ -177,7 +257,7 @@ const openApi = {
         },
       },
     },
-    "/source-files": {
+    "/api/storage/source-files": {
       get: {
         summary: "List published Source Files",
         responses: {
@@ -185,7 +265,7 @@ const openApi = {
         },
       },
     },
-    "/doc-default/{canonicalPath}": {
+    "/api/storage/doc-default/{canonicalPath}": {
       get: {
         summary: "Read a default-workspace Source File markdown document",
         parameters: [
@@ -197,7 +277,7 @@ const openApi = {
         },
       },
     },
-    "/doc/{workspaceId}/{canonicalPath}": {
+    "/api/storage/doc/{workspaceId}/{canonicalPath}": {
       get: {
         summary: "Read a Source File markdown document",
         parameters: [
@@ -232,6 +312,77 @@ const oauthAuthorizationServer = {
   scopes_supported: oauthProtectedResource.scopes_supported,
 };
 
+const a2aAgentCard = {
+  name: "Knowgrph Agent",
+  description: "Agent-readable discovery and published source-file retrieval surface for Knowgrph.",
+  version: "0.1.0",
+  provider: {
+    organization: "airvio / joohwee",
+    url: APP_URL,
+  },
+  url: `${APP_URL}mcp`,
+  preferredTransport: "JSONRPC",
+  supportedInterfaces: [
+    {
+      url: `${APP_URL}mcp`,
+      protocolBinding: "JSONRPC",
+      transportProtocol: "JSONRPC",
+      description: "Primary machine interface for read-only discovery and source-file document access.",
+    },
+    {
+      url: STORAGE_SOURCE_FILES_URL,
+      protocolBinding: "HTTP+JSON/REST",
+      transportProtocol: "HTTP+JSON/REST",
+      description: "Published source-files index and storage-backed document read surface.",
+    },
+  ],
+  capabilities: {
+    streaming: false,
+    pushNotifications: false,
+    stateTransitionHistory: false,
+    extendedAgentCard: false,
+  },
+  defaultInputModes: [
+    "text/plain",
+    "text/markdown",
+    "application/json",
+  ],
+  defaultOutputModes: [
+    "text/plain",
+    "text/markdown",
+    "application/json",
+  ],
+  skills: [
+    {
+      id: "discover-source-files",
+      name: "Discover Source Files",
+      description: "Lists published Knowgrph Source Files for downstream agent navigation and retrieval.",
+      tags: ["discovery", "source-files", "markdown"],
+      examples: ["List the published Knowgrph source files."],
+      inputModes: ["application/json", "text/plain"],
+      outputModes: ["text/markdown", "application/json"],
+    },
+    {
+      id: "read-source-file",
+      name: "Read Source File",
+      description: "Reads published Knowgrph markdown documents from the default or explicit workspace.",
+      tags: ["read", "markdown", "workspace"],
+      examples: ["Read the published source file for docs/getting-started.md."],
+      inputModes: ["application/json", "text/plain"],
+      outputModes: ["text/markdown", "application/json"],
+    },
+    {
+      id: "inspect-agent-surface",
+      name: "Inspect Agent Surface",
+      description: "Provides machine-readable discovery for health, MCP, OpenAPI, and related service metadata.",
+      tags: ["agent-ready", "discovery", "metadata"],
+      examples: ["Show the Knowgrph agent discovery metadata."],
+      inputModes: ["application/json", "text/plain"],
+      outputModes: ["application/json", "text/markdown"],
+    },
+  ],
+};
+
 const mcpServerCard = {
   serverInfo: {
     name: "knowgrph",
@@ -242,57 +393,27 @@ const mcpServerCard = {
     url: `${APP_URL}mcp`,
   },
   capabilities: {
-    tools: [
-      {
-        name: "list_source_files",
-        description: "List published Knowgrph Source Files.",
-        inputSchema: { type: "object", additionalProperties: false, properties: {} },
-      },
-      {
-        name: "read_source_file",
-        description: "Read published Knowgrph Editor Workspace markdown content. Defaults to the canonical docs workspace when workspaceId is omitted.",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          required: ["canonicalPath"],
-          properties: {
-            workspaceId: { type: "string", default: DEFAULT_WORKSPACE_ID },
-            canonicalPath: { type: "string" },
-          },
-        },
-      },
-    ],
+    tools: AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    })),
   },
   links: {
     apiCatalog: `${APP_URL}.well-known/api-catalog`,
     skills: `${APP_URL}.well-known/agent-skills/index.json`,
+    status: HEALTH_URL,
+    agentCard: A2A_AGENT_CARD_URL,
   },
 };
 
-const webMcpTools = [
-  {
-    name: "knowgrph.list_source_files",
-    title: "List Source Files",
-    description: "List published Knowgrph Source Files.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {} },
-    annotations: { readOnlyHint: true },
-  },
-  {
-    name: "knowgrph.read_source_file",
-    title: "Read Source File",
-    description: "Read published Knowgrph Editor Workspace markdown content.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["canonicalPath"],
-      properties: {
-        canonicalPath: { type: "string" },
-        workspaceId: { type: "string", default: DEFAULT_WORKSPACE_ID },
-      },
-    },
-    annotations: { readOnlyHint: true },
-  },
-];
+const webMcpTools = AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
+  name: tool.webName,
+  title: tool.title,
+  description: tool.description,
+  inputSchema: tool.inputSchema,
+  annotations: tool.annotations,
+}));
 
 const webMcpScript = `(() => {
   const root = globalThis;
@@ -315,11 +436,11 @@ const webMcpScript = `(() => {
   }
   const tools = [
     {
-      name: "knowgrph.list_source_files",
-      title: "List Source Files",
-      description: "List published Knowgrph Source Files.",
-      inputSchema: { type: "object", additionalProperties: false, properties: {} },
-      annotations: { readOnlyHint: true },
+      name: ${JSON.stringify(webMcpTools[0].name)},
+      title: ${JSON.stringify(webMcpTools[0].title)},
+      description: ${JSON.stringify(webMcpTools[0].description)},
+      inputSchema: ${JSON.stringify(webMcpTools[0].inputSchema)},
+      annotations: ${JSON.stringify(webMcpTools[0].annotations)},
       execute: async () => {
         const response = await fetch(\`\${siteOrigin}/api/storage/source-files\`, { headers: { accept: "text/markdown" } });
         if (!response.ok) throw new Error(\`list_source_files failed with \${response.status}\`);
@@ -330,9 +451,9 @@ const webMcpScript = `(() => {
       }
     },
     {
-      name: "knowgrph.read_source_file",
-      title: "Read Source File",
-      description: "Read published Knowgrph Editor Workspace markdown content.",
+      name: ${JSON.stringify(webMcpTools[1].name)},
+      title: ${JSON.stringify(webMcpTools[1].title)},
+      description: ${JSON.stringify(webMcpTools[1].description)},
       inputSchema: ${JSON.stringify(webMcpTools[1].inputSchema)},
       annotations: ${JSON.stringify(webMcpTools[1].annotations)},
       execute: async (input = {}) => {
@@ -468,6 +589,21 @@ const mcpTools = mcpServerCard.capabilities.tools.map(tool => ({
   inputSchema: tool.inputSchema,
 }));
 
+const buildHealthStatusBody = () => ({
+  status: "pass",
+  service: "knowgrph-agent-ready-pages",
+  homepage: APP_URL,
+  health: HEALTH_URL,
+  updatedAt: UPDATED_AT,
+  checks: {
+    linkHeaders: true,
+    markdownNegotiation: true,
+    httpMcp: true,
+    webMcp: true,
+    defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+  },
+});
+
 const readJsonRpcRequest = async (request) => {
   try {
     const body = await request.json();
@@ -491,7 +627,7 @@ const jsonRpcError = (id, code, message) => jsonResponse({
 
 const executeMcpTool = async (name, args) => {
   switch (name) {
-    case "list_source_files": {
+    case KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles: {
       const response = await fetch(STORAGE_SOURCE_FILES_URL, {
         headers: { accept: "text/markdown" },
       });
@@ -501,7 +637,7 @@ const executeMcpTool = async (name, args) => {
         markdownIndex: await response.text(),
       };
     }
-    case "read_source_file": {
+    case KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile: {
       const canonicalPath = normalizeToolString(args?.canonicalPath);
       if (!canonicalPath) throw new Error("canonicalPath is required");
       const workspaceId = normalizeToolString(args?.workspaceId);
@@ -590,6 +726,10 @@ export const buildAgentReadyStaticFiles = async () => ({
     contentType: "application/vnd.oai.openapi+json; charset=utf-8",
     body: JSON.stringify(openApi, null, 2),
   },
+  ".well-known/agent-card.json": {
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify(a2aAgentCard, null, 2),
+  },
   ".well-known/oauth-protected-resource": {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(oauthProtectedResource, null, 2),
@@ -640,6 +780,8 @@ const routeResponse = async (request) => {
   }
 
   switch (pathname) {
+    case HEALTH_PATH:
+      return healthResponse(buildHealthStatusBody());
     case `${APP_BASE_PATH}/mcp`:
       return handleMcpTransport(request);
     case `${APP_BASE_PATH}/robots.txt`:
@@ -650,6 +792,8 @@ const routeResponse = async (request) => {
       return jsonResponse(apiCatalog, "application/linkset+json; charset=utf-8");
     case `${APP_BASE_PATH}/.well-known/openapi.json`:
       return jsonResponse(openApi, "application/vnd.oai.openapi+json; charset=utf-8");
+    case APP_A2A_AGENT_CARD_PATH:
+      return jsonResponse(a2aAgentCard);
     case `${APP_BASE_PATH}/.well-known/oauth-protected-resource`:
       return jsonResponse(oauthProtectedResource);
     case `${APP_BASE_PATH}/.well-known/oauth-authorization-server`:
@@ -705,6 +849,6 @@ export async function onRequest(context) {
   if (!handlesKnowgrphRoot(new URL(request.url).pathname)) return response;
   const htmlResponse = method === "HEAD" ? response : await injectWebMcpScript(response);
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);
-  nextResponse.headers.set("link", linkHeaderValue);
+  nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);
   return nextResponse;
 }

@@ -4,6 +4,7 @@
 
 - Editor Workspace Source Files for LLMs: /api/storage/llms.txt
 - Editor Workspace Source Files index: /api/storage/source-files
+- Default published Source File markdown documents: /api/storage/doc-default/{canonicalPath}
 - Source File markdown documents: /api/storage/doc/{workspaceId}/{canonicalPath}
 
 ## Access Policy
@@ -16,3 +17,7 @@
 ## App
 
 - Knowgrph workspace: /knowgrph/
+- Agent-ready health: /knowgrph/health
+- Agent-ready MCP transport: /knowgrph/mcp
+- Agent-ready OpenAPI: /knowgrph/.well-known/openapi.json
+- A2A Agent Card: /.well-known/agent-card.json

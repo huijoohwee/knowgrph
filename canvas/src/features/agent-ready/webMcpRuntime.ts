@@ -3,6 +3,10 @@ import {
   buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageDocPath,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import {
+  buildKnowgrphAgentReadyToolContracts,
+  KNOWGRPH_AGENT_READY_TOOL_IDS,
+} from './knowgrphAgentReadyToolContract.mjs'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -25,8 +29,33 @@ type ModelContextLike = {
 
 type WebMcpNavigator = Navigator & { modelContext?: ModelContextLike }
 
-const SOURCE_FILES_TOOL_NAME = 'knowgrph.list_source_files'
-const READ_SOURCE_FILE_TOOL_NAME = 'knowgrph.read_source_file'
+type AgentReadyToolContract = {
+  name: string
+  webName: string
+  title: string
+  description: string
+  inputSchema: Record<string, unknown>
+  annotations?: {
+    readOnlyHint?: boolean
+  }
+}
+
+const WEB_MCP_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
+  defaultWorkspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+}) as AgentReadyToolContract[]
+
+const findWebToolContract = (name: string): AgentReadyToolContract => {
+  const contract = WEB_MCP_TOOL_CONTRACTS.find(entry => entry.name === name)
+  if (!contract) {
+    throw new Error(`missing Knowgrph agent-ready tool contract: ${name}`)
+  }
+  return contract
+}
+
+const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles)
+const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
+const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
+const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = [SOURCE_FILES_TOOL_NAME, READ_SOURCE_FILE_TOOL_NAME] as const
 
 const markWebMcpRuntime = (state = WEB_MCP_TOOL_NAMES.join(',')): void => {
@@ -52,10 +81,10 @@ const readGlobalNavigator = (): WebMcpNavigator => {
 
 const buildSourceFilesTool = (): WebMcpTool => ({
   name: SOURCE_FILES_TOOL_NAME,
-  title: 'List Source Files',
-  description: 'List published Knowgrph Source Files.',
-  inputSchema: { type: 'object', additionalProperties: false, properties: {} },
-  annotations: { readOnlyHint: true },
+  title: SOURCE_FILES_TOOL_CONTRACT.title,
+  description: SOURCE_FILES_TOOL_CONTRACT.description,
+  inputSchema: SOURCE_FILES_TOOL_CONTRACT.inputSchema,
+  annotations: SOURCE_FILES_TOOL_CONTRACT.annotations,
   execute: async () => {
     const response = await fetch('https://airvio.co/api/storage/source-files', {
       headers: { accept: 'text/markdown' },
@@ -72,18 +101,10 @@ const buildSourceFilesTool = (): WebMcpTool => ({
 
 const buildReadSourceFileTool = (): WebMcpTool => ({
   name: READ_SOURCE_FILE_TOOL_NAME,
-  title: 'Read Source File',
-  description: 'Read published Knowgrph Editor Workspace markdown content.',
-  inputSchema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['canonicalPath'],
-    properties: {
-      canonicalPath: { type: 'string' },
-      workspaceId: { type: 'string', default: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID },
-    },
-  },
-  annotations: { readOnlyHint: true },
+  title: READ_SOURCE_FILE_TOOL_CONTRACT.title,
+  description: READ_SOURCE_FILE_TOOL_CONTRACT.description,
+  inputSchema: READ_SOURCE_FILE_TOOL_CONTRACT.inputSchema,
+  annotations: READ_SOURCE_FILE_TOOL_CONTRACT.annotations,
   execute: async (input) => {
     const canonicalPath = String(input?.canonicalPath || '').trim()
     if (!canonicalPath) {

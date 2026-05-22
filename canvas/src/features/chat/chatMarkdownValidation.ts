@@ -24,6 +24,48 @@ export type ChatMarkdownValidationResult = {
   failedRuleId: ChatMarkdownValidationRuleId | null
 }
 
+const CANONICAL_KGC_REQUIRED_FRONTMATTER_KEYS = [
+  'title',
+  'graphId',
+  'doc_type',
+  'date',
+  'ai_model',
+  'lang',
+  '$schema',
+  'spec',
+  'runner',
+  'links',
+  'canvas',
+  'graph_meta',
+  'product',
+  'domain',
+  'subject',
+  'objective',
+  'artifact',
+  'owner',
+  'version',
+  'status',
+  'runtime',
+  'pipeline',
+  'mermaid',
+  'flow',
+] as const
+const CANVAS_PRESET_ONLY_FRONTMATTER_KEYS = [
+  'kgFrontmatterModeEnabled',
+  'kgDocumentSemanticMode',
+  'kgCanvasSurfaceMode',
+  'kgCanvas2dRenderer',
+] as const
+const PARALLEL_GROUPING_TOP_LEVEL_KEYS = [
+  'kg:subgraphs',
+  'clusters',
+  'cluster',
+  'groups',
+  'group',
+  'layers',
+  'layer',
+] as const
+
 const HEX6_UPPER_RE = /^#[0-9A-F]{6}$/
 const SIGIL_RE = /^(#[0-9a-fA-F]{6})?(\|?bg#[0-9a-fA-F]{6})?:(.+)$/
 
@@ -86,6 +128,25 @@ const validateLongQuotes = (md: string): ChatMarkdownValidationError | null => {
   return null
 }
 
+const validateKgcEnvelopeStartsAtFrontmatter = (md: string): ChatMarkdownValidationError | null => {
+  const text = String(md || '').replace(/\r\n/g, '\n').trim()
+  if (!text) return null
+  if (text.startsWith('---\n')) return null
+  if (text.startsWith('```') && text.includes('\n---\n')) {
+    return {
+      ruleId: 'V-03',
+      message: 'Return the KGC document directly, not wrapped in fenced markdown or commentary.',
+    }
+  }
+  if (text.includes('\n---\n')) {
+    return {
+      ruleId: 'V-03',
+      message: 'KGC output must start immediately with YAML frontmatter. Remove any wrapper prose or preamble before `---`.',
+    }
+  }
+  return null
+}
+
 const extractInlineDeclaredVarKeys = (md: string): Set<string> => {
   const text = String(md || '').replace(/\r\n/g, '\n')
   const keys = new Set<string>()
@@ -124,7 +185,7 @@ const extractTopLevelFrontmatterKeys = (frontmatter: string): Set<string> => {
   const lines = String(frontmatter || '').split('\n')
   const keys = new Set<string>()
   for (const line of lines) {
-    const m = /^([A-Za-z_][A-Za-z0-9_-]{0,48})\s*:\s*/.exec(line)
+    const m = /^([A-Za-z_$][A-Za-z0-9_$-]{0,48})\s*:\s*/.exec(line)
     if (!m) continue
     const key = String(m[1] || '').trim()
     if (!key) continue
@@ -284,6 +345,7 @@ const validateNoNestedCodeFences = (md: string): ChatMarkdownValidationError | n
 }
 
 const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatMarkdownValidationError | null => {
+  const fmKeys = extractTopLevelFrontmatterKeys(frontmatter)
   const requiredSections = [
     '## Computing Flow Definition',
     '## Flow Graph',
@@ -299,6 +361,13 @@ const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatM
     return {
       ruleId: 'V-03',
       message: `Base-template body is missing required section: ${section}.`,
+    }
+  }
+  for (const key of CANONICAL_KGC_REQUIRED_FRONTMATTER_KEYS) {
+    if (fmKeys.has(key)) continue
+    return {
+      ruleId: 'V-03',
+      message: `Base-template frontmatter is missing canonical KGC block: ${key}.`,
     }
   }
   const tierAKeys = ['title', 'graphId', 'doc_type', 'date', 'ai_model'] as const
@@ -339,6 +408,65 @@ const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatM
     return {
       ruleId: 'V-03',
       message: 'Base-template body is too thin. Expand the markdown sections with concrete explanatory content.',
+    }
+  }
+  return null
+}
+
+const validateCanonicalKgcFrontmatterShape = (md: string): ChatMarkdownValidationError | null => {
+  const parsed = extractLeadingFrontmatterAndBody(md)
+  if (!parsed) return null
+  const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  const hasCanvasPresetOnlyKeys = CANVAS_PRESET_ONLY_FRONTMATTER_KEYS.some(key => fmKeys.has(key))
+  const hasCanonicalKgcSignals = CANONICAL_KGC_REQUIRED_FRONTMATTER_KEYS.some(key => fmKeys.has(key))
+  if (hasCanvasPresetOnlyKeys && !hasCanonicalKgcSignals) {
+    return {
+      ruleId: 'V-03',
+      message: 'chatKnowgrph output must not degrade to a minimal canvas-preset-only document. Return the full canonical KGC contract.',
+    }
+  }
+  if (!hasCanonicalKgcSignals) return null
+  for (const key of CANONICAL_KGC_REQUIRED_FRONTMATTER_KEYS) {
+    if (fmKeys.has(key)) continue
+    return {
+      ruleId: 'V-03',
+      message: `Canonical KGC frontmatter block is missing: ${key}.`,
+    }
+  }
+  return null
+}
+
+const validateCanonicalGroupingSurface = (md: string): ChatMarkdownValidationError | null => {
+  const parsed = extractLeadingFrontmatterAndBody(md)
+  if (!parsed) return null
+  const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  const topLevelParallelKeys = PARALLEL_GROUPING_TOP_LEVEL_KEYS.filter(key => {
+    if (key === 'kg:subgraphs') return /(^|\n)kg:subgraphs\s*:/m.test(parsed.frontmatter)
+    return fmKeys.has(key)
+  })
+  if (topLevelParallelKeys.length > 0) {
+    return {
+      ruleId: 'V-03',
+      message: `Use flow.subgraphs as the only grouping source of truth. Remove parallel grouping channel(s): ${topLevelParallelKeys.join(', ')}.`,
+    }
+  }
+  const flowBlock = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'flow')
+  if (!flowBlock) return null
+  if (/(^|\n)\s*(?:clusters|cluster|groups?|layers?)\s*:/m.test(flowBlock)) {
+    return {
+      ruleId: 'V-03',
+      message: 'Use flow.subgraphs as the only grouping source of truth. Remove legacy group, cluster, or layer registries from flow.',
+    }
+  }
+  const hasCanonicalGroupingRequirement =
+    isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys) ||
+    fmKeys.has('pipeline') ||
+    fmKeys.has('mermaid') ||
+    fmKeys.has('graph_meta')
+  if (hasCanonicalGroupingRequirement && !/(^|\n)\s*subgraphs\s*:/m.test(flowBlock)) {
+    return {
+      ruleId: 'V-03',
+      message: 'Canonical KGC flow payload must declare flow.subgraphs so grouping projects through kg:subgraphs metadata.',
     }
   }
   return null
@@ -654,9 +782,12 @@ export const validateChatMarkdown = (args: {
 
   const validators: Array<(md: string) => ChatMarkdownValidationError | null> = [
     validateSigilsUpperHex,
+    validateKgcEnvelopeStartsAtFrontmatter,
     validateLongQuotes,
+    validateCanonicalKgcFrontmatterShape,
     md2 => validateVariableRefsResolvable(md2, args.resolvableVarKeys),
     validateNoNestedCodeFences,
+    validateCanonicalGroupingSurface,
     validateFrontmatterBodyVariableLink,
     validateSubstantiveKgcPayload,
     validateInlineJsonArrays,

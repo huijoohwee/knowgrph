@@ -1,5 +1,13 @@
+import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+
 const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || 'https://airvio.co/knowgrph').replace(/\/+$/, '')
 const originUrl = new URL(baseUrl).origin
+const rootA2aAgentCardUrl = `${originUrl}/.well-known/agent-card.json`
+const expectedTools = buildKnowgrphAgentReadyToolContracts({
+  defaultWorkspaceId: 'kgws:canonical-docs',
+})
+const expectedToolNames = expectedTools.map((tool) => tool.name)
+const expectedWebToolNames = expectedTools.map((tool) => tool.webName)
 
 const checks = [
   {
@@ -35,7 +43,25 @@ const checks = [
         && link.includes('</.well-known/api-catalog>; rel="api-catalog"')
         && link.includes('rel="service-desc"')
         && link.includes('rel="service-doc"')
+        && link.includes('rel="status"')
         && link.includes('rel="mcp-server-card"')
+        && link.includes('rel="describedby"')
+    },
+  },
+  {
+    name: 'root-homepage-link-headers',
+    url: `${originUrl}/`,
+    method: 'HEAD',
+    accept: '*/*',
+    assert: async (response) => {
+      const link = response.headers.get('link') || ''
+      return response.ok
+        && link.includes('</.well-known/api-catalog>; rel="api-catalog"')
+        && link.includes('rel="service-desc"')
+        && link.includes('rel="service-doc"')
+        && link.includes('rel="status"')
+        && link.includes('rel="mcp-server-card"')
+        && link.includes('</.well-known/agent-card.json>; rel="describedby"')
     },
   },
   {
@@ -50,15 +76,62 @@ const checks = [
       && body.trim().startsWith('# Knowgrph'),
   },
   {
+    name: 'health',
+    url: `${baseUrl}/health`,
+    accept: 'application/health+json',
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && response.headers.get('content-type')?.includes('application/health+json')
+        && payload.status === 'pass'
+        && payload.service === 'knowgrph-agent-ready-pages'
+        && payload.health === `${baseUrl}/health`
+    },
+  },
+  {
     name: 'api-catalog',
     url: `${baseUrl}/.well-known/api-catalog`,
     accept: 'application/linkset+json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
+      const linksetEntry = payload.linkset?.[0] || {}
       return response.ok
         && response.headers.get('content-type')?.includes('application/linkset+json')
         && Array.isArray(payload.linkset)
-        && Boolean(payload.linkset[0]?.anchor)
+        && Boolean(linksetEntry.anchor)
+        && Array.isArray(linksetEntry.status)
+        && linksetEntry.status.some((entry) => entry?.href === `${baseUrl}/health`)
+    },
+  },
+  {
+    name: 'openapi',
+    url: `${baseUrl}/.well-known/openapi.json`,
+    accept: 'application/json',
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && payload.openapi === '3.1.0'
+        && payload.paths?.['/knowgrph/health']?.get
+        && payload.paths?.['/knowgrph/mcp']?.get
+        && payload.paths?.['/api/storage/source-files']?.get
+    },
+  },
+  {
+    name: 'a2a-agent-card',
+    url: `${baseUrl}/.well-known/agent-card.json`,
+    accept: 'application/json',
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && response.headers.get('content-type')?.includes('application/json')
+        && payload.name
+        && payload.version
+        && payload.description
+        && Array.isArray(payload.supportedInterfaces)
+        && payload.supportedInterfaces.some((entry) => entry?.url === `${baseUrl}/mcp`)
+        && payload.capabilities
+        && Array.isArray(payload.skills)
+        && payload.skills.every((skill) => skill?.id && skill?.name && skill?.description)
     },
   },
   {
@@ -89,7 +162,29 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      return response.ok && payload.serverInfo?.name && payload.serverInfo?.version && payload.transport
+      const tools = payload.capabilities?.tools
+      return response.ok
+        && payload.serverInfo?.name
+        && payload.serverInfo?.version
+        && payload.transport
+        && payload.links?.status === `${baseUrl}/health`
+        && Array.isArray(tools)
+        && expectedTools.every((tool) =>
+          tools.some((entry) =>
+            entry?.name === tool.name
+            && JSON.stringify(entry?.inputSchema || {}) === JSON.stringify(tool.inputSchema),
+          ))
+    },
+  },
+  {
+    name: 'mcp-card-alias',
+    url: `${baseUrl}/.well-known/mcp.json`,
+    accept: 'application/json',
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && payload.transport?.url === `${baseUrl}/mcp`
+        && Array.isArray(payload.capabilities?.tools)
     },
   },
   {
@@ -127,8 +222,11 @@ const checks = [
       const tools = payload.result?.tools
       return response.ok
         && Array.isArray(tools)
-        && tools.some((tool) => tool?.name === 'list_source_files')
-        && tools.some((tool) => tool?.name === 'read_source_file')
+        && expectedTools.every((tool) =>
+          tools.some((entry) =>
+            entry?.name === tool.name
+            && JSON.stringify(entry?.inputSchema || {}) === JSON.stringify(tool.inputSchema),
+          ))
     },
   },
   {
@@ -162,13 +260,42 @@ const checks = [
     assert: async (response, body) => response.ok && JSON.parse(body).linkset?.[0]?.anchor,
   },
   {
+    name: 'root-openapi-alias',
+    url: `${originUrl}/.well-known/openapi.json`,
+    accept: 'application/json',
+    assert: async (response, body) => response.ok && JSON.parse(body).paths?.['/knowgrph/health']?.get,
+  },
+  {
+    name: 'root-a2a-agent-card',
+    url: rootA2aAgentCardUrl,
+    accept: 'application/json',
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && payload.url === `${baseUrl}/mcp`
+        && Array.isArray(payload.skills)
+        && payload.skills.length > 0
+    },
+  },
+  {
+    name: 'root-mcp-card-alias',
+    url: `${originUrl}/.well-known/mcp/server-card.json`,
+    accept: 'application/json',
+    assert: async (response, body) => response.ok && JSON.parse(body).transport?.url === `${baseUrl}/mcp`,
+  },
+  {
+    name: 'root-agent-skills-alias',
+    url: `${originUrl}/.well-known/agent-skills/index.json`,
+    accept: 'application/json',
+    assert: async (response, body) => response.ok && Array.isArray(JSON.parse(body).skills),
+  },
+  {
     name: 'webmcp-html-marker',
     url: `${baseUrl}/?agentReadySmoke=1`,
     accept: 'text/html',
     assert: async (response, body) =>
       response.ok
-      && body.includes('knowgrph.list_source_files')
-      && body.includes('knowgrph.read_source_file')
+      && expectedWebToolNames.every((toolName) => body.includes(toolName))
       && body.includes('modelContext')
       && body.includes('kgWebmcpTools'),
   },

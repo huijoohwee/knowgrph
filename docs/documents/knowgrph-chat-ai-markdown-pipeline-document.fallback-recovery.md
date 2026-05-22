@@ -10,6 +10,8 @@ owner: platform-ai
 This companion documents fallback recovery behavior for `chatKnowgrph` when model output fails validation after retries.
 
 ## Recovery Order
+The canonical recovery owner is the shared upstream recovery path reused by submit, extraction, and storage normalization helpers.
+
 1. Score and select richest error candidate from raw assistant text, non-kgc answer text, and extracted `kgc`.
 2. Try body salvage from leading frontmatter.
 3. Try body salvage from embedded malformed frontmatter.
@@ -24,4 +26,5 @@ This companion documents fallback recovery behavior for `chatKnowgrph` when mode
 ## Guardrails
 - Strip residual artifacts: bare `kgc`, escaped `\---`, escaped fence wrappers.
 - Strip duplicated recovered shell sections (`# {{subject}}`, `## Intent`, `## Request`, leading `## Solution`) but keep useful content headings.
+- Strip legacy parallel grouping aliases so the recovered canonical document keeps `flow.subgraphs` as the only grouping authoring surface.
 - Avoid adding new fallback branches outside the canonical recovery path.
