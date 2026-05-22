@@ -2,6 +2,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   listSourceFiles: 'list_source_files',
   readSourceFile: 'read_source_file',
   readSharedDocument: 'read_shared_document',
+  inspectAgentSurface: 'inspect_agent_surface',
 })
 
 export const KNOWGRPH_AGENT_READY_WEB_MCP_NAMESPACE = 'knowgrph'
@@ -54,6 +55,14 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
         },
         anyOf: [{ required: ['shareToken'] }, { required: ['shareUrl'] }],
       },
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+    },
+    {
+      name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface,
+      webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface),
+      title: 'Inspect Agent Surface',
+      description: 'Inspect the deployed Knowgrph agent-ready discovery surface, including health, OpenAPI, MCP, and skill metadata.',
+      inputSchema: { type: 'object', additionalProperties: false, properties: {} },
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
     },
   ]

@@ -562,6 +562,26 @@ export const webMcpScript = `(() => {
     }
     return new URL(safePath, siteOrigin.endsWith("/") ? siteOrigin : \`\${siteOrigin}/\`).toString();
   };
+  const resolveAgentReadyBaseUrl = () => {
+    if (typeof window !== "undefined") {
+      const currentOrigin = normalizeString(window.location && window.location.origin);
+      if (currentOrigin) {
+        return new URL(\`\${appBasePath}/\`, currentOrigin.endsWith("/") ? currentOrigin : \`\${currentOrigin}/\`)
+          .toString()
+          .replace(/\\/+$/, "");
+      }
+    }
+    return new URL(\`\${appBasePath}/\`, siteOrigin.endsWith("/") ? siteOrigin : \`\${siteOrigin}/\`)
+      .toString()
+      .replace(/\\/+$/, "");
+  };
+  const fetchJson = async (url, accept = "application/json") => {
+    const response = await fetch(url, {
+      headers: { accept },
+    });
+    if (!response.ok) throw new Error(\`inspect_agent_surface failed with \${response.status} for \${url}\`);
+    return response.json();
+  };
   const getRegistrationState = (context) => {
     const existing = fallbackState.registrations.get(context);
     if (existing) return existing;
@@ -653,6 +673,40 @@ export const webMcpScript = `(() => {
           workspaceId: workspaceId || defaultWorkspaceId,
           canonicalPath,
           markdown: await response.text(),
+        };
+      }
+    },
+    {
+      name: ${JSON.stringify(webMcpTools[3].name)},
+      title: ${JSON.stringify(webMcpTools[3].title)},
+      description: ${JSON.stringify(webMcpTools[3].description)},
+      inputSchema: ${JSON.stringify(webMcpTools[3].inputSchema)},
+      annotations: ${JSON.stringify(webMcpTools[3].annotations)},
+      execute: async () => {
+        const agentReadyBaseUrl = resolveAgentReadyBaseUrl();
+        const [health, apiCatalog, openApi, mcpServerCard, agentCard, agentSkills] = await Promise.all([
+          fetchJson(\`\${agentReadyBaseUrl}/health\`, "application/health+json"),
+          fetchJson(\`\${agentReadyBaseUrl}/.well-known/api-catalog\`, "application/linkset+json"),
+          fetchJson(\`\${agentReadyBaseUrl}/.well-known/openapi.json\`, "application/json"),
+          fetchJson(\`\${agentReadyBaseUrl}/.well-known/mcp/server-card.json\`, "application/json"),
+          fetchJson(\`\${agentReadyBaseUrl}/.well-known/agent-card.json\`, "application/json"),
+          fetchJson(\`\${agentReadyBaseUrl}/.well-known/agent-skills/index.json\`, "application/json"),
+        ]);
+        return {
+          baseUrl: agentReadyBaseUrl,
+          healthUrl: \`\${agentReadyBaseUrl}/health\`,
+          mcpUrl: \`\${agentReadyBaseUrl}/mcp\`,
+          apiCatalogUrl: \`\${agentReadyBaseUrl}/.well-known/api-catalog\`,
+          openApiUrl: \`\${agentReadyBaseUrl}/.well-known/openapi.json\`,
+          mcpServerCardUrl: \`\${agentReadyBaseUrl}/.well-known/mcp/server-card.json\`,
+          agentCardUrl: \`\${agentReadyBaseUrl}/.well-known/agent-card.json\`,
+          agentSkillsUrl: \`\${agentReadyBaseUrl}/.well-known/agent-skills/index.json\`,
+          health,
+          apiCatalog,
+          openApi,
+          mcpServerCard,
+          agentCard,
+          agentSkills,
         };
       }
     }
@@ -775,6 +829,7 @@ Use this skill when an agent needs to discover and read published Knowgrph Sourc
 - list_source_files: fetch ${SITE_ORIGIN}/api/storage/source-files.
 - read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath} by default, or ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath} for an explicit workspace.
 - read_shared_document: resolve a Knowgrph share token or public share/document URL, then fetch the canonical published markdown document from storage.
+- inspect_agent_surface: inspect the deployed Knowgrph health, OpenAPI, MCP server-card, A2A agent-card, and agent-skills metadata.
 `;
 
 const sha256Hex = async (text) => {
@@ -839,6 +894,23 @@ const buildHealthStatusBody = () => ({
     webMcp: true,
     defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
   },
+});
+
+const buildAgentSurfaceInspection = async () => ({
+  baseUrl: APP_URL.replace(/\/+$/, ""),
+  healthUrl: HEALTH_URL,
+  mcpUrl: `${APP_URL}mcp`,
+  apiCatalogUrl: `${APP_URL}.well-known/api-catalog`,
+  openApiUrl: `${APP_URL}.well-known/openapi.json`,
+  mcpServerCardUrl: `${APP_URL}.well-known/mcp/server-card.json`,
+  agentCardUrl: A2A_AGENT_CARD_URL,
+  agentSkillsUrl: `${APP_URL}.well-known/agent-skills/index.json`,
+  health: buildHealthStatusBody(),
+  apiCatalog,
+  openApi,
+  mcpServerCard,
+  agentCard: a2aAgentCard,
+  agentSkills: await agentSkillsIndex(),
 });
 
 const parsePublishedDocSharePath = (pathname) => {
@@ -979,6 +1051,8 @@ const executeMcpTool = async (name, args) => {
         markdown: await response.text(),
       };
     }
+    case KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface:
+      return buildAgentSurfaceInspection();
     default:
       throw new Error(`unknown tool: ${name}`);
   }

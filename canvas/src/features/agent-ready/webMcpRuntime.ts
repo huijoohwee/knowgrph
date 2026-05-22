@@ -71,13 +71,16 @@ const findWebToolContract = (name: string): AgentReadyToolContract => {
 const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles)
 const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
 const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument)
+const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webName
+const INSPECT_AGENT_SURFACE_TOOL_NAME = INSPECT_AGENT_SURFACE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = WEB_MCP_TOOL_CONTRACTS.map(tool => tool.webName)
 const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
 const WEB_MCP_LATE_BINDING_MAX_ATTEMPTS = 20
 const WEB_MCP_DEFAULT_STORAGE_BASE_URL = 'https://airvio.co'
+const WEB_MCP_DEFAULT_AGENT_READY_BASE_URL = 'https://airvio.co/knowgrph'
 const WEB_MCP_APP_BASE_PATH = '/knowgrph'
 const webMcpRuntimeState: WebMcpRuntimeState = {
   fallbackContext: null,
@@ -122,6 +125,30 @@ const readWebMcpDocumentBaseUrl = (): string => {
     if (currentOrigin) return currentOrigin
   }
   return readWebMcpStorageBaseUrl() || WEB_MCP_DEFAULT_STORAGE_BASE_URL
+}
+
+const readWebMcpAgentReadyBaseUrl = (): string => {
+  const configuredBaseUrl = normalizeString(readEnvString('VITE_KNOWGRPH_AGENT_READY_BASE_URL', ''))
+  if (configuredBaseUrl) return configuredBaseUrl.replace(/\/+$/, '')
+  if (typeof window !== 'undefined') {
+    const currentOrigin = normalizeString(window.location?.origin)
+    if (currentOrigin) {
+      return new URL(`${WEB_MCP_APP_BASE_PATH}/`, currentOrigin.endsWith('/') ? currentOrigin : `${currentOrigin}/`)
+        .toString()
+        .replace(/\/+$/, '')
+    }
+  }
+  return WEB_MCP_DEFAULT_AGENT_READY_BASE_URL
+}
+
+const fetchJson = async (url: string, accept = 'application/json'): Promise<unknown> => {
+  const response = await fetch(url, {
+    headers: { accept },
+  })
+  if (!response.ok) {
+    throw new Error(`inspect_agent_surface failed with ${response.status} for ${url}`)
+  }
+  return response.json()
 }
 
 const readGlobalNavigator = (): WebMcpNavigator => {
@@ -269,7 +296,47 @@ const buildReadSharedDocumentTool = (): WebMcpTool => ({
   },
 })
 
-const WEB_MCP_TOOLS = [buildSourceFilesTool(), buildReadSourceFileTool(), buildReadSharedDocumentTool()]
+const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
+  name: INSPECT_AGENT_SURFACE_TOOL_NAME,
+  title: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.title,
+  description: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const agentReadyBaseUrl = readWebMcpAgentReadyBaseUrl()
+    const [health, apiCatalog, openApi, mcpServerCard, agentCard, agentSkills] = await Promise.all([
+      fetchJson(`${agentReadyBaseUrl}/health`, 'application/health+json'),
+      fetchJson(`${agentReadyBaseUrl}/.well-known/api-catalog`, 'application/linkset+json'),
+      fetchJson(`${agentReadyBaseUrl}/.well-known/openapi.json`, 'application/json'),
+      fetchJson(`${agentReadyBaseUrl}/.well-known/mcp/server-card.json`, 'application/json'),
+      fetchJson(`${agentReadyBaseUrl}/.well-known/agent-card.json`, 'application/json'),
+      fetchJson(`${agentReadyBaseUrl}/.well-known/agent-skills/index.json`, 'application/json'),
+    ])
+    return {
+      baseUrl: agentReadyBaseUrl,
+      healthUrl: `${agentReadyBaseUrl}/health`,
+      mcpUrl: `${agentReadyBaseUrl}/mcp`,
+      apiCatalogUrl: `${agentReadyBaseUrl}/.well-known/api-catalog`,
+      openApiUrl: `${agentReadyBaseUrl}/.well-known/openapi.json`,
+      mcpServerCardUrl: `${agentReadyBaseUrl}/.well-known/mcp/server-card.json`,
+      agentCardUrl: `${agentReadyBaseUrl}/.well-known/agent-card.json`,
+      agentSkillsUrl: `${agentReadyBaseUrl}/.well-known/agent-skills/index.json`,
+      health,
+      apiCatalog,
+      openApi,
+      mcpServerCard,
+      agentCard,
+      agentSkills,
+    }
+  },
+})
+
+const WEB_MCP_TOOLS = [
+  buildSourceFilesTool(),
+  buildReadSourceFileTool(),
+  buildReadSharedDocumentTool(),
+  buildInspectAgentSurfaceTool(),
+]
 
 const installToolsIntoModelContext = (context: ModelContextLike, tools: WebMcpTool[]): boolean => {
   const registrationState = getRegistrationState(context)

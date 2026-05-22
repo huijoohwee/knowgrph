@@ -353,6 +353,32 @@ const checks = [
       }]
     : []),
   {
+    name: 'mcp-inspect-agent-surface',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'tools/call',
+      params: {
+        name: 'inspect_agent_surface',
+        arguments: {},
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const result = payload.result?.structuredContent
+      return response.ok
+        && payload.result?.isError === false
+        && result?.healthUrl === `${canonicalBaseUrl}/health`
+        && result?.mcpUrl === `${canonicalBaseUrl}/mcp`
+        && result?.mcpServerCard?.transport?.url === `${canonicalBaseUrl}/mcp`
+        && Array.isArray(result?.agentSkills?.skills)
+        && result.agentSkills.skills.length > 0
+    },
+  },
+  {
     name: 'agent-skills',
     url: `${baseUrl}/.well-known/agent-skills/index.json`,
     accept: 'application/json',
