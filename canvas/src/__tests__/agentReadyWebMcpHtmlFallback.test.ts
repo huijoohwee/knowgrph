@@ -7,11 +7,36 @@ type RegisteredTool = {
   execute: (input?: Record<string, unknown>) => Promise<unknown>
 }
 
+const MOCK_SHARED_DOCUMENT_MARKDOWN = `---
+flow:
+  nodes:
+    - id: start
+      label: Start
+    - id: end
+      label: End
+  connections:
+    - source: start
+      target: end
+  subgraphs:
+    - id: lane-main
+      label: Main
+---
+
+# Shared Doc
+
+## Overview
+`
+
 const createMockResponse = (url: string): Response =>
   ({
     ok: true,
     status: 200,
-    text: async () => '# mock markdown',
+    text: async () => (
+      url.includes('/api/storage/doc-default/')
+        || url.includes('/api/storage/doc/')
+        ? MOCK_SHARED_DOCUMENT_MARKDOWN
+        : '# mock markdown'
+    ),
     json: async () => ({
       url,
       ok: true,
@@ -74,8 +99,9 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     const listTool = registeredTools.get('knowgrph.list_source_files')
     const readTool = registeredTools.get('knowgrph.read_source_file')
     const readSharedTool = registeredTools.get('knowgrph.read_shared_document')
+    const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectTool) {
       throw new Error(`expected all injected WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -83,6 +109,7 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
     await readSharedTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
+    const sharedStructure = await inspectSharedDocumentTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
     const inspection = await inspectTool.execute()
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
@@ -93,6 +120,12 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     }
     if (!fetchCalls.includes('/api/storage/doc-default/docs%2Fshared.md')) {
       throw new Error(`expected injected read_shared_document to reuse same-origin storage path, got ${fetchCalls.join(', ')}`)
+    }
+    if ((sharedStructure as { flowConnectionCount?: unknown }).flowConnectionCount !== 1) {
+      throw new Error(`expected injected inspect_shared_document_structure to count flow connections, got ${JSON.stringify(sharedStructure)}`)
+    }
+    if ((sharedStructure as { headingCount?: unknown }).headingCount !== 2) {
+      throw new Error(`expected injected inspect_shared_document_structure to count markdown headings, got ${JSON.stringify(sharedStructure)}`)
     }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected injected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)

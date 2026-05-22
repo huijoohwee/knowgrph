@@ -56,6 +56,23 @@ const agentReadyToolContractTarget = path.resolve(
   'agent-ready',
   'knowgrphAgentReadyToolContract.mjs',
 )
+const sharedDocumentStructureInspectionSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'sharedDocumentStructureInspection.mjs',
+)
+const sharedDocumentStructureInspectionTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'sharedDocumentStructureInspection.mjs',
+)
 const publishedDocShareTokenSource = path.resolve(
   knowgrphRoot,
   'canvas',
@@ -400,6 +417,10 @@ const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(
   agentReadyToolContractSource,
   agentReadyToolContractTarget,
 )
+const sharedDocumentStructureInspectionNeedsUpdate = await plainFileNeedsUpdate(
+  sharedDocumentStructureInspectionSource,
+  sharedDocumentStructureInspectionTarget,
+)
 const publishedDocShareTokenNeedsUpdate = await plainFileNeedsUpdate(
   publishedDocShareTokenSource,
   publishedDocShareTokenTarget,
@@ -431,6 +452,7 @@ if (checkMode) {
     rootAgentReadySharedNeedsUpdate ||
     rootAgentReadyFunctionNeedsUpdate ||
     agentReadyToolContractNeedsUpdate ||
+    sharedDocumentStructureInspectionNeedsUpdate ||
     publishedDocShareTokenNeedsUpdate ||
     sharedD1NeedsUpdate ||
     sharedPublishedDocNeedsUpdate ||
@@ -469,6 +491,7 @@ if (checkMode) {
     if (rootAgentReadySharedNeedsUpdate) console.error('  - Root agent-ready shared markdown helper is out of sync')
     if (rootAgentReadyFunctionNeedsUpdate) console.error('  - Root markdown negotiation Pages Function is out of sync')
     if (agentReadyToolContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared tool contract is out of sync')
+    if (sharedDocumentStructureInspectionNeedsUpdate) console.error('  - Knowgrph shared document structure inspection helper is out of sync')
     if (publishedDocShareTokenNeedsUpdate) console.error('  - Knowgrph published doc share token helper is out of sync')
     if (sharedD1NeedsUpdate) console.error('  - Shared D1 helper is out of sync')
     if (sharedPublishedDocNeedsUpdate) console.error('  - Shared published doc helper is out of sync')
@@ -552,6 +575,10 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyToolContractTarget), { recursive: true })
     await fs.copyFile(agentReadyToolContractSource, agentReadyToolContractTarget)
   }
+  if (sharedDocumentStructureInspectionNeedsUpdate) {
+    await fs.mkdir(path.dirname(sharedDocumentStructureInspectionTarget), { recursive: true })
+    await fs.copyFile(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
+  }
   if (publishedDocShareTokenNeedsUpdate) {
     await fs.mkdir(path.dirname(publishedDocShareTokenTarget), { recursive: true })
     await fs.copyFile(publishedDocShareTokenSource, publishedDocShareTokenTarget)
@@ -577,6 +604,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

@@ -10,6 +10,7 @@ import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from './knowgrphAgentReadyToolContract.mjs'
+import { inspectSharedDocumentStructure } from './sharedDocumentStructureInspection.mjs'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -71,10 +72,12 @@ const findWebToolContract = (name: string): AgentReadyToolContract => {
 const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles)
 const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
 const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument)
+const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webName
+const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME = INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.webName
 const INSPECT_AGENT_SURFACE_TOOL_NAME = INSPECT_AGENT_SURFACE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = WEB_MCP_TOOL_CONTRACTS.map(tool => tool.webName)
 const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
@@ -296,6 +299,41 @@ const buildReadSharedDocumentTool = (): WebMcpTool => ({
   },
 })
 
+const buildInspectSharedDocumentStructureTool = (): WebMcpTool => ({
+  name: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME,
+  title: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.title,
+  description: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.annotations,
+  execute: async (input) => {
+    const resolvedDocument = resolvePublishedDocIdentity({
+      shareToken: input?.shareToken,
+      shareUrl: input?.shareUrl,
+      appBasePath: WEB_MCP_APP_BASE_PATH,
+      baseUrl: readWebMcpDocumentBaseUrl(),
+    })
+    if (!resolvedDocument) {
+      throw new Error('shareToken or shareUrl must resolve to a published Knowgrph document')
+    }
+    const workspaceId = String(resolvedDocument.workspaceId || '').trim()
+    const canonicalPath = resolvedDocument.canonicalPath
+    const path = workspaceId
+      ? buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
+      : buildKnowgrphStorageDefaultDocPath(canonicalPath)
+    const response = await fetch(buildWebMcpStorageRequestUrl(path), {
+      headers: { accept: 'text/markdown' },
+    })
+    if (!response.ok) {
+      throw new Error(`inspect_shared_document_structure failed with ${response.status}`)
+    }
+    return inspectSharedDocumentStructure({
+      workspaceId: workspaceId || KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+      canonicalPath,
+      markdown: await response.text(),
+    })
+  },
+})
+
 const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
   name: INSPECT_AGENT_SURFACE_TOOL_NAME,
   title: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.title,
@@ -335,6 +373,7 @@ const WEB_MCP_TOOLS = [
   buildSourceFilesTool(),
   buildReadSourceFileTool(),
   buildReadSharedDocumentTool(),
+  buildInspectSharedDocumentStructureTool(),
   buildInspectAgentSurfaceTool(),
 ]
 

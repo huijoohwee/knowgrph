@@ -2,6 +2,7 @@ import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
+import { inspectSharedDocumentStructure } from "../../canvas/src/features/agent-ready/sharedDocumentStructureInspection.mjs";
 import {
   decodePublishedDocShareToken,
   PUBLISHED_DOC_SHARE_TOKEN_PARAM,
@@ -440,6 +441,7 @@ export const webMcpScript = `(() => {
   const toolNames = ${JSON.stringify(webMcpTools.map((tool) => tool.name))};
   const lateBindingRetryDelayMs = 500;
   const lateBindingMaxAttempts = 20;
+  const inspectSharedDocumentStructure = ${inspectSharedDocumentStructure.toString()};
   const fallbackState = {
     fallbackContext: null,
     activeRegisteredContext: null,
@@ -682,6 +684,28 @@ export const webMcpScript = `(() => {
       description: ${JSON.stringify(webMcpTools[3].description)},
       inputSchema: ${JSON.stringify(webMcpTools[3].inputSchema)},
       annotations: ${JSON.stringify(webMcpTools[3].annotations)},
+      execute: async (input = {}) => {
+        const resolvedDocument = resolvePublishedDocIdentity(input);
+        if (!resolvedDocument) throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
+        const canonicalPath = normalizeString(resolvedDocument.canonicalPath);
+        const workspaceId = normalizeString(resolvedDocument.workspaceId);
+        const response = await fetch(buildStorageRequestUrl(buildDocPath(canonicalPath, workspaceId)), {
+          headers: { accept: "text/markdown" },
+        });
+        if (!response.ok) throw new Error(\`inspect_shared_document_structure failed with \${response.status}\`);
+        return inspectSharedDocumentStructure({
+          workspaceId: workspaceId || defaultWorkspaceId,
+          canonicalPath,
+          markdown: await response.text(),
+        });
+      }
+    },
+    {
+      name: ${JSON.stringify(webMcpTools[4].name)},
+      title: ${JSON.stringify(webMcpTools[4].title)},
+      description: ${JSON.stringify(webMcpTools[4].description)},
+      inputSchema: ${JSON.stringify(webMcpTools[4].inputSchema)},
+      annotations: ${JSON.stringify(webMcpTools[4].annotations)},
       execute: async () => {
         const agentReadyBaseUrl = resolveAgentReadyBaseUrl();
         const [health, apiCatalog, openApi, mcpServerCard, agentCard, agentSkills] = await Promise.all([
@@ -829,6 +853,7 @@ Use this skill when an agent needs to discover and read published Knowgrph Sourc
 - list_source_files: fetch ${SITE_ORIGIN}/api/storage/source-files.
 - read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath} by default, or ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath} for an explicit workspace.
 - read_shared_document: resolve a Knowgrph share token or public share/document URL, then fetch the canonical published markdown document from storage.
+- inspect_shared_document_structure: inspect published Knowgrph shared-document frontmatter/body structure from a share token or public share/document URL.
 - inspect_agent_surface: inspect the deployed Knowgrph health, OpenAPI, MCP server-card, A2A agent-card, and agent-skills metadata.
 `;
 
@@ -912,6 +937,29 @@ const buildAgentSurfaceInspection = async () => ({
   agentCard: a2aAgentCard,
   agentSkills: await agentSkillsIndex(),
 });
+
+const buildSharedDocumentStructureInspection = async (args = {}) => {
+  const resolvedDocument = resolvePublishedDocIdentity({
+    shareToken: args?.shareToken,
+    shareUrl: args?.shareUrl,
+    appBasePath: APP_BASE_PATH,
+    baseUrl: SITE_ORIGIN,
+  });
+  if (!resolvedDocument) {
+    throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
+  }
+  const workspaceId = normalizeToolString(resolvedDocument.workspaceId);
+  const canonicalPath = resolvedDocument.canonicalPath;
+  const response = await fetch(`${STORAGE_FETCH_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
+    headers: { accept: "text/markdown" },
+  });
+  if (!response.ok) throw new Error(`inspect_shared_document_structure upstream failed with ${response.status}`);
+  return inspectSharedDocumentStructure({
+    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
+    canonicalPath,
+    markdown: await response.text(),
+  });
+};
 
 const parsePublishedDocSharePath = (pathname) => {
   const normalizedPath = String(pathname || "").replace(/\/+$/, "") || "/";
@@ -1051,6 +1099,8 @@ const executeMcpTool = async (name, args) => {
         markdown: await response.text(),
       };
     }
+    case KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure:
+      return buildSharedDocumentStructureInspection(args);
     case KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface:
       return buildAgentSurfaceInspection();
     default:

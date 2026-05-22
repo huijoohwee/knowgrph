@@ -2,6 +2,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   listSourceFiles: 'list_source_files',
   readSourceFile: 'read_source_file',
   readSharedDocument: 'read_shared_document',
+  inspectSharedDocumentStructure: 'inspect_shared_document_structure',
   inspectAgentSurface: 'inspect_agent_surface',
 })
 
@@ -46,6 +47,22 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument),
       title: 'Read Shared Document',
       description: 'Read published Knowgrph markdown content from a share token or public Knowgrph share/document URL.',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          shareToken: { type: 'string' },
+          shareUrl: { type: 'string' },
+        },
+        anyOf: [{ required: ['shareToken'] }, { required: ['shareUrl'] }],
+      },
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+    },
+    {
+      name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure,
+      webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure),
+      title: 'Inspect Shared Document Structure',
+      description: 'Inspect published Knowgrph shared-document frontmatter and body structure from a share token or public Knowgrph share/document URL.',
       inputSchema: {
         type: 'object',
         additionalProperties: false,

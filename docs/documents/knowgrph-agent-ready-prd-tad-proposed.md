@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.17.0
+version: 1.18.0
 status: implemented
 created: 2026-05-21
 updated: 2026-05-22
@@ -133,7 +133,7 @@ Knowgrph does not currently aim to:
 | Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
-| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Current runtime installs exactly two read-only tools and attempts `provideContext`, `registerTool(tool, { signal })`, then readable fallback storage |
+| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Current runtime installs five read-only tools and attempts `provideContext`, `registerTool(tool, { signal })`, then readable fallback storage |
 | Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Late-binding install, `AbortController` registration lifecycle, and current-origin/localhost-aware storage resolution are now shipped without changing the shared tool contract |
 | HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Injection must stay contract-equal with app runtime |
 | HTTP MCP transport | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Tool surface is read-only only, by design |
@@ -313,7 +313,7 @@ can discover real Knowgrph read-only tools inside the browser context.
 #### Implemented acceptance
 
 - app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
-- the page registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, and `knowgrph.inspect_agent_surface`
+- the page registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
 - registration attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then a
   readable fallback `modelContext.tools` store
 - tool names are canonical and deduplicated by name through
@@ -787,7 +787,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
-- [x] browser runtime exposes `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, and `knowgrph.inspect_agent_surface`
+- [x] browser runtime exposes `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
 - [x] HTML fallback exposes WebMCP markers on the app document
 - [x] JSON-RPC MCP `initialize` returns a valid result
 - [x] JSON-RPC MCP `tools/list` returns both read-only tools
@@ -835,4 +835,4 @@ The current implementation is shipped. The safe next steps are:
    to the separate proposed MCP service PRD/TAD until the repo gains those implementation owners.
 7. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
 
-*Document version: 1.17.0 - WebMCP lifecycle hardening shipped and smoke/docs aligned with agent-readiness SSOT - 2026-05-22*
+*Document version: 1.18.0 - Shared-document structure inspection added to the shipped read-only MCP/WebMCP surface and smoke/docs kept aligned with agent-readiness SSOT - 2026-05-22*

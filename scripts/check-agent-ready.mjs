@@ -350,6 +350,36 @@ const checks = [
             && result?.workspaceId === sharedDocSample.workspaceId
             && String(result?.markdown || '').trim() === sharedDocSample.markdown.trim()
         },
+      },
+      {
+        name: 'mcp-inspect-shared-document-structure',
+        url: `${baseUrl}/mcp`,
+        method: 'POST',
+        accept: 'application/json',
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 4,
+          method: 'tools/call',
+          params: {
+            name: 'inspect_shared_document_structure',
+            arguments: {
+              shareUrl: sharedDocSample.shareUrl,
+            },
+          },
+        }),
+        assert: async (response, body) => {
+          const payload = JSON.parse(body)
+          const result = payload.result?.structuredContent
+          return response.ok
+            && payload.result?.isError === false
+            && result?.canonicalPath === sharedDocSample.canonicalPath
+            && result?.workspaceId === sharedDocSample.workspaceId
+            && typeof result?.hasFrontmatter === 'boolean'
+            && Array.isArray(result?.topLevelKeys)
+            && typeof result?.headingCount === 'number'
+            && typeof result?.markdownLength === 'number'
+            && result.markdownLength > 0
+        },
       }]
     : []),
   {
@@ -359,7 +389,7 @@ const checks = [
     accept: 'application/json',
     body: JSON.stringify({
       jsonrpc: '2.0',
-      id: 4,
+      id: 5,
       method: 'tools/call',
       params: {
         name: 'inspect_agent_surface',

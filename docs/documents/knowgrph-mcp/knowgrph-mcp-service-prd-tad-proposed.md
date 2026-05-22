@@ -4,7 +4,7 @@ id: md:knowgrph-mcp-service-prd-tad-proposed
 author: joohwee
 date: 2026-05-20
 updated: 2026-05-22
-version: 0.4.1
+version: 0.4.2
 status: proposed
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -22,6 +22,13 @@ linkedDocs:
   - "{{md:knowgrph-llm-prompt-contract-prd-tad-proposed}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.2
+    date: 2026-05-22
+    summary: >
+      Added `inspect_shared_document_structure` to the shipped read-only
+      Pages/browser MCP surface so agents can inspect published shared-document
+      frontmatter/body structure through the canonical share identity and
+      storage-read path.
   - version: 0.4.1
     date: 2026-05-22
     summary: >
@@ -39,7 +46,7 @@ changelog:
 
 > **Document type**: Combined PRD + TAD  
 > **Phase**: Proposed enhancement over shipped MCP surfaces  
-> **Version**: 0.4.1
+> **Version**: 0.4.2
 
 ---
 
@@ -52,7 +59,7 @@ This document defines the next MCP phase for Knowgrph, but it starts from the cu
 | Surface | Current state | Canonical owner | Notes |
 |---|---|---|---|
 | Local stdio MCP server | Shipped | `mcp/server.js` | Exposes local UI launch, pipeline, harness, and browser API bridge tools |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers two read-only tools in browser context |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers five read-only tools in browser context |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | JSON-RPC read-only MCP on `/knowgrph/mcp` |
 | MainPanel `mcp` | Shipped | `canvas/src/features/panels/views/McpHubView.tsx` | Thin `SettingsView mode="mcp"` shell |
 | MainPanel `integrations` | Shipped | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | Thin `SettingsView mode="integrations"` shell |
@@ -130,7 +137,7 @@ This document does not claim that the following are already implemented:
 ### Personas
 
 - **Persona A - Local MCP power user**: runs `mcp/server.js` from Claude Code, Cursor, or another local MCP host to launch the UI, run parser pipelines, run the superagent harness, or drive the browser API bridge.
-- **Persona B - Published-doc agent**: connects to deployed Pages/browser agent-ready surfaces to discover `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, and `knowgrph.inspect_agent_surface`.
+- **Persona B - Published-doc agent**: connects to deployed Pages/browser agent-ready surfaces to discover `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`.
 - **Persona C - MainPanel operator**: configures MCP, integrations, provider presets, and chat routing through shared MainPanel settings.
 - **Persona D - FloatingPanel Chat user**: asks the LLM to generate canonical KGC Markdown and expects the result to materialize on the Canvas without a second manual import path.
 - **Persona E - Future remote MCP client**: should eventually trigger selected richer flows remotely, but only through thin adapters over existing browser/local owners.
@@ -288,7 +295,7 @@ This document does not claim that the following are already implemented:
 #### Contract B - Shipped read-only Pages/browser MCP
 
 - Transport: JSON-RPC over `/knowgrph/mcp` and browser WebMCP via `navigator.modelContext`.
-- Tool surface: `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_agent_surface`.
+- Tool surface: `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface`.
 - Data source: published Source Files and storage-backed markdown doc reads.
 - Constraints: read-only by design; lifecycle now includes late binding, duplicate-state handling, and localhost/current-origin storage resolution.
 
