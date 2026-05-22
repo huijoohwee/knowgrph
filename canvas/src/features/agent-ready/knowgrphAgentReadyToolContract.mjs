@@ -5,6 +5,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectSharedDocumentStructure: 'inspect_shared_document_structure',
   inspectLocalWorkspaceDocument: 'inspect_local_workspace_document',
   inspectLocalCanvasTopology: 'inspect_local_canvas_topology',
+  inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
   inspectAgentSurface: 'inspect_agent_surface',
 })
 
@@ -90,6 +91,13 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology),
           title: 'Inspect Local Canvas Topology',
           description: 'Inspect the active browser-local Knowgrph canvas topology summary from the app runtime without calling published storage or Pages MCP routes.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot),
+          title: 'Inspect Local Canvas Snapshot',
+          description: 'Inspect the active browser-local Knowgrph canvas SVG snapshot from the app runtime without calling published storage or Pages MCP routes.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }]

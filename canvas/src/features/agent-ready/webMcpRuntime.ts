@@ -13,6 +13,7 @@ import {
 } from './knowgrphAgentReadyToolContract.mjs'
 import { inspectSharedDocumentStructure } from './sharedDocumentStructureInspection.mjs'
 import { inspectLocalCanvasTopology } from './localCanvasTopologyInspection'
+import { inspectLocalCanvasSnapshot } from './localCanvasSnapshotInspection'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -78,6 +79,7 @@ const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_RE
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure)
 const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument)
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology)
+const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
@@ -85,6 +87,7 @@ const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webNam
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME = INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME = INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_NAME = INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_NAME = INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.webName
 const INSPECT_AGENT_SURFACE_TOOL_NAME = INSPECT_AGENT_SURFACE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = WEB_MCP_TOOL_CONTRACTS.map(tool => tool.webName)
 const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
@@ -400,6 +403,24 @@ const buildInspectLocalCanvasTopologyTool = (): WebMcpTool => ({
   },
 })
 
+const buildInspectLocalCanvasSnapshotTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_NAME,
+  title: INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const state = useGraphStore.getState()
+    const svgMarkup = await state.captureCanvasSvgSnapshot('2d')
+    return inspectLocalCanvasSnapshot({
+      markdownDocumentName: state.markdownDocumentName,
+      canvasRenderMode: state.canvasRenderMode,
+      canvas2dRenderer: state.canvas2dRenderer,
+      svgMarkup,
+    })
+  },
+})
+
 const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
   name: INSPECT_AGENT_SURFACE_TOOL_NAME,
   title: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.title,
@@ -442,6 +463,7 @@ const WEB_MCP_TOOLS = [
   buildInspectSharedDocumentStructureTool(),
   buildInspectLocalWorkspaceDocumentTool(),
   buildInspectLocalCanvasTopologyTool(),
+  buildInspectLocalCanvasSnapshotTool(),
   buildInspectAgentSurfaceTool(),
 ]
 

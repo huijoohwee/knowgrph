@@ -102,6 +102,7 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
     const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectLocalCanvasTool = registeredTools.get('knowgrph.inspect_local_canvas_topology')
+    const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
     if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectTool) {
       throw new Error(`expected all injected WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
@@ -111,6 +112,9 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     }
     if (inspectLocalCanvasTool) {
       throw new Error('expected injected HTML fallback to exclude the browser-local inspect_local_canvas_topology tool')
+    }
+    if (inspectLocalCanvasSnapshotTool) {
+      throw new Error('expected injected HTML fallback to exclude the browser-local inspect_local_canvas_snapshot tool')
     }
 
     const shareToken = encodePublishedDocShareToken({ canonicalPath: 'docs/shared.md' })

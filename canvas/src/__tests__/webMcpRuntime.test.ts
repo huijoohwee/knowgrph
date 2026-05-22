@@ -47,6 +47,8 @@ const MOCK_CANVAS_GRAPH_DATA = {
   type: 'application/json',
 }
 
+const MOCK_CANVAS_SVG = '<svg viewBox="0 0 640 360" width="640" height="360"><g data-kg-node="start" /></svg>'
+
 const createMockResponse = (url: string): Response =>
   ({
     ok: true,
@@ -89,6 +91,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const previousCollapsedGroupIds = useGraphStore.getState().collapsedGroupIds
   const previousSelectedNodeId = useGraphStore.getState().selectedNodeId
   const previousSelectedEdgeId = useGraphStore.getState().selectedEdgeId
+  const previousCanvasSnapshotFns = useGraphStore.getState().canvasSnapshotFns
 
   try {
     delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
@@ -140,8 +143,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
     const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectLocalCanvasTool = registeredTools.get('knowgrph.inspect_local_canvas_topology')
+    const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -161,6 +165,12 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       collapsedGroupIds: ['lane-main'],
       selectedNodeId: 'start',
       selectedEdgeId: 'edge-1',
+      canvasSnapshotFns: {
+        '2d': {
+          captureSvg: async () => MOCK_CANVAS_SVG,
+          capturePng: async () => null,
+        },
+      },
     } as never)
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
@@ -168,6 +178,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const sharedStructure = await inspectSharedDocumentTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
     const localStructure = await inspectLocalDocumentTool.execute()
     const localCanvasTopology = await inspectLocalCanvasTool.execute()
+    const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
     const inspection = await inspectTool.execute()
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
@@ -209,6 +220,15 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localCanvasTopology as { graphTopology?: { nodeCount?: unknown } }).graphTopology?.nodeCount !== 2) {
       throw new Error(`expected inspect_local_canvas_topology to report local node count, got ${JSON.stringify(localCanvasTopology)}`)
     }
+    if ((localCanvasSnapshot as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_canvas_snapshot to report an available SVG snapshot, got ${JSON.stringify(localCanvasSnapshot)}`)
+    }
+    if ((localCanvasSnapshot as { svgLength?: unknown }).svgLength !== MOCK_CANVAS_SVG.length) {
+      throw new Error(`expected inspect_local_canvas_snapshot to report SVG length, got ${JSON.stringify(localCanvasSnapshot)}`)
+    }
+    if ((localCanvasSnapshot as { viewBox?: unknown }).viewBox !== '0 0 640 360') {
+      throw new Error(`expected inspect_local_canvas_snapshot to report SVG viewBox, got ${JSON.stringify(localCanvasSnapshot)}`)
+    }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)
     }
@@ -237,6 +257,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       collapsedGroupIds: previousCollapsedGroupIds,
       selectedNodeId: previousSelectedNodeId,
       selectedEdgeId: previousSelectedEdgeId,
+      canvasSnapshotFns: previousCanvasSnapshotFns,
     } as never)
     resetKnowgrphWebMcpRuntimeForTests()
     restore()
