@@ -1,330 +1,170 @@
-# Knowgrph MCP Integration (AI‑Native, Low‑TCO)
+# Knowgrph MCP Integration
 
 **Context (deployment chain)**  
-Dev repo → Prod repo mirror → Cloudflare Pages at **`airvio.co/knowgrph`**.
+Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudflare Pages `airvio.co/knowgrph`.
 
-**Requirements**
-- **TCO**: keep fixed costs near‑zero; pay only when used; low operational burden.
-- **Token performance/economics**: reduce tokens + latency, enforce budgets, measure costs.
-- **FOSS + free-tier**: prioritize open tooling and free/cheap infra.
-- **AI-native + MCP service integration**: MCP is the default “tool layer”.
-
----
-
-## 1) What MCP is (for Knowgrph)
-
-**Model Context Protocol (MCP)** is a standardized way for an LLM client/agent to call **tools** exposed by services (local or remote), using stable tool schemas.
-
-For Knowgrph, MCP should be the integration boundary between:
-- the **UI/orchestrator** (chat, workflows, parser pipelines), and
-- external capabilities (GitHub/Stripe/etc.) plus **Knowgrph’s own domain tools** (parse/graph/export).
-
-**Why MCP**
-- **SSOT tool contracts**: one schema → many clients (UI, CLI, agents).
-- **Vendor-neutral**: switch models/providers without rewriting integrations.
-- **Composable**: workflows become tool graphs; easier to test and cache.
-- **Lower ops** than bespoke API wiring (consistent auth/audit).
+**Intent**
+- keep MCP as the SSOT tool layer where it adds real leverage
+- keep shipped surfaces truthful
+- forbid stale/conflicting architecture
+- align future MCP work with the existing MainPanel -> FloatingPanel Chat -> YAML frontmatter -> Canvas graph pipeline
 
 ---
 
-## 2) Recommended architecture (Cloudflare-first)
+## 1) Current MCP surfaces
 
-### Current implemented topology
+### 1.1 Local stdio MCP
 
-The active deployment path is:
+**Status**: shipped  
+**Owner**: `mcp/server.js`
 
-| Stage | Runtime | Responsibility |
+Current local tools:
+- `knowgrph.ui.launch`
+- `knowgrph.ui.stop`
+- `knowgrph.pipeline`
+- `knowgrph.graphrag_pipeline`
+- `knowgrph.superagent.run`
+- `knowgrph.browser_api.run`
+
+This is the richest implemented MCP surface in the repo today, but it is local-only and stdio-only.
+
+### 1.2 Pages and browser read-only MCP
+
+**Status**: shipped  
+**Owners**:
+- `cloudflare/pages/knowgrph-agent-ready.mjs`
+- `canvas/src/features/agent-ready/webMcpRuntime.ts`
+- `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
+
+Current shared read-only tools:
+- `knowgrph.list_source_files`
+- `knowgrph.read_source_file`
+
+This surface is intentionally narrow and storage-backed. It is not the same thing as the richer future remote MCP platform proposed in the PRD/TAD.
+
+### 1.3 MainPanel MCP and Integrations readiness
+
+**Status**: shipped  
+**Owners**:
+- `canvas/src/features/panels/views/McpHubView.tsx`
+- `canvas/src/features/panels/views/IntegrationsHubView.tsx`
+- `canvas/src/features/panels/views/SettingsView.tsx`
+- `canvas/src/features/panels/views/useSettingsChatAssist.tsx`
+
+Important detail: MainPanel `mcp` and MainPanel `integrations` are thin shells over shared settings and chat-readiness owners. They are not separate orchestration stacks.
+
+### 1.4 Browser-local chat to canvas pipeline
+
+**Status**: shipped  
+**Owners**:
+- `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts`
+- `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts`
+- `canvas/src/features/chat/chatMarkdownValidation.ts`
+- `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts`
+- `canvas/src/features/chat/chatKgcCanvasApply.ts`
+- `canvas/src/features/parsers/default.ts`
+- `canvas/src/features/parsers/markdownFrontmatterFlowGraph.*`
+
+This is the existing E2E path for:
+- MainPanel MCP / Integrations readiness
+- FloatingPanel Chat UI
+- LLM output
+- YAML frontmatter KGC Markdown
+- Canvas nodes / edges / subgraphs / groups / clusters
+
+---
+
+## 2) Repo-accurate architecture
+
+### 2.1 Shipped topology
+
+| Surface | Role | Owner |
 |---|---|---|
-| Dev | `/Users/huijoohwee/Documents/GitHub/knowgrph` | Source-owned MCP, crawler, storage, payment, docs, tests, and Worker configs |
-| Prod mirror | `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` | Synced static Pages artifact only |
-| Cloudflare Pages | `airvio.co/knowgrph` | Static SPA, `llms.txt`, and asset delivery |
-| Storage Worker | `airvio.co/api/storage/*` | D1 push/pull/export/doc-view plus read-only Source Files crawler indexes |
-| Payment Worker | `airvio.co/api/payments/*` | Stripe Checkout Session creation, status reads, and webhook verification |
+| Local stdio MCP | local automation and dev workflows | `mcp/server.js` |
+| Pages HTTP MCP | published-document read-only access | `cloudflare/pages/knowgrph-agent-ready.mjs` |
+| Browser WebMCP | in-browser read-only access | `webMcpRuntime.ts` |
+| MainPanel MCP / Integrations | readiness, docs, routing, provider config | `SettingsView` + `useSettingsChatAssist.tsx` |
+| FloatingPanel Chat | validated KGC generation and canvas apply | `sidePanelChat/*` + parser/store owners |
 
-Current edge split: `knowgrph-storage` owns storage and crawler access; `knowgrph-payment` owns Stripe checkout and webhooks. The two Workers share the D1 database for checkout-session state, but keep route ownership and secrets separate.
+### 2.2 Storage boundary
 
-MainPanel MCP surfaces two implemented readiness contracts:
+For published Source Files and shared-doc reads:
+- public and browser-visible URLs remain canonical on `https://airvio.co/api/storage/*`
+- server-side reads from Pages or a future remote MCP worker should target `https://knowgrph-storage.huijoohwee.workers.dev`
 
-- Stripe MCP readiness from the shared Stripe MCP SSOT: official remote MCP URL, local fallback launcher, non-secret config snippets, payment-capable tool labels, and confirmation policy.
-- Crawler Access MCP readiness from the shared storage route contract: Source Files index routes, `llms.txt` routes, doc-view pattern, Worker metadata headers, Cloudflare Pay Per Crawl headers, and read-only guardrails.
-
-Pay Per Crawl remains Cloudflare-owned. The app and Workers do not create `crawler-price`, `crawler-charged`, `crawler-error`, `crawler-exact-price`, or `crawler-max-price`; they only expose crawler-readable content after Cloudflare policy allows the request through.
-
-As of 2026-05-19, `STRIPE_SECRET_KEY` is configured on `knowgrph-payment`; hosted checkout still requires server-owned price authority through `STRIPE_CHECKOUT_PRICE_ID` or `STRIPE_CHECKOUT_CURRENCY` + `STRIPE_CHECKOUT_UNIT_AMOUNT` + `STRIPE_CHECKOUT_PRODUCT_NAME`.
-
-### 2.1 High-level topology
-
-1. **Cloudflare Pages (static UI)**  
-   Hosts the Knowgrph web app at `airvio.co/knowgrph`.
-
-2. **Cloudflare Worker: `knowgrph-gateway` (API + MCP gateway)**  
-   Single edge entrypoint that handles:
-   - request auth + rate limits
-   - MCP tool routing (namespace → server)
-   - LLM calls (direct or via proxy)
-   - caching and cost tracking
-
-3. **MCP servers (plural, thin, versioned)**
-   - **Knowgrph Core MCP**: domain tools (parse/graph/export/budget).
-   - **Integration MCP**: third-party adapters (GitHub, Stripe, storage).
-   - Deploy as:
-     - **Option A (lowest ops)**: run small MCP servers inside Workers where feasible
-     - **Option B (maximum compatibility)**: host MCP servers as tiny Node services elsewhere, fronted by the Worker gateway
-
-4. **Data layer (minimal set)**
-   - **KV**: exact cache, tool result cache, short-lived state.
-   - **D1**: structured state + usage events (queryable analytics).
-   - **R2**: large artifacts (exports, workspace snapshots, indexes).
-   - **Vector store (optional)**: add only when needed for retrieval quality (caching usually wins first).
+This boundary is already proven by the shipped agent-ready Pages surface and must not drift.
 
 ---
 
-## 3) MCP servers to prioritize (Knowgrph-native)
+## 3) MCP design rules
 
-### 3.1 “Knowgrph Core” MCP (highest leverage)
-Expose these first because they are **product-differentiating** and enable AI-native workflows.
+### 3.1 Keep surfaces separate
 
-**A. Graph & schema**
-- `graph.validate(schema, graph) -> report`
-- `graph.diff(a, b) -> patchOps[]` (JSON Patch style)
-- `schema.infer(dataset) -> schemaProposal`
-- `schema.migrate(schema, fromVersion, toVersion) -> migratedSchema`
+Do not conflate:
+- local stdio MCP
+- shipped read-only Pages/browser MCP
+- future remote Worker MCP service
 
-**B. Parsing / ingestion**
-- `parse.universal(input, formatHint?) -> canonicalGraph` (JSON‑LD or equivalent)
-- `parse.codebaseIndex(repoRef, options) -> indexArtifacts`
-- `parse.webpage(url, options) -> extractedDoc`
+### 3.2 Reuse the current E2E pipeline
 
-**C. Rendering & export**
-- `export.graph(format, options) -> artifactRef`
-- `layout.compute(layoutConfig, graph) -> layoutArtifact`
+Future richer MCP tools must reuse the current browser-local chain:
+- MainPanel `mcp` / `integrations`
+- shared settings and chat readiness
+- FloatingPanel Chat submit helpers
+- KGC recovery and validation
+- finalize to workspace
+- `applyChatKgcWorkspaceDocumentToCanvas()`
+- `setActiveMarkdownDocument({ applyToGraph: true })`
+- frontmatter-flow parsing and subgraph/group projection
 
-**D. Budgeting & cost**
-- `budget.getStatus(user|workspace) -> {limit, used, remaining}`
-- `cost.estimate(text, model) -> {inputTokens, estCost}`
-- `trace.get(traceId) -> timeline`
+### 3.3 Keep grouping SSOT upstream
 
-### 3.2 “Integration” MCP (service integration)
-Start with a small number of integrations that unlock real flows:
-- **GitHub MCP**: repo/file fetch + issues/PRs (for codebase indexing workflows).
-- **Stripe MCP** (payment readiness): official remote MCP at `https://mcp.stripe.com` with OAuth preferred; local/server fallback uses `npx -y @stripe/mcp@latest` and a restricted key from the host environment.
-- **Artifact store MCP**: abstract R2/D1/KV behind stable tools.
-- **API-native browser MCP**: route discovery, login plus guarded cookie-import handoff, cached first-party API resolution, skill/session listing, feedback/verification, guarded route execution, and native browser capture/action fallback through `knowgrph.browser_api.run`.
-- **Editor Workspace responsive verification**: treat mobile editor pane width, resize gutter, toolbar overflow, and Monaco focus checks as UI contract evidence from the root workspace defaults, not per-client remapping.
+Canonical grouping authoring surface:
+- `flow.subgraphs`
 
-Keep integration MCP servers **thin**: translate external APIs into stable tool I/O; keep business logic in Knowgrph Core (or gateway).
+Forbidden as parallel upstream authoring channels:
+- `kg:subgraphs`
+- `clusters`
+- `groups`
+- `layers`
 
-### 3.3 Stripe MCP payment-readiness contract
+### 3.4 Keep tool contracts small
 
-MainPanel MCP owns Stripe MCP readiness; MainPanel Payments owns customer-facing checkout, entitlement, and reconciliation UX. This separation keeps payment setup agent-ready without mixing secret handling into the browser or duplicating checkout logic.
-
-| Contract | Decision | Guard |
-|---|---|---|
-| Remote server | `https://mcp.stripe.com` | OAuth first |
-| Registry entry | `https://github.com/mcp/com.stripe/mcp` | resolve from shared Stripe MCP constants |
-| Local fallback | `npx -y @stripe/mcp@latest` | `STRIPE_SECRET_KEY` comes from local/server environment |
-| Bearer fallback | restricted API key only | least-privilege permissions; never browser storage |
-| Payment-mutating tools | create payment link/product/price/customer/invoice/refund | explicit human confirmation |
-| Browser state | server key, URL, mode, timeout, non-secret config snippets | no `sk_*` or `rk_*` values |
+- one SSOT contract per tool surface
+- typed input/output
+- no stale aliases
+- no duplicate per-transport semantics
 
 ---
 
-## 4) Token performance & economics (playbook)
+## 4) What is proposed next
 
-### 4.1 Highest ROI levers (in order)
-1. **Stop resending large context**  
-   Store workspace/context artifacts (R2/D1) and reference by ID.
-2. **Exact caching** (always)  
-   Cache key suggestion:
-   - `(model, systemPromptHash, userPromptHash, toolStateHash, schemaVersion)`
-3. **Tool-first workflows**  
-   Prefer structured tool outputs over free-form LLM reasoning.
-4. **Structured prompting & hard limits**
-   - enforce JSON schema outputs
-   - cap output tokens per endpoint
-5. **Chunk + gate**
-   - only summarize what is needed for the next action
+The next MCP phase should add value in this order:
 
-### 4.2 Practical policies
-- **Default max output tokens**: 400–1200 for interactive UI chat; higher only for exports.
-- **Model tiering**:
-  - cheap/fast model for routing/classification/extraction
-  - higher-quality model only for synthesis and long-form transforms
-- **Budget enforcement**:
-  - per-user daily cap
-  - per-workspace cap
-  - per-workflow cap
-- **Prompt compaction pipeline**:
-  normalize tool output into minimal typed schemas before feeding back into an LLM.
-
-### 4.3 Instrumentation (must-have)
-Record per request:
-- `input_tokens`, `output_tokens`, `model`, `latency_ms`
-- `cache_hit` (and cache tier)
-- `tool_calls[]` with `tool_latency_ms[]`
-- `trace_id` (shared across gateway + MCP + LLM)
-
-Store:
-- logs (Workers logging) + optional structured events in **D1** table `llm_usage_events`.
+1. Harden browser WebMCP lifecycle without changing the current shared read-only contract.
+2. Keep MainPanel readiness docs aligned with actual shared settings and chat owners.
+3. Introduce remote read-oriented tools before remote mutating tools.
+4. If richer remote pipeline tools are added, make them thin adapters over the existing KGC validation and canvas-apply path rather than a second graph pipeline.
 
 ---
 
-## 5) TCO model (what actually costs money)
+## 5) Forbidden architecture
 
-### 5.1 Cost categories (MECE)
-1. **Compute**: Workers + any hosted MCP servers
-2. **Storage**: KV/D1/R2 (+ vector store if used)
-3. **LLM usage**: token spend (dominant variable cost)
-4. **Observability**: logs/metrics/tracing retention
-5. **Ops overhead**: time to maintain deploys/secrets/alerts
-
-### 5.2 Recommended low-ops baseline
-- **Cloudflare Pages + Workers** as the primary runtime.
-- **KV + D1** for caches + structured state.
-- **R2** for large artifacts (exports, snapshots, indexes).
-- Add vector store only when retrieval value exceeds its ops+cost.
-
-This keeps fixed cost ~0 while you validate usage. After that, token savings (caching, tiering, compaction) is the main TCO lever.
+Explicitly forbidden:
+- claiming nonexistent remote MCP Worker modules are already implemented
+- creating a second MainPanel MCP routing/config system
+- creating a second LLM -> Markdown -> Canvas graph pipeline
+- using the prod mirror as deploy authority
+- reintroducing server-side custom-domain self-fetch for storage-backed document reads
+- reintroducing parallel grouping authoring aliases beside `flow.subgraphs`
 
 ---
 
-## 6) FOSS + free-tier friendly component choices
+## 6) Minimal acceptance bar
 
-### 6.1 LLM routing / gateways (optional)
-Goal: vendor neutrality + unified budgets/observability.
-
-- **LiteLLM (FOSS)**: OpenAI-compatible proxy, routing, retries, fallbacks, cost tracking (best when you can run a small service).
-- **Cloudflare AI Gateway**: not FOSS, but very low ops (central logging/caching/rate limiting) if acceptable.
-
-Minimum-moving-parts default:
-- call providers directly from the Worker now, add LiteLLM later when routing becomes necessary.
-
-### 6.2 Self-hosted models (strict FOSS end-to-end)
-- **Ollama** (local/dev)
-- **llama.cpp** (portable)
-- **vLLM** (higher throughput)
-
-Trade-off: self-hosting raises ops costs; “FOSS + low TCO” usually means open tooling + hosted models until scale.
-
-### 6.3 Vector stores / retrieval
-- **pgvector** (simple if you already run Postgres)
-- **Qdrant** (FOSS; strong default)
-- **Chroma** (FOSS; easy dev)
-
----
-
-## 7) Why Cloudflare fits MCP well
-
-Workers are a strong fit for MCP gateways:
-- low-latency edge routing
-- caching (KV)
-- request normalization + auth
-- rate limiting / WAF
-- global distribution by default
-
-Standard call path:
-Pages UI → Worker gateway → (LLM providers + MCP servers + KV/D1/R2).
-
----
-
-## 8) Security & governance (integrations)
-
-### 8.1 AuthN/AuthZ
-- Use **service tokens** between gateway ↔ MCP servers.
-- Use **user/session tokens** between UI ↔ gateway.
-- Every tool call includes:
-  - `workspaceId`, `userId`
-  - `scopes[]` (capabilities)
-  - `toolVersion`
-
-### 8.2 Secrets
-- Keep provider keys in Worker secrets.
-- Never expose keys to the browser.
-- For Stripe MCP, prefer OAuth on the remote server; if OAuth is unavailable, restricted API keys must live in a server secret store or local environment.
-- MainPanel MCP may show `STRIPE_SECRET_KEY: ${STRIPE_RESTRICTED_KEY}` as a placeholder only; real Stripe keys are forbidden in docs, tests, fixtures, and browser storage.
-
-### 8.3 Auditability
-Log tool calls with:
-- tool name + args hash (avoid storing secrets)
-- principal (user/workspace)
-- result size + status
-- latency + trace id
-- payment-mutating confirmation status for Stripe MCP calls.
-
----
-
-## 9) Rollout plan (MVP → production)
-
-### Phase 0 — SSOT tool contract
-- Define versioned tool schemas for **Knowgrph Core**.
-- Lock stable JSON I/O (strict, small, typed).
-
-### Phase 1 — Gateway + 2–3 core tools
-- Deploy Worker gateway.
-- Implement:
-  - `parse.universal`
-  - `graph.validate`
-  - `export.graph`
-- Add exact caching + usage logging.
-
-### Phase 2 — Integration MCP
-- GitHub MCP for codebase workflows.
-- Stripe MCP readiness before billing is enabled:
-  - render remote/local config from shared constants
-  - verify OAuth-preferred and restricted-key fallback guidance
-  - require confirmation for payment-mutating tools
-  - hand off checkout/entitlements to MainPanel Payments
-- Add scopes + rate limiting.
-
-### Phase 3 — Economics hardening
-- model tiering
-- prompt compaction
-- semantic cache (optional)
-- async workflows (Durable Objects / Queues) when needed
-
----
-
-## 10) Decision matrix (quick picks)
-
-### Lowest ops + fastest shipping
-- Pages + Worker gateway
-- direct provider calls from Worker
-- KV cache + D1 usage logs
-- minimal MCP set (Knowgrph Core)
-
-### Maximum vendor neutrality
-- Worker gateway + LiteLLM proxy (self-host)
-- MCP servers as small Node services (self-host/cheap hosting)
-- centralized routing + fallbacks + cost tracking
-
-### Strict FOSS end-to-end
-- self-host models (Ollama/vLLM) + FOSS vector store (Qdrant)
-- Worker gateway optional (or self-host edge/API)
-- expect higher ops effort
-
----
-
-## Appendix A — Suggested minimal environment variables (names only)
-
-**Gateway**
-- `MODEL_PROVIDER_*` (provider keys via secrets)
-- `MCP_SERVER_URLS` (namespace → base URL mapping)
-- `CACHE_NAMESPACE`
-- `BUDGET_LIMITS_*`
-
-**MCP servers**
-- `MCP_AUTH_SHARED_SECRET`
-- `LOG_LEVEL`
-
-**Stripe MCP host or backend only**
-- `STRIPE_SECRET_KEY` (restricted key for bearer/local fallback only)
-
----
-
-## Appendix B — “Good” acceptance criteria
-- Tool calls are **deterministic** (same input → same output).
-- Tool outputs are **small, typed, stable** (minimize downstream prompt size).
-- Every request has a **trace id** and **cost record**.
-- You can switch models/providers with **no tool contract changes**.
-- Stripe MCP setup exposes official remote/local config while storing **zero Stripe secrets in the browser**.
-- Payment-mutating Stripe MCP tools require explicit confirmation before execution.
+A good future MCP change:
+- preserves the shipped local stdio and read-only Pages/browser surfaces
+- keeps MainPanel and FloatingPanel ownership thin and upstream
+- reuses the existing KGC validation and parser/apply contracts
+- keeps tool schemas stable and small
+- does not add stale/conflicting architecture to the docs

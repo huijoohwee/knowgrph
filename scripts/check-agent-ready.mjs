@@ -394,6 +394,22 @@ const checks = [
       && body.includes('modelContext')
       && body.includes('kgWebmcpTools'),
   },
+  {
+    name: 'webmcp-html-lifecycle-contract',
+    url: `${baseUrl}/?agentReadySmoke=1`,
+    accept: 'text/html',
+    assert: async (response, body) =>
+      response.ok
+      && body.includes('kgWebmcpContext')
+      && body.includes('registerTool(tool, controller ? { signal: controller.signal } : {})')
+      && body.includes('AbortController')
+      && body.includes('awaiting-model-context')
+      && body.includes('fallback-readable')
+      && body.includes('retry-exhausted')
+      && body.includes('window.location && window.location.hostname')
+      && body.includes('currentOrigin || siteOrigin')
+      && body.includes('"/api/storage/source-files"'),
+  },
 ]
 
 let failed = 0

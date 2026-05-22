@@ -2,7 +2,9 @@ import {
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageDocPath,
+  buildKnowgrphStorageSourceFilesIndexPath,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import { readEnvString } from '@/lib/config.env'
 import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
@@ -24,7 +26,7 @@ type WebMcpTool = {
 type ModelContextLike = {
   tools?: WebMcpTool[]
   provideContext?: (context: { tools: WebMcpTool[] }) => void
-  registerTool?: (tool: WebMcpTool, options?: Record<string, unknown>) => void
+  registerTool?: (tool: WebMcpTool, options?: { signal?: AbortSignal }) => void
 }
 
 type WebMcpNavigator = Navigator & { modelContext?: ModelContextLike }
@@ -38,6 +40,19 @@ type AgentReadyToolContract = {
   annotations?: {
     readOnlyHint?: boolean
   }
+}
+
+type ModelContextRegistrationState = {
+  registeredToolNames: Set<string>
+  abortControllers: Map<string, AbortController | null>
+}
+
+type WebMcpRuntimeState = {
+  fallbackContext: ModelContextLike | null
+  activeRegisteredContext: ModelContextLike | null
+  registrations: WeakMap<ModelContextLike, ModelContextRegistrationState>
+  lateBindingRetryId: number | null
+  lateBindingAttemptCount: number
 }
 
 const WEB_MCP_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
@@ -57,6 +72,16 @@ const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = [SOURCE_FILES_TOOL_NAME, READ_SOURCE_FILE_TOOL_NAME] as const
+const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
+const WEB_MCP_LATE_BINDING_MAX_ATTEMPTS = 20
+const WEB_MCP_DEFAULT_STORAGE_BASE_URL = 'https://airvio.co'
+const webMcpRuntimeState: WebMcpRuntimeState = {
+  fallbackContext: null,
+  activeRegisteredContext: null,
+  registrations: new WeakMap<ModelContextLike, ModelContextRegistrationState>(),
+  lateBindingRetryId: null,
+  lateBindingAttemptCount: 0,
+}
 
 const markWebMcpRuntime = (state = WEB_MCP_TOOL_NAMES.join(',')): void => {
   if (typeof document === 'undefined') return
@@ -64,8 +89,43 @@ const markWebMcpRuntime = (state = WEB_MCP_TOOL_NAMES.join(',')): void => {
   document.documentElement.dataset.kgWebmcpContext = state
 }
 
+const normalizeString = (value: unknown): string => String(value || '').trim()
+
+const isLocalhostHost = (hostname: string): boolean => {
+  const normalized = normalizeString(hostname).toLowerCase()
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0'
+}
+
+const readWebMcpStorageBaseUrl = (): string => normalizeString(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', ''))
+
+const buildWebMcpStorageRequestUrl = (path: string): string => {
+  const safePath = normalizeString(path)
+  if (!safePath) return ''
+  if (typeof window !== 'undefined') {
+    const hostname = normalizeString(window.location?.hostname)
+    if (isLocalhostHost(hostname) && safePath.startsWith('/api/storage/')) return safePath
+    const currentOrigin = normalizeString(window.location?.origin)
+    const baseUrl = readWebMcpStorageBaseUrl() || currentOrigin || WEB_MCP_DEFAULT_STORAGE_BASE_URL
+    return new URL(safePath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString()
+  }
+  const baseUrl = readWebMcpStorageBaseUrl() || WEB_MCP_DEFAULT_STORAGE_BASE_URL
+  return new URL(safePath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString()
+}
+
 const readGlobalNavigator = (): WebMcpNavigator => {
-  const root = globalThis as typeof globalThis & { navigator?: WebMcpNavigator }
+  const root = globalThis as typeof globalThis & { navigator?: WebMcpNavigator; window?: { navigator?: WebMcpNavigator } }
+  const windowNavigator = root.window?.navigator
+  if (windowNavigator && root.navigator !== windowNavigator) {
+    try {
+      Object.defineProperty(root, 'navigator', {
+        configurable: true,
+        value: windowNavigator,
+      })
+    } catch {
+      root.navigator = windowNavigator
+    }
+    return windowNavigator
+  }
   if (root.navigator) return root.navigator
   const nav = {} as WebMcpNavigator
   try {
@@ -79,6 +139,40 @@ const readGlobalNavigator = (): WebMcpNavigator => {
   return nav
 }
 
+const getRegistrationState = (context: ModelContextLike): ModelContextRegistrationState => {
+  const existing = webMcpRuntimeState.registrations.get(context)
+  if (existing) return existing
+  const created: ModelContextRegistrationState = {
+    registeredToolNames: new Set<string>(),
+    abortControllers: new Map<string, AbortController | null>(),
+  }
+  webMcpRuntimeState.registrations.set(context, created)
+  return created
+}
+
+const isDuplicateToolRegistrationError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false
+  const name = normalizeString((error as { name?: unknown }).name)
+  return name === 'InvalidStateError'
+}
+
+const releasePreviousRegisteredContext = (nextContext: ModelContextLike): void => {
+  const active = webMcpRuntimeState.activeRegisteredContext
+  if (!active || active === nextContext) {
+    webMcpRuntimeState.activeRegisteredContext = nextContext
+    return
+  }
+  const registrationState = webMcpRuntimeState.registrations.get(active)
+  registrationState?.abortControllers.forEach(controller => controller?.abort())
+  webMcpRuntimeState.activeRegisteredContext = nextContext
+}
+
+const clearLateBindingRetry = (): void => {
+  if (webMcpRuntimeState.lateBindingRetryId === null || typeof window === 'undefined') return
+  window.clearTimeout(webMcpRuntimeState.lateBindingRetryId)
+  webMcpRuntimeState.lateBindingRetryId = null
+}
+
 const buildSourceFilesTool = (): WebMcpTool => ({
   name: SOURCE_FILES_TOOL_NAME,
   title: SOURCE_FILES_TOOL_CONTRACT.title,
@@ -86,7 +180,7 @@ const buildSourceFilesTool = (): WebMcpTool => ({
   inputSchema: SOURCE_FILES_TOOL_CONTRACT.inputSchema,
   annotations: SOURCE_FILES_TOOL_CONTRACT.annotations,
   execute: async () => {
-    const response = await fetch('https://airvio.co/api/storage/source-files', {
+    const response = await fetch(buildWebMcpStorageRequestUrl(buildKnowgrphStorageSourceFilesIndexPath()), {
       headers: { accept: 'text/markdown' },
     })
     if (!response.ok) {
@@ -114,7 +208,7 @@ const buildReadSourceFileTool = (): WebMcpTool => ({
     const path = workspaceId
       ? buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
       : buildKnowgrphStorageDefaultDocPath(canonicalPath)
-    const response = await fetch(`https://airvio.co${path}`, {
+    const response = await fetch(buildWebMcpStorageRequestUrl(path), {
       headers: { accept: 'text/markdown' },
     })
     if (!response.ok) {
@@ -128,19 +222,31 @@ const buildReadSourceFileTool = (): WebMcpTool => ({
   },
 })
 
+const WEB_MCP_TOOLS = [buildSourceFilesTool(), buildReadSourceFileTool()]
+
 const installToolsIntoModelContext = (context: ModelContextLike, tools: WebMcpTool[]): boolean => {
-  let installed = false
+  const registrationState = getRegistrationState(context)
+  let providedContext = false
   if (typeof context.provideContext === 'function') {
-    context.provideContext({ tools })
-    installed = true
+    try {
+      context.provideContext({ tools })
+      providedContext = true
+    } catch {
+      void 0
+    }
   }
   if (typeof context.registerTool === 'function') {
     for (const tool of tools) {
+      if (registrationState.registeredToolNames.has(tool.name)) continue
+      const controller = typeof AbortController === 'function' ? new AbortController() : null
       try {
-        context.registerTool(tool)
-        installed = true
-      } catch {
-        installed = true
+        context.registerTool(tool, controller ? { signal: controller.signal } : {})
+        registrationState.registeredToolNames.add(tool.name)
+        registrationState.abortControllers.set(tool.name, controller)
+      } catch (error) {
+        if (!isDuplicateToolRegistrationError(error)) continue
+        registrationState.registeredToolNames.add(tool.name)
+        registrationState.abortControllers.set(tool.name, null)
       }
     }
   }
@@ -148,18 +254,55 @@ const installToolsIntoModelContext = (context: ModelContextLike, tools: WebMcpTo
     for (const tool of tools) {
       if (!context.tools.some(entry => entry?.name === tool.name)) context.tools.push(tool)
     }
-    installed = true
   }
-  return installed
+  const allToolsRegistered = tools.every(
+    tool => registrationState.registeredToolNames.has(tool.name) || context.tools?.some(entry => entry?.name === tool.name),
+  )
+  if (allToolsRegistered) {
+    releasePreviousRegisteredContext(context)
+    return true
+  }
+  return providedContext && typeof context.registerTool !== 'function' && !Array.isArray(context.tools)
+}
+
+const tryInstallLateBoundModelContext = (nav: WebMcpNavigator): boolean => {
+  const context = nav.modelContext
+  if (!context || context === webMcpRuntimeState.fallbackContext) return false
+  const installed = installToolsIntoModelContext(context, WEB_MCP_TOOLS)
+  if (installed) {
+    clearLateBindingRetry()
+    markWebMcpRuntime('installed')
+    return true
+  }
+  return false
+}
+
+const scheduleLateBindingRetry = (nav: WebMcpNavigator): void => {
+  if (typeof window === 'undefined') return
+  if (webMcpRuntimeState.lateBindingRetryId !== null) return
+  if (webMcpRuntimeState.lateBindingAttemptCount >= WEB_MCP_LATE_BINDING_MAX_ATTEMPTS) {
+    markWebMcpRuntime('retry-exhausted')
+    return
+  }
+  webMcpRuntimeState.lateBindingRetryId = window.setTimeout(() => {
+    webMcpRuntimeState.lateBindingRetryId = null
+    webMcpRuntimeState.lateBindingAttemptCount += 1
+    if (!tryInstallLateBoundModelContext(nav)) scheduleLateBindingRetry(nav)
+  }, WEB_MCP_LATE_BINDING_RETRY_DELAY_MS)
 }
 
 const defineFallbackModelContext = (nav: WebMcpNavigator, context: ModelContextLike): void => {
+  webMcpRuntimeState.fallbackContext = context
+  let currentContext = nav.modelContext && nav.modelContext !== context ? nav.modelContext : context
   try {
     Object.defineProperty(nav, 'modelContext', {
       configurable: true,
       enumerable: false,
-      value: context,
-      writable: true,
+      get: () => currentContext,
+      set: (value: ModelContextLike | undefined) => {
+        currentContext = value || context
+        if (currentContext !== context) void tryInstallLateBoundModelContext(nav)
+      },
     })
   } catch {
     nav.modelContext = context
@@ -169,17 +312,28 @@ const defineFallbackModelContext = (nav: WebMcpNavigator, context: ModelContextL
 export function installKnowgrphWebMcpRuntime(): void {
   if (typeof globalThis === 'undefined') return
   const nav = readGlobalNavigator()
-  const tools = [buildSourceFilesTool(), buildReadSourceFileTool()]
-  const existing = nav.modelContext
-  markWebMcpRuntime()
-  if (existing && installToolsIntoModelContext(existing, tools)) {
+  markWebMcpRuntime('installing')
+  if (nav.modelContext && installToolsIntoModelContext(nav.modelContext, WEB_MCP_TOOLS)) {
     markWebMcpRuntime('installed')
     return
   }
-  defineFallbackModelContext(nav, { tools })
+  if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...WEB_MCP_TOOLS] })
   markWebMcpRuntime(
     WEB_MCP_TOOL_NAMES.every(name => nav.modelContext?.tools?.some(entry => entry?.name === name))
       ? 'fallback-readable'
-      : 'fallback-defined',
+      : 'awaiting-model-context',
   )
+  scheduleLateBindingRetry(nav)
+}
+
+export function resetKnowgrphWebMcpRuntimeForTests(): void {
+  clearLateBindingRetry()
+  webMcpRuntimeState.fallbackContext = null
+  webMcpRuntimeState.activeRegisteredContext = null
+  webMcpRuntimeState.registrations = new WeakMap<ModelContextLike, ModelContextRegistrationState>()
+  webMcpRuntimeState.lateBindingAttemptCount = 0
+  if (typeof document !== 'undefined') {
+    delete document.documentElement.dataset.kgWebmcpContext
+    delete document.documentElement.dataset.kgWebmcpTools
+  }
 }

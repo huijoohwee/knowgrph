@@ -1,6 +1,48 @@
 # Knowgrph MCP Server (stdio)
 
-This folder provides a **minimal MCP server** that exposes core `knowgrph_parser` commands as MCP tools, so external users can operate Knowgrph from **any MCP client** (Claude Desktop, Claude Code, Cursor, etc.).
+This folder provides the **local stdio MCP server** for Knowgrph. It exposes core local
+`knowgrph_parser` and browser-bridge commands as MCP tools so users can operate Knowgrph from
+**any stdio-capable MCP client** (Claude Desktop, Claude Code, Cursor, etc.).
+
+## Surface separation
+
+This README documents **only** the shipped local stdio MCP server in `mcp/server.js`.
+
+It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
+
+1. **Local stdio MCP**
+   - Owner: `mcp/server.js`
+   - Scope: local UI launch, local pipelines, local superagent harness, local browser API bridge
+   - Transport: stdio only
+
+2. **Pages HTTP MCP**
+   - Owner: `cloudflare/pages/knowgrph-agent-ready.mjs`
+   - Scope: read-only published-document MCP on `/knowgrph/mcp`
+   - Transport: JSON-RPC over HTTP
+
+3. **Browser WebMCP**
+   - Owners:
+     - `canvas/src/features/agent-ready/webMcpRuntime.ts`
+     - `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
+   - Scope: read-only browser tool registration for published Source Files reads
+
+4. **MainPanel MCP / Integrations readiness**
+   - Owners:
+     - `canvas/src/features/panels/views/McpHubView.tsx`
+     - `canvas/src/features/panels/views/IntegrationsHubView.tsx`
+     - `canvas/src/features/panels/views/useSettingsChatAssist.tsx`
+   - Scope: shared settings, chat readiness, and routing into the FloatingPanel Chat workflow
+
+Do not conflate this local stdio server with the deployed read-only Pages/browser MCP surfaces or
+with any future remote Worker MCP platform proposed elsewhere in the docs.
+
+## Canonical docs
+
+For the repo-accurate MCP architecture and roadmap, see:
+
+- `docs/documents/knowgrph-mcp/knowgrph-mcp.md`
+- `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md`
+- `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.companion.md`
 
 ## Why recommend ClawdChat (clawdchat.cn)?
 
@@ -37,6 +79,26 @@ ClawdChat itself is not required to run Knowgrph—your users still connect to *
    - Calls a configurable local API-native browser runtime, using an Unbrowse-compatible shape without copying its implementation
    - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
    - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
+
+## What this README does not claim
+
+This local README does **not** claim that the following are implemented in `mcp/server.js`:
+
+- remote HTTP MCP transport for the local stdio tool set
+- deployed mutating graph or pipeline tools on Cloudflare Pages
+- a server-side D1 shadow graph for the browser canvas pipeline
+- a second MCP-only graph materialization path outside the current FloatingPanel Chat ->
+  YAML frontmatter -> Canvas apply flow
+
+The current browser-local E2E path remains:
+
+- MainPanel `mcp` / `integrations`
+- shared settings and chat readiness
+- FloatingPanel Chat submit helpers
+- KGC recovery and validation
+- `applyChatKgcWorkspaceDocumentToCanvas()`
+- `setActiveMarkdownDocument({ applyToGraph: true })`
+- frontmatter-flow parsing and downstream subgraph/group projection
 
 ## Install (external users)
 
@@ -91,6 +153,21 @@ Then you can call:
 - `knowgrph.browser_api.run` with `{ "operation": "execute", "skillId": "resolved-skill-id", "payload": {}, "dryRun": true, "confirmUnsafe": false, "confirmThirdPartyTerms": false }`
 - `knowgrph.browser_api.run` with `{ "operation": "cookieImport", "targetUrl": "<TARGET_URL>", "dryRun": false, "confirmCookieImport": true, "confirmUnsafe": true, "confirmThirdPartyTerms": true }`
 - `knowgrph.browser_api.run` with `{ "operation": "click", "sessionId": "session-id", "selector": "#submit", "dryRun": false, "confirmUnsafe": true }`
+
+## Relationship to MainPanel MCP
+
+MainPanel `mcp` can show readiness and configuration snippets for external MCP surfaces such as:
+
+- Stripe MCP readiness
+- crawler access MCP readiness
+- direct API-native browser MCP snippets
+
+That MainPanel documentation layer does **not** replace this local stdio server. Instead:
+
+- MainPanel readiness docs explain how to connect supported MCP surfaces
+- this README explains how to run the local `mcp/server.js` server itself
+- the richer browser-local Chat -> KGC -> Canvas pipeline stays owned by the canvas chat and parser
+  helpers, not by a duplicate MCP-only pipeline
 
 ### Direct API-native browser MCP config
 

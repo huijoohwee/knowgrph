@@ -1,13 +1,13 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.14.0
+version: 1.17.0
 status: implemented
 created: 2026-05-21
 updated: 2026-05-22
 author: airvio / joohwee
 domain: knowgrph
-tags: [agent-ready, cloudflare, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, prd, tad]
+tags: [agent-ready, cloudflare, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, chat, kgc, canvas, prd, tad]
 source_audit: isitagentready.com / Cloudflare Is Your Site Agent-Ready? + in-repo implementation audit
 constraints:
   - solo-dev
@@ -18,25 +18,40 @@ constraints:
 related:
   - prd-tad-guidelines.md
   - knowgrph-agent-ready-cloudflare-isitagentready.md
+  - knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md
 ---
 
 # Knowgrph Agent Ready - PRD + TAD (Implementation Accurate + Enhanced)
 
 ## Executive Summary
 
-This document replaces stale scan-style narratives that still describe Knowgrph as missing Link
-headers, Markdown negotiation, or WebMCP. In the current repo, those capabilities are already
-implemented for the service homepage at `https://airvio.co/knowgrph/`.
+This document replaces two stale narratives at once:
 
-The active work is no longer "add the first agent-ready surface." The active work is:
+- scan-style narratives that still describe Knowgrph as missing Link headers, Markdown
+  negotiation, or WebMCP on `https://airvio.co/knowgrph/`
+- roadmap narratives that blur the boundary between the shipped read-only Pages MCP surface and
+  a larger still-proposed remote MCP platform documented separately in
+  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md`
+
+In the current repo, Knowgrph already ships the service-homepage agent-readiness surface on
+`https://airvio.co/knowgrph/`, plus a separate in-browser MainPanel -> FloatingPanel Chat -> KGC
+-> Canvas pipeline that is richer than the deployed read-only MCP surface but is not yet exposed
+as a first-class MCP tool chain.
+
+The active work is therefore not "add the first agent-ready surface." The active work is:
 
 - keep deployed discovery owned upstream in `knowgrph`
 - keep `/knowgrph/` as the canonical service homepage for agent discovery
-- expose root-homepage discovery hints for scanners that probe `/` before `/knowgrph/`
-- expose published shared document URLs that return Markdown pane content to agents and HTML to browsers
-- prevent drift between browser WebMCP, HTTP MCP, storage routes, and publish sync
-- tighten the Editor Workspace -> Source Files -> Markdown contract so future agent surfaces do
-  not bypass the existing workspace and source-file SSOT
+- preserve the shipped read-only Pages MCP and browser WebMCP contracts as the truthful
+  implementation baseline
+- document MainPanel `mcp` and `integrations` as thin shells over shared `SettingsView` ownership
+  instead of parallel configuration systems
+- document the existing FloatingPanel Chat -> LLM output -> YAML frontmatter -> Canvas graph
+  pipeline as the only valid upstream path for future MCP-aligned pipeline work
+- prevent drift between browser WebMCP, HTTP MCP, MainPanel surfaces, chat submit helpers, canvas
+  parsing, storage routes, and publish sync
+- forbid stale architecture claims that the full remote MCP pipeline, auth, monetization, or graph
+  mutation platform is already deployed when those capabilities remain proposed elsewhere
 
 ## Scope
 
@@ -89,10 +104,14 @@ Knowgrph must:
 - return Markdown for agent requests on `/knowgrph/` when `Accept: text/markdown`
 - expose read-only WebMCP and HTTP MCP tools that resolve to real storage-backed documents
 - keep the default published workspace readable without requiring a caller-supplied `workspaceId`
+- keep MainPanel `mcp` and MainPanel `integrations` aligned to the same upstream settings and chat
+  routing owners instead of diverging into duplicate surfaces
 - preserve one canonical document identity and path contract across Editor Workspace, Source Files,
-  storage routes, and agent surfaces
-- prevent stale or conflicting Cloudflare control surfaces, mirror-owned route logic, and apex-root
-  PWA drift
+  FloatingPanel Chat, frontmatter validation, canvas parsing, storage routes, and agent surfaces
+- preserve one canonical KGC contract where the LLM output starts at YAML frontmatter and uses
+  `flow.subgraphs` as the sole grouping authoring surface
+- prevent stale or conflicting Cloudflare control surfaces, mirror-owned route logic, apex-root PWA
+  drift, and duplicate MCP-only chat-to-canvas pipelines
 
 ## Non-Goals
 
@@ -114,10 +133,19 @@ Knowgrph does not currently aim to:
 | Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
-| WebMCP browser tools | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Tool set is static and limited to two read-only tools |
+| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Current runtime installs exactly two read-only tools and attempts `provideContext`, `registerTool(tool, { signal })`, then readable fallback storage |
+| Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Late-binding install, `AbortController` registration lifecycle, and current-origin/localhost-aware storage resolution are now shipped without changing the shared tool contract |
 | HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Injection must stay contract-equal with app runtime |
 | HTTP MCP transport | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Tool surface is read-only only, by design |
 | Shared tool-schema contract | Implemented | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Future tools must extend this shared upstream contract |
+| MainPanel Integrations hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/IntegrationsHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | Integrations is a thin `SettingsView` specialization, not a second routing owner |
+| MainPanel MCP hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/McpHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | MCP is also a thin `SettingsView` specialization, not a separate chat pipeline |
+| Chat integration routing and presets | Implemented | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Future MCP deep links must reuse the same chat routing, model, and open-panel helpers |
+| FloatingPanel chat submit pipeline | Implemented | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` + coordinator helpers | Browser-local today; not yet exposed as a first-class WebMCP or HTTP MCP tool chain |
+| KGC validation and recovery | Implemented | `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + recovery helpers | Wrapper prose and parallel grouping aliases are rejected or stripped upstream before canvas apply |
+| Chat finalize -> canvas apply | Implemented | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Writes canonical workspace KGC first, then applies to graph through existing store actions |
+| Frontmatter-flow parse priority and graph composition | Implemented | `canvas/src/features/parsers/default.ts` + `canvas/src/features/parsers/markdownFrontmatterFlowGraph.*` | `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown |
+| Subgraph/group projection | Implemented | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | `flow.subgraphs` remains the sole authoring surface; rendered groups are downstream projection only |
 | API catalog | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | `status` relation now targets `/knowgrph/health` |
 | OpenAPI document | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Health, MCP, and storage reads are documented from the existing route owner |
 | Agent Skills index | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Index is intentionally minimal |
@@ -125,6 +153,7 @@ Knowgrph does not currently aim to:
 | Source Files index and `llms.txt` | Implemented | `cloudflare/workers/knowgrph-storage/crawler.ts` | Service doc remains intentionally compact |
 | Publish sync and Pages control-file hygiene | Implemented | `scripts/sync-pages-knowgrph.mjs` | Must keep mirror non-authoritative |
 | PWA base-path correctness | Implemented | `canvas/index.html` and Pages root config | Must keep `%BASE_URL%manifest.webmanifest` invariant |
+| Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Proposed only | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md` | Must not be documented here as already shipped on the Pages agent-ready surface |
 
 ## Source Of Truth
 
@@ -136,9 +165,19 @@ Knowgrph does not currently aim to:
 | Explicit shared-doc Pages functions | generated by `scripts/sync-pages-knowgrph.mjs` into `huijoohwee/functions/knowgrph/doc/[[path]].js` and `huijoohwee/functions/knowgrph/doc-default/[[path]].js` | Pins shared document routes to the canonical handler on deploy |
 | Shared markdown-negotiation helper | `cloudflare/pages/knowgrph-agent-ready-shared.mjs` | Owns shared Markdown body, `markdownResponse()`, and `wantsMarkdown()` |
 | Root markdown-negotiation function | `cloudflare/pages/root-agent-ready-index.mjs` | Owns `Accept: text/markdown` on `/` without changing app route ownership |
-| Shared tool contract | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Owns shared tool names, titles, descriptions, and input schema |
+| Shared tool contract | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Owns shared tool names, titles, descriptions, and input schema for browser WebMCP and HTTP MCP parity |
 | Browser WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Owns app-installed `navigator.modelContext` integration |
 | App bootstrap | `canvas/src/main.tsx` | Installs WebMCP runtime at app startup |
+| MainPanel shared tab shell | `canvas/src/features/panels/MainPanel.tsx` | Owns tab registration and lazy mounting for `integrations` and `mcp` |
+| MainPanel Integrations hub | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | Thin `SettingsView mode="integrations"` shell |
+| MainPanel MCP hub | `canvas/src/features/panels/views/McpHubView.tsx` | Thin `SettingsView mode="mcp"` shell |
+| Settings-mode filtering and action registration | `canvas/src/features/panels/views/SettingsView.tsx` | Shared owner for integrations and MCP surfaces |
+| Chat routing and integration assist helpers | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Owns presets, context scope, integration enablement, and open-chat handoff |
+| FloatingPanel chat UI | `canvas/src/features/chat/SidePanelChat.tsx` | Owns interactive chat experience inside the floating panel |
+| Chat submit shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Must remain a thin shell over centralized submit helpers |
+| Chat submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | Owns request lifecycle, streaming, retry, KGC validation, and finalize sequencing |
+| KGC recovery and validation | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` | Owns wrapper salvage, frontmatter-first enforcement, and grouping-surface validation |
+| Chat finalize and canvas bridge | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Owns canonical workspace persistence then canvas apply |
 | Storage route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Owns workspace id constant and route builders |
 | Storage worker doc routes | `cloudflare/workers/knowgrph-storage/index.ts` | Serves `/api/storage/doc-default/*` and `/api/storage/doc/*` |
 | Shared doc deep-link contract | `canvas/src/features/canvas/canvasDocDeepLink.ts` + `canvas/src/features/canvas/canvasDocShareToken.mjs` | Owns `/knowgrph/share/*`, `/knowgrph/doc/*`, `/knowgrph/doc-default/*`, opaque `kgShare` tokens, and published Share URL mapping from storage URLs |
@@ -151,6 +190,9 @@ Knowgrph does not currently aim to:
 | Workspace to Source Files merge | `canvas/src/features/workspace-fs/syncToSourceFiles.ts` | `mergeWorkspaceEntriesIntoSourceFiles()` is canonical |
 | Active-path Source Files materialization | `canvas/src/features/source-files/sourceFilesRuntimeMaterialization.ts` | `materializeActiveWorkspaceEntryIntoSourceFiles()` is canonical |
 | Source Files graph compose/apply | `canvas/src/features/source-files/applyComposedGraphFromSourceFiles.ts` | Explicit graph-owner path only |
+| Structured Markdown parse priority | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` stays first for canonical KGC Markdown |
+| Frontmatter-flow graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + companion helpers | Owns edge merge, subgraph merge, cluster merge, and metadata projection |
+| Canvas subgraph/group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | Rendered groups derive from canonical subgraph metadata; they are not a second authoring channel |
 | Publish sync | `scripts/sync-pages-knowgrph.mjs` | Mirrors app build and generates root control surfaces |
 | Shared Pages headers | `huijoohwee/_headers` | Final deploy header surface |
 | Shared Pages redirects | `huijoohwee/_redirects` | Final deploy redirect surface |
@@ -161,13 +203,26 @@ The following are explicitly non-authoritative and must not be used to justify n
 
 - any claim that Link headers, Markdown negotiation, or WebMCP are still missing on
   `https://airvio.co/knowgrph/`
+- any claim that the shipped Pages agent-ready surface already exposes the full MainPanel/Chat/KGC
+  pipeline as a deployed HTTP MCP or WebMCP tool chain
+- any claim that the separate proposed remote MCP platform in
+  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md` is already implemented in
+  the current repo or deployed Cloudflare Pages surface
 - any claim that the apex root homepage `/` is the Knowgrph service homepage
-- any Node/Express, PostgreSQL/Redis, Kubernetes, GraphQL, WebSocket, or server-cluster narrative
-  for the deployed agent-ready surface
+- any parallel MainPanel MCP configuration system that bypasses `SettingsView`,
+  `useSettingsChatAssist()`, or the existing open-panel helpers
+- any second LLM output -> Markdown -> Canvas graph pipeline that bypasses
+  `useSidePanelChatSubmit()`, the submit coordinator helpers, KGC recovery/validation, or
+  `applyChatKgcWorkspaceDocumentToCanvas()`
+- any grouping authoring alias besides canonical `flow.subgraphs`, including `kg:subgraphs`,
+  `clusters`, `groups`, or `layers` as a parallel upstream source
+- any Node/Express, PostgreSQL/Redis, Kubernetes, GraphQL, WebSocket, Durable Object, or server
+  cluster narrative for the shipped Pages agent-ready surface unless the repo gains those owners for
+  this surface first
 - nested `content/knowgrph/_headers` or `content/knowgrph/_redirects` as deploy authority
 - downstream patches in `huijoohwee/content/knowgrph` that do not originate from `knowgrph`
 - agent-only Markdown serialization, local DOM scraping, or duplicate route contracts that bypass
-  the existing workspace and storage helpers
+  the existing workspace, storage, chat, and parser helpers
 - timestamp-only or ad hoc cache keys for future agent pipeline signatures when shared semantic-key
   helpers already exist upstream
 
@@ -257,14 +312,22 @@ can discover real Knowgrph read-only tools inside the browser context.
 
 #### Implemented acceptance
 
+- app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
 - the page registers `knowgrph.list_source_files` and `knowgrph.read_source_file`
-- registration supports `provideContext`, `registerTool`, and readable fallback tool storage
-- tool names are canonical and deduplicated by name
+- registration attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then a
+  readable fallback `modelContext.tools` store
+- tool names are canonical and deduplicated by name through
+  `knowgrphAgentReadyToolContract.mjs`
 - `read_source_file` requires `canonicalPath` and defaults `workspaceId` to
   `kgws:canonical-docs`
-- the document root exposes tool presence through `data-kg-webmcp-tools`
+- the document root exposes tool presence through `data-kg-webmcp-tools` and
+  `data-kg-webmcp-context`
 - Knowgrph WebMCP is installed by app bootstrap and also available through HTML fallback injection
-- tool schema ownership is centralized in `knowgrphAgentReadyToolContract.mjs`
+- browser WebMCP and HTTP MCP share the same upstream tool name and input-schema owner
+- late `navigator.modelContext` arrival is supported through bounded retry and setter-driven install
+- duplicate registration is treated as duplicate-state handling, not implicit success for all errors
+- localhost browser reads keep same-origin `/api/storage/*` paths while preview/prod resolve from
+  current origin with canonical fallback
 
 #### Important correction
 
@@ -274,10 +337,42 @@ already contains both:
 - app runtime WebMCP install in `canvas/src/features/agent-ready/webMcpRuntime.ts`
 - HTML injection fallback in `cloudflare/pages/knowgrph-agent-ready.mjs`
 
+The current shipped runtime is therefore not "missing WebMCP". It already exposes the read-only
+browser tools and now ships the bounded late-binding, `AbortController` registration lifecycle, and
+same-origin/current-origin storage-resolution hardening needed for preview, localhost, and prod.
+
 #### Enhancement target
 
 - keep browser WebMCP and HTTP MCP tool schemas contract-equal through the shared upstream contract
-- add new tools only when they are read-only, storage-backed, and validation-covered
+- add new tools only when they are read-only or explicitly user-mediated, rooted in existing helper
+  owners, and validation-covered
+
+### R3b: MainPanel MCP And Integrations Readiness
+
+#### Requirement
+
+As a user moving between MainPanel `mcp`, MainPanel `integrations`, and the FloatingPanel Chat UI,
+I want one shared configuration and routing contract so MCP readiness does not fork into duplicate
+UI owners or stale downstream panel logic.
+
+#### Implemented acceptance
+
+- `MainPanel.tsx` exposes both `integrations` and `mcp` shared tabs
+- `IntegrationsHubView.tsx` is a thin `SettingsView mode="integrations"` shell
+- `McpHubView.tsx` is a thin `SettingsView mode="mcp"` shell
+- chat integration routing, preset application, context-scope changes, and model refresh live in
+  `useSettingsChatAssist.tsx`
+- section-level open-panel actions route to FloatingPanel chat through the shared
+  `emitSidePanelOpen({ tab: 'chat', open: true })` path
+- MainPanel `mcp` and MainPanel `integrations` therefore already converge on one upstream settings
+  and chat-routing owner
+
+#### Enhancement target
+
+- keep any future MainPanel MCP quick-actions, docs links, or deep-link launches rooted in the same
+  `SettingsView` and chat-assist owners
+- do not create a second MCP-only panel flow, shadow chat routing config, or duplicate provider
+  model selector outside the existing helpers
 
 ### R4: HTTP MCP
 
@@ -396,6 +491,38 @@ source-files, and Markdown SSOT so agents do not see a stale or alternate docume
 - if browser-local active-workspace reads are added later, they must be explicitly scoped as
   runtime-local and must not be confused with published Cloudflare document reads
 
+### R6b: FloatingPanel Chat -> KGC -> Canvas Pipeline Alignment
+
+#### Requirement
+
+As a maintainer, I want future MCP readiness to extend the existing in-browser chat pipeline from
+MainPanel settings to FloatingPanel Chat to canonical KGC Markdown to Canvas graph apply so we do
+not create a second LLM-to-graph architecture.
+
+#### Implemented acceptance
+
+- `useSidePanelChatSubmit()` stays a thin shell that delegates lifecycle work to the submit helper
+  stack
+- `sidePanelChatSubmitCoordinator.ts` owns draft bootstrap, request context, transport retry,
+  response streaming, KGC validation/retry, and finalize sequencing
+- `chatMarkdownValidation.ts` enforces frontmatter-first output, canonical frontmatter shape, and
+  `flow.subgraphs` as the sole grouping surface
+- KGC recovery helpers salvage wrapped responses upstream before validation retry instead of adding
+  downstream parser aliases
+- `useFinalizeAssistantSuccess.ts` persists the canonical workspace KGC document and then calls
+  `applyChatKgcWorkspaceDocumentToCanvas()`
+- `setActiveMarkdownDocument({ applyToGraph: true })` remains the graph-apply gateway
+- `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown
+- frontmatter-flow composition merges edges, subgraphs, and cluster-derived groups before Canvas
+  projection
+
+#### Enhancement target
+
+- if a future WebMCP or HTTP MCP tool can trigger this pipeline, it must call the existing submit,
+  validation, finalize, and canvas-apply helpers or equally thin adapters
+- do not introduce a second serializer, second grouping contract, second graph-apply path, or
+  MCP-only Markdown template that diverges from the current chat pipeline
+
 ### R7: Publish Surface Hygiene
 
 #### Requirement
@@ -487,15 +614,43 @@ flowchart LR
   I --> J["applyComposedGraphFromSourceFiles()"]
 ```
 
+### Browser E2E pipeline contract
+
+```mermaid
+flowchart LR
+  A["MainPanel integrations tab"] --> C["SettingsView"]
+  B["MainPanel mcp tab"] --> C
+  C --> D["useSettingsChatAssist()"]
+  D --> E["emitSidePanelOpen(tab=chat)"]
+  E --> F["FloatingPanel / SidePanelChat"]
+  F --> G["useSidePanelChatSubmit()"]
+  G --> H["sidePanelChatSubmitCoordinator.ts"]
+  H --> I["streaming draft + KGC retry"]
+  I --> J["chatMarkdownValidation.ts"]
+  J --> K["useFinalizeAssistantSuccess()"]
+  K --> L["applyChatKgcWorkspaceDocumentToCanvas()"]
+  L --> M["setActiveMarkdownDocument(applyToGraph)"]
+  M --> N["tryParseMarkdownFrontmatterFlowGraph()"]
+  N --> O["merge edges + subgraphs + clusters"]
+  O --> P["Canvas groups / clusters / edges"]
+```
+
 ### Architectural rule
 
-The deployed Cloudflare document surface and any future local runtime agent surface must converge
-on the same document identity model:
+The deployed Cloudflare document surface, the shared MainPanel shells, and any future local
+runtime agent surface must converge on the same document identity and pipeline model:
 
 - canonical workspace id
 - canonical `canonicalPath`
 - canonical workspace/source-file path resolution
 - canonical Markdown body produced by the existing workspace write-through flow
+- canonical MainPanel ownership where `integrations` and `mcp` stay thin `SettingsView` shells
+- canonical chat submit ownership where `useSidePanelChatSubmit()` remains a thin shell and the
+  coordinator/helper stack owns lifecycle complexity
+- canonical KGC contract where output starts at YAML frontmatter and `flow.subgraphs` is the only
+  upstream grouping surface
+- canonical graph-apply path where finalized KGC Markdown reaches Canvas through
+  `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
 
 ## Route Contract
 
@@ -558,6 +713,19 @@ on the same document identity model:
 | Shared contract | Tool names and input schema | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Implemented |
 | Static artifacts | robots, sitemap, `.well-known` | `buildAgentReadyStaticFiles()` | Implemented |
 | Browser | WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Implemented |
+| MainPanel | Shared MCP / Integrations tabs | `canvas/src/features/panels/MainPanel.tsx` | Implemented |
+| MainPanel | Integrations hub shell | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | Implemented |
+| MainPanel | MCP hub shell | `canvas/src/features/panels/views/McpHubView.tsx` | Implemented |
+| Settings | Shared MCP / Integrations owner | `canvas/src/features/panels/views/SettingsView.tsx` | Implemented |
+| Settings | Chat assist and routing helpers | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | Implemented |
+| FloatingPanel | Chat UI | `canvas/src/features/chat/SidePanelChat.tsx` | Implemented |
+| Chat submit | Thin submit shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Implemented |
+| Chat submit | Submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | Implemented |
+| Chat submit | Streaming draft writer | `canvas/src/features/chat/sidePanelChat/sidePanelChatStreaming.ts` | Implemented |
+| Chat validation | KGC attempt + retry | `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts` | Implemented |
+| Chat validation | Frontmatter/grouping validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | Implemented |
+| Chat validation | KGC recovery / normalization | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Implemented |
+| Chat finalize | Workspace persistence + canvas bridge | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Implemented |
 | Storage | Shared route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Implemented |
 | Browser | Shared doc deep-link parsing and Share URL mapping | `canvas/src/features/canvas/{canvasDocDeepLink.ts,canvasDocShareToken.mjs}` | Implemented |
 | Browser | Shared doc import runtime | `canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx` | Implemented |
@@ -569,6 +737,9 @@ on the same document identity model:
 | Workspace runtime | Workspace -> Source Files merge | `canvas/src/features/workspace-fs/syncToSourceFiles.ts` | Implemented |
 | Workspace runtime | Active-path materialization | `canvas/src/features/source-files/sourceFilesRuntimeMaterialization.ts` | Implemented |
 | Workspace runtime | Source Files graph compose/apply | `canvas/src/features/source-files/applyComposedGraphFromSourceFiles.ts` | Implemented |
+| Parser | Structured Markdown parse priority | `canvas/src/features/parsers/default.ts` | Implemented |
+| Parser | Frontmatter-flow graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + companion helpers | Implemented |
+| Canvas | Subgraph/group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | Implemented |
 | Browser | PWA runtime | `canvas/src/lib/pwa/runtime.ts` | Implemented |
 | Publish | Mirror and root control generation | `scripts/sync-pages-knowgrph.mjs` | Implemented |
 | Publish | Root homepage discovery headers | `scripts/sync-pages-knowgrph.mjs` -> `huijoohwee/_headers` | Implemented |
@@ -617,6 +788,12 @@ on the same document identity model:
 - [x] JSON-RPC MCP `tools/list` returns both read-only tools
 - [x] JSON-RPC MCP `tools/call` executes live storage lookups
 - [x] MCP server card, HTTP MCP `tools/list`, and browser WebMCP all reuse one shared tool schema
+- [x] MainPanel `integrations` and MainPanel `mcp` both mount `SettingsView` specializations instead of separate routing stacks
+- [x] chat routing and presets stay owned by `useSettingsChatAssist.tsx` and shared open-panel helpers
+- [x] `useSidePanelChatSubmit()` remains a thin shell over the submit coordinator/helper stack
+- [x] KGC validation rejects wrapper prose before frontmatter and rejects parallel grouping aliases outside `flow.subgraphs`
+- [x] finalized KGC workspace documents apply to Canvas through `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
+- [x] `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown
 - [x] default published workspace markdown is readable without explicit `workspaceId`
 - [x] root `.well-known` OpenAPI, MCP card, and Agent Skills artifacts are validation-covered
 - [x] publish sync owns the generated root `_headers` and `_redirects` blocks
@@ -639,13 +816,18 @@ The current implementation is shipped. The safe next steps are:
 
 1. Keep the Pages-to-storage server-side fetch origin pinned to the storage worker `workers.dev`
    surface unless a stronger service-binding or direct-binding upstream path replaces it.
-2. Design an optional runtime-local agent read surface for the active workspace only if it reuses
-   `openMarkdownWorkspaceEditorPane()`, `commitMarkdownEditText()`,
-   `writeWorkspaceFileAndSync()`, `mergeWorkspaceEntriesIntoSourceFiles()`, and
-   `materializeActiveWorkspaceEntryIntoSourceFiles()`.
-3. Continue adding read-only tools before any auth-gated or mutating agent surface.
-4. Keep the OpenAPI document expanding only from the existing route owner instead of introducing
-   parallel spec files.
-5. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
+2. Keep browser WebMCP lifecycle ownership contract-equal between `webMcpRuntime.ts`, the HTML
+   fallback in `knowgrph-agent-ready.mjs`, and the smoke contract in `scripts/check-agent-ready.mjs`
+   so future changes do not drift across transports.
+3. If Knowgrph exposes more browser-local or remote tools, add them as thin adapters over the
+   existing MainPanel -> FloatingPanel Chat -> KGC -> Canvas helper stack instead of creating a
+   second pipeline.
+4. Prefer read-only inspection tools first, such as storage-backed document reads or browser-local
+   canvas/workspace inspection that reuses existing parser and graph owners.
+5. Keep the OpenAPI document and Pages discovery artifacts expanding only from the existing route
+   owner instead of introducing parallel spec files.
+6. Keep the larger remote MCP platform, auth, monetization, and mutation roadmap explicitly scoped
+   to the separate proposed MCP service PRD/TAD until the repo gains those implementation owners.
+7. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
 
-*Document version: 1.15.0 - Shared-doc markdown negotiation fixed on preview and live - 2026-05-22*
+*Document version: 1.17.0 - WebMCP lifecycle hardening shipped and smoke/docs aligned with agent-readiness SSOT - 2026-05-22*

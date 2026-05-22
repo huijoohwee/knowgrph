@@ -431,25 +431,107 @@ const webMcpTools = AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
   annotations: tool.annotations,
 }));
 
-const webMcpScript = `(() => {
+export const webMcpScript = `(() => {
   const root = globalThis;
-  const nav = root.navigator || {};
   const siteOrigin = ${JSON.stringify(SITE_ORIGIN)};
   const defaultWorkspaceId = ${JSON.stringify(DEFAULT_WORKSPACE_ID)};
+  const toolNames = ${JSON.stringify(webMcpTools.map((tool) => tool.name))};
+  const lateBindingRetryDelayMs = 500;
+  const lateBindingMaxAttempts = 20;
+  const fallbackState = {
+    fallbackContext: null,
+    activeRegisteredContext: null,
+    registrations: new WeakMap(),
+    lateBindingRetryId: null,
+    lateBindingAttemptCount: 0,
+  };
+  const normalizeString = (value) => String(value || "").trim();
+  const isLocalhostHost = (hostname) => {
+    const normalized = normalizeString(hostname).toLowerCase();
+    return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "0.0.0.0";
+  };
+  const markWebMcpRuntime = (state = toolNames.join(",")) => {
+    if (typeof document === "undefined" || !document.documentElement) return;
+    document.documentElement.dataset.kgWebmcpTools = toolNames.join(",");
+    document.documentElement.dataset.kgWebmcpContext = state;
+  };
+  const readGlobalNavigator = () => {
+    const windowNavigator = root.window && root.window.navigator;
+    if (windowNavigator && root.navigator !== windowNavigator) {
+      try {
+        Object.defineProperty(root, "navigator", {
+          configurable: true,
+          value: windowNavigator,
+        });
+      } catch {
+        root.navigator = windowNavigator;
+      }
+      return windowNavigator;
+    }
+    if (root.navigator) return root.navigator;
+    const nav = {};
+    try {
+      Object.defineProperty(root, "navigator", {
+        configurable: true,
+        value: nav,
+      });
+    } catch {
+      root.navigator = nav;
+    }
+    return nav;
+  };
   const buildDocPath = (canonicalPath, workspaceId = "") => {
-    const normalizedCanonicalPath = String(canonicalPath || "").trim();
-    const normalizedWorkspaceId = String(workspaceId || "").trim();
+    const normalizedCanonicalPath = normalizeString(canonicalPath);
+    const normalizedWorkspaceId = normalizeString(workspaceId);
     return normalizedWorkspaceId
       ? \`/api/storage/doc/\${encodeURIComponent(normalizedWorkspaceId)}/\${encodeURIComponent(normalizedCanonicalPath)}\`
       : \`/api/storage/doc-default/\${encodeURIComponent(normalizedCanonicalPath)}\`;
   };
-  if (!root.navigator) {
-    try {
-      Object.defineProperty(root, "navigator", { configurable: true, value: nav });
-    } catch {
-      root.navigator = nav;
+  const buildStorageRequestUrl = (path) => {
+    const safePath = normalizeString(path);
+    if (!safePath) return "";
+    if (typeof window !== "undefined") {
+      const hostname = normalizeString(window.location && window.location.hostname);
+      if (isLocalhostHost(hostname) && safePath.startsWith("/api/storage/")) return safePath;
+      const currentOrigin = normalizeString(window.location && window.location.origin);
+      const baseUrl = currentOrigin || siteOrigin;
+      return new URL(safePath, baseUrl.endsWith("/") ? baseUrl : \`\${baseUrl}/\`).toString();
     }
-  }
+    return new URL(safePath, siteOrigin.endsWith("/") ? siteOrigin : \`\${siteOrigin}/\`).toString();
+  };
+  const getRegistrationState = (context) => {
+    const existing = fallbackState.registrations.get(context);
+    if (existing) return existing;
+    const created = {
+      registeredToolNames: new Set(),
+      abortControllers: new Map(),
+    };
+    fallbackState.registrations.set(context, created);
+    return created;
+  };
+  const isDuplicateToolRegistrationError = (error) => {
+    if (!error || typeof error !== "object") return false;
+    return normalizeString(error.name) === "InvalidStateError";
+  };
+  const releasePreviousRegisteredContext = (nextContext) => {
+    const active = fallbackState.activeRegisteredContext;
+    if (!active || active === nextContext) {
+      fallbackState.activeRegisteredContext = nextContext;
+      return;
+    }
+    const registrationState = fallbackState.registrations.get(active);
+    if (registrationState) {
+      registrationState.abortControllers.forEach((controller) => {
+        if (controller && typeof controller.abort === "function") controller.abort();
+      });
+    }
+    fallbackState.activeRegisteredContext = nextContext;
+  };
+  const clearLateBindingRetry = () => {
+    if (fallbackState.lateBindingRetryId === null || typeof window === "undefined") return;
+    window.clearTimeout(fallbackState.lateBindingRetryId);
+    fallbackState.lateBindingRetryId = null;
+  };
   const tools = [
     {
       name: ${JSON.stringify(webMcpTools[0].name)},
@@ -458,7 +540,9 @@ const webMcpScript = `(() => {
       inputSchema: ${JSON.stringify(webMcpTools[0].inputSchema)},
       annotations: ${JSON.stringify(webMcpTools[0].annotations)},
       execute: async () => {
-        const response = await fetch(\`\${siteOrigin}/api/storage/source-files\`, { headers: { accept: "text/markdown" } });
+        const response = await fetch(buildStorageRequestUrl("/api/storage/source-files"), {
+          headers: { accept: "text/markdown" },
+        });
         if (!response.ok) throw new Error(\`list_source_files failed with \${response.status}\`);
         return {
           workspaceId: defaultWorkspaceId,
@@ -473,10 +557,12 @@ const webMcpScript = `(() => {
       inputSchema: ${JSON.stringify(webMcpTools[1].inputSchema)},
       annotations: ${JSON.stringify(webMcpTools[1].annotations)},
       execute: async (input = {}) => {
-        const canonicalPath = String(input.canonicalPath || "").trim();
+        const canonicalPath = normalizeString(input.canonicalPath);
         if (!canonicalPath) throw new Error("canonicalPath is required");
-        const workspaceId = String(input.workspaceId || "").trim();
-        const response = await fetch(\`\${siteOrigin}\${buildDocPath(canonicalPath, workspaceId)}\`, { headers: { accept: "text/markdown" } });
+        const workspaceId = normalizeString(input.workspaceId);
+        const response = await fetch(buildStorageRequestUrl(buildDocPath(canonicalPath, workspaceId)), {
+          headers: { accept: "text/markdown" },
+        });
         if (!response.ok) throw new Error(\`read_source_file failed with \${response.status}\`);
         return {
           workspaceId: workspaceId || defaultWorkspaceId,
@@ -486,52 +572,101 @@ const webMcpScript = `(() => {
       }
     }
   ];
-  if (typeof document !== "undefined" && document.documentElement) {
-    document.documentElement.dataset.kgWebmcpTools = tools.map((tool) => tool.name).join(",");
-    document.documentElement.dataset.kgWebmcpContext = tools.map((tool) => tool.name).join(",");
-  }
-  const existing = nav.modelContext;
-  let installed = false;
-  if (existing && typeof existing.provideContext === "function") {
-    existing.provideContext({ tools });
-    installed = true;
-  }
-  if (existing && typeof existing.registerTool === "function") {
-    for (const tool of tools) {
+  const nav = readGlobalNavigator();
+  const installToolsIntoModelContext = (context, nextTools) => {
+    const registrationState = getRegistrationState(context);
+    let providedContext = false;
+    if (typeof context.provideContext === "function") {
       try {
-        existing.registerTool(tool);
-        installed = true;
+        context.provideContext({ tools: nextTools });
+        providedContext = true;
       } catch {
-        installed = true;
+        void 0;
       }
     }
-  }
-  if (existing && Array.isArray(existing.tools)) {
-    for (const tool of tools) {
-      if (!existing.tools.some((entry) => entry && entry.name === tool.name)) existing.tools.push(tool);
+    if (typeof context.registerTool === "function") {
+      for (const tool of nextTools) {
+        if (registrationState.registeredToolNames.has(tool.name)) continue;
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        try {
+          context.registerTool(tool, controller ? { signal: controller.signal } : {});
+          registrationState.registeredToolNames.add(tool.name);
+          registrationState.abortControllers.set(tool.name, controller);
+        } catch (error) {
+          if (!isDuplicateToolRegistrationError(error)) continue;
+          registrationState.registeredToolNames.add(tool.name);
+          registrationState.abortControllers.set(tool.name, null);
+        }
+      }
     }
-    installed = true;
-  }
-  if (installed) {
-    if (typeof document !== "undefined" && document.documentElement) {
-      document.documentElement.dataset.kgWebmcpContext = "installed";
+    if (Array.isArray(context.tools)) {
+      for (const tool of nextTools) {
+        if (!context.tools.some((entry) => entry && entry.name === tool.name)) context.tools.push(tool);
+      }
     }
+    const allToolsRegistered = nextTools.every((tool) =>
+      registrationState.registeredToolNames.has(tool.name)
+      || (Array.isArray(context.tools) && context.tools.some((entry) => entry && entry.name === tool.name))
+    );
+    if (allToolsRegistered) {
+      releasePreviousRegisteredContext(context);
+      return true;
+    }
+    return providedContext && typeof context.registerTool !== "function" && !Array.isArray(context.tools);
+  };
+  const tryInstallLateBoundModelContext = (currentNav) => {
+    const context = currentNav.modelContext;
+    if (!context || context === fallbackState.fallbackContext) return false;
+    const installed = installToolsIntoModelContext(context, tools);
+    if (installed) {
+      clearLateBindingRetry();
+      markWebMcpRuntime("installed");
+      return true;
+    }
+    return false;
+  };
+  const scheduleLateBindingRetry = (currentNav) => {
+    if (typeof window === "undefined") return;
+    if (fallbackState.lateBindingRetryId !== null) return;
+    if (fallbackState.lateBindingAttemptCount >= lateBindingMaxAttempts) {
+      markWebMcpRuntime("retry-exhausted");
+      return;
+    }
+    fallbackState.lateBindingRetryId = window.setTimeout(() => {
+      fallbackState.lateBindingRetryId = null;
+      fallbackState.lateBindingAttemptCount += 1;
+      if (!tryInstallLateBoundModelContext(currentNav)) scheduleLateBindingRetry(currentNav);
+    }, lateBindingRetryDelayMs);
+  };
+  const defineFallbackModelContext = (currentNav, context) => {
+    fallbackState.fallbackContext = context;
+    let currentContext = currentNav.modelContext && currentNav.modelContext !== context ? currentNav.modelContext : context;
+    try {
+      Object.defineProperty(currentNav, "modelContext", {
+        configurable: true,
+        enumerable: false,
+        get: () => currentContext,
+        set: (value) => {
+          currentContext = value || context;
+          if (currentContext !== context) void tryInstallLateBoundModelContext(currentNav);
+        },
+      });
+    } catch {
+      currentNav.modelContext = context;
+    }
+  };
+  markWebMcpRuntime("installing");
+  if (nav.modelContext && installToolsIntoModelContext(nav.modelContext, tools)) {
+    markWebMcpRuntime("installed");
     return;
   }
-  const fallback = { tools };
-  try {
-    Object.defineProperty(nav, "modelContext", {
-      configurable: true,
-      enumerable: false,
-      value: fallback,
-      writable: true
-    });
-  } catch {
-    nav.modelContext = fallback;
-  }
-  if (typeof document !== "undefined" && document.documentElement) {
-    document.documentElement.dataset.kgWebmcpContext = nav.modelContext && Array.isArray(nav.modelContext.tools) ? "fallback-readable" : "fallback-defined";
-  }
+  if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...tools] });
+  markWebMcpRuntime(
+    toolNames.every((name) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === name))
+      ? "fallback-readable"
+      : "awaiting-model-context"
+  );
+  scheduleLateBindingRetry(nav);
 })();`;
 
 const injectWebMcpScript = async (response) => {
