@@ -486,7 +486,7 @@ const readDocumentMarkdown = async (
     'SELECT id, content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0',
     [workspaceId, canonicalPath],
   )
-  if (!row) return errorResponse(404, 'not_found', 'document not found')
+  if (!row) return null
   let contentMd = typeof row.content_md === 'string' ? row.content_md : ''
   if (!contentMd.trim()) {
     const documentId = normalizeString(row.id)

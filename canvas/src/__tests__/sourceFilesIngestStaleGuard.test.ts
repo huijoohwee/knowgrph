@@ -97,7 +97,11 @@ export function testSourceFilesIngestTreatsMarkdownLikeUrlsAsDirectTextImports()
 
 export function testCanvasStartupRuntimesMountsSourceFilesBootstrapEagerly() {
   const startupPath = resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasStartupRuntimes.tsx')
+  const startupDebugPath = resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasStartupDebugRuntime.tsx')
+  const startupSsotBridgePath = resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasStartupSsotBridgeRuntime.tsx')
   const text = readFileSync(startupPath, 'utf8')
+  const debugText = readFileSync(startupDebugPath, 'utf8')
+  const ssotBridgeText = readFileSync(startupSsotBridgePath, 'utf8')
 
   if (!text.includes("import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'")) {
     throw new Error('expected canvas startup runtimes to import SourceFilesPersistenceBootstrap eagerly at module scope')
@@ -105,11 +109,20 @@ export function testCanvasStartupRuntimesMountsSourceFilesBootstrapEagerly() {
   if (!text.includes('<SourceFilesPersistenceBootstrap />')) {
     throw new Error('expected canvas startup runtimes to mount SourceFilesPersistenceBootstrap outside the deferred idle loader path')
   }
+  if (!text.includes('<CanvasStartupDebugRuntime />')) {
+    throw new Error('expected canvas startup runtimes to delegate startup debug flag ownership through the dedicated debug runtime')
+  }
+  if (!text.includes('<CanvasStartupSsotBridgeRuntime />')) {
+    throw new Error('expected canvas startup runtimes to delegate SSOT bridge idle wiring through the dedicated startup bridge runtime')
+  }
   if (text.includes("import('@/features/source-files/SourceFilesPersistenceBootstrap')")) {
     throw new Error('expected canvas startup runtimes to stop deferring SourceFilesPersistenceBootstrap behind idle startup scheduling')
   }
-  if (!text.includes("import('@/features/ssot/SsotEventBridge')")) {
+  if (!ssotBridgeText.includes("import('@/features/ssot/SsotEventBridge')")) {
     throw new Error('expected non-critical startup runtime lazy loading to continue for the SSOT bridge')
+  }
+  if (!debugText.includes('__canvasStartupDebug.runtimeMounted = true')) {
+    throw new Error('expected CanvasStartupDebugRuntime to own startup runtime debug flag writes after the split')
   }
 }
 

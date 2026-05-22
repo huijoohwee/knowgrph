@@ -1,14 +1,17 @@
-import { useEffect, useLayoutEffect } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import Canvas from '@/pages/Canvas'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { CanvasRouteRuntime } from '@/features/canvas/CanvasRouteRuntime'
-import { PerformanceAutomationReadout } from '@/features/canvas/PerformanceAutomationReadout'
 import { resolveRouterBasename } from '@/lib/routing/basePath'
 import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceLayoutSettings'
+
+const PerformanceAutomationReadoutLazy = lazy(async () => ({
+  default: (await import('@/features/canvas/PerformanceAutomationReadout')).PerformanceAutomationReadout,
+}))
 
 function AppThemeRuntime() {
   useLayoutEffect(() => {
@@ -21,6 +24,10 @@ function AppThemeRuntime() {
 
 export default function App() {
   const basename = resolveRouterBasename(import.meta.env.BASE_URL)
+  const performanceAutomationReadoutEnabled = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('kgAutomationPerf') === '1'
+  }, [])
   useEffect(() => {
     let cancelled = false
     let cleanupTheme = () => void 0
@@ -117,7 +124,11 @@ export default function App() {
     <Router basename={basename}>
       <AppThemeRuntime />
       <CanvasRouteRuntime />
-      <PerformanceAutomationReadout />
+      {performanceAutomationReadoutEnabled ? (
+        <Suspense fallback={null}>
+          <PerformanceAutomationReadoutLazy />
+        </Suspense>
+      ) : null}
       <ErrorBoundary>
         <Routes>
           <Route path="/*" element={<Canvas />} />

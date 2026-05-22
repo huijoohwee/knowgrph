@@ -1,8 +1,6 @@
 import React from 'react'
 import { LS_KEYS } from '@/lib/config'
 import { lsInt, lsSetIntCoalesced } from '@/lib/persistence'
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
@@ -11,6 +9,34 @@ import {
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+
+type CanvasWorkspacePaneResizeHandleRuntimeModule = {
+  bindCanvasWorkspacePaneResizeHandleRuntime: (args: {
+    resizeHandleEl: HTMLHRElement
+    readCurrentWidthPx: () => number
+    setWorkspacePreviewWidthPx: (next: number) => void
+    persistWorkspacePreviewWidthPx: (next: number) => void
+    resolveWorkspacePreviewWidthFromPointerDrag: (input: {
+      startWidthPx: number
+      startClientX: number
+      currentClientX: number
+    }) => number
+  }) => () => void
+}
+
+let canvasWorkspacePaneResizeHandleRuntimePromise: Promise<CanvasWorkspacePaneResizeHandleRuntimeModule> | null = null
+
+const loadCanvasWorkspacePaneResizeHandleRuntime = (): Promise<CanvasWorkspacePaneResizeHandleRuntimeModule> => {
+  if (!canvasWorkspacePaneResizeHandleRuntimePromise) {
+    canvasWorkspacePaneResizeHandleRuntimePromise = import('@/features/canvas/canvasWorkspacePaneResizeHandleRuntime')
+      .then(mod => mod as CanvasWorkspacePaneResizeHandleRuntimeModule)
+      .catch(err => {
+        canvasWorkspacePaneResizeHandleRuntimePromise = null
+        throw err
+      })
+  }
+  return canvasWorkspacePaneResizeHandleRuntimePromise
+}
 
 function resolveWorkspacePreviewWidthBounds() {
   const minPx = resolveWorkspaceEditorPaneMinWidthPx()
@@ -58,14 +84,6 @@ export function useCanvasWorkspacePaneRuntime(): {
   const workspacePreviewWidthPxRef = React.useRef(workspacePreviewWidthPx)
   workspacePreviewWidthPxRef.current = workspacePreviewWidthPx
   const [resizeHandleEl, setResizeHandleEl] = React.useState<HTMLHRElement | null>(null)
-  const rafSetPreviewWidthRef = React.useRef(createRafValueScheduler<number>(v => setWorkspacePreviewWidthPx(v)))
-
-  React.useEffect(() => {
-    const raf = rafSetPreviewWidthRef.current
-    return () => {
-      raf.cancel()
-    }
-  }, [])
 
   const wasEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   React.useEffect(() => {
@@ -103,43 +121,30 @@ export function useCanvasWorkspacePaneRuntime(): {
   React.useEffect(() => {
     const el = resizeHandleEl
     if (!el) return
-    const onDown = (ev: PointerEvent) => {
-      if (ev.button !== undefined && ev.button !== 0) return
-      const startX = ev.clientX
-      const startWidth = workspacePreviewWidthPxRef.current
-      let pending = startWidth
-      startPointerDrag({
-        ev,
-        cursor: 'col-resize',
-        shouldStart: down => {
-          if (down.button !== undefined && down.button !== 0) return false
-          return true
-        },
-        onMove: mv => {
-          const next = resolveWorkspacePreviewWidthFromPointerDrag({
-            startWidthPx: startWidth,
-            startClientX: startX,
-            currentClientX: mv.clientX,
-          })
-          pending = next
-          rafSetPreviewWidthRef.current.schedule(next)
-        },
-        onEnd: () => {
-          const bounds = resolveWorkspacePreviewWidthBounds()
-          rafSetPreviewWidthRef.current.flush()
-          setWorkspacePreviewWidthPx(pending)
-          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
-        },
-        onCancel: () => {
-          const bounds = resolveWorkspacePreviewWidthBounds()
-          rafSetPreviewWidthRef.current.flush()
-          setWorkspacePreviewWidthPx(pending)
-          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
-        },
-      })
+    let cancelled = false
+    let cleanup: (() => void) | null = null
+    const persistWorkspacePreviewWidthPx = (next: number) => {
+      const bounds = resolveWorkspacePreviewWidthBounds()
+      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
     }
-    el.addEventListener('pointerdown', onDown)
-    return () => el.removeEventListener('pointerdown', onDown)
+    void loadCanvasWorkspacePaneResizeHandleRuntime()
+      .then(mod => {
+        if (cancelled) return
+        cleanup = mod.bindCanvasWorkspacePaneResizeHandleRuntime({
+          resizeHandleEl: el,
+          readCurrentWidthPx: () => workspacePreviewWidthPxRef.current,
+          setWorkspacePreviewWidthPx,
+          persistWorkspacePreviewWidthPx,
+          resolveWorkspacePreviewWidthFromPointerDrag,
+        })
+      })
+      .catch(() => {
+        if (cancelled) return
+      })
+    return () => {
+      cancelled = true
+      cleanup?.()
+    }
   }, [resizeHandleEl])
 
   return {

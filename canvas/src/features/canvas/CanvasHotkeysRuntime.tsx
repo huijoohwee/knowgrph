@@ -1,66 +1,31 @@
 import React from 'react'
-import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import { LS_KEYS } from '@/lib/config'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { dispatchRuntimeZoomAction } from '@/lib/canvas/runtimeZoomDispatch'
+import {
+  handleCanvasPointerModeHotkey,
+  handleCanvasZoomHotkey,
+} from '@/features/canvas/canvasHotkeyHandlers'
+
+const CanvasLaunchSpotlightHotkeyRuntimeLazy = React.lazy(() =>
+  import('@/features/canvas/CanvasLaunchSpotlightHotkeyRuntime').then(mod => ({ default: mod.CanvasLaunchSpotlightHotkeyRuntime })),
+)
 
 export function CanvasHotkeysRuntime(props: {
   geospatialModeEnabled: boolean
   launchSpotlightShortcutEnabled: boolean
 }) {
   const { launchSpotlightShortcutEnabled } = props
-  const [, setSpotlightDismissed] = usePersistedBoolean(LS_KEYS.launchSpotlightDismissed, false)
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-        return
-      }
-      const lowerKey = e.key.toLowerCase()
-      const plainKey = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey
-      if (plainKey && (lowerKey === 'v' || lowerKey === 'h')) {
-        try {
-          const state = useGraphStore.getState()
-          if (state.workspaceViewMode === 'canvas' && state.canvasRenderMode === '2d' && state.canvas2dRenderer === 'design') {
-            e.preventDefault()
-            state.setCanvasPointerMode2d(lowerKey === 'h' ? 'pan' : 'select')
-          }
-        } catch {
-          void 0
-        }
-        return
-      }
-      const isCmd = e.metaKey || e.ctrlKey
-      if (!isCmd) return
-      if (launchSpotlightShortcutEnabled && e.shiftKey && lowerKey === 'g') {
-        e.preventDefault()
-        try {
-          useGraphStore.getState().setEnableLaunchSpotlight(true)
-          setSpotlightDismissed(false)
-        } catch {
-          void 0
-        }
-        return
-      }
-      const k = e.key
-      const isZoomIn = k === '+' || k === '='
-      const isZoomOut = k === '-' || k === '_'
-      const isReset = k === '0'
-      if (!isZoomIn && !isZoomOut && !isReset) return
-
-      e.preventDefault()
-      if (isReset) {
-        void dispatchRuntimeZoomAction('reset')
-        return
-      }
-
-      const type = isZoomIn ? 'in' : 'out'
-      void dispatchRuntimeZoomAction(type)
+      if (handleCanvasPointerModeHotkey(e)) return
+      void handleCanvasZoomHotkey(e)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [launchSpotlightShortcutEnabled, setSpotlightDismissed])
+  }, [])
 
-  return null
+  return launchSpotlightShortcutEnabled ? (
+    <React.Suspense fallback={null}>
+      <CanvasLaunchSpotlightHotkeyRuntimeLazy />
+    </React.Suspense>
+  ) : null
 }

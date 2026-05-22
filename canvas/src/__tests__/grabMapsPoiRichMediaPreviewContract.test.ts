@@ -59,7 +59,7 @@ export const testGrabMapsPoiPreviewHelpersCentralizeEventDispatchAndParsing = as
 
 export const testGrabMapsPoiPreviewCallsitesUseSharedHelpers = () => {
   const helperText = readUtf8('src/features/geospatial/grabMapsPoiRichMedia.ts')
-  const viewportText = readUtf8('src/components/CanvasViewport.tsx')
+  const viewportText = readUtf8('src/components/CanvasViewportGeospatialOverlay.tsx')
   const richMediaPanelText = readUtf8('src/components/RichMediaPanel.tsx')
 
   if (!helperText.includes('export function subscribeGrabMapsPoiRichMediaPreview')) {
@@ -72,7 +72,7 @@ export const testGrabMapsPoiPreviewCallsitesUseSharedHelpers = () => {
     throw new Error('expected GrabMaps POI preview emitter to use the shared event constant')
   }
   if (!viewportText.includes('publishGrabMapsPoiRichMediaPreview({')) {
-    throw new Error('expected CanvasViewport to keep publishing GrabMaps POI previews through the shared helper')
+    throw new Error('expected CanvasViewportGeospatialOverlay to keep publishing GrabMaps POI previews through the shared helper')
   }
   if (!richMediaPanelText.includes('subscribeGrabMapsPoiRichMediaPreview')) {
     throw new Error('expected RichMediaPanel to subscribe through the shared GrabMaps preview helper')

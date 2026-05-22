@@ -89,11 +89,9 @@ export const ensureSyncDeviceRow = async (
   deviceId: string,
   nowIso: string,
 ): Promise<void> => {
-  const existing = await queryFirst<{ id: string }>(db, 'SELECT id FROM sync_devices WHERE id = ?', [deviceId])
-  if (existing) return
   await execute(
     db,
-    `INSERT INTO sync_devices (id, workspace_id, device_label, last_pull_cursor, last_push_cursor, updated_at)
+    `INSERT OR IGNORE INTO sync_devices (id, workspace_id, device_label, last_pull_cursor, last_push_cursor, updated_at)
      VALUES (?, ?, ?, NULL, NULL, ?)`,
     [deviceId, workspaceId, deviceId, nowIso],
   )

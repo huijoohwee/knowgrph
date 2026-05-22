@@ -6,12 +6,10 @@ import { CanvasViewport } from '@/components/CanvasViewport'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { CanvasSyncRuntime } from '@/features/canvas/CanvasSyncRuntime'
 import { CanvasHotkeysRuntime } from '@/features/canvas/CanvasHotkeysRuntime'
-import { CanvasFrontmatterRuntime } from '@/features/canvas/CanvasFrontmatterRuntime'
 import { useCanvasWorkspacePaneRuntime } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
 import { dispatchRuntimeZoomAction } from '@/lib/canvas/runtimeZoomDispatch'
 import { useCanvasGeospatialRuntime } from '@/features/canvas/useCanvasGeospatialRuntime'
-import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'
-import { CanvasDocDeepLinkRuntime } from '@/features/canvas/CanvasDocDeepLinkRuntime'
+import { shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'
 import { CanvasRootRuntime } from '@/features/canvas/CanvasRootRuntime'
 import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
@@ -27,10 +25,24 @@ const EmbeddedEditorShellLazy = React.lazy(() =>
   import('@/components/EmbeddedEditorShell').then(mod => ({ default: mod.EmbeddedEditorShell })),
 )
 const ToastHostLazy = React.lazy(() => import('@/components/ui/ToastHost'))
+const CanvasQueryBootstrapRuntimeLazy = React.lazy(() =>
+  import('@/features/canvas/CanvasQueryBootstrapRuntime').then(mod => ({ default: mod.CanvasQueryBootstrapRuntime })),
+)
+const CanvasDocDeepLinkRuntimeLazy = React.lazy(() =>
+  import('@/features/canvas/CanvasDocDeepLinkRuntime').then(mod => ({ default: mod.CanvasDocDeepLinkRuntime })),
+)
+const CanvasFrontmatterRuntimeLazy = React.lazy(() =>
+  import('@/features/canvas/CanvasFrontmatterRuntime').then(mod => ({ default: mod.CanvasFrontmatterRuntime })),
+)
 
 export default function CanvasPage() {
   const location = useLocation()
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
+  const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
+  const hasDocDeepLinkParams = React.useMemo(() => {
+    const search = String(location.search || '')
+    return search.includes('doc=') || search.includes('path=')
+  }, [location.search])
 
   const {
     uiOverlayOpacity,
@@ -103,7 +115,31 @@ export default function CanvasPage() {
       canvas2dRenderer: s.canvas2dRenderer,
     })),
   )
+  const {
+    frontmatterModeEnabled,
+    documentSemanticMode,
+    markdownDocumentApplyViewPreset,
+    markdownDocumentText,
+  } = useGraphStore(
+    useShallow(s => ({
+      frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+      documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+      markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
+      markdownDocumentText: s.markdownDocumentText,
+    })),
+  )
   const geospatialModeEnabled = useCanvasGeospatialRuntime()
+  const shouldMountCanvasFrontmatterRuntime = React.useMemo(() => {
+    if (documentSemanticMode !== 'document') return false
+    if (markdownDocumentApplyViewPreset === false) return false
+    if (!frontmatterModeEnabled) return false
+    return String(markdownDocumentText || '').trim().length > 0
+  }, [
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    markdownDocumentApplyViewPreset,
+    markdownDocumentText,
+  ])
 
   const makeZoomHandler = (type: 'in' | 'out' | 'reset' | 'selection') => () => {
     void dispatchRuntimeZoomAction(type)
@@ -122,8 +158,16 @@ export default function CanvasPage() {
         uiToolbarOpacity={uiToolbarOpacity}
       />
       <GraphStoreRuntime />
-      <CanvasQueryBootstrapRuntime search={location.search} />
-      <CanvasFrontmatterRuntime />
+      {hasSearchParams ? (
+        <React.Suspense fallback={null}>
+          <CanvasQueryBootstrapRuntimeLazy search={location.search} />
+        </React.Suspense>
+      ) : null}
+      {shouldMountCanvasFrontmatterRuntime ? (
+        <React.Suspense fallback={null}>
+          <CanvasFrontmatterRuntimeLazy />
+        </React.Suspense>
+      ) : null}
       <CanvasHotkeysRuntime
         geospatialModeEnabled={geospatialModeEnabled}
         launchSpotlightShortcutEnabled={launchSpotlightShortcutEnabled}
@@ -133,7 +177,11 @@ export default function CanvasPage() {
         setIsEmbeddedPreview={setIsEmbeddedPreview}
         detectEmbeddedPreviewWriteback={detectEmbeddedPreviewWriteback}
       />
-      <CanvasDocDeepLinkRuntime search={location.search} />
+      {hasDocDeepLinkParams ? (
+        <React.Suspense fallback={null}>
+          <CanvasDocDeepLinkRuntimeLazy search={location.search} />
+        </React.Suspense>
+      ) : null}
       <CanvasStartupRuntimes />
       <section
         className="relative flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"

@@ -336,7 +336,7 @@ export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () =
 }
 
 export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePopup = () => {
-  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewportGeospatialOverlay.tsx')
   const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const richMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const viewportText = readUtf8(viewportPath)
@@ -678,7 +678,7 @@ export const testGympgrphMapLibreBasemapFallsBackFromOpenFreeMapLibertyAbort = (
 
 export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
-  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewportGeospatialOverlay.tsx')
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const hookText = readUtf8(hookPath)
   const viewportText = readUtf8(viewportPath)
@@ -929,7 +929,7 @@ export const testGympgrphFitToSelectionRequestExists = () => {
 }
 
 export const testHostGeoZoomToSelectionCallsGympgrphSelectionFit = () => {
-  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewportGeospatialOverlay.tsx')
   const viewportText = readUtf8(viewportPath)
   if (!viewportText.includes('requestGeospatialFitToSelection')) {
     throw new Error('Expected host CanvasViewport to call requestGeospatialFitToSelection when zoomToSelectionMode changes')

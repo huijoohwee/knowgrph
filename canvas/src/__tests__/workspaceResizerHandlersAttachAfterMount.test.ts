@@ -8,24 +8,34 @@ const read = (parts: string[]) => {
 
 export function testWorkspaceResizerHandlersAttachAfterMount() {
   const canvasText = read(['src', 'pages', 'Canvas.tsx'])
+  const canvasRuntimeText = read(['src', 'features', 'canvas', 'useCanvasWorkspacePaneRuntime.ts'])
   if (canvasText.includes('const resizeHandleRef')) {
     throw new Error('expected Canvas workspace resizer to avoid ref-only pointerdown binding')
   }
-  if (!canvasText.includes('const [resizeHandleEl, setResizeHandleEl]')) {
-    throw new Error('expected Canvas workspace resizer to bind to an element-backed state')
+  if (!canvasText.includes('ref={setResizeHandleEl}')) {
+    throw new Error('expected Canvas workspace resizer shell to forward the live handle element into the shared workspace-pane runtime')
+  }
+  if (!canvasRuntimeText.includes('const [resizeHandleEl, setResizeHandleEl]')) {
+    throw new Error('expected useCanvasWorkspacePaneRuntime to own the element-backed workspace resizer handle state')
+  }
+  if (canvasRuntimeText.includes('const resizeHandleRef')) {
+    throw new Error('expected useCanvasWorkspacePaneRuntime to avoid ref-only pointerdown binding')
   }
 
-  const explorerText = read(['src', 'features', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.tsx'])
-  if (explorerText.includes('const resizeHandleRef')) {
+  const explorerShellText = read(['src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx'])
+  const explorerBootstrapText = read(['src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceBootstrapState.ts'])
+  if (explorerShellText.includes('const resizeHandleRef') || explorerBootstrapText.includes('const resizeHandleRef')) {
     throw new Error('expected explorer resizer to avoid ref-only pointerdown binding')
   }
-  if (!explorerText.includes('const [resizeHandleEl, setResizeHandleEl]')) {
-    throw new Error('expected explorer resizer to bind to an element-backed state')
+  if (!explorerShellText.includes('ref={setResizeHandleEl}')) {
+    throw new Error('expected explorer resizer shell to forward the live handle element into the shared bootstrap state')
+  }
+  if (!explorerBootstrapText.includes('const [resizeHandleEl, setResizeHandleEl]')) {
+    throw new Error('expected explorer resizer bootstrap state to own the element-backed handle state')
   }
 
-  const graphTableText = read(['src', 'features', 'graph-table', 'ui', 'GraphTableWorkspace.tsx'])
+  const graphTableText = read(['src', 'lib', 'graph-table', 'ui', 'GraphTableWorkspace.impl.tsx'])
   if (!graphTableText.includes('const [inspectorDragHandleEl, setInspectorDragHandleEl]')) {
-    throw new Error('expected graph table inspector resizer to bind to an element-backed state')
+    throw new Error('expected graph table inspector resizer owner to bind to an element-backed state')
   }
 }
-

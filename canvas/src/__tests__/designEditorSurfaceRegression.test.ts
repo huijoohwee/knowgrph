@@ -20,11 +20,15 @@ export function testDesignEditorChromeUsesExistingStoreActions() {
 export function testDesignFloatingPanelUsesViewportAndToolShortcuts() {
   const panel = readFileSync(resolve(process.cwd(), 'src', 'features', 'design', 'DesignFloatingPanelView.tsx'), 'utf8')
   const hotkeys = readFileSync(resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasHotkeysRuntime.tsx'), 'utf8')
+  const handlers = readFileSync(resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasHotkeyHandlers.ts'), 'utf8')
   if (!panel.includes('dispatchRuntimeFitToViewSoon') || !panel.includes('Fit to view')) {
     throw new Error('expected Design floating panel to expose the shared fit-to-view viewport action')
   }
-  for (const snippet of ["canvas2dRenderer === 'design'", 'setCanvasPointerMode2d', "lowerKey === 'v'", "lowerKey === 'h'"]) {
-    if (!hotkeys.includes(snippet)) throw new Error(`expected Design hotkeys to be owned by the shared canvas hotkey runtime: ${snippet}`)
+  if (!hotkeys.includes('handleCanvasPointerModeHotkey(e)')) {
+    throw new Error('expected Design hotkeys to remain wired through the shared canvas hotkey runtime shell')
+  }
+  for (const snippet of ["canvas2dRenderer === 'design'", 'setCanvasPointerMode2d', "lowerKey !== 'v' && lowerKey !== 'h'"]) {
+    if (!handlers.includes(snippet)) throw new Error(`expected Design pointer hotkeys to be owned by the shared canvas hotkey handlers: ${snippet}`)
   }
 }
 

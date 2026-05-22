@@ -196,11 +196,14 @@ export function testSourceFilesStorageSyncSkipsWorkspaceBackedSourceFiles() {
 export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQueueIntegration() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const text = readFileSync(bootstrapPath, 'utf8')
-  if (!text.includes("startKnowgrphStorageSyncLoop")) {
-    throw new Error('expected source-files bootstrap to start the knowgrph storage sync loop for the active workspace')
+  if (!text.includes("loadKnowgrphStorageRuntimeDependencies")) {
+    throw new Error('expected source-files bootstrap to lazy-load the knowgrph storage runtime dependencies instead of pulling them into the eager bootstrap module graph')
   }
-  if (!text.includes("syncSourceFilesToKnowgrphStorage")) {
-    throw new Error('expected source-files bootstrap to integrate source-file edits with storage outbox enqueueing')
+  if (
+    !text.includes("ensureKnowgrphStorageRuntimeDependencies()")
+    || !text.includes(".then(deps => deps.syncSourceFilesToKnowgrphStorage({")
+  ) {
+    throw new Error('expected source-files bootstrap to integrate source-file edits with storage outbox enqueueing through the deferred storage runtime loader')
   }
   if (!text.includes("const request = resolveSourceFilesPersistenceEffectRequest(next as never)") || !text.includes("applySourceFilesPersistenceEffectRequest(request)")) {
     throw new Error('expected source-files persistence subscription to enqueue storage sync from live source-file edits through the dedicated persistence effect request path')
@@ -208,8 +211,11 @@ export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQue
   if (!text.includes("onPulledChangesApplied")) {
     throw new Error('expected source-files bootstrap to register an inbound pulled-changes apply hook for visible sourceFiles updates')
   }
-  if (!text.includes("applyPulledKnowgrphStorageChangesToSourceFiles")) {
-    throw new Error('expected source-files bootstrap to materialize pulled remote storage records into the visible sourceFiles workspace')
+  if (!text.includes("deps.applyPulledKnowgrphStorageChangesToSourceFiles")) {
+    throw new Error('expected source-files bootstrap to materialize pulled remote storage records into the visible sourceFiles workspace through the deferred storage runtime dependencies')
+  }
+  if (!text.includes("deps.startKnowgrphStorageSyncLoop")) {
+    throw new Error('expected source-files bootstrap to keep ownership of the knowgrph storage sync loop for the active workspace through the deferred runtime loader')
   }
   if (!text.includes("notifyKnowgrphStorageConflictUx")) {
     throw new Error('expected source-files bootstrap to route storage conflicts through the shared conflict UX notifier')

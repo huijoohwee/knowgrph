@@ -341,65 +341,66 @@ export function MermaidDiagram({
         try {
           const svgEl = host.querySelector('svg') as SVGSVGElement | null
           if (svgEl) {
+            const parseSvgBounds = (rawSvg: string): { x: number; y: number; w: number; h: number } | null => {
+              if (typeof window === 'undefined') return null
+              try {
+                const doc = new window.DOMParser().parseFromString(String(rawSvg || ''), 'image/svg+xml')
+                const root = doc.querySelector('svg')
+                if (!root) return null
+                const viewBox = String(root.getAttribute('viewBox') || '').trim()
+                if (viewBox) {
+                  const parts = viewBox.split(/[\s,]+/g).map(value => Number.parseFloat(value))
+                  if (parts.length === 4 && parts.every(Number.isFinite) && parts[2] > 0 && parts[3] > 0) {
+                    return { x: parts[0]!, y: parts[1]!, w: parts[2]!, h: parts[3]! }
+                  }
+                }
+                const parseDim = (value: string | null): number => {
+                  if (!value) return NaN
+                  const trimmed = String(value).trim()
+                  if (!trimmed || trimmed.includes('%')) return NaN
+                  const numeric = Number.parseFloat(trimmed)
+                  return Number.isFinite(numeric) ? numeric : NaN
+                }
+                const width = parseDim(root.getAttribute('width'))
+                const height = parseDim(root.getAttribute('height'))
+                if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+                  return { x: 0, y: 0, w: width, h: height }
+                }
+                return null
+              } catch {
+                return null
+              }
+            }
             codeblockSvgRef.current = svgEl
             try {
               svgEl.style.maxWidth = 'none'
               svgEl.style.maxHeight = 'none'
               ;(svgEl.style as unknown as { shapeRendering?: string }).shapeRendering = 'geometricPrecision'
               ;(svgEl.style as unknown as { textRendering?: string }).textRendering = 'geometricPrecision'
-              svgEl.setAttribute('width', '100%')
-              svgEl.setAttribute('height', '100%')
+              svgEl.style.width = '100%'
+              svgEl.style.height = '100%'
               svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet')
             } catch {
               void 0
             }
-            requestAnimationFrame(() => {
-              try {
-                const bbox = svgEl.getBBox()
-                const bw = Number.isFinite(bbox.width) ? bbox.width : 0
-                const bh = Number.isFinite(bbox.height) ? bbox.height : 0
-                const bx = Number.isFinite(bbox.x) ? bbox.x : 0
-                const by = Number.isFinite(bbox.y) ? bbox.y : 0
-
-                const fallbackVb = (() => {
-                  const vb = svgEl.viewBox?.baseVal
-                  if (vb && vb.width > 0 && vb.height > 0) return { x: vb.x, y: vb.y, w: vb.width, h: vb.height }
-                  return null
-                })()
-
-                const raw =
-                  bw > 0 && bh > 0
-                    ? { x: bx, y: by, w: bw, h: bh }
-                    : fallbackVb
-                if (!raw) return
-
-                const pad = Math.max(24, Math.round(Math.max(raw.w, raw.h) * 0.08))
-                let vw = raw.w + pad * 2
-                let vh = raw.h + pad * 2
-                const minW = 360
-                const minH = 240
-                if (vw < minW) vw = minW
-                if (vh < minH) vh = minH
-                const vx = raw.x - (vw - raw.w) / 2
-                const vy = raw.y - (vh - raw.h) / 2
-
-                svgEl.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`)
-                codeblockViewBoxRef.current = { x: vx, y: vy, w: vw, h: vh, baseW: vw, baseH: vh }
-                setSvgTightSize({ w: vw, h: vh })
-              } catch {
-                void 0
-              }
-            })
+            const rawBounds = parseSvgBounds(nextSvg)
+            if (rawBounds) {
+              const pad = Math.max(24, Math.round(Math.max(rawBounds.w, rawBounds.h) * 0.08))
+              let vw = rawBounds.w + pad * 2
+              let vh = rawBounds.h + pad * 2
+              const minW = 360
+              const minH = 240
+              if (vw < minW) vw = minW
+              if (vh < minH) vh = minH
+              const vx = rawBounds.x - (vw - rawBounds.w) / 2
+              const vy = rawBounds.y - (vh - rawBounds.h) / 2
+              svgEl.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`)
+              codeblockViewBoxRef.current = { x: vx, y: vy, w: vw, h: vh, baseW: vw, baseH: vh }
+              setSvgTightSize({ w: vw, h: vh })
+            }
           }
         } catch {
           void 0
-        }
-        if (typeof out !== 'string' && typeof out.bindFunctions === 'function') {
-          try {
-            out.bindFunctions(host)
-          } catch {
-            void 0
-          }
         }
       } catch (e) {
         if (cancelled) return

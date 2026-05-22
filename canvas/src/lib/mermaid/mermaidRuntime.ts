@@ -29,6 +29,18 @@ const getTestMermaidApi = (): MermaidRuntimeApi | null => {
 let mermaidModulePromise: Promise<MermaidRuntimeApi> | null = null
 let lastStandardInitKey = ''
 
+const mergeMermaidConfig = (config: MermaidInitConfig): MermaidInitConfig => {
+  const next = { ...(config || {}) }
+  const flowchart =
+    next.flowchart && typeof next.flowchart === 'object' && !Array.isArray(next.flowchart)
+      ? { ...(next.flowchart as Record<string, unknown>) }
+      : {}
+  flowchart.htmlLabels = false
+  next.flowchart = flowchart
+  if (!('securityLevel' in next)) next.securityLevel = 'strict'
+  return next
+}
+
 export const resolveMermaidRuntimeBranch = (_config: MermaidInitConfig, _code = ''): MermaidRuntimeBranch => {
   return 'standard'
 }
@@ -70,10 +82,11 @@ export const loadMermaidRuntimeApi = async (): Promise<MermaidRuntimeApi> => {
 
 export const ensureStandardMermaidInitialized = async (config: MermaidInitConfig): Promise<MermaidRuntimeApi> => {
   const mermaid = await loadMermaidRuntimeApi()
-  const key = JSON.stringify(config || {})
+  const mergedConfig = mergeMermaidConfig(config)
+  const key = JSON.stringify(mergedConfig)
   if (key !== lastStandardInitKey) {
     try {
-      mermaid.initialize({ startOnLoad: false, ...config })
+      mermaid.initialize({ startOnLoad: false, ...mergedConfig })
     } finally {
       lastStandardInitKey = key
     }

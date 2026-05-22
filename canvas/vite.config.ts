@@ -5433,24 +5433,6 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/d3/')) return 'd3'
                 if (moduleId.includes('/node_modules/lucide-react/')) return 'ui'
                 if (moduleId.includes('/node_modules/zustand/')) return 'ui'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/language/')) return 'monaco-language'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/standalone/')) return 'monaco-standalone'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/contrib/')) return 'monaco-contrib'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/widget/')) return 'monaco-editor-widget'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/viewParts/')) return 'monaco-editor-viewparts'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/view/')) return 'monaco-editor-view'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/controller/')) return 'monaco-editor-controller'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/services/')) return 'monaco-editor-browser-services'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/')) return 'monaco-editor-browser'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/model/')) return 'monaco-editor-model'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/languages/')) return 'monaco-editor-languages'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/services/')) return 'monaco-editor-services'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/')) return 'monaco-editor-common'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/platform/')) return 'monaco-platform'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/browser/')) return 'monaco-base-browser'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/common/')) return 'monaco-base-common'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/')) return 'monaco-editor-core'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/')) return 'monaco-base'
                 if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco'
                 if (moduleId.includes('/node_modules/katex/')) return 'katex'
                 if (moduleId.includes('/node_modules/highlight.js/')) return 'highlightjs'
@@ -5477,21 +5459,8 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return 'mermaid'
                 if (moduleId.includes('/node_modules/mermaid/dist/')) return 'mermaid'
                 if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
-                if (moduleId.endsWith('/node_modules/three/src/Three.js') || moduleId.endsWith('/node_modules/three/src/Three.Legacy.js')) return 'three-barrel'
                 if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
                 if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
-                if (moduleId.includes('/node_modules/three/src/renderers/shaders/')) return 'three-foundation'
-                if (moduleId.endsWith('/node_modules/three/src/extras/PMREMGenerator.js')) return 'three-renderers'
-                if (moduleId.includes('/node_modules/three/src/renderers/')) return 'three-renderers'
-                if (moduleId.includes('/node_modules/three/src/animation/')) return 'three-animation'
-                if (moduleId.includes('/node_modules/three/src/loaders/')) return 'three-loaders'
-                if (moduleId.includes('/node_modules/three/src/audio/')) return 'three-audio'
-                if (moduleId.includes('/node_modules/three/src/helpers/')) return 'three-helpers'
-                if (moduleId.includes('/node_modules/three/src/math/')) return 'three-math'
-                if (moduleId.includes('/node_modules/three/src/materials/')) return 'three-materials'
-                if (moduleId.includes('/node_modules/three/src/geometries/')) return 'three-geometries'
-                if (moduleId.includes('/node_modules/three/src/core/')) return 'three-scene-core'
-                if (moduleId.includes('/node_modules/three/src/')) return 'three-foundation'
                 if (moduleId.includes('/node_modules/three/')) return 'three-core'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/ui/')) return 'maplibre-ui'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/style/')) return 'maplibre-style'
@@ -5504,153 +5473,6 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
-                if (moduleId.includes('/src/lib/config-copy/') || moduleId.includes('/src/lib/config.ts')) return 'config-copy'
-                if (moduleId.includes('/src/lib/config.ls') || moduleId.includes('/src/lib/persistence')) return 'config-storage'
-                if (moduleId.includes('/src/hooks/useGraphStore.ts') || moduleId.includes('/src/hooks/store/')) return 'graph-store'
-                if (moduleId.includes('/src/components/GraphHoverTooltip')) return 'graph-hover-tooltip'
-                if (moduleId.includes('/src/components/RichMediaPanel')) return 'rich-media-panel'
-                if (moduleId.includes('/src/pages/Canvas.tsx') || moduleId.includes('/src/components/CanvasViewport.tsx')) return 'canvas-shell'
-                if (moduleId.includes('/src/features/canvas/') || moduleId.includes('/src/lib/canvas/')) return 'canvas-runtime'
-                if (moduleId.includes('/src/components/GraphCanvasRoot/')) return 'graph-canvas-root'
-                if (moduleId.includes('/src/components/GraphCanvas/')) return 'graph-canvas'
-                if (
-                  moduleId.includes('/src/features/node-creation/') ||
-                  moduleId.includes('/src/features/edge-creation/')
-                ) {
-                  return 'canvas-2d'
-                }
-                if (moduleId.includes('/src/components/FlowEditorCanvas')) return 'flow-editor-canvas'
-                if (moduleId.includes('/src/components/FlowEditor/')) return 'flow-editor-ui'
-                if (moduleId.includes('/src/components/FlowCanvas/')) return 'flow-canvas-core'
-                if (
-                  moduleId.includes('/src/components/FlowCanvas.tsx') ||
-                  moduleId.includes('/src/components/FlowEditorCanvas.runtime.tsx')
-                ) {
-                  return 'flow-canvas'
-                }
-                if (moduleId.includes('/src/components/DesignCanvas') || moduleId.includes('/src/lib/markdown-edgeless/')) return 'design-canvas'
-                if (
-                  moduleId.includes('/src/lib/three/ThreeGraph.impl.tsx') ||
-                  moduleId.includes('/src/features/three/ThreeGraph.tsx')
-                ) {
-                  return 'canvas-3d-shell'
-                }
-                if (moduleId.includes('/src/lib/three/positions.impl.ts')) return 'canvas-3d-positions'
-                if (moduleId.includes('/src/features/three/layout.ts') || moduleId.includes('/src/features/three/threeLayoutConfig.ts') || moduleId.includes('/src/features/three/positions.ts')) return 'canvas-3d-layout'
-                if (moduleId.includes('/src/features/three/voxel') || moduleId.includes('/src/features/three/Voxel')) return 'canvas-3d-voxel'
-                if (moduleId.includes('/src/features/three/animation.ts') || moduleId.includes('/src/features/three/selection.ts') || moduleId.includes('/src/features/three/sphereConstraint.ts') || moduleId.includes('/src/features/three/zOrder.ts') || moduleId.includes('/src/features/three/renderOrder.ts')) return 'canvas-3d-runtime'
-                if (
-                  moduleId.includes('/src/lib/three/Scene.impl.tsx') ||
-                  moduleId.includes('/src/features/three/Scene.tsx') ||
-                  moduleId.includes('/src/features/three/Controls.tsx') ||
-                  moduleId.includes('/src/features/three/camera.ts') ||
-                  moduleId.includes('/src/features/three/raycast.ts')
-                ) {
-                  return 'canvas-3d-scene'
-                }
-                if (
-                  moduleId.includes('/src/features/three/visuals.tsx') ||
-                  moduleId.includes('/src/features/three/NodeMesh.tsx') ||
-                  moduleId.includes('/src/features/three/GroupOverlays.tsx') ||
-                  moduleId.includes('/src/features/three/Voxel') ||
-                  moduleId.includes('/src/features/three/GlobeEffects.tsx') ||
-                  moduleId.includes('/src/features/three/Starfield.tsx')
-                ) {
-                  return 'canvas-3d-visuals'
-                }
-                if (moduleId.includes('/src/features/three/') || moduleId.includes('/src/lib/three/')) return 'canvas-3d'
-                if (moduleId.includes('/src/lib/render/richMedia')) return 'rich-media'
-                if (
-                  moduleId.includes('/src/features/geospatial/') ||
-                  moduleId.includes('/src/lib/graph/io/grabmaps')
-                ) {
-                  return 'geospatial'
-                }
-                if (
-                  moduleId.includes('/src/features/panels/views/SettingsView') ||
-                  moduleId.includes('/src/features/panels/views/useSettingsView') ||
-                  moduleId.includes('/src/features/settings/ui/')
-                ) {
-                  return 'settings-view'
-                }
-                if (moduleId.includes('/src/features/panels/views/PreviewPanelView') || moduleId.includes('/src/lib/panels/views/preview-panel/')) {
-                  return 'panel-preview'
-                }
-                if (moduleId.includes('/src/features/panels/views/HistoryView')) return 'panel-history'
-                if (moduleId.includes('/src/features/panels/views/Help')) return 'panel-help'
-                if (moduleId.includes('/src/features/panels/views/FlowEditorManagerView')) return 'panel-flow-editor'
-                if (moduleId.includes('/src/features/panels/views/DashboardView')) return 'panel-dashboard'
-                if (
-                  moduleId.includes('/src/features/panels/views/IntegrationsHubView') ||
-                  moduleId.includes('/src/features/panels/views/MapsHubView') ||
-                  moduleId.includes('/src/features/panels/views/McpHubView') ||
-                  moduleId.includes('/src/features/panels/views/PaymentsHubView')
-                ) {
-                  return 'panel-hubs'
-                }
-                if (moduleId.includes('/src/features/panels/views/graph-fields/') || moduleId.includes('/src/features/schema/ui/')) return 'panel-graph-fields'
-                if (moduleId.includes('/src/features/panels/ui/')) return 'panel-ui'
-                if (moduleId.includes('/src/features/panels/hooks/') || moduleId.includes('/src/lib/panels/hooks/')) return 'panel-hooks'
-                if (moduleId.includes('/src/features/panels/utils/')) return 'panel-utils'
-                if (moduleId.includes('/src/features/panels/config.ts') || moduleId.includes('/src/features/panels/constants.ts') || moduleId.includes('/src/features/panels/mainPanelTabs.ts')) return 'panel-core'
-                if (moduleId.includes('/src/lib/panels/views/RenderSettingsSection') || moduleId.includes('/src/lib/panels/views/ThreeViewLayoutSection')) return 'panel-render-settings'
-                if (moduleId.includes('/src/features/panels/') || moduleId.includes('/src/lib/panels/')) return 'panels'
-                if (moduleId.includes('/src/features/settings/registry')) return 'settings-registry'
-                if (moduleId.includes('/src/features/settings/') || moduleId.includes('/src/lib/settings/')) return 'settings'
-                if (moduleId.includes('/src/features/schema-editor/')) return 'schema-editor'
-                if (moduleId.includes('/src/features/schema/ui/')) return 'schema-ui'
-                if (moduleId.includes('/src/features/schema/')) return 'schema'
-                if (moduleId.includes('/src/features/source-files/')) return 'workspace-source-files'
-                if (moduleId.includes('/src/features/workspace-fs/') || moduleId.includes('/src/features/workspace-table/')) return 'workspace-fs'
-                if (moduleId.includes('/src/lib/markdown-workspace-runtime/')) return 'workspace-runtime'
-                if (moduleId.includes('/src/features/markdown-workspace/main/')) return 'workspace-main'
-                if (moduleId.includes('/src/features/markdown-workspace/useWorkspaceFileActions/')) return 'workspace-actions'
-                if (moduleId.includes('/src/features/markdown-workspace/')) return 'workspace-ui'
-                if (moduleId.includes('/src/features/markdown/ui/codeblock/')) return 'markdown-code'
-                if (
-                  moduleId.includes('/src/features/markdown/ui/MarkdownPreview') ||
-                  moduleId.includes('/src/lib/markdown-core/ui/')
-                ) {
-                  return 'markdown-preview'
-                }
-                if (
-                  moduleId.includes('/src/features/markdown/markdownIt.ts') ||
-                  moduleId.includes('/src/features/markdown/ui/useMarkdownPreviewTokens') ||
-                  moduleId.includes('/src/features/markdown/ui/markdownPreviewLex')
-                ) {
-                  return 'markdown-parser'
-                }
-                if (moduleId.includes('/src/lib/markdown-core/') || moduleId.includes('/src/features/markdown/')) return 'markdown'
-                if (
-                  moduleId.includes('/src/features/panels/bottom-surface/') ||
-                  moduleId.includes('/src/features/workspace-')
-                ) {
-                  return 'workspace'
-                }
-                if (moduleId.includes('/src/features/toolbar/LaunchDropdown') || moduleId.includes('/src/lib/toolbar/LaunchDropdown')) return 'toolbar-launch'
-                if (moduleId.includes('/src/features/toolbar/ToolbarMenuLauncher') || moduleId.includes('/src/features/toolbar/ToolbarToolMenu')) return 'toolbar-menu'
-                if (
-                  moduleId.includes('/src/features/toolbar/import') ||
-                  moduleId.includes('/src/features/toolbar/pdfImportAction') ||
-                  moduleId.includes('/src/features/toolbar/jsonImportAction') ||
-                  moduleId.includes('/src/features/toolbar/htmlImportAction') ||
-                  moduleId.includes('/src/features/toolbar/markdownImportAction') ||
-                  moduleId.includes('/src/features/toolbar/youtubeImportAction') ||
-                  moduleId.includes('/src/features/toolbar/launchDropdownFallbacks') ||
-                  moduleId.includes('/src/features/toolbar/exportHtmlFallback')
-                ) {
-                  return 'toolbar-imports'
-                }
-                if (moduleId.includes('/src/features/toolbar/ui/')) return 'toolbar-ui'
-                if (moduleId.includes('/src/features/spotlight/')) return 'spotlight'
-                if (
-                  moduleId.includes('/src/components/Toolbar') ||
-                  moduleId.includes('/src/lib/toolbar/') ||
-                  moduleId.includes('/src/features/toolbar/') ||
-                  moduleId.includes('/src/features/spotlight/')
-                ) {
-                  return 'toolbar'
-                }
                 if (moduleId.includes('/src/')) return undefined
                 return undefined
               },

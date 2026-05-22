@@ -138,6 +138,44 @@ export async function testKnowgrphStorageWorkerPushPullAndExportFlow() {
   }
 }
 
+export async function testKnowgrphStorageWorkerRepeatedPushPullReusesSyncDeviceRow() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const createPushRequest = () =>
+    new Request('https://example.com/api/storage/push', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'wk_repeat',
+        deviceId: 'dev_repeat',
+        mutations: [],
+      }),
+    })
+  const createPullRequest = () =>
+    new Request('https://example.com/api/storage/pull', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'wk_repeat',
+        deviceId: 'dev_repeat',
+        since: null,
+      }),
+    })
+
+  const firstPush = await worker.fetch(createPushRequest(), env as never)
+  const secondPush = await worker.fetch(createPushRequest(), env as never)
+  const firstPull = await worker.fetch(createPullRequest(), env as never)
+  const secondPull = await worker.fetch(createPullRequest(), env as never)
+
+  if (!firstPush.ok || !secondPush.ok || !firstPull.ok || !secondPull.ok) {
+    throw new Error('expected repeated push/pull requests for the same device to stay successful')
+  }
+  if (env.DB.syncDevices.size !== 1) {
+    throw new Error(`expected repeated device registration to keep a single sync device row, got ${env.DB.syncDevices.size}`)
+  }
+}
+
 export async function testKnowgrphStorageWorkerReturnsConflictForStaleDocumentRevision() {
   const env = createFakeKnowgrphStorageWorkerEnv()
   const initialRequest = new Request('https://example.com/api/storage/push', {

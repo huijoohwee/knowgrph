@@ -8,7 +8,7 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
   const markdownGeoSourceContractPath = resolve(process.cwd(), 'src', 'features', 'geospatial', 'markdownGeoSourceContract.ts')
   const geospatialSourceContextPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'geospatialSourceContext.ts')
   const geospatialSourceEligibilityPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'geospatialSourceEligibility.ts')
-  const canvasViewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const canvasViewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewportGeospatialOverlay.tsx')
   const mainPanelPath = resolve(process.cwd(), 'src', 'features', 'panels', 'MainPanel.tsx')
 
   const geospatialOverlayText = readFileSync(geospatialOverlayPath, 'utf8')
@@ -97,7 +97,7 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
     || !canvasViewportText.includes('sourceFilesGeospatialSelectionSignature')
     || !canvasViewportText.includes('buildSourceFilesGeospatialSelectionSignature(sourceFiles)')
   ) {
-    throw new Error('expected CanvasViewport geospatial overlay call to pass graph revision and stabilize Source Files through the shared geospatial selection signature')
+    throw new Error('expected CanvasViewportGeospatialOverlay to pass graph revision and stabilize Source Files through the shared geospatial selection signature')
   }
 
   if (

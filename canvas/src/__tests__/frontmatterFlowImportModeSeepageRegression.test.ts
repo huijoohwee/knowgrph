@@ -602,18 +602,154 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
 
 export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreRuntime.tsx')
+  const bootstrapRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreBootstrapRuntime.tsx')
+  const debugRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreMarkdownEmptyTraceDebugRuntime.tsx')
+  const documentUiRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreDocumentUiRuntime.tsx')
+  const documentUiRestoreRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreDocumentUiRestoreRuntime.tsx')
+  const documentUiRestoreLifecyclePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiRestoreLifecycle.ts')
+  const documentUiPersistRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreDocumentUiPersistRuntime.tsx')
+  const documentUiPersistLifecyclePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiPersistLifecycle.ts')
+  const documentUiPersistStatePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiPersistState.ts')
+  const documentUiRestoreHelpersPath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiRestoreHelpers.ts')
+  const documentUiRestorePlanPath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiRestorePlan.ts')
+  const documentUiRestoreWritesPath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiRestoreWrites.ts')
+  const documentUiRestoreStatePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'graphStoreDocumentUiRestoreState.ts')
   const text = fs.readFileSync(runtimePath, 'utf8')
-  if (!text.includes('const shouldPreferFrontmatterFlowLanding = isFrontmatterFlowGraph(graphData)')) {
-    throw new Error('expected per-document UI restore to detect frontmatter-flow graph landing contract')
+  const bootstrapText = fs.readFileSync(bootstrapRuntimePath, 'utf8')
+  const debugRuntimeText = fs.readFileSync(debugRuntimePath, 'utf8')
+  const documentUiText = fs.readFileSync(documentUiRuntimePath, 'utf8')
+  const documentUiRestoreText = fs.readFileSync(documentUiRestoreRuntimePath, 'utf8')
+  const documentUiRestoreLifecycleText = fs.readFileSync(documentUiRestoreLifecyclePath, 'utf8')
+  const documentUiPersistText = fs.readFileSync(documentUiPersistRuntimePath, 'utf8')
+  const documentUiPersistLifecycleText = fs.readFileSync(documentUiPersistLifecyclePath, 'utf8')
+  const documentUiPersistStateText = fs.readFileSync(documentUiPersistStatePath, 'utf8')
+  const documentUiRestoreHelpersText = fs.readFileSync(documentUiRestoreHelpersPath, 'utf8')
+  const documentUiRestorePlanText = fs.readFileSync(documentUiRestorePlanPath, 'utf8')
+  const documentUiRestoreWritesText = fs.readFileSync(documentUiRestoreWritesPath, 'utf8')
+  const documentUiRestoreStateText = fs.readFileSync(documentUiRestoreStatePath, 'utf8')
+  if (
+    !text.includes('<GraphStoreBootstrapRuntime />')
+    || !text.includes('<GraphStoreMarkdownEmptyTraceDebugRuntime />')
+    || !text.includes('<GraphStoreDocumentUiRuntime />')
+  ) {
+    throw new Error('expected GraphStoreRuntime to compose bootstrap, debug trace, and per-document UI runtimes explicitly after the split')
   }
-  if (!text.includes('applyFrontmatterFlowImportModes(graphData)')) {
-    throw new Error('expected per-document UI restore to reuse shared frontmatter-flow landing helper')
+  if (!bootstrapText.includes('ensureSessionTabId()')) {
+    throw new Error('expected GraphStoreBootstrapRuntime to keep session tab bootstrap ownership after the split')
   }
-  if (!text.includes('const presetApplied = applyCanvasFrontmatterPreset({ graphData, rawText })')) {
+  if (!bootstrapText.includes('applyCanvasSliceStorageMigrations()') || !bootstrapText.includes('applyFlowEditorManagerDefaultRegistrySeed()')) {
+    throw new Error('expected GraphStoreBootstrapRuntime to keep one-shot storage and registry migrations after the split')
+  }
+  if (!debugRuntimeText.includes("kg:debug:markdownEmptyTrace")) {
+    throw new Error('expected GraphStoreMarkdownEmptyTraceDebugRuntime to own the markdown-empty debug gate after the split')
+  }
+  if (!debugRuntimeText.includes("__KG_MARKDOWN_EMPTY_TRACE__")) {
+    throw new Error('expected GraphStoreMarkdownEmptyTraceDebugRuntime to own the debug trace buffer after the split')
+  }
+  if (!documentUiText.includes('<GraphStoreDocumentUiRestoreRuntime />')) {
+    throw new Error('expected GraphStoreDocumentUiRuntime to keep restore eager through the explicit restore runtime')
+  }
+  if (!documentUiText.includes('const GraphStoreDocumentUiPersistRuntimeLazy = React.lazy')) {
+    throw new Error('expected GraphStoreDocumentUiRuntime to lazy-load per-document UI persistence after the restore split')
+  }
+  if (!documentUiPersistText.includes("from '@/features/canvas/graphStoreDocumentUiPersistLifecycle'")) {
+    throw new Error('expected GraphStoreDocumentUiPersistRuntime to delegate persist lifecycle ownership through the shared persist-lifecycle helper')
+  }
+  if (!documentUiPersistText.includes('return mountGraphStoreDocumentUiPersistLifecycle()')) {
+    throw new Error('expected GraphStoreDocumentUiPersistRuntime to remain a thin lazy shell that delegates lifecycle mounting')
+  }
+  if (!documentUiPersistLifecycleText.includes('pending = buildPendingDocumentUiPersistStateFromStore(store)')) {
+    throw new Error('expected graphStoreDocumentUiPersistLifecycle to build current persisted state through the shared persist-state helper')
+  }
+  if (!documentUiPersistLifecycleText.includes('pending = buildPendingDocumentUiPersistStateFromSnapshot(next)')) {
+    throw new Error('expected graphStoreDocumentUiPersistLifecycle to build incremental persisted state through the shared persist-state helper')
+  }
+  if (!documentUiPersistLifecycleText.includes('graphStoreDocumentUiRuntimeShared.scheduleCurrentStatePersist = scheduleCurrentStatePersist')) {
+    throw new Error('expected graphStoreDocumentUiPersistLifecycle to keep the shared post-restore persistence callback handoff after the split')
+  }
+  if (!documentUiPersistStateText.includes('export const selectGraphStoreDocumentUiPersistSnapshot')) {
+    throw new Error('expected graphStoreDocumentUiPersistState to own persist snapshot shaping after the split')
+  }
+  if (!documentUiPersistStateText.includes('export const buildPendingDocumentUiPersistStateFromStore')) {
+    throw new Error('expected graphStoreDocumentUiPersistState to own current-store pending state derivation after the split')
+  }
+  if (!documentUiPersistStateText.includes('export const buildPendingDocumentUiPersistSignature')) {
+    throw new Error('expected graphStoreDocumentUiPersistState to own persist signature derivation after the split')
+  }
+  if (!documentUiRestoreText.includes('return mountGraphStoreDocumentUiRestoreLifecycle()')) {
+    throw new Error('expected GraphStoreDocumentUiRestoreRuntime to keep a thin eager restore shell that delegates lifecycle mounting')
+  }
+  if (!documentUiRestoreLifecycleText.includes('applySavedDocumentUiPresentationState(api, saved)')) {
+    throw new Error('expected graphStoreDocumentUiRestoreLifecycle to delegate presentation restore through the shared restore helper')
+  }
+  if (!documentUiRestoreLifecycleText.includes('applySavedDocumentUiSelectionState(api, saved)')) {
+    throw new Error('expected graphStoreDocumentUiRestoreLifecycle to delegate selection replay through the shared restore helper')
+  }
+  if (!documentUiRestoreLifecycleText.includes('graphStoreDocumentUiRuntimeShared.scheduleCurrentStatePersist?.()')) {
+    throw new Error('expected graphStoreDocumentUiRestoreLifecycle to keep the post-restore persistence handoff after the split')
+  }
+  if (!documentUiRestoreHelpersText.includes('applyFrontmatterFlowImportModes(graphData)')) {
+    throw new Error('expected per-document UI restore helpers to reuse shared frontmatter-flow landing helper')
+  }
+  if (!documentUiRestoreHelpersText.includes('const presetApplied = applyCanvasFrontmatterPreset({ graphData, rawText })')) {
     throw new Error('expected per-document UI restore to apply explicit frontmatter workspace presets before saved ui state')
   }
-  if (!text.includes('if (!presetApplied) {')) {
+  if (!documentUiRestoreHelpersText.includes('if (!presetApplied) {')) {
     throw new Error('expected saved canvas/ui restore to be skipped when an explicit frontmatter workspace preset is present')
+  }
+  if (!documentUiRestoreHelpersText.includes('const viewState = buildSavedDocumentUiViewState(saved)')) {
+    throw new Error('expected per-document UI restore helpers to consume normalized view state before applying restore writes')
+  }
+  if (!documentUiRestoreHelpersText.includes('applySavedDocumentUiViewStateWrites(api, viewState)')) {
+    throw new Error('expected per-document UI restore helpers to apply normalized view state through the dedicated restore write helper')
+  }
+  if (!documentUiRestoreHelpersText.includes('const selectionState = buildSavedDocumentUiSelectionState(saved)')) {
+    throw new Error('expected per-document UI restore helpers to consume normalized selection state before applying selection replay')
+  }
+  if (!documentUiRestoreHelpersText.includes('applySavedDocumentUiSelectionStateWrites(api, selectionState)')) {
+    throw new Error('expected per-document UI restore helpers to apply normalized selection state through the dedicated restore write helper')
+  }
+  if (!documentUiRestoreHelpersText.includes('const presentationPlan = buildSavedDocumentUiPresentationPlan({ graphData, saved })')) {
+    throw new Error('expected per-document UI restore helpers to consume a shared presentation restore plan before applying writes')
+  }
+  if (!documentUiRestoreHelpersText.includes('applySavedDocumentUiModeStateWrites(api, presentationPlan.modeState)')) {
+    throw new Error('expected per-document UI restore helpers to apply saved mode state through the dedicated restore write helper')
+  }
+  if (!documentUiRestorePlanText.includes('export function buildSavedDocumentUiPresentationPlan')) {
+    throw new Error('expected graphStoreDocumentUiRestorePlan to own presentation restore planning after the split')
+  }
+  if (!documentUiRestorePlanText.includes('shouldPreferFrontmatterFlowLanding: isFrontmatterFlowGraph(args.graphData)')) {
+    throw new Error('expected graphStoreDocumentUiRestorePlan to own the frontmatter landing decision after the split')
+  }
+  if (!documentUiRestorePlanText.includes('export function buildSavedDocumentUiModeState')) {
+    throw new Error('expected graphStoreDocumentUiRestorePlan to own normalized saved mode-state derivation after the split')
+  }
+  if (!documentUiRestoreWritesText.includes('export function applySavedDocumentUiModeStateWrites')) {
+    throw new Error('expected graphStoreDocumentUiRestoreWrites to own saved mode-state restore writes after the split')
+  }
+  if (!documentUiRestoreWritesText.includes('api.setDocumentSemanticMode(modeState.documentSemanticMode)')) {
+    throw new Error('expected graphStoreDocumentUiRestoreWrites to own document semantic mode writes after the split')
+  }
+  if (!documentUiRestoreWritesText.includes('export function applySavedDocumentUiViewStateWrites')) {
+    throw new Error('expected graphStoreDocumentUiRestoreWrites to own normalized view-state restore writes after the split')
+  }
+  if (!documentUiRestoreWritesText.includes('api.setViewPinned(viewState.pinned)')) {
+    throw new Error('expected graphStoreDocumentUiRestoreWrites to own pinned view restore writes after the split')
+  }
+  if (!documentUiRestoreWritesText.includes('export function applySavedDocumentUiSelectionStateWrites')) {
+    throw new Error('expected graphStoreDocumentUiRestoreWrites to own normalized selection replay writes after the split')
+  }
+  if (!documentUiRestoreWritesText.includes("api.selectNodesExpanded({")) {
+    throw new Error('expected graphStoreDocumentUiRestoreWrites to own expanded selection replay writes after the split')
+  }
+  if (!documentUiRestoreStateText.includes('export function buildSavedDocumentUiViewState')) {
+    throw new Error('expected graphStoreDocumentUiRestoreState to own normalized view-state derivation after the split')
+  }
+  if (!documentUiRestoreStateText.includes('export function buildSavedDocumentUiSelectionState')) {
+    throw new Error('expected graphStoreDocumentUiRestoreState to own normalized selection-state derivation after the split')
+  }
+  if (!documentUiRestoreStateText.includes('hasSelection: nodeIds.length > 0 || edgeIds.length > 0 || groupIds.length > 0')) {
+    throw new Error('expected graphStoreDocumentUiRestoreState to own selection presence normalization after the split')
   }
 }
 

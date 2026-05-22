@@ -52,6 +52,7 @@ export const testMarkdownPanelMetricHelpersCentralizeEventDispatchAndSubscriptio
 export const testMarkdownPanelMetricCallsitesUseSharedContract = () => {
   const metricsText = readUtf8('src/features/metrics/uiMetrics.ts')
   const canvasViewportText = readUtf8('src/components/CanvasViewport.tsx')
+  const canvasViewportMetricsText = readUtf8('src/components/CanvasViewportMarkdownMetricsDevOverlay.tsx')
   const markdownApplyText = readUtf8('src/features/markdown-workspace/hooks/useMarkdownApply.ts')
   const overlaysText = readUtf8('src/components/GraphCanvasRoot/hooks/useRichMediaOverlays2d.ts')
 
@@ -64,11 +65,14 @@ export const testMarkdownPanelMetricCallsitesUseSharedContract = () => {
   if (!metricsText.includes('export function readUiMetricEventDetail')) {
     throw new Error('expected shared metrics helper to expose ui metric detail parsing')
   }
-  if (!canvasViewportText.includes('subscribeMarkdownPanelMetric')) {
-    throw new Error('expected CanvasViewport to subscribe via the shared markdown metric helper')
+  if (!canvasViewportText.includes('MarkdownMetricsDevOverlayLazy')) {
+    throw new Error('expected CanvasViewport to lazy-load the shared markdown metrics overlay owner')
   }
-  if (canvasViewportText.includes("addEventListener('kg:markdownPanelMetric'")) {
-    throw new Error('expected CanvasViewport to avoid raw markdown metric event listener strings')
+  if (!canvasViewportMetricsText.includes('subscribeMarkdownPanelMetric')) {
+    throw new Error('expected CanvasViewportMarkdownMetricsDevOverlay to subscribe via the shared markdown metric helper')
+  }
+  if (canvasViewportMetricsText.includes("addEventListener('kg:markdownPanelMetric'")) {
+    throw new Error('expected CanvasViewportMarkdownMetricsDevOverlay to avoid raw markdown metric event listener strings')
   }
   if (!markdownApplyText.includes('emitMarkdownPanelMetric(')) {
     throw new Error('expected markdown apply flow to emit through the shared metric helper')

@@ -15,6 +15,9 @@ export function testMermaidRuntimeCleanupReusesSharedHelpers() {
   if (!runtimeText.includes('export const renderMermaidWithRuntime = async')) {
     throw new Error('expected mermaidRuntime SSOT to expose shared renderMermaidWithRuntime helper')
   }
+  if (!runtimeText.includes('flowchart.htmlLabels = false')) {
+    throw new Error('expected mermaidRuntime SSOT to force Mermaid runtime rendering onto plain SVG labels')
+  }
   if (!svgText.includes("import { renderMermaidWithRuntime } from '@/lib/mermaid/mermaidRuntime'")) {
     throw new Error('expected mermaidSvg cached renderer to import shared renderMermaidWithRuntime helper')
   }
@@ -35,6 +38,15 @@ export function testMermaidRuntimeCleanupReusesSharedHelpers() {
   }
   if (!previewText.includes('const processed = postprocessMermaidSvg(out.svg)')) {
     throw new Error('expected MermaidDiagram preview runtime to postprocess Mermaid SVG through shared helper')
+  }
+  if (!previewText.includes('const rawBounds = parseSvgBounds(nextSvg)')) {
+    throw new Error('expected MermaidDiagram preview runtime to derive SVG bounds from parsed markup instead of live SVG geometry APIs')
+  }
+  if (previewText.includes('svgEl.getBBox()')) {
+    throw new Error('expected MermaidDiagram preview runtime to avoid live getBBox() calls that can fail on relative SVG lengths')
+  }
+  if (previewText.includes('out.bindFunctions(host)')) {
+    throw new Error('expected MermaidDiagram preview runtime to avoid rebinding Mermaid DOM behaviors onto the React-managed host subtree')
   }
   if (!plainText.includes("import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'")) {
     throw new Error('expected PlainMermaidDiagram to reuse shared cached Mermaid SVG postprocess helper')

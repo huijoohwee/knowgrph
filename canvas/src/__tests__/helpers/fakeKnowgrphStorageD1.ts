@@ -34,7 +34,7 @@ export class FakeKnowgrphStorageD1Database {
       this.workspaces.set(String(id), { id, slug, title, visibility: 'private', created_at: createdAt, updated_at: updatedAt })
       return
     }
-    if (sql.includes('INSERT INTO sync_devices')) {
+    if (sql.includes('INSERT INTO sync_devices') || sql.includes('INSERT OR IGNORE INTO sync_devices')) {
       const [id, workspaceId, deviceLabel, updatedAt] = values
       const existing = this.syncDevices.get(String(id)) || {}
       this.syncDevices.set(String(id), {
@@ -186,15 +186,19 @@ export class FakeKnowgrphStorageD1Database {
       return
     }
     if (sql.includes('UPDATE sync_devices SET last_push_cursor')) {
-      const [cursor, updatedAt, id] = values
+      const [cursor, updatedAt, id, workspaceId] = values
       const existing = this.syncDevices.get(String(id))
-      if (existing) this.syncDevices.set(String(id), { ...existing, last_push_cursor: cursor, updated_at: updatedAt })
+      if (existing && existing.workspace_id === workspaceId) {
+        this.syncDevices.set(String(id), { ...existing, last_push_cursor: cursor, updated_at: updatedAt })
+      }
       return
     }
     if (sql.includes('UPDATE sync_devices SET last_pull_cursor')) {
-      const [cursor, updatedAt, id] = values
+      const [cursor, updatedAt, id, workspaceId] = values
       const existing = this.syncDevices.get(String(id))
-      if (existing) this.syncDevices.set(String(id), { ...existing, last_pull_cursor: cursor, updated_at: updatedAt })
+      if (existing && existing.workspace_id === workspaceId) {
+        this.syncDevices.set(String(id), { ...existing, last_pull_cursor: cursor, updated_at: updatedAt })
+      }
     }
   }
 

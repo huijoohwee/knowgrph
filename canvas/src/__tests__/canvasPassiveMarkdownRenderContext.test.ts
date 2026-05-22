@@ -6,7 +6,7 @@ const readSource = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'u
 export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderContext() {
   const helperText = readSource('src/features/canvas/useCanvasAppliedMarkdownDocument.ts')
   const graphRootText = readSource('src/components/GraphCanvasRoot/GraphCanvasRootImpl.tsx')
-  const viewportText = readSource('src/components/CanvasViewport.tsx')
+  const viewportText = readSource('src/components/CanvasViewportGeospatialOverlay.tsx')
   const designText = readSource('src/components/DesignCanvas.tsx')
   const flowCanvasText = readSource('src/components/FlowCanvas/useFlowCanvasStoreState.ts')
   const flowchartText = readSource('src/lib/flowchart/apiGraphFlowchart.impl.ts')
@@ -27,7 +27,7 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
     throw new Error('expected markdown/rich-media overlay rendering not to follow passive editor text switches')
   }
   if (!viewportText.includes('markdownText: canvasMarkdownDocument.text')) {
-    throw new Error('expected geospatial overlay rendering not to follow passive editor text switches')
+    throw new Error('expected CanvasViewportGeospatialOverlay rendering not to follow passive editor text switches')
   }
   if (!designText.includes('markdownDocumentText={canvasMarkdownDocument.text}')) {
     throw new Error('expected Design canvas overlays not to follow passive editor text switches')
