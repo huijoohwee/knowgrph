@@ -17,7 +17,7 @@ graph pipeline was introduced.
 
 ### Browser WebMCP
 
-- Registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
+- App runtime registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, and `knowgrph.inspect_agent_surface`
 - Reuses the shared upstream tool contract in
   `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
 - Attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then readable
@@ -29,8 +29,8 @@ graph pipeline was introduced.
 
 ### HTML Fallback WebMCP
 
-- Injects the same read-only tool surface on the published Pages HTML shell
-- Keeps lifecycle semantics contract-equal with the app runtime
+- Injects the shared published five-tool read-only surface on the published Pages HTML shell
+- Keeps lifecycle semantics aligned with the app runtime while excluding browser-local app-only tools
 - Exposes `data-kg-webmcp-tools` and `data-kg-webmcp-context` for smoke verification
 
 ### HTTP MCP

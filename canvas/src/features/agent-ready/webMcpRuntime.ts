@@ -6,6 +6,7 @@ import {
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import { readEnvString } from '@/lib/config.env'
 import { resolvePublishedDocIdentity } from '@/features/canvas/canvasDocShareToken.mjs'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
@@ -59,6 +60,7 @@ type WebMcpRuntimeState = {
 
 const WEB_MCP_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  includeBrowserOnlyTools: true,
 }) as AgentReadyToolContract[]
 
 const findWebToolContract = (name: string): AgentReadyToolContract => {
@@ -73,11 +75,13 @@ const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL
 const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
 const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument)
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure)
+const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME = INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME = INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_AGENT_SURFACE_TOOL_NAME = INSPECT_AGENT_SURFACE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = WEB_MCP_TOOL_CONTRACTS.map(tool => tool.webName)
 const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
@@ -334,6 +338,39 @@ const buildInspectSharedDocumentStructureTool = (): WebMcpTool => ({
   },
 })
 
+const buildInspectLocalWorkspaceDocumentTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME,
+  title: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const state = useGraphStore.getState()
+    const documentName = normalizeString(state.markdownDocumentName)
+    const markdown = String(state.markdownDocumentText || '')
+    const documentSourceUrl = normalizeString(state.markdownDocumentSourceUrl)
+    if (!documentName && !normalizeString(markdown)) {
+      return {
+        available: false,
+        sourceKind: 'browser-local-workspace',
+        documentName: '',
+        documentSourceUrl: documentSourceUrl || null,
+        message: 'No active markdown document is loaded in the local Knowgrph workspace.',
+      }
+    }
+    return {
+      available: true,
+      sourceKind: 'browser-local-workspace',
+      documentName: documentName || 'document.md',
+      documentSourceUrl: documentSourceUrl || null,
+      ...inspectSharedDocumentStructure({
+        canonicalPath: documentName || 'document.md',
+        markdown,
+      }),
+    }
+  },
+})
+
 const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
   name: INSPECT_AGENT_SURFACE_TOOL_NAME,
   title: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.title,
@@ -374,6 +411,7 @@ const WEB_MCP_TOOLS = [
   buildReadSourceFileTool(),
   buildReadSharedDocumentTool(),
   buildInspectSharedDocumentStructureTool(),
+  buildInspectLocalWorkspaceDocumentTool(),
   buildInspectAgentSurfaceTool(),
 ]
 

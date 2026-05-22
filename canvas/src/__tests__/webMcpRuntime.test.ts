@@ -1,5 +1,6 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   installKnowgrphWebMcpRuntime,
   resetKnowgrphWebMcpRuntimeForTests,
@@ -58,6 +59,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const { restore } = initJsdomHarness()
   const registeredTools = new Map<string, RegisteredTool>()
   const fetchCalls: string[] = []
+  const previousMarkdownDocumentName = useGraphStore.getState().markdownDocumentName
+  const previousMarkdownDocumentText = useGraphStore.getState().markdownDocumentText
+  const previousMarkdownDocumentSourceUrl = useGraphStore.getState().markdownDocumentSourceUrl
 
   try {
     delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
@@ -107,16 +111,23 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const readTool = registeredTools.get('knowgrph.read_source_file')
     const readSharedTool = registeredTools.get('knowgrph.read_shared_document')
     const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
+    const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
     const shareToken = encodePublishedDocShareToken({ canonicalPath: 'docs/shared.md' })
+    useGraphStore.setState({
+      markdownDocumentName: 'workspace:/local/agent-ready.md',
+      markdownDocumentText: MOCK_SHARED_DOCUMENT_MARKDOWN,
+      markdownDocumentSourceUrl: '/knowgrph/share/local-only',
+    } as never)
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
     await readSharedTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
     const sharedStructure = await inspectSharedDocumentTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
+    const localStructure = await inspectLocalDocumentTool.execute()
     const inspection = await inspectTool.execute()
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
@@ -134,6 +145,15 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((sharedStructure as { flowSubgraphCount?: unknown }).flowSubgraphCount !== 1) {
       throw new Error(`expected inspect_shared_document_structure to count flow subgraphs, got ${JSON.stringify(sharedStructure)}`)
     }
+    if ((localStructure as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_workspace_document to report an available active document, got ${JSON.stringify(localStructure)}`)
+    }
+    if ((localStructure as { documentName?: unknown }).documentName !== 'workspace:/local/agent-ready.md') {
+      throw new Error(`expected inspect_local_workspace_document to return the active document name, got ${JSON.stringify(localStructure)}`)
+    }
+    if ((localStructure as { flowConnectionCount?: unknown }).flowConnectionCount !== 1) {
+      throw new Error(`expected inspect_local_workspace_document to reuse structure inspection counts, got ${JSON.stringify(localStructure)}`)
+    }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)
     }
@@ -147,6 +167,11 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
     else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
     globalThis.fetch = previousFetch
+    useGraphStore.setState({
+      markdownDocumentName: previousMarkdownDocumentName,
+      markdownDocumentText: previousMarkdownDocumentText,
+      markdownDocumentSourceUrl: previousMarkdownDocumentSourceUrl,
+    } as never)
     resetKnowgrphWebMcpRuntimeForTests()
     restore()
   }

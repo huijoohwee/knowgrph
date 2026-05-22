@@ -3,6 +3,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   readSourceFile: 'read_source_file',
   readSharedDocument: 'read_shared_document',
   inspectSharedDocumentStructure: 'inspect_shared_document_structure',
+  inspectLocalWorkspaceDocument: 'inspect_local_workspace_document',
   inspectAgentSurface: 'inspect_agent_surface',
 })
 
@@ -17,7 +18,8 @@ export const buildKnowgrphWebMcpToolName = (
 
 export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
   const defaultWorkspaceId = String(args.defaultWorkspaceId || '').trim()
-  return [
+  const includeBrowserOnlyTools = args.includeBrowserOnlyTools === true
+  const contracts = [
     {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles),
@@ -74,6 +76,16 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       },
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
     },
+    ...(includeBrowserOnlyTools
+      ? [{
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument),
+          title: 'Inspect Local Workspace Document',
+          description: 'Inspect the active browser-local Knowgrph workspace markdown document structure without reading published storage routes.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }]
+      : []),
     {
       name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface,
       webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface),
@@ -83,4 +95,5 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
     },
   ]
+  return contracts
 }

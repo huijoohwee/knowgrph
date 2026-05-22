@@ -100,9 +100,13 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     const readTool = registeredTools.get('knowgrph.read_source_file')
     const readSharedTool = registeredTools.get('knowgrph.read_shared_document')
     const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
+    const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
     if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectTool) {
       throw new Error(`expected all injected WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
+    }
+    if (inspectLocalDocumentTool) {
+      throw new Error('expected injected HTML fallback to exclude the browser-local inspect_local_workspace_document tool')
     }
 
     const shareToken = encodePublishedDocShareToken({ canonicalPath: 'docs/shared.md' })
