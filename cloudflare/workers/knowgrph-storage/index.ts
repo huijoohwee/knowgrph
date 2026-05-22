@@ -36,6 +36,10 @@ import {
   writeSyncEvent,
 } from './db'
 import { handleCrawlerSourceFiles, isKnowgrphStorageCrawlerRoute } from './crawler'
+import {
+  KNOWGRPH_STORAGE_DOC_VIEW_HEADERS as DOC_VIEW_HEADERS,
+  readPublishedMarkdown,
+} from '../shared/publishedDoc'
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
@@ -476,44 +480,11 @@ const readDefaultDocRouteSegments = (
   }
 }
 
-const readDocumentMarkdown = async (
-  db: D1DatabaseLike,
-  workspaceId: string,
-  canonicalPath: string,
-): Promise<string | null> => {
-  const row = await queryFirst<{ id: string; content_md: string }>(
-    db,
-    'SELECT id, content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0',
-    [workspaceId, canonicalPath],
-  )
-  if (!row) return null
-  let contentMd = typeof row.content_md === 'string' ? row.content_md : ''
-  if (!contentMd.trim()) {
-    const documentId = normalizeString(row.id)
-    if (documentId) {
-      const chunks = await queryAll<Pick<DocumentChunkRow, 'id' | 'chunk_order' | 'markdown'>>(
-        db,
-        `SELECT id, chunk_order, markdown
-         FROM document_chunks
-         WHERE workspace_id = ? AND document_id = ?
-         ORDER BY chunk_order ASC, id ASC`,
-        [workspaceId, documentId],
-      )
-      const rebuilt = chunks
-        .map(chunk => normalizeString(chunk.markdown) ? String(chunk.markdown) : '')
-        .filter(Boolean)
-        .join('\n\n')
-      if (rebuilt.trim()) contentMd = rebuilt
-    }
-  }
-  return contentMd
-}
-
 const handleDocView = async (request: Request, _env: KnowgrphStorageWorkerEnv, db: D1DatabaseLike): Promise<Response> => {
   const pathname = new URL(request.url).pathname
   const route = readDocRouteSegments(pathname, KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix)
   if (!route) return errorResponse(400, 'bad_request', 'workspaceId and canonicalPath are required')
-  const contentMd = await readDocumentMarkdown(db, route.workspaceId, route.canonicalPath)
+  const contentMd = await readPublishedMarkdown(db, { workspaceId: route.workspaceId, canonicalPath: route.canonicalPath })
   if (contentMd === null) return errorResponse(404, 'not_found', 'document not found')
   return new Response(contentMd, { status: 200, headers: DOC_VIEW_HEADERS })
 }
@@ -522,7 +493,7 @@ const handleDefaultDocView = async (request: Request, _env: KnowgrphStorageWorke
   const pathname = new URL(request.url).pathname
   const route = readDefaultDocRouteSegments(pathname, KNOWGRPH_STORAGE_ROUTE_PATHS.defaultDocPrefix)
   if (!route) return errorResponse(400, 'bad_request', 'canonicalPath is required')
-  const contentMd = await readDocumentMarkdown(db, route.workspaceId, route.canonicalPath)
+  const contentMd = await readPublishedMarkdown(db, { workspaceId: route.workspaceId, canonicalPath: route.canonicalPath })
   if (contentMd === null) return errorResponse(404, 'not_found', 'document not found')
   return new Response(contentMd, { status: 200, headers: DOC_VIEW_HEADERS })
 }

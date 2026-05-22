@@ -1,6 +1,7 @@
 name = "knowgrph-storage"
 main = "index.ts"
 compatibility_date = "2026-05-07"
+workers_dev = true
 
 [observability]
 enabled = true

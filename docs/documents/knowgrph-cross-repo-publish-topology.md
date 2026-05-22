@@ -10,6 +10,7 @@ Canonical companion for the clean end-state topology shared with `singabldr`.
 - Public route managed files: `/Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph`
 - Public route: `airvio.co/knowgrph`
 - Storage Worker routes: `airvio.co/api/storage/*`
+- Storage Worker server-side fetch origin: `https://knowgrph-storage.huijoohwee.workers.dev`
 - Payment Worker routes: `airvio.co/api/payments/*`
 - Sibling app route: `airvio.co/singabldr`
 
@@ -31,6 +32,8 @@ Cloudflare Pages
 
 `npm run pages:build-sync` owns the static SPA build and mirror sync. `npm run pages:build-sync-cloudflare` extends that path with `npm run storage:deploy`, which applies remote D1 migrations and deploys the `knowgrph-storage` Worker from `cloudflare/workers/knowgrph-storage/wrangler.toml`.
 
+Public route ownership remains `airvio.co/api/storage/*`, but server-side reads from Cloudflare Pages should target `https://knowgrph-storage.huijoohwee.workers.dev` so shared-doc Markdown negotiation does not self-fetch through the custom-domain route.
+
 `huijoohwee/content/knowgrph` is the primary Prod artifact mirror. `huijoohwee/knowgrph` is a generated public-route compatibility surface for managed root files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `settings-flow.json`, `sw.js`, and `assets/**`; it is not the source owner. Cloudflare Pages control files remain authoritative only at the publish repo root: `huijoohwee/_headers` and `huijoohwee/_redirects`. Mirrored nested `_headers` or `_redirects` under `content/knowgrph` are not deploy authority and should not be synced.
 
 ## Directives
@@ -44,7 +47,7 @@ Cloudflare Pages
 | Drift control | Fix stale paths, route leakage, and runtime drift at the Knowgrph source or shared publish config root; never patch generated outputs downstream. | `knowgrph` | `huijoohwee` | `airvio.co/knowgrph` |
 | Goal hygiene | Keep goal-driven refactors lean, source-owned, sub-600-line, sub-500-KiB, and free of downstream alias/remap shims before publishing. | `knowgrph/goal` | `huijoohwee/content/knowgrph` | `airvio.co/knowgrph` |
 | Responsive parity | Own mobile-first responsive behavior in Dev source and generated workspace metadata; publish only synced artifacts after mobile/tablet/desktop/wide proof passes. | `knowgrph/goal`, `knowgrph/docs/**`, `knowgrph/canvas/**` | `huijoohwee/content/knowgrph` | `airvio.co/knowgrph` |
-| Storage Worker | Keep D1 schema, Worker routes, and route contracts in Dev; deploy with `storage:deploy`; verify `airvio.co/api/storage/*` separately from the static Pages route. | `knowgrph/cloudflare/**`, `knowgrph/canvas/src/lib/storage/**` | Cloudflare Worker `knowgrph-storage` | `airvio.co/api/storage/*` |
+| Storage Worker | Keep D1 schema, Worker routes, and route contracts in Dev; deploy with `storage:deploy`; verify `airvio.co/api/storage/*` separately from the static Pages route while keeping Pages server-side reads pinned to the Worker `workers.dev` origin. | `knowgrph/cloudflare/**`, `knowgrph/canvas/src/lib/storage/**` | Cloudflare Worker `knowgrph-storage` | `airvio.co/api/storage/*` |
 
 ## Validation Commands
 
@@ -56,6 +59,7 @@ Cloudflare Pages
 | Conflict gate | `npm run conflict:check` | Runs changed-file hygiene, static build, chunk budgets, conflict compliance, and publish sync drift checks. |
 | Live route proof | `curl -I https://airvio.co/knowgrph/` and a served asset URL | Confirms Cloudflare Pages is serving the pushed Prod mirror. |
 | Live storage proof | `curl -i https://airvio.co/api/storage/export/kgws%3Acanonical-docs` | Confirms the storage Worker and D1 route are live. |
+| Direct storage-worker proof | `curl -i https://knowgrph-storage.huijoohwee.workers.dev/api/storage/doc/kgws%3Acanonical-docs/huijoohwee%2Fdocs%2Fknowgrph-design-demo.md` | Confirms the server-side storage fetch origin is live for Pages/MCP reads. |
 
 ## Companion
 

@@ -111,7 +111,7 @@ Knowgrph does not currently aim to:
 | Link headers on service homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Headers exist on `/knowgrph/`; apex `/` remains intentionally excluded |
 | Link headers on root homepage | Implemented | `scripts/sync-pages-knowgrph.mjs` + `huijoohwee/_headers` | Root `/` advertises Knowgrph discovery without moving route ownership out of `knowgrph` |
 | Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
-| Markdown negotiation on shared published docs | Partially implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `scripts/sync-pages-knowgrph.mjs` | Pages preview serves storage-backed Markdown on `/knowgrph/share/*`, but `airvio.co` still rewrites the request to the apex root redirect HTML before the canonical handler wins |
+| Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
 | WebMCP browser tools | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Tool set is static and limited to two read-only tools |
@@ -342,14 +342,13 @@ serves HTML to browsers and the Editor Workspace Markdown pane content to agents
 - semantic query params and path routes remain aliases; the canonical Share URL is the opaque
   `/knowgrph/share/{opaque-token}` route backed by the shared `kgShare` token contract
 
-#### Current deployed caveat
+#### Deployed note
 
-- Pages preview deployments return the correct published markdown body for
-  `/knowgrph/share/{opaque-token}` on `Accept: text/markdown`
-- `https://airvio.co/knowgrph/share/{opaque-token}` still returns the apex root redirect HTML
-  (`huijoohwee/index.html`) instead of the shared markdown body
-- the remaining production gap is therefore outside the repo-controlled Pages function bundle and
-  generated `_redirects` / `functions/knowgrph/share/[[path]].js` surfaces
+- Pages preview and `https://airvio.co/knowgrph/share/{opaque-token}` now both return the same
+  storage-backed Markdown body on `Accept: text/markdown`
+- the Pages handler fetches published shared-doc and MCP storage reads from
+  `https://knowgrph-storage.huijoohwee.workers.dev` so the app no longer self-fetches through the
+  custom-domain `/api/storage/*` route during server-side negotiation
 
 #### Enhancement target
 
@@ -609,8 +608,7 @@ on the same document identity model:
 - [x] root `/` advertises discovery hints without becoming the canonical Knowgrph service homepage
 - [x] Markdown negotiation returns `text/markdown`, `x-markdown-tokens`, and `Vary: Accept`
 - [x] Pages preview shared document URLs can negotiate from the HTML shell to storage-backed Markdown
-- [ ] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown; current
-  live response is the apex root redirect HTML
+- [x] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
 - [x] browser runtime exposes `knowgrph.list_source_files` and `knowgrph.read_source_file`
@@ -639,9 +637,8 @@ on the same document identity model:
 
 The current implementation is shipped. The safe next steps are:
 
-1. Investigate the Cloudflare custom-domain rewrite boundary that still serves `huijoohwee/index.html`
-   for `https://airvio.co/knowgrph/share/{opaque-token}` even though the Pages preview route and
-   generated repo surfaces are correct.
+1. Keep the Pages-to-storage server-side fetch origin pinned to the storage worker `workers.dev`
+   surface unless a stronger service-binding or direct-binding upstream path replaces it.
 2. Design an optional runtime-local agent read surface for the active workspace only if it reuses
    `openMarkdownWorkspaceEditorPane()`, `commitMarkdownEditText()`,
    `writeWorkspaceFileAndSync()`, `mergeWorkspaceEntriesIntoSourceFiles()`, and
@@ -651,4 +648,4 @@ The current implementation is shipped. The safe next steps are:
    parallel spec files.
 5. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
 
-*Document version: 1.14.0 - Implemented with live custom-domain caveat - 2026-05-22*
+*Document version: 1.15.0 - Shared-doc markdown negotiation fixed on preview and live - 2026-05-22*

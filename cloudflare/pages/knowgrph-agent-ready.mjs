@@ -16,13 +16,16 @@ import {
   DEFAULT_WORKSPACE_ID,
   HEALTH_PATH,
   HEALTH_URL,
+  KNOWGRPH_AGENT_READY_ROUTE_OWNER,
   markdownResponse,
   ROOT_URL,
   SITE_ORIGIN,
+  STORAGE_FETCH_ORIGIN,
   STORAGE_DEFAULT_DOC_PATTERN,
   STORAGE_SOURCE_FILES_URL,
   STORAGE_WORKSPACE_DOC_PATTERN,
   UPDATED_AT,
+  withAgentReadyRouteHeaders,
   wantsMarkdown,
 } from "./knowgrph-agent-ready-shared.mjs";
 const AGENT_READY_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
@@ -669,7 +672,7 @@ const parsePublishedDocDeepLinkSearch = (searchParams) => {
 };
 
 const proxyPublishedDocMarkdownResponse = async (request, pathArgs) => {
-  const targetUrl = new URL(buildStorageDocPath(pathArgs.canonicalPath, pathArgs.workspaceId), SITE_ORIGIN);
+  const targetUrl = new URL(buildStorageDocPath(pathArgs.canonicalPath, pathArgs.workspaceId), STORAGE_FETCH_ORIGIN);
   const upstream = await fetch(targetUrl, {
     method: "GET",
     headers: {
@@ -710,7 +713,7 @@ const jsonRpcError = (id, code, message) => jsonResponse({
 const executeMcpTool = async (name, args) => {
   switch (name) {
     case KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles: {
-      const response = await fetch(STORAGE_SOURCE_FILES_URL, {
+      const response = await fetch(`${STORAGE_FETCH_ORIGIN}/api/storage/source-files`, {
         headers: { accept: "text/markdown" },
       });
       if (!response.ok) throw new Error(`list_source_files upstream failed with ${response.status}`);
@@ -723,7 +726,7 @@ const executeMcpTool = async (name, args) => {
       const canonicalPath = normalizeToolString(args?.canonicalPath);
       if (!canonicalPath) throw new Error("canonicalPath is required");
       const workspaceId = normalizeToolString(args?.workspaceId);
-      const response = await fetch(`${SITE_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
+      const response = await fetch(`${STORAGE_FETCH_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
         headers: { accept: "text/markdown" },
       });
       if (!response.ok) throw new Error(`read_source_file upstream failed with ${response.status}`);
@@ -850,6 +853,34 @@ const handlesKnowgrphRoot = (pathname) => pathname === APP_BASE_PATH || pathname
 const handlesKnowgrphHtmlSurface = (pathname) =>
   handlesKnowgrphRoot(pathname) || Boolean(parsePublishedDocSharePath(pathname)) || Boolean(parsePublishedDocShareTokenPath(pathname));
 
+const resolveAgentReadyRouteTag = (request) => {
+  const url = new URL(request.url);
+  const pathname = url.pathname.replace(/\/+$/, "") || "/";
+  const publishedDocSharePath = parsePublishedDocSharePath(pathname);
+  const publishedDocShareTokenPath = parsePublishedDocShareTokenPath(pathname);
+  const publishedDocDeepLink = handlesKnowgrphRoot(url.pathname)
+    ? parsePublishedDocDeepLinkSearch(url.searchParams)
+    : null;
+  if (pathname === HEALTH_PATH) return "health";
+  if (pathname === `${APP_BASE_PATH}/mcp`) return "mcp";
+  if (pathname === `${APP_BASE_PATH}/robots.txt`) return "robots";
+  if (pathname === `${APP_BASE_PATH}/sitemap.xml`) return "sitemap";
+  if (pathname.startsWith(`${APP_BASE_PATH}/.well-known/`)) return "well-known";
+  if (publishedDocShareTokenPath || publishedDocSharePath || publishedDocDeepLink) {
+    return wantsMarkdown(request) ? "shared-doc-markdown" : "shared-doc-html";
+  }
+  if (handlesKnowgrphRoot(url.pathname)) {
+    return wantsMarkdown(request) ? "homepage-markdown" : "homepage-html";
+  }
+  return "app-surface";
+};
+
+const withKnowgrphRouteHeaders = (request, response) =>
+  withAgentReadyRouteHeaders(response, {
+    owner: KNOWGRPH_AGENT_READY_ROUTE_OWNER,
+    tag: resolveAgentReadyRouteTag(request),
+  });
+
 const routeResponse = async (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
@@ -909,8 +940,9 @@ const routeResponse = async (request) => {
 };
 
 export async function onRequest(context) {
-  const { request } = context;
+  const { env, request } = context;
   const method = String(request.method || "GET").toUpperCase();
+  const url = new URL(request.url);
 
   if (method === "OPTIONS") {
     return new Response(null, {
@@ -924,8 +956,8 @@ export async function onRequest(context) {
     });
   }
 
-  if (method === "POST" && new URL(request.url).pathname.replace(/\/+$/, "") === `${APP_BASE_PATH}/mcp`) {
-    return routeResponse(request);
+  if (method === "POST" && url.pathname.replace(/\/+$/, "") === `${APP_BASE_PATH}/mcp`) {
+    return withKnowgrphRouteHeaders(request, await routeResponse(request));
   }
 
   if (method !== "GET" && method !== "HEAD") {
@@ -934,14 +966,15 @@ export async function onRequest(context) {
 
   const routed = await routeResponse(request);
   if (routed) {
-    if (method === "HEAD") return new Response(null, routed);
-    return routed;
+    const next = withKnowgrphRouteHeaders(request, routed);
+    if (method === "HEAD") return new Response(null, next);
+    return next;
   }
 
   const response = await context.next();
-  if (!handlesKnowgrphHtmlSurface(new URL(request.url).pathname)) return response;
+  if (!handlesKnowgrphHtmlSurface(url.pathname)) return response;
   const htmlResponse = method === "HEAD" ? response : await injectWebMcpScript(response);
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);
   nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);
-  return nextResponse;
+  return withKnowgrphRouteHeaders(request, nextResponse);
 }

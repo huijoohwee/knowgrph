@@ -1,7 +1,9 @@
 import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
 import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 
-const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || 'https://airvio.co/knowgrph').replace(/\/+$/, '')
+const canonicalOriginUrl = 'https://airvio.co'
+const canonicalBaseUrl = `${canonicalOriginUrl}/knowgrph`
+const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).replace(/\/+$/, '')
 const originUrl = new URL(baseUrl).origin
 const rootA2aAgentCardUrl = `${originUrl}/.well-known/agent-card.json`
 const expectedTools = buildKnowgrphAgentReadyToolContracts({
@@ -21,7 +23,7 @@ const buildSharedDocSample = async ({ workspaceId, canonicalPath }) => {
   const storagePath = workspaceId
     ? `/api/storage/doc/${encodedWorkspaceId}/${encodedCanonicalPath}`
     : `/api/storage/doc-default/${encodedCanonicalPath}`
-  const markdownResponse = await fetch(`${originUrl}${storagePath}`, {
+  const markdownResponse = await fetch(`${canonicalOriginUrl}${storagePath}`, {
     headers: { accept: 'text/markdown' },
   })
   if (!markdownResponse.ok) return null
@@ -34,7 +36,7 @@ const buildSharedDocSample = async ({ workspaceId, canonicalPath }) => {
 }
 
 const resolveSharedDocSampleFromIndex = async () => {
-  const response = await fetch(`${originUrl}/api/storage/source-files`, {
+  const response = await fetch(`${canonicalOriginUrl}/api/storage/source-files`, {
     headers: { accept: 'text/markdown' },
   })
   if (!response.ok) return null
@@ -68,8 +70,13 @@ const isRootRedirectHtml = (body) => {
 
 const describeFailure = (checkName, response, body) => {
   const contentType = response.headers.get('content-type') || ''
+  const routeOwner = response.headers.get('x-knowgrph-route-owner') || ''
+  const routeTag = response.headers.get('x-knowgrph-route-tag') || ''
   if (checkName === 'shared-doc-markdown-negotiation' && isRootRedirectHtml(body)) {
-    return `${response.status} ${contentType} (received apex root redirect HTML instead of shared markdown)`
+    return `${response.status} ${contentType} (received apex root redirect HTML instead of shared markdown; routeOwner=${routeOwner || 'missing'}; routeTag=${routeTag || 'missing'})`
+  }
+  if (routeOwner || routeTag) {
+    return `${response.status} ${contentType} (routeOwner=${routeOwner || 'missing'}; routeTag=${routeTag || 'missing'})`
   }
   return `${response.status} ${contentType}`
 }
@@ -173,7 +180,7 @@ const checks = [
         && response.headers.get('content-type')?.includes('application/health+json')
         && payload.status === 'pass'
         && payload.service === 'knowgrph-agent-ready-pages'
-        && payload.health === `${baseUrl}/health`
+        && payload.health === `${canonicalBaseUrl}/health`
     },
   },
   {
@@ -188,7 +195,7 @@ const checks = [
         && Array.isArray(payload.linkset)
         && Boolean(linksetEntry.anchor)
         && Array.isArray(linksetEntry.status)
-        && linksetEntry.status.some((entry) => entry?.href === `${baseUrl}/health`)
+        && linksetEntry.status.some((entry) => entry?.href === `${canonicalBaseUrl}/health`)
     },
   },
   {
@@ -216,7 +223,7 @@ const checks = [
         && payload.version
         && payload.description
         && Array.isArray(payload.supportedInterfaces)
-        && payload.supportedInterfaces.some((entry) => entry?.url === `${baseUrl}/mcp`)
+        && payload.supportedInterfaces.some((entry) => entry?.url === `${canonicalBaseUrl}/mcp`)
         && payload.capabilities
         && Array.isArray(payload.skills)
         && payload.skills.every((skill) => skill?.id && skill?.name && skill?.description)
@@ -255,7 +262,7 @@ const checks = [
         && payload.serverInfo?.name
         && payload.serverInfo?.version
         && payload.transport
-        && payload.links?.status === `${baseUrl}/health`
+        && payload.links?.status === `${canonicalBaseUrl}/health`
         && Array.isArray(tools)
         && expectedTools.every((tool) =>
           tools.some((entry) =>
@@ -271,7 +278,7 @@ const checks = [
     assert: async (response, body) => {
       const payload = JSON.parse(body)
       return response.ok
-        && payload.transport?.url === `${baseUrl}/mcp`
+        && payload.transport?.url === `${canonicalBaseUrl}/mcp`
         && Array.isArray(payload.capabilities?.tools)
     },
   },
@@ -360,7 +367,7 @@ const checks = [
     assert: async (response, body) => {
       const payload = JSON.parse(body)
       return response.ok
-        && payload.url === `${baseUrl}/mcp`
+        && payload.url === `${canonicalBaseUrl}/mcp`
         && Array.isArray(payload.skills)
         && payload.skills.length > 0
     },
@@ -369,7 +376,7 @@ const checks = [
     name: 'root-mcp-card-alias',
     url: `${originUrl}/.well-known/mcp/server-card.json`,
     accept: 'application/json',
-    assert: async (response, body) => response.ok && JSON.parse(body).transport?.url === `${baseUrl}/mcp`,
+    assert: async (response, body) => response.ok && JSON.parse(body).transport?.url === `${canonicalBaseUrl}/mcp`,
   },
   {
     name: 'root-agent-skills-alias',
