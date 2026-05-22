@@ -39,6 +39,7 @@ This is the richest implemented MCP surface in the repo today, but it is local-o
 Current shared read-only tools:
 - `knowgrph.list_source_files`
 - `knowgrph.read_source_file`
+- `knowgrph.read_shared_document`
 
 This surface is intentionally narrow and storage-backed. It is not the same thing as the richer future remote MCP platform proposed in the PRD/TAD.
 

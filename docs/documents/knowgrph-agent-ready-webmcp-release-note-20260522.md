@@ -17,7 +17,7 @@ graph pipeline was introduced.
 
 ### Browser WebMCP
 
-- Registers `knowgrph.list_source_files` and `knowgrph.read_source_file`
+- Registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, and `knowgrph.read_shared_document`
 - Reuses the shared upstream tool contract in
   `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
 - Attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then readable

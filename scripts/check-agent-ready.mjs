@@ -324,6 +324,34 @@ const checks = [
           ))
     },
   },
+  ...(sharedDocSample
+    ? [{
+        name: 'mcp-read-shared-document',
+        url: `${baseUrl}/mcp`,
+        method: 'POST',
+        accept: 'application/json',
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 3,
+          method: 'tools/call',
+          params: {
+            name: 'read_shared_document',
+            arguments: {
+              shareUrl: sharedDocSample.shareUrl,
+            },
+          },
+        }),
+        assert: async (response, body) => {
+          const payload = JSON.parse(body)
+          const result = payload.result?.structuredContent
+          return response.ok
+            && payload.result?.isError === false
+            && result?.canonicalPath === sharedDocSample.canonicalPath
+            && result?.workspaceId === sharedDocSample.workspaceId
+            && String(result?.markdown || '').trim() === sharedDocSample.markdown.trim()
+        },
+      }]
+    : []),
   {
     name: 'agent-skills',
     url: `${baseUrl}/.well-known/agent-skills/index.json`,

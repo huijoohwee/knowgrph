@@ -1,4 +1,5 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 import { webMcpScript } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 type RegisteredTool = {
@@ -58,18 +59,24 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
 
     const listTool = registeredTools.get('knowgrph.list_source_files')
     const readTool = registeredTools.get('knowgrph.read_source_file')
-    if (!listTool || !readTool) {
-      throw new Error(`expected both injected WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
+    const readSharedTool = registeredTools.get('knowgrph.read_shared_document')
+    if (!listTool || !readTool || !readSharedTool) {
+      throw new Error(`expected all injected WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
+    const shareToken = encodePublishedDocShareToken({ canonicalPath: 'docs/shared.md' })
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
+    await readSharedTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
       throw new Error(`expected injected list_source_files to use same-origin storage path, got ${fetchCalls.join(', ')}`)
     }
     if (!fetchCalls.includes('/api/storage/doc-default/docs%2Fexample.md')) {
       throw new Error(`expected injected read_source_file to use same-origin storage path, got ${fetchCalls.join(', ')}`)
+    }
+    if (!fetchCalls.includes('/api/storage/doc-default/docs%2Fshared.md')) {
+      throw new Error(`expected injected read_shared_document to reuse same-origin storage path, got ${fetchCalls.join(', ')}`)
     }
   } finally {
     globalThis.fetch = previousFetch

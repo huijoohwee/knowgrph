@@ -313,7 +313,7 @@ can discover real Knowgrph read-only tools inside the browser context.
 #### Implemented acceptance
 
 - app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
-- the page registers `knowgrph.list_source_files` and `knowgrph.read_source_file`
+- the page registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, and `knowgrph.read_shared_document`
 - registration attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then a
   readable fallback `modelContext.tools` store
 - tool names are canonical and deduplicated by name through
@@ -584,13 +584,16 @@ flowchart LR
   J --> K
   K --> L["knowgrph.list_source_files"]
   K --> M["knowgrph.read_source_file"]
+  K --> N["knowgrph.read_shared_document"]
   H --> N["list_source_files"]
   H --> O["read_source_file"]
   L --> P["/api/storage/source-files"]
   M --> Q["/api/storage/doc-default/{canonicalPath}"]
   M --> R["/api/storage/doc/{workspaceId}/{canonicalPath}"]
+  N --> S2["/knowgrph/share/{opaque-token} or public doc URL -> canonical storage doc"]
   O --> Q
   O --> R
+  O --> S2
   A --> S["/knowgrph/share/{opaque-token}"]
   A --> T["/knowgrph/doc/{workspaceId}/{canonicalPath}"]
   A --> U["/knowgrph/doc-default/{canonicalPath}"]
@@ -782,7 +785,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
-- [x] browser runtime exposes `knowgrph.list_source_files` and `knowgrph.read_source_file`
+- [x] browser runtime exposes `knowgrph.list_source_files`, `knowgrph.read_source_file`, and `knowgrph.read_shared_document`
 - [x] HTML fallback exposes WebMCP markers on the app document
 - [x] JSON-RPC MCP `initialize` returns a valid result
 - [x] JSON-RPC MCP `tools/list` returns both read-only tools

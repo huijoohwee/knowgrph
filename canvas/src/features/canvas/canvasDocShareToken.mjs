@@ -54,6 +54,66 @@ const normalizeWorkspaceId = (value) => {
 };
 
 const normalizeCanonicalPath = (value) => String(value || "").trim();
+const DEFAULT_APP_BASE_PATH = "/knowgrph";
+const DEFAULT_DOC_SHARE_PREFIX = "/doc-default/";
+const WORKSPACE_DOC_SHARE_PREFIX = "/doc/";
+const TOKEN_DOC_SHARE_PREFIX = "/share/";
+const WORKSPACE_ID_PARAM = "kgWorkspaceId";
+const CANONICAL_PATH_PARAM = "kgCanonicalPath";
+
+const normalizeAppBasePath = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return DEFAULT_APP_BASE_PATH;
+  return `/${normalized.replace(/^\/+|\/+$/g, "")}`;
+};
+
+const normalizePublishedDocIdentity = (args) => {
+  const canonicalPath = normalizeCanonicalPath(args?.canonicalPath);
+  if (!canonicalPath) return null;
+  return {
+    canonicalPath,
+    workspaceId: normalizeWorkspaceId(args?.workspaceId),
+  };
+};
+
+const parsePublishedDocPathname = (pathname, appBasePath) => {
+  const normalizedBasePath = normalizeAppBasePath(appBasePath);
+  const normalizedPathname = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (!normalizedPathname.startsWith(normalizedBasePath)) return null;
+  const scopedPath = normalizedPathname.slice(normalizedBasePath.length) || "/";
+  if (scopedPath.startsWith(TOKEN_DOC_SHARE_PREFIX)) {
+    const shareToken = decodeURIComponent(scopedPath.slice(TOKEN_DOC_SHARE_PREFIX.length)).trim();
+    return decodePublishedDocShareToken(shareToken);
+  }
+  if (scopedPath.startsWith(DEFAULT_DOC_SHARE_PREFIX)) {
+    return normalizePublishedDocIdentity({
+      canonicalPath: decodeURIComponent(scopedPath.slice(DEFAULT_DOC_SHARE_PREFIX.length)),
+    });
+  }
+  if (!scopedPath.startsWith(WORKSPACE_DOC_SHARE_PREFIX)) return null;
+  const suffix = scopedPath.slice(WORKSPACE_DOC_SHARE_PREFIX.length);
+  const firstSlash = suffix.indexOf("/");
+  if (firstSlash < 1) return null;
+  return normalizePublishedDocIdentity({
+    workspaceId: decodeURIComponent(suffix.slice(0, firstSlash)),
+    canonicalPath: decodeURIComponent(suffix.slice(firstSlash + 1)),
+  });
+};
+
+const parsePublishedDocSearchParams = (searchParams) => {
+  const shareToken = decodePublishedDocShareToken(searchParams?.get(PUBLISHED_DOC_SHARE_TOKEN_PARAM));
+  if (shareToken) return shareToken;
+  const canonicalPath = normalizeCanonicalPath(decodeURIComponent(String(searchParams?.get(CANONICAL_PATH_PARAM) || "")));
+  if (canonicalPath) {
+    return normalizePublishedDocIdentity({
+      workspaceId: decodeURIComponent(String(searchParams?.get(WORKSPACE_ID_PARAM) || "")),
+      canonicalPath,
+    });
+  }
+  const rawPath = String(searchParams?.get("kgPath") || "").trim();
+  if (!rawPath) return null;
+  return parsePublishedDocPathname(`${DEFAULT_APP_BASE_PATH}${rawPath}`, DEFAULT_APP_BASE_PATH);
+};
 
 export const encodePublishedDocShareToken = (args) => {
   const canonicalPath = normalizeCanonicalPath(args?.canonicalPath);
@@ -76,6 +136,20 @@ export const decodePublishedDocShareToken = (token) => {
       canonicalPath,
       workspaceId: normalizeWorkspaceId(payload?.workspaceId),
     };
+  } catch {
+    return null;
+  }
+};
+
+export const resolvePublishedDocIdentity = (args = {}) => {
+  const directShareToken = decodePublishedDocShareToken(args.shareToken);
+  if (directShareToken) return directShareToken;
+  const shareUrl = String(args.shareUrl || "").trim();
+  if (!shareUrl) return null;
+  try {
+    const normalizedBaseUrl = String(args.baseUrl || "https://airvio.co").trim() || "https://airvio.co";
+    const url = new URL(shareUrl, normalizedBaseUrl);
+    return parsePublishedDocSearchParams(url.searchParams) || parsePublishedDocPathname(url.pathname, args.appBasePath);
   } catch {
     return null;
   }

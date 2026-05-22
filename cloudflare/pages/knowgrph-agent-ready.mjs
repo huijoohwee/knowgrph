@@ -5,6 +5,7 @@ import {
 import {
   decodePublishedDocShareToken,
   PUBLISHED_DOC_SHARE_TOKEN_PARAM,
+  resolvePublishedDocIdentity,
 } from "../../canvas/src/features/canvas/canvasDocShareToken.mjs";
 import {
   A2A_AGENT_CARD_PATH,
@@ -434,6 +435,7 @@ const webMcpTools = AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
 export const webMcpScript = `(() => {
   const root = globalThis;
   const siteOrigin = ${JSON.stringify(SITE_ORIGIN)};
+  const appBasePath = ${JSON.stringify(APP_BASE_PATH)};
   const defaultWorkspaceId = ${JSON.stringify(DEFAULT_WORKSPACE_ID)};
   const toolNames = ${JSON.stringify(webMcpTools.map((tool) => tool.name))};
   const lateBindingRetryDelayMs = 500;
@@ -486,6 +488,67 @@ export const webMcpScript = `(() => {
     return normalizedWorkspaceId
       ? \`/api/storage/doc/\${encodeURIComponent(normalizedWorkspaceId)}/\${encodeURIComponent(normalizedCanonicalPath)}\`
       : \`/api/storage/doc-default/\${encodeURIComponent(normalizedCanonicalPath)}\`;
+  };
+  const decodeSharePayload = (shareToken) => {
+    const normalizedToken = normalizeString(shareToken);
+    if (!normalizedToken) return null;
+    try {
+      const base64 = normalizedToken.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.length % 4 ? base64 + "=".repeat(4 - (base64.length % 4)) : base64;
+      const binary = (root.atob || (root.window && root.window.atob)).call(root, padded);
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      const payload = JSON.parse(
+        typeof TextDecoder === "function" ? new TextDecoder().decode(bytes) : binary,
+      );
+      const canonicalPath = normalizeString(payload && payload.canonicalPath);
+      if (!canonicalPath) return null;
+      const workspaceId = normalizeString(payload && payload.workspaceId);
+      return {
+        canonicalPath,
+        workspaceId: workspaceId || null,
+      };
+    } catch {
+      return null;
+    }
+  };
+  const resolvePublishedDocIdentity = (input = {}) => {
+    const directShareToken = decodeSharePayload(input.shareToken);
+    if (directShareToken) return directShareToken;
+    const shareUrl = normalizeString(input.shareUrl);
+    if (!shareUrl) return null;
+    try {
+      const currentOrigin = normalizeString(window && window.location && window.location.origin);
+      const parsedUrl = new URL(shareUrl, currentOrigin || siteOrigin);
+      const shareTokenFromSearch = decodeSharePayload(parsedUrl.searchParams.get("kgShare"));
+      if (shareTokenFromSearch) return shareTokenFromSearch;
+      const canonicalPathFromSearch = normalizeString(decodeURIComponent(parsedUrl.searchParams.get("kgCanonicalPath") || ""));
+      if (canonicalPathFromSearch) {
+        const workspaceIdFromSearch = normalizeString(decodeURIComponent(parsedUrl.searchParams.get("kgWorkspaceId") || ""));
+        return {
+          canonicalPath: canonicalPathFromSearch,
+          workspaceId: workspaceIdFromSearch || null,
+        };
+      }
+      const normalizedPathname = String(parsedUrl.pathname || "").replace(/\\/+$/, "") || "/";
+      if (!normalizedPathname.startsWith(appBasePath)) return null;
+      const scopedPath = normalizedPathname.slice(appBasePath.length) || "/";
+      if (scopedPath.startsWith("/share/")) {
+        return decodeSharePayload(decodeURIComponent(scopedPath.slice("/share/".length)));
+      }
+      if (scopedPath.startsWith("/doc-default/")) {
+        const canonicalPath = normalizeString(decodeURIComponent(scopedPath.slice("/doc-default/".length)));
+        return canonicalPath ? { canonicalPath, workspaceId: null } : null;
+      }
+      if (!scopedPath.startsWith("/doc/")) return null;
+      const suffix = scopedPath.slice("/doc/".length);
+      const firstSlash = suffix.indexOf("/");
+      if (firstSlash < 1) return null;
+      const workspaceId = normalizeString(decodeURIComponent(suffix.slice(0, firstSlash)));
+      const canonicalPath = normalizeString(decodeURIComponent(suffix.slice(firstSlash + 1)));
+      return workspaceId && canonicalPath ? { workspaceId, canonicalPath } : null;
+    } catch {
+      return null;
+    }
   };
   const buildStorageRequestUrl = (path) => {
     const safePath = normalizeString(path);
@@ -564,6 +627,28 @@ export const webMcpScript = `(() => {
           headers: { accept: "text/markdown" },
         });
         if (!response.ok) throw new Error(\`read_source_file failed with \${response.status}\`);
+        return {
+          workspaceId: workspaceId || defaultWorkspaceId,
+          canonicalPath,
+          markdown: await response.text(),
+        };
+      }
+    },
+    {
+      name: ${JSON.stringify(webMcpTools[2].name)},
+      title: ${JSON.stringify(webMcpTools[2].title)},
+      description: ${JSON.stringify(webMcpTools[2].description)},
+      inputSchema: ${JSON.stringify(webMcpTools[2].inputSchema)},
+      annotations: ${JSON.stringify(webMcpTools[2].annotations)},
+      execute: async (input = {}) => {
+        const resolvedDocument = resolvePublishedDocIdentity(input);
+        if (!resolvedDocument) throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
+        const canonicalPath = normalizeString(resolvedDocument.canonicalPath);
+        const workspaceId = normalizeString(resolvedDocument.workspaceId);
+        const response = await fetch(buildStorageRequestUrl(buildDocPath(canonicalPath, workspaceId)), {
+          headers: { accept: "text/markdown" },
+        });
+        if (!response.ok) throw new Error(\`read_shared_document failed with \${response.status}\`);
         return {
           workspaceId: workspaceId || defaultWorkspaceId,
           canonicalPath,
@@ -673,7 +758,7 @@ const injectWebMcpScript = async (response) => {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("text/html")) return response;
   const html = await response.text();
-  if (html.includes("knowgrph.list_source_files") && html.includes("knowgrph.read_source_file")) return new Response(html, response);
+  if (webMcpTools.every((tool) => html.includes(tool.name))) return new Response(html, response);
   const scriptTag = `<script>${webMcpScript}</script>`;
   const nextHtml = html.includes("</head>") ? html.replace("</head>", `${scriptTag}</head>`) : `${html}${scriptTag}`;
   const nextResponse = new Response(nextHtml, response);
@@ -689,6 +774,7 @@ Use this skill when an agent needs to discover and read published Knowgrph Sourc
 
 - list_source_files: fetch ${SITE_ORIGIN}/api/storage/source-files.
 - read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath} by default, or ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath} for an explicit workspace.
+- read_shared_document: resolve a Knowgrph share token or public share/document URL, then fetch the canonical published markdown document from storage.
 `;
 
 const sha256Hex = async (text) => {
@@ -865,6 +951,28 @@ const executeMcpTool = async (name, args) => {
         headers: { accept: "text/markdown" },
       });
       if (!response.ok) throw new Error(`read_source_file upstream failed with ${response.status}`);
+      return {
+        workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
+        canonicalPath,
+        markdown: await response.text(),
+      };
+    }
+    case KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument: {
+      const resolvedDocument = resolvePublishedDocIdentity({
+        shareToken: args?.shareToken,
+        shareUrl: args?.shareUrl,
+        appBasePath: APP_BASE_PATH,
+        baseUrl: SITE_ORIGIN,
+      });
+      if (!resolvedDocument) {
+        throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
+      }
+      const workspaceId = normalizeToolString(resolvedDocument.workspaceId);
+      const canonicalPath = resolvedDocument.canonicalPath;
+      const response = await fetch(`${STORAGE_FETCH_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
+        headers: { accept: "text/markdown" },
+      });
+      if (!response.ok) throw new Error(`read_shared_document upstream failed with ${response.status}`);
       return {
         workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
         canonicalPath,
