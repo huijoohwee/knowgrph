@@ -60,10 +60,13 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
     throw new Error('Expected published Share URL generation to reuse the shared document deep-link helper')
   }
   if (!helperText.includes('buildPublishedDocShareDeepLink')) {
-    throw new Error('Expected published Share URL generation to prefer the canonical query-based deep-link builder')
+    throw new Error('Expected published Share URL generation to prefer the canonical opaque share-route builder')
   }
   if (!shareTokenText.includes('PUBLISHED_DOC_SHARE_TOKEN_PARAM = "kgShare"') || !helperText.includes('encodePublishedDocShareToken')) {
     throw new Error('Expected published Share URL generation to use the shared opaque share-token contract')
+  }
+  if (!helperText.includes("const SHARE_DEEP_LINK_PREFIX = '/share/'")) {
+    throw new Error('Expected published Share URL generation to expose the canonical opaque share path')
   }
   if (!text.includes("link.kind === 'default-remote'")) {
     throw new Error('Expected the deep-link runtime to route default-workspace shared documents through the shared storage markdown reader')

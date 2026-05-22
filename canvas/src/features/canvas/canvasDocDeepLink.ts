@@ -11,6 +11,7 @@ import {
 
 const DEEP_LINK_PREFIX = '/doc/'
 const DEFAULT_DEEP_LINK_PREFIX = '/doc-default/'
+const SHARE_DEEP_LINK_PREFIX = '/share/'
 const DEEP_LINK_PARAM = 'kgPath'
 const LOCAL_DOC_PARAM = 'kgDoc'
 const WORKSPACE_ID_PARAM = 'kgWorkspaceId'
@@ -89,23 +90,16 @@ export function buildPublishedDocSharePath(args: {
   workspaceId?: string | null
   canonicalPath: string
 }): string {
-  const canonicalPath = String(args.canonicalPath || '').trim()
-  if (!canonicalPath) return `${APP_BASE_PATH}/`
-  const workspaceId = String(args.workspaceId || '').trim()
-  return workspaceId
-    ? `${APP_BASE_PATH}${DEEP_LINK_PREFIX}${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
-    : `${APP_BASE_PATH}${DEFAULT_DEEP_LINK_PREFIX}${encodeURIComponent(canonicalPath)}`
+  const token = encodePublishedDocShareToken(args)
+  if (!token) return `${APP_BASE_PATH}/`
+  return `${APP_BASE_PATH}${SHARE_DEEP_LINK_PREFIX}${encodeURIComponent(token)}`
 }
 
 export function buildPublishedDocShareDeepLink(args: {
   workspaceId?: string | null
   canonicalPath: string
 }): string {
-  const token = encodePublishedDocShareToken(args)
-  if (!token) return `${APP_BASE_PATH}/`
-  const params = new URLSearchParams()
-  params.set(PUBLISHED_DOC_SHARE_TOKEN_PARAM, token)
-  return `${APP_BASE_PATH}/?${params.toString()}`
+  return buildPublishedDocSharePath(args)
 }
 
 function parsePublishedDocSourceUrl(sourceUrl: string): { workspaceId: string | null; canonicalPath: string } | null {

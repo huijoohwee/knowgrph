@@ -22,6 +22,7 @@ const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
 const agentReadyDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc', '[[path]].js')
 const agentReadyDefaultDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc-default', '[[path]].js')
+const agentReadyShareRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'share', '[[path]].js')
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
 const agentReadySharedTarget = path.resolve(
   githubRoot,
@@ -263,6 +264,7 @@ const buildKnowgrphRedirects = (existing, rootFiles) => {
     GENERATED_REDIRECTS_START,
     '/knowgrph /knowgrph 200',
     '/knowgrph/ /knowgrph/ 200',
+    '/knowgrph/share/* /knowgrph/share/:splat 200',
     '/knowgrph/doc/* /knowgrph/doc/:splat 200',
     '/knowgrph/doc-default/* /knowgrph/doc-default/:splat 200',
     '/knowgrph/mcp /knowgrph/mcp 200',
@@ -380,6 +382,7 @@ const redirectsNeedUpdate = nextRedirects !== existingRedirects
 const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
 const agentReadyDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDocRouteTarget)
 const agentReadyDefaultDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDefaultDocRouteTarget)
+const agentReadyShareRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyShareRouteTarget)
 const agentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, agentReadySharedTarget)
 const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(
   agentReadySharedSource,
@@ -417,6 +420,7 @@ if (checkMode) {
     agentReadyFunctionNeedsUpdate ||
     agentReadyDocRouteNeedsUpdate ||
     agentReadyDefaultDocRouteNeedsUpdate ||
+    agentReadyShareRouteNeedsUpdate ||
     agentReadySharedNeedsUpdate ||
     rootAgentReadySharedNeedsUpdate ||
     rootAgentReadyFunctionNeedsUpdate ||
@@ -452,6 +456,7 @@ if (checkMode) {
     if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
     if (agentReadyDocRouteNeedsUpdate) console.error('  - Knowgrph shared-doc Pages Function is out of sync')
     if (agentReadyDefaultDocRouteNeedsUpdate) console.error('  - Knowgrph default shared-doc Pages Function is out of sync')
+    if (agentReadyShareRouteNeedsUpdate) console.error('  - Knowgrph opaque share Pages Function is out of sync')
     if (agentReadySharedNeedsUpdate) console.error('  - Knowgrph agent-ready shared markdown helper is out of sync')
     if (rootAgentReadySharedNeedsUpdate) console.error('  - Root agent-ready shared markdown helper is out of sync')
     if (rootAgentReadyFunctionNeedsUpdate) console.error('  - Root markdown negotiation Pages Function is out of sync')
@@ -517,6 +522,10 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyDefaultDocRouteTarget), { recursive: true })
     await fs.writeFile(agentReadyDefaultDocRouteTarget, agentReadyDocRouteBody, 'utf8')
   }
+  if (agentReadyShareRouteNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadyShareRouteTarget), { recursive: true })
+    await fs.writeFile(agentReadyShareRouteTarget, agentReadyDocRouteBody, 'utf8')
+  }
   if (agentReadySharedNeedsUpdate) {
     await fs.mkdir(path.dirname(agentReadySharedTarget), { recursive: true })
     await fs.copyFile(agentReadySharedSource, agentReadySharedTarget)
@@ -550,6 +559,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

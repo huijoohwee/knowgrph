@@ -41,7 +41,7 @@ export default function CanvasPage() {
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
   const hasDocDeepLinkParams = React.useMemo(() => {
     const search = String(location.search || '')
-    return search.includes('doc=') || search.includes('path=')
+    return search.includes('doc=') || search.includes('path=') || search.includes('kgShare=')
   }, [location.search])
 
   const {

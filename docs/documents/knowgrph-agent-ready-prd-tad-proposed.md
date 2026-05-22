@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.12.0
+version: 1.14.0
 status: implemented
 created: 2026-05-21
 updated: 2026-05-22
@@ -111,7 +111,7 @@ Knowgrph does not currently aim to:
 | Link headers on service homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Headers exist on `/knowgrph/`; apex `/` remains intentionally excluded |
 | Link headers on root homepage | Implemented | `scripts/sync-pages-knowgrph.mjs` + `huijoohwee/_headers` | Root `/` advertises Knowgrph discovery without moving route ownership out of `knowgrph` |
 | Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
-| Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `scripts/sync-pages-knowgrph.mjs` | Shared doc routes must stay reserved in `_redirects` and emitted as explicit Pages functions |
+| Markdown negotiation on shared published docs | Partially implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `scripts/sync-pages-knowgrph.mjs` | Pages preview serves storage-backed Markdown on `/knowgrph/share/*`, but `airvio.co` still rewrites the request to the apex root redirect HTML before the canonical handler wins |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
 | WebMCP browser tools | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Tool set is static and limited to two read-only tools |
@@ -141,7 +141,7 @@ Knowgrph does not currently aim to:
 | App bootstrap | `canvas/src/main.tsx` | Installs WebMCP runtime at app startup |
 | Storage route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Owns workspace id constant and route builders |
 | Storage worker doc routes | `cloudflare/workers/knowgrph-storage/index.ts` | Serves `/api/storage/doc-default/*` and `/api/storage/doc/*` |
-| Shared doc deep-link contract | `canvas/src/features/canvas/canvasDocDeepLink.ts` + `canvas/src/features/canvas/canvasDocShareToken.mjs` | Owns `/knowgrph/doc/*`, `/knowgrph/doc-default/*`, opaque `kgShare` tokens, and published Share URL mapping from storage URLs |
+| Shared doc deep-link contract | `canvas/src/features/canvas/canvasDocDeepLink.ts` + `canvas/src/features/canvas/canvasDocShareToken.mjs` | Owns `/knowgrph/share/*`, `/knowgrph/doc/*`, `/knowgrph/doc-default/*`, opaque `kgShare` tokens, and published Share URL mapping from storage URLs |
 | Shared doc runtime import | `canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx` | Owns browser-side loading of shared documents into the Editor Workspace |
 | Source Files share URL builder | `canvas/src/features/markdown-workspace/MarkdownWorkspaceSourceFilesList.tsx` | Promotes published storage-backed entries to canonical public Share URLs |
 | Storage crawler routes | `cloudflare/workers/knowgrph-storage/crawler.ts` | Serves `/api/storage/source-files` and `/api/storage/llms.txt` |
@@ -231,12 +231,13 @@ while HTML remains the browser default.
   `Content-Type: text/markdown; charset=utf-8`
 - `GET /` with `Accept: text/markdown` returns
   `Content-Type: text/markdown; charset=utf-8`
-- `GET /knowgrph/?kgShare={opaque-token}` with `Accept: text/markdown` returns the published
+- `GET /knowgrph/share/{opaque-token}` with `Accept: text/markdown` returns the published
   markdown document body instead of the HTML shell
 - `GET /knowgrph/doc/{workspaceId}/{canonicalPath}` with `Accept: text/markdown` returns the
   published markdown document body instead of the HTML shell
 - `GET /knowgrph/doc-default/{canonicalPath}` with `Accept: text/markdown` returns the same
   published markdown body for default-workspace aliases
+- query-param alias `?kgShare={opaque-token}` remains supported by the same parser
 - semantic query aliases `kgWorkspaceId` + `kgCanonicalPath` remain supported by the same parser
 - the body starts with `# Knowgrph`
 - the response includes `x-markdown-tokens`
@@ -330,16 +331,25 @@ serves HTML to browsers and the Editor Workspace Markdown pane content to agents
 #### Implemented acceptance
 
 - `MarkdownWorkspaceSourceFilesList` promotes published `source.kind === 'url'` entries into
-  `/knowgrph/?kgShare={opaque-token}`
+  `/knowgrph/share/{opaque-token}`
 - `CanvasDocDeepLinkRuntime` can import both workspace-scoped and default-workspace shared routes
 - the Pages function proxies shared document Markdown from the storage worker instead of returning
   the generic homepage Markdown body
-- `_redirects` reserves `/knowgrph/doc/*` and `/knowgrph/doc-default/*` for the Pages function so
-  shared document URLs do not fall through to the apex redirect HTML
+- `_redirects` reserves `/knowgrph/share/*`, `/knowgrph/doc/*`, and `/knowgrph/doc-default/*`
+  for the Pages function so shared document URLs do not fall through to the apex redirect HTML
 - publish sync emits explicit shared-doc function files so route ownership does not rely only on
   the generic `/knowgrph/[[path]]` catch-all
 - semantic query params and path routes remain aliases; the canonical Share URL is the opaque
-  `kgShare` deep link
+  `/knowgrph/share/{opaque-token}` route backed by the shared `kgShare` token contract
+
+#### Current deployed caveat
+
+- Pages preview deployments return the correct published markdown body for
+  `/knowgrph/share/{opaque-token}` on `Accept: text/markdown`
+- `https://airvio.co/knowgrph/share/{opaque-token}` still returns the apex root redirect HTML
+  (`huijoohwee/index.html`) instead of the shared markdown body
+- the remaining production gap is therefore outside the repo-controlled Pages function bundle and
+  generated `_redirects` / `functions/knowgrph/share/[[path]].js` surfaces
 
 #### Enhancement target
 
@@ -455,7 +465,7 @@ flowchart LR
   M --> R["/api/storage/doc/{workspaceId}/{canonicalPath}"]
   O --> Q
   O --> R
-  A --> S["/knowgrph/?kgShare={opaque-token}"]
+  A --> S["/knowgrph/share/{opaque-token}"]
   A --> T["/knowgrph/doc/{workspaceId}/{canonicalPath}"]
   A --> U["/knowgrph/doc-default/{canonicalPath}"]
   S --> C
@@ -495,7 +505,7 @@ on the same document identity model:
 | `/knowgrph/` | GET/HEAD | HTML app shell plus Knowgrph discovery `Link` headers |
 | `/` | GET with `Accept: text/markdown` | `text/markdown` plus `x-markdown-tokens` |
 | `/knowgrph/` | GET with `Accept: text/markdown` | `text/markdown` plus `x-markdown-tokens` |
-| `/knowgrph/?kgShare={opaque-token}` | GET | HTML shell for browsers or published markdown document on `Accept: text/markdown` |
+| `/knowgrph/share/{opaque-token}` | GET | HTML shell for browsers or published markdown document on `Accept: text/markdown` |
 | `/knowgrph/doc/{workspaceId}/{canonicalPath}` | GET | HTML shell for browsers or published markdown document on `Accept: text/markdown` |
 | `/knowgrph/doc-default/{canonicalPath}` | GET | HTML shell for browsers or published markdown document on `Accept: text/markdown` |
 | `/knowgrph/health` | GET/HEAD | `application/health+json` status payload |
@@ -539,7 +549,7 @@ on the same document identity model:
 | Pages function | Route dispatcher | `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
 | Pages function | Root markdown negotiation | `cloudflare/pages/root-agent-ready-index.mjs` | Implemented |
 | Pages function | Markdown negotiation | `wantsMarkdown()`, `markdownResponse()` | Implemented |
-| Pages function | Shared doc markdown proxy | `/knowgrph/doc/*` + `/knowgrph/doc-default/*` in `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
+| Pages function | Shared doc markdown proxy | `/knowgrph/share/*` + `/knowgrph/doc/*` + `/knowgrph/doc-default/*` in `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
 | Pages deploy | Explicit shared-doc function wrappers | generated by `scripts/sync-pages-knowgrph.mjs` | Implemented |
 | Pages function | Health status route | `/knowgrph/health` in `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
 | Pages function | A2A Agent Card route | `/.well-known/agent-card.json` alias + `/knowgrph/.well-known/agent-card.json` | Implemented |
@@ -598,7 +608,9 @@ on the same document identity model:
 - [x] the homepage `Link` header includes a `describedby` relation for the A2A Agent Card
 - [x] root `/` advertises discovery hints without becoming the canonical Knowgrph service homepage
 - [x] Markdown negotiation returns `text/markdown`, `x-markdown-tokens`, and `Vary: Accept`
-- [x] published shared document URLs can negotiate from the HTML shell to storage-backed Markdown
+- [x] Pages preview shared document URLs can negotiate from the HTML shell to storage-backed Markdown
+- [ ] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown; current
+  live response is the apex root redirect HTML
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
 - [x] browser runtime exposes `knowgrph.list_source_files` and `knowgrph.read_source_file`
@@ -627,13 +639,16 @@ on the same document identity model:
 
 The current implementation is shipped. The safe next steps are:
 
-1. Design an optional runtime-local agent read surface for the active workspace only if it reuses
+1. Investigate the Cloudflare custom-domain rewrite boundary that still serves `huijoohwee/index.html`
+   for `https://airvio.co/knowgrph/share/{opaque-token}` even though the Pages preview route and
+   generated repo surfaces are correct.
+2. Design an optional runtime-local agent read surface for the active workspace only if it reuses
    `openMarkdownWorkspaceEditorPane()`, `commitMarkdownEditText()`,
    `writeWorkspaceFileAndSync()`, `mergeWorkspaceEntriesIntoSourceFiles()`, and
    `materializeActiveWorkspaceEntryIntoSourceFiles()`.
-2. Continue adding read-only tools before any auth-gated or mutating agent surface.
-3. Keep the OpenAPI document expanding only from the existing route owner instead of introducing
+3. Continue adding read-only tools before any auth-gated or mutating agent surface.
+4. Keep the OpenAPI document expanding only from the existing route owner instead of introducing
    parallel spec files.
-4. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
+5. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
 
-*Document version: 1.11.0 - Implemented - 2026-05-22*
+*Document version: 1.14.0 - Implemented with live custom-domain caveat - 2026-05-22*

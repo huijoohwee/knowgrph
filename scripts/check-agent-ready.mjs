@@ -29,7 +29,7 @@ const buildSharedDocSample = async ({ workspaceId, canonicalPath }) => {
     workspaceId,
     canonicalPath,
     markdown: await markdownResponse.text(),
-    shareUrl: `${baseUrl}/?${PUBLISHED_DOC_SHARE_TOKEN_PARAM}=${encodeURIComponent(shareToken)}`,
+    shareUrl: `${baseUrl}/share/${encodeURIComponent(shareToken)}`,
   }
 }
 
@@ -58,6 +58,21 @@ const resolveSharedDocSampleFromIndex = async () => {
 const sharedDocSample =
   await buildSharedDocSample(preferredSharedDocSample)
   || await resolveSharedDocSampleFromIndex()
+
+const isRootRedirectHtml = (body) => {
+  const text = String(body || '')
+  return text.includes('Root entrypoint for airvio.co')
+    && text.includes('url=/knowgrph/')
+    && text.includes('<title>Knowgrph</title>')
+}
+
+const describeFailure = (checkName, response, body) => {
+  const contentType = response.headers.get('content-type') || ''
+  if (checkName === 'shared-doc-markdown-negotiation' && isRootRedirectHtml(body)) {
+    return `${response.status} ${contentType} (received apex root redirect HTML instead of shared markdown)`
+  }
+  return `${response.status} ${contentType}`
+}
 
 const checks = [
   {
@@ -387,7 +402,7 @@ for (const check of checks) {
       console.log(`ok ${check.name}`)
     } else {
       failed += 1
-      console.error(`not ok ${check.name}: ${response.status} ${response.headers.get('content-type') || ''}`)
+      console.error(`not ok ${check.name}: ${describeFailure(check.name, response, body)}`)
     }
   } catch (error) {
     failed += 1

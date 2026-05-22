@@ -21,3 +21,11 @@ export function testNormalizeSingleRootRouteDoesNotOverrideExistingKgPath() {
   if (out.search.includes('kgPath=%2Fx')) throw new Error(`expected kgPath not to be overridden; got ${out.search}`)
 }
 
+export function testNormalizeSingleRootRoutePromotesOpaqueSharePath() {
+  const out = normalizeSingleRootRoute({ pathname: '/share/opaque-token', search: '?a=1', hash: '' })
+  if (!out) throw new Error('expected normalization result')
+  if (out.pathname !== '/') throw new Error(`expected pathname '/'; got ${out.pathname}`)
+  if (!out.search.includes('a=1')) throw new Error(`expected search to preserve existing params; got ${out.search}`)
+  if (!out.search.includes('kgShare=opaque-token')) throw new Error(`expected kgShare to be set from share path; got ${out.search}`)
+  if (out.search.includes('kgPath=')) throw new Error(`expected share path not to be downgraded into kgPath; got ${out.search}`)
+}
