@@ -2,7 +2,7 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad-proposed.md](knowgrph-mcp-service-prd-tad-proposed.md).
 
-**Document Version**: 0.4.3  
+**Document Version**: 0.4.4  
 **Date**: 2026-05-22  
 **Status**: Proposed supplement
 
@@ -27,7 +27,7 @@ It answers three questions:
 | Local stdio MCP | Shipped | `mcp/server.js` | local subprocess and browser-bridge tools |
 | Local stdio MCP docs | Shipped | `mcp/README.md` | local configuration and usage |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers six read-only tools, including `knowgrph.inspect_local_workspace_document` |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers seven read-only tools, including `knowgrph.inspect_local_workspace_document` and `knowgrph.inspect_local_canvas_topology` |
 | Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published Pages/HTTP tool set = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface` |
 | MainPanel MCP | Shipped | `canvas/src/features/panels/views/McpHubView.tsx` | thin `SettingsView mode="mcp"` shell |
 | MainPanel Integrations | Shipped | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | thin `SettingsView mode="integrations"` shell |

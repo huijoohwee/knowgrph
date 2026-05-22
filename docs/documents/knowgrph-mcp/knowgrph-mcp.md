@@ -43,8 +43,9 @@ Current shared read-only tools:
 - `knowgrph.inspect_shared_document_structure`
 - `knowgrph.inspect_agent_surface`
 
-Additional app-runtime browser-local tool:
+Additional app-runtime browser-local tools:
 - `knowgrph.inspect_local_workspace_document`
+- `knowgrph.inspect_local_canvas_topology`
 
 This surface is intentionally narrow and storage-backed. It is not the same thing as the richer future remote MCP platform proposed in the PRD/TAD.
 
