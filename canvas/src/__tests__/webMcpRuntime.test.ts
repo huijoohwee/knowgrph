@@ -55,6 +55,11 @@ const MOCK_THREE_CAMERA_POSE = {
   fov: 45,
   zoom: 1.25,
 }
+const MOCK_THREE_LAYOUT_POSITIONS = {
+  alpha: [1.1114, 2.2225, 3.3336],
+  start: [10.1234, 20.5678, 30.9876],
+  omega: [40.4444, 50.5555, 60.6666],
+}
 
 const createMockResponse = (url: string): Response =>
   ({
@@ -100,6 +105,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const previousSelectedEdgeId = useGraphStore.getState().selectedEdgeId
   const previousCanvasSnapshotFns = useGraphStore.getState().canvasSnapshotFns
   const previousThreeCameraSnapshotFns = useGraphStore.getState().threeCameraSnapshotFns
+  const previousThreeLayoutSnapshotFns = useGraphStore.getState().threeLayoutSnapshotFns
   const previousCanvas3dMode = useGraphStore.getState().canvas3dMode
   const previousViewPinned = useGraphStore.getState().viewPinned
 
@@ -155,8 +161,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocalCanvasTool = registeredTools.get('knowgrph.inspect_local_canvas_topology')
     const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
     const inspectLocal3dCameraPoseTool = registeredTools.get('knowgrph.inspect_local_3d_camera_pose')
+    const inspectLocal3dLayoutPositionsTool = registeredTools.get('knowgrph.inspect_local_3d_layout_positions')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -188,6 +195,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
         capturePose: () => MOCK_THREE_CAMERA_POSE,
         restorePose: () => void 0,
       },
+      threeLayoutSnapshotFns: {
+        capturePositions: () => MOCK_THREE_LAYOUT_POSITIONS as never,
+      },
     } as never)
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
@@ -198,6 +208,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
     useGraphStore.setState({ canvasRenderMode: '3d' } as never)
     const localThreeCameraPose = await inspectLocal3dCameraPoseTool.execute()
+    const localThreeLayoutPositions = await inspectLocal3dLayoutPositionsTool.execute()
     useGraphStore.setState({ canvasRenderMode: '2d' } as never)
     const inspection = await inspectTool.execute()
 
@@ -258,6 +269,18 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localThreeCameraPose as { pose?: { position?: { z?: unknown } } }).pose?.position?.z !== 30) {
       throw new Error(`expected inspect_local_3d_camera_pose to report camera position, got ${JSON.stringify(localThreeCameraPose)}`)
     }
+    if ((localThreeLayoutPositions as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_3d_layout_positions to report available positions, got ${JSON.stringify(localThreeLayoutPositions)}`)
+    }
+    if ((localThreeLayoutPositions as { positionCount?: unknown }).positionCount !== 3) {
+      throw new Error(`expected inspect_local_3d_layout_positions to report position count, got ${JSON.stringify(localThreeLayoutPositions)}`)
+    }
+    if ((localThreeLayoutPositions as { selectedNodePosition?: { z?: unknown } }).selectedNodePosition?.z !== 30.988) {
+      throw new Error(`expected inspect_local_3d_layout_positions to report rounded selected-node position, got ${JSON.stringify(localThreeLayoutPositions)}`)
+    }
+    if ((localThreeLayoutPositions as { samplePositions?: Array<{ id?: unknown }> }).samplePositions?.[0]?.id !== 'alpha') {
+      throw new Error(`expected inspect_local_3d_layout_positions to sort sampled positions deterministically, got ${JSON.stringify(localThreeLayoutPositions)}`)
+    }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)
     }
@@ -288,6 +311,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       selectedEdgeId: previousSelectedEdgeId,
       canvasSnapshotFns: previousCanvasSnapshotFns,
       threeCameraSnapshotFns: previousThreeCameraSnapshotFns,
+      threeLayoutSnapshotFns: previousThreeLayoutSnapshotFns,
       canvas3dMode: previousCanvas3dMode,
       viewPinned: previousViewPinned,
     } as never)

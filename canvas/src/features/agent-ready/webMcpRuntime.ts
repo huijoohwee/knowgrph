@@ -15,6 +15,7 @@ import { inspectSharedDocumentStructure } from './sharedDocumentStructureInspect
 import { inspectLocalCanvasTopology } from './localCanvasTopologyInspection'
 import { inspectLocalCanvasSnapshot } from './localCanvasSnapshotInspection'
 import { inspectLocalThreeCameraPose } from './localThreeCameraPoseInspection'
+import { inspectLocalThreeLayoutPositions } from './localThreeLayoutPositionsInspection'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -82,6 +83,7 @@ const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWG
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology)
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot)
 const INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose)
+const INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
@@ -91,6 +93,7 @@ const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME = INSPECT_LOCAL_WORKSPACE_DOCUM
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_NAME = INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_NAME = INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_NAME = INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_NAME = INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT.webName
 const INSPECT_AGENT_SURFACE_TOOL_NAME = INSPECT_AGENT_SURFACE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = WEB_MCP_TOOL_CONTRACTS.map(tool => tool.webName)
 const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
@@ -442,6 +445,25 @@ const buildInspectLocal3dCameraPoseTool = (): WebMcpTool => ({
   },
 })
 
+const buildInspectLocal3dLayoutPositionsTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_NAME,
+  title: INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const state = useGraphStore.getState()
+    return inspectLocalThreeLayoutPositions({
+      markdownDocumentName: state.markdownDocumentName,
+      canvasRenderMode: state.canvasRenderMode,
+      canvas3dMode: state.canvas3dMode,
+      viewPinned: state.viewPinned,
+      selectedNodeId: state.selectedNodeId,
+      positions: state.captureThreeLayoutPositions(),
+    })
+  },
+})
+
 const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
   name: INSPECT_AGENT_SURFACE_TOOL_NAME,
   title: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.title,
@@ -486,6 +508,7 @@ const WEB_MCP_TOOLS = [
   buildInspectLocalCanvasTopologyTool(),
   buildInspectLocalCanvasSnapshotTool(),
   buildInspectLocal3dCameraPoseTool(),
+  buildInspectLocal3dLayoutPositionsTool(),
   buildInspectAgentSurfaceTool(),
 ]
 

@@ -17,7 +17,7 @@ graph pipeline was introduced.
 
 ### Browser WebMCP
 
-- App runtime registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, and `knowgrph.inspect_agent_surface`
+- App runtime registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, and `knowgrph.inspect_agent_surface`
 - Reuses the shared upstream tool contract in
   `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
 - Attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then readable
