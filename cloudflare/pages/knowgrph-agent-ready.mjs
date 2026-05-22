@@ -2,7 +2,21 @@ const SITE_ORIGIN = "https://airvio.co";
 const APP_BASE_PATH = "/knowgrph";
 const APP_URL = `${SITE_ORIGIN}${APP_BASE_PATH}/`;
 const ROOT_URL = `${SITE_ORIGIN}/`;
+const DEFAULT_WORKSPACE_ID = "kgws:canonical-docs";
 const UPDATED_AT = "2026-05-21";
+const STORAGE_SOURCE_FILES_URL = `${SITE_ORIGIN}/api/storage/source-files`;
+const STORAGE_DEFAULT_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath}`;
+const STORAGE_WORKSPACE_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}`;
+
+const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
+  const normalizedCanonicalPath = String(canonicalPath || "").trim();
+  const normalizedWorkspaceId = String(workspaceId || "").trim();
+  return normalizedWorkspaceId
+    ? `/api/storage/doc/${encodeURIComponent(normalizedWorkspaceId)}/${encodeURIComponent(normalizedCanonicalPath)}`
+    : `/api/storage/doc-default/${encodeURIComponent(normalizedCanonicalPath)}`;
+};
+
+const normalizeToolString = (value) => String(value || "").trim();
 
 const linkHeaderValue = [
   `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
@@ -113,8 +127,9 @@ Knowgrph is an agent-readable knowledge graph workspace served at ${APP_URL}.
 ## APIs
 
 - Storage API: ${SITE_ORIGIN}/api/storage/
-- Source Files index: ${SITE_ORIGIN}/api/storage/source-files
-- Source File documents: ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}
+- Source Files index: ${STORAGE_SOURCE_FILES_URL}
+- Default Source File documents: ${STORAGE_DEFAULT_DOC_PATTERN}
+- Workspace Source File documents: ${STORAGE_WORKSPACE_DOC_PATTERN}
 `;
 
 const apiCatalog = {
@@ -167,6 +182,18 @@ const openApi = {
         summary: "List published Source Files",
         responses: {
           "200": { description: "Source Files index" },
+        },
+      },
+    },
+    "/doc-default/{canonicalPath}": {
+      get: {
+        summary: "Read a default-workspace Source File markdown document",
+        parameters: [
+          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "Markdown document from the default Editor Workspace" },
+          "404": { description: "Document not found" },
         },
       },
     },
@@ -223,13 +250,13 @@ const mcpServerCard = {
       },
       {
         name: "read_source_file",
-        description: "Read a published Knowgrph Source File markdown document.",
+        description: "Read published Knowgrph Editor Workspace markdown content. Defaults to the canonical docs workspace when workspaceId is omitted.",
         inputSchema: {
           type: "object",
           additionalProperties: false,
-          required: ["workspaceId", "canonicalPath"],
+          required: ["canonicalPath"],
           properties: {
-            workspaceId: { type: "string" },
+            workspaceId: { type: "string", default: DEFAULT_WORKSPACE_ID },
             canonicalPath: { type: "string" },
           },
         },
@@ -242,21 +269,43 @@ const mcpServerCard = {
   },
 };
 
-const webMcpTool = {
-  name: "knowgrph.list_source_files",
-  title: "List Source Files",
-  description: "List published Knowgrph Source Files.",
-  inputSchema: { type: "object", additionalProperties: false, properties: {} },
-  annotations: { readOnlyHint: true },
-  execute: async () => {
-    const response = await fetch(`${SITE_ORIGIN}/api/storage/source-files`, { headers: { accept: "application/json" } });
-    return response.json();
+const webMcpTools = [
+  {
+    name: "knowgrph.list_source_files",
+    title: "List Source Files",
+    description: "List published Knowgrph Source Files.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true },
   },
-};
+  {
+    name: "knowgrph.read_source_file",
+    title: "Read Source File",
+    description: "Read published Knowgrph Editor Workspace markdown content.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["canonicalPath"],
+      properties: {
+        canonicalPath: { type: "string" },
+        workspaceId: { type: "string", default: DEFAULT_WORKSPACE_ID },
+      },
+    },
+    annotations: { readOnlyHint: true },
+  },
+];
 
 const webMcpScript = `(() => {
   const root = globalThis;
   const nav = root.navigator || {};
+  const siteOrigin = ${JSON.stringify(SITE_ORIGIN)};
+  const defaultWorkspaceId = ${JSON.stringify(DEFAULT_WORKSPACE_ID)};
+  const buildDocPath = (canonicalPath, workspaceId = "") => {
+    const normalizedCanonicalPath = String(canonicalPath || "").trim();
+    const normalizedWorkspaceId = String(workspaceId || "").trim();
+    return normalizedWorkspaceId
+      ? \`/api/storage/doc/\${encodeURIComponent(normalizedWorkspaceId)}/\${encodeURIComponent(normalizedCanonicalPath)}\`
+      : \`/api/storage/doc-default/\${encodeURIComponent(normalizedCanonicalPath)}\`;
+  };
   if (!root.navigator) {
     try {
       Object.defineProperty(root, "navigator", { configurable: true, value: nav });
@@ -264,34 +313,66 @@ const webMcpScript = `(() => {
       root.navigator = nav;
     }
   }
-  const tool = {
-    name: ${JSON.stringify(webMcpTool.name)},
-    title: ${JSON.stringify(webMcpTool.title)},
-    description: ${JSON.stringify(webMcpTool.description)},
-    inputSchema: ${JSON.stringify(webMcpTool.inputSchema)},
-    annotations: ${JSON.stringify(webMcpTool.annotations)},
-    execute: ${webMcpTool.execute.toString()}
-  };
+  const tools = [
+    {
+      name: "knowgrph.list_source_files",
+      title: "List Source Files",
+      description: "List published Knowgrph Source Files.",
+      inputSchema: { type: "object", additionalProperties: false, properties: {} },
+      annotations: { readOnlyHint: true },
+      execute: async () => {
+        const response = await fetch(\`\${siteOrigin}/api/storage/source-files\`, { headers: { accept: "text/markdown" } });
+        if (!response.ok) throw new Error(\`list_source_files failed with \${response.status}\`);
+        return {
+          workspaceId: defaultWorkspaceId,
+          markdownIndex: await response.text(),
+        };
+      }
+    },
+    {
+      name: "knowgrph.read_source_file",
+      title: "Read Source File",
+      description: "Read published Knowgrph Editor Workspace markdown content.",
+      inputSchema: ${JSON.stringify(webMcpTools[1].inputSchema)},
+      annotations: ${JSON.stringify(webMcpTools[1].annotations)},
+      execute: async (input = {}) => {
+        const canonicalPath = String(input.canonicalPath || "").trim();
+        if (!canonicalPath) throw new Error("canonicalPath is required");
+        const workspaceId = String(input.workspaceId || "").trim();
+        const response = await fetch(\`\${siteOrigin}\${buildDocPath(canonicalPath, workspaceId)}\`, { headers: { accept: "text/markdown" } });
+        if (!response.ok) throw new Error(\`read_source_file failed with \${response.status}\`);
+        return {
+          workspaceId: workspaceId || defaultWorkspaceId,
+          canonicalPath,
+          markdown: await response.text(),
+        };
+      }
+    }
+  ];
   if (typeof document !== "undefined" && document.documentElement) {
-    document.documentElement.dataset.kgWebmcpTools = tool.name;
-    document.documentElement.dataset.kgWebmcpContext = tool.name;
+    document.documentElement.dataset.kgWebmcpTools = tools.map((tool) => tool.name).join(",");
+    document.documentElement.dataset.kgWebmcpContext = tools.map((tool) => tool.name).join(",");
   }
   const existing = nav.modelContext;
   let installed = false;
   if (existing && typeof existing.provideContext === "function") {
-    existing.provideContext({ tools: [tool] });
+    existing.provideContext({ tools });
     installed = true;
   }
   if (existing && typeof existing.registerTool === "function") {
-    try {
-      existing.registerTool(tool);
-      installed = true;
-    } catch {
-      installed = true;
+    for (const tool of tools) {
+      try {
+        existing.registerTool(tool);
+        installed = true;
+      } catch {
+        installed = true;
+      }
     }
   }
   if (existing && Array.isArray(existing.tools)) {
-    if (!existing.tools.some((entry) => entry && entry.name === tool.name)) existing.tools.push(tool);
+    for (const tool of tools) {
+      if (!existing.tools.some((entry) => entry && entry.name === tool.name)) existing.tools.push(tool);
+    }
     installed = true;
   }
   if (installed) {
@@ -300,7 +381,7 @@ const webMcpScript = `(() => {
     }
     return;
   }
-  const fallback = { tools: [tool] };
+  const fallback = { tools };
   try {
     Object.defineProperty(nav, "modelContext", {
       configurable: true,
@@ -320,7 +401,7 @@ const injectWebMcpScript = async (response) => {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("text/html")) return response;
   const html = await response.text();
-  if (html.includes("knowgrph.list_source_files")) return new Response(html, response);
+  if (html.includes("knowgrph.list_source_files") && html.includes("knowgrph.read_source_file")) return new Response(html, response);
   const scriptTag = `<script>${webMcpScript}</script>`;
   const nextHtml = html.includes("</head>") ? html.replace("</head>", `${scriptTag}</head>`) : `${html}${scriptTag}`;
   const nextResponse = new Response(nextHtml, response);
@@ -335,7 +416,7 @@ Use this skill when an agent needs to discover and read published Knowgrph Sourc
 ## Tools
 
 - list_source_files: fetch ${SITE_ORIGIN}/api/storage/source-files.
-- read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}.
+- read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath} by default, or ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath} for an explicit workspace.
 `;
 
 const sha256Hex = async (text) => {
@@ -408,6 +489,37 @@ const jsonRpcError = (id, code, message) => jsonResponse({
   error: { code, message },
 });
 
+const executeMcpTool = async (name, args) => {
+  switch (name) {
+    case "list_source_files": {
+      const response = await fetch(STORAGE_SOURCE_FILES_URL, {
+        headers: { accept: "text/markdown" },
+      });
+      if (!response.ok) throw new Error(`list_source_files upstream failed with ${response.status}`);
+      return {
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        markdownIndex: await response.text(),
+      };
+    }
+    case "read_source_file": {
+      const canonicalPath = normalizeToolString(args?.canonicalPath);
+      if (!canonicalPath) throw new Error("canonicalPath is required");
+      const workspaceId = normalizeToolString(args?.workspaceId);
+      const response = await fetch(`${SITE_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
+        headers: { accept: "text/markdown" },
+      });
+      if (!response.ok) throw new Error(`read_source_file upstream failed with ${response.status}`);
+      return {
+        workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
+        canonicalPath,
+        markdown: await response.text(),
+      };
+    }
+    default:
+      throw new Error(`unknown tool: ${name}`);
+  }
+};
+
 const handleMcpTransport = async (request) => {
   const method = String(request.method || "GET").toUpperCase();
   if (method === "GET" || method === "HEAD") {
@@ -426,16 +538,36 @@ const handleMcpTransport = async (request) => {
       return jsonRpcResult(rpc.id, mcpInitializeResult);
     case "tools/list":
       return jsonRpcResult(rpc.id, { tools: mcpTools });
-    case "tools/call":
-      return jsonRpcResult(rpc.id, {
-        content: [
-          {
-            type: "text",
-            text: "Knowgrph MCP discovery is available. Use the storage API links in the server card for live Source Files access.",
-          },
-        ],
-        isError: false,
-      });
+    case "tools/call": {
+      const toolName = normalizeToolString(rpc.params?.name);
+      const toolArgs = rpc.params?.arguments && typeof rpc.params.arguments === "object" ? rpc.params.arguments : {};
+      if (!toolName) return jsonRpcError(rpc.id, -32602, "Tool name is required");
+      try {
+        const result = await executeMcpTool(toolName, toolArgs);
+        return jsonRpcResult(rpc.id, {
+          content: [
+            {
+              type: "text",
+              text: typeof result?.markdown === "string"
+                ? result.markdown
+                : JSON.stringify(result, null, 2),
+            },
+          ],
+          structuredContent: result,
+          isError: false,
+        });
+      } catch (error) {
+        return jsonRpcResult(rpc.id, {
+          content: [
+            {
+              type: "text",
+              text: error instanceof Error ? error.message : String(error),
+            },
+          ],
+          isError: true,
+        });
+      }
+    }
     default:
       return jsonRpcError(rpc.id, -32601, "Method not found");
   }

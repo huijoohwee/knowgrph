@@ -113,6 +113,25 @@ const checks = [
     },
   },
   {
+    name: 'mcp-tools-list',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/list',
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const tools = payload.result?.tools
+      return response.ok
+        && Array.isArray(tools)
+        && tools.some((tool) => tool?.name === 'list_source_files')
+        && tools.some((tool) => tool?.name === 'read_source_file')
+    },
+  },
+  {
     name: 'agent-skills',
     url: `${baseUrl}/.well-known/agent-skills/index.json`,
     accept: 'application/json',
@@ -149,6 +168,7 @@ const checks = [
     assert: async (response, body) =>
       response.ok
       && body.includes('knowgrph.list_source_files')
+      && body.includes('knowgrph.read_source_file')
       && body.includes('modelContext')
       && body.includes('kgWebmcpTools'),
   },

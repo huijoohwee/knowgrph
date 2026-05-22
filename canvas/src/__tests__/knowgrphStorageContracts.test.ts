@@ -16,6 +16,7 @@ import {
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
   buildKnowgrphStorageCursorId,
+  buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageDocPath,
   buildKnowgrphStorageExportPath,
   buildKnowgrphStorageLlmsPath,
@@ -79,6 +80,9 @@ export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () =>
   }
   if (buildKnowgrphStorageDocPath('wk_123', 'docs/example file.md') !== '/api/storage/doc/wk_123/docs%2Fexample%20file.md') {
     throw new Error('expected doc path helper to encode workspace and canonical source-file path')
+  }
+  if (buildKnowgrphStorageDefaultDocPath('docs/example file.md') !== '/api/storage/doc-default/docs%2Fexample%20file.md') {
+    throw new Error('expected default doc path helper to encode canonical source-file path without requiring workspaceId')
   }
   if (buildKnowgrphStorageSourceFilesIndexPath() !== '/api/storage/source-files') {
     throw new Error('expected default Source Files crawler index path to stay route-owned')

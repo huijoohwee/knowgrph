@@ -5,6 +5,7 @@ import {
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
+  buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageDocPath,
   buildKnowgrphStorageExportPath,
   buildKnowgrphStorageLlmsPath,
@@ -67,6 +68,11 @@ const code = (value: unknown): string =>
 
 const absoluteUrl = (requestUrl: string, path: string): string =>
   new URL(path, requestUrl).toString()
+
+const buildCrawlerDocPath = (workspaceId: string, canonicalPath: string): string =>
+  workspaceId === KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID
+    ? buildKnowgrphStorageDefaultDocPath(canonicalPath)
+    : buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
 
 const readCrawlerRoute = (pathname: string): CrawlerRoute | null => {
   if (pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesLlms) {
@@ -180,7 +186,7 @@ const buildSourceFilesIndexMarkdown = (args: {
     return `${lines.join('\n')}\n`
   }
   for (const document of args.documents) {
-    const docUrl = absoluteUrl(args.requestUrl, buildKnowgrphStorageDocPath(args.workspaceId, document.canonicalPath))
+    const docUrl = absoluteUrl(args.requestUrl, buildCrawlerDocPath(args.workspaceId, document.canonicalPath))
     lines.push(`- [${escapeMarkdownText(document.title)}](${docUrl})`)
     lines.push(`  - canonicalPath: ${code(document.canonicalPath)}`)
     lines.push(`  - contentHash: ${code(document.contentHash)}`)
@@ -215,7 +221,7 @@ const buildSourceFilesLlmsText = (args: {
     return `${lines.join('\n')}\n`
   }
   for (const document of args.documents) {
-    const docUrl = absoluteUrl(args.requestUrl, buildKnowgrphStorageDocPath(args.workspaceId, document.canonicalPath))
+    const docUrl = absoluteUrl(args.requestUrl, buildCrawlerDocPath(args.workspaceId, document.canonicalPath))
     lines.push(`- ${document.title}: ${docUrl}`)
   }
   return `${lines.join('\n')}\n`

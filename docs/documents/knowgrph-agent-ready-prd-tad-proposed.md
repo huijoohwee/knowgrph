@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.4.0
+version: 1.5.0
 status: implemented
 created: 2026-05-21
 updated: 2026-05-22
@@ -48,7 +48,7 @@ Knowgrph must:
 
 - expose machine-readable discovery metadata without requiring HTML scraping
 - keep the browser HTML shell as the default response for people
-- expose a browser WebMCP surface for read-only source file discovery
+- expose browser and HTTP MCP tools for read-only Editor Workspace markdown discovery and direct document reads
 - keep publish ownership upstream in `knowgrph`, not in generated mirror files
 - avoid stale or conflicting Cloudflare control surfaces that can confuse Wrangler, caches,
   or custom-domain shells
@@ -60,8 +60,10 @@ Knowgrph must:
 | Concern | Canonical owner | Notes |
 |---|---|---|
 | Agent-ready Pages Function | `cloudflare/pages/knowgrph-agent-ready.mjs` | Generates discovery metadata and Markdown response behavior |
-| Browser WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers `knowgrph.list_source_files` |
+| Browser WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers `knowgrph.list_source_files` and `knowgrph.read_source_file` |
 | App bootstrap | `canvas/src/main.tsx` | Installs WebMCP runtime and production PWA runtime |
+| Storage route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Owns default workspace id and storage route builders |
+| Storage worker doc/crawler routes | `cloudflare/workers/knowgrph-storage/{index.ts,crawler.ts}` | Serves default and workspace-scoped markdown content |
 | PWA runtime | `canvas/src/lib/pwa/runtime.ts` | Registers service worker and update handling |
 | Publish sync | `scripts/sync-pages-knowgrph.mjs` | Mirrors built artifacts and generates root publish config updates |
 | Shared Pages headers | `huijoohwee/_headers` | Authoritative deployed header surface |
@@ -123,17 +125,45 @@ can discover site actions directly in the browser context.
 
 Acceptance:
 
-- the page registers `knowgrph.list_source_files`
+- the page registers both `knowgrph.list_source_files` and `knowgrph.read_source_file`
 - registration supports `provideContext`, `registerTool`, and readable fallback tool storage
-- the tool is de-duplicated by canonical name
-- the document root exposes `data-kg-webmcp-tools="knowgrph.list_source_files"` for audit proof
+- tools are de-duplicated by canonical name
+- `read_source_file` requires `canonicalPath` and defaults `workspaceId` to `kgws:canonical-docs`
+- the document root exposes both tool names through `data-kg-webmcp-tools`
 - the apex homepage does not include the Knowgrph WebMCP tool
 
 Implementation:
 
 - runtime source: `canvas/src/features/agent-ready/webMcpRuntime.ts`
 - install path: `canvas/src/main.tsx`
-- transport/data endpoint: `https://airvio.co/api/storage/source-files`
+- transport/data endpoints:
+  - `https://airvio.co/api/storage/source-files`
+  - `https://airvio.co/api/storage/doc-default/{canonicalPath}`
+  - `https://airvio.co/api/storage/doc/{workspaceId}/{canonicalPath}`
+
+### E4-S6: Default Workspace Markdown Access
+
+As an AI agent, I want direct read-only access to Editor Workspace markdown content in the
+default published workspace so I can open a document without discovering or supplying a
+workspace id first.
+
+Acceptance:
+
+- the storage boundary exposes `/api/storage/doc-default/{canonicalPath}` for the canonical docs
+  workspace
+- the default Source Files index and default `llms.txt` link to the workspace-free doc route
+- WebMCP and HTTP MCP `read_source_file` default to `kgws:canonical-docs` when `workspaceId`
+  is omitted
+- explicit workspace reads continue to use `/api/storage/doc/{workspaceId}/{canonicalPath}`
+
+Implementation:
+
+- contract owner: `canvas/src/lib/storage/knowgrphStorageSyncContract.ts`
+- worker owner: `cloudflare/workers/knowgrph-storage/index.ts`
+- crawler link owner: `cloudflare/workers/knowgrph-storage/crawler.ts`
+- tool owners:
+  - `canvas/src/features/agent-ready/webMcpRuntime.ts`
+  - `cloudflare/pages/knowgrph-agent-ready.mjs`
 
 ### E5-S2: Publish Surface Hygiene
 
@@ -182,8 +212,13 @@ flowchart LR
   D --> I["WebMCP runtime"]
   D --> J["PWA runtime"]
   I --> K["knowgrph.list_source_files"]
-  J --> L["/knowgrph/manifest.webmanifest"]
-  J --> M["/knowgrph/sw.js"]
+  I --> L["knowgrph.read_source_file"]
+  H --> M["Storage API read-only execution"]
+  M --> N["/api/storage/source-files"]
+  M --> O["/api/storage/doc-default/{canonicalPath}"]
+  M --> P["/api/storage/doc/{workspaceId}/{canonicalPath}"]
+  J --> R["/knowgrph/manifest.webmanifest"]
+  J --> Q["/knowgrph/sw.js"]
 ```
 
 ## Publish Architecture
@@ -225,6 +260,10 @@ Two drift classes were explicitly neutralized:
 | `/knowgrph/.well-known/http-message-signatures-directory` | GET | Web Bot Auth metadata |
 | `/knowgrph/mcp` | GET/HEAD | MCP metadata |
 | `/knowgrph/mcp` | POST | JSON-RPC `initialize`, `tools/list`, `tools/call` |
+| `/api/storage/doc-default/{canonicalPath}` | GET | Default Editor Workspace markdown document |
+| `/api/storage/doc/{workspaceId}/{canonicalPath}` | GET | Workspace-scoped markdown document |
+| `/api/storage/source-files` | GET | Default Source Files markdown index |
+| `/api/storage/llms.txt` | GET | Default Source Files plain-text agent entrypoint |
 
 ## Component Inventory
 
@@ -233,13 +272,35 @@ Two drift classes were explicitly neutralized:
 | Pages Function | Route dispatcher | `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
 | Pages Function | Markdown negotiation | `wantsMarkdown()`, `markdownResponse()` | Implemented |
 | Pages Function | Link header injector | `linkHeaderValue`, `onRequest()` | Implemented |
-| Pages Function | MCP transport | `handleMcpTransport()` | Implemented |
+| Pages Function | MCP transport | `handleMcpTransport()` | Implemented with live read-only tool execution |
 | Static artifacts | robots, sitemap, `.well-known` | generated by `buildAgentReadyStaticFiles()` | Implemented |
-| Browser | WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Implemented |
+| Browser | WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Implemented with `list_source_files` and `read_source_file` |
+| Storage | Default doc-view route | `cloudflare/workers/knowgrph-storage/index.ts` | Implemented |
+| Storage | Default crawler links | `cloudflare/workers/knowgrph-storage/crawler.ts` | Implemented |
 | Browser | PWA runtime | `canvas/src/lib/pwa/runtime.ts` | Implemented |
 | Build | PWA manifest + service worker | `canvas/index.html`, `canvas/vite.config.ts` | Implemented |
 | Publish | Mirror + root control generation | `scripts/sync-pages-knowgrph.mjs` | Implemented |
 | Validation | Live smoke | `scripts/check-agent-ready.mjs` | Implemented |
+
+## MCP And Workspace Markdown Contract
+
+### Tool surface
+
+- `list_source_files`
+  - returns the default Source Files markdown index from `/api/storage/source-files`
+- `read_source_file`
+  - accepts `canonicalPath`
+  - accepts optional `workspaceId`
+  - defaults to `kgws:canonical-docs`
+  - reads `/api/storage/doc-default/{canonicalPath}` when `workspaceId` is omitted
+  - reads `/api/storage/doc/{workspaceId}/{canonicalPath}` when `workspaceId` is provided
+
+### Explicit guardrails
+
+- no write access from Pages Function MCP transport
+- no browser-side mutation tools in WebMCP
+- no downstream mirror-owned API routes
+- no stale discovery metadata that advertises tools not actually executable
 
 ## Cache And PWA Contract
 
@@ -262,8 +323,11 @@ Two drift classes were explicitly neutralized:
 - [x] `https://airvio.co/knowgrph/` emits Knowgrph discovery `Link` headers
 - [x] the apex homepage is excluded from Knowgrph discovery headers
 - [x] Markdown negotiation returns `text/markdown`, `x-markdown-tokens`, and `Vary: Accept`
-- [x] browser runtime exposes `knowgrph.list_source_files`
+- [x] browser runtime exposes `knowgrph.list_source_files` and `knowgrph.read_source_file`
 - [x] JSON-RPC MCP `initialize` returns a valid result
+- [x] JSON-RPC MCP `tools/list` returns both read-only tools
+- [x] JSON-RPC MCP `tools/call` executes live read-only storage lookups
+- [x] default Editor Workspace markdown is readable without explicit `workspaceId`
 - [x] publish sync owns the root generated `_headers` and `_redirects` blocks
 - [x] publish sync excludes nested `_headers` and `_redirects` from the mirrored app payload
 - [x] `canvas/index.html` uses `%BASE_URL%manifest.webmanifest`
@@ -275,7 +339,7 @@ Two drift classes were explicitly neutralized:
 2. Drift-check the mirror and generated Pages control files: `npm run pages:check-sync`
 3. Smoke-check the agent-ready surface: `npm run agent-ready:check`
 4. Deploy the shared Pages repo:
-   `npx wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true`
+   `cd /Users/huijoohwee/Documents/GitHub/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`
 5. Re-run live checks against `https://airvio.co/knowgrph/`
 
 ## Enhancements
@@ -285,5 +349,6 @@ The implementation is complete for current agent-ready scope. Safe next steps ar
 - add more read-only MCP tools before any mutating tool surface
 - keep extending Cloudflare-hosted metadata from the single Pages Function generator
 - add focused live checks for rewrite plus PWA manifest correctness if apex rewrites remain active
+- keep storage route docs and internal crawler-readiness docs aligned to the shared storage contract
 
-*Document version: 1.4.0 - Implemented - 2026-05-22*
+*Document version: 1.5.0 - Implemented - 2026-05-22*

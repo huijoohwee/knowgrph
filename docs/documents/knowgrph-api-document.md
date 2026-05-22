@@ -79,6 +79,7 @@ Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co
 | POST | `/api/storage/push` | Push local workspace mutations into D1 |
 | POST | `/api/storage/pull` | Pull D1 mutations since a cursor |
 | GET | `/api/storage/export/{workspaceId}` | Export the full workspace storage bundle as JSON |
+| GET | `/api/storage/doc-default/{canonicalPath}` | Serve the latest markdown for one canonical Source File from the default published workspace |
 | GET | `/api/storage/doc/{workspaceId}/{canonicalPath}` | Serve the latest markdown for one canonical Source File |
 | GET | `/api/storage/source-files` | Serve the default workspace Source Files crawler index |
 | GET | `/api/storage/source-files/{workspaceId}` | Serve a workspace-scoped Source Files crawler index |

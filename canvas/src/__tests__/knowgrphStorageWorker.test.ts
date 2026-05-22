@@ -6,6 +6,7 @@ import {
   KNOWGRPH_STORAGE_API_VERSION,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageLlmsPath,
   buildKnowgrphStorageSourceFilesIndexPath,
 } from '@/lib/storage/knowgrphStorageSyncContract'
@@ -341,6 +342,32 @@ export async function testKnowgrphStorageWorkerDocViewRebuildsChunkOnlyMarkdown(
   }
 }
 
+export async function testKnowgrphStorageWorkerServesDefaultDocViewWithoutWorkspaceId() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  await pushCrawlerDocument({
+    env,
+    workspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+    documentId: 'doc_default_doc_view',
+    canonicalPath: 'huijoohwee/docs/default-doc.md',
+    title: 'Default Doc',
+    contentMd: '# Default Doc',
+    contentHash: 'sha256:default-doc',
+  })
+
+  const response = await worker.fetch(
+    new Request(`https://example.com${buildKnowgrphStorageDefaultDocPath('huijoohwee/docs/default-doc.md')}`),
+    env as never,
+  )
+  if (!response.ok) throw new Error(`expected default doc view response ok, received ${response.status}`)
+  if (!String(response.headers.get('content-type') || '').includes('text/markdown')) {
+    throw new Error('expected default doc view response to be served as text/markdown')
+  }
+  const markdown = await response.text()
+  if (markdown.trim() !== '# Default Doc') {
+    throw new Error(`expected default doc view to return the default workspace markdown, got "${markdown}"`)
+  }
+}
+
 const pushCrawlerDocument = async (args: {
   env: ReturnType<typeof createFakeKnowgrphStorageWorkerEnv>
   workspaceId: string
@@ -482,8 +509,8 @@ export async function testKnowgrphStorageWorkerServesDefaultLlmsSourceFilesEntry
   if (!text.includes('Cloudflare AI Crawl Control Pay Per Crawl') || !text.includes(CLOUDFLARE_PAY_PER_CRAWL_DOC_URL)) {
     throw new Error('expected llms entrypoint to include Pay Per Crawl policy metadata')
   }
-  if (!text.includes('https://example.com/api/storage/doc/kgws%3Acanonical-docs/huijoohwee%2Fdocs%2Fllms-demo.md')) {
-    throw new Error('expected llms entrypoint to link to the canonical Source File doc-view route')
+  if (!text.includes('https://example.com/api/storage/doc-default/huijoohwee%2Fdocs%2Fllms-demo.md')) {
+    throw new Error('expected default llms entrypoint to link to the default Source File doc-view route')
   }
 
   const indexResponse = await worker.fetch(
@@ -494,6 +521,9 @@ export async function testKnowgrphStorageWorkerServesDefaultLlmsSourceFilesEntry
   const indexMarkdown = await indexResponse.text()
   if (!indexMarkdown.includes('Workspace: `kgws:canonical-docs`') || !indexMarkdown.includes('LLMS Demo')) {
     throw new Error('expected default Source Files index to resolve the canonical docs workspace')
+  }
+  if (!indexMarkdown.includes('https://example.com/api/storage/doc-default/huijoohwee%2Fdocs%2Fllms-demo.md')) {
+    throw new Error('expected default Source Files index to link through the workspace-free default doc-view route')
   }
 }
 

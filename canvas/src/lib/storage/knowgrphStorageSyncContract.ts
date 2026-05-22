@@ -5,6 +5,7 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   pull: '/api/storage/pull',
   exportPrefix: '/api/storage/export/',
   docPrefix: '/api/storage/doc/',
+  defaultDocPrefix: '/api/storage/doc-default/',
   sourceFilesIndex: '/api/storage/source-files',
   sourceFilesIndexPrefix: '/api/storage/source-files/',
   sourceFilesLlms: '/api/storage/llms.txt',
@@ -243,6 +244,9 @@ export const buildKnowgrphStorageExportPath = (workspaceId: string): string =>
 
 export const buildKnowgrphStorageDocPath = (workspaceId: string, canonicalPath: string): string =>
   `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(String(workspaceId || '').trim())}/${encodeURIComponent(String(canonicalPath || '').trim())}`
+
+export const buildKnowgrphStorageDefaultDocPath = (canonicalPath: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.defaultDocPrefix}${encodeURIComponent(String(canonicalPath || '').trim())}`
 
 export const buildKnowgrphStorageSourceFilesIndexPath = (workspaceId?: string | null): string => {
   const normalizedWorkspaceId = String(workspaceId || '').trim()

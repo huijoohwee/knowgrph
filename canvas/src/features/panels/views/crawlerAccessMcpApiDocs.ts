@@ -5,6 +5,7 @@ import {
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
+  buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageLlmsPath,
   buildKnowgrphStorageSourceFilesIndexPath,
 } from '@/lib/storage/knowgrphStorageSyncContract'
@@ -33,10 +34,14 @@ const SOURCE_FILES_WORKSPACE_LLMS_PATTERN =
   `${SOURCE_FILES_WORKSPACE_INDEX_PATTERN}/llms.txt`
 const SOURCE_FILES_DOC_VIEW_PATTERN =
   `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}{workspaceId}/{canonicalPath}`
+const DEFAULT_SOURCE_FILES_DOC_VIEW_PATTERN =
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.defaultDocPrefix}{canonicalPath}`
 const DEFAULT_SOURCE_FILES_INDEX_PATH =
   buildKnowgrphStorageSourceFilesIndexPath(KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID)
 const DEFAULT_SOURCE_FILES_LLMS_PATH =
   buildKnowgrphStorageLlmsPath(KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID)
+const DEFAULT_SOURCE_FILES_DOC_PATH =
+  buildKnowgrphStorageDefaultDocPath('huijoohwee/docs/example.md')
 
 export function buildCrawlerAccessReadinessManifestJson(): string {
   return JSON.stringify({
@@ -49,6 +54,7 @@ export function buildCrawlerAccessReadinessManifestJson(): string {
         sourceFilesWorkspaceLlms: SOURCE_FILES_WORKSPACE_LLMS_PATTERN,
         defaultWorkspaceSourceFilesIndex: DEFAULT_SOURCE_FILES_INDEX_PATH,
         defaultWorkspaceLlms: DEFAULT_SOURCE_FILES_LLMS_PATH,
+        defaultWorkspaceDocView: DEFAULT_SOURCE_FILES_DOC_VIEW_PATTERN,
         docView: SOURCE_FILES_DOC_VIEW_PATTERN,
         exportPrefix: KNOWGRPH_STORAGE_ROUTE_PATHS.exportPrefix,
       },
@@ -107,6 +113,13 @@ const CRAWLER_ACCESS_MCP_DOC_ROWS: ReadonlyArray<CrawlerAccessMcpDocRow> = [
     value: SOURCE_FILES_WORKSPACE_LLMS_PATTERN,
     responsibility: 'Workspace-scoped LLM text route pattern for crawler discovery.',
     searchHints: ['workspace llms.txt', SOURCE_FILES_WORKSPACE_LLMS_PATTERN],
+  },
+  {
+    key: 'route.doc_view.default',
+    typeLabel: 'path pattern',
+    value: DEFAULT_SOURCE_FILES_DOC_VIEW_PATTERN,
+    responsibility: 'Default Editor Workspace markdown doc-view route pattern for agents that omit workspaceId.',
+    searchHints: ['default doc view', DEFAULT_SOURCE_FILES_DOC_VIEW_PATTERN, DEFAULT_SOURCE_FILES_DOC_PATH],
   },
   {
     key: 'route.doc_view',
