@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.8.0
+version: 1.9.0
 status: implemented
 created: 2026-05-21
 updated: 2026-05-22
@@ -109,7 +109,7 @@ Knowgrph does not currently aim to:
 |---|---|---|---|
 | Link headers on service homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Headers exist on `/knowgrph/`; apex `/` remains intentionally excluded |
 | Link headers on root homepage | Implemented | `scripts/sync-pages-knowgrph.mjs` + `huijoohwee/_headers` | Root `/` advertises Knowgrph discovery without moving route ownership out of `knowgrph` |
-| Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
+| Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
 | WebMCP browser tools | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Tool set is static and limited to two read-only tools |
@@ -131,6 +131,8 @@ Knowgrph does not currently aim to:
 | Concern | Canonical owner | Notes |
 |---|---|---|
 | Agent-ready Pages function | `cloudflare/pages/knowgrph-agent-ready.mjs` | Owns `/knowgrph/` Link headers, Markdown negotiation, `.well-known`, MCP, A2A card, and HTML WebMCP injection |
+| Shared markdown-negotiation helper | `cloudflare/pages/knowgrph-agent-ready-shared.mjs` | Owns shared Markdown body, `markdownResponse()`, and `wantsMarkdown()` |
+| Root markdown-negotiation function | `cloudflare/pages/root-agent-ready-index.mjs` | Owns `Accept: text/markdown` on `/` without changing app route ownership |
 | Shared tool contract | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Owns shared tool names, titles, descriptions, and input schema |
 | Browser WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Owns app-installed `navigator.modelContext` integration |
 | App bootstrap | `canvas/src/main.tsx` | Installs WebMCP runtime at app startup |
@@ -213,13 +215,15 @@ discover the Knowgrph agent surface without scraping HTML.
 
 #### Requirement
 
-As an AI crawler or agent, I want Markdown from `/knowgrph/` when I send
+As an AI crawler or agent, I want Markdown from `/` and `/knowgrph/` when I send
 `Accept: text/markdown` so I receive a compact, token-efficient representation while HTML remains
 the browser default.
 
 #### Implemented acceptance
 
 - `GET /knowgrph/` with `Accept: text/markdown` returns
+  `Content-Type: text/markdown; charset=utf-8`
+- `GET /` with `Accept: text/markdown` returns
   `Content-Type: text/markdown; charset=utf-8`
 - the body starts with `# Knowgrph`
 - the response includes `x-markdown-tokens`
@@ -442,6 +446,7 @@ on the same document identity model:
 | Route | Method | Response |
 |---|---:|---|
 | `/knowgrph/` | GET/HEAD | HTML app shell plus Knowgrph discovery `Link` headers |
+| `/` | GET with `Accept: text/markdown` | `text/markdown` plus `x-markdown-tokens` |
 | `/knowgrph/` | GET with `Accept: text/markdown` | `text/markdown` plus `x-markdown-tokens` |
 | `/knowgrph/health` | GET/HEAD | `application/health+json` status payload |
 | `/knowgrph/mcp` | GET/HEAD | MCP metadata |
@@ -482,6 +487,7 @@ on the same document identity model:
 | Layer | Component | File / Module | Status |
 |---|---|---|---|
 | Pages function | Route dispatcher | `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
+| Pages function | Root markdown negotiation | `cloudflare/pages/root-agent-ready-index.mjs` | Implemented |
 | Pages function | Markdown negotiation | `wantsMarkdown()`, `markdownResponse()` | Implemented |
 | Pages function | Health status route | `/knowgrph/health` in `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
 | Pages function | A2A Agent Card route | `/.well-known/agent-card.json` alias + `/knowgrph/.well-known/agent-card.json` | Implemented |
@@ -532,6 +538,7 @@ on the same document identity model:
 
 - [x] `https://airvio.co/knowgrph/` emits discovery `Link` headers
 - [x] `https://airvio.co/` emits discovery `Link` headers for scanners that probe the root homepage
+- [x] `https://airvio.co/` returns Markdown on `Accept: text/markdown`
 - [x] `https://airvio.co/knowgrph/health` returns `application/health+json`
 - [x] the homepage `Link` header includes a `status` relation
 - [x] the homepage `Link` header includes a `describedby` relation for the A2A Agent Card
@@ -573,4 +580,4 @@ The current implementation is shipped. The safe next steps are:
    parallel spec files.
 4. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
 
-*Document version: 1.8.0 - Implemented - 2026-05-22*
+*Document version: 1.9.0 - Implemented - 2026-05-22*

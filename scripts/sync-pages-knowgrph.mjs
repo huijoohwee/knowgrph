@@ -20,6 +20,22 @@ const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
+const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
+const agentReadySharedTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'functions',
+  'knowgrph',
+  'knowgrph-agent-ready-shared.mjs',
+)
+const rootAgentReadySharedTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'functions',
+  'knowgrph-agent-ready-shared.mjs',
+)
+const rootAgentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'root-agent-ready-index.mjs')
+const rootAgentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'index.js')
 const agentReadyToolContractSource = path.resolve(
   knowgrphRoot,
   'canvas',
@@ -335,6 +351,15 @@ const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
 const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
 const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
+const agentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, agentReadySharedTarget)
+const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(
+  agentReadySharedSource,
+  rootAgentReadySharedTarget,
+)
+const rootAgentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(
+  rootAgentReadyFunctionSource,
+  rootAgentReadyFunctionTarget,
+)
 const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(
   agentReadyToolContractSource,
   agentReadyToolContractTarget,
@@ -357,6 +382,9 @@ if (checkMode) {
     publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
     agentReadyFunctionNeedsUpdate ||
+    agentReadySharedNeedsUpdate ||
+    rootAgentReadySharedNeedsUpdate ||
+    rootAgentReadyFunctionNeedsUpdate ||
     agentReadyToolContractNeedsUpdate ||
     agentReadyStaticFilesToWrite.length > 0 ||
     headersNeedUpdate ||
@@ -386,6 +414,9 @@ if (checkMode) {
     }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
     if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
+    if (agentReadySharedNeedsUpdate) console.error('  - Knowgrph agent-ready shared markdown helper is out of sync')
+    if (rootAgentReadySharedNeedsUpdate) console.error('  - Root agent-ready shared markdown helper is out of sync')
+    if (rootAgentReadyFunctionNeedsUpdate) console.error('  - Root markdown negotiation Pages Function is out of sync')
     if (agentReadyToolContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared tool contract is out of sync')
     if (agentReadyStaticFilesToWrite.length > 0) {
       console.error(`  - root agent-ready static files needing sync (${agentReadyStaticFilesToWrite.length}):`)
@@ -439,6 +470,18 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyFunctionTarget), { recursive: true })
     await fs.copyFile(agentReadyFunctionSource, agentReadyFunctionTarget)
   }
+  if (agentReadySharedNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadySharedTarget), { recursive: true })
+    await fs.copyFile(agentReadySharedSource, agentReadySharedTarget)
+  }
+  if (rootAgentReadySharedNeedsUpdate) {
+    await fs.mkdir(path.dirname(rootAgentReadySharedTarget), { recursive: true })
+    await fs.copyFile(agentReadySharedSource, rootAgentReadySharedTarget)
+  }
+  if (rootAgentReadyFunctionNeedsUpdate) {
+    await fs.mkdir(path.dirname(rootAgentReadyFunctionTarget), { recursive: true })
+    await fs.copyFile(rootAgentReadyFunctionSource, rootAgentReadyFunctionTarget)
+  }
   if (agentReadyToolContractNeedsUpdate) {
     await fs.mkdir(path.dirname(agentReadyToolContractTarget), { recursive: true })
     await fs.copyFile(agentReadyToolContractSource, agentReadyToolContractTarget)
@@ -456,6 +499,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

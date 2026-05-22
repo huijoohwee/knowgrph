@@ -2,21 +2,25 @@ import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
-
-const SITE_ORIGIN = "https://airvio.co";
-const APP_BASE_PATH = "/knowgrph";
-const APP_URL = `${SITE_ORIGIN}${APP_BASE_PATH}/`;
-const ROOT_URL = `${SITE_ORIGIN}/`;
-const DEFAULT_WORKSPACE_ID = "kgws:canonical-docs";
-const UPDATED_AT = "2026-05-21";
-const HEALTH_PATH = `${APP_BASE_PATH}/health`;
-const HEALTH_URL = `${SITE_ORIGIN}${HEALTH_PATH}`;
-const A2A_AGENT_CARD_PATH = "/.well-known/agent-card.json";
-const APP_A2A_AGENT_CARD_PATH = `${APP_BASE_PATH}/.well-known/agent-card.json`;
-const A2A_AGENT_CARD_URL = `${SITE_ORIGIN}${A2A_AGENT_CARD_PATH}`;
-const STORAGE_SOURCE_FILES_URL = `${SITE_ORIGIN}/api/storage/source-files`;
-const STORAGE_DEFAULT_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath}`;
-const STORAGE_WORKSPACE_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}`;
+import {
+  A2A_AGENT_CARD_PATH,
+  A2A_AGENT_CARD_URL,
+  agentReadyMarkdownBody,
+  APP_A2A_AGENT_CARD_PATH,
+  APP_BASE_PATH,
+  APP_URL,
+  DEFAULT_WORKSPACE_ID,
+  HEALTH_PATH,
+  HEALTH_URL,
+  markdownResponse,
+  ROOT_URL,
+  SITE_ORIGIN,
+  STORAGE_DEFAULT_DOC_PATTERN,
+  STORAGE_SOURCE_FILES_URL,
+  STORAGE_WORKSPACE_DOC_PATTERN,
+  UPDATED_AT,
+  wantsMarkdown,
+} from "./knowgrph-agent-ready-shared.mjs";
 const AGENT_READY_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
 });
@@ -67,18 +71,6 @@ const textResponse = (body, contentType) =>
       "content-type": contentType,
       "cache-control": "public, max-age=3600",
       "access-control-allow-origin": "*",
-    },
-  });
-
-const markdownResponse = (body) =>
-  new Response(body, {
-    status: 200,
-    headers: {
-      "content-type": "text/markdown; charset=utf-8",
-      "cache-control": "public, max-age=3600",
-      "access-control-allow-origin": "*",
-      "vary": "Accept",
-      "x-markdown-tokens": String(Math.ceil(String(body || "").length / 4)),
     },
   });
 
@@ -135,31 +127,6 @@ const buildSitemapXml = (baseUrl) => `<?xml version="1.0" encoding="UTF-8"?>
 
 const robotsTxt = buildRobotsTxt(`${APP_URL}sitemap.xml`);
 const sitemapXml = buildSitemapXml(APP_URL);
-
-const markdownForAgents = `# Knowgrph
-
-Knowgrph is an agent-readable knowledge graph workspace served at ${APP_URL}.
-
-## Discovery
-
-- Crawl policy: ${APP_URL}robots.txt
-- Sitemap: ${APP_URL}sitemap.xml
-- API catalog: ${APP_URL}.well-known/api-catalog
-- Health: ${HEALTH_URL}
-- MCP server card: ${APP_URL}.well-known/mcp/server-card.json
-- A2A Agent Card: ${A2A_AGENT_CARD_URL}
-- Agent skills: ${APP_URL}.well-known/agent-skills/index.json
-- LLM reference: ${APP_URL}llms.txt
-
-## APIs
-
-- Agent-ready status: ${HEALTH_URL}
-- HTTP MCP: ${APP_URL}mcp
-- Storage API: ${SITE_ORIGIN}/api/storage/
-- Source Files index: ${STORAGE_SOURCE_FILES_URL}
-- Default Source File documents: ${STORAGE_DEFAULT_DOC_PATTERN}
-- Workspace Source File documents: ${STORAGE_WORKSPACE_DOC_PATTERN}
-`;
 
 const apiCatalog = {
   linkset: [
@@ -766,17 +733,12 @@ export const buildAgentReadyStaticFiles = async () => ({
 
 const handlesKnowgrphRoot = (pathname) => pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`;
 
-const wantsMarkdown = (request) => {
-  const accept = request.headers.get("accept") || "";
-  return accept.toLowerCase().split(",").some((part) => part.trim().startsWith("text/markdown"));
-};
-
 const routeResponse = async (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
 
   if (handlesKnowgrphRoot(url.pathname) && wantsMarkdown(request)) {
-    return markdownResponse(markdownForAgents);
+    return markdownResponse(agentReadyMarkdownBody);
   }
 
   switch (pathname) {
