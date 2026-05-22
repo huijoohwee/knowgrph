@@ -3,6 +3,10 @@ import {
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import {
+  decodePublishedDocShareToken,
+  PUBLISHED_DOC_SHARE_TOKEN_PARAM,
+} from "../../canvas/src/features/canvas/canvasDocShareToken.mjs";
+import {
   A2A_AGENT_CARD_PATH,
   A2A_AGENT_CARD_URL,
   agentReadyMarkdownBody,
@@ -32,6 +36,10 @@ const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
     ? `/api/storage/doc/${encodeURIComponent(normalizedWorkspaceId)}/${encodeURIComponent(normalizedCanonicalPath)}`
     : `/api/storage/doc-default/${encodeURIComponent(normalizedCanonicalPath)}`;
 };
+const DEFAULT_DOC_SHARE_PREFIX = `${APP_BASE_PATH}/doc-default/`;
+const WORKSPACE_DOC_SHARE_PREFIX = `${APP_BASE_PATH}/doc/`;
+const WORKSPACE_ID_PARAM = "kgWorkspaceId";
+const CANONICAL_PATH_PARAM = "kgCanonicalPath";
 
 const normalizeToolString = (value) => String(value || "").trim();
 
@@ -253,6 +261,31 @@ const openApi = {
         ],
         responses: {
           "200": { description: "Markdown document" },
+          "404": { description: "Document not found" },
+        },
+      },
+    },
+    [`${APP_BASE_PATH}/doc-default/{canonicalPath}`]: {
+      get: {
+        summary: "Read a default-workspace shared document",
+        parameters: [
+          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "HTML for browsers or markdown when Accept includes text/markdown" },
+          "404": { description: "Document not found" },
+        },
+      },
+    },
+    [`${APP_BASE_PATH}/doc/{workspaceId}/{canonicalPath}`]: {
+      get: {
+        summary: "Read a shared document",
+        parameters: [
+          { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "HTML for browsers or markdown when Accept includes text/markdown" },
           "404": { description: "Document not found" },
         },
       },
@@ -571,6 +604,62 @@ const buildHealthStatusBody = () => ({
   },
 });
 
+const parsePublishedDocSharePath = (pathname) => {
+  const normalizedPath = String(pathname || "").replace(/\/+$/, "") || "/";
+  if (normalizedPath.startsWith(DEFAULT_DOC_SHARE_PREFIX)) {
+    const canonicalPath = decodeURIComponent(normalizedPath.slice(DEFAULT_DOC_SHARE_PREFIX.length)).trim();
+    if (!canonicalPath) return null;
+    return { workspaceId: "", canonicalPath };
+  }
+  if (!normalizedPath.startsWith(WORKSPACE_DOC_SHARE_PREFIX)) return null;
+  const suffix = normalizedPath.slice(WORKSPACE_DOC_SHARE_PREFIX.length);
+  const firstSlash = suffix.indexOf("/");
+  if (firstSlash < 1) return null;
+  const workspaceId = decodeURIComponent(suffix.slice(0, firstSlash)).trim();
+  const canonicalPath = decodeURIComponent(suffix.slice(firstSlash + 1)).trim();
+  if (!workspaceId || !canonicalPath) return null;
+  return { workspaceId, canonicalPath };
+};
+
+const parsePublishedDocDeepLinkSearch = (searchParams) => {
+  const shareToken = decodePublishedDocShareToken(searchParams?.get(PUBLISHED_DOC_SHARE_TOKEN_PARAM));
+  if (shareToken) {
+    return {
+      workspaceId: String(shareToken.workspaceId || "").trim(),
+      canonicalPath: shareToken.canonicalPath,
+    };
+  }
+  const canonicalPathParam = String(searchParams?.get(CANONICAL_PATH_PARAM) || "").trim();
+  if (canonicalPathParam) {
+    const canonicalPath = decodeURIComponent(canonicalPathParam).trim();
+    if (!canonicalPath) return null;
+    const workspaceIdParam = String(searchParams?.get(WORKSPACE_ID_PARAM) || "").trim();
+    const workspaceId = decodeURIComponent(workspaceIdParam).trim();
+    return { workspaceId, canonicalPath };
+  }
+  const rawPath = String(searchParams?.get("kgPath") || "").trim();
+  if (!rawPath) return null;
+  return parsePublishedDocSharePath(`${APP_BASE_PATH}${rawPath}`);
+};
+
+const proxyPublishedDocMarkdownResponse = async (request, pathArgs) => {
+  const targetUrl = new URL(buildStorageDocPath(pathArgs.canonicalPath, pathArgs.workspaceId), SITE_ORIGIN);
+  const upstream = await fetch(targetUrl, {
+    method: "GET",
+    headers: {
+      accept: "text/markdown, text/plain;q=0.9, */*;q=0.1",
+    },
+  });
+  const headers = new Headers(upstream.headers);
+  const vary = String(headers.get("vary") || "");
+  headers.set("vary", vary ? `${vary}, Accept` : "Accept");
+  return new Response(String(request.method || "").toUpperCase() === "HEAD" ? null : upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers,
+  });
+};
+
 const readJsonRpcRequest = async (request) => {
   try {
     const body = await request.json();
@@ -732,11 +821,22 @@ export const buildAgentReadyStaticFiles = async () => ({
 });
 
 const handlesKnowgrphRoot = (pathname) => pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`;
+const handlesKnowgrphHtmlSurface = (pathname) => handlesKnowgrphRoot(pathname) || Boolean(parsePublishedDocSharePath(pathname));
 
 const routeResponse = async (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
+  const publishedDocSharePath = parsePublishedDocSharePath(pathname);
+  const publishedDocDeepLink = handlesKnowgrphRoot(url.pathname)
+    ? parsePublishedDocDeepLinkSearch(url.searchParams)
+    : null;
 
+  if (publishedDocSharePath && wantsMarkdown(request)) {
+    return proxyPublishedDocMarkdownResponse(request, publishedDocSharePath);
+  }
+  if (publishedDocDeepLink && wantsMarkdown(request)) {
+    return proxyPublishedDocMarkdownResponse(request, publishedDocDeepLink);
+  }
   if (handlesKnowgrphRoot(url.pathname) && wantsMarkdown(request)) {
     return markdownResponse(agentReadyMarkdownBody);
   }
@@ -808,7 +908,7 @@ export async function onRequest(context) {
   }
 
   const response = await context.next();
-  if (!handlesKnowgrphRoot(new URL(request.url).pathname)) return response;
+  if (!handlesKnowgrphHtmlSurface(new URL(request.url).pathname)) return response;
   const htmlResponse = method === "HEAD" ? response : await injectWebMcpScript(response);
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);
   nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);

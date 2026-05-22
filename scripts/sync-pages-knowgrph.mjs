@@ -20,6 +20,8 @@ const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
+const agentReadyDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc', '[[path]].js')
+const agentReadyDefaultDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc-default', '[[path]].js')
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
 const agentReadySharedTarget = path.resolve(
   githubRoot,
@@ -53,6 +55,23 @@ const agentReadyToolContractTarget = path.resolve(
   'agent-ready',
   'knowgrphAgentReadyToolContract.mjs',
 )
+const publishedDocShareTokenSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'canvas',
+  'canvasDocShareToken.mjs',
+)
+const publishedDocShareTokenTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'canvas',
+  'canvasDocShareToken.mjs',
+)
 const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
@@ -82,6 +101,12 @@ const GENERATED_AGENT_HEADERS_START = '# BEGIN knowgrph generated agent-ready he
 const GENERATED_AGENT_HEADERS_END = '# END knowgrph generated agent-ready headers'
 const GENERATED_AGENT_HOMEPAGE_HEADERS_START = '# BEGIN knowgrph generated homepage discovery headers'
 const GENERATED_AGENT_HOMEPAGE_HEADERS_END = '# END knowgrph generated homepage discovery headers'
+const agentReadyDocRouteBody = `import { onRequest as onKnowgrphAgentReadyRequest } from "../[[path]].js";
+
+export async function onRequest(context) {
+  return onKnowgrphAgentReadyRequest(context);
+}
+`
 
 const existsDir = async (dir) => {
   try {
@@ -238,6 +263,8 @@ const buildKnowgrphRedirects = (existing, rootFiles) => {
     GENERATED_REDIRECTS_START,
     '/knowgrph /knowgrph 200',
     '/knowgrph/ /knowgrph/ 200',
+    '/knowgrph/doc/* /knowgrph/doc/:splat 200',
+    '/knowgrph/doc-default/* /knowgrph/doc-default/:splat 200',
     '/knowgrph/mcp /knowgrph/mcp 200',
     '/knowgrph/robots.txt /knowgrph/robots.txt 200',
     '/knowgrph/sitemap.xml /knowgrph/sitemap.xml 200',
@@ -351,6 +378,8 @@ const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
 const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
 const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
+const agentReadyDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDocRouteTarget)
+const agentReadyDefaultDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDefaultDocRouteTarget)
 const agentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, agentReadySharedTarget)
 const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(
   agentReadySharedSource,
@@ -363,6 +392,10 @@ const rootAgentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(
 const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(
   agentReadyToolContractSource,
   agentReadyToolContractTarget,
+)
+const publishedDocShareTokenNeedsUpdate = await plainFileNeedsUpdate(
+  publishedDocShareTokenSource,
+  publishedDocShareTokenTarget,
 )
 const agentReadyArtifacts = await buildAgentReadyStaticFiles()
 const agentReadyStaticFilesToWrite = []
@@ -382,10 +415,13 @@ if (checkMode) {
     publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
     agentReadyFunctionNeedsUpdate ||
+    agentReadyDocRouteNeedsUpdate ||
+    agentReadyDefaultDocRouteNeedsUpdate ||
     agentReadySharedNeedsUpdate ||
     rootAgentReadySharedNeedsUpdate ||
     rootAgentReadyFunctionNeedsUpdate ||
     agentReadyToolContractNeedsUpdate ||
+    publishedDocShareTokenNeedsUpdate ||
     agentReadyStaticFilesToWrite.length > 0 ||
     headersNeedUpdate ||
     await existsDir(obsoleteLegacyMirrorDir)
@@ -414,10 +450,13 @@ if (checkMode) {
     }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
     if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
+    if (agentReadyDocRouteNeedsUpdate) console.error('  - Knowgrph shared-doc Pages Function is out of sync')
+    if (agentReadyDefaultDocRouteNeedsUpdate) console.error('  - Knowgrph default shared-doc Pages Function is out of sync')
     if (agentReadySharedNeedsUpdate) console.error('  - Knowgrph agent-ready shared markdown helper is out of sync')
     if (rootAgentReadySharedNeedsUpdate) console.error('  - Root agent-ready shared markdown helper is out of sync')
     if (rootAgentReadyFunctionNeedsUpdate) console.error('  - Root markdown negotiation Pages Function is out of sync')
     if (agentReadyToolContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared tool contract is out of sync')
+    if (publishedDocShareTokenNeedsUpdate) console.error('  - Knowgrph published doc share token helper is out of sync')
     if (agentReadyStaticFilesToWrite.length > 0) {
       console.error(`  - root agent-ready static files needing sync (${agentReadyStaticFilesToWrite.length}):`)
       for (const rel of agentReadyStaticFilesToWrite.slice(0, 20)) console.error(`  - ${rel}`)
@@ -470,6 +509,14 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyFunctionTarget), { recursive: true })
     await fs.copyFile(agentReadyFunctionSource, agentReadyFunctionTarget)
   }
+  if (agentReadyDocRouteNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadyDocRouteTarget), { recursive: true })
+    await fs.writeFile(agentReadyDocRouteTarget, agentReadyDocRouteBody, 'utf8')
+  }
+  if (agentReadyDefaultDocRouteNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadyDefaultDocRouteTarget), { recursive: true })
+    await fs.writeFile(agentReadyDefaultDocRouteTarget, agentReadyDocRouteBody, 'utf8')
+  }
   if (agentReadySharedNeedsUpdate) {
     await fs.mkdir(path.dirname(agentReadySharedTarget), { recursive: true })
     await fs.copyFile(agentReadySharedSource, agentReadySharedTarget)
@@ -486,6 +533,10 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyToolContractTarget), { recursive: true })
     await fs.copyFile(agentReadyToolContractSource, agentReadyToolContractTarget)
   }
+  if (publishedDocShareTokenNeedsUpdate) {
+    await fs.mkdir(path.dirname(publishedDocShareTokenTarget), { recursive: true })
+    await fs.copyFile(publishedDocShareTokenSource, publishedDocShareTokenTarget)
+  }
   let agentReadyStaticUpdated = 0
   for (const rel of agentReadyStaticFilesToWrite) {
     const artifact = agentReadyArtifacts[rel]
@@ -499,6 +550,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

@@ -6,6 +6,7 @@ const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encodin
 export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () => {
   const text = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasDocDeepLinkRuntime.tsx'))
   const helperText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocDeepLink.ts'))
+  const shareTokenText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocShareToken.mjs'))
   const explorerStoreText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'markdown-explorer', 'store.ts'))
   if (!text.includes("from './canvasDocDeepLink'")) {
     throw new Error('Expected document deep links to use the shared parser/URL helper')
@@ -51,5 +52,20 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   }
   if (!helperText.includes("window.dispatchEvent(new PopStateEvent('popstate'") || !helperText.includes("window.dispatchEvent(new Event('popstate'))")) {
     throw new Error('Expected document deep-link consumption to notify the router after URL cleanup')
+  }
+  if (!helperText.includes("const DEFAULT_DEEP_LINK_PREFIX = '/doc-default/'")) {
+    throw new Error('Expected document deep-link helpers to support default-workspace share routes')
+  }
+  if (!helperText.includes('buildPublishedDocShareUrlFromSource')) {
+    throw new Error('Expected published Share URL generation to reuse the shared document deep-link helper')
+  }
+  if (!helperText.includes('buildPublishedDocShareDeepLink')) {
+    throw new Error('Expected published Share URL generation to prefer the canonical query-based deep-link builder')
+  }
+  if (!shareTokenText.includes('PUBLISHED_DOC_SHARE_TOKEN_PARAM = "kgShare"') || !helperText.includes('encodePublishedDocShareToken')) {
+    throw new Error('Expected published Share URL generation to use the shared opaque share-token contract')
+  }
+  if (!text.includes("link.kind === 'default-remote'")) {
+    throw new Error('Expected the deep-link runtime to route default-workspace shared documents through the shared storage markdown reader')
   }
 }

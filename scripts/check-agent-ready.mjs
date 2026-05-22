@@ -1,4 +1,5 @@
 import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
+import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 
 const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || 'https://airvio.co/knowgrph').replace(/\/+$/, '')
 const originUrl = new URL(baseUrl).origin
@@ -8,6 +9,55 @@ const expectedTools = buildKnowgrphAgentReadyToolContracts({
 })
 const expectedToolNames = expectedTools.map((tool) => tool.name)
 const expectedWebToolNames = expectedTools.map((tool) => tool.webName)
+const preferredSharedDocSample = {
+  workspaceId: 'kgws:canonical-docs',
+  canonicalPath: 'huijoohwee/docs/knowgrph-design-demo.md',
+}
+
+const buildSharedDocSample = async ({ workspaceId, canonicalPath }) => {
+  const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : ''
+  const encodedCanonicalPath = encodeURIComponent(canonicalPath)
+  const shareToken = encodePublishedDocShareToken({ workspaceId, canonicalPath })
+  const storagePath = workspaceId
+    ? `/api/storage/doc/${encodedWorkspaceId}/${encodedCanonicalPath}`
+    : `/api/storage/doc-default/${encodedCanonicalPath}`
+  const markdownResponse = await fetch(`${originUrl}${storagePath}`, {
+    headers: { accept: 'text/markdown' },
+  })
+  if (!markdownResponse.ok) return null
+  return {
+    workspaceId,
+    canonicalPath,
+    markdown: await markdownResponse.text(),
+    shareUrl: `${baseUrl}/?${PUBLISHED_DOC_SHARE_TOKEN_PARAM}=${encodeURIComponent(shareToken)}`,
+  }
+}
+
+const resolveSharedDocSampleFromIndex = async () => {
+  const response = await fetch(`${originUrl}/api/storage/source-files`, {
+    headers: { accept: 'text/markdown' },
+  })
+  if (!response.ok) return null
+  const body = await response.text()
+  const match = body.match(/\/api\/storage\/doc(?:-default)?\/([A-Za-z0-9._~!$&'()*+,;=:@%-]+)(?:\/([A-Za-z0-9._~!$&'()*+,;=:@%-]+))?/)
+  if (!match?.[1]) return null
+  const hasWorkspaceId = typeof match[2] === 'string'
+  const encodedWorkspaceId = hasWorkspaceId ? match[1] : ''
+  const encodedCanonicalPath = hasWorkspaceId ? String(match[2] || '') : match[1]
+  const workspaceId = encodedWorkspaceId ? decodeURIComponent(encodedWorkspaceId) : ''
+  const canonicalPath = decodeURIComponent(encodedCanonicalPath)
+  const storagePath = workspaceId
+    ? `/api/storage/doc/${encodedWorkspaceId}/${encodedCanonicalPath}`
+    : `/api/storage/doc-default/${encodedCanonicalPath}`
+  return buildSharedDocSample({
+    workspaceId,
+    canonicalPath,
+  })
+}
+
+const sharedDocSample =
+  await buildSharedDocSample(preferredSharedDocSample)
+  || await resolveSharedDocSampleFromIndex()
 
 const checks = [
   {
@@ -86,6 +136,18 @@ const checks = [
       && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
       && body.trim().startsWith('# Knowgrph'),
   },
+  ...(sharedDocSample
+    ? [{
+        name: 'shared-doc-markdown-negotiation',
+        url: sharedDocSample.shareUrl,
+        accept: 'text/markdown',
+        assert: async (response, body) =>
+          response.ok
+          && response.headers.get('content-type')?.includes('text/markdown')
+          && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
+          && body.trim() === sharedDocSample.markdown.trim(),
+      }]
+    : []),
   {
     name: 'health',
     url: `${baseUrl}/health`,

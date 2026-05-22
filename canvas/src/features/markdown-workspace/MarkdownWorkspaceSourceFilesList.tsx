@@ -3,6 +3,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MarkdownFileTree } from './MarkdownFileTree'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { buildPublishedDocShareUrlFromSource } from '@/features/canvas/canvasDocDeepLink'
 
 type MarkdownWorkspaceSourceFilesListProps = {
   loading: boolean
@@ -43,6 +44,12 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
     renderFileRight,
   } = props
 
+  const buildShareUrl = React.useCallback((entryPath: WorkspacePath): string | null => {
+    const source = sourcesByPath?.[entryPath]
+    if (!source || source.kind !== 'url') return null
+    return buildPublishedDocShareUrlFromSource({ sourceUrl: source.url })
+  }, [sourcesByPath])
+
   if (loading) {
     return <p className={`px-2 py-1 ${textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
   }
@@ -65,6 +72,7 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
       onClearFile={onClearFile}
       onRenameEntry={onRenameEntry}
       onDeleteEntry={onDeleteEntry}
+      buildShareUrl={buildShareUrl}
       renderFileRight={renderFileRight}
     />
   )

@@ -6,6 +6,10 @@
 - Editor Workspace Source Files index: /api/storage/source-files
 - Default published Source File markdown documents: /api/storage/doc-default/{canonicalPath}
 - Source File markdown documents: /api/storage/doc/{workspaceId}/{canonicalPath}
+- Canonical shared default document URLs: /knowgrph/?kgShare={opaque-default-doc-token}
+- Canonical shared document URLs: /knowgrph/?kgShare={opaque-doc-token}
+- Query-param aliases: /knowgrph/?kgCanonicalPath={canonicalPath}, /knowgrph/?kgWorkspaceId={workspaceId}&kgCanonicalPath={canonicalPath}
+- Shared document path aliases: /knowgrph/doc-default/{canonicalPath}, /knowgrph/doc/{workspaceId}/{canonicalPath}
 
 ## Access Policy
 

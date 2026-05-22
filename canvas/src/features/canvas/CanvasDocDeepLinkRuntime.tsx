@@ -1,7 +1,8 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
-import { buildDocViewUrl, consumeDeepLinkParams, parseDocDeepLink } from './canvasDocDeepLink'
+import { buildDefaultDocViewUrl, buildDocViewUrl, consumeDeepLinkParams, parseDocDeepLink } from './canvasDocDeepLink'
+import type { DefaultRemoteDocDeepLink } from './canvasDocDeepLink'
 import type { RemoteDocDeepLink } from './canvasDocDeepLink'
 
 async function handleLocalDeepLink(
@@ -69,10 +70,12 @@ async function handleLocalDeepLink(
 }
 
 async function handleRemoteDeepLink(
-  link: RemoteDocDeepLink,
+  link: RemoteDocDeepLink | DefaultRemoteDocDeepLink,
   pushUiToast: (t: UiToastInput) => void,
 ): Promise<void> {
-  const docUrl = buildDocViewUrl(link.workspaceId, link.canonicalPath)
+  const docUrl = link.kind === 'default-remote'
+    ? buildDefaultDocViewUrl(link.canonicalPath)
+    : buildDocViewUrl(link.workspaceId, link.canonicalPath)
   const toastId = 'deep-link:doc-import'
 
   pushUiToast({ id: toastId, kind: 'neutral', message: 'Loading shared document…', ttlMs: null, dismissible: false })

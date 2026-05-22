@@ -106,7 +106,8 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     return false
   }, [])
   const defaultBuildShareUrl = React.useCallback((entryPath: WorkspacePath): string | null => {
-    if (buildShareUrl) return buildShareUrl(entryPath)
+    const publishedShareUrl = buildShareUrl?.(entryPath)
+    if (publishedShareUrl) return publishedShareUrl
     const relative = String(entryPath || '').replace(/^\/+/, '')
     if (!relative) return null
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
