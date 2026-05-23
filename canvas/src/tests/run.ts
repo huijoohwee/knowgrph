@@ -617,6 +617,25 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.flowEditor.nodeOverlay.drag.rafLatestScheduler',
       modFlowOverlayDrag.testFlowEditorNodeOverlayEditorUsesRafLatestSchedulerForDrags,
     )
+
+    const modWebMcpRuntime = await import('../__tests__/webMcpRuntime.test')
+    await execTest(
+      results,
+      'agentReady.webMcpRuntime.lateBinding.sameOriginStoragePaths',
+      modWebMcpRuntime.testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths,
+    )
+    await execTest(
+      results,
+      'agentReady.webMcpRuntime.provideContext.toolSet',
+      modWebMcpRuntime.testWebMcpRuntimeProvidesContextWhenRegisterToolIsUnavailable,
+    )
+
+    const modAgentReadyHtmlFallback = await import('../__tests__/agentReadyWebMcpHtmlFallback.test')
+    await execTest(
+      results,
+      'agentReady.webMcpHtmlFallback.lateBinding.sameOriginStoragePaths',
+      modAgentReadyHtmlFallback.testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOriginStoragePaths,
+    )
   } finally {
     bootstrap?.restore()
   }

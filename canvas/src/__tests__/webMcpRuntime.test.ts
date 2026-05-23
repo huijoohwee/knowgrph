@@ -10,6 +10,8 @@ import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 
 type RegisteredTool = {
   name: string
+  description?: string
+  inputSchema?: Record<string, unknown>
   execute: (input?: Record<string, unknown>) => Promise<unknown>
 }
 
@@ -443,6 +445,74 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       sourceFiles: previousSourceFiles,
     } as never)
     useMarkdownExplorerStore.setState({ activePath: previousExplorerActivePath })
+    resetKnowgrphWebMcpRuntimeForTests()
+    restore()
+  }
+}
+
+export async function testWebMcpRuntimeProvidesContextWhenRegisterToolIsUnavailable(): Promise<void> {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const { restore } = initJsdomHarness()
+  const providedTools: RegisteredTool[] = []
+
+  try {
+    delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    resetKnowgrphWebMcpRuntimeForTests()
+
+    const navigatorObject = window.navigator as Navigator & {
+      modelContext?: {
+        provideContext?: (context: { tools: RegisteredTool[] }) => void
+      }
+    }
+    try {
+      delete navigatorObject.modelContext
+    } catch {
+      navigatorObject.modelContext = undefined
+    }
+
+    navigatorObject.modelContext = {
+      provideContext(context) {
+        providedTools.splice(0, providedTools.length, ...context.tools)
+      },
+    }
+
+    installKnowgrphWebMcpRuntime()
+
+    if (document.documentElement.dataset.kgWebmcpContext !== 'installed') {
+      throw new Error(
+        `expected installed runtime state after provideContext registration, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
+      )
+    }
+    if (providedTools.length !== 12) {
+      throw new Error(`expected provideContext to receive 12 WebMCP tools, got ${providedTools.length}`)
+    }
+    const providedToolNames = providedTools.map(tool => tool.name)
+    const expectedNames = [
+      'knowgrph.list_source_files',
+      'knowgrph.read_source_file',
+      'knowgrph.read_shared_document',
+      'knowgrph.inspect_shared_document_structure',
+      'knowgrph.inspect_local_workspace_document',
+      'knowgrph.inspect_local_canvas_topology',
+      'knowgrph.inspect_local_canvas_snapshot',
+      'knowgrph.inspect_local_3d_camera_pose',
+      'knowgrph.inspect_local_3d_layout_positions',
+      'knowgrph.inspect_local_2d_zoom_viewport',
+      'knowgrph.inspect_local_source_files_snapshot',
+      'knowgrph.inspect_agent_surface',
+    ]
+    if (expectedNames.some(name => !providedToolNames.includes(name))) {
+      throw new Error(`expected provideContext tool set to include all shared and browser-local tools, got ${providedToolNames.join(', ')}`)
+    }
+    if (new Set(providedToolNames).size !== providedToolNames.length) {
+      throw new Error(`expected provideContext tool names to be unique, got ${providedToolNames.join(', ')}`)
+    }
+    if (providedTools.some(tool => !tool.description?.trim() || typeof tool.inputSchema !== 'object')) {
+      throw new Error(`expected provideContext tools to expose descriptions and input schemas, got ${JSON.stringify(providedTools)}`)
+    }
+  } finally {
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
     resetKnowgrphWebMcpRuntimeForTests()
     restore()
   }

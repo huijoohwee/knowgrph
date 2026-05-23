@@ -2,8 +2,8 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad-proposed.md](knowgrph-mcp-service-prd-tad-proposed.md).
 
-**Document Version**: 0.4.9  
-**Date**: 2026-05-22  
+**Document Version**: 0.4.10  
+**Date**: 2026-05-23  
 **Status**: Proposed supplement
 
 ---
@@ -27,8 +27,11 @@ It answers three questions:
 | Local stdio MCP | Shipped | `mcp/server.js` | local subprocess and browser-bridge tools |
 | Local stdio MCP docs | Shipped | `mcp/README.md` | local configuration and usage |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP |
+| Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects shared five-tool WebMCP into `/knowgrph` HTML surfaces |
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers twelve read-only tools, including `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
+| Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | installs app-runtime WebMCP on page load |
 | Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published Pages/HTTP tool set = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface` |
+| Agent-ready metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | health, API catalog, OpenAPI, MCP server card, A2A agent card, agent-skills |
 | MainPanel MCP | Shipped | `canvas/src/features/panels/views/McpHubView.tsx` | thin `SettingsView mode="mcp"` shell |
 | MainPanel Integrations | Shipped | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | thin `SettingsView mode="integrations"` shell |
 | Shared MainPanel chat readiness | Shipped | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | presets, routing, model refresh |
@@ -77,6 +80,18 @@ It answers three questions:
 
 ---
 
+## Known Compatibility Seams
+
+These exist in code today but are not canonical architecture:
+
+- parser compatibility still recognizes legacy downstream grouping material such as `clusters` in `markdownFrontmatterFlowGraph.*`
+- chat recovery still strips `kg:subgraphs`, `clusters`, `groups`, and `layers` upstream before validation retry
+- `frontmatter:chatKnowgrphRelaxed` remains a downstream parser leniency seam and must not be treated as a second upstream authoring contract
+
+These seams are compatibility debt, not an approved authoring surface.
+
+---
+
 ## E2E Contract
 
 ```mermaid
@@ -115,6 +130,7 @@ The following are explicitly forbidden:
 - adding a second MainPanel MCP config or routing surface outside `SettingsView` and `useSettingsChatAssist()`
 - adding a second LLM output -> Markdown -> Canvas pipeline outside the current chat submit, KGC validation, finalize, and parser/apply owners
 - treating `kg:subgraphs`, `clusters`, `groups`, or `layers` as upstream authoring alternatives to `flow.subgraphs`
+- treating downstream parser compatibility such as `frontmatter:chatKnowgrphRelaxed` as an upstream contract
 - treating the prod mirror as canonical deploy authority
 - reintroducing server-side custom-domain self-fetch for storage-backed document reads
 
@@ -134,7 +150,7 @@ If a future remote MCP service is added, it must:
 
 ## Review Checklist
 
-- [x] Companion aligns with the main PRD/TAD `0.4.0`
+- [x] Companion aligns with the main PRD/TAD `0.4.10`
 - [x] Owner map points only to files that actually exist in the repo
 - [x] Shipped vs proposed boundary is explicit
 - [x] E2E MainPanel -> FloatingPanel Chat -> KGC -> Canvas contract is documented
@@ -142,4 +158,4 @@ If a future remote MCP service is added, it must:
 
 ---
 
-*Document Version: 0.4.0 · Updated: 2026-05-22*
+*Document Version: 0.4.10 · Updated: 2026-05-23*

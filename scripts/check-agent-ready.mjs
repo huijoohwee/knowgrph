@@ -11,6 +11,17 @@ const expectedTools = buildKnowgrphAgentReadyToolContracts({
 })
 const expectedToolNames = expectedTools.map((tool) => tool.name)
 const expectedWebToolNames = expectedTools.map((tool) => tool.webName)
+const expectedA2aSkillIds = [
+  'list-source-files',
+  'read-source-file',
+  'read-shared-document',
+  'inspect-shared-document-structure',
+  'inspect-agent-surface',
+]
+const expectedAgentSkillNames = [
+  'knowgrph-source-files',
+  'knowgrph-webmcp-readiness',
+]
 const preferredSharedDocSample = {
   workspaceId: 'kgws:canonical-docs',
   canonicalPath: 'huijoohwee/docs/knowgrph-design-demo.md',
@@ -226,6 +237,7 @@ const checks = [
         && payload.supportedInterfaces.some((entry) => entry?.url === `${canonicalBaseUrl}/mcp`)
         && payload.capabilities
         && Array.isArray(payload.skills)
+        && expectedA2aSkillIds.every((skillId) => payload.skills.some((skill) => skill?.id === skillId))
         && payload.skills.every((skill) => skill?.id && skill?.name && skill?.description)
     },
   },
@@ -414,7 +426,10 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      return response.ok && Array.isArray(payload.skills) && payload.skills.every((skill) => skill.name && skill.type && skill.url && skill.sha256)
+      return response.ok
+        && Array.isArray(payload.skills)
+        && expectedAgentSkillNames.every((skillName) => payload.skills.some((skill) => skill?.name === skillName))
+        && payload.skills.every((skill) => skill.name && skill.type && skill.url && skill.sha256)
     },
   },
   {
@@ -485,6 +500,7 @@ const checks = [
     assert: async (response, body) =>
       response.ok
       && body.includes('kgWebmcpContext')
+      && body.includes('provideContext({ tools: nextTools })')
       && body.includes('registerTool(tool, controller ? { signal: controller.signal } : {})')
       && body.includes('AbortController')
       && body.includes('awaiting-model-context')

@@ -48,6 +48,55 @@ const WORKSPACE_ID_PARAM = "kgWorkspaceId";
 const CANONICAL_PATH_PARAM = "kgCanonicalPath";
 
 const normalizeToolString = (value) => String(value || "").trim();
+const AGENT_READY_A2A_SKILL_META = {
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles]: {
+    id: "list-source-files",
+    tags: ["mcp", "discovery", "source-files", "read-only"],
+    examples: ["List the published Knowgrph Source Files."],
+    outputModes: ["text/markdown", "application/json"],
+  },
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile]: {
+    id: "read-source-file",
+    tags: ["mcp", "read", "markdown", "workspace"],
+    examples: ["Read the published source file for docs/getting-started.md."],
+    outputModes: ["text/markdown", "application/json"],
+  },
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument]: {
+    id: "read-shared-document",
+    tags: ["mcp", "read", "shared-document", "markdown"],
+    examples: ["Read the Knowgrph shared document behind this share URL."],
+    outputModes: ["text/markdown", "application/json"],
+  },
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure]: {
+    id: "inspect-shared-document-structure",
+    tags: ["mcp", "inspect", "shared-document", "structure"],
+    examples: ["Inspect the structure of this Knowgrph shared document."],
+    outputModes: ["application/json", "text/markdown"],
+  },
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface]: {
+    id: "inspect-agent-surface",
+    tags: ["mcp", "agent-ready", "discovery", "metadata"],
+    examples: ["Show the Knowgrph agent discovery metadata."],
+    outputModes: ["application/json", "text/markdown"],
+  },
+};
+const buildA2aSkillFromTool = (tool) => {
+  const meta = AGENT_READY_A2A_SKILL_META[tool.name] || {
+    id: tool.name.replace(/_/g, "-"),
+    tags: ["mcp", "read-only"],
+    examples: [`Call ${tool.name} on Knowgrph.`],
+    outputModes: ["application/json"],
+  };
+  return {
+    id: meta.id,
+    name: tool.title,
+    description: tool.description,
+    tags: meta.tags,
+    examples: meta.examples,
+    inputModes: ["application/json", "text/plain"],
+    outputModes: meta.outputModes,
+  };
+};
 
 export const agentReadyHomepageLinkHeaderValue = [
   `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
@@ -332,7 +381,7 @@ const oauthAuthorizationServer = {
 
 const a2aAgentCard = {
   name: "Knowgrph Agent",
-  description: "Agent-readable discovery and published source-file retrieval surface for Knowgrph.",
+  description: "Agent-readable discovery, published-document retrieval, and WebMCP-ready metadata surface for Knowgrph.",
   version: "0.1.0",
   provider: {
     organization: "airvio / joohwee",
@@ -370,35 +419,7 @@ const a2aAgentCard = {
     "text/markdown",
     "application/json",
   ],
-  skills: [
-    {
-      id: "discover-source-files",
-      name: "Discover Source Files",
-      description: "Lists published Knowgrph Source Files for downstream agent navigation and retrieval.",
-      tags: ["discovery", "source-files", "markdown"],
-      examples: ["List the published Knowgrph source files."],
-      inputModes: ["application/json", "text/plain"],
-      outputModes: ["text/markdown", "application/json"],
-    },
-    {
-      id: "read-source-file",
-      name: "Read Source File",
-      description: "Reads published Knowgrph markdown documents from the default or explicit workspace.",
-      tags: ["read", "markdown", "workspace"],
-      examples: ["Read the published source file for docs/getting-started.md."],
-      inputModes: ["application/json", "text/plain"],
-      outputModes: ["text/markdown", "application/json"],
-    },
-    {
-      id: "inspect-agent-surface",
-      name: "Inspect Agent Surface",
-      description: "Provides machine-readable discovery for health, MCP, OpenAPI, and related service metadata.",
-      tags: ["agent-ready", "discovery", "metadata"],
-      examples: ["Show the Knowgrph agent discovery metadata."],
-      inputModes: ["application/json", "text/plain"],
-      outputModes: ["application/json", "text/markdown"],
-    },
-  ],
+  skills: AGENT_READY_TOOL_CONTRACTS.map(buildA2aSkillFromTool),
 };
 
 const mcpServerCard = {
@@ -844,9 +865,9 @@ const injectWebMcpScript = async (response) => {
   return nextResponse;
 };
 
-const skillMarkdown = `# Knowgrph Source Files Skill
+const publishedDocsSkillMarkdown = `# Knowgrph Published Documents Skill
 
-Use this skill when an agent needs to discover and read published Knowgrph Source Files from the Cloudflare storage API.
+Use this skill when an agent needs to discover, read, or inspect published Knowgrph Source Files and shared documents.
 
 ## Tools
 
@@ -854,7 +875,29 @@ Use this skill when an agent needs to discover and read published Knowgrph Sourc
 - read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath} by default, or ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath} for an explicit workspace.
 - read_shared_document: resolve a Knowgrph share token or public share/document URL, then fetch the canonical published markdown document from storage.
 - inspect_shared_document_structure: inspect published Knowgrph shared-document frontmatter/body structure from a share token or public share/document URL.
-- inspect_agent_surface: inspect the deployed Knowgrph health, OpenAPI, MCP server-card, A2A agent-card, and agent-skills metadata.
+
+## Scope
+
+- Shared read-only surface across HTTP MCP, MCP server-card metadata, and deployed HTML WebMCP fallback.
+- Public/browser URLs stay canonical on ${SITE_ORIGIN}/api/storage/*.
+- Server-side Pages reads use ${STORAGE_FETCH_ORIGIN} to avoid custom-domain self-fetch rewrite failures.
+`;
+
+const webMcpReadinessSkillMarkdown = `# Knowgrph WebMCP Readiness Skill
+
+Use this skill when an agent or browser needs to inspect the deployed Knowgrph agent-ready surface and WebMCP lifecycle.
+
+## Shared deployed tools
+
+- inspect_agent_surface: inspect health, OpenAPI, API catalog, MCP server card, A2A card, and agent-skills metadata.
+
+## WebMCP implementation notes
+
+- Browser app runtime installs WebMCP on page load via navigator.modelContext in canvas/src/main.tsx.
+- Runtime prefers provideContext({ tools }) when available and also registers each tool with registerTool(tool, { signal }) when supported.
+- AbortController-backed registration is used so tools can be unregistered cleanly with the platform lifecycle.
+- Deployed HTML fallback injects the shared five-tool WebMCP surface on /knowgrph HTML routes.
+- Full app runtime additionally exposes browser-local inspect tools for the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
 `;
 
 const sha256Hex = async (text) => {
@@ -863,7 +906,8 @@ const sha256Hex = async (text) => {
   return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
-const skillMarkdownSha256 = sha256Hex(skillMarkdown);
+const publishedDocsSkillMarkdownSha256 = sha256Hex(publishedDocsSkillMarkdown);
+const webMcpReadinessSkillMarkdownSha256 = sha256Hex(webMcpReadinessSkillMarkdown);
 
 const agentSkillsIndex = async () => ({
   $schema: "https://agent-skills.dev/schemas/skills-index.v0.2.json",
@@ -872,9 +916,16 @@ const agentSkillsIndex = async () => ({
     {
       name: "knowgrph-source-files",
       type: "markdown",
-      description: "Discover and read published Knowgrph Source Files.",
+      description: "Discover and inspect published Knowgrph Source Files and shared documents.",
       url: `${APP_URL}.well-known/agent-skills/knowgrph-source-files.md`,
-      sha256: await skillMarkdownSha256,
+      sha256: await publishedDocsSkillMarkdownSha256,
+    },
+    {
+      name: "knowgrph-webmcp-readiness",
+      type: "markdown",
+      description: "Inspect Knowgrph WebMCP lifecycle, shared deployed MCP tools, and agent-ready metadata.",
+      url: `${APP_URL}.well-known/agent-skills/knowgrph-webmcp-readiness.md`,
+      sha256: await webMcpReadinessSkillMarkdownSha256,
     },
   ],
 });
@@ -1208,7 +1259,11 @@ export const buildAgentReadyStaticFiles = async () => ({
   },
   ".well-known/agent-skills/knowgrph-source-files.md": {
     contentType: "text/markdown; charset=utf-8",
-    body: skillMarkdown,
+    body: publishedDocsSkillMarkdown,
+  },
+  ".well-known/agent-skills/knowgrph-webmcp-readiness.md": {
+    contentType: "text/markdown; charset=utf-8",
+    body: webMcpReadinessSkillMarkdown,
   },
   ".well-known/http-message-signatures-directory": {
     contentType: "application/json; charset=utf-8",
@@ -1298,7 +1353,9 @@ const routeResponse = async (request) => {
     case `${APP_BASE_PATH}/.well-known/agent-skills/index.json`:
       return jsonResponse(await agentSkillsIndex());
     case `${APP_BASE_PATH}/.well-known/agent-skills/knowgrph-source-files.md`:
-      return textResponse(skillMarkdown, "text/markdown; charset=utf-8");
+      return textResponse(publishedDocsSkillMarkdown, "text/markdown; charset=utf-8");
+    case `${APP_BASE_PATH}/.well-known/agent-skills/knowgrph-webmcp-readiness.md`:
+      return textResponse(webMcpReadinessSkillMarkdown, "text/markdown; charset=utf-8");
     case `${APP_BASE_PATH}/.well-known/http-message-signatures-directory`:
       return jsonResponse(httpMessageSignaturesDirectory);
     default:

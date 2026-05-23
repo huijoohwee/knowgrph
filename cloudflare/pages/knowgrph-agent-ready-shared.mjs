@@ -4,7 +4,7 @@ export const APP_BASE_PATH = "/knowgrph";
 export const APP_URL = `${SITE_ORIGIN}${APP_BASE_PATH}/`;
 export const ROOT_URL = `${SITE_ORIGIN}/`;
 export const DEFAULT_WORKSPACE_ID = "kgws:canonical-docs";
-export const UPDATED_AT = "2026-05-21";
+export const UPDATED_AT = "2026-05-23";
 export const HEALTH_PATH = `${APP_BASE_PATH}/health`;
 export const HEALTH_URL = `${SITE_ORIGIN}${HEALTH_PATH}`;
 export const A2A_AGENT_CARD_PATH = "/.well-known/agent-card.json";
@@ -39,6 +39,13 @@ Knowgrph is an agent-readable knowledge graph workspace served at ${APP_URL}.
 - Source Files index: ${STORAGE_SOURCE_FILES_URL}
 - Default Source File documents: ${STORAGE_DEFAULT_DOC_PATTERN}
 - Workspace Source File documents: ${STORAGE_WORKSPACE_DOC_PATTERN}
+
+## WebMCP
+
+- Browser app runtime installs WebMCP on page load via \`navigator.modelContext\`.
+- Shared deployed WebMCP/HTTP MCP surface exposes five read-only tools for published Source Files, shared documents, and agent-surface inspection.
+- Full app runtime additionally exposes browser-local inspect tools for the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
+- Deployed HTML fallback injects the shared five-tool WebMCP surface on \`${APP_URL}\` HTML routes.
 `;
 
 export const markdownResponse = (body) =>

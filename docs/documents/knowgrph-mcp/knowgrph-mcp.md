@@ -28,13 +28,14 @@ Current local tools:
 
 This is the richest implemented MCP surface in the repo today, but it is local-only and stdio-only.
 
-### 1.2 Pages and browser read-only MCP
+### 1.2 Pages HTTP MCP, browser WebMCP, and HTML fallback
 
 **Status**: shipped  
 **Owners**:
 - `cloudflare/pages/knowgrph-agent-ready.mjs`
 - `canvas/src/features/agent-ready/webMcpRuntime.ts`
 - `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
+- `canvas/src/main.tsx`
 
 Current shared read-only tools:
 - `knowgrph.list_source_files`
@@ -51,6 +52,13 @@ Additional app-runtime browser-local tools:
 - `knowgrph.inspect_local_3d_layout_positions`
 - `knowgrph.inspect_local_2d_zoom_viewport`
 - `knowgrph.inspect_local_source_files_snapshot`
+
+Implementation-accurate readiness details:
+- the full app runtime installs WebMCP on page load through `installKnowgrphWebMcpRuntime()` in `canvas/src/main.tsx`
+- the runtime prefers `navigator.modelContext.provideContext({ tools })` when available and also calls `registerTool(tool, { signal })` with `AbortController` when supported
+- late binding is handled explicitly so WebMCP can install after `navigator.modelContext` appears
+- the deployed Pages HTML surface injects a shared five-tool WebMCP fallback on `/knowgrph` HTML routes
+- the same Pages owner also ships health, API catalog, OpenAPI, MCP server card, A2A agent card, and agent-skills metadata
 
 This surface is intentionally narrow and storage-backed. It is not the same thing as the richer future remote MCP platform proposed in the PRD/TAD.
 
@@ -94,7 +102,9 @@ This is the existing E2E path for:
 |---|---|---|
 | Local stdio MCP | local automation and dev workflows | `mcp/server.js` |
 | Pages HTTP MCP | published-document read-only access | `cloudflare/pages/knowgrph-agent-ready.mjs` |
-| Browser WebMCP | in-browser read-only access | `webMcpRuntime.ts` |
+| Browser WebMCP app runtime | in-browser read-only access | `webMcpRuntime.ts` + `main.tsx` |
+| Pages HTML WebMCP fallback | injected shared five-tool WebMCP on HTML routes | `cloudflare/pages/knowgrph-agent-ready.mjs` |
+| Agent-ready metadata | health, OpenAPI, MCP server card, A2A card, agent-skills | `cloudflare/pages/knowgrph-agent-ready.mjs` |
 | MainPanel MCP / Integrations | readiness, docs, routing, provider config | `SettingsView` + `useSettingsChatAssist.tsx` |
 | FloatingPanel Chat | validated KGC generation and canvas apply | `sidePanelChat/*` + parser/store owners |
 
@@ -147,6 +157,13 @@ Forbidden as parallel upstream authoring channels:
 - no stale aliases
 - no duplicate per-transport semantics
 
+### 3.5 Keep WebMCP implementation truthful
+
+- WebMCP is already implemented in repo; do not describe it as future-only work
+- browser app runtime WebMCP and deployed HTML fallback are separate shipped surfaces with different scope
+- shared deployed WebMCP/HTTP MCP contract stays on the five read-only tools
+- browser-local inspect tools remain app-runtime only unless a future contract explicitly promotes them
+
 ---
 
 ## 4) What is proposed next
@@ -169,6 +186,7 @@ Explicitly forbidden:
 - using the prod mirror as deploy authority
 - reintroducing server-side custom-domain self-fetch for storage-backed document reads
 - reintroducing parallel grouping authoring aliases beside `flow.subgraphs`
+- treating downstream parser compatibility for `clusters`, `groups`, `layers`, `kg:subgraphs`, or `frontmatter:chatKnowgrphRelaxed` as an upstream authoring contract
 
 ---
 
