@@ -37,7 +37,7 @@ import {
 } from './db'
 import { handleCrawlerSourceFiles, isKnowgrphStorageCrawlerRoute } from './crawler'
 import {
-  KNOWGRPH_STORAGE_DOC_VIEW_HEADERS as DOC_VIEW_HEADERS,
+  KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
   readPublishedMarkdown,
 } from '../shared/publishedDoc'
 
@@ -447,12 +447,6 @@ const handleExport = async (request: Request, env: KnowgrphStorageWorkerEnv, db:
   })
 }
 
-const DOC_VIEW_HEADERS = {
-  'content-type': 'text/markdown; charset=utf-8',
-  'cache-control': 'public, max-age=60, must-revalidate',
-  ...CORS_HEADERS,
-}
-
 const readDocRouteSegments = (
   pathname: string,
   prefix: string,
@@ -486,7 +480,13 @@ const handleDocView = async (request: Request, _env: KnowgrphStorageWorkerEnv, d
   if (!route) return errorResponse(400, 'bad_request', 'workspaceId and canonicalPath are required')
   const contentMd = await readPublishedMarkdown(db, { workspaceId: route.workspaceId, canonicalPath: route.canonicalPath })
   if (contentMd === null) return errorResponse(404, 'not_found', 'document not found')
-  return new Response(contentMd, { status: 200, headers: DOC_VIEW_HEADERS })
+  return new Response(contentMd, {
+    status: 200,
+    headers: {
+      ...KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
+      ...CORS_HEADERS,
+    },
+  })
 }
 
 const handleDefaultDocView = async (request: Request, _env: KnowgrphStorageWorkerEnv, db: D1DatabaseLike): Promise<Response> => {
@@ -495,7 +495,13 @@ const handleDefaultDocView = async (request: Request, _env: KnowgrphStorageWorke
   if (!route) return errorResponse(400, 'bad_request', 'canonicalPath is required')
   const contentMd = await readPublishedMarkdown(db, { workspaceId: route.workspaceId, canonicalPath: route.canonicalPath })
   if (contentMd === null) return errorResponse(404, 'not_found', 'document not found')
-  return new Response(contentMd, { status: 200, headers: DOC_VIEW_HEADERS })
+  return new Response(contentMd, {
+    status: 200,
+    headers: {
+      ...KNOWGRPH_STORAGE_DOC_VIEW_HEADERS,
+      ...CORS_HEADERS,
+    },
+  })
 }
 
 export const createKnowgrphStorageWorker = () => ({

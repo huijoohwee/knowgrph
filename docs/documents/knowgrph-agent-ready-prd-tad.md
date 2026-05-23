@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.25.0
+version: 1.26.0
 status: implemented
 created: 2026-05-21
-updated: 2026-05-22
+updated: 2026-05-23
 author: airvio / joohwee
 domain: knowgrph
 tags: [agent-ready, cloudflare, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, chat, kgc, canvas, prd, tad]
@@ -32,6 +32,9 @@ This document replaces two stale narratives at once:
 - roadmap narratives that blur the boundary between the shipped read-only Pages MCP surface and
   a larger still-proposed remote MCP platform documented separately in
   `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md`
+- crawl-path narratives that imply agents should read Markdown-pane content from
+  `huijoohwee/docs` instead of the published Editor Workspace -> Source Files -> D1 document-view
+  pipeline
 
 In the current repo, Knowgrph already ships the service-homepage agent-readiness surface on
 `https://airvio.co/knowgrph/`, plus a separate in-browser MainPanel -> FloatingPanel Chat -> KGC
@@ -44,6 +47,8 @@ The active work is therefore not "add the first agent-ready surface." The active
 - keep `/knowgrph/` as the canonical service homepage for agent discovery
 - preserve the shipped read-only Pages MCP and browser WebMCP contracts as the truthful
   implementation baseline
+- keep crawler-visible Markdown reads pinned to the published D1-backed Source Files and doc-view
+  routes that derive from the Editor Workspace Markdown pane
 - document MainPanel `mcp` and `integrations` as thin shells over shared `SettingsView` ownership
   instead of parallel configuration systems
 - document the existing FloatingPanel Chat -> LLM output -> YAML frontmatter -> Canvas graph
@@ -60,6 +65,10 @@ The active work is therefore not "add the first agent-ready surface." The active
 Make `https://airvio.co/knowgrph/` discoverable to agents, browser-resident tools, and
 Cloudflare-based crawlers without introducing a parallel architecture, duplicate deploy owner, or
 stale downstream patches.
+
+Crawler-visible Markdown pane content must resolve from the published Editor Workspace -> Source
+Files -> storage-worker D1 document routes, not from repo-local docs trees such as
+`/Users/huijoohwee/Documents/GitHub/huijoohwee/docs`.
 
 ### Deployment topology
 
@@ -158,6 +167,7 @@ Knowgrph does not currently aim to:
 | Agent Skills index | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Index is intentionally minimal |
 | Default workspace markdown doc route | Implemented | `cloudflare/workers/knowgrph-storage/index.ts` | Published default workspace only |
 | Source Files index and `llms.txt` | Implemented | `cloudflare/workers/knowgrph-storage/crawler.ts` | Service doc remains intentionally compact |
+| Crawler-visible Markdown pane path | Implemented | `cloudflare/workers/knowgrph-storage/crawler.ts` + `cloudflare/workers/knowgrph-storage/index.ts` | Agents read published Editor Workspace Markdown through D1-backed Source Files index and doc-view routes, not from repo-local docs directories |
 | Publish sync and Pages control-file hygiene | Implemented | `scripts/sync-pages-knowgrph.mjs` | Must keep mirror non-authoritative |
 | PWA base-path correctness | Implemented | `canvas/index.html` and Pages root config | Must keep `%BASE_URL%manifest.webmanifest` invariant |
 | Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Proposed only | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md` | Must not be documented here as already shipped on the Pages agent-ready surface |
@@ -187,6 +197,7 @@ Knowgrph does not currently aim to:
 | Chat finalize and canvas bridge | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Owns canonical workspace persistence then canvas apply |
 | Storage route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Owns workspace id constant and route builders |
 | Storage worker doc routes | `cloudflare/workers/knowgrph-storage/index.ts` | Serves `/api/storage/doc-default/*` and `/api/storage/doc/*` |
+| Storage worker crawler index | `cloudflare/workers/knowgrph-storage/crawler.ts` | Lists D1-backed published Source Files and points crawlers at doc-view routes for Markdown-pane content |
 | Shared doc deep-link contract | `canvas/src/features/canvas/canvasDocDeepLink.ts` + `canvas/src/features/canvas/canvasDocShareToken.mjs` | Owns `/knowgrph/share/*`, `/knowgrph/doc/*`, `/knowgrph/doc-default/*`, opaque `kgShare` tokens, and published Share URL mapping from storage URLs |
 | Shared doc runtime import | `canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx` | Owns browser-side loading of shared documents into the Editor Workspace |
 | Source Files share URL builder | `canvas/src/features/markdown-workspace/MarkdownWorkspaceSourceFilesList.tsx` | Promotes published storage-backed entries to canonical public Share URLs |
@@ -228,6 +239,8 @@ The following are explicitly non-authoritative and must not be used to justify n
   this surface first
 - nested `content/knowgrph/_headers` or `content/knowgrph/_redirects` as deploy authority
 - downstream patches in `huijoohwee/content/knowgrph` that do not originate from `knowgrph`
+- any crawler-path claim that repo-local docs trees such as `huijoohwee/docs` are the published
+  source of Editor Workspace Markdown-pane content
 - agent-only Markdown serialization, local DOM scraping, or duplicate route contracts that bypass
   the existing workspace, storage, chat, and parser helpers
 - timestamp-only or ad hoc cache keys for future agent pipeline signatures when shared semantic-key
@@ -287,6 +300,21 @@ As an AI crawler or agent, I want Markdown from `/`, `/knowgrph/`, and published
 URLs when I send `Accept: text/markdown` so I receive a compact, token-efficient representation
 while HTML remains the browser default.
 
+#### Goal
+
+Return HTML responses as Markdown when agents request it.
+
+#### Result
+
+Knowgrph supports Markdown for Agents on the service homepage and published document routes.
+
+#### Resources
+
+- Cloudflare Markdown for Agents:
+  `https://developers.cloudflare.com/fundamentals/reference/markdown-for-agents/index.md`
+- Agent Skills markdown-negotiation skill:
+  `https://isitagentready.com/.well-known/agent-skills/markdown-negotiation/SKILL.md`
+
 #### Implemented acceptance
 
 - `GET /knowgrph/` with `Accept: text/markdown` returns
@@ -299,6 +327,8 @@ while HTML remains the browser default.
   published markdown document body instead of the HTML shell
 - `GET /knowgrph/doc-default/{canonicalPath}` with `Accept: text/markdown` returns the same
   published markdown body for default-workspace aliases
+- published markdown document reads resolve to the same Editor Workspace Markdown-pane content
+  after it is merged into Source Files and served from D1-backed storage doc routes
 - query-param alias `?kgShare={opaque-token}` remains supported by the same parser
 - semantic query aliases `kgWorkspaceId` + `kgCanonicalPath` remain supported by the same parser
 - the body starts with `# Knowgrph`
@@ -417,6 +447,8 @@ supplying a `workspaceId` first.
 - `/api/storage/doc/{workspaceId}/{canonicalPath}` remains available for explicit workspace reads
 - `/api/storage/source-files` and `/api/storage/llms.txt` advertise published source-file reads
 - WebMCP and HTTP MCP both default `workspaceId` to `kgws:canonical-docs`
+- crawler-visible default-workspace reads resolve from D1 `documents` rows through the storage
+  worker, not from repo-local docs directories
 
 #### Enhancement target
 
@@ -438,6 +470,8 @@ serves HTML to browsers and the Editor Workspace Markdown pane content to agents
 - `CanvasDocDeepLinkRuntime` can import both workspace-scoped and default-workspace shared routes
 - the Pages function proxies shared document Markdown from the storage worker instead of returning
   the generic homepage Markdown body
+- the shared document Markdown body is the published Editor Workspace Markdown-pane content exposed
+  through Source Files and D1 doc-view routes
 - `_redirects` reserves `/knowgrph/share/*`, `/knowgrph/doc/*`, and `/knowgrph/doc-default/*`
   for the Pages function so shared document URLs do not fall through to the apex redirect HTML
 - publish sync emits explicit shared-doc function files so route ownership does not rely only on
@@ -478,6 +512,26 @@ source-files, and Markdown SSOT so agents do not see a stale or alternate docume
    `materializeActiveWorkspaceEntryIntoSourceFiles()` and related active-path helpers.
 6. Compose or apply graph data through `applyComposedGraphFromSourceFiles()` only through the
    explicit graph-owner path.
+
+#### Published crawler path
+
+1. Persist the Editor Workspace Markdown pane through `commitMarkdownEditText()` and
+   `writeWorkspaceFileAndSync()`.
+2. Merge the published workspace entry into Source Files through
+   `mergeWorkspaceEntriesIntoSourceFiles()`.
+3. Publish crawler-visible Source Files metadata from D1 `documents` rows through
+   `/api/storage/source-files` and `/api/storage/llms.txt`.
+4. Resolve the canonical Markdown body from `/api/storage/doc-default/{canonicalPath}` or
+   `/api/storage/doc/{workspaceId}/{canonicalPath}`.
+5. Negotiate HTML routes such as `/knowgrph/doc-default/{canonicalPath}`,
+   `/knowgrph/doc/{workspaceId}/{canonicalPath}`, and `/knowgrph/share/{opaque-token}` to that same
+   published Markdown body when `Accept: text/markdown`.
+
+#### Explicit exclusion
+
+- `huijoohwee/docs` is not a published crawler surface for Editor Workspace Markdown-pane content.
+- Repo-local docs trees are authoring/support artifacts only unless they are first published into
+  the canonical D1-backed workspace/storage pipeline.
 
 #### Implemented invariants
 
@@ -706,8 +760,8 @@ runtime agent surface must converge on the same document identity and pipeline m
 | `/.well-known/http-message-signatures-directory` | GET | root discovery artifact |
 | `/api/storage/source-files` | GET | default Source Files markdown index |
 | `/api/storage/llms.txt` | GET | default Source Files plain-text agent entrypoint |
-| `/api/storage/doc-default/{canonicalPath}` | GET | default published workspace markdown document |
-| `/api/storage/doc/{workspaceId}/{canonicalPath}` | GET | workspace-scoped markdown document |
+| `/api/storage/doc-default/{canonicalPath}` | GET | default published Editor Workspace Markdown-pane document from the D1-backed storage worker |
+| `/api/storage/doc/{workspaceId}/{canonicalPath}` | GET | workspace-scoped Editor Workspace Markdown-pane document from the D1-backed storage worker |
 
 ## Component Inventory
 
@@ -744,6 +798,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | Browser | Shared doc import runtime | `canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx` | Implemented |
 | Storage | Default doc read route | `cloudflare/workers/knowgrph-storage/index.ts` | Implemented |
 | Storage | Source Files index and `llms.txt` | `cloudflare/workers/knowgrph-storage/crawler.ts` | Implemented |
+| Storage | D1-backed crawler doc-view source | `cloudflare/workers/knowgrph-storage/{crawler.ts,index.ts}` | Implemented |
 | Workspace runtime | Workspace-open SSOT | `canvas/src/features/workspace-table/workspaceTableSsot.ts` | Implemented |
 | Workspace runtime | Markdown edit convergence | `canvas/src/features/markdown-workspace/main/MarkdownWorkspaceMain.tsx` | Implemented |
 | Workspace runtime | Write-through sync | `canvas/src/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io.ts` | Implemented |
@@ -808,6 +863,8 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] finalized KGC workspace documents apply to Canvas through `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
 - [x] `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown
 - [x] default published workspace markdown is readable without explicit `workspaceId`
+- [x] crawler-visible Markdown-pane content resolves from the D1-backed storage worker doc-view
+  routes instead of repo-local docs trees
 - [x] root `.well-known` OpenAPI, MCP card, and Agent Skills artifacts are validation-covered
 - [x] publish sync owns the generated root `_headers` and `_redirects` blocks
 - [x] publish sync excludes nested `_headers` and `_redirects` from the mirrored app payload
@@ -843,4 +900,4 @@ The current implementation is shipped. The safe next steps are:
    to the separate proposed MCP service PRD/TAD until the repo gains those implementation owners.
 7. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
 
-*Document version: 1.18.0 - Shared-document structure inspection added to the shipped read-only MCP/WebMCP surface and smoke/docs kept aligned with agent-readiness SSOT - 2026-05-22*
+*Document version: 1.26.0 - Markdown negotiation clarified around the published Editor Workspace -> Source Files -> D1 doc-view crawler path and stale repo-local docs crawl narratives removed - 2026-05-23*

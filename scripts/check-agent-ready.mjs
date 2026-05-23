@@ -1,27 +1,37 @@
 import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
 import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
+import { buildAgentReadyDiscoveryExpectations } from '../cloudflare/pages/knowgrph-agent-ready-discovery.mjs'
 
 const canonicalOriginUrl = 'https://airvio.co'
 const canonicalBaseUrl = `${canonicalOriginUrl}/knowgrph`
 const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).replace(/\/+$/, '')
 const originUrl = new URL(baseUrl).origin
 const rootA2aAgentCardUrl = `${originUrl}/.well-known/agent-card.json`
+const appBasePath = new URL(baseUrl).pathname.replace(/\/+$/, '') || '/'
 const expectedTools = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: 'kgws:canonical-docs',
 })
-const expectedToolNames = expectedTools.map((tool) => tool.name)
+const expectedMcpToolEntries = expectedTools.map((tool) => ({
+  name: tool.name,
+  description: tool.description,
+  inputSchema: tool.inputSchema,
+})).sort((left, right) => left.name.localeCompare(right.name))
+const expectedBrowserOnlyTools = buildKnowgrphAgentReadyToolContracts({
+  defaultWorkspaceId: 'kgws:canonical-docs',
+  includeBrowserOnlyTools: true,
+}).filter((tool) => !expectedTools.some((sharedTool) => sharedTool.webName === tool.webName))
 const expectedWebToolNames = expectedTools.map((tool) => tool.webName)
-const expectedA2aSkillIds = [
-  'list-source-files',
-  'read-source-file',
-  'read-shared-document',
-  'inspect-shared-document-structure',
-  'inspect-agent-surface',
-]
-const expectedAgentSkillNames = [
-  'knowgrph-source-files',
-  'knowgrph-webmcp-readiness',
-]
+const expectedBrowserOnlyWebToolNames = expectedBrowserOnlyTools.map((tool) => tool.webName)
+const expectedDiscovery = buildAgentReadyDiscoveryExpectations({
+  appBasePath,
+  appA2aAgentCardPath: `${appBasePath}/.well-known/agent-card.json`,
+  healthPath: `${appBasePath}/health`,
+  toolContracts: expectedTools,
+})
+const expectedOpenApiPathKeys = expectedDiscovery.openApiPathKeys
+const expectedA2aSkills = expectedDiscovery.a2aSkills
+const expectedAgentSkills = expectedDiscovery.agentSkills
+const expectedAgentSkillNames = expectedAgentSkills.map((skill) => skill.name)
 const preferredSharedDocSample = {
   workspaceId: 'kgws:canonical-docs',
   canonicalPath: 'huijoohwee/docs/knowgrph-design-demo.md',
@@ -71,6 +81,17 @@ const resolveSharedDocSampleFromIndex = async () => {
 const sharedDocSample =
   await buildSharedDocSample(preferredSharedDocSample)
   || await resolveSharedDocSampleFromIndex()
+
+const sharedDocAliasUrls = sharedDocSample
+  ? {
+      kgShare: `${baseUrl}/?${PUBLISHED_DOC_SHARE_TOKEN_PARAM}=${encodeURIComponent(encodePublishedDocShareToken({
+        workspaceId: sharedDocSample.workspaceId,
+        canonicalPath: sharedDocSample.canonicalPath,
+      }))}`,
+      kgWorkspaceCanonical: `${baseUrl}/?kgWorkspaceId=${encodeURIComponent(sharedDocSample.workspaceId)}&kgCanonicalPath=${encodeURIComponent(sharedDocSample.canonicalPath)}`,
+      kgPath: `${baseUrl}/?kgPath=${encodeURIComponent(`/doc/${sharedDocSample.workspaceId}/${sharedDocSample.canonicalPath}`)}`,
+    }
+  : null
 
 const isRootRedirectHtml = (body) => {
   const text = String(body || '')
@@ -179,6 +200,33 @@ const checks = [
           && response.headers.get('content-type')?.includes('text/markdown')
           && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
           && body.trim() === sharedDocSample.markdown.trim(),
+      }, {
+        name: 'shared-doc-markdown-negotiation-kgshare-alias',
+        url: sharedDocAliasUrls.kgShare,
+        accept: 'text/markdown',
+        assert: async (response, body) =>
+          response.ok
+          && response.headers.get('content-type')?.includes('text/markdown')
+          && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
+          && body.trim() === sharedDocSample.markdown.trim(),
+      }, {
+        name: 'shared-doc-markdown-negotiation-kgworkspace-canonical-alias',
+        url: sharedDocAliasUrls.kgWorkspaceCanonical,
+        accept: 'text/markdown',
+        assert: async (response, body) =>
+          response.ok
+          && response.headers.get('content-type')?.includes('text/markdown')
+          && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
+          && body.trim() === sharedDocSample.markdown.trim(),
+      }, {
+        name: 'shared-doc-markdown-negotiation-kgpath-alias',
+        url: sharedDocAliasUrls.kgPath,
+        accept: 'text/markdown',
+        assert: async (response, body) =>
+          response.ok
+          && response.headers.get('content-type')?.includes('text/markdown')
+          && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
+          && body.trim() === sharedDocSample.markdown.trim(),
       }]
     : []),
   {
@@ -215,11 +263,11 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
+      const actualPathKeys = Object.keys(payload.paths || {}).sort()
       return response.ok
         && payload.openapi === '3.1.0'
-        && payload.paths?.['/knowgrph/health']?.get
-        && payload.paths?.['/knowgrph/mcp']?.get
-        && payload.paths?.['/api/storage/source-files']?.get
+        && actualPathKeys.length === expectedOpenApiPathKeys.length
+        && actualPathKeys.join('|') === expectedOpenApiPathKeys.join('|')
     },
   },
   {
@@ -237,7 +285,13 @@ const checks = [
         && payload.supportedInterfaces.some((entry) => entry?.url === `${canonicalBaseUrl}/mcp`)
         && payload.capabilities
         && Array.isArray(payload.skills)
-        && expectedA2aSkillIds.every((skillId) => payload.skills.some((skill) => skill?.id === skillId))
+        && payload.skills.length === expectedA2aSkills.length
+        && expectedA2aSkills.every((expectedSkill) =>
+          payload.skills.some((skill) =>
+            skill?.id === expectedSkill.id
+            && skill?.name === expectedSkill.name
+            && skill?.description === expectedSkill.description,
+          ))
         && payload.skills.every((skill) => skill?.id && skill?.name && skill?.description)
     },
   },
@@ -269,18 +323,21 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      const tools = payload.capabilities?.tools
+      const tools = Array.isArray(payload.capabilities?.tools)
+        ? payload.capabilities.tools.map((tool) => ({
+            name: tool?.name,
+            description: tool?.description,
+            inputSchema: tool?.inputSchema || {},
+          })).sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
+        : null
       return response.ok
         && payload.serverInfo?.name
         && payload.serverInfo?.version
         && payload.transport
         && payload.links?.status === `${canonicalBaseUrl}/health`
         && Array.isArray(tools)
-        && expectedTools.every((tool) =>
-          tools.some((entry) =>
-            entry?.name === tool.name
-            && JSON.stringify(entry?.inputSchema || {}) === JSON.stringify(tool.inputSchema),
-          ))
+        && tools.length === expectedMcpToolEntries.length
+        && JSON.stringify(tools) === JSON.stringify(expectedMcpToolEntries)
     },
   },
   {
@@ -326,14 +383,69 @@ const checks = [
     }),
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      const tools = payload.result?.tools
+      const tools = Array.isArray(payload.result?.tools)
+        ? payload.result.tools.map((tool) => ({
+            name: tool?.name,
+            description: tool?.description,
+            inputSchema: tool?.inputSchema || {},
+          })).sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
+        : null
       return response.ok
         && Array.isArray(tools)
-        && expectedTools.every((tool) =>
-          tools.some((entry) =>
-            entry?.name === tool.name
-            && JSON.stringify(entry?.inputSchema || {}) === JSON.stringify(tool.inputSchema),
-          ))
+        && tools.length === expectedMcpToolEntries.length
+        && JSON.stringify(tools) === JSON.stringify(expectedMcpToolEntries)
+    },
+  },
+  {
+    name: 'mcp-list-source-files',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 21,
+      method: 'tools/call',
+      params: {
+        name: 'list_source_files',
+        arguments: {},
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const result = payload.result?.structuredContent
+      return response.ok
+        && payload.result?.isError === false
+        && result?.workspaceId === 'kgws:canonical-docs'
+        && typeof result?.markdownIndex === 'string'
+        && result.markdownIndex.includes('/api/storage/doc-default/')
+        && result.markdownIndex.length > 0
+    },
+  },
+  {
+    name: 'mcp-read-source-file',
+    url: `${baseUrl}/mcp`,
+    method: 'POST',
+    accept: 'application/json',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 22,
+      method: 'tools/call',
+      params: {
+        name: 'read_source_file',
+        arguments: {
+          canonicalPath: preferredSharedDocSample.canonicalPath,
+        },
+      },
+    }),
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      const result = payload.result?.structuredContent
+      return response.ok
+        && payload.result?.isError === false
+        && result?.workspaceId === 'kgws:canonical-docs'
+        && result?.canonicalPath === preferredSharedDocSample.canonicalPath
+        && typeof result?.markdown === 'string'
+        && result.markdown.trim().length > 0
     },
   },
   ...(sharedDocSample
@@ -428,9 +540,38 @@ const checks = [
       const payload = JSON.parse(body)
       return response.ok
         && Array.isArray(payload.skills)
-        && expectedAgentSkillNames.every((skillName) => payload.skills.some((skill) => skill?.name === skillName))
+        && payload.skills.length === expectedAgentSkills.length
+        && expectedAgentSkills.every((expectedSkill) =>
+          payload.skills.some((skill) =>
+            skill?.name === expectedSkill.name
+            && skill?.type === expectedSkill.type
+            && skill?.description === expectedSkill.description
+            && skill?.url === `${canonicalBaseUrl}${expectedSkill.path}`,
+          ))
         && payload.skills.every((skill) => skill.name && skill.type && skill.url && skill.sha256)
     },
+  },
+  {
+    name: 'agent-skill-source-files-markdown',
+    url: `${baseUrl}/.well-known/agent-skills/knowgrph-source-files.md`,
+    accept: 'text/markdown',
+    assert: async (response, body) =>
+      response.ok
+      && response.headers.get('content-type')?.includes('text/markdown')
+      && body.includes('# Knowgrph Published Documents Skill')
+      && body.includes('/api/storage/source-files')
+      && body.includes('/api/storage/doc-default/{canonicalPath}'),
+  },
+  {
+    name: 'agent-skill-webmcp-readiness-markdown',
+    url: `${baseUrl}/.well-known/agent-skills/knowgrph-webmcp-readiness.md`,
+    accept: 'text/markdown',
+    assert: async (response, body) =>
+      response.ok
+      && response.headers.get('content-type')?.includes('text/markdown')
+      && body.includes('# Knowgrph WebMCP Readiness Skill')
+      && body.includes('navigator.modelContext')
+      && body.includes('inspect_agent_surface'),
   },
   {
     name: 'jwks',
@@ -490,8 +631,11 @@ const checks = [
     assert: async (response, body) =>
       response.ok
       && expectedWebToolNames.every((toolName) => body.includes(toolName))
+      && expectedBrowserOnlyWebToolNames.every((toolName) => !body.includes(toolName))
       && body.includes('modelContext')
-      && body.includes('kgWebmcpTools'),
+      && body.includes('kgWebmcpTools')
+      && body.includes('toolDefinitions')
+      && body.includes('toolExecutors'),
   },
   {
     name: 'webmcp-html-lifecycle-contract',
@@ -500,13 +644,14 @@ const checks = [
     assert: async (response, body) =>
       response.ok
       && body.includes('kgWebmcpContext')
-      && body.includes('provideContext({ tools: nextTools })')
+      && body.includes('createWebMcpLifecycleController')
+      && body.includes('provideContext({ tools })')
       && body.includes('registerTool(tool, controller ? { signal: controller.signal } : {})')
       && body.includes('AbortController')
       && body.includes('awaiting-model-context')
       && body.includes('fallback-readable')
       && body.includes('retry-exhausted')
-      && body.includes('window.location && window.location.hostname')
+      && body.includes('root.window && root.window.navigator')
       && body.includes('currentOrigin || siteOrigin')
       && body.includes('"/api/storage/source-files"'),
   },

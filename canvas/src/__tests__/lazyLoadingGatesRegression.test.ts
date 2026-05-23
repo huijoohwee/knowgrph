@@ -415,6 +415,9 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (canvasPageText.includes("import { CanvasDocDeepLinkRuntime } from '@/features/canvas/CanvasDocDeepLinkRuntime'")) {
     throw new Error('expected Canvas page to avoid eagerly importing CanvasDocDeepLinkRuntime into the default route-shell boot path')
   }
+  if (!canvasPageText.includes("import { parseDocDeepLink } from '@/features/canvas/canvasDocDeepLink'")) {
+    throw new Error('expected Canvas page doc deep-link mount gate to reuse the canonical deep-link parser')
+  }
   if (canvasPageText.includes("import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'")) {
     throw new Error('expected Canvas page to avoid eagerly importing CanvasQueryBootstrapRuntime into the default route-shell boot path')
   }
@@ -429,6 +432,16 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
   if (!canvasPageText.includes('const hasDocDeepLinkParams = React.useMemo')) {
     throw new Error('expected Canvas page to compute whether doc deep-link runtime is needed before importing it')
+  }
+  if (!canvasPageText.includes("Boolean(parseDocDeepLink(String(location.search || '')))")) {
+    throw new Error('expected Canvas page doc deep-link mount gate to derive from parseDocDeepLink(location.search)')
+  }
+  if (
+    canvasPageText.includes("search.includes('doc=')")
+    || canvasPageText.includes("search.includes('path=')")
+    || canvasPageText.includes("search.includes('kgShare=')")
+  ) {
+    throw new Error('expected Canvas page doc deep-link mount gate to forbid stale string-sniff aliases')
   }
   if (canvasPageText.includes("import { CanvasFrontmatterRuntime } from '@/features/canvas/CanvasFrontmatterRuntime'")) {
     throw new Error('expected Canvas page to avoid eagerly importing CanvasFrontmatterRuntime into the default route-shell boot path')

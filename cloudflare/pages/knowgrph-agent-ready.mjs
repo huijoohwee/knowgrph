@@ -2,12 +2,28 @@ import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
+import {
+  buildAgentSurfaceInspectionPayload,
+  createAgentSurfaceInspectionExecutor,
+} from "../../canvas/src/features/agent-ready/agentSurfaceInspection.mjs";
+import { createPublishedAgentReadyToolExecutors } from "../../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
+import { createWebMcpLifecycleController } from "../../canvas/src/features/agent-ready/webMcpLifecycle.mjs";
 import { inspectSharedDocumentStructure } from "../../canvas/src/features/agent-ready/sharedDocumentStructureInspection.mjs";
 import {
-  decodePublishedDocShareToken,
-  PUBLISHED_DOC_SHARE_TOKEN_PARAM,
+  AGENT_READY_AGENT_SKILL_DEFINITIONS,
+  buildAgentReadyA2aSkills,
+  buildAgentReadyAgentSkillsIndex,
+  buildAgentReadyOpenApiPaths,
+} from "./knowgrph-agent-ready-discovery.mjs";
+import {
+  createPublishedDocIdentityResolver,
   resolvePublishedDocIdentity,
 } from "../../canvas/src/features/canvas/canvasDocShareToken.mjs";
+import {
+  buildKnowgrphStorageDefaultDocPath,
+  buildKnowgrphStorageDocPath,
+  buildKnowgrphStorageSourceFilesIndexPath,
+} from "../../canvas/src/lib/storage/knowgrphStorageSyncContract.ts";
 import {
   A2A_AGENT_CARD_PATH,
   A2A_AGENT_CARD_URL,
@@ -38,65 +54,10 @@ const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
   const normalizedCanonicalPath = String(canonicalPath || "").trim();
   const normalizedWorkspaceId = String(workspaceId || "").trim();
   return normalizedWorkspaceId
-    ? `/api/storage/doc/${encodeURIComponent(normalizedWorkspaceId)}/${encodeURIComponent(normalizedCanonicalPath)}`
-    : `/api/storage/doc-default/${encodeURIComponent(normalizedCanonicalPath)}`;
+    ? buildKnowgrphStorageDocPath(normalizedWorkspaceId, normalizedCanonicalPath)
+    : buildKnowgrphStorageDefaultDocPath(normalizedCanonicalPath);
 };
-const DEFAULT_DOC_SHARE_PREFIX = `${APP_BASE_PATH}/doc-default/`;
-const WORKSPACE_DOC_SHARE_PREFIX = `${APP_BASE_PATH}/doc/`;
-const TOKEN_DOC_SHARE_PREFIX = `${APP_BASE_PATH}/share/`;
-const WORKSPACE_ID_PARAM = "kgWorkspaceId";
-const CANONICAL_PATH_PARAM = "kgCanonicalPath";
-
 const normalizeToolString = (value) => String(value || "").trim();
-const AGENT_READY_A2A_SKILL_META = {
-  [KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles]: {
-    id: "list-source-files",
-    tags: ["mcp", "discovery", "source-files", "read-only"],
-    examples: ["List the published Knowgrph Source Files."],
-    outputModes: ["text/markdown", "application/json"],
-  },
-  [KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile]: {
-    id: "read-source-file",
-    tags: ["mcp", "read", "markdown", "workspace"],
-    examples: ["Read the published source file for docs/getting-started.md."],
-    outputModes: ["text/markdown", "application/json"],
-  },
-  [KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument]: {
-    id: "read-shared-document",
-    tags: ["mcp", "read", "shared-document", "markdown"],
-    examples: ["Read the Knowgrph shared document behind this share URL."],
-    outputModes: ["text/markdown", "application/json"],
-  },
-  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure]: {
-    id: "inspect-shared-document-structure",
-    tags: ["mcp", "inspect", "shared-document", "structure"],
-    examples: ["Inspect the structure of this Knowgrph shared document."],
-    outputModes: ["application/json", "text/markdown"],
-  },
-  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface]: {
-    id: "inspect-agent-surface",
-    tags: ["mcp", "agent-ready", "discovery", "metadata"],
-    examples: ["Show the Knowgrph agent discovery metadata."],
-    outputModes: ["application/json", "text/markdown"],
-  },
-};
-const buildA2aSkillFromTool = (tool) => {
-  const meta = AGENT_READY_A2A_SKILL_META[tool.name] || {
-    id: tool.name.replace(/_/g, "-"),
-    tags: ["mcp", "read-only"],
-    examples: [`Call ${tool.name} on Knowgrph.`],
-    outputModes: ["application/json"],
-  };
-  return {
-    id: meta.id,
-    name: tool.title,
-    description: tool.description,
-    tags: meta.tags,
-    examples: meta.examples,
-    inputModes: ["application/json", "text/plain"],
-    outputModes: meta.outputModes,
-  };
-};
 
 export const agentReadyHomepageLinkHeaderValue = [
   `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
@@ -237,127 +198,11 @@ const openApi = {
   servers: [
     { url: SITE_ORIGIN, description: "Knowgrph Cloudflare deployment" },
   ],
-  paths: {
-    [HEALTH_PATH]: {
-      get: {
-        summary: "Read the Knowgrph agent-ready health status",
-        responses: {
-          "200": { description: "Health status in application/health+json format" },
-        },
-      },
-    },
-    [`${APP_BASE_PATH}/mcp`]: {
-      get: {
-        summary: "Read MCP transport metadata",
-        responses: {
-          "200": { description: "MCP transport metadata" },
-        },
-      },
-      post: {
-        summary: "Send a JSON-RPC MCP request",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                additionalProperties: true,
-              },
-            },
-          },
-        },
-        responses: {
-          "200": { description: "JSON-RPC result payload" },
-        },
-      },
-    },
-    [APP_A2A_AGENT_CARD_PATH]: {
-      get: {
-        summary: "Read the Knowgrph A2A Agent Card",
-        responses: {
-          "200": { description: "A2A Agent Card JSON" },
-        },
-      },
-    },
-    "/api/storage/llms.txt": {
-      get: {
-        summary: "Read the Source Files LLM index",
-        responses: {
-          "200": { description: "Plain-text LLM index" },
-        },
-      },
-    },
-    "/api/storage/source-files": {
-      get: {
-        summary: "List published Source Files",
-        responses: {
-          "200": { description: "Source Files index" },
-        },
-      },
-    },
-    "/api/storage/doc-default/{canonicalPath}": {
-      get: {
-        summary: "Read a default-workspace Source File markdown document",
-        parameters: [
-          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
-        ],
-        responses: {
-          "200": { description: "Markdown document from the default Editor Workspace" },
-          "404": { description: "Document not found" },
-        },
-      },
-    },
-    "/api/storage/doc/{workspaceId}/{canonicalPath}": {
-      get: {
-        summary: "Read a Source File markdown document",
-        parameters: [
-          { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
-          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
-        ],
-        responses: {
-          "200": { description: "Markdown document" },
-          "404": { description: "Document not found" },
-        },
-      },
-    },
-    [`${APP_BASE_PATH}/doc-default/{canonicalPath}`]: {
-      get: {
-        summary: "Read a default-workspace shared document",
-        parameters: [
-          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
-        ],
-        responses: {
-          "200": { description: "HTML for browsers or markdown when Accept includes text/markdown" },
-          "404": { description: "Document not found" },
-        },
-      },
-    },
-    [`${APP_BASE_PATH}/doc/{workspaceId}/{canonicalPath}`]: {
-      get: {
-        summary: "Read a shared document",
-        parameters: [
-          { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
-          { name: "canonicalPath", in: "path", required: true, schema: { type: "string" } },
-        ],
-        responses: {
-          "200": { description: "HTML for browsers or markdown when Accept includes text/markdown" },
-          "404": { description: "Document not found" },
-        },
-      },
-    },
-    [`${APP_BASE_PATH}/share/{shareToken}`]: {
-      get: {
-        summary: "Read a shared document through the canonical opaque share token route",
-        parameters: [
-          { name: "shareToken", in: "path", required: true, schema: { type: "string" } },
-        ],
-        responses: {
-          "200": { description: "HTML for browsers or published markdown when Accept includes text/markdown" },
-          "404": { description: "Document not found" },
-        },
-      },
-    },
-  },
+  paths: buildAgentReadyOpenApiPaths({
+    appBasePath: APP_BASE_PATH,
+    appA2aAgentCardPath: APP_A2A_AGENT_CARD_PATH,
+    healthPath: HEALTH_PATH,
+  }),
 };
 
 const oauthProtectedResource = {
@@ -419,7 +264,7 @@ const a2aAgentCard = {
     "text/markdown",
     "application/json",
   ],
-  skills: AGENT_READY_TOOL_CONTRACTS.map(buildA2aSkillFromTool),
+  skills: buildAgentReadyA2aSkills(AGENT_READY_TOOL_CONTRACTS),
 };
 
 const mcpServerCard = {
@@ -453,12 +298,20 @@ const webMcpTools = AGENT_READY_TOOL_CONTRACTS.map((tool) => ({
   inputSchema: tool.inputSchema,
   annotations: tool.annotations,
 }));
+const findWebMcpToolName = (toolId) =>
+  normalizeToolString(AGENT_READY_TOOL_CONTRACTS.find((tool) => tool.name === toolId)?.webName);
+const LIST_SOURCE_FILES_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles);
+const READ_SOURCE_FILE_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile);
+const READ_SHARED_DOCUMENT_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument);
+const INSPECT_SHARED_DOCUMENT_STRUCTURE_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure);
+const INSPECT_AGENT_SURFACE_WEB_TOOL_NAME = findWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface);
 
 export const webMcpScript = `(() => {
   const root = globalThis;
   const siteOrigin = ${JSON.stringify(SITE_ORIGIN)};
   const appBasePath = ${JSON.stringify(APP_BASE_PATH)};
   const defaultWorkspaceId = ${JSON.stringify(DEFAULT_WORKSPACE_ID)};
+  const toolDefinitions = ${JSON.stringify(webMcpTools)};
   const toolNames = ${JSON.stringify(webMcpTools.map((tool) => tool.name))};
   const lateBindingRetryDelayMs = 500;
   const lateBindingMaxAttempts = 20;
@@ -480,31 +333,6 @@ export const webMcpScript = `(() => {
     document.documentElement.dataset.kgWebmcpTools = toolNames.join(",");
     document.documentElement.dataset.kgWebmcpContext = state;
   };
-  const readGlobalNavigator = () => {
-    const windowNavigator = root.window && root.window.navigator;
-    if (windowNavigator && root.navigator !== windowNavigator) {
-      try {
-        Object.defineProperty(root, "navigator", {
-          configurable: true,
-          value: windowNavigator,
-        });
-      } catch {
-        root.navigator = windowNavigator;
-      }
-      return windowNavigator;
-    }
-    if (root.navigator) return root.navigator;
-    const nav = {};
-    try {
-      Object.defineProperty(root, "navigator", {
-        configurable: true,
-        value: nav,
-      });
-    } catch {
-      root.navigator = nav;
-    }
-    return nav;
-  };
   const buildDocPath = (canonicalPath, workspaceId = "") => {
     const normalizedCanonicalPath = normalizeString(canonicalPath);
     const normalizedWorkspaceId = normalizeString(workspaceId);
@@ -512,67 +340,10 @@ export const webMcpScript = `(() => {
       ? \`/api/storage/doc/\${encodeURIComponent(normalizedWorkspaceId)}/\${encodeURIComponent(normalizedCanonicalPath)}\`
       : \`/api/storage/doc-default/\${encodeURIComponent(normalizedCanonicalPath)}\`;
   };
-  const decodeSharePayload = (shareToken) => {
-    const normalizedToken = normalizeString(shareToken);
-    if (!normalizedToken) return null;
-    try {
-      const base64 = normalizedToken.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.length % 4 ? base64 + "=".repeat(4 - (base64.length % 4)) : base64;
-      const binary = (root.atob || (root.window && root.window.atob)).call(root, padded);
-      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-      const payload = JSON.parse(
-        typeof TextDecoder === "function" ? new TextDecoder().decode(bytes) : binary,
-      );
-      const canonicalPath = normalizeString(payload && payload.canonicalPath);
-      if (!canonicalPath) return null;
-      const workspaceId = normalizeString(payload && payload.workspaceId);
-      return {
-        canonicalPath,
-        workspaceId: workspaceId || null,
-      };
-    } catch {
-      return null;
-    }
-  };
-  const resolvePublishedDocIdentity = (input = {}) => {
-    const directShareToken = decodeSharePayload(input.shareToken);
-    if (directShareToken) return directShareToken;
-    const shareUrl = normalizeString(input.shareUrl);
-    if (!shareUrl) return null;
-    try {
-      const currentOrigin = normalizeString(window && window.location && window.location.origin);
-      const parsedUrl = new URL(shareUrl, currentOrigin || siteOrigin);
-      const shareTokenFromSearch = decodeSharePayload(parsedUrl.searchParams.get("kgShare"));
-      if (shareTokenFromSearch) return shareTokenFromSearch;
-      const canonicalPathFromSearch = normalizeString(decodeURIComponent(parsedUrl.searchParams.get("kgCanonicalPath") || ""));
-      if (canonicalPathFromSearch) {
-        const workspaceIdFromSearch = normalizeString(decodeURIComponent(parsedUrl.searchParams.get("kgWorkspaceId") || ""));
-        return {
-          canonicalPath: canonicalPathFromSearch,
-          workspaceId: workspaceIdFromSearch || null,
-        };
-      }
-      const normalizedPathname = String(parsedUrl.pathname || "").replace(/\\/+$/, "") || "/";
-      if (!normalizedPathname.startsWith(appBasePath)) return null;
-      const scopedPath = normalizedPathname.slice(appBasePath.length) || "/";
-      if (scopedPath.startsWith("/share/")) {
-        return decodeSharePayload(decodeURIComponent(scopedPath.slice("/share/".length)));
-      }
-      if (scopedPath.startsWith("/doc-default/")) {
-        const canonicalPath = normalizeString(decodeURIComponent(scopedPath.slice("/doc-default/".length)));
-        return canonicalPath ? { canonicalPath, workspaceId: null } : null;
-      }
-      if (!scopedPath.startsWith("/doc/")) return null;
-      const suffix = scopedPath.slice("/doc/".length);
-      const firstSlash = suffix.indexOf("/");
-      if (firstSlash < 1) return null;
-      const workspaceId = normalizeString(decodeURIComponent(suffix.slice(0, firstSlash)));
-      const canonicalPath = normalizeString(decodeURIComponent(suffix.slice(firstSlash + 1)));
-      return workspaceId && canonicalPath ? { workspaceId, canonicalPath } : null;
-    } catch {
-      return null;
-    }
-  };
+  const createPublishedDocIdentityResolver = ${createPublishedDocIdentityResolver.toString()};
+  const resolvePublishedDocIdentity = createPublishedDocIdentityResolver({
+    defaultAppBasePath: appBasePath,
+  });
   const buildStorageRequestUrl = (path) => {
     const safePath = normalizeString(path);
     if (!safePath) return "";
@@ -605,252 +376,55 @@ export const webMcpScript = `(() => {
     if (!response.ok) throw new Error(\`inspect_agent_surface failed with \${response.status} for \${url}\`);
     return response.json();
   };
-  const getRegistrationState = (context) => {
-    const existing = fallbackState.registrations.get(context);
-    if (existing) return existing;
-    const created = {
-      registeredToolNames: new Set(),
-      abortControllers: new Map(),
+  const buildAgentSurfaceInspectionPayload = ${buildAgentSurfaceInspectionPayload.toString()};
+  const createAgentSurfaceInspectionExecutor = ${createAgentSurfaceInspectionExecutor.toString()};
+  const createPublishedAgentReadyToolExecutors = ${createPublishedAgentReadyToolExecutors.toString()};
+  const createWebMcpLifecycleController = ${createWebMcpLifecycleController.toString()};
+  const toolExecutors = createPublishedAgentReadyToolExecutors({
+    toolNames: {
+      listSourceFiles: ${JSON.stringify(LIST_SOURCE_FILES_WEB_TOOL_NAME)},
+      readSourceFile: ${JSON.stringify(READ_SOURCE_FILE_WEB_TOOL_NAME)},
+      readSharedDocument: ${JSON.stringify(READ_SHARED_DOCUMENT_WEB_TOOL_NAME)},
+      inspectSharedDocumentStructure: ${JSON.stringify(INSPECT_SHARED_DOCUMENT_STRUCTURE_WEB_TOOL_NAME)},
+      inspectAgentSurface: ${JSON.stringify(INSPECT_AGENT_SURFACE_WEB_TOOL_NAME)},
+    },
+    defaultWorkspaceId,
+    buildStorageDocPath: buildDocPath,
+    fetchSourceFilesIndexResponse: () =>
+      fetch(buildStorageRequestUrl("/api/storage/source-files"), {
+        headers: { accept: "text/markdown" },
+      }),
+    fetchStorageMarkdownResponse: (path) =>
+      fetch(buildStorageRequestUrl(path), {
+        headers: { accept: "text/markdown" },
+      }),
+    resolveSharedDocumentInput: (input = {}) => resolvePublishedDocIdentity(input),
+    inspectSharedDocumentStructure,
+    buildAgentSurfaceInspection: createAgentSurfaceInspectionExecutor({
+      baseUrl: resolveAgentReadyBaseUrl(),
+      fetchJson,
+    }),
+  });
+  const tools = toolDefinitions.map((tool) => {
+    const execute = toolExecutors[tool.name];
+    if (typeof execute !== "function") {
+      throw new Error(\`Missing HTML WebMCP fallback executor for \${tool.name}\`);
+    }
+    return {
+      ...tool,
+      execute,
     };
-    fallbackState.registrations.set(context, created);
-    return created;
-  };
-  const isDuplicateToolRegistrationError = (error) => {
-    if (!error || typeof error !== "object") return false;
-    return normalizeString(error.name) === "InvalidStateError";
-  };
-  const releasePreviousRegisteredContext = (nextContext) => {
-    const active = fallbackState.activeRegisteredContext;
-    if (!active || active === nextContext) {
-      fallbackState.activeRegisteredContext = nextContext;
-      return;
-    }
-    const registrationState = fallbackState.registrations.get(active);
-    if (registrationState) {
-      registrationState.abortControllers.forEach((controller) => {
-        if (controller && typeof controller.abort === "function") controller.abort();
-      });
-    }
-    fallbackState.activeRegisteredContext = nextContext;
-  };
-  const clearLateBindingRetry = () => {
-    if (fallbackState.lateBindingRetryId === null || typeof window === "undefined") return;
-    window.clearTimeout(fallbackState.lateBindingRetryId);
-    fallbackState.lateBindingRetryId = null;
-  };
-  const tools = [
-    {
-      name: ${JSON.stringify(webMcpTools[0].name)},
-      title: ${JSON.stringify(webMcpTools[0].title)},
-      description: ${JSON.stringify(webMcpTools[0].description)},
-      inputSchema: ${JSON.stringify(webMcpTools[0].inputSchema)},
-      annotations: ${JSON.stringify(webMcpTools[0].annotations)},
-      execute: async () => {
-        const response = await fetch(buildStorageRequestUrl("/api/storage/source-files"), {
-          headers: { accept: "text/markdown" },
-        });
-        if (!response.ok) throw new Error(\`list_source_files failed with \${response.status}\`);
-        return {
-          workspaceId: defaultWorkspaceId,
-          markdownIndex: await response.text(),
-        };
-      }
-    },
-    {
-      name: ${JSON.stringify(webMcpTools[1].name)},
-      title: ${JSON.stringify(webMcpTools[1].title)},
-      description: ${JSON.stringify(webMcpTools[1].description)},
-      inputSchema: ${JSON.stringify(webMcpTools[1].inputSchema)},
-      annotations: ${JSON.stringify(webMcpTools[1].annotations)},
-      execute: async (input = {}) => {
-        const canonicalPath = normalizeString(input.canonicalPath);
-        if (!canonicalPath) throw new Error("canonicalPath is required");
-        const workspaceId = normalizeString(input.workspaceId);
-        const response = await fetch(buildStorageRequestUrl(buildDocPath(canonicalPath, workspaceId)), {
-          headers: { accept: "text/markdown" },
-        });
-        if (!response.ok) throw new Error(\`read_source_file failed with \${response.status}\`);
-        return {
-          workspaceId: workspaceId || defaultWorkspaceId,
-          canonicalPath,
-          markdown: await response.text(),
-        };
-      }
-    },
-    {
-      name: ${JSON.stringify(webMcpTools[2].name)},
-      title: ${JSON.stringify(webMcpTools[2].title)},
-      description: ${JSON.stringify(webMcpTools[2].description)},
-      inputSchema: ${JSON.stringify(webMcpTools[2].inputSchema)},
-      annotations: ${JSON.stringify(webMcpTools[2].annotations)},
-      execute: async (input = {}) => {
-        const resolvedDocument = resolvePublishedDocIdentity(input);
-        if (!resolvedDocument) throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
-        const canonicalPath = normalizeString(resolvedDocument.canonicalPath);
-        const workspaceId = normalizeString(resolvedDocument.workspaceId);
-        const response = await fetch(buildStorageRequestUrl(buildDocPath(canonicalPath, workspaceId)), {
-          headers: { accept: "text/markdown" },
-        });
-        if (!response.ok) throw new Error(\`read_shared_document failed with \${response.status}\`);
-        return {
-          workspaceId: workspaceId || defaultWorkspaceId,
-          canonicalPath,
-          markdown: await response.text(),
-        };
-      }
-    },
-    {
-      name: ${JSON.stringify(webMcpTools[3].name)},
-      title: ${JSON.stringify(webMcpTools[3].title)},
-      description: ${JSON.stringify(webMcpTools[3].description)},
-      inputSchema: ${JSON.stringify(webMcpTools[3].inputSchema)},
-      annotations: ${JSON.stringify(webMcpTools[3].annotations)},
-      execute: async (input = {}) => {
-        const resolvedDocument = resolvePublishedDocIdentity(input);
-        if (!resolvedDocument) throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
-        const canonicalPath = normalizeString(resolvedDocument.canonicalPath);
-        const workspaceId = normalizeString(resolvedDocument.workspaceId);
-        const response = await fetch(buildStorageRequestUrl(buildDocPath(canonicalPath, workspaceId)), {
-          headers: { accept: "text/markdown" },
-        });
-        if (!response.ok) throw new Error(\`inspect_shared_document_structure failed with \${response.status}\`);
-        return inspectSharedDocumentStructure({
-          workspaceId: workspaceId || defaultWorkspaceId,
-          canonicalPath,
-          markdown: await response.text(),
-        });
-      }
-    },
-    {
-      name: ${JSON.stringify(webMcpTools[4].name)},
-      title: ${JSON.stringify(webMcpTools[4].title)},
-      description: ${JSON.stringify(webMcpTools[4].description)},
-      inputSchema: ${JSON.stringify(webMcpTools[4].inputSchema)},
-      annotations: ${JSON.stringify(webMcpTools[4].annotations)},
-      execute: async () => {
-        const agentReadyBaseUrl = resolveAgentReadyBaseUrl();
-        const [health, apiCatalog, openApi, mcpServerCard, agentCard, agentSkills] = await Promise.all([
-          fetchJson(\`\${agentReadyBaseUrl}/health\`, "application/health+json"),
-          fetchJson(\`\${agentReadyBaseUrl}/.well-known/api-catalog\`, "application/linkset+json"),
-          fetchJson(\`\${agentReadyBaseUrl}/.well-known/openapi.json\`, "application/json"),
-          fetchJson(\`\${agentReadyBaseUrl}/.well-known/mcp/server-card.json\`, "application/json"),
-          fetchJson(\`\${agentReadyBaseUrl}/.well-known/agent-card.json\`, "application/json"),
-          fetchJson(\`\${agentReadyBaseUrl}/.well-known/agent-skills/index.json\`, "application/json"),
-        ]);
-        return {
-          baseUrl: agentReadyBaseUrl,
-          healthUrl: \`\${agentReadyBaseUrl}/health\`,
-          mcpUrl: \`\${agentReadyBaseUrl}/mcp\`,
-          apiCatalogUrl: \`\${agentReadyBaseUrl}/.well-known/api-catalog\`,
-          openApiUrl: \`\${agentReadyBaseUrl}/.well-known/openapi.json\`,
-          mcpServerCardUrl: \`\${agentReadyBaseUrl}/.well-known/mcp/server-card.json\`,
-          agentCardUrl: \`\${agentReadyBaseUrl}/.well-known/agent-card.json\`,
-          agentSkillsUrl: \`\${agentReadyBaseUrl}/.well-known/agent-skills/index.json\`,
-          health,
-          apiCatalog,
-          openApi,
-          mcpServerCard,
-          agentCard,
-          agentSkills,
-        };
-      }
-    }
-  ];
-  const nav = readGlobalNavigator();
-  const installToolsIntoModelContext = (context, nextTools) => {
-    const registrationState = getRegistrationState(context);
-    let providedContext = false;
-    if (typeof context.provideContext === "function") {
-      try {
-        context.provideContext({ tools: nextTools });
-        providedContext = true;
-      } catch {
-        void 0;
-      }
-    }
-    if (typeof context.registerTool === "function") {
-      for (const tool of nextTools) {
-        if (registrationState.registeredToolNames.has(tool.name)) continue;
-        const controller = typeof AbortController === "function" ? new AbortController() : null;
-        try {
-          context.registerTool(tool, controller ? { signal: controller.signal } : {});
-          registrationState.registeredToolNames.add(tool.name);
-          registrationState.abortControllers.set(tool.name, controller);
-        } catch (error) {
-          if (!isDuplicateToolRegistrationError(error)) continue;
-          registrationState.registeredToolNames.add(tool.name);
-          registrationState.abortControllers.set(tool.name, null);
-        }
-      }
-    }
-    if (Array.isArray(context.tools)) {
-      for (const tool of nextTools) {
-        if (!context.tools.some((entry) => entry && entry.name === tool.name)) context.tools.push(tool);
-      }
-    }
-    const allToolsRegistered = nextTools.every((tool) =>
-      registrationState.registeredToolNames.has(tool.name)
-      || (Array.isArray(context.tools) && context.tools.some((entry) => entry && entry.name === tool.name))
-    );
-    if (allToolsRegistered) {
-      releasePreviousRegisteredContext(context);
-      return true;
-    }
-    return providedContext && typeof context.registerTool !== "function" && !Array.isArray(context.tools);
-  };
-  const tryInstallLateBoundModelContext = (currentNav) => {
-    const context = currentNav.modelContext;
-    if (!context || context === fallbackState.fallbackContext) return false;
-    const installed = installToolsIntoModelContext(context, tools);
-    if (installed) {
-      clearLateBindingRetry();
-      markWebMcpRuntime("installed");
-      return true;
-    }
-    return false;
-  };
-  const scheduleLateBindingRetry = (currentNav) => {
-    if (typeof window === "undefined") return;
-    if (fallbackState.lateBindingRetryId !== null) return;
-    if (fallbackState.lateBindingAttemptCount >= lateBindingMaxAttempts) {
-      markWebMcpRuntime("retry-exhausted");
-      return;
-    }
-    fallbackState.lateBindingRetryId = window.setTimeout(() => {
-      fallbackState.lateBindingRetryId = null;
-      fallbackState.lateBindingAttemptCount += 1;
-      if (!tryInstallLateBoundModelContext(currentNav)) scheduleLateBindingRetry(currentNav);
-    }, lateBindingRetryDelayMs);
-  };
-  const defineFallbackModelContext = (currentNav, context) => {
-    fallbackState.fallbackContext = context;
-    let currentContext = currentNav.modelContext && currentNav.modelContext !== context ? currentNav.modelContext : context;
-    try {
-      Object.defineProperty(currentNav, "modelContext", {
-        configurable: true,
-        enumerable: false,
-        get: () => currentContext,
-        set: (value) => {
-          currentContext = value || context;
-          if (currentContext !== context) void tryInstallLateBoundModelContext(currentNav);
-        },
-      });
-    } catch {
-      currentNav.modelContext = context;
-    }
-  };
-  markWebMcpRuntime("installing");
-  if (nav.modelContext && installToolsIntoModelContext(nav.modelContext, tools)) {
-    markWebMcpRuntime("installed");
-    return;
-  }
-  if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...tools] });
-  markWebMcpRuntime(
-    toolNames.every((name) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === name))
-      ? "fallback-readable"
-      : "awaiting-model-context"
-  );
-  scheduleLateBindingRetry(nav);
+  });
+  const webMcpLifecycle = createWebMcpLifecycleController({
+    root,
+    state: fallbackState,
+    tools,
+    toolNames,
+    lateBindingRetryDelayMs: lateBindingRetryDelayMs,
+    lateBindingMaxAttempts: lateBindingMaxAttempts,
+    markRuntimeState: markWebMcpRuntime,
+  });
+  webMcpLifecycle.install();
 })();`;
 
 const injectWebMcpScript = async (response) => {
@@ -900,6 +474,14 @@ Use this skill when an agent or browser needs to inspect the deployed Knowgrph a
 - Full app runtime additionally exposes browser-local inspect tools for the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
 `;
 
+const PUBLISHED_TOOL_NAME_CONFIG = {
+  listSourceFiles: KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles,
+  readSourceFile: KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile,
+  readSharedDocument: KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument,
+  inspectSharedDocumentStructure: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure,
+  inspectAgentSurface: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface,
+};
+
 const sha256Hex = async (text) => {
   const data = new TextEncoder().encode(text);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -908,26 +490,15 @@ const sha256Hex = async (text) => {
 
 const publishedDocsSkillMarkdownSha256 = sha256Hex(publishedDocsSkillMarkdown);
 const webMcpReadinessSkillMarkdownSha256 = sha256Hex(webMcpReadinessSkillMarkdown);
+const agentSkillSha256ByName = {
+  [AGENT_READY_AGENT_SKILL_DEFINITIONS[0].name]: publishedDocsSkillMarkdownSha256,
+  [AGENT_READY_AGENT_SKILL_DEFINITIONS[1].name]: webMcpReadinessSkillMarkdownSha256,
+};
 
-const agentSkillsIndex = async () => ({
-  $schema: "https://agent-skills.dev/schemas/skills-index.v0.2.json",
-  updated_at: UPDATED_AT,
-  skills: [
-    {
-      name: "knowgrph-source-files",
-      type: "markdown",
-      description: "Discover and inspect published Knowgrph Source Files and shared documents.",
-      url: `${APP_URL}.well-known/agent-skills/knowgrph-source-files.md`,
-      sha256: await publishedDocsSkillMarkdownSha256,
-    },
-    {
-      name: "knowgrph-webmcp-readiness",
-      type: "markdown",
-      description: "Inspect Knowgrph WebMCP lifecycle, shared deployed MCP tools, and agent-ready metadata.",
-      url: `${APP_URL}.well-known/agent-skills/knowgrph-webmcp-readiness.md`,
-      sha256: await webMcpReadinessSkillMarkdownSha256,
-    },
-  ],
+const agentSkillsIndex = async () => buildAgentReadyAgentSkillsIndex({
+  appUrl: APP_URL,
+  updatedAt: UPDATED_AT,
+  sha256ByName: agentSkillSha256ByName,
 });
 
 const httpMessageSignaturesDirectory = {
@@ -972,15 +543,8 @@ const buildHealthStatusBody = () => ({
   },
 });
 
-const buildAgentSurfaceInspection = async () => ({
-  baseUrl: APP_URL.replace(/\/+$/, ""),
-  healthUrl: HEALTH_URL,
-  mcpUrl: `${APP_URL}mcp`,
-  apiCatalogUrl: `${APP_URL}.well-known/api-catalog`,
-  openApiUrl: `${APP_URL}.well-known/openapi.json`,
-  mcpServerCardUrl: `${APP_URL}.well-known/mcp/server-card.json`,
-  agentCardUrl: A2A_AGENT_CARD_URL,
-  agentSkillsUrl: `${APP_URL}.well-known/agent-skills/index.json`,
+const buildAgentSurfaceInspection = async () => buildAgentSurfaceInspectionPayload({
+  baseUrl: APP_URL,
   health: buildHealthStatusBody(),
   apiCatalog,
   openApi,
@@ -989,79 +553,48 @@ const buildAgentSurfaceInspection = async () => ({
   agentSkills: await agentSkillsIndex(),
 });
 
-const buildSharedDocumentStructureInspection = async (args = {}) => {
-  const resolvedDocument = resolvePublishedDocIdentity({
-    shareToken: args?.shareToken,
-    shareUrl: args?.shareUrl,
-    appBasePath: APP_BASE_PATH,
+const PUBLISHED_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
+  toolNames: PUBLISHED_TOOL_NAME_CONFIG,
+  defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+  buildStorageDocPath,
+  fetchSourceFilesIndexResponse: () =>
+    fetch(`${STORAGE_FETCH_ORIGIN}${buildKnowgrphStorageSourceFilesIndexPath()}`, {
+      headers: { accept: "text/markdown" },
+    }),
+  fetchStorageMarkdownResponse: (path) =>
+    fetch(`${STORAGE_FETCH_ORIGIN}${path}`, {
+      headers: { accept: "text/markdown" },
+    }),
+  resolveSharedDocumentInput: (input = {}) =>
+    resolvePublishedDocIdentity({
+      shareToken: input?.shareToken,
+      shareUrl: input?.shareUrl,
+      appBasePath: APP_BASE_PATH,
+      baseUrl: SITE_ORIGIN,
+    }),
+  inspectSharedDocumentStructure,
+  buildAgentSurfaceInspection,
+});
+
+const resolvePublishedDocRequestIdentity = (requestUrl) => {
+  try {
+    const url = new URL(requestUrl, SITE_ORIGIN);
+    return resolvePublishedDocIdentity({
+      shareUrl: `${url.pathname}${url.search}`,
+      baseUrl: SITE_ORIGIN,
+      appBasePath: APP_BASE_PATH,
+    });
+  } catch {
+    return null;
+  }
+};
+
+const resolvePublishedDocPathIdentity = (pathname) =>
+  resolvePublishedDocIdentity({
+    shareUrl: String(pathname || ""),
     baseUrl: SITE_ORIGIN,
+    appBasePath: APP_BASE_PATH,
   });
-  if (!resolvedDocument) {
-    throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
-  }
-  const workspaceId = normalizeToolString(resolvedDocument.workspaceId);
-  const canonicalPath = resolvedDocument.canonicalPath;
-  const response = await fetch(`${STORAGE_FETCH_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
-    headers: { accept: "text/markdown" },
-  });
-  if (!response.ok) throw new Error(`inspect_shared_document_structure upstream failed with ${response.status}`);
-  return inspectSharedDocumentStructure({
-    workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
-    canonicalPath,
-    markdown: await response.text(),
-  });
-};
-
-const parsePublishedDocSharePath = (pathname) => {
-  const normalizedPath = String(pathname || "").replace(/\/+$/, "") || "/";
-  if (normalizedPath.startsWith(DEFAULT_DOC_SHARE_PREFIX)) {
-    const canonicalPath = decodeURIComponent(normalizedPath.slice(DEFAULT_DOC_SHARE_PREFIX.length)).trim();
-    if (!canonicalPath) return null;
-    return { workspaceId: "", canonicalPath };
-  }
-  if (!normalizedPath.startsWith(WORKSPACE_DOC_SHARE_PREFIX)) return null;
-  const suffix = normalizedPath.slice(WORKSPACE_DOC_SHARE_PREFIX.length);
-  const firstSlash = suffix.indexOf("/");
-  if (firstSlash < 1) return null;
-  const workspaceId = decodeURIComponent(suffix.slice(0, firstSlash)).trim();
-  const canonicalPath = decodeURIComponent(suffix.slice(firstSlash + 1)).trim();
-  if (!workspaceId || !canonicalPath) return null;
-  return { workspaceId, canonicalPath };
-};
-
-const parsePublishedDocShareTokenPath = (pathname) => {
-  const normalizedPath = String(pathname || "").replace(/\/+$/, "") || "/";
-  if (!normalizedPath.startsWith(TOKEN_DOC_SHARE_PREFIX)) return null;
-  const shareToken = decodeURIComponent(normalizedPath.slice(TOKEN_DOC_SHARE_PREFIX.length)).trim();
-  if (!shareToken) return null;
-  const decoded = decodePublishedDocShareToken(shareToken);
-  if (!decoded) return null;
-  return {
-    workspaceId: String(decoded.workspaceId || "").trim(),
-    canonicalPath: decoded.canonicalPath,
-  };
-};
-
-const parsePublishedDocDeepLinkSearch = (searchParams) => {
-  const shareToken = decodePublishedDocShareToken(searchParams?.get(PUBLISHED_DOC_SHARE_TOKEN_PARAM));
-  if (shareToken) {
-    return {
-      workspaceId: String(shareToken.workspaceId || "").trim(),
-      canonicalPath: shareToken.canonicalPath,
-    };
-  }
-  const canonicalPathParam = String(searchParams?.get(CANONICAL_PATH_PARAM) || "").trim();
-  if (canonicalPathParam) {
-    const canonicalPath = decodeURIComponent(canonicalPathParam).trim();
-    if (!canonicalPath) return null;
-    const workspaceIdParam = String(searchParams?.get(WORKSPACE_ID_PARAM) || "").trim();
-    const workspaceId = decodeURIComponent(workspaceIdParam).trim();
-    return { workspaceId, canonicalPath };
-  }
-  const rawPath = String(searchParams?.get("kgPath") || "").trim();
-  if (!rawPath) return null;
-  return parsePublishedDocSharePath(`${APP_BASE_PATH}${rawPath}`);
-};
 
 const proxyPublishedDocMarkdownResponse = async (request, pathArgs) => {
   const targetUrl = new URL(buildStorageDocPath(pathArgs.canonicalPath, pathArgs.workspaceId), STORAGE_FETCH_ORIGIN);
@@ -1103,60 +636,11 @@ const jsonRpcError = (id, code, message) => jsonResponse({
 });
 
 const executeMcpTool = async (name, args) => {
-  switch (name) {
-    case KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles: {
-      const response = await fetch(`${STORAGE_FETCH_ORIGIN}/api/storage/source-files`, {
-        headers: { accept: "text/markdown" },
-      });
-      if (!response.ok) throw new Error(`list_source_files upstream failed with ${response.status}`);
-      return {
-        workspaceId: DEFAULT_WORKSPACE_ID,
-        markdownIndex: await response.text(),
-      };
-    }
-    case KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile: {
-      const canonicalPath = normalizeToolString(args?.canonicalPath);
-      if (!canonicalPath) throw new Error("canonicalPath is required");
-      const workspaceId = normalizeToolString(args?.workspaceId);
-      const response = await fetch(`${STORAGE_FETCH_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
-        headers: { accept: "text/markdown" },
-      });
-      if (!response.ok) throw new Error(`read_source_file upstream failed with ${response.status}`);
-      return {
-        workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
-        canonicalPath,
-        markdown: await response.text(),
-      };
-    }
-    case KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument: {
-      const resolvedDocument = resolvePublishedDocIdentity({
-        shareToken: args?.shareToken,
-        shareUrl: args?.shareUrl,
-        appBasePath: APP_BASE_PATH,
-        baseUrl: SITE_ORIGIN,
-      });
-      if (!resolvedDocument) {
-        throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
-      }
-      const workspaceId = normalizeToolString(resolvedDocument.workspaceId);
-      const canonicalPath = resolvedDocument.canonicalPath;
-      const response = await fetch(`${STORAGE_FETCH_ORIGIN}${buildStorageDocPath(canonicalPath, workspaceId)}`, {
-        headers: { accept: "text/markdown" },
-      });
-      if (!response.ok) throw new Error(`read_shared_document upstream failed with ${response.status}`);
-      return {
-        workspaceId: workspaceId || DEFAULT_WORKSPACE_ID,
-        canonicalPath,
-        markdown: await response.text(),
-      };
-    }
-    case KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure:
-      return buildSharedDocumentStructureInspection(args);
-    case KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface:
-      return buildAgentSurfaceInspection();
-    default:
-      throw new Error(`unknown tool: ${name}`);
+  const execute = PUBLISHED_MCP_TOOL_EXECUTORS[name];
+  if (typeof execute !== "function") {
+    throw new Error(`unknown tool: ${name}`);
   }
+  return execute(args);
 };
 
 const handleMcpTransport = async (request) => {
@@ -1273,22 +757,18 @@ export const buildAgentReadyStaticFiles = async () => ({
 
 const handlesKnowgrphRoot = (pathname) => pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`;
 const handlesKnowgrphHtmlSurface = (pathname) =>
-  handlesKnowgrphRoot(pathname) || Boolean(parsePublishedDocSharePath(pathname)) || Boolean(parsePublishedDocShareTokenPath(pathname));
+  handlesKnowgrphRoot(pathname) || Boolean(resolvePublishedDocPathIdentity(pathname));
 
 const resolveAgentReadyRouteTag = (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
-  const publishedDocSharePath = parsePublishedDocSharePath(pathname);
-  const publishedDocShareTokenPath = parsePublishedDocShareTokenPath(pathname);
-  const publishedDocDeepLink = handlesKnowgrphRoot(url.pathname)
-    ? parsePublishedDocDeepLinkSearch(url.searchParams)
-    : null;
+  const publishedDocIdentity = resolvePublishedDocRequestIdentity(request.url);
   if (pathname === HEALTH_PATH) return "health";
   if (pathname === `${APP_BASE_PATH}/mcp`) return "mcp";
   if (pathname === `${APP_BASE_PATH}/robots.txt`) return "robots";
   if (pathname === `${APP_BASE_PATH}/sitemap.xml`) return "sitemap";
   if (pathname.startsWith(`${APP_BASE_PATH}/.well-known/`)) return "well-known";
-  if (publishedDocShareTokenPath || publishedDocSharePath || publishedDocDeepLink) {
+  if (publishedDocIdentity) {
     return wantsMarkdown(request) ? "shared-doc-markdown" : "shared-doc-html";
   }
   if (handlesKnowgrphRoot(url.pathname)) {
@@ -1306,20 +786,10 @@ const withKnowgrphRouteHeaders = (request, response) =>
 const routeResponse = async (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
-  const publishedDocSharePath = parsePublishedDocSharePath(pathname);
-  const publishedDocShareTokenPath = parsePublishedDocShareTokenPath(pathname);
-  const publishedDocDeepLink = handlesKnowgrphRoot(url.pathname)
-    ? parsePublishedDocDeepLinkSearch(url.searchParams)
-    : null;
+  const publishedDocIdentity = resolvePublishedDocRequestIdentity(request.url);
 
-  if (publishedDocShareTokenPath && wantsMarkdown(request)) {
-    return proxyPublishedDocMarkdownResponse(request, publishedDocShareTokenPath);
-  }
-  if (publishedDocSharePath && wantsMarkdown(request)) {
-    return proxyPublishedDocMarkdownResponse(request, publishedDocSharePath);
-  }
-  if (publishedDocDeepLink && wantsMarkdown(request)) {
-    return proxyPublishedDocMarkdownResponse(request, publishedDocDeepLink);
+  if (publishedDocIdentity && wantsMarkdown(request)) {
+    return proxyPublishedDocMarkdownResponse(request, publishedDocIdentity);
   }
   if (handlesKnowgrphRoot(url.pathname) && wantsMarkdown(request)) {
     return markdownResponse(agentReadyMarkdownBody);

@@ -6,6 +6,7 @@ import {
   KNOWGRPH_STORAGE_API_VERSION,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  buildKnowgrphStorageDocPath,
   buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageLlmsPath,
   buildKnowgrphStorageSourceFilesIndexPath,
@@ -17,6 +18,24 @@ const worker = (
     ? storageWorkerModule
     : (storageWorkerModule as unknown as { default: typeof storageWorkerModule }).default
 ) as typeof storageWorkerModule
+
+const assertCrawlerVisibleDocHeaders = (response: Response, routeLabel: string) => {
+  if (!String(response.headers.get('content-type') || '').includes('text/markdown')) {
+    throw new Error(`expected ${routeLabel} response to be served as text/markdown`)
+  }
+  if (response.headers.get('x-robots-tag') !== 'all') {
+    throw new Error(`expected ${routeLabel} response to allow crawler indexing`)
+  }
+  if (response.headers.get(KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.source) !== 'd1-documents-doc-view') {
+    throw new Error(`expected ${routeLabel} response to declare the D1 doc-view crawler source`)
+  }
+  if (response.headers.get(KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy) !== 'cloudflare-zone-policy') {
+    throw new Error(`expected ${routeLabel} response to declare Cloudflare-owned Pay Per Crawl policy`)
+  }
+  if (!String(response.headers.get('link') || '').includes(CLOUDFLARE_PAY_PER_CRAWL_DOC_URL)) {
+    throw new Error(`expected ${routeLabel} response to link the Cloudflare Pay Per Crawl reference`)
+  }
+}
 
 export async function testKnowgrphStorageWorkerPushPullAndExportFlow() {
   const env = createFakeKnowgrphStorageWorkerEnv()
@@ -374,6 +393,7 @@ export async function testKnowgrphStorageWorkerDocViewRebuildsChunkOnlyMarkdown(
     env as never,
   )
   if (!docViewResponse.ok) throw new Error(`expected doc view response ok, received ${docViewResponse.status}`)
+  assertCrawlerVisibleDocHeaders(docViewResponse, 'workspace doc view')
   const markdown = await docViewResponse.text()
   if (markdown.trim() !== '# Chunk Title\n\nChunk body') {
     throw new Error(`expected doc view to rebuild chunk-only markdown, got "${markdown}"`)
@@ -397,9 +417,7 @@ export async function testKnowgrphStorageWorkerServesDefaultDocViewWithoutWorksp
     env as never,
   )
   if (!response.ok) throw new Error(`expected default doc view response ok, received ${response.status}`)
-  if (!String(response.headers.get('content-type') || '').includes('text/markdown')) {
-    throw new Error('expected default doc view response to be served as text/markdown')
-  }
+  assertCrawlerVisibleDocHeaders(response, 'default doc view')
   const markdown = await response.text()
   if (markdown.trim() !== '# Default Doc') {
     throw new Error(`expected default doc view to return the default workspace markdown, got "${markdown}"`)
@@ -562,6 +580,45 @@ export async function testKnowgrphStorageWorkerServesDefaultLlmsSourceFilesEntry
   }
   if (!indexMarkdown.includes('https://example.com/api/storage/doc-default/huijoohwee%2Fdocs%2Fllms-demo.md')) {
     throw new Error('expected default Source Files index to link through the workspace-free default doc-view route')
+  }
+}
+
+export async function testKnowgrphStorageWorkerServesWorkspaceLlmsSourceFilesEntrypoint() {
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const workspaceId = 'wk_llms_workspace'
+  await pushCrawlerDocument({
+    env,
+    workspaceId,
+    documentId: 'doc_workspace_llms',
+    canonicalPath: 'huijoohwee/docs/workspace-llms.md',
+    title: 'Workspace LLMS',
+    contentMd: '# Workspace LLMS',
+    contentHash: 'sha256:workspace-llms',
+  })
+
+  const response = await worker.fetch(
+    new Request(`https://example.com${buildKnowgrphStorageLlmsPath(workspaceId)}`),
+    env as never,
+  )
+  if (!response.ok) throw new Error(`expected workspace llms source-files response ok, received ${response.status}`)
+  if (!String(response.headers.get('content-type') || '').includes('text/plain')) {
+    throw new Error('expected workspace llms source-files response to be served as text/plain')
+  }
+  if (response.headers.get('x-robots-tag') !== 'all') {
+    throw new Error('expected workspace llms source-files response to allow crawler indexing')
+  }
+  if (response.headers.get(KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS.payPerCrawlPolicy) !== 'cloudflare-zone-policy') {
+    throw new Error('expected workspace llms source-files response to declare Cloudflare-owned Pay Per Crawl policy')
+  }
+  const text = await response.text()
+  if (!text.includes(`Workspace: ${workspaceId}`)) {
+    throw new Error('expected workspace llms entrypoint to identify the workspace-scoped Source Files surface')
+  }
+  if (!text.includes(`https://example.com${buildKnowgrphStorageSourceFilesIndexPath(workspaceId)}`)) {
+    throw new Error('expected workspace llms entrypoint to link back to the workspace-scoped Source Files index')
+  }
+  if (!text.includes(`https://example.com${buildKnowgrphStorageDocPath(workspaceId, 'huijoohwee/docs/workspace-llms.md')}`)) {
+    throw new Error('expected workspace llms entrypoint to link to the workspace-scoped Source File doc-view route')
   }
 }
 

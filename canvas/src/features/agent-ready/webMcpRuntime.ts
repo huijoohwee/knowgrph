@@ -12,7 +12,10 @@ import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from './knowgrphAgentReadyToolContract.mjs'
+import { createAgentSurfaceInspectionExecutor } from './agentSurfaceInspection.mjs'
+import { createPublishedAgentReadyToolExecutors } from './publishedToolExecutors.mjs'
 import { inspectSharedDocumentStructure } from './sharedDocumentStructureInspection.mjs'
+import { createWebMcpLifecycleController } from './webMcpLifecycle.mjs'
 import { inspectLocalCanvasTopology } from './localCanvasTopologyInspection'
 import { inspectLocalCanvasSnapshot } from './localCanvasSnapshotInspection'
 import { inspectLocalThreeCameraPose } from './localThreeCameraPoseInspection'
@@ -177,66 +180,47 @@ const fetchJson = async (url: string, accept = 'application/json'): Promise<unkn
   return response.json()
 }
 
-const readGlobalNavigator = (): WebMcpNavigator => {
-  const root = globalThis as typeof globalThis & { navigator?: WebMcpNavigator; window?: { navigator?: WebMcpNavigator } }
-  const windowNavigator = root.window?.navigator
-  if (windowNavigator && root.navigator !== windowNavigator) {
-    try {
-      Object.defineProperty(root, 'navigator', {
-        configurable: true,
-        value: windowNavigator,
-      })
-    } catch {
-      root.navigator = windowNavigator
-    }
-    return windowNavigator
-  }
-  if (root.navigator) return root.navigator
-  const nav = {} as WebMcpNavigator
-  try {
-    Object.defineProperty(root, 'navigator', {
-      configurable: true,
-      value: nav,
-    })
-  } catch {
-    root.navigator = nav
-  }
-  return nav
+const buildStorageDocPath = (canonicalPath: string, workspaceId = ''): string => {
+  const normalizedWorkspaceId = normalizeString(workspaceId)
+  return normalizedWorkspaceId
+    ? buildKnowgrphStorageDocPath(normalizedWorkspaceId, canonicalPath)
+    : buildKnowgrphStorageDefaultDocPath(canonicalPath)
 }
 
-const getRegistrationState = (context: ModelContextLike): ModelContextRegistrationState => {
-  const existing = webMcpRuntimeState.registrations.get(context)
-  if (existing) return existing
-  const created: ModelContextRegistrationState = {
-    registeredToolNames: new Set<string>(),
-    abortControllers: new Map<string, AbortController | null>(),
-  }
-  webMcpRuntimeState.registrations.set(context, created)
-  return created
-}
+const buildAgentSurfaceInspection = () =>
+  createAgentSurfaceInspectionExecutor({
+    baseUrl: readWebMcpAgentReadyBaseUrl(),
+    fetchJson,
+  })()
 
-const isDuplicateToolRegistrationError = (error: unknown): boolean => {
-  if (!error || typeof error !== 'object') return false
-  const name = normalizeString((error as { name?: unknown }).name)
-  return name === 'InvalidStateError'
-}
-
-const releasePreviousRegisteredContext = (nextContext: ModelContextLike): void => {
-  const active = webMcpRuntimeState.activeRegisteredContext
-  if (!active || active === nextContext) {
-    webMcpRuntimeState.activeRegisteredContext = nextContext
-    return
-  }
-  const registrationState = webMcpRuntimeState.registrations.get(active)
-  registrationState?.abortControllers.forEach(controller => controller?.abort())
-  webMcpRuntimeState.activeRegisteredContext = nextContext
-}
-
-const clearLateBindingRetry = (): void => {
-  if (webMcpRuntimeState.lateBindingRetryId === null || typeof window === 'undefined') return
-  window.clearTimeout(webMcpRuntimeState.lateBindingRetryId)
-  webMcpRuntimeState.lateBindingRetryId = null
-}
+const PUBLISHED_WEB_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
+  toolNames: {
+    listSourceFiles: SOURCE_FILES_TOOL_NAME,
+    readSourceFile: READ_SOURCE_FILE_TOOL_NAME,
+    readSharedDocument: READ_SHARED_DOCUMENT_TOOL_NAME,
+    inspectSharedDocumentStructure: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME,
+    inspectAgentSurface: INSPECT_AGENT_SURFACE_TOOL_NAME,
+  },
+  defaultWorkspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  buildStorageDocPath,
+  fetchSourceFilesIndexResponse: () =>
+    fetch(buildWebMcpStorageRequestUrl(buildKnowgrphStorageSourceFilesIndexPath()), {
+      headers: { accept: 'text/markdown' },
+    }),
+  fetchStorageMarkdownResponse: (path: string) =>
+    fetch(buildWebMcpStorageRequestUrl(path), {
+      headers: { accept: 'text/markdown' },
+    }),
+  resolveSharedDocumentInput: (input: WebMcpToolInput) =>
+    resolvePublishedDocIdentity({
+      shareToken: input?.shareToken,
+      shareUrl: input?.shareUrl,
+      appBasePath: WEB_MCP_APP_BASE_PATH,
+      baseUrl: readWebMcpDocumentBaseUrl(),
+    }),
+  inspectSharedDocumentStructure,
+  buildAgentSurfaceInspection,
+})
 
 const buildSourceFilesTool = (): WebMcpTool => ({
   name: SOURCE_FILES_TOOL_NAME,
@@ -244,18 +228,7 @@ const buildSourceFilesTool = (): WebMcpTool => ({
   description: SOURCE_FILES_TOOL_CONTRACT.description,
   inputSchema: SOURCE_FILES_TOOL_CONTRACT.inputSchema,
   annotations: SOURCE_FILES_TOOL_CONTRACT.annotations,
-  execute: async () => {
-    const response = await fetch(buildWebMcpStorageRequestUrl(buildKnowgrphStorageSourceFilesIndexPath()), {
-      headers: { accept: 'text/markdown' },
-    })
-    if (!response.ok) {
-      throw new Error(`list_source_files failed with ${response.status}`)
-    }
-    return {
-      workspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
-      markdownIndex: await response.text(),
-    }
-  },
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[SOURCE_FILES_TOOL_NAME],
 })
 
 const buildReadSourceFileTool = (): WebMcpTool => ({
@@ -264,27 +237,7 @@ const buildReadSourceFileTool = (): WebMcpTool => ({
   description: READ_SOURCE_FILE_TOOL_CONTRACT.description,
   inputSchema: READ_SOURCE_FILE_TOOL_CONTRACT.inputSchema,
   annotations: READ_SOURCE_FILE_TOOL_CONTRACT.annotations,
-  execute: async (input) => {
-    const canonicalPath = String(input?.canonicalPath || '').trim()
-    if (!canonicalPath) {
-      throw new Error('canonicalPath is required')
-    }
-    const workspaceId = String(input?.workspaceId || '').trim()
-    const path = workspaceId
-      ? buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
-      : buildKnowgrphStorageDefaultDocPath(canonicalPath)
-    const response = await fetch(buildWebMcpStorageRequestUrl(path), {
-      headers: { accept: 'text/markdown' },
-    })
-    if (!response.ok) {
-      throw new Error(`read_source_file failed with ${response.status}`)
-    }
-    return {
-      workspaceId: workspaceId || KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
-      canonicalPath,
-      markdown: await response.text(),
-    }
-  },
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[READ_SOURCE_FILE_TOOL_NAME],
 })
 
 const buildReadSharedDocumentTool = (): WebMcpTool => ({
@@ -293,33 +246,7 @@ const buildReadSharedDocumentTool = (): WebMcpTool => ({
   description: READ_SHARED_DOCUMENT_TOOL_CONTRACT.description,
   inputSchema: READ_SHARED_DOCUMENT_TOOL_CONTRACT.inputSchema,
   annotations: READ_SHARED_DOCUMENT_TOOL_CONTRACT.annotations,
-  execute: async (input) => {
-    const resolvedDocument = resolvePublishedDocIdentity({
-      shareToken: input?.shareToken,
-      shareUrl: input?.shareUrl,
-      appBasePath: WEB_MCP_APP_BASE_PATH,
-      baseUrl: readWebMcpDocumentBaseUrl(),
-    })
-    if (!resolvedDocument) {
-      throw new Error('shareToken or shareUrl must resolve to a published Knowgrph document')
-    }
-    const workspaceId = String(resolvedDocument.workspaceId || '').trim()
-    const canonicalPath = resolvedDocument.canonicalPath
-    const path = workspaceId
-      ? buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
-      : buildKnowgrphStorageDefaultDocPath(canonicalPath)
-    const response = await fetch(buildWebMcpStorageRequestUrl(path), {
-      headers: { accept: 'text/markdown' },
-    })
-    if (!response.ok) {
-      throw new Error(`read_shared_document failed with ${response.status}`)
-    }
-    return {
-      workspaceId: workspaceId || KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
-      canonicalPath,
-      markdown: await response.text(),
-    }
-  },
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[READ_SHARED_DOCUMENT_TOOL_NAME],
 })
 
 const buildInspectSharedDocumentStructureTool = (): WebMcpTool => ({
@@ -328,33 +255,7 @@ const buildInspectSharedDocumentStructureTool = (): WebMcpTool => ({
   description: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.description,
   inputSchema: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.inputSchema,
   annotations: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.annotations,
-  execute: async (input) => {
-    const resolvedDocument = resolvePublishedDocIdentity({
-      shareToken: input?.shareToken,
-      shareUrl: input?.shareUrl,
-      appBasePath: WEB_MCP_APP_BASE_PATH,
-      baseUrl: readWebMcpDocumentBaseUrl(),
-    })
-    if (!resolvedDocument) {
-      throw new Error('shareToken or shareUrl must resolve to a published Knowgrph document')
-    }
-    const workspaceId = String(resolvedDocument.workspaceId || '').trim()
-    const canonicalPath = resolvedDocument.canonicalPath
-    const path = workspaceId
-      ? buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
-      : buildKnowgrphStorageDefaultDocPath(canonicalPath)
-    const response = await fetch(buildWebMcpStorageRequestUrl(path), {
-      headers: { accept: 'text/markdown' },
-    })
-    if (!response.ok) {
-      throw new Error(`inspect_shared_document_structure failed with ${response.status}`)
-    }
-    return inspectSharedDocumentStructure({
-      workspaceId: workspaceId || KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
-      canonicalPath,
-      markdown: await response.text(),
-    })
-  },
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME],
 })
 
 const buildInspectLocalWorkspaceDocumentTool = (): WebMcpTool => ({
@@ -523,154 +424,48 @@ const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
   description: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.description,
   inputSchema: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.inputSchema,
   annotations: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.annotations,
-  execute: async () => {
-    const agentReadyBaseUrl = readWebMcpAgentReadyBaseUrl()
-    const [health, apiCatalog, openApi, mcpServerCard, agentCard, agentSkills] = await Promise.all([
-      fetchJson(`${agentReadyBaseUrl}/health`, 'application/health+json'),
-      fetchJson(`${agentReadyBaseUrl}/.well-known/api-catalog`, 'application/linkset+json'),
-      fetchJson(`${agentReadyBaseUrl}/.well-known/openapi.json`, 'application/json'),
-      fetchJson(`${agentReadyBaseUrl}/.well-known/mcp/server-card.json`, 'application/json'),
-      fetchJson(`${agentReadyBaseUrl}/.well-known/agent-card.json`, 'application/json'),
-      fetchJson(`${agentReadyBaseUrl}/.well-known/agent-skills/index.json`, 'application/json'),
-    ])
-    return {
-      baseUrl: agentReadyBaseUrl,
-      healthUrl: `${agentReadyBaseUrl}/health`,
-      mcpUrl: `${agentReadyBaseUrl}/mcp`,
-      apiCatalogUrl: `${agentReadyBaseUrl}/.well-known/api-catalog`,
-      openApiUrl: `${agentReadyBaseUrl}/.well-known/openapi.json`,
-      mcpServerCardUrl: `${agentReadyBaseUrl}/.well-known/mcp/server-card.json`,
-      agentCardUrl: `${agentReadyBaseUrl}/.well-known/agent-card.json`,
-      agentSkillsUrl: `${agentReadyBaseUrl}/.well-known/agent-skills/index.json`,
-      health,
-      apiCatalog,
-      openApi,
-      mcpServerCard,
-      agentCard,
-      agentSkills,
-    }
-  },
+  execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[INSPECT_AGENT_SURFACE_TOOL_NAME],
 })
 
-const WEB_MCP_TOOLS = [
-  buildSourceFilesTool(),
-  buildReadSourceFileTool(),
-  buildReadSharedDocumentTool(),
-  buildInspectSharedDocumentStructureTool(),
-  buildInspectLocalWorkspaceDocumentTool(),
-  buildInspectLocalCanvasTopologyTool(),
-  buildInspectLocalCanvasSnapshotTool(),
-  buildInspectLocal3dCameraPoseTool(),
-  buildInspectLocal3dLayoutPositionsTool(),
-  buildInspectLocal2dZoomViewportTool(),
-  buildInspectLocalSourceFilesSnapshotTool(),
-  buildInspectAgentSurfaceTool(),
-]
-
-const installToolsIntoModelContext = (context: ModelContextLike, tools: WebMcpTool[]): boolean => {
-  const registrationState = getRegistrationState(context)
-  let providedContext = false
-  if (typeof context.provideContext === 'function') {
-    try {
-      context.provideContext({ tools })
-      providedContext = true
-    } catch {
-      void 0
-    }
-  }
-  if (typeof context.registerTool === 'function') {
-    for (const tool of tools) {
-      if (registrationState.registeredToolNames.has(tool.name)) continue
-      const controller = typeof AbortController === 'function' ? new AbortController() : null
-      try {
-        context.registerTool(tool, controller ? { signal: controller.signal } : {})
-        registrationState.registeredToolNames.add(tool.name)
-        registrationState.abortControllers.set(tool.name, controller)
-      } catch (error) {
-        if (!isDuplicateToolRegistrationError(error)) continue
-        registrationState.registeredToolNames.add(tool.name)
-        registrationState.abortControllers.set(tool.name, null)
-      }
-    }
-  }
-  if (Array.isArray(context.tools)) {
-    for (const tool of tools) {
-      if (!context.tools.some(entry => entry?.name === tool.name)) context.tools.push(tool)
-    }
-  }
-  const allToolsRegistered = tools.every(
-    tool => registrationState.registeredToolNames.has(tool.name) || context.tools?.some(entry => entry?.name === tool.name),
-  )
-  if (allToolsRegistered) {
-    releasePreviousRegisteredContext(context)
-    return true
-  }
-  return providedContext && typeof context.registerTool !== 'function' && !Array.isArray(context.tools)
+const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles]: buildSourceFilesTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile]: buildReadSourceFileTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument]: buildReadSharedDocumentTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure]: buildInspectSharedDocumentStructureTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument]: buildInspectLocalWorkspaceDocumentTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology]: buildInspectLocalCanvasTopologyTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot]: buildInspectLocalCanvasSnapshotTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose]: buildInspectLocal3dCameraPoseTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions]: buildInspectLocal3dLayoutPositionsTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport]: buildInspectLocal2dZoomViewportTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot]: buildInspectLocalSourceFilesSnapshotTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface]: buildInspectAgentSurfaceTool,
 }
 
-const tryInstallLateBoundModelContext = (nav: WebMcpNavigator): boolean => {
-  const context = nav.modelContext
-  if (!context || context === webMcpRuntimeState.fallbackContext) return false
-  const installed = installToolsIntoModelContext(context, WEB_MCP_TOOLS)
-  if (installed) {
-    clearLateBindingRetry()
-    markWebMcpRuntime('installed')
-    return true
+const WEB_MCP_TOOLS = WEB_MCP_TOOL_CONTRACTS.map((contract) => {
+  const buildTool = WEB_MCP_TOOL_BUILDERS[contract.name]
+  if (typeof buildTool !== 'function') {
+    throw new Error(`missing Knowgrph browser WebMCP tool builder: ${contract.name}`)
   }
-  return false
-}
-
-const scheduleLateBindingRetry = (nav: WebMcpNavigator): void => {
-  if (typeof window === 'undefined') return
-  if (webMcpRuntimeState.lateBindingRetryId !== null) return
-  if (webMcpRuntimeState.lateBindingAttemptCount >= WEB_MCP_LATE_BINDING_MAX_ATTEMPTS) {
-    markWebMcpRuntime('retry-exhausted')
-    return
-  }
-  webMcpRuntimeState.lateBindingRetryId = window.setTimeout(() => {
-    webMcpRuntimeState.lateBindingRetryId = null
-    webMcpRuntimeState.lateBindingAttemptCount += 1
-    if (!tryInstallLateBoundModelContext(nav)) scheduleLateBindingRetry(nav)
-  }, WEB_MCP_LATE_BINDING_RETRY_DELAY_MS)
-}
-
-const defineFallbackModelContext = (nav: WebMcpNavigator, context: ModelContextLike): void => {
-  webMcpRuntimeState.fallbackContext = context
-  let currentContext = nav.modelContext && nav.modelContext !== context ? nav.modelContext : context
-  try {
-    Object.defineProperty(nav, 'modelContext', {
-      configurable: true,
-      enumerable: false,
-      get: () => currentContext,
-      set: (value: ModelContextLike | undefined) => {
-        currentContext = value || context
-        if (currentContext !== context) void tryInstallLateBoundModelContext(nav)
-      },
-    })
-  } catch {
-    nav.modelContext = context
-  }
-}
+  return buildTool()
+})
+const webMcpLifecycle = createWebMcpLifecycleController({
+  root: globalThis as typeof globalThis & { navigator?: WebMcpNavigator; window?: { navigator?: WebMcpNavigator } },
+  state: webMcpRuntimeState as unknown as Record<string, unknown>,
+  tools: WEB_MCP_TOOLS,
+  toolNames: WEB_MCP_TOOL_NAMES,
+  lateBindingRetryDelayMs: WEB_MCP_LATE_BINDING_RETRY_DELAY_MS,
+  lateBindingMaxAttempts: WEB_MCP_LATE_BINDING_MAX_ATTEMPTS,
+  markRuntimeState: markWebMcpRuntime,
+})
 
 export function installKnowgrphWebMcpRuntime(): void {
   if (typeof globalThis === 'undefined') return
-  const nav = readGlobalNavigator()
-  markWebMcpRuntime('installing')
-  if (nav.modelContext && installToolsIntoModelContext(nav.modelContext, WEB_MCP_TOOLS)) {
-    markWebMcpRuntime('installed')
-    return
-  }
-  if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...WEB_MCP_TOOLS] })
-  markWebMcpRuntime(
-    WEB_MCP_TOOL_NAMES.every(name => nav.modelContext?.tools?.some(entry => entry?.name === name))
-      ? 'fallback-readable'
-      : 'awaiting-model-context',
-  )
-  scheduleLateBindingRetry(nav)
+  webMcpLifecycle.install()
 }
 
 export function resetKnowgrphWebMcpRuntimeForTests(): void {
-  clearLateBindingRetry()
+  webMcpLifecycle.clearLateBindingRetry()
   webMcpRuntimeState.fallbackContext = null
   webMcpRuntimeState.activeRegisteredContext = null
   webMcpRuntimeState.registrations = new WeakMap<ModelContextLike, ModelContextRegistrationState>()

@@ -24,12 +24,20 @@ const agentReadyDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functio
 const agentReadyDefaultDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc-default', '[[path]].js')
 const agentReadyShareRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'share', '[[path]].js')
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
+const agentReadyDiscoverySource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-discovery.mjs')
 const agentReadySharedTarget = path.resolve(
   githubRoot,
   'huijoohwee',
   'functions',
   'knowgrph',
   'knowgrph-agent-ready-shared.mjs',
+)
+const agentReadyDiscoveryTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'functions',
+  'knowgrph',
+  'knowgrph-agent-ready-discovery.mjs',
 )
 const rootAgentReadySharedTarget = path.resolve(
   githubRoot,
@@ -73,6 +81,57 @@ const sharedDocumentStructureInspectionTarget = path.resolve(
   'agent-ready',
   'sharedDocumentStructureInspection.mjs',
 )
+const agentSurfaceInspectionSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'agentSurfaceInspection.mjs',
+)
+const agentSurfaceInspectionTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'agentSurfaceInspection.mjs',
+)
+const webMcpLifecycleSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'webMcpLifecycle.mjs',
+)
+const webMcpLifecycleTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'webMcpLifecycle.mjs',
+)
+const publishedToolExecutorsSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'publishedToolExecutors.mjs',
+)
+const publishedToolExecutorsTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'publishedToolExecutors.mjs',
+)
 const publishedDocShareTokenSource = path.resolve(
   knowgrphRoot,
   'canvas',
@@ -89,6 +148,23 @@ const publishedDocShareTokenTarget = path.resolve(
   'features',
   'canvas',
   'canvasDocShareToken.mjs',
+)
+const knowgrphStorageSyncContractSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'lib',
+  'storage',
+  'knowgrphStorageSyncContract.ts',
+)
+const knowgrphStorageSyncContractTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'lib',
+  'storage',
+  'knowgrphStorageSyncContract.ts',
 )
 const sharedD1Source = path.resolve(knowgrphRoot, 'cloudflare', 'workers', 'shared', 'd1.ts')
 const sharedD1Target = path.resolve(githubRoot, 'huijoohwee', 'cloudflare', 'workers', 'shared', 'd1.ts')
@@ -405,6 +481,7 @@ const agentReadyDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRou
 const agentReadyDefaultDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDefaultDocRouteTarget)
 const agentReadyShareRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyShareRouteTarget)
 const agentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, agentReadySharedTarget)
+const agentReadyDiscoveryNeedsUpdate = await plainFileNeedsUpdate(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
 const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(
   agentReadySharedSource,
   rootAgentReadySharedTarget,
@@ -421,9 +498,25 @@ const sharedDocumentStructureInspectionNeedsUpdate = await plainFileNeedsUpdate(
   sharedDocumentStructureInspectionSource,
   sharedDocumentStructureInspectionTarget,
 )
+const agentSurfaceInspectionNeedsUpdate = await plainFileNeedsUpdate(
+  agentSurfaceInspectionSource,
+  agentSurfaceInspectionTarget,
+)
+const webMcpLifecycleNeedsUpdate = await plainFileNeedsUpdate(
+  webMcpLifecycleSource,
+  webMcpLifecycleTarget,
+)
+const publishedToolExecutorsNeedsUpdate = await plainFileNeedsUpdate(
+  publishedToolExecutorsSource,
+  publishedToolExecutorsTarget,
+)
 const publishedDocShareTokenNeedsUpdate = await plainFileNeedsUpdate(
   publishedDocShareTokenSource,
   publishedDocShareTokenTarget,
+)
+const knowgrphStorageSyncContractNeedsUpdate = await plainFileNeedsUpdate(
+  knowgrphStorageSyncContractSource,
+  knowgrphStorageSyncContractTarget,
 )
 const sharedD1NeedsUpdate = await plainFileNeedsUpdate(sharedD1Source, sharedD1Target)
 const sharedPublishedDocNeedsUpdate = await plainFileNeedsUpdate(sharedPublishedDocSource, sharedPublishedDocTarget)
@@ -449,11 +542,16 @@ if (checkMode) {
     agentReadyDefaultDocRouteNeedsUpdate ||
     agentReadyShareRouteNeedsUpdate ||
     agentReadySharedNeedsUpdate ||
+    agentReadyDiscoveryNeedsUpdate ||
     rootAgentReadySharedNeedsUpdate ||
     rootAgentReadyFunctionNeedsUpdate ||
     agentReadyToolContractNeedsUpdate ||
     sharedDocumentStructureInspectionNeedsUpdate ||
+    agentSurfaceInspectionNeedsUpdate ||
+    webMcpLifecycleNeedsUpdate ||
+    publishedToolExecutorsNeedsUpdate ||
     publishedDocShareTokenNeedsUpdate ||
+    knowgrphStorageSyncContractNeedsUpdate ||
     sharedD1NeedsUpdate ||
     sharedPublishedDocNeedsUpdate ||
     agentReadyStaticFilesToWrite.length > 0 ||
@@ -488,11 +586,16 @@ if (checkMode) {
     if (agentReadyDefaultDocRouteNeedsUpdate) console.error('  - Knowgrph default shared-doc Pages Function is out of sync')
     if (agentReadyShareRouteNeedsUpdate) console.error('  - Knowgrph opaque share Pages Function is out of sync')
     if (agentReadySharedNeedsUpdate) console.error('  - Knowgrph agent-ready shared markdown helper is out of sync')
+    if (agentReadyDiscoveryNeedsUpdate) console.error('  - Knowgrph agent-ready discovery helper is out of sync')
     if (rootAgentReadySharedNeedsUpdate) console.error('  - Root agent-ready shared markdown helper is out of sync')
     if (rootAgentReadyFunctionNeedsUpdate) console.error('  - Root markdown negotiation Pages Function is out of sync')
     if (agentReadyToolContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared tool contract is out of sync')
     if (sharedDocumentStructureInspectionNeedsUpdate) console.error('  - Knowgrph shared document structure inspection helper is out of sync')
+    if (agentSurfaceInspectionNeedsUpdate) console.error('  - Knowgrph agent surface inspection helper is out of sync')
+    if (webMcpLifecycleNeedsUpdate) console.error('  - Knowgrph WebMCP lifecycle helper is out of sync')
+    if (publishedToolExecutorsNeedsUpdate) console.error('  - Knowgrph published tool executor helper is out of sync')
     if (publishedDocShareTokenNeedsUpdate) console.error('  - Knowgrph published doc share token helper is out of sync')
+    if (knowgrphStorageSyncContractNeedsUpdate) console.error('  - Knowgrph storage sync contract helper is out of sync')
     if (sharedD1NeedsUpdate) console.error('  - Shared D1 helper is out of sync')
     if (sharedPublishedDocNeedsUpdate) console.error('  - Shared published doc helper is out of sync')
     if (agentReadyStaticFilesToWrite.length > 0) {
@@ -563,6 +666,10 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadySharedTarget), { recursive: true })
     await fs.copyFile(agentReadySharedSource, agentReadySharedTarget)
   }
+  if (agentReadyDiscoveryNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentReadyDiscoveryTarget), { recursive: true })
+    await fs.copyFile(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
+  }
   if (rootAgentReadySharedNeedsUpdate) {
     await fs.mkdir(path.dirname(rootAgentReadySharedTarget), { recursive: true })
     await fs.copyFile(agentReadySharedSource, rootAgentReadySharedTarget)
@@ -579,9 +686,25 @@ if (checkMode) {
     await fs.mkdir(path.dirname(sharedDocumentStructureInspectionTarget), { recursive: true })
     await fs.copyFile(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
   }
+  if (agentSurfaceInspectionNeedsUpdate) {
+    await fs.mkdir(path.dirname(agentSurfaceInspectionTarget), { recursive: true })
+    await fs.copyFile(agentSurfaceInspectionSource, agentSurfaceInspectionTarget)
+  }
+  if (webMcpLifecycleNeedsUpdate) {
+    await fs.mkdir(path.dirname(webMcpLifecycleTarget), { recursive: true })
+    await fs.copyFile(webMcpLifecycleSource, webMcpLifecycleTarget)
+  }
+  if (publishedToolExecutorsNeedsUpdate) {
+    await fs.mkdir(path.dirname(publishedToolExecutorsTarget), { recursive: true })
+    await fs.copyFile(publishedToolExecutorsSource, publishedToolExecutorsTarget)
+  }
   if (publishedDocShareTokenNeedsUpdate) {
     await fs.mkdir(path.dirname(publishedDocShareTokenTarget), { recursive: true })
     await fs.copyFile(publishedDocShareTokenSource, publishedDocShareTokenTarget)
+  }
+  if (knowgrphStorageSyncContractNeedsUpdate) {
+    await fs.mkdir(path.dirname(knowgrphStorageSyncContractTarget), { recursive: true })
+    await fs.copyFile(knowgrphStorageSyncContractSource, knowgrphStorageSyncContractTarget)
   }
   if (sharedD1NeedsUpdate) {
     await fs.mkdir(path.dirname(sharedD1Target), { recursive: true })
@@ -604,6 +727,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

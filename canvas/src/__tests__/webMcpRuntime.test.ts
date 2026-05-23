@@ -1,5 +1,7 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
+import { buildAgentSurfaceInspectionPayload } from '@/features/agent-ready/agentSurfaceInspection.mjs'
+import { buildKnowgrphAgentReadyToolContracts } from '@/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
@@ -7,12 +9,51 @@ import {
   resetKnowgrphWebMcpRuntimeForTests,
 } from '@/features/agent-ready/webMcpRuntime'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 
 type RegisteredTool = {
   name: string
+  title?: string
   description?: string
   inputSchema?: Record<string, unknown>
+  annotations?: Record<string, unknown>
   execute: (input?: Record<string, unknown>) => Promise<unknown>
+}
+
+const EXPECTED_WEB_MCP_RUNTIME_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
+  defaultWorkspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
+  includeBrowserOnlyTools: true,
+})
+
+const assertWebMcpRuntimeToolParity = (tools: RegisteredTool[], label: string): void => {
+  const registeredToolNames = tools.map((tool) => tool.name).sort()
+  const expectedToolNames = EXPECTED_WEB_MCP_RUNTIME_CONTRACTS.map((tool) => tool.webName).sort()
+  if (registeredToolNames.join('|') !== expectedToolNames.join('|')) {
+    throw new Error(
+      `expected ${label} tool parity with shared browser contract, got ${registeredToolNames.join(', ')} expected ${expectedToolNames.join(', ')}`,
+    )
+  }
+  if (new Set(registeredToolNames).size !== registeredToolNames.length) {
+    throw new Error(`expected ${label} tool names to be unique, got ${registeredToolNames.join(', ')}`)
+  }
+  for (const contract of EXPECTED_WEB_MCP_RUNTIME_CONTRACTS) {
+    const registeredTool = tools.find((tool) => tool.name === contract.webName)
+    if (!registeredTool) {
+      throw new Error(`expected ${label} to register ${contract.webName}`)
+    }
+    if (registeredTool.title !== contract.title) {
+      throw new Error(`expected ${label} title parity for ${contract.webName}`)
+    }
+    if (registeredTool.description !== contract.description) {
+      throw new Error(`expected ${label} description parity for ${contract.webName}`)
+    }
+    if (JSON.stringify(registeredTool.inputSchema) !== JSON.stringify(contract.inputSchema)) {
+      throw new Error(`expected ${label} inputSchema parity for ${contract.webName}`)
+    }
+    if (JSON.stringify(registeredTool.annotations || null) !== JSON.stringify(contract.annotations || null)) {
+      throw new Error(`expected ${label} annotations parity for ${contract.webName}`)
+    }
+  }
 }
 
 const MOCK_SHARED_DOCUMENT_MARKDOWN = `---
@@ -86,6 +127,71 @@ const createMockResponse = (url: string): Response =>
       paths: { '/knowgrph/health': { get: {} } },
     }),
   }) as Response
+
+const buildExpectedMockAgentSurfaceInspection = (baseUrl: string) =>
+  buildAgentSurfaceInspectionPayload({
+    baseUrl,
+    health: {
+      url: `${baseUrl}/health`,
+      ok: true,
+      capabilities: { tools: [{ name: 'list_source_files' }] },
+      status: 'pass',
+      service: 'knowgrph-agent-ready-pages',
+      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/health/skill.md`, sha256: 'sha' }],
+      openapi: '3.1.0',
+      paths: { '/knowgrph/health': { get: {} } },
+    },
+    apiCatalog: {
+      url: `${baseUrl}/.well-known/api-catalog`,
+      ok: true,
+      capabilities: { tools: [{ name: 'list_source_files' }] },
+      status: 'pass',
+      service: 'knowgrph-agent-ready-pages',
+      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/api-catalog/skill.md`, sha256: 'sha' }],
+      openapi: '3.1.0',
+      paths: { '/knowgrph/health': { get: {} } },
+    },
+    openApi: {
+      url: `${baseUrl}/.well-known/openapi.json`,
+      ok: true,
+      capabilities: { tools: [{ name: 'list_source_files' }] },
+      status: 'pass',
+      service: 'knowgrph-agent-ready-pages',
+      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/openapi.json/skill.md`, sha256: 'sha' }],
+      openapi: '3.1.0',
+      paths: { '/knowgrph/health': { get: {} } },
+    },
+    mcpServerCard: {
+      url: `${baseUrl}/.well-known/mcp/server-card.json`,
+      ok: true,
+      capabilities: { tools: [{ name: 'list_source_files' }] },
+      status: 'pass',
+      service: 'knowgrph-agent-ready-pages',
+      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/mcp/server-card.json/skill.md`, sha256: 'sha' }],
+      openapi: '3.1.0',
+      paths: { '/knowgrph/health': { get: {} } },
+    },
+    agentCard: {
+      url: `${baseUrl}/.well-known/agent-card.json`,
+      ok: true,
+      capabilities: { tools: [{ name: 'list_source_files' }] },
+      status: 'pass',
+      service: 'knowgrph-agent-ready-pages',
+      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/agent-card.json/skill.md`, sha256: 'sha' }],
+      openapi: '3.1.0',
+      paths: { '/knowgrph/health': { get: {} } },
+    },
+    agentSkills: {
+      url: `${baseUrl}/.well-known/agent-skills/index.json`,
+      ok: true,
+      capabilities: { tools: [{ name: 'list_source_files' }] },
+      status: 'pass',
+      service: 'knowgrph-agent-ready-pages',
+      skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/agent-skills/index.json/skill.md`, sha256: 'sha' }],
+      openapi: '3.1.0',
+      paths: { '/knowgrph/health': { get: {} } },
+    },
+  })
 
 export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths(): Promise<void> {
   const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
@@ -164,6 +270,12 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if (document.documentElement.dataset.kgWebmcpContext !== 'installed') {
       throw new Error(
         `expected installed runtime state after late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
+      )
+    }
+    assertWebMcpRuntimeToolParity(Array.from(registeredTools.values()), 'runtime registerTool')
+    if (document.documentElement.dataset.kgWebmcpTools !== EXPECTED_WEB_MCP_RUNTIME_CONTRACTS.map((tool) => tool.webName).join(',')) {
+      throw new Error(
+        `expected runtime data-kg-webmcp-tools to match shared browser contract order, got ${String(document.documentElement.dataset.kgWebmcpTools)}`,
       )
     }
 
@@ -407,8 +519,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/.well-known/mcp/server-card.json'))) {
       throw new Error(`expected inspect_agent_surface to fetch the MCP server card, got ${fetchCalls.join(', ')}`)
     }
-    if (String((inspection as { healthUrl?: unknown }).healthUrl || '').endsWith('/knowgrph/health') !== true) {
-      throw new Error(`expected inspect_agent_surface to return the health URL, got ${JSON.stringify(inspection)}`)
+    const expectedInspection = buildExpectedMockAgentSurfaceInspection('http://localhost/knowgrph')
+    if (JSON.stringify(inspection) !== JSON.stringify(expectedInspection)) {
+      throw new Error(`expected inspect_agent_surface to return the exact shared payload, got ${JSON.stringify(inspection)}`)
     }
   } finally {
     if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
@@ -483,32 +596,11 @@ export async function testWebMcpRuntimeProvidesContextWhenRegisterToolIsUnavaila
         `expected installed runtime state after provideContext registration, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )
     }
-    if (providedTools.length !== 12) {
-      throw new Error(`expected provideContext to receive 12 WebMCP tools, got ${providedTools.length}`)
-    }
-    const providedToolNames = providedTools.map(tool => tool.name)
-    const expectedNames = [
-      'knowgrph.list_source_files',
-      'knowgrph.read_source_file',
-      'knowgrph.read_shared_document',
-      'knowgrph.inspect_shared_document_structure',
-      'knowgrph.inspect_local_workspace_document',
-      'knowgrph.inspect_local_canvas_topology',
-      'knowgrph.inspect_local_canvas_snapshot',
-      'knowgrph.inspect_local_3d_camera_pose',
-      'knowgrph.inspect_local_3d_layout_positions',
-      'knowgrph.inspect_local_2d_zoom_viewport',
-      'knowgrph.inspect_local_source_files_snapshot',
-      'knowgrph.inspect_agent_surface',
-    ]
-    if (expectedNames.some(name => !providedToolNames.includes(name))) {
-      throw new Error(`expected provideContext tool set to include all shared and browser-local tools, got ${providedToolNames.join(', ')}`)
-    }
-    if (new Set(providedToolNames).size !== providedToolNames.length) {
-      throw new Error(`expected provideContext tool names to be unique, got ${providedToolNames.join(', ')}`)
-    }
-    if (providedTools.some(tool => !tool.description?.trim() || typeof tool.inputSchema !== 'object')) {
-      throw new Error(`expected provideContext tools to expose descriptions and input schemas, got ${JSON.stringify(providedTools)}`)
+    assertWebMcpRuntimeToolParity(providedTools, 'runtime provideContext')
+    if (document.documentElement.dataset.kgWebmcpTools !== EXPECTED_WEB_MCP_RUNTIME_CONTRACTS.map((tool) => tool.webName).join(',')) {
+      throw new Error(
+        `expected provideContext data-kg-webmcp-tools to match shared browser contract order, got ${String(document.documentElement.dataset.kgWebmcpTools)}`,
+      )
     }
   } finally {
     if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
