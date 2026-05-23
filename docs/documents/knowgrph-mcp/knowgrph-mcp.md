@@ -4,197 +4,62 @@
 Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudflare Pages `airvio.co/knowgrph`.
 
 **Intent**
-- keep MCP as the SSOT tool layer where it adds real leverage
-- keep shipped surfaces truthful
-- forbid stale/conflicting architecture
-- align future MCP work with the existing MainPanel -> FloatingPanel Chat -> YAML frontmatter -> Canvas graph pipeline
+- keep shipped MCP surfaces truthful
+- keep one canonical architecture contract
+- keep MainPanel -> FloatingPanel Chat -> YAML frontmatter -> Canvas flow implementation-accurate
+- forbid stale/conflicting MCP narratives
 
 ---
 
-## 1) Current MCP surfaces
+## Current Topology
 
-### 1.1 Local stdio MCP
-
-**Status**: shipped  
-**Owner**: `mcp/server.js`
-
-Current local tools:
-- `knowgrph.ui.launch`
-- `knowgrph.ui.stop`
-- `knowgrph.pipeline`
-- `knowgrph.graphrag_pipeline`
-- `knowgrph.superagent.run`
-- `knowgrph.browser_api.run`
-
-This is the richest implemented MCP surface in the repo today, but it is local-only and stdio-only.
-
-### 1.2 Pages HTTP MCP, browser WebMCP, and HTML fallback
-
-**Status**: shipped  
-**Owners**:
-- `cloudflare/pages/knowgrph-agent-ready.mjs`
-- `canvas/src/features/agent-ready/webMcpRuntime.ts`
-- `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
-- `canvas/src/main.tsx`
-
-Current shared read-only tools:
-- `knowgrph.list_source_files`
-- `knowgrph.read_source_file`
-- `knowgrph.read_shared_document`
-- `knowgrph.inspect_shared_document_structure`
-- `knowgrph.inspect_agent_surface`
-
-Additional app-runtime browser-local tools:
-- `knowgrph.inspect_local_workspace_document`
-- `knowgrph.inspect_local_canvas_topology`
-- `knowgrph.inspect_local_canvas_snapshot`
-- `knowgrph.inspect_local_3d_camera_pose`
-- `knowgrph.inspect_local_3d_layout_positions`
-- `knowgrph.inspect_local_2d_zoom_viewport`
-- `knowgrph.inspect_local_source_files_snapshot`
-
-Implementation-accurate readiness details:
-- the full app runtime installs WebMCP on page load through `installKnowgrphWebMcpRuntime()` in `canvas/src/main.tsx`
-- the runtime prefers `navigator.modelContext.provideContext({ tools })` when available and also calls `registerTool(tool, { signal })` with `AbortController` when supported
-- late binding is handled explicitly so WebMCP can install after `navigator.modelContext` appears
-- the deployed Pages HTML surface injects a shared five-tool WebMCP fallback on `/knowgrph` HTML routes
-- the same Pages owner also ships health, API catalog, OpenAPI, MCP server card, A2A agent card, and agent-skills metadata
-
-This surface is intentionally narrow and storage-backed. It is not the same thing as the richer future remote MCP platform proposed in the PRD/TAD.
-
-### 1.3 MainPanel MCP and Integrations readiness
-
-**Status**: shipped  
-**Owners**:
-- `canvas/src/features/panels/views/McpHubView.tsx`
-- `canvas/src/features/panels/views/IntegrationsHubView.tsx`
-- `canvas/src/features/panels/views/SettingsView.tsx`
-- `canvas/src/features/panels/views/useSettingsChatAssist.tsx`
-
-Important detail: MainPanel `mcp` and MainPanel `integrations` are thin shells over shared settings and chat-readiness owners. They are not separate orchestration stacks.
-
-### 1.4 Browser-local chat to canvas pipeline
-
-**Status**: shipped  
-**Owners**:
-- `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts`
-- `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts`
-- `canvas/src/features/chat/chatMarkdownValidation.ts`
-- `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts`
-- `canvas/src/features/chat/chatKgcCanvasApply.ts`
-- `canvas/src/features/parsers/default.ts`
-- `canvas/src/features/parsers/markdownFrontmatterFlowGraph.*`
-
-This is the existing E2E path for:
-- MainPanel MCP / Integrations readiness
-- FloatingPanel Chat UI
-- LLM output
-- YAML frontmatter KGC Markdown
-- Canvas nodes / edges / subgraphs / groups / clusters
+| Surface | Status | Canonical owner | Notes |
+|---|---|---|---|
+| Local stdio MCP | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` | local UI launch, local pipelines, local browser bridge |
+| Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP on `/knowgrph/mcp` |
+| Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | shared five-tool WebMCP injection on `/knowgrph` HTML routes |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with `provideContext({ tools })`, `registerTool(tool, { signal })`, and late binding |
+| MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
+| FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown -> Canvas apply path |
+| Remote Worker MCP platform | Proposed only | none in repo yet | must not be documented as implemented |
 
 ---
 
-## 2) Repo-accurate architecture
+## E2E Contract
 
-### 2.1 Shipped topology
+The current shipped MCP-aware path is:
 
-| Surface | Role | Owner |
-|---|---|---|
-| Local stdio MCP | local automation and dev workflows | `mcp/server.js` |
-| Pages HTTP MCP | published-document read-only access | `cloudflare/pages/knowgrph-agent-ready.mjs` |
-| Browser WebMCP app runtime | in-browser read-only access | `webMcpRuntime.ts` + `main.tsx` |
-| Pages HTML WebMCP fallback | injected shared five-tool WebMCP on HTML routes | `cloudflare/pages/knowgrph-agent-ready.mjs` |
-| Agent-ready metadata | health, OpenAPI, MCP server card, A2A card, agent-skills | `cloudflare/pages/knowgrph-agent-ready.mjs` |
-| MainPanel MCP / Integrations | readiness, docs, routing, provider config | `SettingsView` + `useSettingsChatAssist.tsx` |
-| FloatingPanel Chat | validated KGC generation and canvas apply | `sidePanelChat/*` + parser/store owners |
+1. MainPanel `mcp` or `integrations`
+2. shared settings and chat readiness
+3. FloatingPanel Chat submit helpers
+4. KGC recovery and validation
+5. canonical workspace finalize
+6. `applyChatKgcWorkspaceDocumentToCanvas()`
+7. `setActiveMarkdownDocument({ applyToGraph: true })`
+8. frontmatter-flow parsing and downstream subgraph/group/cluster projection
 
-### 2.2 Storage boundary
+Guardrails:
 
-For published Source Files and shared-doc reads:
-- public and browser-visible URLs remain canonical on `https://airvio.co/api/storage/*`
-- server-side reads from Pages or a future remote MCP worker should target `https://knowgrph-storage.huijoohwee.workers.dev`
-
-This boundary is already proven by the shipped agent-ready Pages surface and must not drift.
+- WebMCP is already implemented in repo and must not be described as future-only work.
+- `flow.subgraphs` is the sole upstream grouping authoring surface.
+- Rendered groups and clusters are downstream projections, not a second authoring SSOT.
+- Public/browser storage URLs stay canonical on `https://airvio.co/api/storage/*`; server-side reads use `https://knowgrph-storage.huijoohwee.workers.dev`.
 
 ---
 
-## 3) MCP design rules
+## Canonical Docs
 
-### 3.1 Keep surfaces separate
+This file is an overview and document index. The canonical detailed contracts live here:
 
-Do not conflate:
-- local stdio MCP
-- shipped read-only Pages/browser MCP
-- future remote Worker MCP service
-
-### 3.2 Reuse the current E2E pipeline
-
-Future richer MCP tools must reuse the current browser-local chain:
-- MainPanel `mcp` / `integrations`
-- shared settings and chat readiness
-- FloatingPanel Chat submit helpers
-- KGC recovery and validation
-- finalize to workspace
-- `applyChatKgcWorkspaceDocumentToCanvas()`
-- `setActiveMarkdownDocument({ applyToGraph: true })`
-- frontmatter-flow parsing and subgraph/group projection
-
-### 3.3 Keep grouping SSOT upstream
-
-Canonical grouping authoring surface:
-- `flow.subgraphs`
-
-Forbidden as parallel upstream authoring channels:
-- `kg:subgraphs`
-- `clusters`
-- `groups`
-- `layers`
-
-### 3.4 Keep tool contracts small
-
-- one SSOT contract per tool surface
-- typed input/output
-- no stale aliases
-- no duplicate per-transport semantics
-
-### 3.5 Keep WebMCP implementation truthful
-
-- WebMCP is already implemented in repo; do not describe it as future-only work
-- browser app runtime WebMCP and deployed HTML fallback are separate shipped surfaces with different scope
-- shared deployed WebMCP/HTTP MCP contract stays on the five read-only tools
-- browser-local inspect tools remain app-runtime only unless a future contract explicitly promotes them
+- [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md): product and architecture contract
+- [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp-service-prd-tad.companion.md): file-level owner map, WebMCP readiness owners, invariants, and forbidden architecture
+- `mcp/README.md`: local stdio MCP server usage; shared local tool inventory lives in `mcp/local-tool-contract.js`
 
 ---
 
-## 4) What is proposed next
+## Policy
 
-The next MCP phase should add value in this order:
-
-1. Harden browser WebMCP lifecycle without changing the current shared read-only contract.
-2. Keep MainPanel readiness docs aligned with actual shared settings and chat owners.
-3. Introduce remote read-oriented tools before remote mutating tools.
-4. If richer remote pipeline tools are added, make them thin adapters over the existing KGC validation and canvas-apply path rather than a second graph pipeline.
-
----
-
-## 5) Forbidden architecture
-
-Explicitly forbidden:
-- claiming nonexistent remote MCP Worker modules are already implemented
-- creating a second MainPanel MCP routing/config system
-- creating a second LLM -> Markdown -> Canvas graph pipeline
-- using the prod mirror as deploy authority
-- reintroducing server-side custom-domain self-fetch for storage-backed document reads
-- reintroducing parallel grouping authoring aliases beside `flow.subgraphs`
-- treating downstream parser compatibility for `clusters`, `groups`, `layers`, `kg:subgraphs`, or `frontmatter:chatKnowgrphRelaxed` as an upstream authoring contract
-
----
-
-## 6) Minimal acceptance bar
-
-A good future MCP change:
-- preserves the shipped local stdio and read-only Pages/browser surfaces
-- keeps MainPanel and FloatingPanel ownership thin and upstream
-- reuses the existing KGC validation and parser/apply contracts
-- keeps tool schemas stable and small
-- does not add stale/conflicting architecture to the docs
+- keep one SSOT contract per MCP surface
+- reuse the shipped chat/validation/parser/apply chain instead of creating a second MCP-only graph pipeline
+- introduce future remote tools as thin adapters over current owners
+- remove stale/conflicting content instead of preserving parallel narratives

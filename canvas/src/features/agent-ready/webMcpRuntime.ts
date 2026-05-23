@@ -12,6 +12,12 @@ import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
 } from './knowgrphAgentReadyToolContract.mjs'
+import {
+  readLocalChatPipelineSurfaceSnapshot,
+  readLocalEditorWorkspaceSurfaceSnapshot,
+  readLocalMainPanelSurfaceSnapshot,
+  resetBrowserLocalSurfaceSnapshotsForTests,
+} from './browserLocalSurfaceSnapshots'
 import { createAgentSurfaceInspectionExecutor } from './agentSurfaceInspection.mjs'
 import { createPublishedAgentReadyToolExecutors } from './publishedToolExecutors.mjs'
 import { inspectSharedDocumentStructure } from './sharedDocumentStructureInspection.mjs'
@@ -22,6 +28,9 @@ import { inspectLocalThreeCameraPose } from './localThreeCameraPoseInspection'
 import { inspectLocalThreeLayoutPositions } from './localThreeLayoutPositionsInspection'
 import { inspectLocal2dZoomViewport } from './local2dZoomViewportInspection'
 import { inspectLocalSourceFilesSnapshot } from './localSourceFilesSnapshotInspection'
+import { inspectLocalMainPanelState } from './localMainPanelStateInspection'
+import { inspectLocalEditorWorkspaceState } from './localEditorWorkspaceStateInspection'
+import { inspectLocalChatPipelineState } from './localChatPipelineStateInspection'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -85,6 +94,9 @@ const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL
 const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
 const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument)
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure)
+const INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState)
+const INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState)
+const INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState)
 const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument)
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology)
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot)
@@ -97,6 +109,9 @@ const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME = INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_MAINPANEL_STATE_TOOL_NAME = INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_NAME = INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_NAME = INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME = INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_NAME = INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_NAME = INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.webName
@@ -256,6 +271,33 @@ const buildInspectSharedDocumentStructureTool = (): WebMcpTool => ({
   inputSchema: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.inputSchema,
   annotations: INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.annotations,
   execute: PUBLISHED_WEB_MCP_TOOL_EXECUTORS[INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME],
+})
+
+const buildInspectLocalMainPanelStateTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_NAME,
+  title: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.annotations,
+  execute: async () => inspectLocalMainPanelState(readLocalMainPanelSurfaceSnapshot()),
+})
+
+const buildInspectLocalEditorWorkspaceStateTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_NAME,
+  title: INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.annotations,
+  execute: async () => inspectLocalEditorWorkspaceState(readLocalEditorWorkspaceSurfaceSnapshot()),
+})
+
+const buildInspectLocalChatPipelineStateTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_NAME,
+  title: INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.annotations,
+  execute: async () => inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot()),
 })
 
 const buildInspectLocalWorkspaceDocumentTool = (): WebMcpTool => ({
@@ -432,6 +474,9 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile]: buildReadSourceFileTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument]: buildReadSharedDocumentTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure]: buildInspectSharedDocumentStructureTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState]: buildInspectLocalMainPanelStateTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState]: buildInspectLocalEditorWorkspaceStateTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState]: buildInspectLocalChatPipelineStateTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument]: buildInspectLocalWorkspaceDocumentTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology]: buildInspectLocalCanvasTopologyTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot]: buildInspectLocalCanvasSnapshotTool,
@@ -470,6 +515,7 @@ export function resetKnowgrphWebMcpRuntimeForTests(): void {
   webMcpRuntimeState.activeRegisteredContext = null
   webMcpRuntimeState.registrations = new WeakMap<ModelContextLike, ModelContextRegistrationState>()
   webMcpRuntimeState.lateBindingAttemptCount = 0
+  resetBrowserLocalSurfaceSnapshotsForTests()
   if (typeof document !== 'undefined') {
     delete document.documentElement.dataset.kgWebmcpContext
     delete document.documentElement.dataset.kgWebmcpTools

@@ -33,7 +33,8 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 - CLI: `python3 -m knowgrph_parser superagent` or `python3 -m knowgrph_parser run-goal`
 - MCP tool: `knowgrph.superagent.run`
 - Purpose: run the bounded rich-media goal loop with typed provider contracts, trace persistence, artifact provenance, resume, verification, deterministic mock providers, and mobile-first responsive workspace metadata.
-- Implementation: [superagent_harness.py](../../knowgrph_parser/superagent_harness.py) and [server.js](../../mcp/server.js)
+- Implementation: [superagent_harness.py](../../knowgrph_parser/superagent_harness.py), local stdio transport in [server.js](../../mcp/server.js), and local MCP tool-contract ownership in [local-tool-contract.js](../../mcp/local-tool-contract.js)
+- Contract source: [README.md](../../mcp/README.md) and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md)
 
 ### API-native browser MCP bridge
 
@@ -43,6 +44,7 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 - Purpose: let any MCP client call a local browser/API runtime that resolves first-party browser routes, executes resolved skills, and can fall back to native browser capture/action flows without copying a vendor implementation.
 - Safety: execution forwards `dry_run=true` by default, rejects non-loopback runtime URLs unless explicitly enabled by server environment, requires `confirm_unsafe` for live route execution/native browser mutations, and requires `confirm_cookie_import` before cookie storage access.
 - Configuration: MainPanel MCP owns `browser.apiNative.mcp.*` rows, direct browser-MCP `mcpServers` JSON using `UNBROWSE_URL`, and a separate local bridge config using `KNOWGRPH_BROWSER_API_RUNTIME_URL`. Target URLs are caller- or setting-supplied; the bridge does not inject a default site.
+- Contract source: [README.md](../../mcp/README.md), [local-tool-contract.js](../../mcp/local-tool-contract.js), and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md)
 
 Responsive output contract:
 

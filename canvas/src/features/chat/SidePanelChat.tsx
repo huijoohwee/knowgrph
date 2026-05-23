@@ -38,6 +38,10 @@ import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/mark
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { coerceHttpUrl } from '@/lib/url'
+import {
+  clearLocalChatPipelineSurfaceSnapshot,
+  publishLocalChatPipelineSurfaceSnapshot,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -128,6 +132,61 @@ export default function SidePanelChat() {
     () => getChatRecommendedModelHint(chatProvider),
     [chatProvider],
   )
+
+  React.useEffect(() => {
+    publishLocalChatPipelineSurfaceSnapshot({
+      messageCount: messages.length,
+      isLoading,
+      errorText,
+      connectivity,
+      connectivityDetail,
+      chatProviderSummary,
+      chatProviderHint: chatProviderHint || null,
+      chatContextScope,
+      chatStorageTarget,
+      chatKnowgrphWorkspacePath,
+      chatHistoryWorkspacePath,
+      workspaceViewMode,
+      editorWorkspacePane,
+      markdownDocumentName,
+      selectedNodeId: selectedNodeId || null,
+      streamingAssistant: streamingAssistant
+        ? {
+            id: String(streamingAssistant.id || ''),
+            text: String(streamingAssistant.text || ''),
+          }
+        : null,
+      streamingWorkspacePath,
+      streamFollowPath: streamFollowRef.current?.path || null,
+      streamDraft: streamDraftTextRef.current
+        ? {
+            path: String(streamDraftTextRef.current.path || ''),
+            text: String(streamDraftTextRef.current.text || ''),
+          }
+        : null,
+    })
+    return () => {
+      clearLocalChatPipelineSurfaceSnapshot()
+    }
+  }, [
+    chatContextScope,
+    chatHistoryWorkspacePath,
+    chatKnowgrphWorkspacePath,
+    chatProviderHint,
+    chatProviderSummary,
+    chatStorageTarget,
+    connectivity,
+    connectivityDetail,
+    editorWorkspacePane,
+    errorText,
+    isLoading,
+    markdownDocumentName,
+    messages.length,
+    selectedNodeId,
+    streamingAssistant,
+    streamingWorkspacePath,
+    workspaceViewMode,
+  ])
 
   const chatModelSelect = React.useMemo(() => {
     const normalizedProvider = normalizeChatProviderId(chatProvider)

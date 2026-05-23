@@ -8,6 +8,11 @@ import {
   installKnowgrphWebMcpRuntime,
   resetKnowgrphWebMcpRuntimeForTests,
 } from '@/features/agent-ready/webMcpRuntime'
+import {
+  publishLocalChatPipelineSurfaceSnapshot,
+  publishLocalEditorWorkspaceSurfaceSnapshot,
+  publishLocalMainPanelSurfaceSnapshot,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 
@@ -283,6 +288,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const readTool = registeredTools.get('knowgrph.read_source_file')
     const readSharedTool = registeredTools.get('knowgrph.read_shared_document')
     const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
+    const inspectLocalMainPanelTool = registeredTools.get('knowgrph.inspect_local_mainpanel_state')
+    const inspectLocalEditorWorkspaceTool = registeredTools.get('knowgrph.inspect_local_editor_workspace_state')
+    const inspectLocalChatPipelineTool = registeredTools.get('knowgrph.inspect_local_chat_pipeline_state')
     const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectLocalCanvasTool = registeredTools.get('knowgrph.inspect_local_canvas_topology')
     const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
@@ -291,7 +299,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
     const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -387,10 +395,76 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       ] as never,
     } as never)
     useMarkdownExplorerStore.setState({ activePath: '/docs/agent-ready.md' })
+    publishLocalMainPanelSurfaceSnapshot({
+      activeTab: 'mcp',
+      activeTabLabel: 'MCP',
+      searchable: true,
+      searchOpen: true,
+      searchVisible: true,
+      searchQuery: 'browser api',
+      searchPlaceholder: 'Search settings',
+      footerLabel: 'MCP',
+      traversalChip: { modeLabel: 'AgenticRAG', edgesLabel: '1 edge', nodesLabel: '2 nodes' },
+      sharedActions: {
+        hasApply: true,
+        hasReset: true,
+        hasGlobalReset: false,
+        hasCollapseAll: true,
+        hasExpandAll: true,
+        allCollapsed: false,
+      },
+    })
+    publishLocalEditorWorkspaceSurfaceSnapshot({
+      activeDocumentKey: 'workspace:/local/agent-ready.md',
+      workspaceViewMode: 'editor',
+      workspaceCanvasPaneOpen: true,
+      workspaceEditorOverlayOpen: true,
+      layoutMode: 'editor',
+      viewerKind: 'markdown',
+      viewerMode: 'read',
+      isMarkdown: true,
+      isJsonMarkdownEditing: false,
+      paneVisibility: { markdown: true, json: true, viewer: true, html: false, binary: false },
+      splitPaneVisibility: { markdown: true, json: true, viewer: true, html: false, bin: false },
+      liveMarkdownText: `${MOCK_SHARED_DOCUMENT_MARKDOWN}\nAgent-ready draft\n`,
+      persistedMarkdownText: MOCK_SHARED_DOCUMENT_MARKDOWN,
+      hasUncommittedDraft: true,
+      liveDraftSource: 'viewer-inline',
+    })
+    publishLocalChatPipelineSurfaceSnapshot({
+      messageCount: 3,
+      isLoading: true,
+      errorText: null,
+      connectivity: 'ok',
+      connectivityDetail: 'streaming',
+      chatProviderSummary: 'OpenAI · Global · gpt-4.1',
+      chatProviderHint: 'Use a reasoning-capable model',
+      chatContextScope: 'workspace',
+      chatStorageTarget: 'chatKnowgrph',
+      chatKnowgrphWorkspacePath: '/chat/knowgrph/session.md',
+      chatHistoryWorkspacePath: '/chat/history/session.md',
+      workspaceViewMode: 'editor',
+      editorWorkspacePane: 'markdown',
+      markdownDocumentName: 'workspace:/local/agent-ready.md',
+      selectedNodeId: 'start',
+      streamingAssistant: {
+        id: 'assistant-1',
+        text: '---\nflow:\n  nodes:\n    - id: start\n      label: Start\n---\n# Agent draft',
+      },
+      streamingWorkspacePath: '/chat/knowgrph/session.md',
+      streamFollowPath: '/chat/knowgrph/session.md',
+      streamDraft: {
+        path: '/chat/knowgrph/session.md',
+        text: '---\nflow:\n  nodes:\n    - id: start\n      label: Start\n---\n# Draft workspace',
+      },
+    })
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
     await readSharedTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
     const sharedStructure = await inspectSharedDocumentTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
+    const localMainPanelState = await inspectLocalMainPanelTool.execute()
+    const localEditorWorkspaceState = await inspectLocalEditorWorkspaceTool.execute()
+    const localChatPipelineState = await inspectLocalChatPipelineTool.execute()
     const localStructure = await inspectLocalDocumentTool.execute()
     const localCanvasTopology = await inspectLocalCanvasTool.execute()
     const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
@@ -425,6 +499,30 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     }
     if ((localStructure as { flowConnectionCount?: unknown }).flowConnectionCount !== 1) {
       throw new Error(`expected inspect_local_workspace_document to reuse structure inspection counts, got ${JSON.stringify(localStructure)}`)
+    }
+    if ((localMainPanelState as { activeTab?: unknown }).activeTab !== 'mcp') {
+      throw new Error(`expected inspect_local_mainpanel_state to report the active tab, got ${JSON.stringify(localMainPanelState)}`)
+    }
+    if ((localMainPanelState as { search?: { query?: unknown } }).search?.query !== 'browser api') {
+      throw new Error(`expected inspect_local_mainpanel_state to report the current search query, got ${JSON.stringify(localMainPanelState)}`)
+    }
+    if ((localEditorWorkspaceState as { layoutMode?: unknown }).layoutMode !== 'editor') {
+      throw new Error(`expected inspect_local_editor_workspace_state to report editor layout mode, got ${JSON.stringify(localEditorWorkspaceState)}`)
+    }
+    if ((localEditorWorkspaceState as { draftState?: { hasUncommittedDraft?: unknown } }).draftState?.hasUncommittedDraft !== true) {
+      throw new Error(`expected inspect_local_editor_workspace_state to report a live draft, got ${JSON.stringify(localEditorWorkspaceState)}`)
+    }
+    if ((localEditorWorkspaceState as { liveStructure?: { hasFrontmatter?: unknown } }).liveStructure?.hasFrontmatter !== true) {
+      throw new Error(`expected inspect_local_editor_workspace_state to inspect live frontmatter structure, got ${JSON.stringify(localEditorWorkspaceState)}`)
+    }
+    if ((localChatPipelineState as { isLoading?: unknown }).isLoading !== true) {
+      throw new Error(`expected inspect_local_chat_pipeline_state to report streaming/loading state, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localChatPipelineState as { streaming?: { active?: unknown } }).streaming?.active !== true) {
+      throw new Error(`expected inspect_local_chat_pipeline_state to report an active streaming pipeline, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localChatPipelineState as { workspacePaths?: { streamingWorkspacePath?: unknown } }).workspacePaths?.streamingWorkspacePath !== '/chat/knowgrph/session.md') {
+      throw new Error(`expected inspect_local_chat_pipeline_state to expose the streaming workspace path, got ${JSON.stringify(localChatPipelineState)}`)
     }
     if ((localCanvasTopology as { available?: unknown }).available !== true) {
       throw new Error(`expected inspect_local_canvas_topology to report an available local canvas, got ${JSON.stringify(localCanvasTopology)}`)

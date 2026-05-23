@@ -18,7 +18,7 @@ constraints:
 related:
   - prd-tad-guidelines.md
   - knowgrph-agent-ready-cloudflare-isitagentready.md
-  - knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md
+  - knowgrph-mcp/knowgrph-mcp-service-prd-tad.md
 ---
 
 # Knowgrph Agent Ready - PRD + TAD (Implementation Accurate + Enhanced)
@@ -31,7 +31,7 @@ This document replaces two stale narratives at once:
   negotiation, or WebMCP on `https://airvio.co/knowgrph/`
 - roadmap narratives that blur the boundary between the shipped read-only Pages MCP surface and
   a larger still-proposed remote MCP platform documented separately in
-  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md`
+  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md`
 - crawl-path narratives that imply agents should read Markdown-pane content from
   `huijoohwee/docs` instead of the published Editor Workspace -> Source Files -> D1 document-view
   pipeline
@@ -170,7 +170,7 @@ Knowgrph does not currently aim to:
 | Crawler-visible Markdown pane path | Implemented | `cloudflare/workers/knowgrph-storage/crawler.ts` + `cloudflare/workers/knowgrph-storage/index.ts` | Agents read published Editor Workspace Markdown through D1-backed Source Files index and doc-view routes, not from repo-local docs directories |
 | Publish sync and Pages control-file hygiene | Implemented | `scripts/sync-pages-knowgrph.mjs` | Must keep mirror non-authoritative |
 | PWA base-path correctness | Implemented | `canvas/index.html` and Pages root config | Must keep `%BASE_URL%manifest.webmanifest` invariant |
-| Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Proposed only | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md` | Must not be documented here as already shipped on the Pages agent-ready surface |
+| Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Proposed only | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` | Must not be documented here as already shipped on the Pages agent-ready surface |
 
 ## Source Of Truth
 
@@ -224,7 +224,7 @@ The following are explicitly non-authoritative and must not be used to justify n
 - any claim that the shipped Pages agent-ready surface already exposes the full MainPanel/Chat/KGC
   pipeline as a deployed HTTP MCP or WebMCP tool chain
 - any claim that the separate proposed remote MCP platform in
-  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md` is already implemented in
+  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` is already implemented in
   the current repo or deployed Cloudflare Pages surface
 - any claim that the apex root homepage `/` is the Knowgrph service homepage
 - any parallel MainPanel MCP configuration system that bypasses `SettingsView`,

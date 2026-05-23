@@ -7,7 +7,8 @@ import net from "node:net";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { BROWSER_API_TOOL, callBrowserApiRuntime } from "./browser-api-runtime.js";
+import { callBrowserApiRuntime } from "./browser-api-runtime.js";
+import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
 
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000");
 const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000");
@@ -18,6 +19,10 @@ const ALLOW_EXTERNAL_PATHS =
   (process.env.KNOWGRPH_ALLOW_EXTERNAL_PATHS || "").trim().toLowerCase() === "1";
 const DEFAULT_UI_HOST = process.env.KNOWGRPH_UI_HOST?.trim() || "127.0.0.1";
 const DEFAULT_UI_PORT = Number(process.env.KNOWGRPH_UI_PORT?.trim() || "5173");
+const LOCAL_MCP_TOOLS = buildKnowgrphLocalMcpToolDefinitions({
+  defaultUiHost: DEFAULT_UI_HOST,
+  defaultUiPort: DEFAULT_UI_PORT,
+});
 
 /** @type {null | { pid: number, host: string, port: number, startedAtMs: number }} */
 let canvasDevServer = null;
@@ -214,143 +219,7 @@ const server = new Server(
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: [
-      {
-        name: "knowgrph.ui.launch",
-        description:
-          "Launch the Knowgrph Canvas UI (Vite dev server) and return a URL pre-configured for Canvas / Workspace Editor / Geospatial mode.",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            target: {
-              type: "string",
-              enum: ["canvas", "workspaceEditor", "geospatial"],
-              default: "canvas",
-              description: "Which UI experience to open.",
-            },
-            host: {
-              type: "string",
-              description: "Host to bind and open. Default: 127.0.0.1 (or KNOWGRPH_UI_HOST).",
-            },
-            port: {
-              type: "number",
-              description: "Port for the dev server. Default: 5173 (or KNOWGRPH_UI_PORT).",
-            },
-            waitForReady: {
-              type: "boolean",
-              description: "If true, waits briefly for the port to accept TCP connections before returning.",
-              default: true,
-            },
-          },
-        },
-      },
-      {
-        name: "knowgrph.ui.stop",
-        description: "Stop the running Knowgrph Canvas dev server (if started by knowgrph.ui.launch).",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {},
-        },
-      },
-      {
-        name: "knowgrph.pipeline",
-        description:
-          "Run the Knowgrph pipeline (GraphData -> A0 CSV/JSON-LD + codebase index artifacts).",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            mode: {
-              type: "string",
-              enum: ["pipeline"],
-              default: "pipeline",
-              description: "Which pipeline mode to run.",
-            },
-            inputPath: {
-              type: "string",
-              description: "Path to an input GraphData JSON file (required when mode=pipeline).",
-            },
-            outputDir: {
-              type: "string",
-              description:
-                "Directory for outputs. If omitted, defaults to knowgrph_parser's configured output directory.",
-            },
-            timeoutMs: {
-              type: "number",
-              description: "Optional timeout in milliseconds.",
-            },
-          },
-        },
-      },
-      {
-        name: "knowgrph.graphrag_pipeline",
-        description:
-          "Run the GraphRAG pipeline wrapper (attempts `graphrag index`, then emits GraphData + A0 exports).",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            configPath: { type: "string", description: "GraphRAG config YAML path." },
-            inputDir: { type: "string", description: "Input directory containing raw docs." },
-            outDir: { type: "string", description: "Output directory." },
-            graphId: { type: "string", description: "Graph identifier used in emitted workflow doc." },
-            timeoutMs: { type: "number", description: "Optional timeout in milliseconds." },
-          },
-        },
-      },
-      {
-        name: "knowgrph.superagent.run",
-        description:
-          "Run the Codex-compatible super-agent harness for rich media canvas generation with deterministic mock media providers.",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            inputPath: {
-              type: "string",
-              description: "Path to a markdown/text brief. Required unless resume=true.",
-            },
-            outputDir: {
-              type: "string",
-              description: "Directory for state, trace, report, and artifacts. Defaults to data/outputs/superagent-mcp-run-<timestamp>.",
-            },
-            goalPath: {
-              type: "string",
-              description: "Optional goal file path. Defaults to KNOWGRPH_ROOT/goal.",
-            },
-            runId: {
-              type: "string",
-              description: "Optional stable run id.",
-            },
-            resume: {
-              type: "boolean",
-              default: false,
-              description: "Resume from outputDir/state.json.",
-            },
-            stopAfterStep: {
-              type: "number",
-              description: "Optional checkpoint after N completed tasks.",
-            },
-            failOnceTool: {
-              type: "string",
-              description: "Optional tool name to fail once for recovery testing, e.g. video.generate.mock.",
-            },
-            allowExternalInput: {
-              type: "boolean",
-              default: false,
-              description: "Allow inputPath outside KNOWGRPH_ROOT for explicit E2E runs.",
-            },
-            timeoutMs: {
-              type: "number",
-              description: "Optional timeout in milliseconds.",
-            },
-          },
-        },
-      },
-      BROWSER_API_TOOL,
-    ],
+    tools: LOCAL_MCP_TOOLS,
   };
 });
 
@@ -359,7 +228,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const args = request.params?.arguments ?? {};
 
   try {
-    if (toolName === "knowgrph.ui.launch") {
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch) {
       const target = typeof args.target === "string" ? args.target : "canvas";
       const host = typeof args.host === "string" && args.host.trim() ? args.host.trim() : DEFAULT_UI_HOST;
       const port = typeof args.port === "number" && Number.isFinite(args.port) ? Number(args.port) : DEFAULT_UI_PORT;
@@ -384,7 +253,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: outputText }], isError: false };
     }
 
-    if (toolName === "knowgrph.ui.stop") {
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiStop) {
       if (!canvasDevServer?.pid) {
         return { content: [{ type: "text", text: "No Canvas dev server is currently tracked as running." }], isError: false };
       }
@@ -397,7 +266,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
-    if (toolName === "knowgrph.pipeline") {
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline) {
       const mode = typeof args.mode === "string" ? args.mode : "pipeline";
       const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
 
@@ -434,7 +303,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       throw new Error(`Unknown mode: ${mode}`);
     }
 
-    if (toolName === "knowgrph.graphrag_pipeline") {
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline) {
       const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
       const cmdArgs = ["-m", "knowgrph_parser", "graphrag-pipeline"];
 
@@ -479,7 +348,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
     }
 
-    if (toolName === "knowgrph.superagent.run") {
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun) {
       const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
       const resume = typeof args.resume === "boolean" ? args.resume : false;
       const outputDir =
@@ -529,7 +398,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
     }
 
-    if (toolName === "knowgrph.browser_api.run") {
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun) {
       return await callBrowserApiRuntime(args, { maxOutputChars: MAX_OUTPUT_CHARS });
     }
 

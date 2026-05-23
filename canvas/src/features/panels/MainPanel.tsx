@@ -19,6 +19,10 @@ import {
   isMainPanelTabKey,
   type MainPanelTabKey,
 } from '@/features/panels/mainPanelTabs'
+import {
+  clearLocalMainPanelSurfaceSnapshot,
+  publishLocalMainPanelSurfaceSnapshot,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 const mainPanelTabSupportsSearch = (tab: MainPanelTabKey): boolean => getMainPanelTabMeta(tab).searchable
 
@@ -222,6 +226,44 @@ export default function MainPanel({
       nodesLabel,
     }
   }, [traversalEdgeById, traversalSummary])
+
+  React.useEffect(() => {
+    publishLocalMainPanelSurfaceSnapshot({
+      activeTab: tab,
+      activeTabLabel: activeTabMeta.label,
+      searchable: activeTabMeta.searchable,
+      searchOpen,
+      searchVisible,
+      searchQuery: search,
+      searchPlaceholder: searchPlaceholder || null,
+      footerLabel: footerLabel || null,
+      traversalChip,
+      sharedActions: activeSharedActions
+        ? {
+            hasApply: typeof activeSharedActions.apply === 'function',
+            hasReset: typeof activeSharedActions.reset === 'function',
+            hasGlobalReset: typeof activeSharedActions.globalReset === 'function',
+            hasCollapseAll: typeof activeSharedActions.collapseAll === 'function',
+            hasExpandAll: typeof activeSharedActions.expandAll === 'function',
+            allCollapsed: activeSharedActions.allCollapsed === true,
+          }
+        : null,
+    })
+    return () => {
+      clearLocalMainPanelSurfaceSnapshot()
+    }
+  }, [
+    activeSharedActions,
+    activeTabMeta.label,
+    activeTabMeta.searchable,
+    footerLabel,
+    search,
+    searchOpen,
+    searchPlaceholder,
+    searchVisible,
+    tab,
+    traversalChip,
+  ])
 
   React.useEffect(() => {
     if (!requestedTab) return

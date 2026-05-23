@@ -37,6 +37,10 @@ import { workspaceTablePreferencesStore } from '@/features/workspace-table/works
 import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildJsonMarkdownSourceSemanticKey, serializeJsonMarkdownDraftToSourceText } from './jsonMarkdownEditing'
+import {
+  clearLocalEditorWorkspaceSurfaceSnapshot,
+  publishLocalEditorWorkspaceSurfaceSnapshot,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
   async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspacePresentationSurface')['MarkdownWorkspacePresentationSurface'] }> =>
@@ -302,6 +306,72 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '')
     : activeText
   const markdownEditText = isJsonMarkdownEditing ? editableMarkdownText : null
+
+  React.useEffect(() => {
+    publishLocalEditorWorkspaceSurfaceSnapshot({
+      activeDocumentKey: String(activeDocumentKey || ''),
+      workspaceViewMode: String(workspaceViewMode || ''),
+      workspaceCanvasPaneOpen: workspaceCanvasPaneOpen === true,
+      workspaceEditorOverlayOpen,
+      layoutMode: String(layoutMode || ''),
+      viewerKind: String(viewerKind || ''),
+      viewerMode: String(viewerMode || ''),
+      isMarkdown,
+      isJsonMarkdownEditing,
+      paneVisibility: {
+        markdown: markdownPaneVisible,
+        json: jsonPaneVisible,
+        viewer: viewerPaneVisible,
+        html: htmlPaneVisible,
+        binary: binaryPaneVisible,
+      },
+      splitPaneVisibility: {
+        markdown: splitPaneVisibility.markdown === true,
+        json: splitPaneVisibility.json === true,
+        viewer: splitPaneVisibility.viewer === true,
+        html: splitPaneVisibility.html === true,
+        bin: splitPaneVisibility.bin === true,
+      },
+      liveMarkdownText: String(editableMarkdownText || ''),
+      persistedMarkdownText: String(persistedEditableMarkdownText || ''),
+      hasUncommittedDraft:
+        viewerInlineMarkdownDraftText != null
+        || String(editableMarkdownText || '') !== String(persistedEditableMarkdownText || ''),
+      liveDraftSource:
+        viewerInlineMarkdownDraftText != null
+          ? 'viewer-inline'
+          : isJsonMarkdownEditing && String(editableMarkdownText || '') !== String(persistedEditableMarkdownText || '')
+            ? 'json-derived'
+            : 'persisted',
+    })
+    return () => {
+      clearLocalEditorWorkspaceSurfaceSnapshot()
+    }
+  }, [
+    activeDocumentKey,
+    binaryPaneVisible,
+    editableMarkdownText,
+    htmlPaneVisible,
+    isJsonMarkdownEditing,
+    isMarkdown,
+    jsonPaneVisible,
+    layoutMode,
+    markdownPaneVisible,
+    persistedEditableMarkdownText,
+    splitPaneVisibility.bin,
+    splitPaneVisibility.html,
+    splitPaneVisibility.json,
+    splitPaneVisibility.markdown,
+    splitPaneVisibility.viewer,
+    viewerInlineMarkdownDraftText,
+    viewerKind,
+    viewerMode,
+    viewerPaneVisible,
+    workspaceCanvasPaneOpen,
+    workspaceEditorOverlayOpen,
+    workspaceViewMode,
+  ])
+
   const commitMarkdownEditText = React.useCallback(
     (nextText: string) => {
       if (!isJsonMarkdownEditing) {

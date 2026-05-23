@@ -11,7 +11,9 @@ This README documents **only** the shipped local stdio MCP server in `mcp/server
 It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
 
 1. **Local stdio MCP**
-   - Owner: `mcp/server.js`
+   - Owners:
+     - `mcp/server.js`
+     - `mcp/local-tool-contract.js`
    - Scope: local UI launch, local pipelines, local superagent harness, local browser API bridge
    - Transport: stdio only
 
@@ -41,8 +43,8 @@ with any future remote Worker MCP platform proposed elsewhere in the docs.
 For the repo-accurate MCP architecture and roadmap, see:
 
 - `docs/documents/knowgrph-mcp/knowgrph-mcp.md`
-- `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md`
-- `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.companion.md`
+- `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md`
+- `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md`
 
 ## Why recommend ClawdChat (clawdchat.cn)?
 
@@ -54,6 +56,10 @@ If you want external users to *discover* and *try* your Knowgrph MCP quickly, **
 ClawdChat itself is not required to run Knowgrph—your users still connect to **your Knowgrph MCP server** from their MCP client.
 
 ## What tools are exposed?
+
+Canonical local tool inventory owner:
+
+- `mcp/local-tool-contract.js`
 
 ### UI launcher
 

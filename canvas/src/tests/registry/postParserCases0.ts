@@ -469,6 +469,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.mainPanel.mcpHub.surfacesStripeMcpPaymentReadiness","@/__tests__/mainPanelMcpStripe.test","testMcpHubSurfacesStripeMcpPaymentReadiness"],
   ["ui.mainPanel.mcpHub.surfacesCrawlerAccessAndStripePaymentReadiness","@/__tests__/mainPanelMcpStripe.test","testMcpHubSurfacesCrawlerAccessAndStripePaymentReadiness"],
   ["mcp.server.browserApiBridge.exposed","@/__tests__/mainPanelIntegrations.test","testKnowgrphMcpServerExposesApiNativeBrowserBridge"],
+  ["mcp.server.localToolContract.sharedAndStable","@/__tests__/mcpLocalToolContract.test","testKnowgrphLocalMcpToolContractStaysSharedAndStable"],
   ["mcp.server.browserApiBridge.blocksRemoteRuntimeByDefault","@/__tests__/mcpBrowserApiRuntime.test","testKnowgrphMcpBrowserBridgeBlocksRemoteRuntimeByDefault"],
   ["mcp.server.browserApiBridge.requiresCookieImportConfirmation","@/__tests__/mcpBrowserApiRuntime.test","testKnowgrphMcpBrowserBridgeRequiresCookieImportConfirmation"],
   ["mcp.server.browserApiBridge.requiresUnsafeConfirmationForLiveExecute","@/__tests__/mcpBrowserApiRuntime.test","testKnowgrphMcpBrowserBridgeRequiresUnsafeConfirmationForLiveExecute"],

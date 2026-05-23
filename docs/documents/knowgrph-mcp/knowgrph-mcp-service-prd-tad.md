@@ -1,10 +1,10 @@
 ---
-title: Knowgrph MCP Service - PRD & TAD (Proposed)
+title: Knowgrph MCP Service - PRD & TAD
 id: md:knowgrph-mcp-service-prd-tad-proposed
 author: joohwee
 date: 2026-05-20
 updated: 2026-05-23
-version: 0.4.10
+version: 0.4.13
 status: proposed
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -22,6 +22,25 @@ linkedDocs:
   - "{{md:knowgrph-llm-prompt-contract-prd-tad-proposed}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.13
+    date: 2026-05-23
+    summary: >
+      Added browser-local WebMCP inspection tools for MainPanel state, Editor
+      Workspace and Markdown pane state, and FloatingPanel chat pipeline state
+      so the shipped browser runtime covers the full MainPanel -> FloatingPanel
+      Chat -> Editor Workspace -> Canvas inspection chain.
+  - version: 0.4.12
+    date: 2026-05-23
+    summary: >
+      Recorded `mcp/local-tool-contract.js` as the shipped local stdio tool
+      contract owner and aligned local MCP docs and regression coverage with the
+      shared browser bridge tool inventory.
+  - version: 0.4.11
+    date: 2026-05-23
+    summary: >
+      Consolidated the overview doc back into the canonical MCP PRD/TAD and
+      companion, marked shipped WebMCP readiness as implementation truth instead
+      of future work, and aligned stale path references to the canonical files.
   - version: 0.4.10
     date: 2026-05-23
     summary: >
@@ -91,11 +110,11 @@ changelog:
       registration, and localhost/current-origin storage resolution.
 ---
 
-# Knowgrph MCP Service - PRD & TAD (Proposed)
+# Knowgrph MCP Service - PRD & TAD
 
 > **Document type**: Combined PRD + TAD  
-> **Phase**: Proposed enhancement over shipped MCP surfaces  
-> **Version**: 0.4.10
+> **Phase**: Implementation-aligned baseline plus proposed next phase  
+> **Version**: 0.4.13
 
 ---
 
@@ -107,8 +126,8 @@ This document defines the next MCP phase for Knowgrph, but it starts from the cu
 
 | Surface | Current state | Canonical owner | Notes |
 |---|---|---|---|
-| Local stdio MCP server | Shipped | `mcp/server.js` | Exposes local UI launch, pipeline, harness, and browser API bridge tools |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers twelve read-only tools in the app runtime, including browser-local workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors |
+| Local stdio MCP server | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` | `server.js` owns stdio handling; `local-tool-contract.js` owns the shared tool inventory |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers fifteen read-only tools in the app runtime, including browser-local MainPanel, Editor Workspace, chat pipeline, workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors |
 | Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | Installs WebMCP on page load |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | JSON-RPC read-only MCP on `/knowgrph/mcp` |
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | Injects the shared five-tool WebMCP surface on `/knowgrph` HTML routes |
@@ -135,6 +154,7 @@ Those modules remain proposed. Any document or implementation note that treats t
 Knowgrph should evolve toward a richer MCP platform, but only by:
 
 - preserving the already shipped stdio server and read-only Pages/browser MCP surfaces as truthful baselines
+- keeping current WebMCP readiness implementation-accurate: tool definitions stay shared, typed, page-load installed, and lifecycle-managed through `provideContext({ tools })` and `registerTool(tool, { signal })`
 - keeping MainPanel `mcp` and `integrations` as thin shells over shared settings and chat-routing owners
 - reusing the shipped FloatingPanel Chat -> KGC validation -> Canvas apply helpers instead of introducing a second MCP-only graph pipeline
 - keeping `flow.subgraphs` as the sole upstream grouping authoring surface
@@ -189,7 +209,7 @@ This document does not claim that the following are already implemented:
 ### Personas
 
 - **Persona A - Local MCP power user**: runs `mcp/server.js` from Claude Code, Cursor, or another local MCP host to launch the UI, run parser pipelines, run the superagent harness, or drive the browser API bridge.
-- **Persona B - Published-doc agent**: connects to deployed Pages/browser agent-ready surfaces to discover `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`; when running inside the full app runtime it can additionally inspect the active local workspace document with `knowgrph.inspect_local_workspace_document`, the active local canvas with `knowgrph.inspect_local_canvas_topology`, the active local canvas snapshot with `knowgrph.inspect_local_canvas_snapshot`, the active local 3d camera pose with `knowgrph.inspect_local_3d_camera_pose`, the active local 3d layout positions with `knowgrph.inspect_local_3d_layout_positions`, the active local 2d zoom viewport with `knowgrph.inspect_local_2d_zoom_viewport`, and the active local Source Files snapshot with `knowgrph.inspect_local_source_files_snapshot`.
+- **Persona B - Published-doc agent**: connects to deployed Pages/browser agent-ready surfaces to discover `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`; when running inside the full app runtime it can additionally inspect the active MainPanel state with `knowgrph.inspect_local_mainpanel_state`, the active Editor Workspace and Markdown pane state with `knowgrph.inspect_local_editor_workspace_state`, the active FloatingPanel chat pipeline state with `knowgrph.inspect_local_chat_pipeline_state`, the active local workspace document with `knowgrph.inspect_local_workspace_document`, the active local canvas with `knowgrph.inspect_local_canvas_topology`, the active local canvas snapshot with `knowgrph.inspect_local_canvas_snapshot`, the active local 3d camera pose with `knowgrph.inspect_local_3d_camera_pose`, the active local 3d layout positions with `knowgrph.inspect_local_3d_layout_positions`, the active local 2d zoom viewport with `knowgrph.inspect_local_2d_zoom_viewport`, and the active local Source Files snapshot with `knowgrph.inspect_local_source_files_snapshot`.
 - **Persona C - MainPanel operator**: configures MCP, integrations, provider presets, and chat routing through shared MainPanel settings.
 - **Persona D - FloatingPanel Chat user**: asks the LLM to generate canonical KGC Markdown and expects the result to materialize on the Canvas without a second manual import path.
 - **Persona E - Future remote MCP client**: should eventually trigger selected richer flows remotely, but only through thin adapters over existing browser/local owners.
@@ -200,7 +220,7 @@ This document does not claim that the following are already implemented:
 
 | Stage | Action | Touchpoint | Current owner | Gap |
 |---|---|---|---|---|
-| Discover | MCP client lists tools | `mcp/server.js` | `ListToolsRequestSchema` | No remote transport |
+| Discover | MCP client lists tools | `mcp/server.js` + `mcp/local-tool-contract.js` | `ListToolsRequestSchema` backed by the shared local tool contract | No remote transport |
 | Launch | User opens Canvas or Workspace Editor | `knowgrph.ui.launch` | `mcp/server.js` | Local-only dev workflow |
 | Execute | User runs harness or pipeline | local MCP tools | `mcp/server.js` | Local-root and subprocess bound |
 | Inspect | User inspects outputs | local files / summaries | `mcp/server.js` + parser outputs | No public remote artifact contract |
@@ -258,7 +278,7 @@ This document does not claim that the following are already implemented:
 
 #### PRD-MCP1-S1 - Surface separation
 
-**Given** the repo as of 2026-05-22,  
+**Given** the repo as of 2026-05-23,  
 **When** an engineer reads the MCP docs,  
 **Then** the docs clearly separate:
 - shipped local stdio MCP in `mcp/server.js`
@@ -315,7 +335,7 @@ This document does not claim that the following are already implemented:
 
 | Concern | Canonical owner | Status | Notes |
 |---|---|---|---|
-| Local MCP transport and tools | `mcp/server.js` | Shipped | stdio only |
+| Local MCP transport and tools | `mcp/server.js` + `mcp/local-tool-contract.js` | Shipped | stdio only |
 | Local MCP docs | `mcp/README.md` | Shipped | must stay aligned with `server.js` |
 | Pages agent-ready MCP route | `cloudflare/pages/knowgrph-agent-ready.mjs` | Shipped | JSON-RPC read-only transport |
 | Pages HTML WebMCP fallback | `cloudflare/pages/knowgrph-agent-ready.mjs` | Shipped | shared five-tool injected WebMCP surface |
@@ -350,17 +370,19 @@ This document does not claim that the following are already implemented:
 #### Contract B - Shipped read-only Pages/browser MCP
 
 - Transport: JSON-RPC over `/knowgrph/mcp` and browser WebMCP via `navigator.modelContext`.
-- Tool surface: shared deployed contract = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface`; app-installed browser runtime additionally exposes `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot`.
+- Tool surface: shared deployed contract = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface`; app-installed browser runtime additionally exposes `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot`.
 - Data source: published Source Files and storage-backed markdown doc reads.
 - Constraints: read-only by design; lifecycle now includes late binding, duplicate-state handling, and localhost/current-origin storage resolution.
 
 #### Contract B1 - WebMCP readiness and discovery
 
 - App bootstrap owner: `canvas/src/main.tsx` installs `installKnowgrphWebMcpRuntime()` on page load.
-- Runtime owner: `webMcpRuntime.ts` prefers `navigator.modelContext.provideContext({ tools })` when available and also registers each tool with `registerTool(tool, { signal })`.
-- Lifecycle contract: `AbortController` is used for registration cleanup; late binding supports `navigator.modelContext` appearing after startup; duplicate registrations are tolerated via `InvalidStateError` handling.
+- Runtime owner: `webMcpRuntime.ts` builds tool definitions from the shared contract, including `name`, `description`, `inputSchema`, `execute`, and read-only hints for the published and browser-local tool set.
+- Lifecycle contract: `webMcpLifecycle.mjs` prefers `navigator.modelContext.provideContext({ tools })` when available and also registers each tool with `registerTool(tool, { signal })`.
+- Cleanup and late binding: `AbortController` is used for registration cleanup; late binding supports `navigator.modelContext` appearing after startup; duplicate registrations are tolerated via `InvalidStateError` handling.
 - Deployed HTML contract: `cloudflare/pages/knowgrph-agent-ready.mjs` injects a shared five-tool WebMCP fallback only on `/knowgrph` HTML surfaces.
 - Discovery contract: the same Pages owner also ships health, API catalog, OpenAPI, MCP server card, A2A card, and agent-skills metadata, and those metadata surfaces must describe all five shared tools truthfully.
+- Truthfulness rule: any doc that describes Knowgrph WebMCP as missing, future-only, or implemented outside the current shared tool/lifecycle owners is stale.
 
 #### Contract C - Shipped in-browser chat-to-canvas pipeline
 
@@ -442,12 +464,12 @@ flowchart LR
 ### Phase 0 - Documentation truthfulness
 
 - keep this PRD/TAD aligned with the current repo
-- keep `knowgrph-mcp.md` aligned with current topology and shipped surfaces
+- keep `knowgrph-mcp.md` as a short topology/index doc that points to this PRD/TAD and its companion
 - keep the companion focused on owner maps and forbidden architecture
 
 ### Phase 1 - Shared contract hardening
 
-- harden browser WebMCP lifecycle without changing the shared read-only tool contract
+- preserve shipped browser WebMCP lifecycle parity across app runtime, injected HTML fallback, and discovery metadata without changing the shared read-only tool contract
 - identify which tool-schema builder or manifest can be reused by stdio, browser, Pages, and future remote surfaces
 - keep MainPanel readiness docs aligned with Stripe MCP and crawler-access MCP SSOT modules
 
@@ -479,4 +501,4 @@ flowchart LR
 
 ---
 
-*Document ID: `md:knowgrph-mcp-service-prd-tad-proposed` · Version: 0.4.10 · Updated: 2026-05-23*
+*Document ID: `md:knowgrph-mcp-service-prd-tad-proposed` · Version: 0.4.13 · Updated: 2026-05-23*

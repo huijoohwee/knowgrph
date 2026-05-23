@@ -3,6 +3,9 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   readSourceFile: 'read_source_file',
   readSharedDocument: 'read_shared_document',
   inspectSharedDocumentStructure: 'inspect_shared_document_structure',
+  inspectLocalMainPanelState: 'inspect_local_mainpanel_state',
+  inspectLocalEditorWorkspaceState: 'inspect_local_editor_workspace_state',
+  inspectLocalChatPipelineState: 'inspect_local_chat_pipeline_state',
   inspectLocalWorkspaceDocument: 'inspect_local_workspace_document',
   inspectLocalCanvasTopology: 'inspect_local_canvas_topology',
   inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
@@ -84,6 +87,27 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
     },
     ...(includeBrowserOnlyTools
       ? [{
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState),
+          title: 'Inspect Local MainPanel State',
+          description: 'Inspect the active browser-local Knowgrph MainPanel tab, search, and shared action state for MCP and Integrations readiness.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState),
+          title: 'Inspect Local Editor Workspace State',
+          description: 'Inspect the active browser-local Knowgrph Editor Workspace and Markdown pane state, including pane visibility and live draft/frontmatter structure.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState),
+          title: 'Inspect Local Chat Pipeline State',
+          description: 'Inspect the active browser-local Knowgrph FloatingPanel chat runtime, including streaming, workspace follow path, and LLM-to-workspace pipeline state.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument),
           title: 'Inspect Local Workspace Document',

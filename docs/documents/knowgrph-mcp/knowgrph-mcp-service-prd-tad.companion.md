@@ -1,22 +1,23 @@
-# Knowgrph MCP Service - PRD & TAD (Proposed) Companion
+# Knowgrph MCP Service - PRD & TAD Companion
 
-Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad-proposed.md](knowgrph-mcp-service-prd-tad-proposed.md).
+Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md).
 
-**Document Version**: 0.4.10  
+**Document Version**: 0.4.13  
 **Date**: 2026-05-23  
-**Status**: Proposed supplement
+**Status**: Implementation-aligned supplement
 
 ---
 
 ## Purpose
 
-This companion keeps the main PRD/TAD honest at the owner-map and architecture-invariant level.
+This companion keeps the main PRD/TAD honest at the file-owner, WebMCP-readiness, and architecture-invariant level.
 
-It answers three questions:
+It answers four questions:
 
 1. What MCP surfaces are actually shipped today?
-2. Which files currently own the MainPanel -> FloatingPanel Chat -> KGC -> Canvas flow?
-3. Which stale or conflicting architectures are forbidden?
+2. Which files currently own WebMCP readiness and discovery?
+3. Which files currently own the MainPanel -> FloatingPanel Chat -> KGC -> Canvas flow?
+4. Which stale or conflicting architectures are forbidden?
 
 ---
 
@@ -24,14 +25,18 @@ It answers three questions:
 
 | Surface | Status | Canonical owner | Contract |
 |---|---|---|---|
-| Local stdio MCP | Shipped | `mcp/server.js` | local subprocess and browser-bridge tools |
+| Local stdio MCP transport | Shipped | `mcp/server.js` | stdio request handling and tool execution |
+| Local stdio MCP tool contract | Shipped | `mcp/local-tool-contract.js` | shared local tool names, descriptions, and `inputSchema` inventory |
 | Local stdio MCP docs | Shipped | `mcp/README.md` | local configuration and usage |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP |
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects shared five-tool WebMCP into `/knowgrph` HTML surfaces |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers twelve read-only tools, including `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers fifteen read-only tools, including `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
+| Browser-local WebMCP state snapshots | Shipped | `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | shared browser-local MainPanel, Editor Workspace, and chat pipeline state publication for app-runtime inspection tools |
+| Browser WebMCP lifecycle | Shipped | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, duplicate registration tolerance |
 | Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | installs app-runtime WebMCP on page load |
 | Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published Pages/HTTP tool set = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface` |
 | Agent-ready metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | health, API catalog, OpenAPI, MCP server card, A2A agent card, agent-skills |
+| Agent-skills discovery metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready-discovery.mjs` | agent-skills index and metadata expectations for published discovery |
 | MainPanel MCP | Shipped | `canvas/src/features/panels/views/McpHubView.tsx` | thin `SettingsView mode="mcp"` shell |
 | MainPanel Integrations | Shipped | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | thin `SettingsView mode="integrations"` shell |
 | Shared MainPanel chat readiness | Shipped | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | presets, routing, model refresh |
@@ -39,6 +44,39 @@ It answers three questions:
 | Crawler Access MCP readiness docs | Shipped | `canvas/src/features/panels/views/crawlerAccessMcpApiDocs.ts` | readiness/config only |
 | FloatingPanel Chat -> Canvas flow | Shipped | `canvas/src/features/chat/*` + parser/store owners | browser-local validated KGC pipeline |
 | Remote Worker MCP gateway / pipeline platform | Proposed only | none in repo yet | must not be described as implemented |
+
+---
+
+## WebMCP Readiness Owners
+
+### Browser Runtime
+
+| Concern | Owner | Notes |
+|---|---|---|
+| Page-load install | `canvas/src/main.tsx` | calls `installKnowgrphWebMcpRuntime()` at app startup |
+| Tool contract builder | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | shared source for names, descriptions, `inputSchema`, and browser-only gate |
+| Tool executor assembly | `canvas/src/features/agent-ready/webMcpRuntime.ts` | builds WebMCP tool objects with `name`, `description`, `inputSchema`, `execute`, and read-only hints |
+| Lifecycle controller | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | prefers `provideContext({ tools })`, also calls `registerTool(tool, { signal })`, and falls back to readable `modelContext.tools` state |
+| Late binding | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | supports `navigator.modelContext` appearing after bootstrap |
+| Runtime markers | `canvas/src/features/agent-ready/webMcpRuntime.ts` | writes `data-kg-webmcp-tools` and `data-kg-webmcp-context` on the document root |
+
+### Deployed Discovery
+
+| Concern | Owner | Notes |
+|---|---|---|
+| HTML fallback injection | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects the shared five-tool WebMCP surface on `/knowgrph` HTML routes |
+| Agent-skills index | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/knowgrph-agent-ready-discovery.mjs` | publishes `/.well-known/agent-skills/index.json` under `/knowgrph` |
+| WebMCP skill markdown | `cloudflare/pages/knowgrph-agent-ready.mjs` | publishes `/.well-known/agent-skills/knowgrph-webmcp-readiness.md` |
+| HTTP MCP / server card parity | `cloudflare/pages/knowgrph-agent-ready.mjs` | metadata surfaces must stay contract-equal with the shared published five-tool contract |
+
+### Readiness Invariants
+
+- Browser WebMCP is already implemented and must not be described as future-only work.
+- Shipped readiness follows the current WebMCP guidance: tools expose `name`, `description`, `inputSchema`, and `execute`.
+- Runtime installation occurs on page load, not after a user manually opens a separate MCP panel.
+- Lifecycle cleanup uses `AbortController` so tool registration can be released cleanly.
+- Shared deployed WebMCP stays on the published five-tool read-only contract.
+- Browser-local inspect tools remain app-runtime only unless a future shared contract explicitly promotes them.
 
 ---
 
@@ -76,7 +114,7 @@ It answers three questions:
 | Graph apply action | `canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts` | canonical graph apply gateway |
 | Parse priority | `canvas/src/features/parsers/default.ts` | frontmatter-flow parser first |
 | Graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + helpers | edge/subgraph/cluster compose |
-| Group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | subgraph metadata -> rendered groups |
+| Group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | subgraph metadata -> rendered groups and clusters |
 
 ---
 
@@ -127,6 +165,7 @@ flowchart LR
 The following are explicitly forbidden:
 
 - documenting nonexistent remote MCP Worker modules as if they are already implemented
+- documenting Knowgrph WebMCP as missing when the shipped runtime already installs it through `canvas/src/main.tsx`, `webMcpRuntime.ts`, and `webMcpLifecycle.mjs`
 - adding a second MainPanel MCP config or routing surface outside `SettingsView` and `useSettingsChatAssist()`
 - adding a second LLM output -> Markdown -> Canvas pipeline outside the current chat submit, KGC validation, finalize, and parser/apply owners
 - treating `kg:subgraphs`, `clusters`, `groups`, or `layers` as upstream authoring alternatives to `flow.subgraphs`
@@ -150,12 +189,13 @@ If a future remote MCP service is added, it must:
 
 ## Review Checklist
 
-- [x] Companion aligns with the main PRD/TAD `0.4.10`
+- [x] Companion aligns with the main PRD/TAD `0.4.13`
 - [x] Owner map points only to files that actually exist in the repo
+- [x] WebMCP readiness ownership is implementation-accurate
 - [x] Shipped vs proposed boundary is explicit
 - [x] E2E MainPanel -> FloatingPanel Chat -> KGC -> Canvas contract is documented
 - [x] Forbidden architecture list blocks stale/conflicting narratives
 
 ---
 
-*Document Version: 0.4.10 · Updated: 2026-05-23*
+*Document Version: 0.4.13 · Updated: 2026-05-23*

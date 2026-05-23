@@ -770,15 +770,25 @@ export async function testMcpHubSurfacesApiNativeBrowserMcpConfig() {
 
 export function testKnowgrphMcpServerExposesApiNativeBrowserBridge() {
   const serverText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'server.js'), 'utf8')
+  const localToolContractText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'local-tool-contract.js'), 'utf8')
   const runtimeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'browser-api-runtime.js'), 'utf8')
   const nativeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'mcp', 'browser-api-native-operations.js'), 'utf8')
   ;[
-    'knowgrph.browser_api.run',
-    'BROWSER_API_TOOL',
+    'buildKnowgrphLocalMcpToolDefinitions',
+    'KNOWGRPH_LOCAL_MCP_TOOL_NAMES',
     'callBrowserApiRuntime',
   ].forEach(token => {
     if (!serverText.includes(token)) {
       throw new Error(`expected Knowgrph MCP server to expose browser bridge token ${JSON.stringify(token)}`)
+    }
+  })
+  ;[
+    'knowgrph.browser_api.run',
+    'BROWSER_API_TOOL',
+    'KNOWGRPH_LOCAL_MCP_TOOL_NAMES',
+  ].forEach(token => {
+    if (!localToolContractText.includes(token)) {
+      throw new Error(`expected Knowgrph local MCP tool contract to expose browser bridge token ${JSON.stringify(token)}`)
     }
   })
   ;[

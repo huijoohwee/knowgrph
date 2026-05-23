@@ -102,7 +102,7 @@ Expected result:
 - Canonical implementation-accurate PRD/TAD:
   `docs/documents/knowgrph-agent-ready-prd-tad-proposed.md`
 - Canonical MCP PRD/TAD:
-  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad-proposed.md`
+  `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md`
 
 ## Guardrails
 

@@ -79,6 +79,6 @@ python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagen
 
 Codex can run the harness directly from `/goal` using `superagent` or the equivalent `run-goal` CLI alias. The local setup guide is [knowgrph-codex-goal-setup.md](knowgrph-codex-goal-setup.md), and the repo-owned goal loop is also available as `npm run goal:run`.
 
-MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact.
+MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact. The local stdio MCP tool contract is owned upstream by [local-tool-contract.js](../../mcp/local-tool-contract.js); usage and surface boundaries live in [README.md](../../mcp/README.md) and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md).
 
 Baseline validation is offline and deterministic. It does not require network access, provider credentials, or a specific pre-existing demo document. The static responsive proof covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.
