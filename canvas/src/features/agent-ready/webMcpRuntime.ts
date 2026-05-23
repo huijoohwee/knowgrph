@@ -7,6 +7,7 @@ import {
 import { readEnvString } from '@/lib/config.env'
 import { resolvePublishedDocIdentity } from '@/features/canvas/canvasDocShareToken.mjs'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   buildKnowgrphAgentReadyToolContracts,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
@@ -16,6 +17,8 @@ import { inspectLocalCanvasTopology } from './localCanvasTopologyInspection'
 import { inspectLocalCanvasSnapshot } from './localCanvasSnapshotInspection'
 import { inspectLocalThreeCameraPose } from './localThreeCameraPoseInspection'
 import { inspectLocalThreeLayoutPositions } from './localThreeLayoutPositionsInspection'
+import { inspectLocal2dZoomViewport } from './local2dZoomViewportInspection'
+import { inspectLocalSourceFilesSnapshot } from './localSourceFilesSnapshotInspection'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -84,6 +87,8 @@ const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT = findWebToolContract(KNOWGRPH
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot)
 const INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose)
 const INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions)
+const INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport)
+const INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
@@ -94,6 +99,8 @@ const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_NAME = INSPECT_LOCAL_CANVAS_TOPOLOGY_TO
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_NAME = INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_NAME = INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_NAME = INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_NAME = INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_NAME = INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT.webName
 const INSPECT_AGENT_SURFACE_TOOL_NAME = INSPECT_AGENT_SURFACE_TOOL_CONTRACT.webName
 const WEB_MCP_TOOL_NAMES = WEB_MCP_TOOL_CONTRACTS.map(tool => tool.webName)
 const WEB_MCP_LATE_BINDING_RETRY_DELAY_MS = 500
@@ -464,6 +471,52 @@ const buildInspectLocal3dLayoutPositionsTool = (): WebMcpTool => ({
   },
 })
 
+const buildInspectLocal2dZoomViewportTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_NAME,
+  title: INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const state = useGraphStore.getState()
+    return inspectLocal2dZoomViewport({
+      markdownDocumentName: state.markdownDocumentName,
+      canvasRenderMode: state.canvasRenderMode,
+      canvas2dRenderer: state.canvas2dRenderer,
+      schema: state.schema,
+      graphData: state.graphData,
+      documentSemanticMode: state.documentSemanticMode,
+      frontmatterModeEnabled: state.frontmatterModeEnabled,
+      multiDimTableModeEnabled: state.multiDimTableModeEnabled,
+      documentStructureBaselineLock: state.documentStructureBaselineLock,
+      renderMediaAsNodes: state.renderMediaAsNodes,
+      mediaPanelDensity: state.mediaPanelDensity,
+      collapsedGroupIds: state.collapsedGroupIds,
+      designRendererWebpageLayoutKey: state.designRendererWebpageLayoutKey,
+      viewPinned: state.viewPinned,
+      fitToScreenMode: state.fitToScreenMode,
+      zoomToSelectionMode: state.zoomToSelectionMode,
+      zoomState: state.zoomState,
+      zoomStateByKey: state.zoomStateByKey,
+    })
+  },
+})
+
+const buildInspectLocalSourceFilesSnapshotTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_NAME,
+  title: INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const state = useGraphStore.getState()
+    return inspectLocalSourceFilesSnapshot({
+      sourceFiles: state.sourceFiles,
+      activePath: useMarkdownExplorerStore.getState().activePath,
+    })
+  },
+})
+
 const buildInspectAgentSurfaceTool = (): WebMcpTool => ({
   name: INSPECT_AGENT_SURFACE_TOOL_NAME,
   title: INSPECT_AGENT_SURFACE_TOOL_CONTRACT.title,
@@ -509,6 +562,8 @@ const WEB_MCP_TOOLS = [
   buildInspectLocalCanvasSnapshotTool(),
   buildInspectLocal3dCameraPoseTool(),
   buildInspectLocal3dLayoutPositionsTool(),
+  buildInspectLocal2dZoomViewportTool(),
+  buildInspectLocalSourceFilesSnapshotTool(),
   buildInspectAgentSurfaceTool(),
 ]
 

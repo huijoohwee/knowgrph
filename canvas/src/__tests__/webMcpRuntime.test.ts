@@ -1,10 +1,12 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   installKnowgrphWebMcpRuntime,
   resetKnowgrphWebMcpRuntimeForTests,
 } from '@/features/agent-ready/webMcpRuntime'
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 
 type RegisteredTool = {
   name: string
@@ -108,6 +110,16 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const previousThreeLayoutSnapshotFns = useGraphStore.getState().threeLayoutSnapshotFns
   const previousCanvas3dMode = useGraphStore.getState().canvas3dMode
   const previousViewPinned = useGraphStore.getState().viewPinned
+  const previousFitToScreenMode = useGraphStore.getState().fitToScreenMode
+  const previousZoomToSelectionMode = useGraphStore.getState().zoomToSelectionMode
+  const previousZoomState = useGraphStore.getState().zoomState
+  const previousZoomStateByKey = useGraphStore.getState().zoomStateByKey
+  const previousRenderMediaAsNodes = useGraphStore.getState().renderMediaAsNodes
+  const previousMediaPanelDensity = useGraphStore.getState().mediaPanelDensity
+  const previousSchema = useGraphStore.getState().schema
+  const previousDesignRendererWebpageLayoutKey = useGraphStore.getState().designRendererWebpageLayoutKey
+  const previousSourceFiles = useGraphStore.getState().sourceFiles
+  const previousExplorerActivePath = useMarkdownExplorerStore.getState().activePath
 
   try {
     delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
@@ -162,12 +174,31 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
     const inspectLocal3dCameraPoseTool = registeredTools.get('knowgrph.inspect_local_3d_camera_pose')
     const inspectLocal3dLayoutPositionsTool = registeredTools.get('knowgrph.inspect_local_3d_layout_positions')
+    const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
+    const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
     const shareToken = encodePublishedDocShareToken({ canonicalPath: 'docs/shared.md' })
+    const zoomViewKey = buildActive2dZoomViewKey({
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'd3',
+      schema: previousSchema,
+      graphData: MOCK_CANVAS_GRAPH_DATA as never,
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
+      multiDimTableModeEnabled: false,
+      documentStructureBaselineLock: false,
+      renderMediaAsNodes: false,
+      mediaPanelDensity: 'default',
+      collapsedGroupIds: ['lane-main'],
+      designRendererWebpageLayoutKey: null,
+    })
+    if (!zoomViewKey) {
+      throw new Error('expected a local 2d zoom view key for the runtime test fixture')
+    }
     useGraphStore.setState({
       markdownDocumentName: 'workspace:/local/agent-ready.md',
       markdownDocumentText: MOCK_SHARED_DOCUMENT_MARKDOWN,
@@ -185,6 +216,16 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       selectedEdgeId: 'edge-1',
       canvas3dMode: 'xr',
       viewPinned: true,
+      fitToScreenMode: false,
+      zoomToSelectionMode: false,
+      zoomState: { k: 0.5, x: 0, y: 0, viewportW: 320, viewportH: 180, graphDataRevision: 1 },
+      zoomStateByKey: {
+        [zoomViewKey]: { k: 1.75, x: 12.5, y: -6.25, viewportW: 960, viewportH: 540, graphDataRevision: 7 },
+      },
+      renderMediaAsNodes: false,
+      mediaPanelDensity: 'default',
+      schema: previousSchema,
+      designRendererWebpageLayoutKey: null,
       canvasSnapshotFns: {
         '2d': {
           captureSvg: async () => MOCK_CANVAS_SVG,
@@ -198,7 +239,40 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       threeLayoutSnapshotFns: {
         capturePositions: () => MOCK_THREE_LAYOUT_POSITIONS as never,
       },
+      sourceFiles: [
+        {
+          id: 'remote-doc',
+          name: 'Remote Doc',
+          text: '# Remote',
+          enabled: true,
+          status: 'parsed',
+          parsedTextHash: 'remote-hash',
+          parsedGraphRevision: 3,
+          parsedGraphData: { nodes: [], edges: [], metadata: {}, type: 'application/json' } as never,
+          source: { kind: 'url', url: 'https://example.com/remote.md' },
+        },
+        {
+          id: 'workspace-doc',
+          name: 'Workspace Doc',
+          text: MOCK_SHARED_DOCUMENT_MARKDOWN,
+          enabled: true,
+          status: 'parsed',
+          parsedTextHash: 'workspace-hash',
+          parsedGraphRevision: 7,
+          parsedGraphData: MOCK_CANVAS_GRAPH_DATA as never,
+          source: { kind: 'local', path: 'workspace:/docs/agent-ready.md' },
+        },
+        {
+          id: 'workspace-empty',
+          name: 'Workspace Empty',
+          text: '',
+          enabled: false,
+          status: 'idle',
+          source: { kind: 'local', path: 'workspace:/notes/todo.md' },
+        },
+      ] as never,
     } as never)
+    useMarkdownExplorerStore.setState({ activePath: '/docs/agent-ready.md' })
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
     await readSharedTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
@@ -210,6 +284,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const localThreeCameraPose = await inspectLocal3dCameraPoseTool.execute()
     const localThreeLayoutPositions = await inspectLocal3dLayoutPositionsTool.execute()
     useGraphStore.setState({ canvasRenderMode: '2d' } as never)
+    const local2dZoomViewport = await inspectLocal2dZoomViewportTool.execute()
+    const localSourceFilesSnapshot = await inspectLocalSourceFilesSnapshotTool.execute()
     const inspection = await inspectTool.execute()
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
@@ -281,6 +357,48 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localThreeLayoutPositions as { samplePositions?: Array<{ id?: unknown }> }).samplePositions?.[0]?.id !== 'alpha') {
       throw new Error(`expected inspect_local_3d_layout_positions to sort sampled positions deterministically, got ${JSON.stringify(localThreeLayoutPositions)}`)
     }
+    if ((local2dZoomViewport as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_2d_zoom_viewport to report available zoom state, got ${JSON.stringify(local2dZoomViewport)}`)
+    }
+    if ((local2dZoomViewport as { zoomViewKey?: unknown }).zoomViewKey !== zoomViewKey) {
+      throw new Error(`expected inspect_local_2d_zoom_viewport to reuse the active zoom view key, got ${JSON.stringify(local2dZoomViewport)}`)
+    }
+    if ((local2dZoomViewport as { zoomState?: { k?: unknown } }).zoomState?.k !== 1.75) {
+      throw new Error(`expected inspect_local_2d_zoom_viewport to report keyed effective zoom scale, got ${JSON.stringify(local2dZoomViewport)}`)
+    }
+    if ((local2dZoomViewport as { zoomState?: { viewportW?: unknown } }).zoomState?.viewportW !== 960) {
+      throw new Error(`expected inspect_local_2d_zoom_viewport to report keyed viewport width, got ${JSON.stringify(local2dZoomViewport)}`)
+    }
+    if ((localSourceFilesSnapshot as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_source_files_snapshot to report an available source-files snapshot, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { activePath?: unknown }).activePath !== '/docs/agent-ready.md') {
+      throw new Error(`expected inspect_local_source_files_snapshot to report the active workspace path, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { activeSourcePath?: unknown }).activeSourcePath !== 'workspace:/docs/agent-ready.md') {
+      throw new Error(`expected inspect_local_source_files_snapshot to report the active workspace source path, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { sourceFileCount?: unknown }).sourceFileCount !== 3) {
+      throw new Error(`expected inspect_local_source_files_snapshot to report source file count, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { workspaceBackedSourceFileCount?: unknown }).workspaceBackedSourceFileCount !== 2) {
+      throw new Error(`expected inspect_local_source_files_snapshot to report workspace-backed source file count, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { enabledNonWorkspaceSourceFileCount?: unknown }).enabledNonWorkspaceSourceFileCount !== 1) {
+      throw new Error(`expected inspect_local_source_files_snapshot to report enabled non-workspace count, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { activeSourceFile?: { name?: unknown } }).activeSourceFile?.name !== 'Workspace Doc') {
+      throw new Error(`expected inspect_local_source_files_snapshot to report the active workspace source file, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if ((localSourceFilesSnapshot as { sampleSourceFiles?: Array<{ id?: unknown }> }).sampleSourceFiles?.[0]?.id !== 'remote-doc') {
+      throw new Error(`expected inspect_local_source_files_snapshot to preserve source file order in the sample payload, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if (typeof (localSourceFilesSnapshot as { compositionSignature?: unknown }).compositionSignature !== 'string' || !String((localSourceFilesSnapshot as { compositionSignature?: unknown }).compositionSignature).trim()) {
+      throw new Error(`expected inspect_local_source_files_snapshot to report a composition signature, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if (!String((localSourceFilesSnapshot as { storageSyncSignature?: unknown }).storageSyncSignature || '').startsWith('remote-doc:')) {
+      throw new Error(`expected inspect_local_source_files_snapshot to report the non-workspace storage sync signature, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)
     }
@@ -314,7 +432,17 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       threeLayoutSnapshotFns: previousThreeLayoutSnapshotFns,
       canvas3dMode: previousCanvas3dMode,
       viewPinned: previousViewPinned,
+      fitToScreenMode: previousFitToScreenMode,
+      zoomToSelectionMode: previousZoomToSelectionMode,
+      zoomState: previousZoomState,
+      zoomStateByKey: previousZoomStateByKey,
+      renderMediaAsNodes: previousRenderMediaAsNodes,
+      mediaPanelDensity: previousMediaPanelDensity,
+      schema: previousSchema,
+      designRendererWebpageLayoutKey: previousDesignRendererWebpageLayoutKey,
+      sourceFiles: previousSourceFiles,
     } as never)
+    useMarkdownExplorerStore.setState({ activePath: previousExplorerActivePath })
     resetKnowgrphWebMcpRuntimeForTests()
     restore()
   }

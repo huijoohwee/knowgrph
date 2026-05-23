@@ -8,6 +8,8 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
   inspectLocal3dCameraPose: 'inspect_local_3d_camera_pose',
   inspectLocal3dLayoutPositions: 'inspect_local_3d_layout_positions',
+  inspectLocal2dZoomViewport: 'inspect_local_2d_zoom_viewport',
+  inspectLocalSourceFilesSnapshot: 'inspect_local_source_files_snapshot',
   inspectAgentSurface: 'inspect_agent_surface',
 })
 
@@ -114,6 +116,20 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions),
           title: 'Inspect Local 3D Layout Positions',
           description: 'Inspect the active browser-local Knowgrph 3D layout positions from the app runtime without calling published storage or Pages MCP routes.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport),
+          title: 'Inspect Local 2D Zoom Viewport',
+          description: 'Inspect the active browser-local Knowgrph 2D zoom and viewport state from the app runtime without calling published storage or Pages MCP routes.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot),
+          title: 'Inspect Local Source Files Snapshot',
+          description: 'Inspect the active browser-local Knowgrph Source Files runtime snapshot from the app runtime without calling published storage or Pages MCP routes.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }]

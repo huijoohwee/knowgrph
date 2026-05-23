@@ -49,6 +49,8 @@ Additional app-runtime browser-local tools:
 - `knowgrph.inspect_local_canvas_snapshot`
 - `knowgrph.inspect_local_3d_camera_pose`
 - `knowgrph.inspect_local_3d_layout_positions`
+- `knowgrph.inspect_local_2d_zoom_viewport`
+- `knowgrph.inspect_local_source_files_snapshot`
 
 This surface is intentionally narrow and storage-backed. It is not the same thing as the richer future remote MCP platform proposed in the PRD/TAD.
 
