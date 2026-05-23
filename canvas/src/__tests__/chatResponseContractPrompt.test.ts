@@ -46,15 +46,25 @@ import {
   createChatKnowgrphDraftWriter,
   readAssistantResponseText,
 } from '@/features/chat/sidePanelChat/sidePanelChatStreaming'
+import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
 import {
   toCanonicalKgcWorkspacePath,
   toKgcOutputWorkspacePath,
   toKgcTraceWorkspacePath,
 } from '@/features/chat/chatHistoryWorkspace.paths'
+import {
+  publishLocalChatPipelineSurfaceSnapshot,
+  readLocalChatPipelineSurfaceSnapshot,
+  resetBrowserLocalSurfaceSnapshotsForTests,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import { inspectLocalChatPipelineState } from '@/features/agent-ready/localChatPipelineStateInspection'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
+import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 const readComputingFlowSample = (): string => {
   const p = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
@@ -414,6 +424,179 @@ export async function testExecuteSidePanelChatSubmitCoordinatorFinalizesSimpleCh
   }
   if (terminalResets.length !== 1) {
     throw new Error(`Expected coordinator helper to perform one terminal reset on success, got: ${terminalResets.length}`)
+  }
+}
+
+export async function testExecuteSidePanelChatSubmitCoordinatorPublishesValidatedAndAppliedPipelineSnapshots() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  const previousFetch = globalThis.fetch
+  let finalizeAssistantSuccess: SidePanelChatSubmitArgs['finalizeAssistantSuccess'] | null = null
+  const connectivity: Array<'unknown' | 'ok' | 'error'> = []
+  const connectivityDetail: Array<string | null> = []
+  const resolvedKnowgrphPaths: string[] = []
+  const followedPaths: string[] = []
+  const exchangeLog: Array<{ request: string; response: string; status: 'ok' | 'error' | 'aborted'; model: string | null }> = []
+
+  try {
+    resetWorkspaceFsForTests()
+    resetBrowserLocalSurfaceSnapshotsForTests()
+    useGraphStore.getState().resetAll()
+    globalThis.fetch = (async () => ({ ok: true, status: 200, headers: new Headers() } as Response)) as typeof fetch
+
+    publishLocalChatPipelineSurfaceSnapshot({
+      messageCount: 1,
+      isLoading: true,
+      errorText: null,
+      connectivity: 'unknown',
+      connectivityDetail: null,
+      chatProviderSummary: 'openai:gpt-4.1-mini',
+      chatProviderHint: null,
+      chatContextScope: 'workspace',
+      chatStorageTarget: 'chatKnowgrph',
+      chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+      chatHistoryWorkspacePath: null,
+      workspaceViewMode: 'workspace',
+      editorWorkspacePane: 'markdown',
+      markdownDocumentName: null,
+      selectedNodeId: null,
+      streamingAssistant: { id: 'assistant-pending', text: 'Streaming...' },
+      streamingWorkspacePath: '/workspace/chat/kgc-trace_20260522190000.md',
+      streamFollowPath: '/workspace/chat/kgc-trace_20260522190000.md',
+      streamDraft: {
+        path: '/workspace/chat/kgc-trace_20260522190000.md',
+        text: '_Streaming..._',
+      },
+    })
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+    const container = dom.window.document.createElement('div')
+    dom.window.document.body.appendChild(container)
+    root = createRoot(container)
+
+    const HookHarness = () => {
+      const [messages, setMessages] = React.useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([])
+      const [streamingAssistant, setStreamingAssistant] = React.useState<{ id: string; text: string } | null>(null)
+      const callback = useFinalizeAssistantSuccess({
+        chatStorageTarget: 'chatKnowgrph',
+        chatProviderSummary: 'openai:gpt-4.1-mini',
+        chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+        chatHistoryWorkspacePath: null,
+        chatLocalStorageRootPath: '/workspace/chat',
+        setChatKnowgrphWorkspacePath: path => { resolvedKnowgrphPaths.push(path) },
+        setChatHistoryWorkspacePath: () => {},
+        followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
+        pushChatExchangeLog: payload => {
+          exchangeLog.push({
+            request: payload.request,
+            response: payload.response,
+            status: payload.status,
+            model: payload.model,
+          })
+        },
+        setMessages,
+        setStreamingAssistant,
+        streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
+        streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', text: '_Streaming..._' } },
+      })
+      React.useEffect(() => {
+        finalizeAssistantSuccess = callback
+      }, [callback])
+      void messages
+      void streamingAssistant
+      return null
+    }
+
+    await mountReactRoot(root, React.createElement(HookHarness), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+
+    if (!finalizeAssistantSuccess) {
+      throw new Error('Expected finalize hook harness to expose the submit finalize callback')
+    }
+
+    const canonical = readBaseTemplateSample().trim()
+    const submitArgs = buildSubmitArgsFixture({
+      chatStorageTarget: 'chatKnowgrph',
+      chatLocalStorageRootPath: '/workspace/chat',
+      chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+      setChatKnowgrphWorkspacePath: path => { resolvedKnowgrphPaths.push(path) },
+      followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
+      finalizeAssistantSuccess,
+      setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
+      setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
+      abortRef: { current: null },
+      streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', text: '_Streaming..._' } },
+      streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
+    })
+
+    await executeSidePanelChatSubmitCoordinator({
+      submitArgs,
+      requestUrl: 'https://chat.example.test/v1/chat/completions',
+      trimmedInput: 'Generate KGC',
+      assistantMessageId: 'assistant-pending',
+      nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
+      requestTimestampMs: Date.UTC(2026, 4, 22, 19, 0, 0),
+      traceId: 'trace-webmcp-ready',
+      bootstrapDraft: async () => '/workspace/chat/kgc_20260522190000.md',
+      buildRequestContext: async () => ({
+        packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
+        systemMessages: [{ role: 'system', content: 'base-system' }],
+        conversationMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
+      }),
+      createRequestSender: () => async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      resolveInitialModel: () => ({ providerModelOptions: ['model-a'], effectiveModel: 'model-a' }),
+      executeTransportAttempt: async args => ({
+        response: await args.sendChat('model-a', 'max_completion_tokens'),
+        effectiveModel: 'model-a',
+        detail: null,
+      }),
+      createDraftWriter: () => async () => {},
+      readAssistantResponse: async () => canonical,
+    })
+
+    const chatPipelineSnapshot = readLocalChatPipelineSurfaceSnapshot()
+    const inspectedPipeline = inspectLocalChatPipelineState(chatPipelineSnapshot)
+    const graphState = useGraphStore.getState()
+
+    if (connectivity[0] !== 'ok' || connectivityDetail[0] !== null) {
+      throw new Error(`Expected coordinator helper to mark connectivity ok during validated KGC finalize, got: ${JSON.stringify({ connectivity, connectivityDetail })}`)
+    }
+    if (inspectedPipeline.kgcValidation.stage !== 'validated' || inspectedPipeline.kgcValidation.hasYamlFrontmatter !== true) {
+      throw new Error(`Expected chat pipeline inspection to expose validated YAML-frontmatter KGC state, got: ${JSON.stringify(inspectedPipeline.kgcValidation)}`)
+    }
+    if (inspectedPipeline.finalize.stage !== 'applied' || inspectedPipeline.finalize.persistedKnowgrphPath !== '/workspace/chat/kgc_20260522190000.md') {
+      throw new Error(`Expected chat pipeline inspection to expose applied canonical KGC finalize state, got: ${JSON.stringify(inspectedPipeline.finalize)}`)
+    }
+    if (!followedPaths.includes('/workspace/chat/kgc_20260522190000.md')) {
+      throw new Error(`Expected finalize flow to follow the canonical Knowgrph workspace path, got: ${JSON.stringify(followedPaths)}`)
+    }
+    if (!resolvedKnowgrphPaths.includes('/workspace/chat/kgc_20260522190000.md')) {
+      throw new Error(`Expected finalize flow to resolve the canonical Knowgrph workspace path, got: ${JSON.stringify(resolvedKnowgrphPaths)}`)
+    }
+    if (!exchangeLog[0]?.response.includes('/workspace/chat/kgc_20260522190000.md')) {
+      throw new Error(`Expected finalize flow to log the canonical workspace link in the assistant response, got: ${JSON.stringify(exchangeLog)}`)
+    }
+    if (
+      !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522190000.md') ||
+      !String(graphState.markdownDocumentText || '').startsWith('---\n')
+    ) {
+      throw new Error(`Expected finalize flow to apply the canonical KGC workspace document to the active canvas state, got: ${JSON.stringify({ markdownDocumentName: graphState.markdownDocumentName, markdownDocumentText: graphState.markdownDocumentText?.slice(0, 40) || '' })}`)
+    }
+  } finally {
+    if (root) {
+      await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    }
+    resetWorkspaceFsForTests()
+    resetBrowserLocalSurfaceSnapshotsForTests()
+    useGraphStore.getState().resetAll()
+    globalThis.fetch = previousFetch
+    restoreDom()
+    restoreWindow()
   }
 }
 

@@ -3,17 +3,56 @@ import { isKgcStructuredMarkdown } from '../chatHistoryWorkspace'
 import { extractKgcBlockFromAssistantText } from '../SidePanelChat.helpers'
 import { buildCorrectionPrompt } from './sidePanelChatCorrectionPrompt'
 
+export type ChatKnowgrphAttemptValidationState = {
+  stage: 'retrying' | 'validated' | 'failed'
+  attempt: number
+  maxAttempts: number
+  failedRuleId: string | null
+  failedMessage: string | null
+  correctionPromptPreview: string | null
+  hasStructuredKgc: boolean
+  hasYamlFrontmatter: boolean
+  validatedKgcLength: number
+}
+
 export type ChatKnowgrphAttemptResolution =
   | {
     kind: 'retry'
     correctionPrompt: string
+    validation: ChatKnowgrphAttemptValidationState
   }
   | {
     kind: 'final'
     finalAssistantText: string
     validatedKgc: string | null
     status: 'ok' | 'error'
+    validation: ChatKnowgrphAttemptValidationState
   }
+
+const buildValidationState = (args: {
+  stage: 'retrying' | 'validated' | 'failed'
+  attempt: number
+  maxAttempts: number
+  failedRuleId?: string | null
+  failedMessage?: string | null
+  correctionPromptPreview?: string | null
+  candidateKgc?: string | null
+  validatedKgc?: string | null
+}): ChatKnowgrphAttemptValidationState => {
+  const candidateKgc = String(args.candidateKgc || '').trim()
+  const validatedKgc = String(args.validatedKgc || '').trim()
+  return {
+    stage: args.stage,
+    attempt: args.attempt,
+    maxAttempts: args.maxAttempts,
+    failedRuleId: args.failedRuleId || null,
+    failedMessage: args.failedMessage || null,
+    correctionPromptPreview: args.correctionPromptPreview || null,
+    hasStructuredKgc: Boolean(candidateKgc),
+    hasYamlFrontmatter: candidateKgc.startsWith('---\n'),
+    validatedKgcLength: validatedKgc.length,
+  }
+}
 
 export const resolveKgcCorrectionInvalidMarkdown = (args: {
   rawAssistantText: string
@@ -41,13 +80,22 @@ export const resolveChatKnowgrphAttempt = (args: {
   })
   const hasRetryRemaining = args.attempt < args.maxValidationAttempts
   if (!kgc) {
+    const message = 'Previous answer did not include a parseable standalone KGC document. Return exactly one complete KGC markdown document.'
     if (hasRetryRemaining) {
       return {
         kind: 'retry',
         correctionPrompt: buildCorrectionPrompt({
           ruleId: 'V-03',
-          message: 'Previous answer did not include a parseable standalone KGC document. Return exactly one complete KGC markdown document.',
+          message,
           invalidMarkdown: correctionInvalidMarkdown,
+        }),
+        validation: buildValidationState({
+          stage: 'retrying',
+          attempt: args.attempt,
+          maxAttempts: args.maxValidationAttempts,
+          failedRuleId: 'V-03',
+          failedMessage: message,
+          correctionPromptPreview: correctionInvalidMarkdown,
         }),
       }
     }
@@ -56,16 +104,33 @@ export const resolveChatKnowgrphAttempt = (args: {
       finalAssistantText: assistantText,
       validatedKgc: null,
       status: 'ok',
+      validation: buildValidationState({
+        stage: 'failed',
+        attempt: args.attempt,
+        maxAttempts: args.maxValidationAttempts,
+        failedRuleId: 'V-03',
+        failedMessage: message,
+      }),
     }
   }
   if (!isKgcStructuredMarkdown(kgc)) {
+    const message = 'Previous KGC payload was incomplete or not structurally parseable. Return one complete KGC markdown document with valid frontmatter and required sections.'
     if (hasRetryRemaining) {
       return {
         kind: 'retry',
         correctionPrompt: buildCorrectionPrompt({
           ruleId: 'V-03',
-          message: 'Previous KGC payload was incomplete or not structurally parseable. Return one complete KGC markdown document with valid frontmatter and required sections.',
+          message,
           invalidMarkdown: correctionInvalidMarkdown,
+        }),
+        validation: buildValidationState({
+          stage: 'retrying',
+          attempt: args.attempt,
+          maxAttempts: args.maxValidationAttempts,
+          failedRuleId: 'V-03',
+          failedMessage: message,
+          correctionPromptPreview: correctionInvalidMarkdown,
+          candidateKgc: kgc,
         }),
       }
     }
@@ -74,6 +139,14 @@ export const resolveChatKnowgrphAttempt = (args: {
       finalAssistantText: assistantText,
       validatedKgc: null,
       status: 'ok',
+      validation: buildValidationState({
+        stage: 'failed',
+        attempt: args.attempt,
+        maxAttempts: args.maxValidationAttempts,
+        failedRuleId: 'V-03',
+        failedMessage: message,
+        candidateKgc: kgc,
+      }),
     }
   }
 
@@ -85,6 +158,13 @@ export const resolveChatKnowgrphAttempt = (args: {
       finalAssistantText: assistantText,
       validatedKgc: kgc,
       status: 'ok',
+      validation: buildValidationState({
+        stage: 'validated',
+        attempt: args.attempt,
+        maxAttempts: args.maxValidationAttempts,
+        candidateKgc: kgc,
+        validatedKgc: kgc,
+      }),
     }
   }
 
@@ -99,6 +179,15 @@ export const resolveChatKnowgrphAttempt = (args: {
         message: nextMsg,
         invalidMarkdown: correctionInvalidMarkdown,
       }),
+      validation: buildValidationState({
+        stage: 'retrying',
+        attempt: args.attempt,
+        maxAttempts: args.maxValidationAttempts,
+        failedRuleId: nextRule,
+        failedMessage: nextMsg,
+        correctionPromptPreview: correctionInvalidMarkdown,
+        candidateKgc: kgc,
+      }),
     }
   }
   return {
@@ -106,5 +195,13 @@ export const resolveChatKnowgrphAttempt = (args: {
     finalAssistantText: assistantText,
     validatedKgc: null,
     status: 'ok',
+    validation: buildValidationState({
+      stage: 'failed',
+      attempt: args.attempt,
+      maxAttempts: args.maxValidationAttempts,
+      failedRuleId: nextRule,
+      failedMessage: nextMsg,
+      candidateKgc: kgc,
+    }),
   }
 }

@@ -12,6 +12,7 @@ import {
   publishLocalChatPipelineSurfaceSnapshot,
   publishLocalEditorWorkspaceSurfaceSnapshot,
   publishLocalMainPanelSurfaceSnapshot,
+  publishLocalSettingsChatReadinessSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
@@ -288,6 +289,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const readTool = registeredTools.get('knowgrph.read_source_file')
     const readSharedTool = registeredTools.get('knowgrph.read_shared_document')
     const inspectSharedDocumentTool = registeredTools.get('knowgrph.inspect_shared_document_structure')
+    const inspectLocalSettingsChatReadinessTool = registeredTools.get('knowgrph.inspect_local_settings_chat_readiness')
     const inspectLocalMainPanelTool = registeredTools.get('knowgrph.inspect_local_mainpanel_state')
     const inspectLocalEditorWorkspaceTool = registeredTools.get('knowgrph.inspect_local_editor_workspace_state')
     const inspectLocalChatPipelineTool = registeredTools.get('knowgrph.inspect_local_chat_pipeline_state')
@@ -299,7 +301,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
     const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -414,6 +416,19 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
         allCollapsed: false,
       },
     })
+    publishLocalSettingsChatReadinessSurfaceSnapshot({
+      normalizedChatProvider: 'openai',
+      chatEndpointUrl: 'https://api.openai.com/v1/chat/completions',
+      chatModel: 'gpt-4.1',
+      chatAuthMode: 'serverManaged',
+      chatContextScope: 'workspace',
+      integrationEnabled: true,
+      integrationOpenTab: 'chat',
+      isRefreshingChatModels: false,
+      chatModelsStatus: 'Discovered 3 models.',
+      discoveredChatModelCount: 3,
+      suggestedChatModelCount: 8,
+    })
     publishLocalEditorWorkspaceSurfaceSnapshot({
       activeDocumentKey: 'workspace:/local/agent-ready.md',
       workspaceViewMode: 'editor',
@@ -457,11 +472,32 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
         path: '/chat/knowgrph/session.md',
         text: '---\nflow:\n  nodes:\n    - id: start\n      label: Start\n---\n# Draft workspace',
       },
+      kgcValidation: {
+        stage: 'validated',
+        attempt: 2,
+        maxAttempts: 3,
+        failedRuleId: null,
+        failedMessage: null,
+        correctionPromptPreview: null,
+        hasStructuredKgc: true,
+        hasYamlFrontmatter: true,
+        validatedKgcLength: 94,
+      },
+      finalize: {
+        stage: 'applied',
+        traceId: 'trace-123',
+        modelId: 'gpt-4.1',
+        finalStatus: 'ok',
+        persistedKnowgrphPath: '/chat/knowgrph/session.md',
+        applied: true,
+        message: 'Canonical KGC workspace document was persisted and applied to the active canvas graph.',
+      },
     })
     await listTool.execute()
     await readTool.execute({ canonicalPath: 'docs/example.md' })
     await readSharedTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
     const sharedStructure = await inspectSharedDocumentTool.execute({ shareUrl: `/knowgrph/share/${shareToken}` })
+    const localSettingsChatReadiness = await inspectLocalSettingsChatReadinessTool.execute()
     const localMainPanelState = await inspectLocalMainPanelTool.execute()
     const localEditorWorkspaceState = await inspectLocalEditorWorkspaceTool.execute()
     const localChatPipelineState = await inspectLocalChatPipelineTool.execute()
@@ -500,6 +536,18 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localStructure as { flowConnectionCount?: unknown }).flowConnectionCount !== 1) {
       throw new Error(`expected inspect_local_workspace_document to reuse structure inspection counts, got ${JSON.stringify(localStructure)}`)
     }
+    if ((localSettingsChatReadiness as { available?: unknown }).available !== true) {
+      throw new Error(`expected inspect_local_settings_chat_readiness to report available readiness state, got ${JSON.stringify(localSettingsChatReadiness)}`)
+    }
+    if ((localSettingsChatReadiness as { provider?: { id?: unknown } }).provider?.id !== 'openai') {
+      throw new Error(`expected inspect_local_settings_chat_readiness to report the normalized provider, got ${JSON.stringify(localSettingsChatReadiness)}`)
+    }
+    if ((localSettingsChatReadiness as { routing?: { integrationEnabled?: unknown } }).routing?.integrationEnabled !== true) {
+      throw new Error(`expected inspect_local_settings_chat_readiness to report integration enablement, got ${JSON.stringify(localSettingsChatReadiness)}`)
+    }
+    if ((localSettingsChatReadiness as { modelDiscovery?: { discoveredCount?: unknown } }).modelDiscovery?.discoveredCount !== 3) {
+      throw new Error(`expected inspect_local_settings_chat_readiness to report discovered model count, got ${JSON.stringify(localSettingsChatReadiness)}`)
+    }
     if ((localMainPanelState as { activeTab?: unknown }).activeTab !== 'mcp') {
       throw new Error(`expected inspect_local_mainpanel_state to report the active tab, got ${JSON.stringify(localMainPanelState)}`)
     }
@@ -523,6 +571,18 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     }
     if ((localChatPipelineState as { workspacePaths?: { streamingWorkspacePath?: unknown } }).workspacePaths?.streamingWorkspacePath !== '/chat/knowgrph/session.md') {
       throw new Error(`expected inspect_local_chat_pipeline_state to expose the streaming workspace path, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localChatPipelineState as { kgcValidation?: { stage?: unknown } }).kgcValidation?.stage !== 'validated') {
+      throw new Error(`expected inspect_local_chat_pipeline_state to expose validation stage, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localChatPipelineState as { kgcValidation?: { hasYamlFrontmatter?: unknown } }).kgcValidation?.hasYamlFrontmatter !== true) {
+      throw new Error(`expected inspect_local_chat_pipeline_state to report YAML frontmatter readiness, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localChatPipelineState as { finalize?: { stage?: unknown } }).finalize?.stage !== 'applied') {
+      throw new Error(`expected inspect_local_chat_pipeline_state to expose finalize/apply stage, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localChatPipelineState as { finalize?: { persistedKnowgrphPath?: unknown } }).finalize?.persistedKnowgrphPath !== '/chat/knowgrph/session.md') {
+      throw new Error(`expected inspect_local_chat_pipeline_state to expose the persisted Knowgrph path, got ${JSON.stringify(localChatPipelineState)}`)
     }
     if ((localCanvasTopology as { available?: unknown }).available !== true) {
       throw new Error(`expected inspect_local_canvas_topology to report an available local canvas, got ${JSON.stringify(localCanvasTopology)}`)

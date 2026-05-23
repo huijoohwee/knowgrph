@@ -1,0 +1,263 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import type { SidePanelChatSubmitArgs } from '@/features/chat/sidePanelChat/sidePanelChatSubmitTypes'
+import { executeSidePanelChatSubmitCoordinator } from '@/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator'
+import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
+import {
+  publishLocalChatPipelineSurfaceSnapshot,
+  readLocalChatPipelineSurfaceSnapshot,
+  resetBrowserLocalSurfaceSnapshotsForTests,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import { inspectLocalChatPipelineState } from '@/features/agent-ready/localChatPipelineStateInspection'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
+import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
+import { useGraphStore } from '@/hooks/useGraphStore'
+
+const readBaseTemplateSample = (): string => {
+  const candidates = [
+    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-chat-response-base-template.md'),
+    resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'template', 'kgc-ai-pipeline-chat-response-base-template.md'),
+  ]
+  const path = candidates.find(candidate => existsSync(candidate)) || candidates[0]!
+  return readFileSync(path, 'utf8')
+}
+
+const buildSubmitArgsFixture = (overrides: Partial<SidePanelChatSubmitArgs> = {}): SidePanelChatSubmitArgs => ({
+  historyKey: 'history-key',
+  graphData: null,
+  currentNode: null,
+  markdownText: null,
+  markdownDocumentName: null,
+  sourceFiles: [],
+  workspaceContextCacheKey: 'workspace-cache',
+  chatProvider: 'openai',
+  chatAuthMode: 'serverManaged',
+  chatApiKey: null,
+  chatEndpointUrl: 'https://chat.example.test/v1/chat/completions',
+  chatModel: 'gpt-4.1-mini',
+  chatTemperature: 0.3,
+  chatMaxCompletionTokens: 128,
+  chatServiceTier: null,
+  chatStream: true,
+  chatMessagesJson: null,
+  chatReasoningEffort: null,
+  chatThinkingType: null,
+  chatThinkingJson: null,
+  chatFrequencyPenalty: null,
+  chatPresencePenalty: null,
+  chatTopP: null,
+  chatLogprobs: null,
+  chatTopLogprobs: null,
+  chatParallelToolCalls: null,
+  chatStopJson: null,
+  chatStreamOptionsJson: null,
+  chatResponseFormatJson: null,
+  chatLogitBiasJson: null,
+  chatToolsJson: null,
+  chatToolChoiceJson: null,
+  chatGraphSummaryMaxTokens: null,
+  chatGuidelineDigestMaxTokens: null,
+  chatSystemPrompt: null,
+  chatContextScope: 'workspace',
+  chatStorageTarget: 'chatKnowgrph',
+  chatLocalStorageRootPath: '/workspace/chat',
+  chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522193000.md',
+  setChatKnowgrphWorkspacePath: () => {},
+  chatProviderSummary: 'openai:gpt-4.1-mini',
+  setChatModel: () => {},
+  messages: [],
+  setMessages: () => {},
+  input: '',
+  setInput: () => {},
+  isLoading: false,
+  setIsLoading: () => {},
+  setErrorText: () => {},
+  setConnectivity: () => {},
+  setConnectivityDetail: () => {},
+  setStreamingAssistant: () => {},
+  setStreamingWorkspacePath: () => {},
+  abortRef: { current: null },
+  streamDraftTextRef: { current: null },
+  streamFollowRef: { current: null },
+  followWorkspaceMarkdownPath: () => {},
+  finalizeAssistantSuccess: async () => {},
+  pushChatExchangeLog: () => {},
+  persistChatExchangeLog: async () => {},
+  ...overrides,
+})
+
+const seedChatPipelineSnapshot = () => {
+  publishLocalChatPipelineSurfaceSnapshot({
+    messageCount: 1,
+    isLoading: true,
+    errorText: null,
+    connectivity: 'unknown',
+    connectivityDetail: null,
+    chatProviderSummary: 'openai:gpt-4.1-mini',
+    chatProviderHint: null,
+    chatContextScope: 'workspace',
+    chatStorageTarget: 'chatKnowgrph',
+    chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522193000.md',
+    chatHistoryWorkspacePath: null,
+    workspaceViewMode: 'workspace',
+    editorWorkspacePane: 'markdown',
+    markdownDocumentName: null,
+    selectedNodeId: null,
+    streamingAssistant: { id: 'assistant-pending', text: 'Streaming...' },
+    streamingWorkspacePath: '/workspace/chat/kgc-trace_20260522193000.md',
+    streamFollowPath: '/workspace/chat/kgc-trace_20260522193000.md',
+    streamDraft: {
+      path: '/workspace/chat/kgc-trace_20260522193000.md',
+      text: '_Streaming..._',
+    },
+  })
+}
+
+export async function testExecuteSidePanelChatSubmitCoordinatorPublishesRetryThenAppliedPipelineSnapshots() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  const previousFetch = globalThis.fetch
+  let finalizeAssistantSuccess: SidePanelChatSubmitArgs['finalizeAssistantSuccess'] | null = null
+  let transportCallCount = 0
+  let retryInspection: ReturnType<typeof inspectLocalChatPipelineState> | null = null
+  const connectivity: Array<'unknown' | 'ok' | 'error'> = []
+  const connectivityDetail: Array<string | null> = []
+  const followedPaths: string[] = []
+
+  try {
+    resetWorkspaceFsForTests()
+    resetBrowserLocalSurfaceSnapshotsForTests()
+    useGraphStore.getState().resetAll()
+    globalThis.fetch = (async () => ({ ok: true, status: 200, headers: new Headers() } as Response)) as typeof fetch
+    seedChatPipelineSnapshot()
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+    const container = dom.window.document.createElement('div')
+    dom.window.document.body.appendChild(container)
+    root = createRoot(container)
+
+    const HookHarness = () => {
+      const [, setMessages] = React.useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([])
+      const [, setStreamingAssistant] = React.useState<{ id: string; text: string } | null>(null)
+      const callback = useFinalizeAssistantSuccess({
+        chatStorageTarget: 'chatKnowgrph',
+        chatProviderSummary: 'openai:gpt-4.1-mini',
+        chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522193000.md',
+        chatHistoryWorkspacePath: null,
+        chatLocalStorageRootPath: '/workspace/chat',
+        setChatKnowgrphWorkspacePath: () => {},
+        setChatHistoryWorkspacePath: () => {},
+        followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
+        pushChatExchangeLog: () => {},
+        setMessages,
+        setStreamingAssistant,
+        streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
+        streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', text: '_Streaming..._' } },
+      })
+      React.useEffect(() => {
+        finalizeAssistantSuccess = callback
+      }, [callback])
+      return null
+    }
+
+    await mountReactRoot(root, React.createElement(HookHarness), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+
+    if (!finalizeAssistantSuccess) {
+      throw new Error('Expected finalize hook harness to expose the submit finalize callback')
+    }
+
+    const canonical = readBaseTemplateSample().trim()
+    const submitArgs = buildSubmitArgsFixture({
+      finalizeAssistantSuccess,
+      setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
+      setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
+      followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
+      abortRef: { current: null },
+      streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', text: '_Streaming..._' } },
+      streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
+    })
+
+    await executeSidePanelChatSubmitCoordinator({
+      submitArgs,
+      requestUrl: 'https://chat.example.test/v1/chat/completions',
+      trimmedInput: 'Generate KGC',
+      assistantMessageId: 'assistant-pending',
+      nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
+      requestTimestampMs: Date.UTC(2026, 4, 22, 19, 30, 0),
+      traceId: 'trace-webmcp-retry-ready',
+      bootstrapDraft: async () => '/workspace/chat/kgc_20260522193000.md',
+      buildRequestContext: async () => ({
+        packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
+        systemMessages: [{ role: 'system', content: 'base-system' }],
+        conversationMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
+      }),
+      createRequestSender: () => async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      resolveInitialModel: () => ({ providerModelOptions: ['model-a'], effectiveModel: 'model-a' }),
+      executeTransportAttempt: async () => {
+        transportCallCount += 1
+        if (transportCallCount === 2) {
+          retryInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
+        }
+        return {
+          response: new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+          effectiveModel: 'model-a',
+          detail: null,
+        }
+      },
+      createDraftWriter: () => async () => {},
+      readAssistantResponse: async () => (transportCallCount === 1 ? 'This answer is missing canonical KGC markdown.' : canonical),
+    })
+
+    const finalInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
+    const graphState = useGraphStore.getState()
+
+    if (transportCallCount !== 2) {
+      throw new Error(`Expected retry path to issue exactly two transport attempts, got ${transportCallCount}`)
+    }
+    if (!retryInspection || retryInspection.kgcValidation.stage !== 'retrying') {
+      throw new Error(`Expected WebMCP-facing pipeline inspection to expose retrying state before the recovery attempt, got ${JSON.stringify(retryInspection?.kgcValidation || null)}`)
+    }
+    if (retryInspection.kgcValidation.failedRuleId !== 'V-03' || retryInspection.kgcValidation.hasYamlFrontmatter !== false) {
+      throw new Error(`Expected retrying inspection to expose the missing-KGC validation failure, got ${JSON.stringify(retryInspection.kgcValidation)}`)
+    }
+    if (!retryInspection.kgcValidation.correctionPromptPreview) {
+      throw new Error(`Expected retrying inspection to include a correction prompt preview, got ${JSON.stringify(retryInspection.kgcValidation)}`)
+    }
+    if (finalInspection.kgcValidation.stage !== 'validated' || finalInspection.finalize.stage !== 'applied') {
+      throw new Error(`Expected final inspection to expose validated/applied pipeline state, got ${JSON.stringify({ kgcValidation: finalInspection.kgcValidation, finalize: finalInspection.finalize })}`)
+    }
+    if (connectivity[0] !== 'ok' || connectivityDetail[0] !== null) {
+      throw new Error(`Expected coordinator helper to mark connectivity ok after retry recovery, got ${JSON.stringify({ connectivity, connectivityDetail })}`)
+    }
+    if (!followedPaths.includes('/workspace/chat/kgc_20260522193000.md')) {
+      throw new Error(`Expected retry recovery finalize flow to follow the canonical Knowgrph workspace path, got ${JSON.stringify(followedPaths)}`)
+    }
+    if (
+      !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522193000.md') ||
+      !String(graphState.markdownDocumentText || '').startsWith('---\n')
+    ) {
+      throw new Error(`Expected retry recovery finalize flow to apply the canonical KGC document to the active canvas state, got ${JSON.stringify({ markdownDocumentName: graphState.markdownDocumentName, markdownDocumentText: graphState.markdownDocumentText?.slice(0, 40) || '' })}`)
+    }
+  } finally {
+    if (root) {
+      await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    }
+    resetWorkspaceFsForTests()
+    resetBrowserLocalSurfaceSnapshotsForTests()
+    useGraphStore.getState().resetAll()
+    globalThis.fetch = previousFetch
+    restoreDom()
+    restoreWindow()
+  }
+}

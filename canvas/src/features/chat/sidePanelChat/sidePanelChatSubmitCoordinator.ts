@@ -18,6 +18,10 @@ import { executeChatSubmitTransportAttempt } from './sidePanelChatSubmitTranspor
 import { createChatKnowgrphDraftWriter, readAssistantResponseText } from './sidePanelChatStreaming'
 import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
 import { resolveChatEndpointForModels, buildChatProxyHeaders, CHAT_DEFAULT_ENDPOINT_URL } from '@/lib/chatEndpoint'
+import {
+  publishLocalChatPipelineFinalizeSnapshot,
+  publishLocalChatPipelineKgcValidationSnapshot,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 type SubmitRequestContext = Awaited<ReturnType<typeof buildChatSubmitRequestContext>>
 
@@ -99,6 +103,27 @@ export const executeSidePanelChatSubmitCoordinator = async (args: {
     let finalValidatedKgc: string | null = null
     let finalStatus: 'ok' | 'error' = 'ok'
     const finalOverride: string | null = null
+
+    publishLocalChatPipelineKgcValidationSnapshot({
+      stage: 'idle',
+      attempt: 0,
+      maxAttempts: maxValidationAttempts,
+      failedRuleId: null,
+      failedMessage: null,
+      correctionPromptPreview: null,
+      hasStructuredKgc: false,
+      hasYamlFrontmatter: false,
+      validatedKgcLength: 0,
+    })
+    publishLocalChatPipelineFinalizeSnapshot({
+      stage: 'idle',
+      traceId: args.traceId,
+      modelId: null,
+      finalStatus: null,
+      persistedKnowgrphPath: liveKgcPath || null,
+      applied: null,
+      message: null,
+    })
 
     while (attempt < maxValidationAttempts) {
       attempt += 1
@@ -219,6 +244,12 @@ export const executeSidePanelChatSubmitCoordinator = async (args: {
         packedFrontmatter: packedContext.frontmatter,
         attempt,
         maxValidationAttempts: maxValidationAttempts,
+      })
+      publishLocalChatPipelineKgcValidationSnapshot({
+        ...knowgrphAttempt.validation,
+        correctionPromptPreview: knowgrphAttempt.kind === 'retry'
+          ? knowgrphAttempt.correctionPrompt.slice(0, 240)
+          : knowgrphAttempt.validation.correctionPromptPreview,
       })
       if (knowgrphAttempt.kind === 'retry') {
         correctionPrompt = knowgrphAttempt.correctionPrompt

@@ -2,7 +2,7 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md).
 
-**Document Version**: 0.4.13  
+**Document Version**: 0.4.14  
 **Date**: 2026-05-23  
 **Status**: Implementation-aligned supplement
 
@@ -30,8 +30,8 @@ It answers four questions:
 | Local stdio MCP docs | Shipped | `mcp/README.md` | local configuration and usage |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP |
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects shared five-tool WebMCP into `/knowgrph` HTML surfaces |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers fifteen read-only tools, including `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
-| Browser-local WebMCP state snapshots | Shipped | `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | shared browser-local MainPanel, Editor Workspace, and chat pipeline state publication for app-runtime inspection tools |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers sixteen read-only tools, including `knowgrph.inspect_local_settings_chat_readiness`, `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
+| Browser-local WebMCP state snapshots | Shipped | `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | shared browser-local Settings chat readiness, MainPanel, Editor Workspace, and chat pipeline state publication for app-runtime inspection tools, including KGC validation and finalize/apply diagnostics |
 | Browser WebMCP lifecycle | Shipped | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, duplicate registration tolerance |
 | Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | installs app-runtime WebMCP on page load |
 | Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published Pages/HTTP tool set = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface` |
@@ -91,6 +91,7 @@ It answers four questions:
 | Integrations shell | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | no separate business logic |
 | Shared settings owner | `canvas/src/features/panels/views/SettingsView.tsx` | filters and renders settings content |
 | Chat readiness owner | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | presets, context scope, integration enablement, model discovery |
+| Settings readiness WebMCP snapshot | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | publishes provider/routing/model-discovery state for browser agents |
 
 ### FloatingPanel Chat
 
@@ -102,6 +103,7 @@ It answers four questions:
 | Submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | request lifecycle owner |
 | Streaming | `canvas/src/features/chat/sidePanelChat/sidePanelChatStreaming.ts` | assistant draft flush and stream parsing |
 | KGC attempt / retry | `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts` | validation and correction retry |
+| Browser chat pipeline snapshot | `canvas/src/features/chat/SidePanelChat.tsx` + `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | publishes FloatingPanel runtime state and workspace follow/draft state for browser agents |
 
 ### KGC Validation And Canvas Apply
 
@@ -109,8 +111,10 @@ It answers four questions:
 |---|---|---|
 | KGC recovery | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | strips wrappers and legacy grouping aliases upstream |
 | KGC validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | frontmatter-first and `flow.subgraphs` enforcement |
+| Validation snapshot publish | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | publishes retry, failed-rule, and validated-YAML readiness state for WebMCP inspection |
 | Finalize write | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` | canonical workspace KGC persistence |
 | Canvas apply bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | calls `setActiveMarkdownDocument()` |
+| Finalize/apply snapshot publish | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` | publishes persisted path and apply outcome for WebMCP inspection |
 | Graph apply action | `canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts` | canonical graph apply gateway |
 | Parse priority | `canvas/src/features/parsers/default.ts` | frontmatter-flow parser first |
 | Graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + helpers | edge/subgraph/cluster compose |
@@ -152,10 +156,12 @@ flowchart LR
 
 - MainPanel `mcp` and `integrations` stay thin shells over `SettingsView`.
 - Chat routing and presets stay owned by `useSettingsChatAssist()`.
+- Browser-local settings readiness inspection reuses `useSettingsChatAssist()` output instead of creating a second settings/readiness source of truth.
 - `useSidePanelChatSubmit()` stays a thin shell; complexity remains in dedicated helpers.
 - Canonical KGC output starts at YAML frontmatter.
 - `flow.subgraphs` is the only upstream grouping authoring surface.
 - Canvas graph apply goes through `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`.
+- Browser-local chat pipeline inspection may expose validation and finalize/apply diagnostics, but must remain read-only and must not introduce a second mutating MCP pipeline.
 - Rendered groups and clusters are downstream projection, not a second authoring SSOT.
 
 ---
@@ -198,4 +204,4 @@ If a future remote MCP service is added, it must:
 
 ---
 
-*Document Version: 0.4.13 · Updated: 2026-05-23*
+*Document Version: 0.4.14 · Updated: 2026-05-23*

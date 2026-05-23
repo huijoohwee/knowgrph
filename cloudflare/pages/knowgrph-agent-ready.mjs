@@ -471,7 +471,7 @@ Use this skill when an agent or browser needs to inspect the deployed Knowgrph a
 - Runtime prefers provideContext({ tools }) when available and also registers each tool with registerTool(tool, { signal }) when supported.
 - AbortController-backed registration is used so tools can be unregistered cleanly with the platform lifecycle.
 - Deployed HTML fallback injects the shared five-tool WebMCP surface on /knowgrph HTML routes.
-- Full app runtime additionally exposes browser-local inspect tools for the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
+- Full app runtime additionally exposes browser-local inspect tools for Settings chat readiness, MainPanel state, Editor Workspace state, chat pipeline validation/finalize/apply state, the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
 `;
 
 const PUBLISHED_TOOL_NAME_CONFIG = {

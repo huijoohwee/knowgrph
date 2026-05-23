@@ -88,8 +88,10 @@ export default function SidePanelChat() {
   const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
   const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
   const chatKnowgrphWorkspacePath = useGraphStore(s => s.chatKnowgrphWorkspacePath || null)
+  const chatKnowgrphCloudUrl = useGraphStore(s => s.chatKnowgrphCloudUrl || null)
   const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
   const chatHistoryWorkspacePath = useGraphStore(s => s.chatHistoryWorkspacePath || null)
+  const chatHistoryCloudUrl = useGraphStore(s => s.chatHistoryCloudUrl || null)
   const setChatHistoryWorkspacePath = useGraphStore(s => s.setChatHistoryWorkspacePath)
   const workspaceViewMode = useGraphStore(s => (s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'))
   const editorWorkspacePane = useGraphStore(s => (s.editorWorkspacePane === 'graphTable' ? 'graphTable' : 'markdown'))
@@ -146,6 +148,8 @@ export default function SidePanelChat() {
       chatStorageTarget,
       chatKnowgrphWorkspacePath,
       chatHistoryWorkspacePath,
+      chatKnowgrphCloudUrl,
+      chatHistoryCloudUrl,
       workspaceViewMode,
       editorWorkspacePane,
       markdownDocumentName,
@@ -170,7 +174,9 @@ export default function SidePanelChat() {
     }
   }, [
     chatContextScope,
+    chatHistoryCloudUrl,
     chatHistoryWorkspacePath,
+    chatKnowgrphCloudUrl,
     chatKnowgrphWorkspacePath,
     chatProviderHint,
     chatProviderSummary,

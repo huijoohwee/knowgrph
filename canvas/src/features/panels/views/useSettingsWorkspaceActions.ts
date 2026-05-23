@@ -18,6 +18,10 @@ type UseSettingsWorkspaceActionsArgs = {
   chatLocalStorageRootPath: string | number | boolean | undefined
   chatHistoryCloudUrl: string | number | boolean | undefined
   chatKnowgrphCloudUrl: string | number | boolean | undefined
+  createWorkspaceFilePathImpl?: typeof createNewChatHistoryWorkspaceFilePath
+  openWorkspaceFileImpl?: (path: string) => void
+  importLocalFilesFallbackImpl?: typeof importLocalFilesFallback
+  importUrlFallbackImpl?: typeof importUrlFallback
 }
 
 export function useSettingsWorkspaceActions({
@@ -25,6 +29,10 @@ export function useSettingsWorkspaceActions({
   chatLocalStorageRootPath,
   chatHistoryCloudUrl,
   chatKnowgrphCloudUrl,
+  createWorkspaceFilePathImpl = createNewChatHistoryWorkspaceFilePath,
+  openWorkspaceFileImpl,
+  importLocalFilesFallbackImpl = importLocalFilesFallback,
+  importUrlFallbackImpl = importUrlFallback,
 }: UseSettingsWorkspaceActionsArgs) {
   const [knowgrphPathStatus, setKnowgrphPathStatus] = React.useState<string | null>(null)
   const [isUpdatingKnowgrphPath, setIsUpdatingKnowgrphPath] = React.useState(false)
@@ -54,9 +62,13 @@ export function useSettingsWorkspaceActions({
 
   const openWorkspaceFile = React.useCallback((path: string) => {
     const normalized = normalizeWorkspacePath(path)
+    if (typeof openWorkspaceFileImpl === 'function') {
+      openWorkspaceFileImpl(normalized)
+      return
+    }
     openMarkdownWorkspaceEditorPane(useGraphStore.getState())
     useMarkdownExplorerStore.getState().setActivePath(normalized)
-  }, [])
+  }, [openWorkspaceFileImpl])
 
   const syncPathFromActiveWorkspaceFile = React.useCallback((kind: WorkspaceKind, attempt = 0) => {
     const active = useMarkdownExplorerStore.getState().activePath
@@ -107,7 +119,7 @@ export function useSettingsWorkspaceActions({
     setPending(true)
     setStatus(null)
     try {
-      const created = await createNewChatHistoryWorkspaceFilePath(Date.now(), {
+      const created = await createWorkspaceFilePathImpl(Date.now(), {
         storageType,
         defaultLocalRootPath: String(chatLocalStorageRootPath || '').trim() || null,
       })
@@ -122,7 +134,7 @@ export function useSettingsWorkspaceActions({
     } finally {
       setPending(false)
     }
-  }, [chatLocalStorageRootPath, openWorkspaceFile, patchChatValues])
+  }, [chatLocalStorageRootPath, createWorkspaceFilePathImpl, openWorkspaceFile, patchChatValues])
 
   const applyActiveWorkspaceFile = React.useCallback((kind: WorkspaceKind) => {
     const setStatus = kind === 'chatHistory' ? setChatHistoryPathStatus : setKnowgrphPathStatus
@@ -179,9 +191,9 @@ export function useSettingsWorkspaceActions({
       patchChatValues({ chatKnowgrphStorageMode: 'local', chatKnowgrphCloudUrl: '' })
     }
     if (typeof bridgeImportLocalFiles === 'function') bridgeImportLocalFiles(files)
-    else void importLocalFilesFallback({ files, pushUiToast })
+    else void importLocalFilesFallbackImpl({ files, pushUiToast })
     syncPathFromActiveWorkspaceFile(kind)
-  }, [bridgeImportLocalFiles, patchChatValues, pushUiToast, syncPathFromActiveWorkspaceFile])
+  }, [bridgeImportLocalFiles, importLocalFilesFallbackImpl, patchChatValues, pushUiToast, syncPathFromActiveWorkspaceFile])
 
   const importCloudUrl = React.useCallback((kind: WorkspaceKind) => {
     const next = String(kind === 'chatHistory' ? chatHistoryCloudUrl : chatKnowgrphCloudUrl || '').trim()
@@ -197,8 +209,8 @@ export function useSettingsWorkspaceActions({
     }
     setStatus(`Importing URL: ${next}`)
     if (typeof bridgeImportUrl === 'function') bridgeImportUrl(next)
-    else void importUrlFallback({ urlRaw: next, pushUiToast })
-  }, [bridgeImportUrl, chatHistoryCloudUrl, chatKnowgrphCloudUrl, patchChatValues, pushUiToast])
+    else void importUrlFallbackImpl({ urlRaw: next, pushUiToast })
+  }, [bridgeImportUrl, chatHistoryCloudUrl, chatKnowgrphCloudUrl, importUrlFallbackImpl, patchChatValues, pushUiToast])
 
   return {
     chatHistoryPathStatus,

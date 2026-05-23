@@ -3,6 +3,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   readSourceFile: 'read_source_file',
   readSharedDocument: 'read_shared_document',
   inspectSharedDocumentStructure: 'inspect_shared_document_structure',
+  inspectLocalSettingsChatReadiness: 'inspect_local_settings_chat_readiness',
   inspectLocalMainPanelState: 'inspect_local_mainpanel_state',
   inspectLocalEditorWorkspaceState: 'inspect_local_editor_workspace_state',
   inspectLocalChatPipelineState: 'inspect_local_chat_pipeline_state',
@@ -87,6 +88,13 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
     },
     ...(includeBrowserOnlyTools
       ? [{
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness),
+          title: 'Inspect Local Settings Chat Readiness',
+          description: 'Inspect the active browser-local Knowgrph SettingsView chat readiness state for MainPanel MCP and Integrations, including provider, routing, and model discovery status.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState),
           title: 'Inspect Local MainPanel State',

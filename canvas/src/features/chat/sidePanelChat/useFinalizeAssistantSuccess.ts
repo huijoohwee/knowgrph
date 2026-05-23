@@ -12,6 +12,7 @@ import {
 } from '../SidePanelChat.helpers'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
+import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 export const useFinalizeAssistantSuccess = (args: {
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'
@@ -101,9 +102,45 @@ export const useFinalizeAssistantSuccess = (args: {
 
     const knowgrphRawPath = String(resolvedKnowgrphPath || args.chatKnowgrphWorkspacePath || '').trim()
     const knowgrphPath = knowgrphRawPath ? normalizeWorkspacePath(knowgrphRawPath) : ''
-    if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
-      args.followWorkspaceMarkdownPath(knowgrphPath)
-      await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)
+    try {
+      if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
+        args.followWorkspaceMarkdownPath(knowgrphPath)
+        const applied = await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)
+        publishLocalChatPipelineFinalizeSnapshot({
+          stage: applied ? 'applied' : 'skipped',
+          traceId,
+          modelId,
+          finalStatus: status,
+          persistedKnowgrphPath: knowgrphPath,
+          applied,
+          message: applied
+            ? 'Canonical KGC workspace document was persisted and applied to the active canvas graph.'
+            : 'Canonical KGC workspace document was persisted, but graph apply was skipped by import/apply policy or returned false.',
+        })
+      } else {
+        publishLocalChatPipelineFinalizeSnapshot({
+          stage: args.chatStorageTarget === 'chatKnowgrph' ? 'skipped' : 'persisted',
+          traceId,
+          modelId,
+          finalStatus: status,
+          persistedKnowgrphPath: knowgrphPath || null,
+          applied: args.chatStorageTarget === 'chatKnowgrph' ? false : null,
+          message: args.chatStorageTarget === 'chatKnowgrph'
+            ? 'Canonical KGC workspace document was persisted, but no normalized Knowgrph workspace path was available for canvas apply.'
+            : 'Assistant response was persisted to chat history only; canvas apply is reserved for chatKnowgrph storage.',
+        })
+      }
+    } catch (error: unknown) {
+      publishLocalChatPipelineFinalizeSnapshot({
+        stage: 'error',
+        traceId,
+        modelId,
+        finalStatus: status,
+        persistedKnowgrphPath: knowgrphPath || null,
+        applied: false,
+        message: error instanceof Error ? error.message : String(error || 'Canvas apply failed.'),
+      })
+      throw error
     }
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
     const conciseSource =

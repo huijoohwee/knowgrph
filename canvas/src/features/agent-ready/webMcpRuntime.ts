@@ -16,6 +16,7 @@ import {
   readLocalChatPipelineSurfaceSnapshot,
   readLocalEditorWorkspaceSurfaceSnapshot,
   readLocalMainPanelSurfaceSnapshot,
+  readLocalSettingsChatReadinessSurfaceSnapshot,
   resetBrowserLocalSurfaceSnapshotsForTests,
 } from './browserLocalSurfaceSnapshots'
 import { createAgentSurfaceInspectionExecutor } from './agentSurfaceInspection.mjs'
@@ -31,6 +32,7 @@ import { inspectLocalSourceFilesSnapshot } from './localSourceFilesSnapshotInspe
 import { inspectLocalMainPanelState } from './localMainPanelStateInspection'
 import { inspectLocalEditorWorkspaceState } from './localEditorWorkspaceStateInspection'
 import { inspectLocalChatPipelineState } from './localChatPipelineStateInspection'
+import { inspectLocalSettingsChatReadiness } from './localSettingsChatReadinessInspection'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -94,6 +96,7 @@ const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL
 const READ_SOURCE_FILE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile)
 const READ_SHARED_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument)
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure)
+const INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness)
 const INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState)
 const INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState)
 const INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState)
@@ -109,6 +112,7 @@ const SOURCE_FILES_TOOL_NAME = SOURCE_FILES_TOOL_CONTRACT.webName
 const READ_SOURCE_FILE_TOOL_NAME = READ_SOURCE_FILE_TOOL_CONTRACT.webName
 const READ_SHARED_DOCUMENT_TOOL_NAME = READ_SHARED_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_NAME = INSPECT_SHARED_DOCUMENT_STRUCTURE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_NAME = INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_MAINPANEL_STATE_TOOL_NAME = INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_NAME = INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_NAME = INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.webName
@@ -280,6 +284,15 @@ const buildInspectLocalMainPanelStateTool = (): WebMcpTool => ({
   inputSchema: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.inputSchema,
   annotations: INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.annotations,
   execute: async () => inspectLocalMainPanelState(readLocalMainPanelSurfaceSnapshot()),
+})
+
+const buildInspectLocalSettingsChatReadinessTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_NAME,
+  title: INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT.annotations,
+  execute: async () => inspectLocalSettingsChatReadiness(readLocalSettingsChatReadinessSurfaceSnapshot()),
 })
 
 const buildInspectLocalEditorWorkspaceStateTool = (): WebMcpTool => ({
@@ -474,6 +487,7 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile]: buildReadSourceFileTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.readSharedDocument]: buildReadSharedDocumentTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectSharedDocumentStructure]: buildInspectSharedDocumentStructureTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness]: buildInspectLocalSettingsChatReadinessTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState]: buildInspectLocalMainPanelStateTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState]: buildInspectLocalEditorWorkspaceStateTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState]: buildInspectLocalChatPipelineStateTool,

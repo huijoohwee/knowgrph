@@ -22,6 +22,10 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { parseIntegrationConfigsJson, stringifyIntegrationConfigs, DEFAULT_INTEGRATION_CONFIGS } from '@/features/integrations/config'
+import {
+  clearLocalSettingsChatReadinessSurfaceSnapshot,
+  publishLocalSettingsChatReadinessSurfaceSnapshot,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { CHAT_KTV_ROW_KEYS } from './settingsView.constants'
 
 type UseSettingsChatAssistArgs = {
@@ -168,6 +172,37 @@ export function useSettingsChatAssist({
     const combined = [...staticOptions, ...discoveredChatModels, currentModel].filter(Boolean)
     return Array.from(new Set(combined))
   }, [discoveredChatModels, providerChatModelOptions, values.chatModel])
+
+  React.useEffect(() => {
+    publishLocalSettingsChatReadinessSurfaceSnapshot({
+      normalizedChatProvider,
+      chatEndpointUrl: String(values.chatEndpointUrl || '').trim(),
+      chatModel: String(values.chatModel || '').trim(),
+      chatAuthMode: String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged',
+      chatContextScope: String(values.chatContextScope || '').trim() || 'hybrid',
+      integrationEnabled: chatIntegration.enabled === true,
+      integrationOpenTab: String(chatIntegration.openTab || '').trim(),
+      isRefreshingChatModels,
+      chatModelsStatus,
+      discoveredChatModelCount: discoveredChatModels.length,
+      suggestedChatModelCount: chatModelSuggestions.length,
+    })
+    return () => {
+      clearLocalSettingsChatReadinessSurfaceSnapshot()
+    }
+  }, [
+    chatIntegration.enabled,
+    chatIntegration.openTab,
+    chatModelSuggestions.length,
+    chatModelsStatus,
+    discoveredChatModels.length,
+    isRefreshingChatModels,
+    normalizedChatProvider,
+    values.chatAuthMode,
+    values.chatContextScope,
+    values.chatEndpointUrl,
+    values.chatModel,
+  ])
 
   const buildChatAssistNodes = React.useCallback((rowKey: string): React.ReactNode[] => {
     if (rowKey === CHAT_KTV_ROW_KEYS.apiKey) {

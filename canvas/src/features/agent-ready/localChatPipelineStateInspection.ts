@@ -38,6 +38,10 @@ export const inspectLocalChatPipelineState = (
       streamingWorkspacePath: snapshot.streamingWorkspacePath,
       streamFollowPath: snapshot.streamFollowPath,
     },
+    cloudUrls: {
+      chatKnowgrphCloudUrl: snapshot.chatKnowgrphCloudUrl || null,
+      chatHistoryCloudUrl: snapshot.chatHistoryCloudUrl || null,
+    },
     streaming: {
       active: snapshot.isLoading || Boolean(snapshot.streamingAssistant) || Boolean(snapshot.streamingWorkspacePath),
       assistantId: snapshot.streamingAssistant?.id || null,
@@ -46,6 +50,26 @@ export const inspectLocalChatPipelineState = (
       draftPath: snapshot.streamDraft?.path || null,
       draftTextLength: streamDraftText.length,
       draftPreview: buildPreview(streamDraftText),
+    },
+    kgcValidation: {
+      stage: snapshot.kgcValidation?.stage || 'idle',
+      attempt: snapshot.kgcValidation?.attempt || 0,
+      maxAttempts: snapshot.kgcValidation?.maxAttempts || 0,
+      failedRuleId: snapshot.kgcValidation?.failedRuleId || null,
+      failedMessage: snapshot.kgcValidation?.failedMessage || null,
+      correctionPromptPreview: snapshot.kgcValidation?.correctionPromptPreview || null,
+      hasStructuredKgc: snapshot.kgcValidation?.hasStructuredKgc === true,
+      hasYamlFrontmatter: snapshot.kgcValidation?.hasYamlFrontmatter === true,
+      validatedKgcLength: snapshot.kgcValidation?.validatedKgcLength || 0,
+    },
+    finalize: {
+      stage: snapshot.finalize?.stage || 'idle',
+      traceId: snapshot.finalize?.traceId || null,
+      modelId: snapshot.finalize?.modelId || null,
+      finalStatus: snapshot.finalize?.finalStatus || null,
+      persistedKnowgrphPath: snapshot.finalize?.persistedKnowgrphPath || null,
+      applied: snapshot.finalize?.applied ?? null,
+      message: snapshot.finalize?.message || null,
     },
     updatedAtMs: snapshot.updatedAtMs || null,
   }
