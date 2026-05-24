@@ -1,7 +1,7 @@
 import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, MonitorPlay, Palette, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { isD3Like2dRenderer } from '@/lib/config.render'
+import { CANVAS_2D_RENDERER_ORDER, getCanvas2dRendererMenuLabel, isD3Like2dRenderer } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
@@ -21,44 +21,31 @@ const isAnimationApplicable = (state: CanvasViewModelState) => {
   )
 }
 
-export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] => [
-  {
-    id: 'd3' as const,
-    title: UI_COPY.canvasViewRendererD3Title,
-    Icon: CircleDot,
-    label: 'D3',
-  },
-  {
-    id: 'flowchart' as const,
-    title: UI_COPY.canvasViewRendererD3FlowchartTitle,
-    Icon: Columns2,
-    label: 'Bi',
-  },
-  {
-    id: 'flow' as const,
-    title: UI_COPY.canvasViewRendererFlowTitle,
-    Icon: GitMerge,
-    label: 'Canvas',
-  },
-  {
-    id: 'animation' as const,
-    title: UI_COPY.canvasViewRendererAnimationTitle,
-    Icon: MonitorPlay,
-    label: 'Anim',
-  },
-  {
-    id: 'design' as const,
-    title: UI_COPY.canvasViewRendererDesignTitle,
-    Icon: Palette,
-    label: 'Design',
-  },
-  {
-    id: 'flowEditor' as const,
-    title: UI_COPY.canvasViewRendererFlowEditorTitle,
-    Icon: Pencil,
-    label: 'Edit',
-  },
-]
+const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRendererOption['Icon']> = {
+  d3: CircleDot,
+  flowchart: Columns2,
+  flow: GitMerge,
+  animation: MonitorPlay,
+  design: Palette,
+  flowEditor: Pencil,
+}
+
+const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
+  d3: UI_COPY.canvasViewRendererD3Title,
+  flowchart: UI_COPY.canvasViewRendererD3FlowchartTitle,
+  flow: UI_COPY.canvasViewRendererFlowTitle,
+  animation: UI_COPY.canvasViewRendererAnimationTitle,
+  design: UI_COPY.canvasViewRendererDesignTitle,
+  flowEditor: UI_COPY.canvasViewRendererFlowEditorTitle,
+}
+
+export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] =>
+  CANVAS_2D_RENDERER_ORDER.map(id => ({
+    id,
+    title: CANVAS_VIEW_RENDERER_OPTION_TITLE[id],
+    Icon: CANVAS_VIEW_RENDERER_OPTION_ICON[id],
+    label: getCanvas2dRendererMenuLabel(id),
+  }))
 
 export const buildCanvasViewOptions = (
   state: CanvasViewModelState,

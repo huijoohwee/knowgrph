@@ -3,13 +3,13 @@ import { resolve } from 'node:path'
 
 export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() {
   const modeSelectPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'DocumentModeSelect.tsx')
-  const uiSettingsSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSlice.ts')
+  const uiSettingsModeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSliceModeActions.ts')
   const canvasSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'canvasSlice.ts')
   const canvasViewActionsPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'canvasViewActions.ts')
   const renderConfigPath = resolve(process.cwd(), 'src', 'lib', 'config.render.ts')
 
   const modeSelectText = readFileSync(modeSelectPath, 'utf8')
-  const uiSettingsSliceText = readFileSync(uiSettingsSlicePath, 'utf8')
+  const uiSettingsModeActionsText = readFileSync(uiSettingsModeActionsPath, 'utf8')
   const canvasSliceText = readFileSync(canvasSlicePath, 'utf8')
   const canvasViewActionsText = readFileSync(canvasViewActionsPath, 'utf8')
   const renderConfigText = readFileSync(renderConfigPath, 'utf8')
@@ -26,8 +26,8 @@ export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() 
   if (!modeSelectText.includes('disabled: frontmatterOnlyAllowed')) {
     throw new Error('expected only frontmatter-only renderer mode options to be disabled')
   }
-  if (!uiSettingsSliceText.includes('isFrontmatterOnlyPolicyActive')) {
-    throw new Error('expected semantic-mode store setter to block keyword mode only for frontmatter-only renderer')
+  if (!uiSettingsModeActionsText.includes('isFrontmatterOnlyPolicyActive')) {
+    throw new Error('expected mode-action setters to block keyword and table mode only for frontmatter-only renderer')
   }
   if (!canvasSliceText.includes('isFrontmatterOnlyPolicyActive')) {
     throw new Error('expected renderer switch logic to enforce frontmatter-only state only for the frontmatter-only renderer')

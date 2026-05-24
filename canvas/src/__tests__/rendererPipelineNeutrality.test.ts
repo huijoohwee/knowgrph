@@ -4,7 +4,6 @@ import { resolve } from 'node:path'
 export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const root = resolve(process.cwd(), 'src')
   const renderConfigText = readFileSync(resolve(root, 'lib', 'config.render.ts'), 'utf8')
-  const canvasPageText = readFileSync(resolve(root, 'pages', 'Canvas.tsx'), 'utf8')
   const canvasViewportText = readFileSync(resolve(root, 'components', 'CanvasViewport.tsx'), 'utf8')
   const rendererSelectText = readFileSync(resolve(root, 'components', 'toolbar', 'Canvas2dRendererSelect.tsx'), 'utf8')
   const canvasViewMenuText = readFileSync(resolve(root, 'components', 'toolbar', 'canvasViewMenu.ts'), 'utf8')
@@ -25,23 +24,35 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!renderConfigText.includes('export const isCanvas2dRendererId')) {
     throw new Error('expected shared 2D renderer id validator in config.render')
   }
+  if (!renderConfigText.includes('export const CANVAS_2D_RENDERER_ORDER')) {
+    throw new Error('expected shared 2D renderer order helper in config.render')
+  }
+  if (!renderConfigText.includes('export const getCanvas2dRendererMenuLabel')) {
+    throw new Error('expected shared 2D renderer menu label helper in config.render')
+  }
   if (!renderConfigText.includes('export const isFlowEditorCanvas2dRenderer')) {
     throw new Error('expected shared Flow Editor renderer helper in config.render')
   }
-  if (!canvasPageText.includes('getCanvas2dSurfaceId(canvas2dRenderer)')) {
-    throw new Error('expected Canvas page to derive mounted 2D renderers from the shared surface helper')
+  if (!canvasViewportText.includes('getCanvas2dSurfaceId(canvas2dRenderer)')) {
+    throw new Error('expected CanvasViewport to derive the active 2D surface from the shared renderer surface helper')
   }
   if (!canvasViewportText.includes('supportsCanvas2dMinimap(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport minimap gating to use the shared helper')
   }
-  if (!canvasViewportText.includes("import FlowEditorCanvas from '@/components/FlowEditorCanvas'")) {
-    throw new Error('expected CanvasViewport to inline-import the default FlowEditorCanvas startup surface')
+  if (!canvasViewportText.includes("const FlowEditorCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorCanvas')")) {
+    throw new Error('expected CanvasViewport to lazy-load the FlowEditorCanvas startup surface through the shared retry import path')
   }
   if (!rendererSelectText.includes('isD3Like2dRenderer(state.canvas2dRenderer)')) {
     throw new Error('expected Canvas2dRendererSelect to reuse the shared D3-like helper')
   }
   if (!canvasViewMenuText.includes('isD3Like2dRenderer(option.id)')) {
     throw new Error('expected Canvas view menu to reuse the shared D3-like helper for renderer option gating')
+  }
+  if (!canvasViewMenuText.includes('CANVAS_2D_RENDERER_ORDER.map')) {
+    throw new Error('expected Canvas view menu renderer options to derive menu order from the shared renderer spec')
+  }
+  if (!canvasViewMenuText.includes('getCanvas2dRendererMenuLabel(id)')) {
+    throw new Error('expected Canvas view menu renderer options to derive menu labels from the shared renderer spec')
   }
   if (!toolbarRendererViewText.includes('isD3Like2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected renderer settings panel to reuse the shared D3-like helper')
@@ -64,8 +75,8 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (uiCopyText.includes('2D Renderer: Flow\'')) {
     throw new Error('expected legacy 2D Renderer: Flow naming to be removed')
   }
-  if (!rendererRegistryText.includes("if (id === 'flow') return 'Flow Canvas'")) {
-    throw new Error('expected renderer registry label for flow to be Flow Canvas')
+  if (!rendererRegistryText.includes("export { CANVAS_2D_RENDERER_ORDER, getCanvas2dRendererLabel } from '@/lib/config'")) {
+    throw new Error('expected renderer registry to re-export shared renderer order and labels from the centralized renderer config')
   }
 }
 

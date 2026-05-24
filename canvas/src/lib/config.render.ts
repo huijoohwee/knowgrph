@@ -6,10 +6,103 @@ export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animation', 'flowEditor', 'des
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animation', 'design', 'flowEditor']
+
+type Canvas2dRendererSpec = {
+  surfaceId: Canvas2dSurfaceId
+  registryLabel: string
+  menuLabel: string
+  aliases: readonly string[]
+  sharesFlowEditorFrontmatterSyntax: boolean
+}
+
+const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec> = {
+  d3: {
+    surfaceId: 'd3',
+    registryLabel: 'D3',
+    menuLabel: 'D3',
+    aliases: ['d3graph'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+  flowchart: {
+    surfaceId: 'd3',
+    registryLabel: 'Flowchart',
+    menuLabel: 'Bi',
+    aliases: ['d3flowchart'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+  flow: {
+    surfaceId: 'flow',
+    registryLabel: 'Flow Canvas',
+    menuLabel: 'Canvas',
+    aliases: ['flowcanvas'],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+  animation: {
+    surfaceId: 'animation',
+    registryLabel: 'Animation',
+    menuLabel: 'Anim',
+    aliases: ['anim', 'timelineanimation'],
+    sharesFlowEditorFrontmatterSyntax: true,
+  },
+  flowEditor: {
+    surfaceId: 'flowEditor',
+    registryLabel: 'Edit',
+    menuLabel: 'Edit',
+    aliases: ['edit'],
+    sharesFlowEditorFrontmatterSyntax: true,
+  },
+  design: {
+    surfaceId: 'design',
+    registryLabel: 'Design',
+    menuLabel: 'Design',
+    aliases: [],
+    sharesFlowEditorFrontmatterSyntax: false,
+  },
+}
+
+const normalizeCanvas2dRendererToken = (value: unknown): string => {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
+}
+
+const CANVAS_2D_RENDERER_ID_BY_ALIAS = (() => {
+  const map = new Map<string, Canvas2dRendererId>()
+  for (const rendererId of CANVAS_2D_RENDERERS) {
+    const spec = CANVAS_2D_RENDERER_SPECS[rendererId]
+    map.set(normalizeCanvas2dRendererToken(rendererId), rendererId)
+    for (const alias of spec.aliases) {
+      map.set(normalizeCanvas2dRendererToken(alias), rendererId)
+    }
+  }
+  return map
+})()
+
 export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'flowEditor'
 
 export const isCanvas2dRendererId = (id: unknown): id is Canvas2dRendererId => {
   return typeof id === 'string' && (CANVAS_2D_RENDERERS as readonly string[]).includes(id)
+}
+
+export const resolveCanvas2dRendererId = (value: unknown): Canvas2dRendererId | undefined => {
+  if (isCanvas2dRendererId(value)) return value
+  const normalized = normalizeCanvas2dRendererToken(value)
+  if (!normalized) return undefined
+  return CANVAS_2D_RENDERER_ID_BY_ALIAS.get(normalized)
+}
+
+export const getCanvas2dRendererLabel = (id: Canvas2dRendererId): string => {
+  return CANVAS_2D_RENDERER_SPECS[id].registryLabel
+}
+
+export const getCanvas2dRendererMenuLabel = (id: Canvas2dRendererId): string => {
+  return CANVAS_2D_RENDERER_SPECS[id].menuLabel
+}
+
+export const sharesFlowEditorFrontmatterSyntax = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return !!id && CANVAS_2D_RENDERER_SPECS[id].sharesFlowEditorFrontmatterSyntax
 }
 
 export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
@@ -44,12 +137,7 @@ export const isFrontmatterOnlyPolicyActive = (args: {
 }
 
 export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined): Canvas2dSurfaceId | null => {
-  if (isD3Like2dRenderer(id)) return 'd3'
-  if (id === 'flow') return 'flow'
-  if (id === 'animation') return 'animation'
-  if (id === 'flowEditor') return 'flowEditor'
-  if (id === 'design') return 'design'
-  return null
+  return id ? CANVAS_2D_RENDERER_SPECS[id].surfaceId : null
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {

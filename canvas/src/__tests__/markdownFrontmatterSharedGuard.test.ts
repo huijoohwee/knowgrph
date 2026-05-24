@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { resolveCanvas2dRendererId, sharesFlowEditorFrontmatterSyntax } from '@/lib/config.render'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 export const testMarkdownFrontmatterReusesSharedPlainObjectGuard = () => {
@@ -52,6 +53,24 @@ kgCanvas2dRenderer: "Flow Editor"
   }
   if (preset.canvas2dRenderer !== 'flowEditor') {
     throw new Error(`expected Flow Editor alias to normalize to flowEditor, got ${String(preset.canvas2dRenderer)}`)
+  }
+}
+
+export const testCanvas2dRendererNormalizationSharesAnimationAndFlowEditorSyntaxOwner = () => {
+  if (resolveCanvas2dRendererId('Flow Editor') !== 'flowEditor') {
+    throw new Error('expected shared renderer normalizer to resolve Flow Editor alias upstream')
+  }
+  if (resolveCanvas2dRendererId('Timeline Animation') !== 'animation') {
+    throw new Error('expected shared renderer normalizer to resolve Timeline Animation alias upstream')
+  }
+  if (!sharesFlowEditorFrontmatterSyntax('flowEditor')) {
+    throw new Error('expected Flow Editor to remain on the shared flow-frontmatter syntax owner')
+  }
+  if (!sharesFlowEditorFrontmatterSyntax('animation')) {
+    throw new Error('expected Animation renderer to reuse the shared Flow Editor frontmatter syntax owner')
+  }
+  if (sharesFlowEditorFrontmatterSyntax('d3')) {
+    throw new Error('expected non-flow renderers to stay outside the shared Flow Editor frontmatter syntax owner')
   }
 }
 

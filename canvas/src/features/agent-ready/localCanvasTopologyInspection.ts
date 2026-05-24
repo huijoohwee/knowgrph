@@ -1,7 +1,7 @@
 import type { GraphData } from '@/lib/graph/types'
 import { applyCanvasRenderBudget, resolveCanvasRenderBudgetSurface } from '@/lib/graph/canvasRenderBudget'
 import { readGraphTopologySummary, withGraphTopologyMetadata } from '@/lib/graph/graphTopology'
-import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { DEFAULT_CANVAS_2D_RENDERER, isFrontmatterOnlyPolicyActive, resolveCanvas2dRendererId } from '@/lib/config.render'
 import { readSubgraphs } from '@/lib/graph/subgraphs'
 import { deriveFlowchartFrontmatterActiveViewGraph, deriveGraphDataForActiveView } from '@/hooks/active-graph-data/activeViewGraph'
 
@@ -52,7 +52,7 @@ export const inspectLocalCanvasTopology = (args: LocalCanvasTopologyInspectionAr
   const documentName = normalizeString(args.markdownDocumentName)
   const markdownText = typeof args.markdownDocumentText === 'string' ? args.markdownDocumentText : null
   const canvasRenderMode = normalizeString(args.canvasRenderMode) || '2d'
-  const canvas2dRenderer = normalizeString(args.canvas2dRenderer) || 'flowEditor'
+  const canvas2dRenderer = resolveCanvas2dRendererId(args.canvas2dRenderer) || DEFAULT_CANVAS_2D_RENDERER
   const documentSemanticMode = normalizeString(args.documentSemanticMode) || 'document'
   const graphDataRevision = typeof args.graphDataRevision === 'number' && Number.isFinite(args.graphDataRevision)
     ? args.graphDataRevision

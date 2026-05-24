@@ -1,5 +1,5 @@
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
-import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config.render'
+import { resolveCanvas2dRendererId, type Canvas2dRendererId, type Canvas3dModeId } from '@/lib/config.render'
 import { isPlainObject } from '@/lib/graph/value'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
@@ -108,26 +108,7 @@ function readCanvas3dModePreset(value: unknown): Canvas3dModeId | undefined {
 }
 
 function readCanvas2dRendererPreset(value: unknown): Canvas2dRendererId | undefined {
-  const raw = String(value || '').trim()
-  if (!raw) return undefined
-  if (
-    raw === 'd3' ||
-    raw === 'flowchart' ||
-    raw === 'flow' ||
-    raw === 'animation' ||
-    raw === 'flowEditor' ||
-    raw === 'design'
-  ) {
-    return raw as Canvas2dRendererId
-  }
-  const normalized = normalizePresetToken(raw)
-  if (normalized === 'd3' || normalized === 'd3graph') return 'd3'
-  if (normalized === 'd3flowchart' || normalized === 'flowchart' || normalized === 'flowchart') return 'flowchart'
-  if (normalized === 'flow' || normalized === 'flowcanvas') return 'flow'
-  if (normalized === 'animation' || normalized === 'anim' || normalized === 'timelineanimation') return 'animation'
-  if (normalized === 'floweditor' || normalized === 'edit') return 'flowEditor'
-  if (normalized === 'design') return 'design'
-  return undefined
+  return resolveCanvas2dRendererId(value)
 }
 
 function readDocumentSemanticModePreset(value: unknown): 'document' | 'keyword' | undefined {
