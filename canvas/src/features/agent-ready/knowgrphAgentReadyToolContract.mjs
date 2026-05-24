@@ -7,6 +7,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocalMainPanelState: 'inspect_local_mainpanel_state',
   inspectLocalEditorWorkspaceState: 'inspect_local_editor_workspace_state',
   inspectLocalChatPipelineState: 'inspect_local_chat_pipeline_state',
+  inspectLocalMainPanelChatCanvasPipeline: 'inspect_local_mainpanel_chat_canvas_pipeline',
   inspectLocalWorkspaceDocument: 'inspect_local_workspace_document',
   inspectLocalCanvasTopology: 'inspect_local_canvas_topology',
   inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
@@ -113,6 +114,13 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState),
           title: 'Inspect Local Chat Pipeline State',
           description: 'Inspect the active browser-local Knowgrph FloatingPanel chat runtime, including streaming, workspace follow path, and LLM-to-workspace pipeline state.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline),
+          title: 'Inspect Local MainPanel Chat Canvas Pipeline',
+          description: 'Inspect the active browser-local Knowgrph E2E readiness path from MainPanel MCP and Integrations through FloatingPanel Chat, workspace markdown/frontmatter, and canvas topology.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {

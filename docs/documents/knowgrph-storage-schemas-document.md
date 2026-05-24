@@ -1,7 +1,7 @@
 # Knowgrph Storage Schemas & Route Contracts
 
 **Context**: Schema appendix for the Knowgrph storage and sync system.
-**Intent**: Single reference for all record shapes, D1 tables, RxDB collections, and API route contracts.
+**Intent**: Single reference for all record shapes, D1 tables, browser-local cache collections, and API route contracts.
 **Directive**: Keep this file as a pure reference; architectural decisions and runtime wiring live in `knowgrph-storage-sync.md`.
 
 ---
@@ -18,7 +18,7 @@
 - Persist chunks and graph snapshots separately.
 - Keep stable ids and monotonic revisions.
 - Use hashes for dedupe and bounded prompt reuse.
-- Keep browser-local names compatible with RxDB reserved-field rules.
+- Keep browser-local names stable across the persisted-cache contract.
 
 ---
 
@@ -113,13 +113,13 @@ type KnowgrphStorageOutboxRecord = {
 
 ---
 
-## RxDB Local Schema
+## Browser-Local Cache Schema
 
-Primary file: `canvas/src/lib/storage/knowgrphStorageRxdb.ts`
+Primary file: `canvas/src/lib/storage/knowgrphStorageDb.ts`
 
 ### Why Local Shapes Differ
 
-RxDB reserves certain field names, so the local store uses:
+The local cache keeps existing browser-local field names, so the store uses:
 
 - `documentRevision` instead of remote `revision`
 - `isDeleted` instead of remote `deleted`

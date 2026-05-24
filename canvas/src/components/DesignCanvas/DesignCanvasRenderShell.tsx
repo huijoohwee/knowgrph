@@ -250,10 +250,10 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
         onPointerCancel={onSvgPointerCancel}
       >
         <defs>
-          <filter id="shadow-sm" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id="shadow-sm" filterUnits="objectBoundingBox" x={-0.2} y={-0.2} width={1.4} height={1.4}>
             <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.1" />
           </filter>
-          <filter id="shadow-md" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id="shadow-md" filterUnits="objectBoundingBox" x={-0.2} y={-0.2} width={1.4} height={1.4}>
             <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.1" />
           </filter>
         </defs>

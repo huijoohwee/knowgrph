@@ -97,7 +97,7 @@ flowchart LR
 | Stage | Component family | Input | Output | Persistence |
 | --- | --- | --- | --- | --- |
 | Ingest | `canvas/src/features/parsers`, `knowgrph_parser` | Markdown, JSON, JSON-LD, CSV, PDF, webpages, codebase inputs | Normalized workspace or graph-ready content | In-memory runtime, generated files, optional storage sync |
-| Derive | `canvas/src/lib/graph`, `canvas/src/hooks/store` | Parsed source text and workspace snapshots | `GraphData`, view state, layout state, semantic document state | Zustand, local storage, RxDB-backed flows |
+| Derive | `canvas/src/lib/graph`, `canvas/src/hooks/store` | Parsed source text and workspace snapshots | `GraphData`, view state, layout state, semantic document state | Zustand, local storage, minimal persisted-cache flows |
 | Render | `canvas/src/components`, `canvas/src/features` | Graph and workspace state | Flow Editor, graph canvas, markdown/editor panes, geospatial overlays | Browser runtime |
 | Export | `canvas/src/cli`, `canvas/sandbox`, publish scripts | Workspace state and built assets | HTML exports, schema/docs artifacts, static site build | `canvas/dist`, generated docs, output artifacts |
 | Publish | `scripts/sync-pages-knowgrph.mjs`, Cloudflare Workers | Built app plus managed public files | Prod mirror, public-route compatibility files, root headers/redirects, Worker deployments | `huijoohwee/content/knowgrph`, `huijoohwee/knowgrph`, Cloudflare |

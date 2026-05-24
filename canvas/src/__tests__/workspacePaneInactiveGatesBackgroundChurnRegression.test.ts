@@ -9,14 +9,13 @@ export function testEmbeddedEditorShellPassesActiveToMarkdownWorkspace() {
   }
 }
 
-export function testGraphTableWorkspaceGatesRxdbSubscriptionsByActive() {
+export function testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByActive() {
   const p = resolve(process.cwd(), 'src', 'lib', 'graph-table', 'ui', 'GraphTableWorkspace.impl.tsx')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('if (!active) return')) {
-    throw new Error('expected GraphTableWorkspace to gate rxdb subscriptions when inactive')
+    throw new Error('expected GraphTableWorkspace to gate persisted-collection subscriptions when inactive')
   }
-  if (!text.includes('}, [active, activeTableId])')) {
-    throw new Error('expected GraphTableWorkspace rxdb effect to depend on active')
+  if (!text.includes('[active, activeTableId,')) {
+    throw new Error('expected GraphTableWorkspace subscription effect to depend on active')
   }
 }
-

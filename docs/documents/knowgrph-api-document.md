@@ -75,7 +75,7 @@ Production API work must keep root-owned configuration, path policy, provider di
 
 ### Storage Worker: `knowgrph-storage`
 
-Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co/api/storage/*`.
+Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co/api/storage/*`. The Worker owns the D1 schema/query layer through Drizzle; browser storage is cache-only and is not the canonical persistence surface.
 
 Canonical public/browser URL space stays on `https://airvio.co/api/storage/*`. Server-side readers inside Cloudflare Pages or future MCP Workers should fetch from `https://knowgrph-storage.huijoohwee.workers.dev` to avoid custom-domain self-fetch rewrites while reusing the same Worker implementation and D1 data.
 

@@ -1,6 +1,7 @@
-import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
-import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import {
+  createPersistedCollectionDb,
+  type PersistedCollectionMap,
+} from '@/lib/storage/persistedCollectionStore'
 
 export type MarkdownFsAccessMode = 'fs-access' | 'opfs' | 'file-input' | null
 
@@ -21,43 +22,12 @@ export type MarkdownFsEntryRow = {
 
 const MARKDOWN_FS_DB_NAME = 'kg:markdown-fs'
 
-type MarkdownFsCollections = {
-  folders: RxCollection<MarkdownFsFolderRow>
-  entries: RxCollection<MarkdownFsEntryRow>
+type MarkdownFsRecordMap = {
+  folders: MarkdownFsFolderRow
+  entries: MarkdownFsEntryRow
 }
-
-const folderSchema: RxJsonSchema<MarkdownFsFolderRow> = {
-  title: 'markdown_fs_folder',
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: { type: 'string', maxLength: 256 },
-    name: { type: ['string', 'null'] },
-    accessMode: { type: ['string', 'null'] },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['id', 'name', 'accessMode', 'updatedAtMs'],
-  indexes: ['updatedAtMs'],
-}
-
-const entrySchema: RxJsonSchema<MarkdownFsEntryRow> = {
-  title: 'markdown_fs_entry',
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: { type: 'string', maxLength: 1024 },
-    folderId: { type: 'string', maxLength: 256 },
-    path: { type: 'string', maxLength: 2048 },
-    text: { type: 'string' },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['id', 'folderId', 'path', 'text', 'updatedAtMs'],
-  indexes: ['folderId', ['folderId', 'path'], 'updatedAtMs'],
-}
-
-let dbSingleton: Promise<{ db: RxDatabase<MarkdownFsCollections>; collections: MarkdownFsCollections }> | null = null
+type MarkdownFsCollections = PersistedCollectionMap<MarkdownFsRecordMap>
+let dbSingleton: Promise<ReturnType<typeof createPersistedCollectionDb<MarkdownFsRecordMap>>> | null = null
 const normalizeNonNegativeInt = (value: unknown, fallback = 0): number => {
   const n = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(n) || n < 0) return Math.max(0, Math.floor(fallback))
@@ -67,31 +37,10 @@ const normalizeNonNegativeInt = (value: unknown, fallback = 0): number => {
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
-    let didReset = false
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const db = await createRxDatabase<MarkdownFsCollections>({
-          name: MARKDOWN_FS_DB_NAME,
-          storage: getCanvasRxStorage(),
-          multiInstance: true,
-          eventReduce: true,
-          closeDuplicates: true,
-        })
-        const collections = await db.addCollections({
-          folders: { schema: folderSchema },
-          entries: { schema: entrySchema },
-        })
-        return { db, collections }
-      } catch (err) {
-        if (didReset) {
-          dbSingleton = null
-          throw err
-        }
-        didReset = true
-        await clearRxdbForDatabaseName(MARKDOWN_FS_DB_NAME)
-      }
-    }
-    throw new Error('Failed to initialize markdown-fs database')
+    return createPersistedCollectionDb<MarkdownFsRecordMap>({
+      storageKey: MARKDOWN_FS_DB_NAME,
+      collectionNames: ['folders', 'entries'],
+    })
   })()
   return dbSingleton.catch(err => {
     dbSingleton = null

@@ -2,7 +2,14 @@ import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
   KNOWGRPH_STORAGE_CRAWLER_ACCESS_HEADERS,
 } from '../../../canvas/src/lib/storage/knowgrphStorageSyncContract.ts'
-import { normalizeString, queryAll, queryFirst, type D1DatabaseLike } from './d1.ts'
+import {
+  normalizeString,
+  type D1DatabaseLike,
+} from './d1.ts'
+import {
+  readPublishedChunkRows,
+  readPublishedDocumentRow,
+} from '../knowgrph-storage/db.ts'
 
 type PublishedDocRow = {
   id: string
@@ -31,24 +38,13 @@ export const readPublishedMarkdown = async (
   const workspaceId = normalizeString(args.workspaceId)
   const canonicalPath = normalizeString(args.canonicalPath)
   if (!workspaceId || !canonicalPath) return null
-  const row = await queryFirst<PublishedDocRow>(
-    db,
-    'SELECT id, content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0',
-    [workspaceId, canonicalPath],
-  )
+  const row = await readPublishedDocumentRow(db, workspaceId, canonicalPath) as PublishedDocRow | null
   if (!row) return null
   let contentMarkdown = typeof row.content_md === 'string' ? row.content_md : ''
   if (contentMarkdown.trim()) return contentMarkdown
   const documentId = normalizeString(row.id)
   if (!documentId) return ''
-  const chunks = await queryAll<PublishedDocChunkRow>(
-    db,
-    `SELECT id, chunk_order, markdown
-     FROM document_chunks
-     WHERE workspace_id = ? AND document_id = ?
-     ORDER BY chunk_order ASC, id ASC`,
-    [workspaceId, documentId],
-  )
+  const chunks = await readPublishedChunkRows(db, workspaceId, documentId) as PublishedDocChunkRow[]
   return chunks
     .map(chunk => normalizeString(chunk.markdown) ? String(chunk.markdown) : '')
     .filter(Boolean)

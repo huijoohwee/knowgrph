@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import {
   __resetKnowgrphStorageDbForTests,
   getKnowgrphStorageDb,
-} from '@/lib/storage/knowgrphStorageRxdb'
+} from '@/lib/storage/knowgrphStorageDb'
 import {
   CLOUDFLARE_PAY_PER_CRAWL_DOC_URL,
   CLOUDFLARE_PAY_PER_CRAWL_REQUEST_HEADERS,

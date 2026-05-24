@@ -8,7 +8,7 @@ import {
   getKnowgrphStorageDb,
   type KgDocumentLocalRecord,
   type KnowgrphStorageDb,
-} from '@/lib/storage/knowgrphStorageRxdb'
+} from '@/lib/storage/knowgrphStorageDb'
 import { queueKnowgrphStorageMutation } from '@/lib/storage/knowgrphStorageClientSync'
 import type {
   KgDocumentRecord,

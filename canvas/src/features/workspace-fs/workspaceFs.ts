@@ -69,7 +69,7 @@ export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
           }
         }
         // Persistent conflict: fall back to in-memory shadow for continuity, but avoid degraded toast noise.
-        console.warn(`[workspace-fs] RxDB CONFLICT persisted on ${String(op)} after retries — falling back to shadow memory fs`)
+        console.warn(`[workspace-fs] persisted cache conflict persisted on ${String(op)} after retries — falling back to shadow memory fs`)
         const { createMemoryWorkspaceFs } = (await import('./workspaceFsMemory.ts')) as typeof import('./workspaceFsMemory.ts')
         const memory = createMemoryWorkspaceFs({ initialEntries: snapshotShadowEntries() })
         fsSingleton = memory
@@ -175,8 +175,8 @@ export async function getWorkspaceFs(): Promise<WorkspaceFs> {
   const memory = createMemoryWorkspaceFs({ initialEntries: snapshotShadowEntries() })
 
   try {
-    const { createWorkspaceRxdbFs } = await import('./workspaceFsRxdb.ts')
-    const persistentFs = createResilientWorkspaceFs(createWorkspaceRxdbFs())
+    const { createWorkspacePersistedFs } = await import('./workspaceFsPersisted.ts')
+    const persistentFs = createResilientWorkspaceFs(createWorkspacePersistedFs())
     await persistentFs.ensureSeed()
     fsSingleton = persistentFs
     return fsSingleton

@@ -1,4 +1,3 @@
-import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
@@ -20,36 +19,23 @@ import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedPro
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
-import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import {
+  createPersistedCollectionDb,
+  type PersistedCollectionDb,
+  type PersistedCollectionMap,
+} from '@/lib/storage/persistedCollectionStore'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 const DB_NAME = 'kg:workspace-fs'
 let lastDocsMirrorSyncSignature = ''
 
 type WorkspaceEntryRow = WorkspaceEntry
-type WorkspaceCollections = {
-  entries: RxCollection<WorkspaceEntryRow>
+type WorkspaceRecordMap = {
+  entries: WorkspaceEntryRow
 }
-
-const workspaceEntrySchema: RxJsonSchema<WorkspaceEntryRow> = {
-  title: 'workspace_entry',
-  version: 0,
-  primaryKey: 'path',
-  type: 'object',
-  properties: {
-    path: { type: 'string', maxLength: 2048 },
-    parentPath: { type: 'string', maxLength: 2048 },
-    kind: { type: 'string', maxLength: 16 },
-    name: { type: 'string' },
-    text: { type: ['string', 'null'] },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['path', 'parentPath', 'kind', 'name', 'updatedAtMs'],
-  indexes: ['parentPath', 'kind', 'updatedAtMs'],
-}
-
-let dbSingleton: Promise<{ db: RxDatabase<WorkspaceCollections>; collections: WorkspaceCollections }> | null = null
+type WorkspaceCollections = PersistedCollectionMap<WorkspaceRecordMap>
+type WorkspaceFsDb = PersistedCollectionDb<WorkspaceRecordMap>
+let dbSingleton: Promise<WorkspaceFsDb> | null = null
 
 const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
   [WORKSPACE_README_SEED_PATH, WORKSPACE_README_SEED_BASENAME],
@@ -192,30 +178,13 @@ const syncWorkspaceDocsMirrorEntries = async (
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
-    let didReset = false
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const db = await createRxDatabase<WorkspaceCollections>({
-          name: DB_NAME,
-          storage: getCanvasRxStorage(),
-          multiInstance: true,
-          eventReduce: true,
-          closeDuplicates: true,
-        })
-        const collections = await db.addCollections({
-          entries: { schema: workspaceEntrySchema },
-        })
-        return { db, collections }
-      } catch (err) {
-        if (didReset) {
-          dbSingleton = null
-          throw err
-        }
-        didReset = true
-        await clearRxdbForDatabaseName(DB_NAME)
-      }
-    }
-    throw new Error('Failed to initialize workspace-fs database')
+    return createPersistedCollectionDb<WorkspaceRecordMap>({
+      storageKey: DB_NAME,
+      collectionNames: ['entries'],
+      recordKeyByCollection: {
+        entries: row => normalizeWorkspacePath(String(row.path || '')),
+      },
+    })
   })()
   return dbSingleton.catch(err => {
     dbSingleton = null
@@ -223,7 +192,7 @@ const getDb = async () => {
   })
 }
 
-export function createWorkspaceRxdbFs(): WorkspaceFs {
+export function createWorkspacePersistedFs(): WorkspaceFs {
   lastDocsMirrorSyncSignature = ''
   const ensureRoot = async () => {
     const { collections } = await getDb()
@@ -239,7 +208,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
       }
       return
     }
-    await collections.entries.insert({
+    await collections.entries.incrementalUpsert({
       path: WORKSPACE_ROOT_PATH,
       parentPath: '',
       kind: 'folder',
@@ -429,7 +398,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
       name = `${desired}-${i}`
       path = joinWorkspacePath(parent, name)
     }
-    await collections.entries.insert({
+    await collections.entries.incrementalUpsert({
       path,
       parentPath: parent,
       kind: 'folder',
@@ -456,7 +425,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
       name = `${stem}-${i}${ext}`
       path = joinWorkspacePath(parent, name)
     }
-    await collections.entries.insert({
+    await collections.entries.incrementalUpsert({
       path,
       parentPath: parent,
       kind: 'file',

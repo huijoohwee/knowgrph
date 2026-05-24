@@ -1,5 +1,31 @@
 type FakeRow = Record<string, unknown>
 
+const normalizeSql = (sql: string): string =>
+  String(sql || '')
+    .toLowerCase()
+    .replace(/["`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const readSelectedColumns = (sql: string): string[] => {
+  const normalizedSql = normalizeSql(sql)
+  const selectPrefix = 'select '
+  const fromIndex = normalizedSql.indexOf(' from ')
+  if (!normalizedSql.startsWith(selectPrefix) || fromIndex <= selectPrefix.length) return []
+  const selectClause = normalizedSql.slice(selectPrefix.length, fromIndex)
+  if (selectClause.trim() === '*') return []
+  return selectClause
+    .split(',')
+    .map(part => part.trim())
+    .map(part => {
+      const aliasMatch = /\s+as\s+([a-z0-9_]+)/.exec(part)
+      if (aliasMatch?.[1]) return aliasMatch[1]
+      const pieces = part.split('.')
+      return pieces[pieces.length - 1] || part
+    })
+    .filter(Boolean)
+}
+
 export class FakeKnowgrphStorageD1Database {
   workspaces = new Map<string, FakeRow>()
   documents = new Map<string, FakeRow>()
@@ -25,16 +51,20 @@ export class FakeKnowgrphStorageD1Database {
       async all<T = FakeRow>() {
         return { results: db.readRows(sql, boundValues) as T[] }
       },
+      async raw<T = unknown[]>() {
+        return db.readRawRows(sql, boundValues) as T[]
+      },
     }
   }
 
   private applyMutation(sql: string, values: unknown[]) {
-    if (sql.includes('INSERT INTO workspaces')) {
+    const normalizedSql = normalizeSql(sql)
+    if (normalizedSql.includes('insert into workspaces')) {
       const [id, slug, title, createdAt, updatedAt] = values
       this.workspaces.set(String(id), { id, slug, title, visibility: 'private', created_at: createdAt, updated_at: updatedAt })
       return
     }
-    if (sql.includes('INSERT INTO sync_devices') || sql.includes('INSERT OR IGNORE INTO sync_devices')) {
+    if (normalizedSql.includes('insert into sync_devices')) {
       const [id, workspaceId, deviceLabel, updatedAt] = values
       const existing = this.syncDevices.get(String(id)) || {}
       this.syncDevices.set(String(id), {
@@ -48,7 +78,7 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('INSERT INTO sync_events')) {
+    if (normalizedSql.includes('insert into sync_events')) {
       const [id, workspaceId, deviceId, eventType, payloadJson, createdAt] = values
       this.syncEvents.set(String(id), {
         id,
@@ -60,7 +90,14 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('INSERT INTO documents')) {
+    if (normalizedSql.includes('delete from sync_events where created_at < ?')) {
+      const cutoff = String(values[0] || '')
+      for (const [id, row] of this.syncEvents.entries()) {
+        if (String(row.created_at || '') < cutoff) this.syncEvents.delete(id)
+      }
+      return
+    }
+    if (normalizedSql.includes('insert into documents')) {
       const [
         id,
         workspaceId,
@@ -97,7 +134,7 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('INSERT INTO document_chunks')) {
+    if (normalizedSql.includes('insert into document_chunks')) {
       const [id, documentId, workspaceId, chunkKey, chunkOrder, heading, markdown, tokenEstimate, contentHash, updatedAt] = values
       this.documentChunks.set(String(id), {
         id,
@@ -113,11 +150,11 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('DELETE FROM document_chunks')) {
+    if (normalizedSql.includes('delete from document_chunks')) {
       this.documentChunks.delete(String(values[0]))
       return
     }
-    if (sql.includes('INSERT INTO graph_snapshots')) {
+    if (normalizedSql.includes('insert into graph_snapshots')) {
       const [id, documentId, workspaceId, graphRevision, graphHash, graphJson, layoutJson, derivedFromDocumentRevision, updatedAt] = values
       this.graphSnapshots.set(String(id), {
         id,
@@ -132,7 +169,7 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('INSERT INTO stripe_checkout_sessions')) {
+    if (normalizedSql.includes('insert into stripe_checkout_sessions')) {
       const [
         id,
         workspaceId,
@@ -169,7 +206,7 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('INSERT INTO stripe_webhook_events')) {
+    if (normalizedSql.includes('insert into stripe_webhook_events')) {
       const [id, eventType, livemode, payloadHash, receivedAt, processedAt] = values
       this.stripeWebhookEvents.set(String(id), {
         id,
@@ -181,11 +218,11 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
-    if (sql.includes('DELETE FROM graph_snapshots')) {
+    if (normalizedSql.includes('delete from graph_snapshots')) {
       this.graphSnapshots.delete(String(values[0]))
       return
     }
-    if (sql.includes('UPDATE sync_devices SET last_push_cursor')) {
+    if (normalizedSql.includes('update sync_devices set last_push_cursor')) {
       const [cursor, updatedAt, id, workspaceId] = values
       const existing = this.syncDevices.get(String(id))
       if (existing && existing.workspace_id === workspaceId) {
@@ -193,7 +230,7 @@ export class FakeKnowgrphStorageD1Database {
       }
       return
     }
-    if (sql.includes('UPDATE sync_devices SET last_pull_cursor')) {
+    if (normalizedSql.includes('update sync_devices set last_pull_cursor')) {
       const [cursor, updatedAt, id, workspaceId] = values
       const existing = this.syncDevices.get(String(id))
       if (existing && existing.workspace_id === workspaceId) {
@@ -203,7 +240,18 @@ export class FakeKnowgrphStorageD1Database {
   }
 
   private readRows(sql: string, values: unknown[]): FakeRow[] {
-    if (sql.includes('SELECT id, content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0')) {
+    const normalizedSql = normalizeSql(sql)
+    if (normalizedSql.includes('select id, content_md from documents where documents.workspace_id = ? and documents.canonical_path = ? and documents.deleted = ?')) {
+      const [workspaceId, canonicalPath, deleted] = values
+      const rows = Array.from(this.documents.values()).filter(
+        row =>
+          row.workspace_id === workspaceId
+          && row.canonical_path === canonicalPath
+          && Number(row.deleted || 0) === Number(deleted || 0),
+      )
+      return rows.slice(0, 1).map(row => ({ id: row.id, content_md: row.content_md }))
+    }
+    if (normalizedSql.includes('select id, content_md from documents where workspace_id = ? and canonical_path = ? and deleted = 0')) {
       const [workspaceId, canonicalPath] = values
       const rows = Array.from(this.documents.values()).filter(
         row =>
@@ -213,7 +261,7 @@ export class FakeKnowgrphStorageD1Database {
       )
       return rows.slice(0, 1).map(row => ({ id: row.id, content_md: row.content_md }))
     }
-    if (sql.includes('SELECT id, chunk_order, markdown') && sql.includes('FROM document_chunks')) {
+    if (normalizedSql.includes('select id, chunk_order, markdown from document_chunks')) {
       const [workspaceId, documentId] = values
       return Array.from(this.documentChunks.values())
         .filter(row => row.workspace_id === workspaceId && row.document_id === documentId)
@@ -224,7 +272,7 @@ export class FakeKnowgrphStorageD1Database {
         })
         .map(row => ({ id: row.id, chunk_order: row.chunk_order, markdown: row.markdown }))
     }
-    if (sql.includes('SELECT id, canonical_path, title, doc_type, content_hash, revision, updated_at') && sql.includes('FROM documents')) {
+    if (normalizedSql.includes('select id, canonical_path, title, doc_type, content_hash, revision, updated_at') && normalizedSql.includes('from documents')) {
       const [workspaceId] = values
       return Array.from(this.documents.values())
         .filter(row => row.workspace_id === workspaceId && Number(row.deleted || 0) === 0)
@@ -244,13 +292,13 @@ export class FakeKnowgrphStorageD1Database {
           content_length: String(row.content_md || '').length,
         }))
     }
-    if (sql.includes('SELECT revision FROM documents')) {
+    if (normalizedSql.includes('select revision from documents')) {
       const [id, workspaceId] = values
       const row = this.documents.get(String(id))
       if (!row || row.workspace_id !== workspaceId) return []
       return [{ revision: row.revision }]
     }
-    if (sql.includes('SELECT MAX(graph_revision) AS graph_revision FROM graph_snapshots')) {
+    if (normalizedSql.includes('select max(graph_revision) as graph_revision from graph_snapshots')) {
       const [documentId, workspaceId] = values
       const rows = Array.from(this.graphSnapshots.values()).filter(
         row => row.document_id === documentId && row.workspace_id === workspaceId,
@@ -258,24 +306,40 @@ export class FakeKnowgrphStorageD1Database {
       const max = rows.reduce((acc, row) => Math.max(acc, Number(row.graph_revision || 0)), 0)
       return rows.length > 0 ? [{ graph_revision: max }] : []
     }
-    if (sql.includes('SELECT id FROM stripe_webhook_events WHERE id = ?')) {
+    if (normalizedSql.includes('select id from stripe_webhook_events where id = ?')) {
       const row = this.stripeWebhookEvents.get(String(values[0]))
       return row ? [{ id: row.id }] : []
     }
-    if (sql.includes('SELECT * FROM stripe_checkout_sessions WHERE id = ?')) {
+    if (normalizedSql.includes('select * from stripe_checkout_sessions where id = ?')) {
       const row = this.stripeCheckoutSessions.get(String(values[0]))
       return row ? [row] : []
     }
-    if (sql.includes('SELECT * FROM documents')) {
+    if (normalizedSql.includes('from documents where documents.workspace_id = ?')) {
       return this.filterByWorkspaceAndSince(this.documents, values)
     }
-    if (sql.includes('SELECT * FROM document_chunks')) {
+    if (normalizedSql.includes('select * from documents')) {
+      return this.filterByWorkspaceAndSince(this.documents, values)
+    }
+    if (normalizedSql.includes('from document_chunks where document_chunks.workspace_id = ?')) {
       return this.filterByWorkspaceAndSince(this.documentChunks, values)
     }
-    if (sql.includes('SELECT * FROM graph_snapshots')) {
+    if (normalizedSql.includes('select * from document_chunks')) {
+      return this.filterByWorkspaceAndSince(this.documentChunks, values)
+    }
+    if (normalizedSql.includes('from graph_snapshots where graph_snapshots.workspace_id = ?')) {
+      return this.filterByWorkspaceAndSince(this.graphSnapshots, values)
+    }
+    if (normalizedSql.includes('select * from graph_snapshots')) {
       return this.filterByWorkspaceAndSince(this.graphSnapshots, values)
     }
     return []
+  }
+
+  private readRawRows(sql: string, values: unknown[]): unknown[][] {
+    const rows = this.readRows(sql, values)
+    const columns = readSelectedColumns(sql)
+    if (columns.length === 0) return rows.map(row => Object.values(row))
+    return rows.map(row => columns.map(column => row[column]))
   }
 
   private filterByWorkspaceAndSince(source: Map<string, FakeRow>, values: unknown[]): FakeRow[] {

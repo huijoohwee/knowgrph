@@ -30,7 +30,7 @@ Cloudflare Pages
   airvio.co/knowgrph
 ```
 
-`npm run pages:build-sync` owns the static SPA build and mirror sync. `npm run pages:build-sync-cloudflare` extends that path with `npm run storage:deploy`, which applies remote D1 migrations and deploys the `knowgrph-storage` Worker from `cloudflare/workers/knowgrph-storage/wrangler.toml`.
+`npm run pages:build-sync` owns the static SPA build and mirror sync. `npm run pages:build-sync-cloudflare` extends that path with `npm run storage:deploy`, which applies remote D1 migrations and deploys the `knowgrph-storage` Worker from `cloudflare/workers/knowgrph-storage/wrangler.toml`. Publish sync must preserve the canonical hashed asset URL emitted by Vite for `index.html`; query-versioning the entry script URL is forbidden because it can split browser module identity across the same chunk. The generated `knowgrph` HTML app-shell cache headers must also include `no-transform` so Cloudflare JavaScript Detections do not inject `cdn-cgi/challenge-platform` scripts into the SPA shell.
 
 Public route ownership remains `airvio.co/api/storage/*`, but server-side reads from Cloudflare Pages should target `https://knowgrph-storage.huijoohwee.workers.dev` so shared-doc Markdown negotiation does not self-fetch through the custom-domain route.
 

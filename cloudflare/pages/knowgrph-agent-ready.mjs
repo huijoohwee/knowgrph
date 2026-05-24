@@ -16,6 +16,7 @@ import {
   buildAgentReadyOpenApiPaths,
 } from "./knowgrph-agent-ready-discovery.mjs";
 import {
+  PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE,
   createPublishedDocIdentityResolver,
   resolvePublishedDocIdentity,
 } from "../../canvas/src/features/canvas/canvasDocShareToken.mjs";
@@ -315,7 +316,138 @@ export const webMcpScript = `(() => {
   const toolNames = ${JSON.stringify(webMcpTools.map((tool) => tool.name))};
   const lateBindingRetryDelayMs = 500;
   const lateBindingMaxAttempts = 20;
-  const inspectSharedDocumentStructure = ${inspectSharedDocumentStructure.toString()};
+  const inspectSharedDocumentStructure = (args = {}) => {
+    const normalizeString = (value) => String(value || "").trim();
+    const normalizeMarkdown = (value) => String(value || "").replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n");
+    const readIndent = (line) => {
+      const match = String(line || "").match(/^\\s*/);
+      return match ? match[0].length : 0;
+    };
+    const isYamlKeyLine = (line) => /^[A-Za-z0-9_:@-]+\\s*:/.test(normalizeString(line));
+    const splitLines = (text) => normalizeMarkdown(text).split("\\n");
+    const extractLeadingFrontmatter = (markdown) => {
+      const lines = splitLines(markdown);
+      let start = 0;
+      while (start < lines.length && !normalizeString(lines[start])) start += 1;
+      if (normalizeString(lines[start]) !== "---") return null;
+      for (let i = start + 1; i < lines.length; i += 1) {
+        if (normalizeString(lines[i]) !== "---") continue;
+        return {
+          frontmatter: lines.slice(start + 1, i).join("\\n"),
+          body: lines.slice(i + 1).join("\\n"),
+        };
+      }
+      return null;
+    };
+    const extractTopLevelFrontmatterKeys = (frontmatter) => {
+      const keys = [];
+      for (const line of splitLines(frontmatter)) {
+        if (!normalizeString(line) || readIndent(line) !== 0) continue;
+        const match = line.match(/^([A-Za-z0-9_:@-]+)\\s*:/);
+        if (!match || !match[1]) continue;
+        keys.push(match[1]);
+      }
+      return Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b));
+    };
+    const extractYamlBlock = (text, key) => {
+      const lines = splitLines(text);
+      const expectedPrefix = key + ":";
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i];
+        const trimmed = normalizeString(line);
+        if (!trimmed.startsWith(expectedPrefix)) continue;
+        const indent = readIndent(line);
+        const inlineValue = trimmed.slice(expectedPrefix.length).trim();
+        if (inlineValue) {
+          return { indent, inlineValue, blockLines: [], blockText: "" };
+        }
+        const blockLines = [];
+        for (let j = i + 1; j < lines.length; j += 1) {
+          const nextLine = lines[j];
+          const nextTrimmed = normalizeString(nextLine);
+          const nextIndent = readIndent(nextLine);
+          if (nextTrimmed && nextIndent <= indent && isYamlKeyLine(nextLine)) break;
+          blockLines.push(nextLine);
+        }
+        return {
+          indent,
+          inlineValue: "",
+          blockLines,
+          blockText: blockLines.join("\\n"),
+        };
+      }
+      return null;
+    };
+    const extractNestedYamlKeys = (blockText) => {
+      const keys = [];
+      for (const line of splitLines(blockText)) {
+        const trimmed = normalizeString(line);
+        if (!trimmed || trimmed.startsWith("- ")) continue;
+        const match = trimmed.match(/^([A-Za-z0-9_:@-]+)\\s*:/);
+        if (!match || !match[1]) continue;
+        keys.push(match[1]);
+      }
+      return Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b));
+    };
+    const countInlineSequenceEntries = (inlineValue) => {
+      const trimmed = normalizeString(inlineValue);
+      if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return null;
+      const inner = trimmed.slice(1, -1).trim();
+      if (!inner) return 0;
+      return inner.split(",").map((part) => normalizeString(part)).filter(Boolean).length;
+    };
+    const countYamlSequenceEntries = (text, key) => {
+      const block = extractYamlBlock(text, key);
+      if (!block) return null;
+      if (block.inlineValue) return countInlineSequenceEntries(block.inlineValue);
+      let count = 0;
+      for (const line of block.blockLines) {
+        if (!normalizeString(line)) continue;
+        if (readIndent(line) <= block.indent) continue;
+        if (/^\\s*-\\s+/.test(line)) count += 1;
+      }
+      return count;
+    };
+    const extractMarkdownHeadings = (body) => {
+      const headings = [];
+      for (const line of splitLines(body)) {
+        const match = line.match(/^(#{1,6})\\s+(.+?)\\s*$/);
+        if (!match || !match[2]) continue;
+        headings.push({
+          depth: match[1].length,
+          text: normalizeString(match[2]),
+        });
+      }
+      return headings;
+    };
+    const workspaceId = normalizeString(args.workspaceId);
+    const canonicalPath = normalizeString(args.canonicalPath);
+    const markdown = normalizeMarkdown(args.markdown);
+    const parsed = extractLeadingFrontmatter(markdown);
+    const topLevelKeys = parsed ? extractTopLevelFrontmatterKeys(parsed.frontmatter) : [];
+    const flowBlock = parsed ? extractYamlBlock(parsed.frontmatter, "flow") : null;
+    const flowKeys = flowBlock ? extractNestedYamlKeys(flowBlock.blockText) : [];
+    const forbiddenGroupingAliasSet = new Set(["kg:subgraphs", "clusters", "groups", "layers"]);
+    const forbiddenGroupingAliases = Array.from(new Set(topLevelKeys.concat(flowKeys).filter((key) => forbiddenGroupingAliasSet.has(key)))).sort((a, b) => a.localeCompare(b));
+    const headings = extractMarkdownHeadings(parsed ? parsed.body : markdown);
+    return {
+      workspaceId,
+      canonicalPath,
+      markdownLength: markdown.length,
+      lineCount: markdown ? splitLines(markdown).length : 0,
+      hasFrontmatter: Boolean(parsed),
+      topLevelKeys,
+      hasFlowBlock: Boolean(flowBlock),
+      flowKeys,
+      flowNodeCount: flowBlock ? countYamlSequenceEntries(flowBlock.blockText, "nodes") : null,
+      flowConnectionCount: flowBlock ? (countYamlSequenceEntries(flowBlock.blockText, "connections") ?? countYamlSequenceEntries(flowBlock.blockText, "edges")) : null,
+      flowSubgraphCount: flowBlock ? countYamlSequenceEntries(flowBlock.blockText, "subgraphs") : null,
+      forbiddenGroupingAliases,
+      headingCount: headings.length,
+      headings: headings.map((heading) => heading.text),
+      bodyLength: normalizeString(parsed ? parsed.body : markdown).length,
+    };
+  };
   const fallbackState = {
     fallbackContext: null,
     activeRegisteredContext: null,
@@ -340,7 +472,7 @@ export const webMcpScript = `(() => {
       ? \`/api/storage/doc/\${encodeURIComponent(normalizedWorkspaceId)}/\${encodeURIComponent(normalizedCanonicalPath)}\`
       : \`/api/storage/doc-default/\${encodeURIComponent(normalizedCanonicalPath)}\`;
   };
-  const createPublishedDocIdentityResolver = ${createPublishedDocIdentityResolver.toString()};
+  const createPublishedDocIdentityResolver = ${PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE};
   const resolvePublishedDocIdentity = createPublishedDocIdentityResolver({
     defaultAppBasePath: appBasePath,
   });
@@ -376,10 +508,298 @@ export const webMcpScript = `(() => {
     if (!response.ok) throw new Error(\`inspect_agent_surface failed with \${response.status} for \${url}\`);
     return response.json();
   };
-  const buildAgentSurfaceInspectionPayload = ${buildAgentSurfaceInspectionPayload.toString()};
-  const createAgentSurfaceInspectionExecutor = ${createAgentSurfaceInspectionExecutor.toString()};
-  const createPublishedAgentReadyToolExecutors = ${createPublishedAgentReadyToolExecutors.toString()};
-  const createWebMcpLifecycleController = ${createWebMcpLifecycleController.toString()};
+  const buildAgentSurfaceInspectionPayload = (args = {}) => {
+    const baseUrl = String(args.baseUrl || "").replace(/\\/+$/, "");
+    return {
+      baseUrl,
+      healthUrl: baseUrl + "/health",
+      mcpUrl: baseUrl + "/mcp",
+      apiCatalogUrl: baseUrl + "/.well-known/api-catalog",
+      openApiUrl: baseUrl + "/.well-known/openapi.json",
+      mcpServerCardUrl: baseUrl + "/.well-known/mcp/server-card.json",
+      agentCardUrl: baseUrl + "/.well-known/agent-card.json",
+      agentSkillsUrl: baseUrl + "/.well-known/agent-skills/index.json",
+      health: args.health,
+      apiCatalog: args.apiCatalog,
+      openApi: args.openApi,
+      mcpServerCard: args.mcpServerCard,
+      agentCard: args.agentCard,
+      agentSkills: args.agentSkills,
+    };
+  };
+  const createAgentSurfaceInspectionExecutor = (args = {}) => {
+    const baseUrl = String(args.baseUrl || "").replace(/\\/+$/, "");
+    const fetchJson = args.fetchJson;
+    if (!baseUrl) {
+      throw new Error("baseUrl is required");
+    }
+    if (typeof fetchJson !== "function") {
+      throw new Error("fetchJson is required");
+    }
+    return async () => {
+      const responses = await Promise.all([
+        fetchJson(baseUrl + "/health", "application/health+json"),
+        fetchJson(baseUrl + "/.well-known/api-catalog", "application/linkset+json"),
+        fetchJson(baseUrl + "/.well-known/openapi.json", "application/json"),
+        fetchJson(baseUrl + "/.well-known/mcp/server-card.json", "application/json"),
+        fetchJson(baseUrl + "/.well-known/agent-card.json", "application/json"),
+        fetchJson(baseUrl + "/.well-known/agent-skills/index.json", "application/json"),
+      ]);
+      return buildAgentSurfaceInspectionPayload({
+        baseUrl,
+        health: responses[0],
+        apiCatalog: responses[1],
+        openApi: responses[2],
+        mcpServerCard: responses[3],
+        agentCard: responses[4],
+        agentSkills: responses[5],
+      });
+    };
+  };
+  const createPublishedAgentReadyToolExecutors = (args = {}) => {
+    const toolNames = args.toolNames || {};
+    const defaultWorkspaceId = String(args.defaultWorkspaceId || "").trim();
+    const buildStorageDocPath = args.buildStorageDocPath;
+    const fetchSourceFilesIndexResponse = args.fetchSourceFilesIndexResponse;
+    const fetchStorageMarkdownResponse = args.fetchStorageMarkdownResponse;
+    const resolveSharedDocumentInput = args.resolveSharedDocumentInput;
+    const inspectSharedDocumentStructure = args.inspectSharedDocumentStructure;
+    const buildAgentSurfaceInspection = args.buildAgentSurfaceInspection;
+    const normalizeString = (value) => String(value || "").trim();
+    if (typeof buildStorageDocPath !== "function") throw new Error("buildStorageDocPath is required");
+    if (typeof fetchSourceFilesIndexResponse !== "function") throw new Error("fetchSourceFilesIndexResponse is required");
+    if (typeof fetchStorageMarkdownResponse !== "function") throw new Error("fetchStorageMarkdownResponse is required");
+    if (typeof resolveSharedDocumentInput !== "function") throw new Error("resolveSharedDocumentInput is required");
+    if (typeof inspectSharedDocumentStructure !== "function") throw new Error("inspectSharedDocumentStructure is required");
+    if (typeof buildAgentSurfaceInspection !== "function") throw new Error("buildAgentSurfaceInspection is required");
+    const readSourceFile = async (input = {}) => {
+      const canonicalPath = normalizeString(input.canonicalPath);
+      if (!canonicalPath) {
+        throw new Error("canonicalPath is required");
+      }
+      const workspaceId = normalizeString(input.workspaceId);
+      const response = await fetchStorageMarkdownResponse(buildStorageDocPath(canonicalPath, workspaceId));
+      if (!response.ok) {
+        throw new Error("read_source_file failed with " + response.status);
+      }
+      return {
+        workspaceId: workspaceId || defaultWorkspaceId,
+        canonicalPath,
+        markdown: await response.text(),
+      };
+    };
+    const readSharedDocument = async (input = {}) => {
+      const resolvedDocument = resolveSharedDocumentInput(input);
+      if (!resolvedDocument) {
+        throw new Error("shareToken or shareUrl must resolve to a published Knowgrph document");
+      }
+      const workspaceId = normalizeString(resolvedDocument.workspaceId);
+      const canonicalPath = normalizeString(resolvedDocument.canonicalPath);
+      const response = await fetchStorageMarkdownResponse(buildStorageDocPath(canonicalPath, workspaceId));
+      if (!response.ok) {
+        throw new Error("read_shared_document failed with " + response.status);
+      }
+      return {
+        workspaceId: workspaceId || defaultWorkspaceId,
+        canonicalPath,
+        markdown: await response.text(),
+      };
+    };
+    const inspectSharedDocument = async (input = {}) => {
+      const sharedDocument = await readSharedDocument(input);
+      return inspectSharedDocumentStructure(sharedDocument);
+    };
+    return {
+      [toolNames.listSourceFiles]: async () => {
+        const response = await fetchSourceFilesIndexResponse();
+        if (!response.ok) {
+          throw new Error("list_source_files failed with " + response.status);
+        }
+        return {
+          workspaceId: defaultWorkspaceId,
+          markdownIndex: await response.text(),
+        };
+      },
+      [toolNames.readSourceFile]: readSourceFile,
+      [toolNames.readSharedDocument]: readSharedDocument,
+      [toolNames.inspectSharedDocumentStructure]: inspectSharedDocument,
+      [toolNames.inspectAgentSurface]: async () => buildAgentSurfaceInspection(),
+    };
+  };
+  const createWebMcpLifecycleController = (args = {}) => {
+    const root = args.root;
+    const lifecycleState = args.state;
+    const tools = Array.isArray(args.tools) ? args.tools : [];
+    const toolNames = Array.isArray(args.toolNames) ? args.toolNames : [];
+    const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500);
+    const lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20);
+    const markRuntimeState = typeof args.markRuntimeState === "function" ? args.markRuntimeState : () => {};
+    if (!root || !lifecycleState || typeof lifecycleState !== "object") {
+      throw new Error("root and state are required");
+    }
+    const normalizeString = (value) => String(value || "").trim();
+    const readGlobalNavigator = () => {
+      const windowNavigator = root.window && root.window.navigator;
+      if (windowNavigator && root.navigator !== windowNavigator) {
+        try {
+          Object.defineProperty(root, "navigator", {
+            configurable: true,
+            value: windowNavigator,
+          });
+        } catch {
+          root.navigator = windowNavigator;
+        }
+        return windowNavigator;
+      }
+      if (root.navigator) return root.navigator;
+      const navigatorObject = {};
+      try {
+        Object.defineProperty(root, "navigator", {
+          configurable: true,
+          value: navigatorObject,
+        });
+      } catch {
+        root.navigator = navigatorObject;
+      }
+      return navigatorObject;
+    };
+    const getRegistrationState = (context) => {
+      const existing = lifecycleState.registrations.get(context);
+      if (existing) return existing;
+      const created = {
+        registeredToolNames: new Set(),
+        abortControllers: new Map(),
+      };
+      lifecycleState.registrations.set(context, created);
+      return created;
+    };
+    const isDuplicateToolRegistrationError = (error) => {
+      if (!error || typeof error !== "object") return false;
+      return normalizeString(error.name) === "InvalidStateError";
+    };
+    const releasePreviousRegisteredContext = (nextContext) => {
+      const active = lifecycleState.activeRegisteredContext;
+      if (!active || active === nextContext) {
+        lifecycleState.activeRegisteredContext = nextContext;
+        return;
+      }
+      const registrationState = lifecycleState.registrations.get(active);
+      if (registrationState) {
+        registrationState.abortControllers.forEach((controller) => {
+          if (controller && typeof controller.abort === "function") controller.abort();
+        });
+      }
+      lifecycleState.activeRegisteredContext = nextContext;
+    };
+    const clearLateBindingRetry = () => {
+      if (lifecycleState.lateBindingRetryId === null || !root.window || typeof root.window.clearTimeout !== "function") return;
+      root.window.clearTimeout(lifecycleState.lateBindingRetryId);
+      lifecycleState.lateBindingRetryId = null;
+    };
+    const installToolsIntoModelContext = (context) => {
+      const registrationState = getRegistrationState(context);
+      let providedContext = false;
+      if (typeof context.provideContext === "function") {
+        try {
+          context.provideContext({ tools });
+          providedContext = true;
+        } catch {
+          void 0;
+        }
+      }
+      if (typeof context.registerTool === "function") {
+        for (const tool of tools) {
+          if (registrationState.registeredToolNames.has(tool.name)) continue;
+          const controller = typeof AbortController === "function" ? new AbortController() : null;
+          try {
+            context.registerTool(tool, controller ? { signal: controller.signal } : {});
+            registrationState.registeredToolNames.add(tool.name);
+            registrationState.abortControllers.set(tool.name, controller);
+          } catch (error) {
+            if (!isDuplicateToolRegistrationError(error)) continue;
+            registrationState.registeredToolNames.add(tool.name);
+            registrationState.abortControllers.set(tool.name, null);
+          }
+        }
+      }
+      if (Array.isArray(context.tools)) {
+        for (const tool of tools) {
+          if (!context.tools.some((entry) => entry && entry.name === tool.name)) context.tools.push(tool);
+        }
+      }
+      const allToolsRegistered = tools.every((tool) => registrationState.registeredToolNames.has(tool.name) || (Array.isArray(context.tools) && context.tools.some((entry) => entry && entry.name === tool.name)));
+      if (allToolsRegistered) {
+        releasePreviousRegisteredContext(context);
+        return true;
+      }
+      return providedContext && typeof context.registerTool !== "function" && !Array.isArray(context.tools);
+    };
+    const tryInstallLateBoundModelContext = (nav) => {
+      const context = nav.modelContext;
+      if (!context || context === lifecycleState.fallbackContext) return false;
+      const installed = installToolsIntoModelContext(context);
+      if (installed) {
+        clearLateBindingRetry();
+        markRuntimeState("installed");
+        return true;
+      }
+      return false;
+    };
+    const scheduleLateBindingRetry = (nav) => {
+      if (!root.window || typeof root.window.setTimeout !== "function") return;
+      if (lifecycleState.lateBindingRetryId !== null) return;
+      if (lifecycleState.lateBindingAttemptCount >= lateBindingMaxAttempts) {
+        markRuntimeState("retry-exhausted");
+        return;
+      }
+      lifecycleState.lateBindingRetryId = root.window.setTimeout(() => {
+        lifecycleState.lateBindingRetryId = null;
+        lifecycleState.lateBindingAttemptCount += 1;
+        if (!tryInstallLateBoundModelContext(nav)) scheduleLateBindingRetry(nav);
+      }, lateBindingRetryDelayMs);
+    };
+    const defineFallbackModelContext = (nav, context) => {
+      lifecycleState.fallbackContext = context;
+      let currentContext = nav.modelContext && nav.modelContext !== context ? nav.modelContext : context;
+      try {
+        Object.defineProperty(nav, "modelContext", {
+          configurable: true,
+          enumerable: false,
+          get: () => currentContext,
+          set: (value) => {
+            currentContext = value || context;
+            if (currentContext !== context) void tryInstallLateBoundModelContext(nav);
+          },
+        });
+      } catch {
+        nav.modelContext = context;
+      }
+    };
+    const install = () => {
+      const nav = readGlobalNavigator();
+      markRuntimeState("installing");
+      if (nav.modelContext && installToolsIntoModelContext(nav.modelContext)) {
+        markRuntimeState("installed");
+        return;
+      }
+      if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...tools] });
+      markRuntimeState(
+        toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName))
+          ? "fallback-readable"
+          : "awaiting-model-context",
+      );
+      scheduleLateBindingRetry(nav);
+    };
+    return {
+      install,
+      clearLateBindingRetry,
+      installToolsIntoModelContext,
+      tryInstallLateBoundModelContext,
+      scheduleLateBindingRetry,
+      defineFallbackModelContext,
+      readGlobalNavigator,
+    };
+  };
   const toolExecutors = createPublishedAgentReadyToolExecutors({
     toolNames: {
       listSourceFiles: ${JSON.stringify(LIST_SOURCE_FILES_WEB_TOOL_NAME)},
@@ -471,7 +891,7 @@ Use this skill when an agent or browser needs to inspect the deployed Knowgrph a
 - Runtime prefers provideContext({ tools }) when available and also registers each tool with registerTool(tool, { signal }) when supported.
 - AbortController-backed registration is used so tools can be unregistered cleanly with the platform lifecycle.
 - Deployed HTML fallback injects the shared five-tool WebMCP surface on /knowgrph HTML routes.
-- Full app runtime additionally exposes browser-local inspect tools for Settings chat readiness, MainPanel state, Editor Workspace state, chat pipeline validation/finalize/apply state, the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
+- Full app runtime additionally exposes browser-local inspect tools for Settings chat readiness, MainPanel state, Editor Workspace state, chat pipeline validation/finalize/apply state, the combined MainPanel -> Chat -> Markdown/frontmatter -> Canvas readiness path, the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
 `;
 
 const PUBLISHED_TOOL_NAME_CONFIG = {

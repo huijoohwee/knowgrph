@@ -625,6 +625,7 @@ to stay under `/knowgrph/` so apex rewrites cannot revive an old shell.
 
 - `canvas/index.html` references `%BASE_URL%manifest.webmanifest`
 - Knowgrph PWA ownership stays under the `/knowgrph/` base path
+- publish-generated root `_headers` keep `/knowgrph`, `/knowgrph/index.html`, `/knowgrph/manifest.webmanifest`, and `/knowgrph/sw.js` on `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`
 - regression coverage protects the manifest base-path invariant
 
 ## Technical Architecture

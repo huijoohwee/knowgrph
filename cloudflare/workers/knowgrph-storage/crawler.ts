@@ -12,22 +12,12 @@ import {
   buildKnowgrphStorageSourceFilesIndexPath,
 } from './contract'
 import {
+  readCrawlerDocumentRows,
   type D1DatabaseLike,
+  type CrawlerDocumentRow,
   normalizeNumber,
   normalizeString,
-  queryAll,
 } from './db'
-
-type CrawlerDocumentRow = {
-  id: string
-  canonical_path: string
-  title: string | null
-  doc_type: string | null
-  content_hash: string
-  revision: number
-  updated_at: string
-  content_length?: number
-}
 
 type CrawlerDocument = {
   id: string
@@ -101,15 +91,7 @@ const readCrawlerDocuments = async (
   db: D1DatabaseLike,
   workspaceId: string,
 ): Promise<CrawlerDocument[]> => {
-  const rows = await queryAll<CrawlerDocumentRow>(
-    db,
-    `SELECT id, canonical_path, title, doc_type, content_hash, revision, updated_at,
-            length(COALESCE(content_md, '')) AS content_length
-     FROM documents
-     WHERE workspace_id = ? AND deleted = 0
-     ORDER BY canonical_path ASC, id ASC`,
-    [workspaceId],
-  )
+  const rows = await readCrawlerDocumentRows(db, workspaceId)
   return rows
     .map(row => {
       const canonicalPath = normalizeString(row.canonical_path)

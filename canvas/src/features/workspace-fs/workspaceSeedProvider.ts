@@ -330,7 +330,7 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDbCache = async (args: {
   const workspaceId = String(args.workspaceId || '').trim()
   if (!workspaceId) return []
   try {
-    const mod = (await import('@/lib/storage/knowgrphStorageRxdb')) as typeof import('@/lib/storage/knowgrphStorageRxdb')
+    const mod = (await import('@/lib/storage/knowgrphStorageDb')) as typeof import('@/lib/storage/knowgrphStorageDb')
     const dbState = await mod.getKnowgrphStorageDb()
     const documents = await dbState.collections.documents.find({
       selector: {

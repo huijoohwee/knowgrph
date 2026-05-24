@@ -407,14 +407,14 @@ export const testSourceFilesPersistenceUsesContentHashNotLengthOnly = () => {
   }
 }
 
-export const testSourceFilesDbEnablesQueryBuilderPluginForPersistenceQueries = () => {
+export const testSourceFilesDbUsesPersistedCollectionStoreForRuntimeQueries = () => {
   const dbPath = path.resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesDb.ts')
   const text = readUtf8(dbPath)
-  if (!text.includes("import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'")) {
-    throw new Error('Expected source-files persistence DB to import the RxDB query-builder plugin for runtime find/sort queries')
+  if (!text.includes('createPersistedCollectionDb')) {
+    throw new Error('Expected source-files persistence DB to use the shared persisted collection store for runtime find/sort queries')
   }
-  if (!text.includes('addRxPlugin(RxDBQueryBuilderPlugin)')) {
-    throw new Error('Expected source-files persistence DB to register the RxDB query-builder plugin before using persistence queries')
+  if (!text.includes("collections.sourceFiles.find().sort({ orderIndex: 'asc' }).exec()")) {
+    throw new Error('Expected source-files persistence DB to keep the shared persisted-store query/sort path for runtime source-file reads')
   }
 }
 

@@ -24,18 +24,18 @@
 
 ---
 
-## RxDB GraphTableDb (Multi-dimensional Table backbone)
+## GraphTableDb Persisted Cache (Multi-dimensional Table backbone)
 
-- **Database**: `GraphTableDb` is an RxDB database named `kg:graph-table` with five collections:
+- **Database**: `GraphTableDb` is a minimal persisted cache named `kg:graph-table` with five collections:
   - `tables` (`GraphTableDoc`) for logical tables such as `nodes` and `edges`.
   - `columns` (`GraphColumnDoc`) for property columns with stable `columnId`, `kind`, and per-table `order`.
   - `rows` (`GraphRowDoc`) for table rows keyed by `rowId` and `data: Record<string, JSONValue>`.
   - `views` (`GraphViewDoc`) for per-table view configs (`sort`, `filters`).
   - `meta` (`GraphMetaDoc`) for table-level JSON metadata and sync markers.
-- **Storage backend**: `GraphTableDb` uses `getCanvasRxStorage()` as a local-first RxDB storage:
-  - Prefers `rxdb/plugins/storage-localstorage` when `globalThis.localStorage` is available.
-  - Falls back to `rxdb/plugins/storage-memory` when localStorage is unavailable (for example in tests).
-  - Enables the RxDB query-builder plugin for indexed queries and sort/filter operations.
+- **Storage backend**: `GraphTableDb` uses the shared persisted collection store:
+  - Persists to local storage when `globalThis.localStorage` is available.
+  - Falls back to in-memory storage when local storage is unavailable (for example in tests).
+  - Reuses the shared collection query/sort path for indexed reads and sort/filter operations.
 - **Multi-dimensional Table semantics (Workspace)**:
   - Dimension 1: logical tables (`GraphTableId∈{nodes,edges}`) for node and edge rows.
   - Dimension 2: property columns inferred from `GraphData` properties; base columns (`id`, `label`, `type`, `source`, `target`) are seeded via `ensureGraphTableSeed`.
@@ -44,9 +44,9 @@
 
 ---
 
-## Data Sync (Import → RxDB → Grid)
+## Data Sync (Import → Persisted Cache → Grid)
 
-- **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table (Multi-dimensional Table workspace view) mirrors the store via the RxDB-backed `GraphTableDb` materialized view.
+- **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table (Multi-dimensional Table workspace view) mirrors the store via the persisted `GraphTableDb` materialized view.
   - Document Mode “Multi-dimensional Table Mode” is a Canvas layout mode and must not be treated as an entry point into the Graph Data Table workspace; only Workspace toolbar “Workspace: Multi-dimensional Table” may open or configure this table view.
   - Workspace Editor `multiDimTable` must remain first-class in workspace preferences, Graph Data Table view selection, and local-storage persistence; the current DOM table renderer may be reused for that mode, but the mode contract itself must not be downgraded to plain `table`.
 - **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
@@ -69,7 +69,7 @@
 ### Column Rearrangement (Drag Header)
 
 - Drag a **data column header** to reorder columns (drop hint line renders in the header band).
-- Column order is persisted in local storage per table (`kg:ui:graphTable:columnOrderByTableId`) as an ordered list of `columnId`s. The RxDB `GraphColumnDoc.order` remains the base/default order when no user override is present.
+- Column order is persisted in local storage per table (`kg:ui:graphTable:columnOrderByTableId`) as an ordered list of `columnId`s. The persisted `GraphColumnDoc.order` remains the base/default order when no user override is present.
 - Resize and reorder share the header: resizing is only active near the right edge of a header cell; reordering is active elsewhere.
 - Header click selects a column (highlights the full column in the grid body).
 

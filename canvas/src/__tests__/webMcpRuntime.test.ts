@@ -293,6 +293,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocalMainPanelTool = registeredTools.get('knowgrph.inspect_local_mainpanel_state')
     const inspectLocalEditorWorkspaceTool = registeredTools.get('knowgrph.inspect_local_editor_workspace_state')
     const inspectLocalChatPipelineTool = registeredTools.get('knowgrph.inspect_local_chat_pipeline_state')
+    const inspectLocalPipelineTool = registeredTools.get('knowgrph.inspect_local_mainpanel_chat_canvas_pipeline')
     const inspectLocalDocumentTool = registeredTools.get('knowgrph.inspect_local_workspace_document')
     const inspectLocalCanvasTool = registeredTools.get('knowgrph.inspect_local_canvas_topology')
     const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
@@ -301,7 +302,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
     const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -501,6 +502,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const localMainPanelState = await inspectLocalMainPanelTool.execute()
     const localEditorWorkspaceState = await inspectLocalEditorWorkspaceTool.execute()
     const localChatPipelineState = await inspectLocalChatPipelineTool.execute()
+    const localPipelineState = await inspectLocalPipelineTool.execute()
     const localStructure = await inspectLocalDocumentTool.execute()
     const localCanvasTopology = await inspectLocalCanvasTool.execute()
     const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
@@ -583,6 +585,18 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     }
     if ((localChatPipelineState as { finalize?: { persistedKnowgrphPath?: unknown } }).finalize?.persistedKnowgrphPath !== '/chat/knowgrph/session.md') {
       throw new Error(`expected inspect_local_chat_pipeline_state to expose the persisted Knowgrph path, got ${JSON.stringify(localChatPipelineState)}`)
+    }
+    if ((localPipelineState as { pipelineReady?: unknown }).pipelineReady !== true) {
+      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report a ready E2E pipeline, got ${JSON.stringify(localPipelineState)}`)
+    }
+    if ((localPipelineState as { readiness?: { markdownFlowReady?: unknown } }).readiness?.markdownFlowReady !== true) {
+      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report markdown/frontmatter readiness, got ${JSON.stringify(localPipelineState)}`)
+    }
+    if ((localPipelineState as { counts?: { canvasNodeCount?: unknown } }).counts?.canvasNodeCount !== 2) {
+      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report active canvas node count, got ${JSON.stringify(localPipelineState)}`)
+    }
+    if (Array.isArray((localPipelineState as { issues?: unknown }).issues) && (localPipelineState as { issues?: Array<unknown> }).issues?.length !== 0) {
+      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to avoid readiness issues for the happy path fixture, got ${JSON.stringify(localPipelineState)}`)
     }
     if ((localCanvasTopology as { available?: unknown }).available !== true) {
       throw new Error(`expected inspect_local_canvas_topology to report an available local canvas, got ${JSON.stringify(localCanvasTopology)}`)

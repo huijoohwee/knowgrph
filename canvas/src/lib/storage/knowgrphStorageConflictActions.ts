@@ -5,7 +5,7 @@ import {
   getKnowgrphStorageDb,
   type KgDocumentLocalRecord,
   type KnowgrphStorageDb,
-} from '@/lib/storage/knowgrphStorageRxdb'
+} from '@/lib/storage/knowgrphStorageDb'
 import {
   notifyKnowgrphStorageConflictUx,
 } from '@/lib/storage/knowgrphStorageConflictUx'

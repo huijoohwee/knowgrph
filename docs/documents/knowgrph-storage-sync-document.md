@@ -1,14 +1,14 @@
 # Knowgrph Storage & Sync
 
-**Context**: Canonical markdown documents, local-first canvas state, optional shared persistence, and Cloudflare deployment.
+**Context**: Canonical markdown documents, remote-first D1 persistence, minimal browser cache, and Cloudflare deployment.
 **Intent**: Keep one canonical storage decision, one shared sync contract, and one conflict-resolution UX path.
-**Directive**: Keep Git markdown canonical, keep browser editing local-first through RxDB, use Cloudflare Worker + D1 as the first shared store, and defer PostgreSQL until collaboration or server retrieval materially requires it.
+**Directive**: Keep Git markdown canonical, make Cloudflare Worker + D1 the canonical shared store, own the Worker D1 contract through Drizzle, keep browser storage as a minimal non-canonical cache only, and defer PostgreSQL until collaboration or server retrieval materially requires it.
 
 ---
 
-**Version**: 2.6.0
-**Date**: 2026-05-19
-**Status**: Deployed (Worker + D1 + seeded docs, auto-clear conflicts, default source URL, public doc view, deep link canvas rendering, D1 write amplification neutralized)
+**Version**: 2.7.0
+**Date**: 2026-05-24
+**Status**: Deployed (Worker + D1 + Drizzle schema owner + seeded docs + minimal browser cache + public doc view)
 **Owner**: Knowgrph canonical docs
 **Supersedes**: `knowgrph-storage-document.md`, `knowgrph-storage-document-runtime-and-conflict-ux.md`, `knowgrph-storage-document-schemas-and-topology.md`, `knowgrph-sync-infrastructure-prd-tad.md`
 
@@ -17,7 +17,7 @@
 | File | Scope |
 |---|---|
 | `knowgrph-storage-sync-document.companion.md` | PRD summary, TAD runtime layers, conflict resolution, ADRs, deployment phases, quality attributes, token economics, validation |
-| `knowgrph-storage-schemas.md` | D1 SQL, RxDB shapes, contract types, route contracts |
+| `knowgrph-storage-schemas.md` | D1 SQL, browser cache shapes, contract types, route contracts |
 | `knowgrph-local-storage.md` | Browser LocalStorage keys (UI state, not sync) |
 | `knowgrph-source-files-import.md` | Import workflows, format routing, geo layer registration |
 | `knowgrph-multi-user-collaboration-prd.tad.md` | Multi-user auth, authorization, role-based access, SSOT transition |
@@ -27,8 +27,8 @@
 ## Storage Ladder
 
 1. **Canonical authoring source**: Git markdown in `huijoohwee/docs/**` (single-author) or Cloudflare D1 (multi-user)
-2. **Per-device working store**: RxDB in the browser (IndexedDB)
-3. **First shared cloud store**: Cloudflare D1 through a Cloudflare Worker sync API
+2. **Per-device cache**: minimal browser cache only; it is not canonical persistence
+3. **Canonical shared store**: Cloudflare D1 through a Cloudflare Worker sync API owned by Drizzle schema/contracts
 4. **Optional large-asset spillover**: Cloudflare R2 when assets stop fitting cleanly in document rows
 5. **Future scale-up path**: PostgreSQL only when multi-user collaboration or server-side retrieval clearly outgrows D1
 
@@ -49,8 +49,8 @@ Supported URL types: Cloudflare D1 export endpoint, GitHub repo/folder/blob, any
 
 - Git markdown stays the authoring source of truth for single-user; docs do not drift into a database-first workflow.
 - D1 becomes SSOT only when multi-user collaboration requires a shared authoritative store.
-- RxDB matches the current canvas runtime and preserves refresh-safe, offline-first editing.
-- D1 keeps the first shared-store step operationally lean on Cloudflare.
+- D1 + Drizzle keep the shared-store step operationally lean while moving schema ownership to typed Worker code.
+- Browser cache remains bounded and non-canonical, so storage drift is neutralized at the source.
 - Token savings come from chunk reuse, graph snapshot reuse, and bounded pull/push contracts.
 - D1 write cost stays lean: read-first ensure* guards, pull skips writes on no-change, sync_events capped at 24h TTL, 120s poll interval.
 - Conflict handling stays inside the existing toast/log/runtime path; no second UX system.
@@ -65,7 +65,7 @@ flowchart TB
     subgraph Dev["Dev: knowgrph/"]
         subgraph canvas["canvas/src/"]
             subgraph fs["Workspace FS"]
-                fsRxdb["workspaceFsRxdb.ts"]
+                fsPersisted["workspaceFsPersisted.ts"]
                 fsMem["workspaceFsMemory.ts"]
                 fsEvt["workspaceFsEvents.ts"]
                 seed["workspaceSeedProvider.ts"]
@@ -76,9 +76,8 @@ flowchart TB
                 sfSync["sourceFilesStorageSync.ts"]
                 sfInbound["sourceFilesInboundStorageApply.ts"]
             end
-            subgraph rxdb["RxDB (IndexedDB)"]
-                storageRxdb["knowgrphStorageRxdb.ts"]
-                recovery["rxdbRecovery.ts"]
+            subgraph browserCache["Browser cache"]
+                storageDb["knowgrphStorageDb.ts"]
             end
             syncEngine["knowgrphStorageClientSync.ts"]
             contract["knowgrphStorageSyncContract.ts"]
@@ -121,7 +120,7 @@ flowchart TB
     end
 
     subgraph Browser["Browser (any device)"]
-        brxdb["RxDB local-first"]
+        bcache["Minimal browser cache"]
         bsync["Client sync engine (120s poll)"]
         bbridge["SF ↔ Storage bridge"]
         bconflict["Conflict UX (toast + log)"]
@@ -214,7 +213,7 @@ flowchart TB
     subgraph Dev["Dev: knowgrph/"]
         subgraph canvas["canvas/src/"]
             subgraph fs["Workspace FS"]
-                fsRxdb["workspaceFsRxdb.ts"]
+                fsPersisted["workspaceFsPersisted.ts"]
                 fsEvt["workspaceFsEvents.ts"]
                 seed["workspaceSeedProvider.ts"]
                 boot["sourceFilesBootstrapStartup.ts"]
@@ -223,8 +222,8 @@ flowchart TB
                 sfSync["sourceFilesStorageSync.ts"]
                 sfInbound["sourceFilesInboundStorageApply.ts"]
             end
-            subgraph rxdb["RxDB (IndexedDB)"]
-                storageRxdb["knowgrphStorageRxdb.ts"]
+            subgraph browserCache["Minimal persisted cache"]
+                storageDb["knowgrphStorageDb.ts"]
             end
             syncEngine["knowgrphStorageClientSync.ts"]
         end
@@ -275,7 +274,7 @@ flowchart TB
 
     subgraph Browser["Browser (any device)"]
         bfs["Workspace FS + Seed"]
-        brxdb["RxDB local-first"]
+        bcache["Minimal persisted cache"]
         bsync["Client sync engine (120s poll)"]
         bbridge["SF ↔ Storage bridge"]
         bconflict["Conflict UX"]
@@ -293,17 +292,20 @@ flowchart TB
 
 | Layer | Component | File | Status |
 |---|---|---|---|
-| Workspace FS | RxDB-backed FS | `features/workspace-fs/workspaceFsRxdb.ts` | Built |
+| Workspace FS | Minimal persisted cache | `features/workspace-fs/workspaceFsPersisted.ts` | Built |
 | Workspace FS | In-memory fallback | `features/workspace-fs/workspaceFsMemory.ts` | Built |
 | Workspace FS | Change events | `features/workspace-fs/workspaceFsEvents.ts` | Built |
 | Workspace FS | Seed read/write | `features/workspace-fs/workspaceSeedProvider.ts` | Built |
 | Workspace FS | Seed → SF hydration | `features/source-files/workspaceSeedSourceFiles.ts` | Built |
 | Workspace FS | Bootstrap startup | `features/source-files/sourceFilesBootstrapStartup.ts` | Built |
+| Source Files | Minimal persisted cache | `features/source-files/sourceFilesDb.ts` | Built |
+| Source Files | Markdown folder cache | `features/source-files/markdownFsCache.ts` | Built |
+| Graph Table | Minimal persisted cache | `lib/graph-table-db/graphTableDb.impl.ts` | Built |
+| Cache store | Shared keyed rows + change events | `lib/storage/persistedCollectionStore.ts` | Built |
 | SF ↔ Storage | Push bridge | `features/source-files/sourceFilesStorageSync.ts` | Built |
 | SF ↔ Storage | Pull apply | `features/source-files/sourceFilesInboundStorageApply.ts` | Built |
 | SF ↔ Storage | Runtime bootstrap | `features/source-files/SourceFilesPersistenceBootstrap.tsx` | Built |
-| RxDB | Storage collections | `lib/storage/knowgrphStorageRxdb.ts` | Built |
-| RxDB | Recovery | `lib/storage/rxdbRecovery.ts` | Built |
+| Cache store | Storage collections | `lib/storage/knowgrphStorageDb.ts` | Built |
 | Sync engine | Client push/pull/loop | `lib/storage/knowgrphStorageClientSync.ts` | Built |
 | Sync contract | Constants + builders | `lib/storage/knowgrphStorageSyncContract.ts` | Built |
 | Conflict UX | Toast notification | `lib/storage/knowgrphStorageConflictUx.ts` | Built |
@@ -346,6 +348,6 @@ flowchart TB
 
 PRD summary, TAD runtime layers, conflict resolution, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract continue in [knowgrph-storage-sync-document.companion.md](knowgrph-storage-sync-document.companion.md).
 
-See `knowgrph-storage-schemas.md` for D1 SQL, RxDB local shapes, contract type definitions, and route contracts.
+See `knowgrph-storage-schemas.md` for D1 SQL, minimal cache shapes, contract type definitions, and route contracts.
 See `knowgrph-local-storage.md` for browser LocalStorage key reference (UI state, not sync).
 See `knowgrph-source-files-import.md` for import workflows, format routing, and geo layer registration.

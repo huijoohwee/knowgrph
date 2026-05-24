@@ -133,6 +133,9 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     if (!webMcpScript.includes('createPublishedDocIdentityResolver')) {
       throw new Error('expected HTML fallback script to embed the canonical published-doc identity resolver')
     }
+    if (webMcpScript.includes('__name(')) {
+      throw new Error('expected HTML fallback script to avoid bundler-only __name helper references')
+    }
     const navigatorObject = window.navigator as Navigator & {
       modelContext?: {
         registerTool?: (tool: RegisteredTool, options?: { signal?: AbortSignal }) => void

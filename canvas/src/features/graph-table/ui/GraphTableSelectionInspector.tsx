@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Subscription } from 'rxjs'
-import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import {
@@ -14,6 +13,7 @@ import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/gra
 import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { hashRecordSignature32 } from '@/lib/hash/signature'
+import type { PersistedCollectionChangeEvent } from '@/lib/storage/persistedCollectionStore'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { getCachedGraphLookup, type CachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -173,7 +173,7 @@ export default function GraphTableSelectionInspector() {
         setRow(toInspectorRow(tableId, json))
       }
 
-      colSub = collections.columns.$.subscribe((ev: RxChangeEvent<GraphColumnDoc>) => {
+      colSub = collections.columns.$.subscribe((ev: PersistedCollectionChangeEvent<GraphColumnDoc>) => {
         const docData = ev.documentData
         if (!docData || docData.tableId !== tableId) return
         if (ev.operation === 'DELETE') colMap.delete(ev.documentId)
@@ -181,7 +181,7 @@ export default function GraphTableSelectionInspector() {
         setColumns(Array.from(colMap.values()).sort((a, b) => a.order - b.order))
       })
 
-      rowSub = collections.rows.$.subscribe((ev: RxChangeEvent<GraphRowDoc>) => {
+      rowSub = collections.rows.$.subscribe((ev: PersistedCollectionChangeEvent<GraphRowDoc>) => {
         const docData = ev.documentData
         if (!docData || docData.tableId !== tableId || docData.rowId !== rowId) return
         if (ev.operation === 'DELETE') {

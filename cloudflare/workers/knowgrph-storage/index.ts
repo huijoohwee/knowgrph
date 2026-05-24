@@ -16,6 +16,7 @@ import {
 } from './contract'
 import {
   type D1DatabaseLike,
+  readPullChangeRows,
   type DocumentChunkRow,
   type DocumentRow,
   type GraphSnapshotRow,
@@ -30,7 +31,6 @@ import {
   normalizeNumber,
   normalizeString,
   pruneStaleSyncEvents,
-  queryAll,
   queryFirst,
   readDb,
   writeSyncEvent,
@@ -375,26 +375,11 @@ const handlePush = async (request: Request, env: KnowgrphStorageWorkerEnv, db: D
 }
 
 const readPullChanges = async (db: D1DatabaseLike, workspaceId: string, since: string | null): Promise<KnowgrphStoragePullChanges> => {
-  const sinceValue = normalizeNullableString(since)
-  const documentSql = sinceValue
-    ? 'SELECT * FROM documents WHERE workspace_id = ? AND updated_at > ? ORDER BY updated_at ASC'
-    : 'SELECT * FROM documents WHERE workspace_id = ? ORDER BY updated_at ASC'
-  const documentChunkSql = sinceValue
-    ? 'SELECT * FROM document_chunks WHERE workspace_id = ? AND updated_at > ? ORDER BY updated_at ASC'
-    : 'SELECT * FROM document_chunks WHERE workspace_id = ? ORDER BY updated_at ASC'
-  const graphSnapshotSql = sinceValue
-    ? 'SELECT * FROM graph_snapshots WHERE workspace_id = ? AND updated_at > ? ORDER BY updated_at ASC'
-    : 'SELECT * FROM graph_snapshots WHERE workspace_id = ? ORDER BY updated_at ASC'
-  const args = sinceValue ? [workspaceId, sinceValue] : [workspaceId]
-  const [documents, documentChunks, graphSnapshots] = await Promise.all([
-    queryAll<DocumentRow>(db, documentSql, args),
-    queryAll<DocumentChunkRow>(db, documentChunkSql, args),
-    queryAll<GraphSnapshotRow>(db, graphSnapshotSql, args),
-  ])
+  const { documents, documentChunks, graphSnapshots } = await readPullChangeRows(db, workspaceId, since)
   return {
-    documents: documents.map(mapDocumentRow),
-    documentChunks: documentChunks.map(mapDocumentChunkRow),
-    graphSnapshots: graphSnapshots.map(mapGraphSnapshotRow),
+    documents: (documents as DocumentRow[]).map(mapDocumentRow),
+    documentChunks: (documentChunks as DocumentChunkRow[]).map(mapDocumentChunkRow),
+    graphSnapshots: (graphSnapshots as GraphSnapshotRow[]).map(mapGraphSnapshotRow),
   }
 }
 

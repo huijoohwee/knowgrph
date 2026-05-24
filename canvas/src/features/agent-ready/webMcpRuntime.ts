@@ -32,7 +32,9 @@ import { inspectLocalSourceFilesSnapshot } from './localSourceFilesSnapshotInspe
 import { inspectLocalMainPanelState } from './localMainPanelStateInspection'
 import { inspectLocalEditorWorkspaceState } from './localEditorWorkspaceStateInspection'
 import { inspectLocalChatPipelineState } from './localChatPipelineStateInspection'
+import { inspectLocalMainPanelChatCanvasPipeline } from './localMainPanelChatCanvasPipelineInspection'
 import { inspectLocalSettingsChatReadiness } from './localSettingsChatReadinessInspection'
+import { inspectLocalWorkspaceDocument } from './localWorkspaceDocumentInspection'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -100,6 +102,7 @@ const INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_CONTRACT = findWebToolContract(
 const INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState)
 const INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState)
 const INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState)
+const INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline)
 const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument)
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology)
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot)
@@ -116,6 +119,7 @@ const INSPECT_LOCAL_SETTINGS_CHAT_READINESS_TOOL_NAME = INSPECT_LOCAL_SETTINGS_C
 const INSPECT_LOCAL_MAINPANEL_STATE_TOOL_NAME = INSPECT_LOCAL_MAINPANEL_STATE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_NAME = INSPECT_LOCAL_EDITOR_WORKSPACE_STATE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_NAME = INSPECT_LOCAL_CHAT_PIPELINE_STATE_TOOL_CONTRACT.webName
+const INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_NAME = INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME = INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_NAME = INSPECT_LOCAL_CANVAS_TOPOLOGY_TOOL_CONTRACT.webName
 const INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_NAME = INSPECT_LOCAL_CANVAS_SNAPSHOT_TOOL_CONTRACT.webName
@@ -313,37 +317,44 @@ const buildInspectLocalChatPipelineStateTool = (): WebMcpTool => ({
   execute: async () => inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot()),
 })
 
+const buildInspectLocalMainPanelChatCanvasPipelineTool = (): WebMcpTool => ({
+  name: INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_NAME,
+  title: INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_CONTRACT.title,
+  description: INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_CONTRACT.description,
+  inputSchema: INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_CONTRACT.inputSchema,
+  annotations: INSPECT_LOCAL_MAINPANEL_CHAT_CANVAS_PIPELINE_TOOL_CONTRACT.annotations,
+  execute: async () => {
+    const state = useGraphStore.getState()
+    return inspectLocalMainPanelChatCanvasPipeline({
+      mainPanelSnapshot: readLocalMainPanelSurfaceSnapshot(),
+      settingsChatReadinessSnapshot: readLocalSettingsChatReadinessSurfaceSnapshot(),
+      editorWorkspaceSnapshot: readLocalEditorWorkspaceSurfaceSnapshot(),
+      chatPipelineSnapshot: readLocalChatPipelineSurfaceSnapshot(),
+      markdownDocumentName: state.markdownDocumentName,
+      markdownDocumentText: state.markdownDocumentText,
+      markdownDocumentSourceUrl: state.markdownDocumentSourceUrl,
+      graphData: state.graphData,
+      graphDataRevision: state.graphDataRevision,
+      canvasRenderMode: state.canvasRenderMode,
+      canvas2dRenderer: state.canvas2dRenderer,
+      documentSemanticMode: state.documentSemanticMode,
+      frontmatterModeEnabled: state.frontmatterModeEnabled,
+      multiDimTableModeEnabled: state.multiDimTableModeEnabled,
+      documentStructureBaselineLock: state.documentStructureBaselineLock,
+      collapsedGroupIds: state.collapsedGroupIds,
+      selectedNodeId: state.selectedNodeId,
+      selectedEdgeId: state.selectedEdgeId,
+    })
+  },
+})
+
 const buildInspectLocalWorkspaceDocumentTool = (): WebMcpTool => ({
   name: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_NAME,
   title: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.title,
   description: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.description,
   inputSchema: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.inputSchema,
   annotations: INSPECT_LOCAL_WORKSPACE_DOCUMENT_TOOL_CONTRACT.annotations,
-  execute: async () => {
-    const state = useGraphStore.getState()
-    const documentName = normalizeString(state.markdownDocumentName)
-    const markdown = String(state.markdownDocumentText || '')
-    const documentSourceUrl = normalizeString(state.markdownDocumentSourceUrl)
-    if (!documentName && !normalizeString(markdown)) {
-      return {
-        available: false,
-        sourceKind: 'browser-local-workspace',
-        documentName: '',
-        documentSourceUrl: documentSourceUrl || null,
-        message: 'No active markdown document is loaded in the local Knowgrph workspace.',
-      }
-    }
-    return {
-      available: true,
-      sourceKind: 'browser-local-workspace',
-      documentName: documentName || 'document.md',
-      documentSourceUrl: documentSourceUrl || null,
-      ...inspectSharedDocumentStructure({
-        canonicalPath: documentName || 'document.md',
-        markdown,
-      }),
-    }
-  },
+  execute: async () => inspectLocalWorkspaceDocument(useGraphStore.getState()),
 })
 
 const buildInspectLocalCanvasTopologyTool = (): WebMcpTool => ({
@@ -491,6 +502,7 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState]: buildInspectLocalMainPanelStateTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState]: buildInspectLocalEditorWorkspaceStateTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState]: buildInspectLocalChatPipelineStateTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline]: buildInspectLocalMainPanelChatCanvasPipelineTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument]: buildInspectLocalWorkspaceDocumentTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology]: buildInspectLocalCanvasTopologyTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot]: buildInspectLocalCanvasSnapshotTool,

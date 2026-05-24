@@ -197,6 +197,8 @@ const GENERATED_REDIRECTS_START = '# BEGIN knowgrph generated top-level file rou
 const GENERATED_REDIRECTS_END = '# END knowgrph generated top-level file routes'
 const GENERATED_AGENT_HEADERS_START = '# BEGIN knowgrph generated agent-ready headers'
 const GENERATED_AGENT_HEADERS_END = '# END knowgrph generated agent-ready headers'
+const GENERATED_APP_SHELL_HEADERS_START = '# BEGIN knowgrph generated app-shell cache headers'
+const GENERATED_APP_SHELL_HEADERS_END = '# END knowgrph generated app-shell cache headers'
 const GENERATED_AGENT_HOMEPAGE_HEADERS_START = '# BEGIN knowgrph generated homepage discovery headers'
 const GENERATED_AGENT_HOMEPAGE_HEADERS_END = '# END knowgrph generated homepage discovery headers'
 const agentReadyDocRouteBody = `import { onRequest as onKnowgrphAgentReadyRequest } from "../[[path]].js";
@@ -284,16 +286,9 @@ const fileHash = async (filePath) => {
 
 const textHash = (value) => createHash('sha256').update(value).digest('hex')
 
-const addEntryScriptCacheKey = (html) =>
-  html.replace(
-    /(<script\b[^>]*\bsrc=")(\/knowgrph\/assets\/([^"?/]+\.js))(")/,
-    (_match, prefix, assetPath, assetFile, suffix) => `${prefix}${assetPath}?v=${encodeURIComponent(assetFile)}${suffix}`,
-  )
-
 const readPublishContent = async (src, rel) => {
   const buf = await fs.readFile(src)
-  if (rel !== 'index.html') return buf
-  return Buffer.from(addEntryScriptCacheKey(buf.toString('utf8')), 'utf8')
+  return buf
 }
 
 const publishContentHash = async (src, rel) => {
@@ -405,6 +400,30 @@ const buildAgentReadyHeaders = (existing, artifacts) => {
   const staticArtifactBlockRegex = new RegExp(
     `${GENERATED_AGENT_HEADERS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_AGENT_HEADERS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
   )
+  const appShellHeaderLines = [
+    GENERATED_APP_SHELL_HEADERS_START,
+    '/content/knowgrph/index.html',
+    '  Cache-Control: no-store, no-cache, no-transform, must-revalidate, max-age=0',
+    '/content/knowgrph/manifest.webmanifest',
+    '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0',
+    '/content/knowgrph/sw.js',
+    '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0',
+    '/knowgrph',
+    '  Cache-Control: no-store, no-cache, no-transform, must-revalidate, max-age=0',
+    '/knowgrph/',
+    '  Cache-Control: no-store, no-cache, no-transform, must-revalidate, max-age=0',
+    '/knowgrph/index.html',
+    '  Cache-Control: no-store, no-cache, no-transform, must-revalidate, max-age=0',
+    '/knowgrph/manifest.webmanifest',
+    '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0',
+    '/knowgrph/sw.js',
+    '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0',
+    GENERATED_APP_SHELL_HEADERS_END,
+  ]
+  const appShellHeaderBlock = appShellHeaderLines.join('\n')
+  const appShellHeaderBlockRegex = new RegExp(
+    `${GENERATED_APP_SHELL_HEADERS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_APP_SHELL_HEADERS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+  )
   const homepageHeaderLines = [
     GENERATED_AGENT_HOMEPAGE_HEADERS_START,
     '/',
@@ -417,12 +436,24 @@ const buildAgentReadyHeaders = (existing, artifacts) => {
   const homepageHeaderBlockRegex = new RegExp(
     `${GENERATED_AGENT_HOMEPAGE_HEADERS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_AGENT_HOMEPAGE_HEADERS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
   )
-  let next = existing
+  let next = existing.replace(
+    /^\/content\/knowgrph\/index\.html\n  Cache-Control: .*?\n(?:\n)?^\/knowgrph\n  Cache-Control: .*?\n(?:\n)?^\/knowgrph\/\n  Cache-Control: .*?\n(?:\n)?^\/knowgrph\/index\.html\n  Cache-Control: .*?\n(?:\n)?/gm,
+    '',
+  ).replace(
+    /^\/content\/knowgrph\/manifest\.webmanifest\n  Cache-Control: .*?\n(?:\n)?^\/content\/knowgrph\/sw\.js\n  Cache-Control: .*?\n(?:\n)?^\/knowgrph\/manifest\.webmanifest\n  Cache-Control: .*?\n(?:\n)?^\/knowgrph\/sw\.js\n  Cache-Control: .*?\n(?:\n)?/gm,
+    '',
+  )
   if (staticArtifactBlockRegex.test(next)) {
     next = next.replace(staticArtifactBlockRegex, staticArtifactBlock)
   } else {
     const trimmed = next.endsWith('\n') ? next.trimEnd() : next
     next = `${trimmed}\n\n${staticArtifactBlock}\n`
+  }
+  if (appShellHeaderBlockRegex.test(next)) {
+    next = next.replace(appShellHeaderBlockRegex, appShellHeaderBlock)
+  } else {
+    const trimmed = next.endsWith('\n') ? next.trimEnd() : next
+    next = `${trimmed}\n\n${appShellHeaderBlock}\n`
   }
   if (homepageHeaderBlockRegex.test(next)) {
     return next.replace(homepageHeaderBlockRegex, homepageHeaderBlock)

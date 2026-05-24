@@ -669,7 +669,7 @@ KGC_SIM_TIMEOUT_SECONDS=180      # 3-minute wall-clock limit
 - Read: `GET /api/graph/nodes?cluster={cluster}&type={type}` → `KGCRecord[]`
 - Validate: `python scripts/validate_kgc_schema.py {path}` — exits 0 on valid, 1 on invalid with error log
 
-**Dependencies**: Cloudflare D1 (primary store), PocketBase (local dev store), Cloudflare R2 (binary assets), RxDB (client-side cache)
+**Dependencies**: Cloudflare D1 (primary store), PocketBase (local dev store), Cloudflare R2 (binary assets), minimal persisted client cache
 
 **`/goal` Conditions**: `python scripts/validate_kgc_schema.py data/seeds/test_domain.jsonb` exits 0; `POST /api/graph/ingest` with valid payload returns 200 and record count in D1 increases by payload length
 

@@ -34,15 +34,15 @@ export async function testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfte
   }
 }
 
-export async function testWorkspaceFsResilientRetriesRxConflictBeforeFallback() {
+export async function testWorkspaceFsResilientRetriesPersistedCacheConflictBeforeFallback() {
   let attempts = 0
   const inner: WorkspaceFs = {
     ensureSeed: async () => {
       attempts += 1
       if (attempts < 3) {
-        const err = new Error('RxDB Error-Code: CONFLICT') as Error & { code?: string; name?: string }
+        const err = new Error('Persisted cache conflict') as Error & { code?: string; name?: string }
         err.code = 'CONFLICT'
-        err.name = 'RxError'
+        err.name = 'PersistedCacheError'
         throw err
       }
       return true
@@ -57,6 +57,6 @@ export async function testWorkspaceFsResilientRetriesRxConflictBeforeFallback() 
 
   const fs = createResilientWorkspaceFs(inner)
   const ok = await fs.ensureSeed()
-  if (ok !== true) throw new Error('expected ensureSeed to succeed after transient RxDB conflicts')
+  if (ok !== true) throw new Error('expected ensureSeed to succeed after transient persisted-cache conflicts')
   if (attempts !== 3) throw new Error(`expected three attempts (2 conflicts + 1 success), got ${attempts}`)
 }

@@ -25,7 +25,7 @@
 |---|---|
 | `goal` | Source Files crawler contract, Pay Per Crawl boundary, and acceptance proof requirements |
 | `knowgrph-storage-sync-document.md` | Storage ladder, Worker + D1 sync, public doc-view route, Dev -> Prod -> Cloudflare topology |
-| `knowgrph-storage-schemas-document.md` | D1 document tables, RxDB shapes, and storage route schemas |
+| `knowgrph-storage-schemas-document.md` | D1 document tables, browser-local cache shapes, and storage route schemas |
 | `knowgrph-source-files-import-document.md` | Source Files ingestion, canonical path policy, provenance, and import boundaries |
 | `knowgrph-multi-user-collaboration-prd.tad.md` | Future identity, membership, authorization, and shared-workspace constraints |
 
@@ -519,7 +519,7 @@ Metadata plus doc-view links gives crawlers freshness evidence and direct conten
 
 ## Security And Privacy Boundaries
 
-- Crawler routes are read-only and must not mutate D1, RxDB, local files, graph snapshots, or render state.
+- Crawler routes are read-only and must not mutate D1, the browser-local persisted cache, local files, graph snapshots, or render state.
 - Crawler indexes must not expose local absolute paths, device IDs, user identity, sync outbox records, or conflict logs.
 - Deleted Source Files are excluded from crawler indexes.
 - Pay Per Crawl headers that express price or charged amount belong to Cloudflare, not the Worker.

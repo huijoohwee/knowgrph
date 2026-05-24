@@ -1,11 +1,10 @@
-import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
-import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
-import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
-import { getRxStorageMemory } from 'rxdb/plugins/storage-memory'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashRecordSignature32 } from '@/lib/hash/signature'
-import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
-import { clearRxdbForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import {
+  createPersistedCollectionDb,
+  type PersistedCollectionDb,
+  type PersistedCollectionMap,
+} from '@/lib/storage/persistedCollectionStore'
 
 export type GraphTableId = 'nodes' | 'edges'
 
@@ -57,18 +56,23 @@ export type GraphMetaDoc = {
   updatedAtMs: number
 }
 
-export type GraphTableCollections = {
-  tables: RxCollection<GraphTableDoc>
-  columns: RxCollection<GraphColumnDoc>
-  rows: RxCollection<GraphRowDoc>
-  views: RxCollection<GraphViewDoc>
-  meta: RxCollection<GraphMetaDoc>
+type GraphTableRecordMap = {
+  tables: GraphTableDoc
+  columns: GraphColumnDoc
+  rows: GraphRowDoc
+  views: GraphViewDoc
+  meta: GraphMetaDoc
 }
 
-export type GraphTableDb = {
-  db: RxDatabase<GraphTableCollections>
-  collections: GraphTableCollections
+export type GraphTableCollections = {
+  tables: PersistedCollectionMap<GraphTableRecordMap>['tables']
+  columns: PersistedCollectionMap<GraphTableRecordMap>['columns']
+  rows: PersistedCollectionMap<GraphTableRecordMap>['rows']
+  views: PersistedCollectionMap<GraphTableRecordMap>['views']
+  meta: PersistedCollectionMap<GraphTableRecordMap>['meta']
 }
+
+export type GraphTableDb = PersistedCollectionDb<GraphTableRecordMap>
 
 export const GRAPH_TABLE_DB_NAME = 'kg:graph-table'
 
@@ -99,98 +103,6 @@ const withGraphTableDbWrite = async <T>(fn: () => Promise<T>): Promise<T> => {
   }
 }
 
-let rxdbPluginsInitialized = false
-const ensureRxdbPlugins = () => {
-  if (rxdbPluginsInitialized) return
-  addRxPlugin(RxDBQueryBuilderPlugin)
-  addRxPlugin(RxDBMigrationSchemaPlugin)
-  rxdbPluginsInitialized = true
-}
-
-const graphTableSchema: RxJsonSchema<GraphTableDoc> = {
-  title: 'graph_table',
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: { type: 'string', maxLength: 32 },
-    name: { type: 'string' },
-    order: { type: 'integer', minimum: 0, maximum: 2_147_483_647, multipleOf: 1 },
-    createdAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['id', 'name', 'order', 'createdAtMs', 'updatedAtMs'],
-}
-
-const graphColumnSchema: RxJsonSchema<GraphColumnDoc> = {
-  title: 'graph_column',
-  version: 0,
-  primaryKey: 'pk',
-  type: 'object',
-  properties: {
-    pk: { type: 'string', maxLength: 512 },
-    tableId: { type: 'string', maxLength: 32 },
-    columnId: { type: 'string', maxLength: 256 },
-    name: { type: 'string' },
-    kind: { type: 'string' },
-    order: { type: 'integer', minimum: 0, maximum: 2_147_483_647, multipleOf: 1 },
-    hidden: { type: 'boolean' },
-    createdAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['pk', 'tableId', 'columnId', 'name', 'kind', 'order', 'hidden', 'createdAtMs', 'updatedAtMs'],
-  indexes: ['tableId', ['tableId', 'order'], ['tableId', 'columnId']],
-}
-
-const graphRowSchema: RxJsonSchema<GraphRowDoc> = {
-  title: 'graph_row',
-  version: 0,
-  primaryKey: 'pk',
-  type: 'object',
-  properties: {
-    pk: { type: 'string', maxLength: 1024 },
-    tableId: { type: 'string', maxLength: 32 },
-    rowId: { type: 'string', maxLength: 512 },
-    order: { type: 'integer', minimum: 0, maximum: 2_147_483_647, multipleOf: 1 },
-    data: { type: 'object', additionalProperties: true },
-    createdAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['pk', 'tableId', 'rowId', 'order', 'data', 'createdAtMs', 'updatedAtMs'],
-  indexes: ['tableId', ['tableId', 'order'], ['tableId', 'rowId']],
-}
-
-const graphViewSchema: RxJsonSchema<GraphViewDoc> = {
-  title: 'graph_view',
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: { type: 'string', maxLength: 128 },
-    tableId: { type: 'string', maxLength: 32 },
-    name: { type: 'string' },
-    sort: { type: 'object', additionalProperties: true },
-    filters: { type: 'object', additionalProperties: true },
-    createdAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['id', 'tableId', 'name', 'sort', 'filters', 'createdAtMs', 'updatedAtMs'],
-  indexes: ['tableId'],
-}
-
-const graphMetaSchema: RxJsonSchema<GraphMetaDoc> = {
-  title: 'graph_meta',
-  version: 0,
-  primaryKey: 'key',
-  type: 'object',
-  properties: {
-    key: { type: 'string', maxLength: 128 },
-    value: { type: 'object', additionalProperties: true },
-    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
-  },
-  required: ['key', 'value', 'updatedAtMs'],
-}
-
 let graphTableDbSingleton: Promise<GraphTableDb> | null = null
 let graphTableWarmupInFlight: Promise<void> | null = null
 
@@ -209,36 +121,17 @@ const isGraphTableDbTestMode = (): boolean => {
 export const getGraphTableDb = async (): Promise<GraphTableDb> => {
   if (graphTableDbSingleton) return graphTableDbSingleton
   graphTableDbSingleton = (async () => {
-    ensureRxdbPlugins()
     const testMode = isGraphTableDbTestMode() || typeof window === 'undefined'
-    let didReset = false
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const db = await createRxDatabase<GraphTableCollections>({
-          name: GRAPH_TABLE_DB_NAME,
-          storage: testMode ? getRxStorageMemory() : getCanvasRxStorage(),
-          multiInstance: !testMode,
-          eventReduce: !testMode,
-          closeDuplicates: true,
-        })
-        const collections = await db.addCollections({
-          tables: { schema: graphTableSchema },
-          columns: { schema: graphColumnSchema },
-          rows: { schema: graphRowSchema },
-          views: { schema: graphViewSchema },
-          meta: { schema: graphMetaSchema },
-        })
-        return { db, collections }
-      } catch (err) {
-        if (didReset) {
-          graphTableDbSingleton = null
-          throw err
-        }
-        didReset = true
-        await clearRxdbForDatabaseName(GRAPH_TABLE_DB_NAME)
-      }
-    }
-    throw new Error('Failed to initialize graph-table database')
+    return createPersistedCollectionDb<GraphTableRecordMap>({
+      storageKey: GRAPH_TABLE_DB_NAME,
+      persistent: !testMode,
+      collectionNames: ['tables', 'columns', 'rows', 'views', 'meta'],
+      recordKeyByCollection: {
+        columns: row => String(row.pk || '').trim(),
+        meta: row => String(row.key || '').trim(),
+        rows: row => String(row.pk || '').trim(),
+      },
+    })
   })()
   return graphTableDbSingleton.catch(err => {
     graphTableDbSingleton = null
@@ -271,7 +164,6 @@ export const __resetGraphTableDbForTests = async (): Promise<void> => {
       }
     }
   }
-  clearRxdbForDatabaseName(GRAPH_TABLE_DB_NAME)
 }
 
 export const warmGraphTableDb = async (): Promise<void> => {
@@ -356,7 +248,7 @@ const ensureGraphTableSeedUnlocked = async (): Promise<void> => {
   for (const t of seeds) {
     const exists = await collections.tables.findOne(t.id).exec()
     if (exists) continue
-    await collections.tables.insert(t)
+    await collections.tables.incrementalUpsert(t)
   }
 
   const baseColumns: Array<{ tableId: GraphTableId; columnId: string; name: string; kind: GraphColumnKind; order: number; hidden?: boolean }> = [
@@ -373,7 +265,7 @@ const ensureGraphTableSeedUnlocked = async (): Promise<void> => {
     const pk = pkOfColumn(c.tableId, c.columnId)
     const exists = await collections.columns.findOne(pk).exec()
     if (exists) continue
-    await collections.columns.insert({
+    await collections.columns.incrementalUpsert({
       pk,
       tableId: c.tableId,
       columnId: c.columnId,
@@ -448,24 +340,6 @@ const isJsonRecordEqual = (a: Record<string, JSONValue>, b: Record<string, JSONV
     if (!isJsonValueEqual(a[k], b[k])) return false
   }
   return true
-}
-
-const isConflictError = (err: unknown): boolean => {
-  if (!err || typeof err !== 'object') return false
-  const rec = err as Record<string, unknown>
-  if (rec.code === 'CONFLICT') return true
-  const name = typeof rec.name === 'string' ? rec.name : ''
-  if (name === 'RxError' && typeof rec.message === 'string' && rec.message.includes('CONFLICT')) return true
-  const params = rec.parameters as unknown
-  if (params && typeof params === 'object') {
-    const p = params as Record<string, unknown>
-    const writeError = p.writeError as unknown
-    if (writeError && typeof writeError === 'object') {
-      const status = (writeError as Record<string, unknown>).status
-      if (status === 409) return true
-    }
-  }
-  return false
 }
 
 const isIsoDateLike = (raw: string): boolean => {
@@ -611,12 +485,7 @@ const ensureColumnsForRowData = async (tableId: GraphTableId, rows: Array<Record
   if (planned.length === 0) return
   planned.sort((a, b) => a.order - b.order)
   for (const col of planned) {
-    try {
-      await collections.columns.insert(col)
-    } catch (err) {
-      if (isConflictError(err)) continue
-      throw err
-    }
+    await collections.columns.incrementalUpsert(col)
   }
 }
 
@@ -648,7 +517,7 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
       const doc = existingNodeDocsById.get(rowId) || null
       const nextData = nodeRows[i]
       if (!doc) {
-        await collections.rows.insert({
+        await collections.rows.incrementalUpsert({
           pk,
           tableId: 'nodes',
           rowId,
@@ -675,7 +544,7 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
       const doc = existingEdgeDocsById.get(rowId) || null
       const nextData = edgeRows[i]
       if (!doc) {
-        await collections.rows.insert({
+        await collections.rows.incrementalUpsert({
           pk,
           tableId: 'edges',
           rowId,
@@ -752,7 +621,7 @@ export const allocateNewRowId = async (tableId: GraphTableId): Promise<string> =
     const prev = typeof prevValue === 'number' && Number.isFinite(prevValue) ? Math.max(0, Math.floor(prevValue)) : 0
     const next = prev + 1
     if (!doc) {
-      await collections.meta.insert({ key, value: next, updatedAtMs: now })
+      await collections.meta.incrementalUpsert({ key, value: next, updatedAtMs: now })
     } else {
       await doc.incrementalPatch({ value: next, updatedAtMs: now })
     }
@@ -768,7 +637,7 @@ export const createRowFromGraphEntity = async (tableId: GraphTableId, rowId: str
     const order = count.length + 1
     const data = tableId === 'nodes' ? toRowDataForNode(graph as GraphNode) : toRowDataForEdge(graph as GraphEdge)
     await ensureColumnsForRowData(tableId, [data])
-    await collections.rows.insert({
+    await collections.rows.incrementalUpsert({
       pk: pkOfRow(tableId, rowId),
       tableId,
       rowId,

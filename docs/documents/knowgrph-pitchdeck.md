@@ -368,7 +368,7 @@ Common thread: teams needing many videos with consistent structure and zero-fric
 | Geospatial | MapLibre GL JS + Turf.js |
 | Code editing | Monaco Editor |
 | Markdown engine | markdown-it + remark/rehype + Mermaid + KaTeX |
-| Local DB | RxDB (offline-first) |
+| Local DB | Minimal persisted client cache (offline-first) |
 | Backend parsers | Python 3.10+ (NetworkX, RDFLib, DuckDB, NLTK) |
 | AI providers | BytePlus OpenArk + OpenAI Responses API |
 | Payments | Stripe (subscriptions, usage-based billing) |

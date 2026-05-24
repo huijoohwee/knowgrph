@@ -13,7 +13,7 @@ Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-docume
 
 Knowgrph source files exist in three disconnected locations:
 
-1. **Dev** (`knowgrph/canvas/src/`) — live editing with RxDB local-first storage
+1. **Dev** (`knowgrph/canvas/src/`) — live editing with minimal persisted local cache
 2. **Prod SSOT** (`huijoohwee/content/knowgrph/`) — static build artifacts mirrored into the Cloudflare Pages publish repo
 3. **Docs seed** (`huijoohwee/docs/`) — canonical Markdown files for workspace initialization
 
@@ -33,9 +33,9 @@ The original gap was a built client-side sync engine with no server-side endpoin
 
 | Given | When | Then |
 |---|---|---|
-| Developer edits a source file | autosave debounce fires | document upsert queued in RxDB outbox and pushed to `/api/storage/push` |
+| Developer edits a source file | autosave debounce fires | document upsert queued in the local outbox and pushed to `/api/storage/push` |
 | Push endpoint receives a mutation | D1 `documents` table upserted | response confirms stored revision, client clears outbox entry |
-| Second device opens same workspace | client polls `/api/storage/pull` with last cursor | receives all mutations newer than cursor, applies to local RxDB |
+| Second device opens same workspace | client polls `/api/storage/pull` with last cursor | receives all mutations newer than cursor, applies to the local persisted cache |
 | File changes in `huijoohwee/docs/` | Dev server seed polling cycle runs | workspace re-reads file and updates source file state |
 | `npm run pages:build-sync` executed | build completes and sync runs | Prod SSOT reflects latest static artifacts |
 | `npm run pages:build-sync-cloudflare` executed | static build/sync completes, remote D1 migrations apply, and Worker deploy runs | Prod mirror and Cloudflare storage routes reflect the same Dev source |
@@ -62,14 +62,14 @@ The original gap was a built client-side sync engine with no server-side endpoin
 - conflict summary shape
 - API version: `2026-05-04`
 
-### Browser Storage (RxDB)
+### Browser Storage (Minimal Persisted Cache)
 
-`canvas/src/lib/storage/knowgrphStorageRxdb.ts` persists:
+`canvas/src/lib/storage/knowgrphStorageDb.ts` persists:
 
 - local document copies, chunk cache, graph snapshots
 - sync outbox, sync cursor
 
-Local field names differ from remote to avoid RxDB reserved-name collisions (`documentRevision` vs `revision`, `isDeleted` vs `deleted`).
+Local field names differ from remote to preserve the existing browser-local contract (`documentRevision` vs `revision`, `isDeleted` vs `deleted`).
 
 ### Cloudflare Worker
 
@@ -109,7 +109,7 @@ Local field names differ from remote to avoid RxDB reserved-name collisions (`do
 flowchart TB
     subgraph Client["Client (Browser)"]
         Edit["User edits source file"]
-        Queue["queueKnowgrphStorageMutation<br/>→ RxDB outbox"]
+        Queue["queueKnowgrphStorageMutation<br/>→ local outbox"]
         Push["syncKnowgrphStorageNow<br/>→ POST /api/storage/push"]
         Pull["POST /api/storage/pull<br/>→ apply remote mutations"]
     end
@@ -146,15 +146,15 @@ flowchart TB
 - Dispatch actions through one runtime path (`uiActionRuntime.ts`).
 - Reuse shared toast (`ToastHost.tsx`) and History log (`HistoryView.tsx`) rendering surfaces.
 - Forbid a second storage-only modal, drawer, or panel system.
-- Handle RxDB CONFLICT errors in workspace FS resilient wrapper: retry once before degrading to memory FS, preventing false "persistence unavailable" toasts from concurrent write race conditions.
+- Handle persisted-cache conflict errors in the workspace FS resilient wrapper: retry once before degrading to memory FS, preventing false "persistence unavailable" toasts from concurrent write race conditions.
 
 ---
 
 ## Architectural Decisions
 
-### ADR-001: Keep RxDB As The Client Working Store
+### ADR-001: Keep A Minimal Persisted Client Working Store
 
-**Status**: Accepted. Current runtime already behaves local-first; RxDB matches existing browser persistence; replacing it adds migration cost without new product value.
+**Status**: Accepted. Current runtime stays local-first with a minimal persisted client cache; canonical persistence lives in D1 and the browser keeps only the bounded local working set needed for continuity and sync recovery.
 
 ### ADR-002: Choose SQLite / D1 As The First Shared Cloud Store
 
@@ -274,7 +274,7 @@ flowchart TB
 | Scalability | D1 free tier: 5M reads/day, 100K writes/day; pagination for >500 documents |
 | Security | Optimistic concurrency via base revision; workspace-scoped isolation; no auth in Phase 1; JWT auth + RBAC in Phase 3 |
 | Observability | Worker logs via `wrangler tail`; D1 metrics via Cloudflare dashboard; client telemetry via `pipelinePerf.ts` |
-| Resilience | RxDB outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations; auto-clear stale conflicts after pull; RxDB CONFLICT retry before FS degradation |
+| Resilience | Local outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations; auto-clear stale conflicts after pull; persisted-cache conflict retry before FS degradation |
 | Maintainability | Worker is thin validation + D1 proxy; business logic stays client-side; numbered SQL migrations; settings-driven default source URL |
 
 ---
@@ -294,7 +294,7 @@ flowchart TB
 
 | Option | Primary role | TCO | Token economics | Recommendation |
 |---|---|---:|---|---|
-| RxDB | Browser-local draft and cache store | Lowest | Strong via local chunk reuse | Required |
+| Minimal persisted cache | Browser-local draft and cache store | Lowest | Strong via local chunk reuse | Required |
 | SQLite / D1 | First shared store | Low | Strong via persisted chunks and revisions | Recommended |
 | PostgreSQL | High-scale shared backend | Highest | Strong for future server retrieval | Deferred |
 

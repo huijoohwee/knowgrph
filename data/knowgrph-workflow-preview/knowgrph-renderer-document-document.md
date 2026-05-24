@@ -40,6 +40,7 @@
       - Flow/Flow Editor Parity with Baseline (`flowflow-editor-parity-with-baseline`)
     - 2D Flowchart Layout (Super-Groups) (`2d-flowchart-layout-super-groups`)
     - Selection Zoom (Node/Edge vs Graph) (`selection-zoom-nodeedge-vs-graph`)
+    - Frontmatter-Flow Balanced Layout (16:9 Director-Brief Composition) (`frontmatter-flow-balanced-layout-169-director-brief-composition`)
     - Mermaid Layout Mode (`mermaid-layout-mode`)
   - Visual Styling & Palette (`visual-styling-palette`)
   - Node Shapes (2D) (`node-shapes-2d`)

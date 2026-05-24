@@ -3,7 +3,7 @@ import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnow
 import {
   __resetKnowgrphStorageDbForTests,
   getKnowgrphStorageDb,
-} from '@/lib/storage/knowgrphStorageRxdb'
+} from '@/lib/storage/knowgrphStorageDb'
 import {
   exportKnowgrphStorageWorkspace,
   getKnowgrphStorageDeviceId,
@@ -88,7 +88,7 @@ export async function testKnowgrphStorageClientSyncPushesOutboxAndUpdatesCursor(
   await __resetKnowgrphStorageDbForTests()
 }
 
-export async function testKnowgrphStorageClientSyncPullsRemoteChangesIntoRxdb() {
+export async function testKnowgrphStorageClientSyncPullsRemoteChangesIntoPersistedCache() {
   await __resetKnowgrphStorageDbForTests()
   const env = createFakeKnowgrphStorageWorkerEnv()
   const fetchImpl = createWorkerFetch(env)
@@ -168,9 +168,9 @@ export async function testKnowgrphStorageClientSyncPullsRemoteChangesIntoRxdb() 
   }
 
   const documentRow = await dbState.collections.documents.findOne('doc_remote_pull').exec()
-  if (!documentRow) throw new Error('expected remote document to be materialized into local RxDB after pull')
+  if (!documentRow) throw new Error('expected remote document to be materialized into the local persisted cache after pull')
   const chunkRow = await dbState.collections.documentChunks.findOne('chunk_remote_pull').exec()
-  if (!chunkRow) throw new Error('expected remote chunk to be materialized into local RxDB after pull')
+  if (!chunkRow) throw new Error('expected remote chunk to be materialized into the local persisted cache after pull')
 
   await __resetKnowgrphStorageDbForTests()
 }

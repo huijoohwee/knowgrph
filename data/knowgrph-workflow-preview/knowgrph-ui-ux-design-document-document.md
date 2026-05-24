@@ -17,6 +17,7 @@
   - Design Mantras (`design-mantras`)
   - Universal Design Principles (`universal-design-principles`)
   - UI Architecture (`ui-architecture`)
+  - Mobile-First Responsive Contract (`mobile-first-responsive-contract`)
   - Core User Journeys (`core-user-journeys`)
     - Journey A: Import → Inspect → Navigate (`journey-a-import-inspect-navigate`)
     - Journey B: Mode Switching (Layer + Layout) (`journey-b-mode-switching-layer-layout`)

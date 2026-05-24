@@ -155,6 +155,118 @@ export const resolvePublishedDocIdentity = (args = {}) => {
   }
 };
 
+// Keep the published HTML fallback resolver as a plain source literal so bundlers
+// cannot rewrite nested helpers to page-scoped symbols like __name().
+export const PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE = String.raw`(args = {}) => {
+  const publishedDocShareTokenParam = String(args.publishedDocShareTokenParam || "kgShare");
+  const workspaceIdParam = String(args.workspaceIdParam || "kgWorkspaceId");
+  const canonicalPathParam = String(args.canonicalPathParam || "kgCanonicalPath");
+  const kgPathParam = String(args.kgPathParam || "kgPath");
+  const defaultAppBasePath = String(args.defaultAppBasePath || "/knowgrph").trim() || "/knowgrph";
+
+  const normalizeWorkspaceId = (value) => {
+    const workspaceId = String(value || "").trim();
+    return workspaceId || null;
+  };
+  const normalizeCanonicalPath = (value) => String(value || "").trim();
+  const normalizeAppBasePath = (value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) return defaultAppBasePath;
+    return "/" + normalized.replace(/^\/+|\/+$/g, "");
+  };
+  const normalizePublishedDocIdentity = (identityArgs) => {
+    const canonicalPath = normalizeCanonicalPath(identityArgs && identityArgs.canonicalPath);
+    if (!canonicalPath) return null;
+    return {
+      canonicalPath,
+      workspaceId: normalizeWorkspaceId(identityArgs && identityArgs.workspaceId),
+    };
+  };
+  const decodePublishedDocShareTokenLocal = (token) => {
+    const normalizedToken = String(token || "").trim();
+    if (!normalizedToken) return null;
+    try {
+      const normalizedBase64 = normalizedToken.replace(/-/g, "+").replace(/_/g, "/");
+      const paddedBase64 = normalizedBase64.length % 4
+        ? normalizedBase64 + "=".repeat(4 - (normalizedBase64.length % 4))
+        : normalizedBase64;
+      let bytes;
+      if (typeof Buffer !== "undefined") {
+        bytes = Uint8Array.from(Buffer.from(paddedBase64, "base64"));
+      } else {
+        const binary = atob(paddedBase64);
+        bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+      }
+      const decoder = typeof TextDecoder !== "undefined" ? new TextDecoder() : null;
+      if (!decoder) return null;
+      const payload = JSON.parse(decoder.decode(bytes));
+      const canonicalPath = normalizeCanonicalPath(payload && payload.canonicalPath);
+      if (!canonicalPath) return null;
+      return {
+        canonicalPath,
+        workspaceId: normalizeWorkspaceId(payload && payload.workspaceId),
+      };
+    } catch {
+      return null;
+    }
+  };
+  const parsePublishedDocPathname = (pathname, appBasePath) => {
+    const normalizedBasePath = normalizeAppBasePath(appBasePath);
+    const normalizedPathname = String(pathname || "").replace(/\/+$/, "") || "/";
+    if (!normalizedPathname.startsWith(normalizedBasePath)) return null;
+    const scopedPath = normalizedPathname.slice(normalizedBasePath.length) || "/";
+    if (scopedPath.startsWith("/share/")) {
+      return decodePublishedDocShareTokenLocal(decodeURIComponent(scopedPath.slice("/share/".length)));
+    }
+    if (scopedPath.startsWith("/doc-default/")) {
+      return normalizePublishedDocIdentity({
+        canonicalPath: decodeURIComponent(scopedPath.slice("/doc-default/".length)),
+      });
+    }
+    if (!scopedPath.startsWith("/doc/")) return null;
+    const suffix = scopedPath.slice("/doc/".length);
+    const firstSlash = suffix.indexOf("/");
+    if (firstSlash < 1) return null;
+    return normalizePublishedDocIdentity({
+      workspaceId: decodeURIComponent(suffix.slice(0, firstSlash)),
+      canonicalPath: decodeURIComponent(suffix.slice(firstSlash + 1)),
+    });
+  };
+  const parsePublishedDocSearchParams = (searchParams) => {
+    const shareToken = decodePublishedDocShareTokenLocal(searchParams && searchParams.get(publishedDocShareTokenParam));
+    if (shareToken) return shareToken;
+    const canonicalPath = normalizeCanonicalPath(
+      decodeURIComponent(String((searchParams && searchParams.get(canonicalPathParam)) || "")),
+    );
+    if (canonicalPath) {
+      return normalizePublishedDocIdentity({
+        workspaceId: decodeURIComponent(String((searchParams && searchParams.get(workspaceIdParam)) || "")),
+        canonicalPath,
+      });
+    }
+    const rawPath = String((searchParams && searchParams.get(kgPathParam)) || "").trim();
+    if (!rawPath) return null;
+    return parsePublishedDocPathname(defaultAppBasePath + rawPath, defaultAppBasePath);
+  };
+
+  return (resolverArgs = {}) => {
+    const directShareToken = decodePublishedDocShareTokenLocal(resolverArgs.shareToken);
+    if (directShareToken) return directShareToken;
+    const shareUrl = String(resolverArgs.shareUrl || "").trim();
+    if (!shareUrl) return null;
+    try {
+      const normalizedBaseUrl = String(resolverArgs.baseUrl || "https://airvio.co").trim() || "https://airvio.co";
+      const url = new URL(shareUrl, normalizedBaseUrl);
+      return parsePublishedDocSearchParams(url.searchParams) || parsePublishedDocPathname(url.pathname, resolverArgs.appBasePath);
+    } catch {
+      return null;
+    }
+  };
+}`;
+
 export const createPublishedDocIdentityResolver = (args = {}) => {
   const publishedDocShareTokenParam = String(args.publishedDocShareTokenParam || "kgShare");
   const workspaceIdParam = String(args.workspaceIdParam || "kgWorkspaceId");

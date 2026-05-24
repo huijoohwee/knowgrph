@@ -1,7 +1,9 @@
-# Knowgrph Site Selection Widget (Retail / Residential) — Geospatial Knowledge Graph (KG)
+# Legacy Knowgrph Site Selection Widget (Retail / Residential) — Geospatial Knowledge Graph (KG)
 
 Status: Draft (MVP-first)  
 Last updated: 2026-04-25  
+
+> Legacy planning note: this draft still references an older RxDB-era local-first design. The active app runtime now uses D1 as canonical persistence with a minimal browser-local persisted cache.
 
 ## 0) Executive summary
 
@@ -450,4 +452,3 @@ TradeArea:
 - `trade:method` = `radius`
 - `trade:radiusKm` = `1`
 - `geo:geometry` = `{"type":"Polygon","coordinates":[...]}`
-

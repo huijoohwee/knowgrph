@@ -21,9 +21,9 @@
 
 | File | Scope |
 |---|---|
-| `knowgrph-storage-sync-document.md` | Storage ladder, Worker push/pull/export, conflict resolution, RxDB client sync |
-| `knowgrph-storage-schemas-document.md` | D1 SQL schema, RxDB shapes, contract types, route contracts |
-| `knowgrph-database.md` | RxDB-to-PostgreSQL migration path (deferred) |
+| `knowgrph-storage-sync-document.md` | Storage ladder, Worker push/pull/export, conflict resolution, client sync |
+| `knowgrph-storage-schemas-document.md` | D1 SQL schema, browser-local cache shapes, contract types, route contracts |
+| `knowgrph-database.md` | Legacy RxDB-to-PostgreSQL migration path (historical/deferred) |
 | `knowgrph-backend-document.md` | Vite dev/preview middleware |
 | `knowgrph-integrations-ssot-sync-directives.md` | Cross-repo publish topology and sync directives |
 
@@ -246,7 +246,7 @@ The canonical authoring source is a local filesystem (`huijoohwee/docs/`), which
 
 ## Out of Scope
 
-- Replacing the existing RxDB local-first architecture
+- Replacing the existing minimal persisted client-cache architecture
 - Migrating from D1 to PostgreSQL (remains deferred per `knowgrph-storage-sync-document.md` ADR-003)
 - Real-time cursor sharing or live collaborative editing (deferred to Phase 4 per storage-sync roadmap)
 - Changing the existing push/pull/export API contract (extends it, does not replace)
@@ -257,7 +257,7 @@ The canonical authoring source is a local filesystem (`huijoohwee/docs/`), which
 ## Dependencies
 
 ### Product Dependencies
-- Existing storage sync infrastructure (Worker + D1 + RxDB client sync)
+- Existing storage sync infrastructure (Worker + D1 + minimal persisted client sync)
 - Existing conflict resolution UX (toast + log + keep-local/accept-remote actions)
 - Workspace FS and source-files bootstrap pipeline
 

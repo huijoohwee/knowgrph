@@ -166,7 +166,7 @@
 
 - Coalesced scheduler keys are structural contracts for state-sync/indexing; production code must use these keys with revision/viewKey gating, not ad-hoc `setTimeout` chains.
 - `markdown-workspace:refresh` coalesces workspace FS→Markdown Workspace refresh runs; it does not replace LS keys (it only schedules `refresh()`/`mergeWorkspaceEntriesIntoSourceFiles`).
-- `source-files:persist` and `source-files:workspace` coalesce sourceFiles snapshots and workspace metadata LS+RxDB writes while preserving equality checks and revision-based gating.
+- `source-files:persist` and `source-files:workspace` coalesce sourceFiles snapshots and workspace metadata local-storage plus persisted-cache writes while preserving equality checks and revision-based gating.
 - `per-document-ui` coalesces per-document UI LS writes; document-level LS keys remain the SSOT for viewport/selection/mode state.
 - `graph-table:view-state` coalesces host GraphTable/Multi-dimensional Table view-state LS writes (visibility/order/filters/sort/row heights/widths) keyed by table id.
 - `markdown-editor:ssot:<documentKey>` coalesces markdown editor→GraphData SSOT pushes per document and must be reused by features that write document text back into the SSOT graph.

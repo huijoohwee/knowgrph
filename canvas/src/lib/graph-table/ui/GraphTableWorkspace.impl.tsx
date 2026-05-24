@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { Subscription } from 'rxjs'
-import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
@@ -50,6 +49,7 @@ import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import type { PersistedCollectionChangeEvent } from '@/lib/storage/persistedCollectionStore'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
@@ -325,7 +325,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         }
       }
 
-      sub = collections.columns.$.subscribe((ev: RxChangeEvent<GraphColumnDoc>) => {
+      sub = collections.columns.$.subscribe((ev: PersistedCollectionChangeEvent<GraphColumnDoc>) => {
         const doc = ev.documentData
         if (!doc || doc.tableId !== activeTableId) return
         if (ev.operation === 'DELETE') colMap.delete(ev.documentId)
@@ -333,7 +333,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         setColumns(Array.from(colMap.values()).sort((a, b) => a.order - b.order))
       })
 
-      rowSub = collections.rows.$.subscribe((ev: RxChangeEvent<GraphRowDoc>) => {
+      rowSub = collections.rows.$.subscribe((ev: PersistedCollectionChangeEvent<GraphRowDoc>) => {
         const doc = ev.documentData
         if (!doc || doc.tableId !== activeTableId) return
         const cache = cacheForTable

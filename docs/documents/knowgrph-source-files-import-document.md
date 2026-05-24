@@ -176,7 +176,7 @@ sequenceDiagram
 | Source Files | Import/export/clear/parse | `sourceFilesIngestIntegration.ts` | Built |
 | Source Files | Seed aliases (3-file family) | `workspaceSeedSourceFiles.ts` | Built |
 | Workspace FS | Seed bootstrap | `workspaceFs.ts` | Built |
-| Workspace FS | RxDB-backed FS | `workspaceFsRxdb.ts` | Built |
+| Workspace FS | Minimal persisted cache FS | `workspaceFsPersisted.ts` | Built |
 | Workspace FS | In-memory FS | `workspaceFsMemory.ts` | Built |
 | Workspace FS | Change events | `workspaceFsEvents.ts` | Built |
 | Workspace FS | Bootstrap startup | `sourceFilesBootstrapStartup.ts` | Built |

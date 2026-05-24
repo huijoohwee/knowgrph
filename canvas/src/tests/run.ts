@@ -474,7 +474,7 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     await execTest(
       results,
       'ui.workspacePane.gatesGraphTableSubscriptionsWhenInactive',
-      modPaneGate.testGraphTableWorkspaceGatesRxdbSubscriptionsByActive,
+      modPaneGate.testGraphTableWorkspaceGatesPersistedCollectionSubscriptionsByActive,
     )
 
     const modComposedPosDebounce = await import('../__tests__/sourceFilesComposedPositionDebounceRegression.test')

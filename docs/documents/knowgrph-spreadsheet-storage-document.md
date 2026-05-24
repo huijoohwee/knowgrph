@@ -1,4 +1,6 @@
-# Knowgrph Spreadsheet Storage Document
+# Legacy Knowgrph Spreadsheet Storage Document
+
+> Legacy planning note: this document records an older spreadsheet-specific RxDB + Dexie proposal. It is not the current storage runtime contract for Knowgrph. Use `knowgrph-storage-sync-document.md` and `knowgrph-storage-schemas-document.md` for the active persisted-cache + D1 architecture.
 
 **Context**: Local-first, multi-table spreadsheet storage + grid rendering
 **Intent**: Provide a NocoDB/Airtable-like relational spreadsheet backend without hosted DB/auth
@@ -42,4 +44,3 @@
 - Coverage:
   - Seed creates default base/table/columns
   - Insert row and update a cell value via `updateRowCell`
-

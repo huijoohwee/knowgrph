@@ -22,7 +22,7 @@ import {
   type KgDocumentLocalRecord,
   type KnowgrphStorageCollections,
   type KnowgrphStorageDb,
-} from '@/lib/storage/knowgrphStorageRxdb'
+} from '@/lib/storage/knowgrphStorageDb'
 
 const KNOWGRPH_STORAGE_DEVICE_ID_KEY = 'kg:knowgrph-storage:device-id'
 const KNOWGRPH_STORAGE_SYNC_TASK_PREFIX = 'knowgrph-storage:sync'

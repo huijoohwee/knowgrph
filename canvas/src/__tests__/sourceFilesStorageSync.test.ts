@@ -4,7 +4,7 @@ import type { SourceFile } from '@/hooks/store/types'
 import {
   __resetKnowgrphStorageDbForTests,
   getKnowgrphStorageDb,
-} from '@/lib/storage/knowgrphStorageRxdb'
+} from '@/lib/storage/knowgrphStorageDb'
 import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
   buildSourceFilesStorageSyncSignature,
