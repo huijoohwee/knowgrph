@@ -28,6 +28,11 @@ import {
 import IconButton from '@/components/IconButton'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  isAnimationTimelineMutationHotkeyAction,
+  resolveAnimationTimelineHotkeyAction,
+  shouldIgnoreAnimationTimelineHotkeys,
+} from '@/components/AnimationCanvas/animationKeyboard'
 import { resolveAnimationTimelineLanePresentation } from '@/components/AnimationCanvas/animationLaneControls'
 import { getIconSizeClass } from '@/lib/ui'
 import {
@@ -196,10 +201,15 @@ export default function AnimationCanvas({
   const [editingBeatTagsRef, setEditingBeatTagsRef] = React.useState<string | null>(null)
   const [editingBeatTags, setEditingBeatTags] = React.useState('')
   const [highlightedLaneShortcutId, setHighlightedLaneShortcutId] = React.useState<AnimationTimelineLaneId | null>(null)
+  const [selectedLaneId, setSelectedLaneId] = React.useState<AnimationTimelineLaneId | null>(null)
+  const [selectedItemNodeId, setSelectedItemNodeId] = React.useState<string | null>(null)
   const [timingOverrides, setTimingOverrides] = React.useState<Record<string, AnimationTimelineBeatTimingOverride>>({})
   const [dragState, setDragState] = React.useState<AnimationDragState | null>(null)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const laneRowRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
+  const laneOptionRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
+  const laneItemOptionRefs = React.useRef<Record<string, HTMLElement | null>>({})
+  const beatOptionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
   const laneShortcutHighlightTimeoutRef = React.useRef<number | null>(null)
   const timingOverridesRef = React.useRef<Record<string, AnimationTimelineBeatTimingOverride>>({})
   const toolbarIconClassName = getIconSizeClass('default')
@@ -357,6 +367,54 @@ export default function AnimationCanvas({
       }),
     [hiddenLaneIds, mutedLaneIds, soloLaneId, timelineModel.lanes],
   )
+  const selectedLane = React.useMemo(
+    () => lanePresentations.find(lane => lane.id === selectedLaneId) || null,
+    [lanePresentations, selectedLaneId],
+  )
+  const selectedOrActiveBeatRef = activeBeat?.beatRef || timelineModel.beats[0]?.beatRef || null
+  const selectedOrFirstLaneId = selectedLaneId || lanePresentations[0]?.id || null
+  const selectedLaneVisibleItemContexts = React.useMemo(() => {
+    if (!selectedLane) return [] as Array<{
+      nodeId: string
+      title: string
+      laneId: AnimationTimelineLaneId
+      beatRef: string
+      previousBeat: AnimationTimelineBeat | null
+      nextBeat: AnimationTimelineBeat | null
+    }>
+    if (!selectedLane.visibleItems) return []
+    const contexts: Array<{
+      nodeId: string
+      title: string
+      laneId: AnimationTimelineLaneId
+      beatRef: string
+      previousBeat: AnimationTimelineBeat | null
+      nextBeat: AnimationTimelineBeat | null
+    }> = []
+    for (let index = 0; index < timelineModel.beats.length; index += 1) {
+      const beat = timelineModel.beats[index]
+      if (!beat) continue
+      const previousBeat = timelineModel.beats[index - 1] || null
+      const nextBeat = timelineModel.beats[index + 1] || null
+      for (const item of beat.items) {
+        if (item.laneId !== selectedLane.id) continue
+        contexts.push({
+          nodeId: item.nodeId,
+          title: item.title,
+          laneId: item.laneId,
+          beatRef: beat.beatRef,
+          previousBeat,
+          nextBeat,
+        })
+      }
+    }
+    return contexts
+  }, [selectedLane, timelineModel.beats])
+  const selectedItemContext = React.useMemo(
+    () => selectedLaneVisibleItemContexts.find(item => item.nodeId === selectedItemNodeId) || null,
+    [selectedItemNodeId, selectedLaneVisibleItemContexts],
+  )
+  const selectedOrFirstLaneItemNodeId = selectedItemNodeId || selectedLaneVisibleItemContexts[0]?.nodeId || null
   const canDeleteActiveBeat = !!activeBeat && activeBeat.items.length === 0
   const nextBeat = activeBeatIndex >= 0 ? timelineModel.beats[activeBeatIndex + 1] || null : null
   const previousBeat = activeBeatIndex > 0 ? timelineModel.beats[activeBeatIndex - 1] || null : null
@@ -380,6 +438,18 @@ export default function AnimationCanvas({
     activeBeat.startMs != null &&
     nextBeat.endMs != null &&
     nextBeat.items.length === 0
+
+  React.useEffect(() => {
+    if (!selectedLaneId) return
+    if (lanePresentations.some(lane => lane.id === selectedLaneId)) return
+    setSelectedLaneId(null)
+  }, [lanePresentations, selectedLaneId])
+
+  React.useEffect(() => {
+    if (!selectedItemNodeId) return
+    if (selectedLaneVisibleItemContexts.some(item => item.nodeId === selectedItemNodeId)) return
+    setSelectedItemNodeId(null)
+  }, [selectedItemNodeId, selectedLaneVisibleItemContexts])
 
   const commitMarkdownDocumentText = React.useCallback(
     async (nextMarkdownText: string) => {
@@ -562,6 +632,7 @@ export default function AnimationCanvas({
   const handleFocusLaneFromBeatCard = React.useCallback((laneId: AnimationTimelineLaneId) => {
     const row = laneRowRefs.current[laneId]
     if (!row) return
+    setSelectedLaneId(laneId)
     row.scrollIntoView({
       block: 'nearest',
       inline: 'nearest',
@@ -575,6 +646,22 @@ export default function AnimationCanvas({
       setHighlightedLaneShortcutId(current => (current === laneId ? null : current))
       laneShortcutHighlightTimeoutRef.current = null
     }, 1600)
+  }, [])
+
+  const handleFocusLaneOption = React.useCallback((laneId: AnimationTimelineLaneId) => {
+    setSelectedLaneId(laneId)
+    laneOptionRefs.current[laneId]?.focus()
+  }, [])
+
+  const handleFocusBeatOption = React.useCallback((beat: AnimationTimelineBeat | null | undefined) => {
+    if (!beat) return
+    handleFocusBeat(beat)
+    beatOptionRefs.current[beat.beatRef]?.focus()
+  }, [handleFocusBeat])
+
+  const handleFocusLaneItemOption = React.useCallback((nodeId: string) => {
+    setSelectedItemNodeId(nodeId)
+    laneItemOptionRefs.current[nodeId]?.focus()
   }, [])
 
   const handleInsertBeatAtTarget = React.useCallback(
@@ -931,6 +1018,129 @@ export default function AnimationCanvas({
     handleStartBeatTagsEdit(beat)
   }, [handleFocusBeat, handleStartBeatTagsEdit])
 
+  React.useEffect(() => {
+    if (!active) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = resolveAnimationTimelineHotkeyAction(event)
+      if (!action) return
+      const targetElement =
+        event.target instanceof HTMLElement
+          ? (event.target.closest('input, textarea, select, button, a[href], [role="textbox"], [contenteditable="true"]') as HTMLElement | null) ||
+            event.target
+          : null
+      if (
+        shouldIgnoreAnimationTimelineHotkeys({
+          defaultPrevented: event.defaultPrevented,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          altKey: event.altKey,
+          editingBeat: !!currentEditingBeatRef,
+          dragging: !!dragState,
+          targetTagName: targetElement?.tagName,
+          targetRole: targetElement?.getAttribute('role'),
+          targetContentEditable: targetElement?.isContentEditable,
+        })
+      ) {
+        return
+      }
+      if (event.repeat && isAnimationTimelineMutationHotkeyAction(action)) return
+      event.preventDefault()
+      if (action === 'toggle-playback') {
+        handleTogglePlayback()
+        return
+      }
+      if (action === 'step-prev-beat') {
+        handleStepBeat(-1)
+        return
+      }
+      if (action === 'step-next-beat') {
+        handleStepBeat(1)
+        return
+      }
+      if (action === 'reset-playhead') {
+        handleReset()
+        return
+      }
+      if (action === 'duplicate-beat') {
+        void handleDuplicateBeat()
+        return
+      }
+      if (action === 'split-beat') {
+        void handleSplitBeat()
+        return
+      }
+      if (!activeBeat) return
+      if (action === 'edit-beat-label') {
+        handleStartBeatLabelEdit(activeBeat)
+        return
+      }
+      if (action === 'edit-beat-note') {
+        handleStartBeatNoteEdit(activeBeat)
+        return
+      }
+      if (action === 'edit-beat-summary') {
+        handleStartBeatSummaryEdit(activeBeat)
+        return
+      }
+      if (action === 'edit-beat-tags') {
+        handleStartBeatTagsEdit(activeBeat)
+        return
+      }
+      if (!selectedLane) return
+      if (action === 'toggle-lane-hidden') {
+        void handleToggleHiddenLane(selectedLane.id)
+        return
+      }
+      if (action === 'toggle-lane-muted') {
+        void handleToggleMutedLane(selectedLane.id)
+        return
+      }
+      if (action === 'toggle-lane-solo') {
+        void handleToggleSoloLane(selectedLane.id)
+        return
+      }
+      if (action === 'move-lane-up') {
+        void handleReorderLane(selectedLane.id, -1)
+        return
+      }
+      if (action === 'move-lane-down') {
+        void handleReorderLane(selectedLane.id, 1)
+        return
+      }
+      if (!selectedItemContext) return
+      if (action === 'move-selected-item-prev-beat') {
+        void handleMoveItemToBeat(selectedItemContext.nodeId, selectedItemContext.previousBeat)
+        return
+      }
+      if (action === 'move-selected-item-next-beat') {
+        void handleMoveItemToBeat(selectedItemContext.nodeId, selectedItemContext.nextBeat)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [
+    active,
+    activeBeat,
+    currentEditingBeatRef,
+    dragState,
+    handleDuplicateBeat,
+    handleReset,
+    handleSplitBeat,
+    handleStartBeatLabelEdit,
+    handleStartBeatNoteEdit,
+    handleStartBeatSummaryEdit,
+    handleStartBeatTagsEdit,
+    handleReorderLane,
+    handleMoveItemToBeat,
+    handleStepBeat,
+    handleToggleHiddenLane,
+    handleToggleMutedLane,
+    handleToggleSoloLane,
+    handleTogglePlayback,
+    selectedItemContext,
+    selectedLane,
+  ])
+
   const handleBeatPointerStart = React.useCallback(
     (event: React.PointerEvent<HTMLElement>, beat: AnimationTimelineBeat, beatIndex: number, mode: AnimationDragState['mode']) => {
       if (!timelineModel.usesAbsoluteTiming) return
@@ -1062,16 +1272,16 @@ export default function AnimationCanvas({
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <IconButton title={playing ? 'Pause' : 'Play'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleTogglePlayback}>
+            <IconButton title={playing ? 'Pause (Space)' : 'Play (Space)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleTogglePlayback}>
               {playing ? <Pause className={toolbarIconClassName} /> : <Play className={toolbarIconClassName} />}
             </IconButton>
-            <IconButton title="Prev Beat" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
+            <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
               <SkipBack className={toolbarIconClassName} />
             </IconButton>
-            <IconButton title="Next Beat" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(1)}>
+            <IconButton title="Next Beat (Right Arrow)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(1)}>
               <SkipForward className={toolbarIconClassName} />
             </IconButton>
-            <IconButton title="Reset" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleReset}>
+            <IconButton title="Reset (R)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleReset}>
               <RotateCcw className={toolbarIconClassName} />
             </IconButton>
             <IconButton title="Insert Before" showTooltip className={getTimelineIconButtonClassName(!!activeBeat || timelineModel.beats.length > 0)} onClick={() => void handleInsertBeat('before')}>
@@ -1081,7 +1291,7 @@ export default function AnimationCanvas({
               <ArrowRightToLine className={toolbarIconClassName} />
             </IconButton>
             <IconButton
-              title={canSplitActiveBeat ? 'Split active beat at playhead' : 'Move the playhead inside the active beat to split it'}
+              title={canSplitActiveBeat ? 'Split active beat at playhead (S)' : 'Move the playhead inside the active beat to split it (S)'}
               showTooltip
               className={getTimelineIconButtonClassName(canSplitActiveBeat)}
               onClick={() => void handleSplitBeat()}
@@ -1090,7 +1300,7 @@ export default function AnimationCanvas({
               <Scissors className={toolbarIconClassName} />
             </IconButton>
             <IconButton
-              title={activeBeat ? 'Duplicate active beat after the current beat' : 'Select an active beat first'}
+              title={activeBeat ? 'Duplicate active beat after the current beat (D)' : 'Select an active beat first (D)'}
               showTooltip
               className={getTimelineIconButtonClassName(!!activeBeat)}
               onClick={() => void handleDuplicateBeat()}
@@ -1206,7 +1416,7 @@ export default function AnimationCanvas({
                     </IconButton>
                   </div>
                 ) : (
-                  <IconButton title={`Rename ${activeBeat.label}`} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatLabelEdit(activeBeat)}>
+                  <IconButton title={`Rename ${activeBeat.label} (L)`} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatLabelEdit(activeBeat)}>
                     <Pencil className={toolbarIconClassName} />
                   </IconButton>
                 )
@@ -1219,19 +1429,29 @@ export default function AnimationCanvas({
                       className="min-h-16 w-52 resize-none rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
                       value={editingBeatNote}
                       onChange={event => setEditingBeatNote(event.target.value)}
+                      onKeyDown={event => {
+                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                          event.preventDefault()
+                          void handleCommitBeatNoteEdit()
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          handleCancelBeatNoteEdit()
+                        }
+                      }}
                     />
                     <div className="flex flex-col gap-2">
-                      <IconButton title="Save beat note" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatNoteEdit()}>
+                      <IconButton title="Save beat note (Cmd/Ctrl+Enter)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatNoteEdit()}>
                         <Check className={toolbarIconClassName} />
                       </IconButton>
-                      <IconButton title="Cancel beat note edit" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatNoteEdit}>
+                      <IconButton title="Cancel beat note edit (Escape)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatNoteEdit}>
                         <X className={toolbarIconClassName} />
                       </IconButton>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300">
-                    <IconButton title={activeBeat.note ? 'Edit beat note' : 'Add beat note'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatNoteEdit(activeBeat)}>
+                    <IconButton title={activeBeat.note ? 'Edit beat note (N)' : 'Add beat note (N)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatNoteEdit(activeBeat)}>
                       <FileText className={toolbarIconClassName} />
                     </IconButton>
                     <span className="max-w-48 truncate text-slate-400">{activeBeat.note || 'No note'}</span>
@@ -1246,19 +1466,29 @@ export default function AnimationCanvas({
                       className="min-h-16 w-60 resize-none rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
                       value={editingBeatSummary}
                       onChange={event => setEditingBeatSummary(event.target.value)}
+                      onKeyDown={event => {
+                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                          event.preventDefault()
+                          void handleCommitBeatSummaryEdit()
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          handleCancelBeatSummaryEdit()
+                        }
+                      }}
                     />
                     <div className="flex flex-col gap-2">
-                      <IconButton title="Save beat summary" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatSummaryEdit()}>
+                      <IconButton title="Save beat summary (Cmd/Ctrl+Enter)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatSummaryEdit()}>
                         <Check className={toolbarIconClassName} />
                       </IconButton>
-                      <IconButton title="Cancel beat summary edit" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatSummaryEdit}>
+                      <IconButton title="Cancel beat summary edit (Escape)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatSummaryEdit}>
                         <X className={toolbarIconClassName} />
                       </IconButton>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300">
-                    <IconButton title={activeBeat.summary ? 'Edit beat summary' : 'Add beat summary'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatSummaryEdit(activeBeat)}>
+                    <IconButton title={activeBeat.summary ? 'Edit beat summary (M)' : 'Add beat summary (M)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatSummaryEdit(activeBeat)}>
                       <AlignLeft className={toolbarIconClassName} />
                     </IconButton>
                     <span className="max-w-56 truncate text-slate-400">{activeBeat.summary || 'No summary'}</span>
@@ -1294,7 +1524,7 @@ export default function AnimationCanvas({
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300">
-                    <IconButton title={activeBeat.tags.length > 0 ? 'Edit beat tags' : 'Add beat tags'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatTagsEdit(activeBeat)}>
+                    <IconButton title={activeBeat.tags.length > 0 ? 'Edit beat tags (T)' : 'Add beat tags (T)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatTagsEdit(activeBeat)}>
                       <Tags className={toolbarIconClassName} />
                     </IconButton>
                     <span className="max-w-56 truncate text-slate-400">{activeBeat.tags.length > 0 ? activeBeat.tags.join(' · ') : 'No tags'}</span>
@@ -1324,6 +1554,21 @@ export default function AnimationCanvas({
               {soloLaneId ? (
                 <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-200">
                   Solo Lane: {soloLaneId}
+                </span>
+              ) : null}
+              {selectedLane ? (
+                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-100">
+                  Selected Lane: {selectedLane.label} ([ / ] reorder, H hide, U mute, O solo)
+                </span>
+              ) : null}
+              {selectedItemContext ? (
+                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-100">
+                  Selected Item: {selectedItemContext.title} (, prev beat, . next beat)
+                </span>
+              ) : null}
+              {activeBeat ? (
+                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-100">
+                  Beat Strip: {activeBeat.label} (Tab, Left/Right, Home, End)
                 </span>
               ) : null}
             </div>
@@ -1358,13 +1603,46 @@ export default function AnimationCanvas({
             >
               Timeline
             </div>
-            {lanePresentations.map(lane => (
-              <div
+            <div role="listbox" aria-label="Animation timeline lanes">
+              {lanePresentations.map((lane, laneIndex) => (
+                <div
                 key={lane.id}
-                className="flex items-center justify-between gap-2 border-b border-slate-800 px-3 text-sm font-medium text-slate-200"
+                ref={node => {
+                  laneOptionRefs.current[lane.id] = node
+                }}
+                tabIndex={selectedOrFirstLaneId === lane.id ? 0 : -1}
+                role="option"
+                aria-selected={selectedLaneId === lane.id}
+                className={`flex cursor-pointer items-center justify-between gap-2 border-b px-3 text-sm font-medium text-slate-200 transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
+                  selectedLaneId === lane.id ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-slate-800'
+                }`}
                 style={{ minHeight: LANE_ROW_HEIGHT_PX }}
+                onClick={() => setSelectedLaneId(lane.id)}
+                onFocus={() => setSelectedLaneId(lane.id)}
+                onKeyDown={event => {
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    const previousLane = lanePresentations[Math.max(0, laneIndex - 1)]
+                    if (previousLane) handleFocusLaneOption(previousLane.id)
+                  }
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    const nextLane = lanePresentations[Math.min(lanePresentations.length - 1, laneIndex + 1)]
+                    if (nextLane) handleFocusLaneOption(nextLane.id)
+                  }
+                  if (event.key === 'Home') {
+                    event.preventDefault()
+                    const firstLane = lanePresentations[0]
+                    if (firstLane) handleFocusLaneOption(firstLane.id)
+                  }
+                  if (event.key === 'End') {
+                    event.preventDefault()
+                    const lastLane = lanePresentations[lanePresentations.length - 1]
+                    if (lastLane) handleFocusLaneOption(lastLane.id)
+                  }
+                }}
               >
-                <div className="flex min-w-0 items-center gap-1">
+                <div className="flex min-w-0 flex-1 items-center gap-1">
                   <IconButton
                     title={`Move ${lane.label} up`}
                     showTooltip
@@ -1383,8 +1661,23 @@ export default function AnimationCanvas({
                   >
                     <ArrowDown className={toolbarIconClassName} />
                   </IconButton>
-                  <div className={`truncate ${lane.solo ? 'text-cyan-200' : lane.hidden ? 'text-slate-500 line-through' : lane.muted ? 'text-slate-400' : 'text-slate-200'}`}>
-                    {lane.label}
+                  <div className="min-w-0">
+                    <div
+                      className={`truncate ${lane.solo ? 'text-cyan-200' : lane.hidden ? 'text-slate-500 line-through' : lane.muted ? 'text-slate-400' : 'text-slate-200'}`}
+                      title={`Tab to focus ${lane.label}; use Arrow Up/Down, Home, End, [ / ], H, U, O`}
+                    >
+                      {lane.label}
+                    </div>
+                    {selectedLaneId === lane.id ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-cyan-100">
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Up/Down focus</span>
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Home/End rail</span>
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">[ / ] reorder</span>
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">H hide</span>
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">U mute</span>
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">O solo</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -1413,8 +1706,9 @@ export default function AnimationCanvas({
                     <CircleDot className={toolbarIconClassName} />
                   </IconButton>
                 </div>
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
           </aside>
           <div ref={scrollRef} className="min-w-0 flex-1 overflow-auto bg-[#0b1020]">
             <div className="relative" style={{ width: Math.max(totalTimelineWidth, 1) }}>
@@ -1446,7 +1740,7 @@ export default function AnimationCanvas({
                     )
                   })}
                 </div>
-                <div className="flex border-b border-slate-800">
+                <div className="flex border-b border-slate-800" role="listbox" aria-label="Animation timeline beats">
                   {timelineModel.beats.map((beat, index) => {
                     const isActiveBeat = index === activeBeatIndex
                     const beatLaneSummary = buildBeatLaneSummary(beat.items)
@@ -1472,10 +1766,40 @@ export default function AnimationCanvas({
                     return (
                       <div
                         key={beat.beatRef}
-                        className={`group/beat relative flex shrink-0 flex-col justify-start overflow-hidden border-r border-slate-800 px-4 py-3 text-left transition ${
+                        ref={node => {
+                          beatOptionRefs.current[beat.beatRef] = node
+                        }}
+                        tabIndex={selectedOrActiveBeatRef === beat.beatRef ? 0 : -1}
+                        role="option"
+                        aria-selected={isActiveBeat}
+                        title={`Tab to focus ${beat.label}; use Arrow Left/Right, Home, End`}
+                        className={`group/beat relative flex shrink-0 flex-col justify-start overflow-hidden border-r border-slate-800 px-4 py-3 text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
                           isActiveBeat ? 'bg-cyan-500/10' : 'bg-transparent hover:bg-slate-900/80'
                         }`}
                         style={{ width: beatWidths[index], height: BEAT_HEADER_HEIGHT_PX }}
+                        onFocus={() => handleFocusBeat(beat)}
+                        onKeyDown={event => {
+                          if (event.key === 'ArrowLeft') {
+                            event.preventDefault()
+                            const previousBeat = timelineModel.beats[Math.max(0, index - 1)]
+                            if (previousBeat) handleFocusBeatOption(previousBeat)
+                          }
+                          if (event.key === 'ArrowRight') {
+                            event.preventDefault()
+                            const nextBeat = timelineModel.beats[Math.min(timelineModel.beats.length - 1, index + 1)]
+                            if (nextBeat) handleFocusBeatOption(nextBeat)
+                          }
+                          if (event.key === 'Home') {
+                            event.preventDefault()
+                            const firstBeat = timelineModel.beats[0]
+                            if (firstBeat) handleFocusBeatOption(firstBeat)
+                          }
+                          if (event.key === 'End') {
+                            event.preventDefault()
+                            const lastBeat = timelineModel.beats[timelineModel.beats.length - 1]
+                            if (lastBeat) handleFocusBeatOption(lastBeat)
+                          }
+                        }}
                       >
                         <div className="absolute right-3 top-3 z-30 flex items-center gap-1 opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100">
                           <IconButton
@@ -1681,6 +2005,16 @@ export default function AnimationCanvas({
                             ) : null}
                           </div>
                         ) : null}
+                        {isActiveBeat ? (
+                          <div className="relative z-10 mt-2 flex flex-wrap items-center gap-1 text-[11px] text-cyan-100">
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">L rename</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">N note</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">M summary</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">T tags</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">D duplicate</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">S split</span>
+                          </div>
+                        ) : null}
                       </div>
                     )
                   })}
@@ -1715,14 +2049,66 @@ export default function AnimationCanvas({
                               return (
                                 <article
                                   key={item.id}
-                                  className={`rounded-md border px-3 py-2 shadow-sm ${LANE_ACCENT_CLASS[item.laneId]} ${
+                                  ref={node => {
+                                    laneItemOptionRefs.current[item.nodeId] = node
+                                  }}
+                                  tabIndex={selectedLaneId === lane.id && selectedOrFirstLaneItemNodeId === item.nodeId ? 0 : -1}
+                                  role="option"
+                                  aria-selected={selectedItemNodeId === item.nodeId}
+                                  title={`Focus ${item.title}; use Arrow Up/Down, Home, End, , and .`}
+                                  className={`rounded-md border px-3 py-2 shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
                                     lane.muted ? 'opacity-40 saturate-50' : ''
+                                  } ${
+                                    selectedItemNodeId === item.nodeId ? 'ring-1 ring-cyan-300' : ''
                                   }`}
+                                  onClick={() => {
+                                    setSelectedLaneId(lane.id)
+                                    setSelectedItemNodeId(item.nodeId)
+                                  }}
+                                  onFocus={() => {
+                                    setSelectedLaneId(lane.id)
+                                    setSelectedItemNodeId(item.nodeId)
+                                  }}
+                                  onKeyDown={event => {
+                                    const itemIndex = selectedLaneVisibleItemContexts.findIndex(entry => entry.nodeId === item.nodeId)
+                                    if (event.key === 'ArrowUp') {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      const previousItem = selectedLaneVisibleItemContexts[Math.max(0, itemIndex - 1)]
+                                      if (previousItem) handleFocusLaneItemOption(previousItem.nodeId)
+                                    }
+                                    if (event.key === 'ArrowDown') {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      const nextItem = selectedLaneVisibleItemContexts[Math.min(selectedLaneVisibleItemContexts.length - 1, itemIndex + 1)]
+                                      if (nextItem) handleFocusLaneItemOption(nextItem.nodeId)
+                                    }
+                                    if (event.key === 'Home') {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      const firstItem = selectedLaneVisibleItemContexts[0]
+                                      if (firstItem) handleFocusLaneItemOption(firstItem.nodeId)
+                                    }
+                                    if (event.key === 'End') {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      const lastItem = selectedLaneVisibleItemContexts[selectedLaneVisibleItemContexts.length - 1]
+                                      if (lastItem) handleFocusLaneItemOption(lastItem.nodeId)
+                                    }
+                                  }}
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="min-w-0 flex-1">
                                       <div className="truncate text-sm font-semibold">{item.title}</div>
                                       <div className="mt-1 truncate text-xs opacity-80">{item.subtitle || item.kind}</div>
+                                      {selectedItemNodeId === item.nodeId ? (
+                                        <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-cyan-100">
+                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Up/Down focus</span>
+                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Home/End rail</span>
+                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">, prev beat</span>
+                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">. next beat</span>
+                                        </div>
+                                      ) : null}
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <IconButton

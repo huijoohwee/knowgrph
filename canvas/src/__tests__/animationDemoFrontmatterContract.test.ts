@@ -3,6 +3,7 @@ import path from 'node:path'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 const DEMO_DOC_PATH = path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-timeline-animation-demo.md')
+const normalizeSpace = (value: string): string => String(value || '').replace(/\s+/g, ' ').trim()
 
 export function testTimelineAnimationDemoReusesSharedFlowFrontmatterContract() {
   const text = readFileSync(DEMO_DOC_PATH, 'utf8')
@@ -41,18 +42,29 @@ export function testTimelineAnimationDemoReusesSharedFlowFrontmatterContract() {
 
 export function testTimelineAnimationDemoRetainsReferenceSwitchContractSnippet() {
   const text = readFileSync(DEMO_DOC_PATH, 'utf8')
-  for (const snippet of [
-    '<div class="player-config">',
-    'role="switch"',
-    'class="ant-switch ant-switch-checked"',
-    'ant-click-animating="true"',
-    'style="margin-bottom: 20px;"',
-    '<div class="ant-switch-handle"></div>',
-    '<span class="ant-switch-inner">Enable Runtime Auto Scroll</span>',
-    '<div class="ant-click-animating-node"></div>',
-  ]) {
-    if (!text.includes(snippet)) {
-      throw new Error(`expected timeline animation demo to retain exact switch-contract snippet: ${snippet}`)
-    }
+  const expectedSnippet = normalizeSpace(`
+    <div class="player-config">
+      <button
+        type="button"
+        role="switch"
+        aria-checked="true"
+        class="ant-switch ant-switch-checked"
+        ant-click-animating="true"
+        style="margin-bottom: 20px;"
+      >
+        <div class="ant-switch-handle"></div>
+        <span class="ant-switch-inner">Enable Runtime Auto Scroll</span>
+        <div class="ant-click-animating-node"></div>
+      </button>
+    </div>
+  `)
+  const normalizedText = normalizeSpace(text)
+  if (!normalizedText.includes(expectedSnippet)) {
+    throw new Error('expected timeline animation demo to retain the exact normalized reference switch snippet')
   }
+  for (const forbiddenSnippet of ['react-timeline-editor', 'xzdarcy/react-timeline-editor', 'fixture-only demo rows']) {
+    if (text.includes(forbiddenSnippet)) {
+      throw new Error(`expected timeline animation demo to avoid vendor-copy or hardcoded-fixture wording: ${forbiddenSnippet}`)
+  }
+}
 }
