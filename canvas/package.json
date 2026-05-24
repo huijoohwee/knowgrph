@@ -28,6 +28,7 @@
     "prebuild": "npm run prepare:linked-packages && npm run build:settings && if [ \"${KG_SKIP_DOCS_UPDATE:-}\" = \"1\" ]; then echo \"[knowgrph] skipping docs:preview:update\"; else npm --prefix .. run docs:preview:update && tsx src/cli/lint-doc.ts; fi",
     "doc:lint": "tsx src/cli/lint-doc.ts",
     "doc:sanity": "tsx src/cli/doc-sanity-check.ts",
+    "validate:animation-interactions": "python3 ./scripts/validate_animation_timeline_interactions.py",
     "build": "vite build --configLoader runner",
     "lint": "eslint .",
     "preview": "vite preview --configLoader runner",

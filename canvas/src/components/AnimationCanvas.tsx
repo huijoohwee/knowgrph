@@ -13,9 +13,7 @@ import {
   EyeOff,
   FileText,
   GitMerge,
-  Pause,
   Pencil,
-  Play,
   RotateCcw,
   Scissors,
   SkipBack,
@@ -62,11 +60,12 @@ import {
   updateAnimationTimelineMarkdownBeatTags,
   updateAnimationTimelineMarkdownBeatTiming,
 } from '@/components/AnimationCanvas/animationTimeline'
+import './AnimationCanvas.css'
 
 const ORDINAL_PLAYBACK_BEAT_MS = 1000
-const SCALE_ROW_HEIGHT_PX = 42
-const BEAT_HEADER_HEIGHT_PX = 136
-const LANE_ROW_HEIGHT_PX = 108
+const SCALE_ROW_HEIGHT_PX = 32
+const BEAT_HEADER_HEIGHT_PX = 104
+const LANE_ROW_HEIGHT_PX = 72
 const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const
 const SNAP_STEP_OPTIONS_MS = [100, 250, 500, 1000] as const
 const EDIT_MIN_DURATION_MS = 300
@@ -122,6 +121,43 @@ function buildScaleMarks(args: {
   }))
 }
 
+function buildTimelineEditorTimeUnits(args: {
+  totalSpan: number
+  totalTimelineWidth: number
+  usesAbsoluteTiming: boolean
+}): Array<{ key: string; left: number; width: number; label: string | null; big: boolean }> {
+  const totalSpan = Math.max(0, args.totalSpan)
+  const totalTimelineWidth = Math.max(0, args.totalTimelineWidth)
+  if (totalSpan <= 0 || totalTimelineWidth <= 0) return []
+  if (!args.usesAbsoluteTiming) {
+    const unitWidth = totalTimelineWidth / totalSpan
+    return Array.from({ length: totalSpan }, (_, index) => ({
+      key: `beat-unit:${index}`,
+      left: unitWidth * index,
+      width: unitWidth,
+      label: String(index),
+      big: true,
+    }))
+  }
+  const unitMs = totalSpan <= 30000 ? 500 : 1000
+  const majorStepMs = unitMs * 10
+  const units: Array<{ key: string; left: number; width: number; label: string | null; big: boolean }> = []
+  for (let start = 0; start < totalSpan; start += unitMs) {
+    const end = Math.min(totalSpan, start + unitMs)
+    const left = (start / totalSpan) * totalTimelineWidth
+    const nextLeft = (end / totalSpan) * totalTimelineWidth
+    const big = start % majorStepMs === 0
+    units.push({
+      key: `time-unit:${start}`,
+      left,
+      width: Math.max(16, nextLeft - left),
+      label: big ? String(Math.round(start / 1000)) : null,
+      big,
+    })
+  }
+  return units
+}
+
 type AnimationDragState = {
   beatRef: string
   beatIndex: number
@@ -152,6 +188,10 @@ function buildBeatLaneSummary(items: ReadonlyArray<AnimationTimelineBeat['items'
       if (right.count !== left.count) return right.count - left.count
       return LANE_LABEL[left.laneId].localeCompare(LANE_LABEL[right.laneId])
     })
+}
+
+function resolveTimelineEditorActionEffectClassName(laneId: AnimationTimelineLaneId): 'effect0' | 'effect1' {
+  return laneId === 'audio' ? 'effect0' : 'effect1'
 }
 
 function getTimelineIconButtonClassName(enabled: boolean, accent: 'default' | 'amber' | 'cyan' = 'default'): string {
@@ -212,6 +252,8 @@ export default function AnimationCanvas({
   const beatOptionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
   const laneShortcutHighlightTimeoutRef = React.useRef<number | null>(null)
   const timingOverridesRef = React.useRef<Record<string, AnimationTimelineBeatTimingOverride>>({})
+  const dragPointerClientXRef = React.useRef<number | null>(null)
+  const dragEdgeScrollDirectionRef = React.useRef<-1 | 0 | 1>(0)
   const toolbarIconClassName = getIconSizeClass('default')
   const compactToolbarIconClassName = getIconSizeClass('compact')
 
@@ -255,6 +297,8 @@ export default function AnimationCanvas({
     if (timelineModel.usesAbsoluteTiming) return
     setTimingOverrides({})
     setDragState(null)
+    dragPointerClientXRef.current = null
+    dragEdgeScrollDirectionRef.current = 0
   }, [timelineModel.usesAbsoluteTiming])
 
   React.useEffect(() => {
@@ -340,9 +384,15 @@ export default function AnimationCanvas({
   const activeBeat = activeBeatIndex >= 0 ? timelineModel.beats[activeBeatIndex] : null
   const currentEditingBeatRef = editingBeatRef || editingBeatNoteRef || editingBeatSummaryRef || editingBeatTagsRef
   const currentTimeLabel = timelineModel.usesAbsoluteTiming ? formatAnimationTimelineTimestamp(playbackPosition) : formatAnimationTimelineTimestamp(playbackPosition * 1000)
-  const totalTimeLabel = timelineModel.usesAbsoluteTiming
-    ? formatAnimationTimelineTimestamp(timelineModel.totalDurationMs)
-    : formatAnimationTimelineTimestamp(timelineModel.totalSpan * 1000)
+  const timelineEditorTimeUnits = React.useMemo(
+    () =>
+      buildTimelineEditorTimeUnits({
+        totalSpan: timelineModel.totalSpan,
+        totalTimelineWidth,
+        usesAbsoluteTiming: timelineModel.usesAbsoluteTiming,
+      }),
+    [timelineModel.totalSpan, timelineModel.usesAbsoluteTiming, totalTimelineWidth],
+  )
   const scaleMarks = React.useMemo(
     () =>
       buildScaleMarks({
@@ -1149,6 +1199,8 @@ export default function AnimationCanvas({
       event.preventDefault()
       event.stopPropagation()
       const scrollLeft = scrollRef.current?.scrollLeft || 0
+      dragPointerClientXRef.current = event.clientX
+      dragEdgeScrollDirectionRef.current = 0
       ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
       setPlaying(false)
       setDragState({
@@ -1166,19 +1218,10 @@ export default function AnimationCanvas({
 
   React.useEffect(() => {
     if (!dragState || !timelineModel.usesAbsoluteTiming || timelineUnitsPerPixel <= 0) return
-    const onPointerMove = (event: PointerEvent) => {
-      if (event.pointerId !== dragState.pointerId) return
+    const updateDragPreview = (clientX: number) => {
       const scrollEl = scrollRef.current
-      if (scrollEl) {
-        const rect = scrollEl.getBoundingClientRect()
-        if (event.clientX < rect.left + DRAG_EDGE_SCROLL_THRESHOLD_PX) {
-          scrollEl.scrollLeft = Math.max(0, scrollEl.scrollLeft - DRAG_EDGE_SCROLL_STEP_PX)
-        } else if (event.clientX > rect.right - DRAG_EDGE_SCROLL_THRESHOLD_PX) {
-          scrollEl.scrollLeft += DRAG_EDGE_SCROLL_STEP_PX
-        }
-      }
       const currentScrollLeft = scrollEl?.scrollLeft || 0
-      const deltaPx = event.clientX - dragState.originClientX + (currentScrollLeft - dragState.originScrollLeft)
+      const deltaPx = clientX - dragState.originClientX + (currentScrollLeft - dragState.originScrollLeft)
       const deltaMs = deltaPx * timelineUnitsPerPixel
       const nextOverride = resolveAnimationTimelineBeatTimingEdit({
         beats: dragState.beatsSnapshot,
@@ -1189,14 +1232,46 @@ export default function AnimationCanvas({
         snapStepMs: snapEnabled ? snapStepMs : null,
       })
       if (!nextOverride) return
-      setTimingOverrides(prev => ({
-        ...prev,
-        [dragState.beatRef]: nextOverride,
-      }))
+      setTimingOverrides(prev => {
+        const currentOverride = prev[dragState.beatRef]
+        if (currentOverride && currentOverride.startMs === nextOverride.startMs && currentOverride.endMs === nextOverride.endMs) {
+          return prev
+        }
+        return {
+          ...prev,
+          [dragState.beatRef]: nextOverride,
+        }
+      })
+    }
+    const updateDragEdgeScrollDirection = (clientX: number) => {
+      const scrollEl = scrollRef.current
+      if (!scrollEl) {
+        dragEdgeScrollDirectionRef.current = 0
+        return
+      }
+      const rect = scrollEl.getBoundingClientRect()
+      const maxScrollLeft = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth)
+      if (clientX < rect.left + DRAG_EDGE_SCROLL_THRESHOLD_PX && scrollEl.scrollLeft > 0) {
+        dragEdgeScrollDirectionRef.current = -1
+        return
+      }
+      if (clientX > rect.right - DRAG_EDGE_SCROLL_THRESHOLD_PX && scrollEl.scrollLeft < maxScrollLeft) {
+        dragEdgeScrollDirectionRef.current = 1
+        return
+      }
+      dragEdgeScrollDirectionRef.current = 0
+    }
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== dragState.pointerId) return
+      dragPointerClientXRef.current = event.clientX
+      updateDragEdgeScrollDirection(event.clientX)
+      updateDragPreview(event.clientX)
     }
     const commitDrag = async () => {
       const override = timingOverridesRef.current[dragState.beatRef]
       setDragState(null)
+      dragPointerClientXRef.current = null
+      dragEdgeScrollDirectionRef.current = 0
       if (!override) return
       const nextMarkdownText = updateAnimationTimelineMarkdownBeatTiming({
         markdownText,
@@ -1213,12 +1288,34 @@ export default function AnimationCanvas({
     }
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerId !== dragState.pointerId) return
+      dragPointerClientXRef.current = null
+      dragEdgeScrollDirectionRef.current = 0
       void commitDrag()
     }
+    let animationFrameId = 0
+    const tick = () => {
+      const scrollEl = scrollRef.current
+      const pointerClientX = dragPointerClientXRef.current
+      const direction = dragEdgeScrollDirectionRef.current
+      if (scrollEl && pointerClientX != null && direction !== 0) {
+        const maxScrollLeft = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth)
+        const nextScrollLeft = clamp(scrollEl.scrollLeft + direction * DRAG_EDGE_SCROLL_STEP_PX, 0, maxScrollLeft)
+        if (nextScrollLeft !== scrollEl.scrollLeft) {
+          scrollEl.scrollLeft = nextScrollLeft
+          updateDragEdgeScrollDirection(pointerClientX)
+          updateDragPreview(pointerClientX)
+        } else {
+          dragEdgeScrollDirectionRef.current = 0
+        }
+      }
+      animationFrameId = window.requestAnimationFrame(tick)
+    }
+    animationFrameId = window.requestAnimationFrame(tick)
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     window.addEventListener('pointerup', onPointerUp, { passive: true })
     window.addEventListener('pointercancel', onPointerUp, { passive: true })
     return () => {
+      window.cancelAnimationFrame(animationFrameId)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
@@ -1253,28 +1350,70 @@ export default function AnimationCanvas({
               type="button"
               role="switch"
               aria-checked={runtimeAutoScrollEnabled}
-              className={`ant-switch ${runtimeAutoScrollEnabled ? 'ant-switch-checked' : ''} relative inline-flex min-h-9 min-w-[248px] items-center rounded-full border px-3 py-2 pr-4 text-sm transition ${
-                runtimeAutoScrollEnabled
-                  ? 'border-cyan-400/70 bg-cyan-500/18 text-cyan-50 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]'
-                  : 'border-slate-700 bg-slate-900 text-slate-300'
-              }`}
+              className={runtimeAutoScrollEnabled ? 'ant-switch ant-switch-checked' : 'ant-switch'}
               ant-click-animating="true"
               style={{ marginBottom: 20 }}
               onClick={() => setRuntimeAutoScrollEnabled(current => !current)}
             >
-              <div
-                className={`ant-switch-handle absolute left-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-white shadow transition ${
-                  runtimeAutoScrollEnabled ? 'translate-x-[208px]' : 'translate-x-0'
-                }`}
-              />
-              <span className="ant-switch-inner block pr-10 text-left font-medium">Enable Runtime Auto Scroll</span>
-              <div className="ant-click-animating-node pointer-events-none absolute inset-0 rounded-full" />
+              <div className="ant-switch-handle"></div>
+              <span className="ant-switch-inner">Enable Runtime Auto Scroll</span>
+              <div className="ant-click-animating-node"></div>
             </button>
           </div>
+          <div className="timeline-player">
+            <button
+              type="button"
+              className="play-control"
+              aria-label={playing ? 'Pause playback' : 'Start playback'}
+              title={playing ? 'Pause (Space)' : 'Play (Space)'}
+              onClick={handleTogglePlayback}
+            >
+              <span role="img" aria-label={playing ? 'pause' : 'caret-right'} className={`anticon ${playing ? 'anticon-pause' : 'anticon-caret-right'}`}>
+                {playing ? (
+                  <svg viewBox="64 64 896 896" focusable="false" data-icon="pause" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                    <path d="M424 792V232c0-4.4-3.6-8-8-8h-72c-4.4 0-8 3.6-8 8v560c0 4.4 3.6 8 8 8h72c4.4 0 8-3.6 8-8zm264 0V232c0-4.4-3.6-8-8-8h-72c-4.4 0-8 3.6-8 8v560c0 4.4 3.6 8 8 8h72c4.4 0 8-3.6 8-8z"></path>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 1024 1024" focusable="false" data-icon="caret-right" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                    <path d="M715.8 493.5L335 165.1c-14.2-12.2-35-1.2-35 18.5v656.8c0 19.7 20.8 30.7 35 18.5l380.8-328.4c10.9-9.4 10.9-27.6 0-37z"></path>
+                  </svg>
+                )}
+              </span>
+            </button>
+            <div className="time">{currentTimeLabel}</div>
+            <div className="rate-control">
+              <label className="sr-only" htmlFor="animation-timeline-playback-rate">
+                Playback rate
+              </label>
+              <div className="ant-select ant-select-sm ant-select-single ant-select-show-arrow" style={{ width: 90 }}>
+                <select
+                  id="animation-timeline-playback-rate"
+                  className="ant-select-selection-native"
+                  value={String(playbackRate)}
+                  onChange={event => setPlaybackRate(Number(event.target.value) as (typeof PLAYBACK_RATES)[number])}
+                >
+                  {PLAYBACK_RATES.map(rate => (
+                    <option key={rate} value={String(rate)}>
+                      {rate.toFixed(1)}x
+                    </option>
+                  ))}
+                </select>
+                <div className="ant-select-selector">
+                  <span className="ant-select-selection-item" title={`${playbackRate.toFixed(1)}x`}>
+                    {playbackRate.toFixed(1)}x
+                  </span>
+                </div>
+                <span className="ant-select-arrow" unselectable="on" aria-hidden="true">
+                  <span role="img" aria-label="down" className="anticon anticon-down ant-select-suffix">
+                    <svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                      <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
+                    </svg>
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <IconButton title={playing ? 'Pause (Space)' : 'Play (Space)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleTogglePlayback}>
-              {playing ? <Pause className={toolbarIconClassName} /> : <Play className={toolbarIconClassName} />}
-            </IconButton>
             <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
               <SkipBack className={toolbarIconClassName} />
             </IconButton>
@@ -1339,26 +1478,6 @@ export default function AnimationCanvas({
             >
               <Trash2 className={toolbarIconClassName} />
             </IconButton>
-            <div className="flex h-10 items-center rounded-md border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-200">
-              <span className="font-mono">{currentTimeLabel}</span>
-            </div>
-            <div className="flex h-10 items-center rounded-md border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-400">
-              <span className="font-mono">{totalTimeLabel}</span>
-            </div>
-            <div className="flex h-10 items-center overflow-hidden rounded-md border border-slate-800 bg-slate-950/80">
-              {PLAYBACK_RATES.map(rate => (
-                <button
-                  key={rate}
-                  type="button"
-                  className={`h-full px-3 text-sm transition ${
-                    playbackRate === rate ? 'bg-cyan-500/18 text-cyan-50' : 'text-slate-300 hover:bg-slate-900'
-                  }`}
-                  onClick={() => setPlaybackRate(rate)}
-                >
-                  {rate.toFixed(1)}x
-                </button>
-              ))}
-            </div>
             <div className="flex h-10 items-center overflow-hidden rounded-md border border-slate-800 bg-slate-950/80">
               <button
                 type="button"
@@ -1613,7 +1732,7 @@ export default function AnimationCanvas({
                 tabIndex={selectedOrFirstLaneId === lane.id ? 0 : -1}
                 role="option"
                 aria-selected={selectedLaneId === lane.id}
-                className={`flex cursor-pointer items-center justify-between gap-2 border-b px-3 text-sm font-medium text-slate-200 transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
+                className={`flex cursor-pointer items-center justify-between gap-2 border-b px-2 text-xs font-medium text-slate-200 transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
                   selectedLaneId === lane.id ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-slate-800'
                 }`}
                 style={{ minHeight: LANE_ROW_HEIGHT_PX }}
@@ -1646,20 +1765,20 @@ export default function AnimationCanvas({
                   <IconButton
                     title={`Move ${lane.label} up`}
                     showTooltip
-                    className={getTimelineIconButtonClassName(lanePresentations[0]?.id !== lane.id)}
+                    className={getTimelineCompactIconButtonClassName(lanePresentations[0]?.id !== lane.id)}
                     onClick={() => void handleReorderLane(lane.id, -1)}
                     disabled={lanePresentations[0]?.id === lane.id}
                   >
-                    <ArrowUp className={toolbarIconClassName} />
+                    <ArrowUp className={compactToolbarIconClassName} />
                   </IconButton>
                   <IconButton
                     title={`Move ${lane.label} down`}
                     showTooltip
-                    className={getTimelineIconButtonClassName(lanePresentations[lanePresentations.length - 1]?.id !== lane.id)}
+                    className={getTimelineCompactIconButtonClassName(lanePresentations[lanePresentations.length - 1]?.id !== lane.id)}
                     onClick={() => void handleReorderLane(lane.id, 1)}
                     disabled={lanePresentations[lanePresentations.length - 1]?.id === lane.id}
                   >
-                    <ArrowDown className={toolbarIconClassName} />
+                    <ArrowDown className={compactToolbarIconClassName} />
                   </IconButton>
                   <div className="min-w-0">
                     <div
@@ -1669,7 +1788,7 @@ export default function AnimationCanvas({
                       {lane.label}
                     </div>
                     {selectedLaneId === lane.id ? (
-                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-cyan-100">
+                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-cyan-100">
                         <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Up/Down focus</span>
                         <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Home/End rail</span>
                         <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">[ / ] reorder</span>
@@ -1710,18 +1829,37 @@ export default function AnimationCanvas({
               ))}
             </div>
           </aside>
-          <div ref={scrollRef} className="min-w-0 flex-1 overflow-auto bg-[#0b1020]">
+          <div ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">
             <div className="relative" style={{ width: Math.max(totalTimelineWidth, 1) }}>
               <div
-                className="pointer-events-none absolute z-20 w-px bg-cyan-300/90 shadow-[0_0_16px_rgba(34,211,238,0.45)]"
+                className="timeline-editor-cursor pointer-events-none absolute z-20"
+                draggable={false}
+                data-width="2"
+                data-left={playheadOffsetPx}
                 style={{
+                  width: 2,
                   left: playheadOffsetPx,
                   top: 0,
                   height: SCALE_ROW_HEIGHT_PX + BEAT_HEADER_HEIGHT_PX + lanePresentations.length * LANE_ROW_HEIGHT_PX,
                 }}
-              />
+              >
+                <svg className="timeline-editor-cursor-top" width="8" height="12" viewBox="0 0 8 12" fill="none">
+                  <path d="M0 1C0 0.447715 0.447715 0 1 0H7C7.55228 0 8 0.447715 8 1V9.38197C8 9.76074 7.786 10.107 7.44721 10.2764L4.44721 11.7764C4.16569 11.9172 3.83431 11.9172 3.55279 11.7764L0.552786 10.2764C0.214002 10.107 0 9.76074 0 9.38197V1Z" fill="#5297FF"></path>
+                </svg>
+                <div className="timeline-editor-cursor-area"></div>
+              </div>
               <div className="sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">
-                <div className="relative border-b border-slate-800" style={{ height: SCALE_ROW_HEIGHT_PX }}>
+                <div className="timeline-editor-time-area relative border-b border-slate-800" style={{ height: SCALE_ROW_HEIGHT_PX }}>
+                  {timelineEditorTimeUnits.map(unit => (
+                    <div
+                      key={unit.key}
+                      role="gridcell"
+                      className={`timeline-editor-time-unit ${unit.big ? 'timeline-editor-time-unit-big' : ''}`}
+                      style={{ left: unit.left, width: unit.width, height: SCALE_ROW_HEIGHT_PX }}
+                    >
+                      {unit.label ? <div className="timeline-editor-time-unit-scale">{unit.label}</div> : null}
+                    </div>
+                  ))}
                   {snapMarks.map(mark => {
                     const left = timelineModel.totalSpan > 0 ? (mark / timelineModel.totalSpan) * totalTimelineWidth : 0
                     return (
@@ -1740,7 +1878,7 @@ export default function AnimationCanvas({
                     )
                   })}
                 </div>
-                <div className="flex border-b border-slate-800" role="listbox" aria-label="Animation timeline beats">
+                <div className="timeline-editor-edit-area flex border-b border-slate-800" role="listbox" aria-label="Animation timeline beats">
                   {timelineModel.beats.map((beat, index) => {
                     const isActiveBeat = index === activeBeatIndex
                     const beatLaneSummary = buildBeatLaneSummary(beat.items)
@@ -1773,7 +1911,7 @@ export default function AnimationCanvas({
                         role="option"
                         aria-selected={isActiveBeat}
                         title={`Tab to focus ${beat.label}; use Arrow Left/Right, Home, End`}
-                        className={`group/beat relative flex shrink-0 flex-col justify-start overflow-hidden border-r border-slate-800 px-4 py-3 text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
+                        className={`group/beat relative flex shrink-0 flex-col justify-start overflow-hidden border-r border-slate-800 px-3 py-2 text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
                           isActiveBeat ? 'bg-cyan-500/10' : 'bg-transparent hover:bg-slate-900/80'
                         }`}
                         style={{ width: beatWidths[index], height: BEAT_HEADER_HEIGHT_PX }}
@@ -1801,7 +1939,7 @@ export default function AnimationCanvas({
                           }
                         }}
                       >
-                        <div className="absolute right-3 top-3 z-30 flex items-center gap-1 opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100">
+                        <div className="absolute right-2 top-2 z-30 flex items-center gap-1 opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100">
                           <IconButton
                             title={`Insert beat before ${beat.label}`}
                             showTooltip
@@ -1944,9 +2082,9 @@ export default function AnimationCanvas({
                         ) : (
                           <span />
                         )}
-                        <span className="relative z-10 text-[11px] uppercase tracking-[0.22em] text-slate-500">{beat.beatRef}</span>
-                        <span className="relative z-10 mt-1 text-sm font-semibold text-slate-100">{beat.label}</span>
-                        <div className="relative z-10 mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                        <span className="relative z-10 text-[10px] uppercase tracking-[0.18em] text-slate-500">{beat.beatRef}</span>
+                        <span className="relative z-10 mt-0.5 text-xs font-semibold text-slate-100">{beat.label}</span>
+                        <div className="relative z-10 mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-slate-400">
                           <span>
                             {timelineModel.usesAbsoluteTiming
                               ? `${formatAnimationTimelineTimestamp(beat.startMs)} -> ${formatAnimationTimelineTimestamp(beat.endMs)}`
@@ -1957,12 +2095,12 @@ export default function AnimationCanvas({
                           </span>
                         </div>
                         {beatLaneSummary.length > 0 ? (
-                          <div className="relative z-10 mt-2 flex items-center gap-1 overflow-hidden text-[11px]">
+                          <div className="relative z-10 mt-1 flex items-center gap-1 overflow-hidden text-[10px]">
                             {visibleBeatLaneSummary.map(({ laneId, count }) => (
                               <button
                                 type="button"
                                 key={`${beat.beatRef}:lane:${laneId}`}
-                                className={`truncate rounded-full border px-2 py-0.5 transition hover:brightness-110 focus:outline-none focus:ring-1 focus:ring-cyan-300 ${LANE_ACCENT_CLASS[laneId]}`}
+                                className={`truncate rounded-full border px-1.5 py-0.5 transition hover:brightness-110 focus:outline-none focus:ring-1 focus:ring-cyan-300 ${LANE_ACCENT_CLASS[laneId]}`}
                                 title={`${LANE_LABEL[laneId]}: ${count} item${count === 1 ? '' : 's'}`}
                                 onClick={() => handleFocusLaneFromBeatCard(laneId)}
                               >
@@ -1980,16 +2118,16 @@ export default function AnimationCanvas({
                           </div>
                         ) : null}
                         {beat.summary ? (
-                          <span className="relative z-10 mt-2 truncate text-xs text-slate-300" title={beat.summary}>
+                          <span className="relative z-10 mt-1 truncate text-[11px] text-slate-300" title={beat.summary}>
                             {beat.summary}
                           </span>
                         ) : null}
                         {beat.tags.length > 0 ? (
-                          <div className="relative z-10 mt-2 flex items-center gap-1 overflow-hidden text-[11px]">
+                          <div className="relative z-10 mt-1 flex items-center gap-1 overflow-hidden text-[10px]">
                             {beat.tags.slice(0, 3).map(tag => (
                               <span
                                 key={`${beat.beatRef}:${tag}`}
-                                className="truncate rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-cyan-100"
+                                className="truncate rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-cyan-100"
                                 title={tag}
                               >
                                 {tag}
@@ -2006,13 +2144,13 @@ export default function AnimationCanvas({
                           </div>
                         ) : null}
                         {isActiveBeat ? (
-                          <div className="relative z-10 mt-2 flex flex-wrap items-center gap-1 text-[11px] text-cyan-100">
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">L rename</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">N note</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">M summary</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">T tags</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">D duplicate</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">S split</span>
+                          <div className="relative z-10 mt-1 flex flex-wrap items-center gap-1 text-[10px] text-cyan-100">
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Rename beat (L)">L</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Edit note (N)">N</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Edit summary (M)">M</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Edit tags (T)">T</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Duplicate beat (D)">D</span>
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Split beat (S)">S</span>
                           </div>
                         ) : null}
                       </div>
@@ -2026,7 +2164,7 @@ export default function AnimationCanvas({
                   ref={node => {
                     laneRowRefs.current[lane.id] = node
                   }}
-                  className={`flex border-b transition ${
+                  className={`timeline-editor-edit-row flex border-b transition ${
                     highlightedLaneShortcutId === lane.id ? 'border-cyan-500/70 bg-cyan-500/5' : 'border-slate-900/80'
                   }`}
                 >
@@ -2036,16 +2174,17 @@ export default function AnimationCanvas({
                     return (
                       <div
                         key={`${lane.id}:${beat.beatRef}`}
-                        className={`shrink-0 border-r border-slate-800 px-3 py-3 ${
+                        className={`shrink-0 border-r border-slate-800 px-2 py-2 ${
                           isActiveBeat ? 'bg-slate-900/75' : 'bg-[#0b1020]'
                         }`}
                         style={{ width: beatWidths[index], minHeight: LANE_ROW_HEIGHT_PX }}
                       >
                         {lane.visibleItems && laneItems.length > 0 ? (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-1">
                             {laneItems.map(item => {
                               const previousBeat = timelineModel.beats[index - 1] || null
                               const nextBeat = timelineModel.beats[index + 1] || null
+                              const actionEffectClassName = resolveTimelineEditorActionEffectClassName(item.laneId)
                               return (
                                 <article
                                   key={item.id}
@@ -2056,7 +2195,7 @@ export default function AnimationCanvas({
                                   role="option"
                                   aria-selected={selectedItemNodeId === item.nodeId}
                                   title={`Focus ${item.title}; use Arrow Up/Down, Home, End, , and .`}
-                                  className={`rounded-md border px-3 py-2 shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
+                                  className={`timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible timeline-editor-action-effect-${actionEffectClassName} rounded-[4px] border px-2 py-1 shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
                                     lane.muted ? 'opacity-40 saturate-50' : ''
                                   } ${
                                     selectedItemNodeId === item.nodeId ? 'ring-1 ring-cyan-300' : ''
@@ -2097,12 +2236,14 @@ export default function AnimationCanvas({
                                     }
                                   }}
                                 >
-                                  <div className="flex items-start justify-between gap-2">
+                                  <div className={`timeline-editor-action-effect timeline-editor-action-effect-${actionEffectClassName} ${actionEffectClassName} flex items-start justify-between gap-1.5`}>
                                     <div className="min-w-0 flex-1">
-                                      <div className="truncate text-sm font-semibold">{item.title}</div>
-                                      <div className="mt-1 truncate text-xs opacity-80">{item.subtitle || item.kind}</div>
+                                      <div className={`${actionEffectClassName}-text truncate text-[10px] font-normal`}>{item.title}</div>
                                       {selectedItemNodeId === item.nodeId ? (
-                                        <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-cyan-100">
+                                        <div className={`${actionEffectClassName}-text mt-1 truncate text-[10px] opacity-80`}>{item.subtitle || item.kind}</div>
+                                      ) : null}
+                                      {selectedItemNodeId === item.nodeId ? (
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px] text-cyan-100">
                                           <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Up/Down focus</span>
                                           <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Home/End rail</span>
                                           <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">, prev beat</span>
@@ -2114,23 +2255,25 @@ export default function AnimationCanvas({
                                       <IconButton
                                         title={previousBeat ? `Move ${item.title} to ${previousBeat.label}` : `No previous beat for ${item.title}`}
                                         showTooltip
-                                        className={getTimelineIconButtonClassName(!!previousBeat)}
+                                        className={getTimelineCompactIconButtonClassName(!!previousBeat)}
                                         onClick={() => void handleMoveItemToBeat(item.nodeId, previousBeat)}
                                         disabled={!previousBeat}
                                       >
-                                        <ArrowLeft className={toolbarIconClassName} />
+                                        <ArrowLeft className={compactToolbarIconClassName} />
                                       </IconButton>
                                       <IconButton
                                         title={nextBeat ? `Move ${item.title} to ${nextBeat.label}` : `No next beat for ${item.title}`}
                                         showTooltip
-                                        className={getTimelineIconButtonClassName(!!nextBeat)}
+                                        className={getTimelineCompactIconButtonClassName(!!nextBeat)}
                                         onClick={() => void handleMoveItemToBeat(item.nodeId, nextBeat)}
                                         disabled={!nextBeat}
                                       >
-                                        <ArrowRight className={toolbarIconClassName} />
+                                        <ArrowRight className={compactToolbarIconClassName} />
                                       </IconButton>
                                     </div>
                                   </div>
+                                  <div className="timeline-editor-action-left-stretch" aria-hidden="true"></div>
+                                  <div className="timeline-editor-action-right-stretch" aria-hidden="true"></div>
                                 </article>
                               )
                             })}

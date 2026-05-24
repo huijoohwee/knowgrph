@@ -32,6 +32,7 @@ export default function App() {
     let cancelled = false
     let cleanupTheme = () => void 0
     let cleanupIntegration = () => void 0
+    let cleanupWorkspaceRuntime = () => void 0
     let storageHandler: ((e: StorageEvent) => void) | null = null
 
     const handle = scheduleIdle(() => {
@@ -41,6 +42,7 @@ export default function App() {
         import('@/lib/canvas/space-pan'),
         import('@/lib/ui/tokens-ssot'),
         import('@/features/integrations/command'),
+        import('@/features/agent-ready/workspaceRuntimeCommand'),
         import('@/features/spotlight/storage'),
         import('@/lib/persistence'),
         import('@/lib/ui/theme'),
@@ -53,6 +55,7 @@ export default function App() {
           spacePanModule,
           tokensModule,
           integrationsModule,
+          workspaceRuntimeModule,
           spotlightStorageModule,
           persistenceModule,
           themeModule,
@@ -66,6 +69,7 @@ export default function App() {
           interactionRecoveryModule.installGlobalInteractionRecovery()
           tokensModule.ensureKgTokensInstalled()
           cleanupIntegration = integrationsModule.installIntegrationUtilityCommand()
+          cleanupWorkspaceRuntime = workspaceRuntimeModule.installWorkspaceRuntimeCommand()
 
           const storage = persistenceModule.getLocalStorage()
           spotlightStorageModule.clearOnboardingSpotlight(storage)
@@ -112,6 +116,11 @@ export default function App() {
       }
       try {
         cleanupIntegration()
+      } catch {
+        void 0
+      }
+      try {
+        cleanupWorkspaceRuntime()
       } catch {
         void 0
       }

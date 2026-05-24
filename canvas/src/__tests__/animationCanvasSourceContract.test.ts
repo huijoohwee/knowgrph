@@ -10,12 +10,12 @@ export function testAnimationCanvasRetainsNativeRunnerAutoScrollSwitchContract()
     'type="button"',
     'role="switch"',
     'aria-checked={runtimeAutoScrollEnabled}',
-    "className={`ant-switch ${runtimeAutoScrollEnabled ? 'ant-switch-checked' : ''}",
+    "className={runtimeAutoScrollEnabled ? 'ant-switch ant-switch-checked' : 'ant-switch'}",
     'ant-click-animating="true"',
     'style={{ marginBottom: 20 }}',
-    "className={`ant-switch-handle absolute left-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-white shadow transition ${",
-    '<span className="ant-switch-inner block pr-10 text-left font-medium">Enable Runtime Auto Scroll</span>',
-    '<div className="ant-click-animating-node pointer-events-none absolute inset-0 rounded-full" />',
+    '<div className="ant-switch-handle"></div>',
+    '<span className="ant-switch-inner">Enable Runtime Auto Scroll</span>',
+    '<div className="ant-click-animating-node"></div>',
   ] as const
   for (const snippet of orderedSnippets) {
     if (!text.includes(snippet)) {
@@ -30,6 +30,54 @@ export function testAnimationCanvasRetainsNativeRunnerAutoScrollSwitchContract()
       throw new Error(`expected AnimationCanvas ordered switch contract snippet to appear after the prior snippet: ${snippet}`)
     }
     previousIndex = nextIndex
+  }
+}
+
+export function testAnimationCanvasRetainsReferencePlayerAndTimelineShellContract() {
+  const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
+  for (const snippet of [
+    'const SCALE_ROW_HEIGHT_PX = 32',
+    'const LANE_ROW_HEIGHT_PX = 72',
+    '<div className="timeline-player">',
+    'className="play-control"',
+    "aria-label={playing ? 'pause' : 'caret-right'}",
+    '<div className="time">{currentTimeLabel}</div>',
+    '<div className="rate-control">',
+    'className="ant-select ant-select-sm ant-select-single ant-select-show-arrow"',
+    '<div ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">',
+    'className="timeline-editor-time-area relative border-b border-slate-800"',
+    'timeline-editor-time-unit',
+    'timeline-editor-time-unit-big',
+    'timeline-editor-time-unit-scale',
+    'className="timeline-editor-edit-area flex border-b border-slate-800"',
+    'className="timeline-editor-cursor pointer-events-none absolute z-20"',
+    'className="timeline-editor-cursor-top"',
+    'className="timeline-editor-cursor-area"',
+    'className={`timeline-editor-edit-row flex border-b transition ${',
+    'timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible',
+    'resolveTimelineEditorActionEffectClassName',
+    "laneId === 'audio' ? 'effect0' : 'effect1'",
+    'timeline-editor-action-effect-${actionEffectClassName}',
+    '${actionEffectClassName} flex items-start justify-between gap-1.5',
+    '${actionEffectClassName}-text',
+    'timeline-editor-action-left-stretch',
+    'timeline-editor-action-right-stretch',
+    'getTimelineCompactIconButtonClassName(lanePresentations[0]?.id !== lane.id)',
+    'getTimelineCompactIconButtonClassName(!!previousBeat)',
+    'compactToolbarIconClassName',
+    'dragPointerClientXRef',
+    'dragEdgeScrollDirectionRef',
+    'window.requestAnimationFrame(tick)',
+    'updateDragEdgeScrollDirection(pointerClientX)',
+  ]) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected AnimationCanvas to retain reference player/timeline shell snippet: ${snippet}`)
+    }
+  }
+  for (const forbiddenSnippet of ['timeline-player-meta', 'timeline-player-chip', 'Auto Scroll On', 'Auto Scroll Off']) {
+    if (text.includes(forbiddenSnippet)) {
+      throw new Error(`expected AnimationCanvas player shell to avoid local-only meta chrome snippet: ${forbiddenSnippet}`)
+    }
   }
 }
 
@@ -62,7 +110,7 @@ export function testAnimationCanvasReusesSharedToolbarIconButtons() {
 
 export function testAnimationCanvasSurfacesBeatSummaryAndTagsInTimelineCards() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
-  for (const snippet of ['BEAT_HEADER_HEIGHT_PX = 136', 'buildBeatLaneSummary', 'handleFocusLaneFromBeatCard', 'highlightedLaneShortcutId === lane.id', 'beatLaneSummary.length > 0 ? (', 'LANE_LABEL[laneId]', 'beat.summary ? (', 'beat.tags.length > 0 ? (', 'beat.tags.slice(0, 3)', '+{beat.tags.length - 3}']) {
+  for (const snippet of ['BEAT_HEADER_HEIGHT_PX = 104', 'buildBeatLaneSummary', 'handleFocusLaneFromBeatCard', 'highlightedLaneShortcutId === lane.id', 'beatLaneSummary.length > 0 ? (', 'LANE_LABEL[laneId]', 'beat.summary ? (', 'beat.tags.length > 0 ? (', 'beat.tags.slice(0, 3)', '+{beat.tags.length - 3}', 'title="Rename beat (L)"', 'title="Duplicate beat (D)"']) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimationCanvas beat cards to surface metadata snippet: ${snippet}`)
     }
@@ -163,6 +211,9 @@ export function testAnimationCanvasRegistersNativeTimelineHotkeys() {
     'role="option"',
     'aria-selected={selectedItemNodeId === item.nodeId}',
     'Focus ${item.title}; use Arrow Up/Down, Home, End, , and .',
+    'timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible',
+    'timeline-editor-action-left-stretch',
+    'timeline-editor-action-right-stretch',
     'focus-visible:ring-cyan-300',
     'setSelectedItemNodeId(item.nodeId)',
     "const itemIndex = selectedLaneVisibleItemContexts.findIndex(entry => entry.nodeId === item.nodeId)",
@@ -181,12 +232,12 @@ export function testAnimationCanvasRegistersNativeTimelineHotkeys() {
     'Tab to focus ${beat.label}; use Arrow Left/Right, Home, End',
     "if (event.key === 'ArrowLeft')",
     "if (event.key === 'ArrowRight')",
-    'L rename',
-    'N note',
-    'M summary',
-    'T tags',
-    'D duplicate',
-    'S split',
+    'title="Rename beat (L)"',
+    'title="Edit note (N)"',
+    'title="Edit summary (M)"',
+    'title="Edit tags (T)"',
+    'title="Duplicate beat (D)"',
+    'title="Split beat (S)"',
   ]) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimationCanvas to retain native hotkey contract snippet: ${snippet}`)

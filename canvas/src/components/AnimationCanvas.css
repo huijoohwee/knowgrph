@@ -1,0 +1,298 @@
+.player-config {
+  --kg-animation-switch-width: 185px;
+  --kg-animation-switch-height: 22px;
+  --kg-animation-switch-handle-size: 18px;
+  --kg-animation-switch-handle-offset: 163px;
+}
+
+.player-config .ant-switch {
+  position: relative;
+  display: inline-flex;
+  width: var(--kg-animation-switch-width);
+  min-height: var(--kg-animation-switch-height);
+  height: var(--kg-animation-switch-height);
+  align-items: center;
+  border: 0;
+  border-radius: 100px;
+  background: rgb(191 191 191 / 1);
+  color: rgb(0 0 0 / 0.85);
+  font-size: 14px;
+  line-height: var(--kg-animation-switch-height);
+  padding: 0;
+  overflow: hidden;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.player-config .ant-switch.ant-switch-checked {
+  background: rgb(24 144 255 / 1);
+  color: rgb(0 0 0 / 0.85);
+  box-shadow: none;
+}
+
+.player-config .ant-switch-handle {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  height: var(--kg-animation-switch-handle-size);
+  width: var(--kg-animation-switch-handle-size);
+  transform: none;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 1);
+  box-shadow: 0 2px 4px rgb(0 35 11 / 0.2);
+  transition: transform 160ms ease;
+}
+
+.player-config .ant-switch.ant-switch-checked .ant-switch-handle {
+  transform: translateX(var(--kg-animation-switch-handle-offset));
+}
+
+.player-config .ant-switch-inner {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: var(--kg-animation-switch-height);
+  height: var(--kg-animation-switch-height);
+  padding: 0 12px 0 26px;
+  color: rgb(255 255 255 / 1);
+}
+
+.player-config .ant-click-animating-node {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+}
+
+.timeline-player {
+  --kg-animation-player-height: 32px;
+  --kg-animation-player-padding-x: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 0;
+  background: rgb(58 58 58 / 1);
+  color: rgb(221 221 221 / 1);
+  margin-bottom: 16px;
+  padding: 0 var(--kg-animation-player-padding-x);
+  min-height: var(--kg-animation-player-height);
+  height: var(--kg-animation-player-height);
+}
+
+.timeline-player .play-control {
+  display: inline-flex;
+  height: 24px;
+  width: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: rgb(102 102 102 / 1);
+  color: inherit;
+}
+
+.timeline-player .play-control:hover {
+  background: rgb(122 122 122 / 1);
+}
+
+.timeline-player .anticon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 27.2px;
+}
+
+.timeline-player .time {
+  min-width: 70px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  line-height: 20.4px;
+}
+
+.timeline-player .rate-control {
+  display: flex;
+  align-items: center;
+}
+
+.timeline-player .ant-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  height: 24px;
+  color: rgb(0 0 0 / 0.85);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.timeline-player .ant-select-selection-native {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.timeline-player .ant-select-selector {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding-right: 21px;
+}
+
+.timeline-player .ant-select-selection-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  height: 24px;
+  font-size: 12px;
+  line-height: 22px;
+  padding-right: 21px;
+  color: rgb(221 221 221 / 1);
+}
+
+.timeline-player .ant-select-arrow {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(221 221 221 / 1);
+}
+
+.timeline-editor {
+  position: relative;
+}
+
+.timeline-editor-time-area {
+  background:
+    linear-gradient(to right, rgb(14 22 37 / 1) 0, rgb(14 22 37 / 1) 1px, transparent 1px, transparent 100%);
+}
+
+.timeline-editor-time-unit {
+  position: absolute;
+  top: 0;
+  border-left: 1px solid rgb(71 85 105 / 0.22);
+}
+
+.timeline-editor-time-unit-big {
+  border-left-color: rgb(71 85 105 / 0.6);
+}
+
+.timeline-editor-time-unit-scale {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgb(148 163 184 / 0.9);
+}
+
+.timeline-editor-edit-area {
+  position: relative;
+}
+
+.timeline-editor-edit-row {
+  background-color: rgb(11 16 32 / 0.88);
+}
+
+.timeline-editor-action {
+  position: relative;
+  overflow: hidden;
+  min-height: 28px;
+}
+
+.timeline-editor-action-effect-effect0 {
+  border-color: rgb(217 119 6 / 0.45);
+  background: linear-gradient(180deg, rgb(217 119 6 / 0.26), rgb(180 83 9 / 0.22));
+  color: rgb(254 243 199 / 1);
+}
+
+.timeline-editor-action-effect-effect1 {
+  border-color: rgb(168 85 247 / 0.42);
+  background: linear-gradient(180deg, rgb(147 51 234 / 0.28), rgb(109 40 217 / 0.24));
+  color: rgb(243 232 255 / 1);
+}
+
+.timeline-editor-action-effect {
+  position: relative;
+  z-index: 1;
+  align-items: center;
+}
+
+.effect0,
+.effect1 {
+  width: 100%;
+}
+
+.effect0-text,
+.effect1-text {
+  color: inherit;
+  font-size: 10px;
+  line-height: 17px;
+  font-weight: 400;
+}
+
+.timeline-editor-action-left-stretch,
+.timeline-editor-action-right-stretch {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: rgb(255 255 255 / 0.08);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.timeline-editor-action-left-stretch {
+  left: 0;
+}
+
+.timeline-editor-action-right-stretch {
+  right: 0;
+}
+
+.timeline-editor-action:hover .timeline-editor-action-left-stretch,
+.timeline-editor-action:hover .timeline-editor-action-right-stretch,
+.timeline-editor-action:focus-within .timeline-editor-action-left-stretch,
+.timeline-editor-action:focus-within .timeline-editor-action-right-stretch {
+  opacity: 1;
+}
+
+.timeline-editor-cursor {
+  transform: translateX(-1px);
+}
+
+.timeline-editor-cursor::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 0;
+  width: 2px;
+  background: rgb(82 151 255 / 1);
+  box-shadow: 0 0 16px rgb(34 211 238 / 0.35);
+}
+
+.timeline-editor-cursor-top {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.timeline-editor-cursor-area {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: 0;
+  bottom: 0;
+}
