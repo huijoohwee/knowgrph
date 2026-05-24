@@ -1,4 +1,4 @@
-import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, Palette, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
+import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, MonitorPlay, Palette, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { isD3Like2dRenderer } from '@/lib/config.render'
@@ -39,6 +39,12 @@ export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] => [
     title: UI_COPY.canvasViewRendererFlowTitle,
     Icon: GitMerge,
     label: 'Canvas',
+  },
+  {
+    id: 'animation' as const,
+    title: UI_COPY.canvasViewRendererAnimationTitle,
+    Icon: MonitorPlay,
+    label: 'Anim',
   },
   {
     id: 'design' as const,

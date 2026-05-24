@@ -114,6 +114,7 @@ function readCanvas2dRendererPreset(value: unknown): Canvas2dRendererId | undefi
     raw === 'd3' ||
     raw === 'flowchart' ||
     raw === 'flow' ||
+    raw === 'animation' ||
     raw === 'flowEditor' ||
     raw === 'design'
   ) {
@@ -123,6 +124,7 @@ function readCanvas2dRendererPreset(value: unknown): Canvas2dRendererId | undefi
   if (normalized === 'd3' || normalized === 'd3graph') return 'd3'
   if (normalized === 'd3flowchart' || normalized === 'flowchart' || normalized === 'flowchart') return 'flowchart'
   if (normalized === 'flow' || normalized === 'flowcanvas') return 'flow'
+  if (normalized === 'animation' || normalized === 'anim' || normalized === 'timelineanimation') return 'animation'
   if (normalized === 'floweditor' || normalized === 'edit') return 'flowEditor'
   if (normalized === 'design') return 'design'
   return undefined

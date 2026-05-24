@@ -1,8 +1,8 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animation', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'flow', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animation', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
@@ -24,6 +24,10 @@ export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined
   return id === 'flow' || id === 'flowEditor'
 }
 
+export const isAnimationCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'animation'
+}
+
 export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flowEditor'
 }
@@ -42,13 +46,14 @@ export const isFrontmatterOnlyPolicyActive = (args: {
 export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined): Canvas2dSurfaceId | null => {
   if (isD3Like2dRenderer(id)) return 'd3'
   if (id === 'flow') return 'flow'
+  if (id === 'animation') return 'animation'
   if (id === 'flowEditor') return 'flowEditor'
   if (id === 'design') return 'design'
   return null
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isAnimationCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const
