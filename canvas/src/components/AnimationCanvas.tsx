@@ -27,6 +27,13 @@ import IconButton from '@/components/IconButton'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  uiToolbarResponsiveRowScrollClassName,
+  uiToolbarRowScrollClassName,
+  uiToolbarTouchRowScrollClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
+import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import {
   isAnimationTimelineMutationHotkeyAction,
   resolveAnimationTimelineHotkeyAction,
   shouldIgnoreAnimationTimelineHotkeys,
@@ -59,26 +66,54 @@ import {
   updateAnimationTimelineMarkdownBeatSummary,
   updateAnimationTimelineMarkdownBeatTags,
   updateAnimationTimelineMarkdownBeatTiming,
+  updateAnimationTimelineMarkdownBeatTimingOverrides,
 } from '@/components/AnimationCanvas/animationTimeline'
 import './AnimationCanvas.css'
 
 const ORDINAL_PLAYBACK_BEAT_MS = 1000
 const SCALE_ROW_HEIGHT_PX = 32
-const BEAT_HEADER_HEIGHT_PX = 104
-const LANE_ROW_HEIGHT_PX = 72
+const BEAT_HEADER_HEIGHT_PX = 72
+const LANE_ROW_HEIGHT_PX = 32
 const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const
 const SNAP_STEP_OPTIONS_MS = [100, 250, 500, 1000] as const
 const EDIT_MIN_DURATION_MS = 300
 const DRAG_EDGE_SCROLL_THRESHOLD_PX = 72
 const DRAG_EDGE_SCROLL_STEP_PX = 28
 const BEAT_LANE_SUMMARY_LIMIT = 3
+const TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME =
+  'rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1 py-0 text-[8px] leading-3 text-cyan-100'
+
+const SELECTED_LANE_HINTS = [
+  { label: 'Arrows', title: 'Arrow Up/Down focus lane' },
+  { label: 'Home/End', title: 'Jump to first or last lane' },
+  { label: '[ / ]', title: 'Reorder the selected lane' },
+  { label: 'H', title: 'Hide or show the selected lane' },
+  { label: 'U', title: 'Mute or unmute the selected lane' },
+  { label: 'O', title: 'Solo or unsolo the selected lane' },
+] as const
+
+const SELECTED_ITEM_HINTS = [
+  { label: 'Arrows', title: 'Arrow Up/Down focus item' },
+  { label: 'Home/End', title: 'Jump to first or last item' },
+  { label: ',', title: 'Move the selected item to the previous beat' },
+  { label: '.', title: 'Move the selected item to the next beat' },
+] as const
+
+const SELECTED_BEAT_HINTS = [
+  { label: 'L', title: 'Rename beat (L)' },
+  { label: 'N', title: 'Edit note (N)' },
+  { label: 'M', title: 'Edit summary (M)' },
+  { label: 'T', title: 'Edit tags (T)' },
+  { label: 'D', title: 'Duplicate beat (D)' },
+  { label: 'S', title: 'Split beat (S)' },
+] as const
 
 const LANE_ACCENT_CLASS: Record<AnimationTimelineLaneId, string> = {
-  clip: 'border-cyan-400/40 bg-cyan-500/12 text-cyan-50',
-  overlay: 'border-fuchsia-400/40 bg-fuchsia-500/12 text-fuchsia-50',
-  audio: 'border-amber-400/40 bg-amber-500/12 text-amber-50',
-  scene: 'border-emerald-400/40 bg-emerald-500/12 text-emerald-50',
-  node: 'border-slate-500/40 bg-slate-500/12 text-slate-100',
+  clip: 'border-cyan-400/30 bg-cyan-500/8 text-cyan-50',
+  overlay: 'border-fuchsia-400/30 bg-fuchsia-500/8 text-fuchsia-50',
+  audio: 'border-amber-400/30 bg-amber-500/8 text-amber-50',
+  scene: 'border-emerald-400/30 bg-emerald-500/8 text-emerald-50',
+  node: 'border-slate-500/30 bg-slate-500/8 text-slate-100',
 }
 
 const LANE_LABEL: Record<AnimationTimelineLaneId, string> = {
@@ -89,8 +124,41 @@ const LANE_LABEL: Record<AnimationTimelineLaneId, string> = {
   node: 'Node',
 }
 
+const LANE_ITEM_RESIZE_EDGE_PX = 14
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+function shouldIgnoreTimelineActionPointerMoveStart(target: EventTarget | null): boolean {
+  const element = target instanceof Element ? target : null
+  if (!element) return false
+  return !!element.closest('button, a, input, textarea, select, [data-kg-timeline-action-ignore-drag="true"]')
+}
+
+function resolveLaneItemPointerStartMode(event: React.PointerEvent<HTMLElement>): AnimationDragState['mode'] {
+  const currentTarget = event.currentTarget
+  const rect = currentTarget.getBoundingClientRect()
+  const offsetX = event.clientX - rect.left
+  if (offsetX <= LANE_ITEM_RESIZE_EDGE_PX) return 'resize-start'
+  if (rect.right - event.clientX <= LANE_ITEM_RESIZE_EDGE_PX) return 'resize-end'
+  return 'move'
+}
+
+function areTimingOverrideRecordsEqual(
+  left: Record<string, AnimationTimelineBeatTimingOverride>,
+  right: Record<string, AnimationTimelineBeatTimingOverride>,
+): boolean {
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
+  if (leftKeys.length !== rightKeys.length) return false
+  for (const key of leftKeys) {
+    const leftOverride = left[key]
+    const rightOverride = right[key]
+    if (!leftOverride || !rightOverride) return false
+    if (leftOverride.startMs !== rightOverride.startMs || leftOverride.endMs !== rightOverride.endMs) return false
+  }
+  return true
 }
 
 function buildScaleMarks(args: {
@@ -201,9 +269,33 @@ function getTimelineIconButtonClassName(enabled: boolean, accent: 'default' | 'a
   return 'h-10 w-10 border border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-600 hover:bg-slate-800'
 }
 
-function getTimelineCompactIconButtonClassName(enabled: boolean): string {
+function getTimelineCompactIconButtonClassName(
+  enabled: boolean,
+  accent: 'default' | 'amber' | 'cyan' = 'default',
+): string {
   if (!enabled) return 'h-7 w-7 border border-slate-800 bg-slate-950 text-slate-500'
+  if (accent === 'amber') return 'h-7 w-7 border border-amber-700 bg-amber-500/10 text-amber-200 hover:border-amber-600 hover:bg-amber-500/15'
+  if (accent === 'cyan') return 'h-7 w-7 border border-cyan-700 bg-cyan-500/10 text-cyan-100 hover:border-cyan-600 hover:bg-cyan-500/15'
   return 'h-7 w-7 border border-slate-700 bg-slate-950/90 text-slate-200 hover:border-slate-600 hover:bg-slate-900'
+}
+
+function getTimelineInlineMoveIconButtonClassName(enabled: boolean): string {
+  if (!enabled) return 'h-6 w-6 border border-slate-800 bg-slate-950 text-slate-500'
+  return 'h-6 w-6 border border-slate-700 bg-slate-950/90 text-slate-200 hover:border-slate-600 hover:bg-slate-900'
+}
+
+function getTimelineBeatQuickIconButtonClassName(enabled: boolean): string {
+  if (!enabled) return 'h-6 w-6 border border-slate-800 bg-slate-950/95 text-slate-500'
+  return 'h-6 w-6 border border-slate-700 bg-slate-950/95 text-slate-200 hover:border-slate-600 hover:bg-slate-900'
+}
+
+function getTimelineCompactStatusChipClassName(
+  tone: 'default' | 'muted' | 'amber' | 'cyan' = 'default',
+): string {
+  if (tone === 'muted') return 'rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-500'
+  if (tone === 'amber') return 'rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-[10px] text-amber-200'
+  if (tone === 'cyan') return 'rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-[10px] text-cyan-200'
+  return 'rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-300'
 }
 
 export default function AnimationCanvas({
@@ -211,6 +303,7 @@ export default function AnimationCanvas({
 }: {
   active?: boolean
 }) {
+  const isTouchLaneViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const graphData = useActiveGraphRenderData(active)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -256,6 +349,27 @@ export default function AnimationCanvas({
   const dragEdgeScrollDirectionRef = React.useRef<-1 | 0 | 1>(0)
   const toolbarIconClassName = getIconSizeClass('default')
   const compactToolbarIconClassName = getIconSizeClass('compact')
+  const laneInlineScrollClassName = React.useMemo(
+    () =>
+      [
+        uiToolbarRowScrollClassName,
+        uiToolbarResponsiveRowScrollClassName,
+        isTouchLaneViewport ? uiToolbarTouchRowScrollClassName : '',
+        'gap-0.5',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [isTouchLaneViewport],
+  )
+  const laneInlineScrollStyle = React.useMemo<React.CSSProperties | undefined>(
+    () =>
+      isTouchLaneViewport
+        ? {
+            touchAction: 'pan-x manipulation',
+          }
+        : undefined,
+    [isTouchLaneViewport],
+  )
 
   React.useEffect(() => {
     timingOverridesRef.current = timingOverrides
@@ -1216,6 +1330,14 @@ export default function AnimationCanvas({
     [timelineModel.beats, timelineModel.usesAbsoluteTiming],
   )
 
+  const handleLaneItemPointerStart = React.useCallback(
+    (event: React.PointerEvent<HTMLElement>, beat: AnimationTimelineBeat, beatIndex: number) => {
+      if (shouldIgnoreTimelineActionPointerMoveStart(event.target)) return
+      handleBeatPointerStart(event, beat, beatIndex, resolveLaneItemPointerStartMode(event))
+    },
+    [handleBeatPointerStart],
+  )
+
   React.useEffect(() => {
     if (!dragState || !timelineModel.usesAbsoluteTiming || timelineUnitsPerPixel <= 0) return
     const updateDragPreview = (clientX: number) => {
@@ -1223,7 +1345,7 @@ export default function AnimationCanvas({
       const currentScrollLeft = scrollEl?.scrollLeft || 0
       const deltaPx = clientX - dragState.originClientX + (currentScrollLeft - dragState.originScrollLeft)
       const deltaMs = deltaPx * timelineUnitsPerPixel
-      const nextOverride = resolveAnimationTimelineBeatTimingEdit({
+      const nextOverrides = resolveAnimationTimelineBeatTimingEdit({
         beats: dragState.beatsSnapshot,
         beatIndex: dragState.beatIndex,
         mode: dragState.mode,
@@ -1231,16 +1353,10 @@ export default function AnimationCanvas({
         minDurationMs: EDIT_MIN_DURATION_MS,
         snapStepMs: snapEnabled ? snapStepMs : null,
       })
-      if (!nextOverride) return
+      if (!nextOverrides) return
       setTimingOverrides(prev => {
-        const currentOverride = prev[dragState.beatRef]
-        if (currentOverride && currentOverride.startMs === nextOverride.startMs && currentOverride.endMs === nextOverride.endMs) {
-          return prev
-        }
-        return {
-          ...prev,
-          [dragState.beatRef]: nextOverride,
-        }
+        if (areTimingOverrideRecordsEqual(prev, nextOverrides)) return prev
+        return nextOverrides
       })
     }
     const updateDragEdgeScrollDirection = (clientX: number) => {
@@ -1268,23 +1384,20 @@ export default function AnimationCanvas({
       updateDragPreview(event.clientX)
     }
     const commitDrag = async () => {
-      const override = timingOverridesRef.current[dragState.beatRef]
+      const overrides = timingOverridesRef.current
       setDragState(null)
       dragPointerClientXRef.current = null
       dragEdgeScrollDirectionRef.current = 0
-      if (!override) return
-      const nextMarkdownText = updateAnimationTimelineMarkdownBeatTiming({
+      if (!overrides[dragState.beatRef]) {
+        setTimingOverrides({})
+        return
+      }
+      const nextMarkdownText = updateAnimationTimelineMarkdownBeatTimingOverrides({
         markdownText,
-        beatRef: dragState.beatRef,
-        startMs: override.startMs,
-        endMs: override.endMs,
+        overrides,
       })
       await commitMarkdownDocumentText(nextMarkdownText)
-      setTimingOverrides(current => {
-        const next = { ...current }
-        delete next[dragState.beatRef]
-        return next
-      })
+      setTimingOverrides({})
     }
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerId !== dragState.pointerId) return
@@ -1344,7 +1457,7 @@ export default function AnimationCanvas({
   return (
     <section className="w-full h-full bg-[#0b0f17] text-slate-100 select-none">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="shrink-0 border-b border-slate-800 bg-[#0f1625]/95 px-5 pt-5 pb-4 backdrop-blur">
+        <header className="shrink-0 border-b border-slate-800 bg-[#0f1625]/95 px-4 pt-4 pb-2 backdrop-blur">
           <div className="player-config">
             <button
               type="button"
@@ -1413,48 +1526,48 @@ export default function AnimationCanvas({
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
-              <SkipBack className={toolbarIconClassName} />
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineCompactIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
+              <SkipBack className={compactToolbarIconClassName} />
             </IconButton>
-            <IconButton title="Next Beat (Right Arrow)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStepBeat(1)}>
-              <SkipForward className={toolbarIconClassName} />
+            <IconButton title="Next Beat (Right Arrow)" showTooltip className={getTimelineCompactIconButtonClassName(true)} onClick={() => handleStepBeat(1)}>
+              <SkipForward className={compactToolbarIconClassName} />
             </IconButton>
-            <IconButton title="Reset (R)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleReset}>
-              <RotateCcw className={toolbarIconClassName} />
+            <IconButton title="Reset (R)" showTooltip className={getTimelineCompactIconButtonClassName(true)} onClick={handleReset}>
+              <RotateCcw className={compactToolbarIconClassName} />
             </IconButton>
-            <IconButton title="Insert Before" showTooltip className={getTimelineIconButtonClassName(!!activeBeat || timelineModel.beats.length > 0)} onClick={() => void handleInsertBeat('before')}>
-              <ArrowLeftToLine className={toolbarIconClassName} />
+            <IconButton title="Insert Before" showTooltip className={getTimelineCompactIconButtonClassName(!!activeBeat || timelineModel.beats.length > 0)} onClick={() => void handleInsertBeat('before')}>
+              <ArrowLeftToLine className={compactToolbarIconClassName} />
             </IconButton>
-            <IconButton title="Insert After" showTooltip className={getTimelineIconButtonClassName(!!activeBeat || timelineModel.beats.length > 0)} onClick={() => void handleInsertBeat('after')}>
-              <ArrowRightToLine className={toolbarIconClassName} />
+            <IconButton title="Insert After" showTooltip className={getTimelineCompactIconButtonClassName(!!activeBeat || timelineModel.beats.length > 0)} onClick={() => void handleInsertBeat('after')}>
+              <ArrowRightToLine className={compactToolbarIconClassName} />
             </IconButton>
             <IconButton
               title={canSplitActiveBeat ? 'Split active beat at playhead (S)' : 'Move the playhead inside the active beat to split it (S)'}
               showTooltip
-              className={getTimelineIconButtonClassName(canSplitActiveBeat)}
+              className={getTimelineCompactIconButtonClassName(canSplitActiveBeat)}
               onClick={() => void handleSplitBeat()}
               disabled={!canSplitActiveBeat}
             >
-              <Scissors className={toolbarIconClassName} />
+              <Scissors className={compactToolbarIconClassName} />
             </IconButton>
             <IconButton
               title={activeBeat ? 'Duplicate active beat after the current beat (D)' : 'Select an active beat first (D)'}
               showTooltip
-              className={getTimelineIconButtonClassName(!!activeBeat)}
+              className={getTimelineCompactIconButtonClassName(!!activeBeat)}
               onClick={() => void handleDuplicateBeat()}
               disabled={!activeBeat}
             >
-              <Copy className={toolbarIconClassName} />
+              <Copy className={compactToolbarIconClassName} />
             </IconButton>
             <IconButton
               title={canMergeActiveBeatWithNext ? 'Merge active beat with next empty beat' : 'Merge is available only when the next beat is empty'}
               showTooltip
-              className={getTimelineIconButtonClassName(canMergeActiveBeatWithNext)}
+              className={getTimelineCompactIconButtonClassName(canMergeActiveBeatWithNext)}
               onClick={() => void handleMergeBeatWithNext()}
               disabled={!canMergeActiveBeatWithNext}
             >
-              <GitMerge className={toolbarIconClassName} />
+              <GitMerge className={compactToolbarIconClassName} />
             </IconButton>
             <IconButton
               title={
@@ -1463,25 +1576,25 @@ export default function AnimationCanvas({
                   : 'Remove Gap is available only when a positive gap exists before the active beat'
               }
               showTooltip
-              className={getTimelineIconButtonClassName(canRemoveGapBeforeActiveBeat)}
+              className={getTimelineCompactIconButtonClassName(canRemoveGapBeforeActiveBeat)}
               onClick={() => void handleRemoveGapBeforeBeat()}
               disabled={!canRemoveGapBeforeActiveBeat}
             >
-              <ArrowLeftToLine className={toolbarIconClassName} />
+              <ArrowLeftToLine className={compactToolbarIconClassName} />
             </IconButton>
             <IconButton
               title={canDeleteActiveBeat ? 'Delete active beat' : 'Delete is available only for empty beats'}
               showTooltip
-              className={getTimelineIconButtonClassName(canDeleteActiveBeat)}
+              className={getTimelineCompactIconButtonClassName(canDeleteActiveBeat)}
               onClick={() => void handleDeleteBeat()}
               disabled={!canDeleteActiveBeat}
             >
-              <Trash2 className={toolbarIconClassName} />
+              <Trash2 className={compactToolbarIconClassName} />
             </IconButton>
-            <div className="flex h-10 items-center overflow-hidden rounded-md border border-slate-800 bg-slate-950/80">
+            <div className="flex h-7 items-center overflow-hidden rounded-md border border-slate-800 bg-slate-950/80">
               <button
                 type="button"
-                className={`h-full px-3 text-sm transition ${
+                className={`h-full px-2 text-[10px] font-medium transition ${
                   snapEnabled ? 'bg-cyan-500/18 text-cyan-50' : 'text-slate-400 hover:bg-slate-900'
                 }`}
                 onClick={() => setSnapEnabled(current => !current)}
@@ -1492,7 +1605,7 @@ export default function AnimationCanvas({
                 <button
                   key={step}
                   type="button"
-                  className={`h-full px-3 text-sm transition ${
+                  className={`h-full px-2 text-[10px] font-medium transition ${
                     snapStepMs === step ? 'bg-cyan-500/18 text-cyan-50' : 'text-slate-300 hover:bg-slate-900'
                   }`}
                   onClick={() => setSnapStepMs(step)}
@@ -1501,10 +1614,10 @@ export default function AnimationCanvas({
                 </button>
               ))}
             </div>
-            <div className="ml-auto flex items-center gap-3 text-sm text-slate-300">
+            <div className="ml-auto flex items-center gap-1.5 text-sm text-slate-300">
               {timelineModel.usesAbsoluteTiming ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">
-                  Drag beat bars to move. Drag edges to resize. Snap follows the active grid step. Split uses the current playhead.
+                <span className={getTimelineCompactStatusChipClassName()}>
+                  Grid {snapStepMs}ms
                 </span>
               ) : null}
               {activeBeat ? (
@@ -1569,11 +1682,11 @@ export default function AnimationCanvas({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300">
+                  <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                     <IconButton title={activeBeat.note ? 'Edit beat note (N)' : 'Add beat note (N)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatNoteEdit(activeBeat)}>
                       <FileText className={toolbarIconClassName} />
                     </IconButton>
-                    <span className="max-w-48 truncate text-slate-400">{activeBeat.note || 'No note'}</span>
+                    {activeBeat.note ? <span className="max-w-32 truncate text-[10px] text-slate-400">{activeBeat.note}</span> : null}
                   </div>
                 )
               ) : null}
@@ -1606,11 +1719,11 @@ export default function AnimationCanvas({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300">
+                  <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                     <IconButton title={activeBeat.summary ? 'Edit beat summary (M)' : 'Add beat summary (M)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatSummaryEdit(activeBeat)}>
                       <AlignLeft className={toolbarIconClassName} />
                     </IconButton>
-                    <span className="max-w-56 truncate text-slate-400">{activeBeat.summary || 'No summary'}</span>
+                    {activeBeat.summary ? <span className="max-w-36 truncate text-[10px] text-slate-400">{activeBeat.summary}</span> : null}
                   </div>
                 )
               ) : null}
@@ -1642,57 +1755,42 @@ export default function AnimationCanvas({
                     </IconButton>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300">
+                  <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                     <IconButton title={activeBeat.tags.length > 0 ? 'Edit beat tags (T)' : 'Add beat tags (T)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatTagsEdit(activeBeat)}>
                       <Tags className={toolbarIconClassName} />
                     </IconButton>
-                    <span className="max-w-56 truncate text-slate-400">{activeBeat.tags.length > 0 ? activeBeat.tags.join(' · ') : 'No tags'}</span>
+                    {activeBeat.tags.length > 0 ? <span className="max-w-32 truncate text-[10px] text-slate-400">{activeBeat.tags.join(' · ')}</span> : null}
                   </div>
                 )
               ) : null}
               {!canDeleteActiveBeat && activeBeat ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-500">
-                  Delete is blocked while the active beat still owns lane items.
+                <span className={getTimelineCompactStatusChipClassName('muted')}>
+                  Delete blocked
                 </span>
               ) : null}
               {!canMergeActiveBeatWithNext && activeBeat && nextBeat ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-500">
-                  Merge Next is blocked while the next beat still owns lane items.
+                <span className={getTimelineCompactStatusChipClassName('muted')}>
+                  Merge blocked
                 </span>
               ) : null}
               {activeBeat ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2">
-                  Active Beat: {activeBeat.beatRef}
+                <span className={getTimelineCompactStatusChipClassName()}>
+                  Beat {activeBeat.beatRef}
                 </span>
               ) : null}
               {canRemoveGapBeforeActiveBeat ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-amber-200">
+                <span className={getTimelineCompactStatusChipClassName('amber')}>
                   Gap Before: {Math.round(activeGapBeforeMs)}ms
                 </span>
               ) : null}
               {soloLaneId ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-200">
+                <span className={getTimelineCompactStatusChipClassName('cyan')}>
                   Solo Lane: {soloLaneId}
-                </span>
-              ) : null}
-              {selectedLane ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-100">
-                  Selected Lane: {selectedLane.label} ([ / ] reorder, H hide, U mute, O solo)
-                </span>
-              ) : null}
-              {selectedItemContext ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-100">
-                  Selected Item: {selectedItemContext.title} (, prev beat, . next beat)
-                </span>
-              ) : null}
-              {activeBeat ? (
-                <span className="rounded-md border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-cyan-100">
-                  Beat Strip: {activeBeat.label} (Tab, Left/Right, Home, End)
                 </span>
               ) : null}
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-3">
             <input
               aria-label="Animation timeline playhead"
               className="w-full accent-cyan-400"
@@ -1732,7 +1830,7 @@ export default function AnimationCanvas({
                 tabIndex={selectedOrFirstLaneId === lane.id ? 0 : -1}
                 role="option"
                 aria-selected={selectedLaneId === lane.id}
-                className={`flex cursor-pointer items-center justify-between gap-2 border-b px-2 text-xs font-medium text-slate-200 transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
+                className={`flex cursor-pointer items-center justify-between gap-2 border-b px-2 py-1 text-xs font-medium text-slate-200 transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
                   selectedLaneId === lane.id ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-slate-800'
                 }`}
                 style={{ minHeight: LANE_ROW_HEIGHT_PX }}
@@ -1780,21 +1878,20 @@ export default function AnimationCanvas({
                   >
                     <ArrowDown className={compactToolbarIconClassName} />
                   </IconButton>
-                  <div className="min-w-0">
+                  <div className={`flex min-w-0 flex-1 items-center gap-1 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}>
                     <div
-                      className={`truncate ${lane.solo ? 'text-cyan-200' : lane.hidden ? 'text-slate-500 line-through' : lane.muted ? 'text-slate-400' : 'text-slate-200'}`}
+                      className={`min-w-0 truncate ${lane.solo ? 'text-cyan-200' : lane.hidden ? 'text-slate-500 line-through' : lane.muted ? 'text-slate-400' : 'text-slate-200'}`}
                       title={`Tab to focus ${lane.label}; use Arrow Up/Down, Home, End, [ / ], H, U, O`}
                     >
                       {lane.label}
                     </div>
                     {selectedLaneId === lane.id ? (
-                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-cyan-100">
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Up/Down focus</span>
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Home/End rail</span>
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">[ / ] reorder</span>
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">H hide</span>
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">U mute</span>
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">O solo</span>
+                      <div className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                        {SELECTED_LANE_HINTS.map(hint => (
+                          <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
+                            {hint.label}
+                          </span>
+                        ))}
                       </div>
                     ) : null}
                   </div>
@@ -1803,26 +1900,26 @@ export default function AnimationCanvas({
                   <IconButton
                     title={lane.hidden && !lane.solo ? `Show ${lane.label}` : `Hide ${lane.label}`}
                     showTooltip
-                    className={getTimelineIconButtonClassName(true)}
+                    className={getTimelineCompactIconButtonClassName(true)}
                     onClick={() => void handleToggleHiddenLane(lane.id)}
                   >
-                    <EyeOff className={toolbarIconClassName} />
+                    <EyeOff className={compactToolbarIconClassName} />
                   </IconButton>
                   <IconButton
                     title={lane.muted ? `Unmute ${lane.label}` : `Mute ${lane.label}`}
                     showTooltip
-                    className={getTimelineIconButtonClassName(true, lane.muted ? 'amber' : 'default')}
+                    className={getTimelineCompactIconButtonClassName(true, lane.muted ? 'amber' : 'default')}
                     onClick={() => void handleToggleMutedLane(lane.id)}
                   >
-                    <VolumeX className={toolbarIconClassName} />
+                    <VolumeX className={compactToolbarIconClassName} />
                   </IconButton>
                   <IconButton
                     title={lane.solo ? `Unsolo ${lane.label}` : `Solo ${lane.label}`}
                     showTooltip
-                    className={getTimelineIconButtonClassName(true, lane.solo ? 'cyan' : 'default')}
+                    className={getTimelineCompactIconButtonClassName(true, lane.solo ? 'cyan' : 'default')}
                     onClick={() => void handleToggleSoloLane(lane.id)}
                   >
-                    <CircleDot className={toolbarIconClassName} />
+                    <CircleDot className={compactToolbarIconClassName} />
                   </IconButton>
                 </div>
                 </div>
@@ -1848,35 +1945,43 @@ export default function AnimationCanvas({
                 </svg>
                 <div className="timeline-editor-cursor-area"></div>
               </div>
-              <div className="sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">
+              <header className="timeline-editor-header sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">
                 <div className="timeline-editor-time-area relative border-b border-slate-800" style={{ height: SCALE_ROW_HEIGHT_PX }}>
+                  <ol className="timeline-editor-time-scale-list" aria-label="Animation timeline scale">
                   {timelineEditorTimeUnits.map(unit => (
-                    <div
+                    <li
                       key={unit.key}
                       role="gridcell"
                       className={`timeline-editor-time-unit ${unit.big ? 'timeline-editor-time-unit-big' : ''}`}
                       style={{ left: unit.left, width: unit.width, height: SCALE_ROW_HEIGHT_PX }}
                     >
-                      {unit.label ? <div className="timeline-editor-time-unit-scale">{unit.label}</div> : null}
-                    </div>
+                      {unit.label ? (
+                        <time className="timeline-editor-time-unit-scale" dateTime={`PT${Math.max(0, Number(unit.label))}S`}>
+                          {unit.label}
+                        </time>
+                      ) : null}
+                    </li>
                   ))}
-                  {snapMarks.map(mark => {
+                  </ol>
+                  <aside className="timeline-editor-time-mark-layer" aria-hidden="true">
+                    {snapMarks.map(mark => {
                     const left = timelineModel.totalSpan > 0 ? (mark / timelineModel.totalSpan) * totalTimelineWidth : 0
                     return (
-                      <div key={`snap:${mark}`} className="pointer-events-none absolute inset-y-0" style={{ left }}>
-                        <div className="h-full w-px bg-cyan-500/15" />
-                      </div>
+                      <span key={`snap:${mark}`} aria-hidden="true" className="pointer-events-none absolute inset-y-0" style={{ left }}>
+                        <span className="block h-full w-px bg-cyan-500/15" />
+                      </span>
                     )
                   })}
                   {scaleMarks.map(mark => {
                     const left = timelineModel.totalSpan > 0 ? (mark.position / timelineModel.totalSpan) * totalTimelineWidth : 0
                     return (
-                      <div key={mark.key} className="absolute inset-y-0" style={{ left }}>
-                        <div className="h-full w-px bg-slate-700/80" />
+                      <span key={mark.key} aria-hidden="true" className="timeline-editor-time-mark absolute inset-y-0" style={{ left }}>
+                        <span className="block h-full w-px bg-slate-700/80" />
                         <span className="absolute left-2 top-1 text-[11px] font-medium text-slate-400">{mark.label}</span>
-                      </div>
+                      </span>
                     )
                   })}
+                  </aside>
                 </div>
                 <div className="timeline-editor-edit-area flex border-b border-slate-800" role="listbox" aria-label="Animation timeline beats">
                   {timelineModel.beats.map((beat, index) => {
@@ -1911,8 +2016,8 @@ export default function AnimationCanvas({
                         role="option"
                         aria-selected={isActiveBeat}
                         title={`Tab to focus ${beat.label}; use Arrow Left/Right, Home, End`}
-                        className={`group/beat relative flex shrink-0 flex-col justify-start overflow-hidden border-r border-slate-800 px-3 py-2 text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
-                          isActiveBeat ? 'bg-cyan-500/10' : 'bg-transparent hover:bg-slate-900/80'
+                        className={`group/beat relative flex shrink-0 flex-col justify-start overflow-hidden border-r border-slate-800 px-2 py-1 text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${
+                          isActiveBeat ? 'bg-cyan-500/6' : 'bg-transparent hover:bg-slate-900/70'
                         }`}
                         style={{ width: beatWidths[index], height: BEAT_HEADER_HEIGHT_PX }}
                         onFocus={() => handleFocusBeat(beat)}
@@ -1939,11 +2044,14 @@ export default function AnimationCanvas({
                           }
                         }}
                       >
-                        <div className="absolute right-2 top-2 z-30 flex items-center gap-1 opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100">
+                        <div
+                          className={`absolute inset-x-1.5 top-1 z-30 ${laneInlineScrollClassName} justify-end opacity-0 transition group-hover/beat:opacity-100 group-focus-within/beat:opacity-100`}
+                          style={laneInlineScrollStyle}
+                        >
                           <IconButton
                             title={`Insert beat before ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleInsertBeatBeforeQuick(beat)}
                           >
                             <ArrowLeftToLine className={compactToolbarIconClassName} />
@@ -1951,7 +2059,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={`Insert beat after ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleInsertBeatAfterQuick(beat)}
                           >
                             <ArrowRightToLine className={compactToolbarIconClassName} />
@@ -1959,7 +2067,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={`Rename ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleStartBeatLabelQuickEdit(beat)}
                           >
                             <Pencil className={compactToolbarIconClassName} />
@@ -1967,7 +2075,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={`Duplicate ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleDuplicateBeatQuick(beat)}
                           >
                             <Copy className={compactToolbarIconClassName} />
@@ -1979,7 +2087,7 @@ export default function AnimationCanvas({
                                 : `Remove Gap is available only when ${beat.label} has a positive leading gap`
                             }
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(canQuickRemoveGapBeforeBeat)}
+                            className={getTimelineBeatQuickIconButtonClassName(canQuickRemoveGapBeforeBeat)}
                             onClick={() => handleRemoveGapBeforeBeatQuick(beat)}
                             disabled={!canQuickRemoveGapBeforeBeat}
                           >
@@ -1992,7 +2100,7 @@ export default function AnimationCanvas({
                                 : `Merge Next is available only when the next beat is empty`
                             }
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(canQuickMergeBeatWithNext)}
+                            className={getTimelineBeatQuickIconButtonClassName(canQuickMergeBeatWithNext)}
                             onClick={() => handleMergeBeatWithNextQuick(beat)}
                             disabled={!canQuickMergeBeatWithNext}
                           >
@@ -2005,7 +2113,7 @@ export default function AnimationCanvas({
                                 : `Split is available only when ${beat.label} is long enough`
                             }
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(canQuickSplitBeat)}
+                            className={getTimelineBeatQuickIconButtonClassName(canQuickSplitBeat)}
                             onClick={() => handleSplitBeatQuick(beat)}
                             disabled={!canQuickSplitBeat}
                           >
@@ -2014,7 +2122,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={canQuickDeleteBeat ? `Delete ${beat.label}` : `Delete is available only for empty beats`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(canQuickDeleteBeat)}
+                            className={getTimelineBeatQuickIconButtonClassName(canQuickDeleteBeat)}
                             onClick={() => handleDeleteBeatQuick(beat)}
                             disabled={!canQuickDeleteBeat}
                           >
@@ -2023,7 +2131,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={beat.note ? `Edit note for ${beat.label}` : `Add note for ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleStartBeatNoteQuickEdit(beat)}
                           >
                             <FileText className={compactToolbarIconClassName} />
@@ -2031,7 +2139,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={beat.summary ? `Edit summary for ${beat.label}` : `Add summary for ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleStartBeatSummaryQuickEdit(beat)}
                           >
                             <AlignLeft className={compactToolbarIconClassName} />
@@ -2039,7 +2147,7 @@ export default function AnimationCanvas({
                           <IconButton
                             title={beat.tags.length > 0 ? `Edit tags for ${beat.label}` : `Add tags for ${beat.label}`}
                             showTooltip
-                            className={getTimelineCompactIconButtonClassName(true)}
+                            className={getTimelineBeatQuickIconButtonClassName(true)}
                             onClick={() => handleStartBeatTagsQuickEdit(beat)}
                           >
                             <Tags className={compactToolbarIconClassName} />
@@ -2069,38 +2177,44 @@ export default function AnimationCanvas({
                             <button
                               type="button"
                               aria-label={`Resize ${beat.label} start`}
-                              className="absolute inset-y-0 left-0 z-20 w-3 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/20"
+                              className="absolute inset-y-0 left-0 z-20 w-2.5 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/12"
                               onPointerDown={event => handleBeatPointerStart(event, beat, index, 'resize-start')}
                             />
                             <button
                               type="button"
                               aria-label={`Resize ${beat.label} end`}
-                              className="absolute inset-y-0 right-0 z-20 w-3 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/20"
+                              className="absolute inset-y-0 right-0 z-20 w-2.5 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/12"
                               onPointerDown={event => handleBeatPointerStart(event, beat, index, 'resize-end')}
                             />
                           </>
                         ) : (
                           <span />
                         )}
-                        <span className="relative z-10 text-[10px] uppercase tracking-[0.18em] text-slate-500">{beat.beatRef}</span>
-                        <span className="relative z-10 mt-0.5 text-xs font-semibold text-slate-100">{beat.label}</span>
-                        <div className="relative z-10 mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-slate-400">
+                        <span className="relative z-10 text-[8px] uppercase leading-3 tracking-[0.14em] text-slate-500">{beat.beatRef}</span>
+                        <span className="relative z-10 text-[10px] font-semibold leading-3.5 text-slate-100">{beat.label}</span>
+                        <div
+                          className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5 text-slate-400`}
+                          style={laneInlineScrollStyle}
+                        >
                           <span>
                             {timelineModel.usesAbsoluteTiming
                               ? `${formatAnimationTimelineTimestamp(beat.startMs)} -> ${formatAnimationTimelineTimestamp(beat.endMs)}`
                               : `${beat.items.length} item${beat.items.length === 1 ? '' : 's'}`}
                           </span>
-                          <span className="rounded-full border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] text-slate-300">
+                          <span className="rounded-full border border-slate-700 bg-slate-900/70 px-1 py-0 text-[9px] leading-3 text-slate-300">
                             {beat.items.length} item{beat.items.length === 1 ? '' : 's'}
                           </span>
                         </div>
                         {beatLaneSummary.length > 0 ? (
-                          <div className="relative z-10 mt-1 flex items-center gap-1 overflow-hidden text-[10px]">
+                          <div
+                            className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5`}
+                            style={laneInlineScrollStyle}
+                          >
                             {visibleBeatLaneSummary.map(({ laneId, count }) => (
                               <button
                                 type="button"
                                 key={`${beat.beatRef}:lane:${laneId}`}
-                                className={`truncate rounded-full border px-1.5 py-0.5 transition hover:brightness-110 focus:outline-none focus:ring-1 focus:ring-cyan-300 ${LANE_ACCENT_CLASS[laneId]}`}
+                                className={`truncate rounded-full border px-1 py-0 text-[9px] leading-3 transition hover:brightness-110 focus:outline-none focus:ring-1 focus:ring-cyan-300 ${LANE_ACCENT_CLASS[laneId]}`}
                                 title={`${LANE_LABEL[laneId]}: ${count} item${count === 1 ? '' : 's'}`}
                                 onClick={() => handleFocusLaneFromBeatCard(laneId)}
                               >
@@ -2109,7 +2223,7 @@ export default function AnimationCanvas({
                             ))}
                             {beatLaneSummary.length > BEAT_LANE_SUMMARY_LIMIT ? (
                               <span
-                                className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-slate-300"
+                                className="rounded-full border border-slate-700 bg-slate-900/80 px-1 py-0 text-[9px] leading-3 text-slate-300"
                                 title={`${beatLaneSummary.length - BEAT_LANE_SUMMARY_LIMIT} more lane summaries`}
                               >
                                 +{beatLaneSummary.length - BEAT_LANE_SUMMARY_LIMIT}
@@ -2118,16 +2232,19 @@ export default function AnimationCanvas({
                           </div>
                         ) : null}
                         {beat.summary ? (
-                          <span className="relative z-10 mt-1 truncate text-[11px] text-slate-300" title={beat.summary}>
+                          <span className="relative z-10 truncate text-[9px] leading-3.5 text-slate-300" title={beat.summary}>
                             {beat.summary}
                           </span>
                         ) : null}
                         {beat.tags.length > 0 ? (
-                          <div className="relative z-10 mt-1 flex items-center gap-1 overflow-hidden text-[10px]">
+                          <div
+                            className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5`}
+                            style={laneInlineScrollStyle}
+                          >
                             {beat.tags.slice(0, 3).map(tag => (
                               <span
                                 key={`${beat.beatRef}:${tag}`}
-                                className="truncate rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-cyan-100"
+                                className="truncate rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1 py-0 text-[9px] leading-3 text-cyan-100"
                                 title={tag}
                               >
                                 {tag}
@@ -2135,7 +2252,7 @@ export default function AnimationCanvas({
                             ))}
                             {beat.tags.length > 3 ? (
                               <span
-                                className="rounded-full border border-slate-700 bg-slate-900/90 px-2 py-0.5 text-slate-400"
+                                className="rounded-full border border-slate-700 bg-slate-900/90 px-1 py-0 text-[9px] leading-3 text-slate-400"
                                 title={beat.tags.slice(3).join(', ')}
                               >
                                 +{beat.tags.length - 3}
@@ -2144,20 +2261,22 @@ export default function AnimationCanvas({
                           </div>
                         ) : null}
                         {isActiveBeat ? (
-                          <div className="relative z-10 mt-1 flex flex-wrap items-center gap-1 text-[10px] text-cyan-100">
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Rename beat (L)">L</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Edit note (N)">N</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Edit summary (M)">M</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Edit tags (T)">T</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Duplicate beat (D)">D</span>
-                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5" title="Split beat (S)">S</span>
+                          <div
+                            className={`relative z-10 ${laneInlineScrollClassName} text-[9px] text-cyan-100`}
+                            style={laneInlineScrollStyle}
+                          >
+                            {SELECTED_BEAT_HINTS.map(hint => (
+                              <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
+                                {hint.label}
+                              </span>
+                            ))}
                           </div>
                         ) : null}
                       </div>
                     )
                   })}
                 </div>
-              </div>
+              </header>
               {lanePresentations.map(lane => (
                 <div
                   key={lane.id}
@@ -2165,8 +2284,9 @@ export default function AnimationCanvas({
                     laneRowRefs.current[lane.id] = node
                   }}
                   className={`timeline-editor-edit-row flex border-b transition ${
-                    highlightedLaneShortcutId === lane.id ? 'border-cyan-500/70 bg-cyan-500/5' : 'border-slate-900/80'
+                    highlightedLaneShortcutId === lane.id ? 'border-cyan-500/50 bg-cyan-500/4' : 'border-slate-900/80'
                   }`}
+                  style={{ height: LANE_ROW_HEIGHT_PX }}
                 >
                   {timelineModel.beats.map((beat, index) => {
                     const laneItems = beat.items.filter(item => item.laneId === lane.id)
@@ -2174,13 +2294,13 @@ export default function AnimationCanvas({
                     return (
                       <div
                         key={`${lane.id}:${beat.beatRef}`}
-                        className={`shrink-0 border-r border-slate-800 px-2 py-2 ${
+                        className={`shrink-0 border-r border-slate-800 px-0.5 py-0 ${
                           isActiveBeat ? 'bg-slate-900/75' : 'bg-[#0b1020]'
                         }`}
-                        style={{ width: beatWidths[index], minHeight: LANE_ROW_HEIGHT_PX }}
+                        style={{ width: beatWidths[index], minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}
                       >
                         {lane.visibleItems && laneItems.length > 0 ? (
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-0">
                             {laneItems.map(item => {
                               const previousBeat = timelineModel.beats[index - 1] || null
                               const nextBeat = timelineModel.beats[index + 1] || null
@@ -2195,11 +2315,12 @@ export default function AnimationCanvas({
                                   role="option"
                                   aria-selected={selectedItemNodeId === item.nodeId}
                                   title={`Focus ${item.title}; use Arrow Up/Down, Home, End, , and .`}
-                                  className={`timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible timeline-editor-action-effect-${actionEffectClassName} rounded-[4px] border px-2 py-1 shadow-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
+                                  className={`group/item timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible timeline-editor-action-effect-${actionEffectClassName} rounded-[4px] border px-0 py-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
                                     lane.muted ? 'opacity-40 saturate-50' : ''
                                   } ${
                                     selectedItemNodeId === item.nodeId ? 'ring-1 ring-cyan-300' : ''
                                   }`}
+                                  onPointerDown={event => handleLaneItemPointerStart(event, beat, index)}
                                   onClick={() => {
                                     setSelectedLaneId(lane.id)
                                     setSelectedItemNodeId(item.nodeId)
@@ -2236,26 +2357,30 @@ export default function AnimationCanvas({
                                     }
                                   }}
                                 >
-                                  <div className={`timeline-editor-action-effect timeline-editor-action-effect-${actionEffectClassName} ${actionEffectClassName} flex items-start justify-between gap-1.5`}>
-                                    <div className="min-w-0 flex-1">
-                                      <div className={`${actionEffectClassName}-text truncate text-[10px] font-normal`}>{item.title}</div>
+                                  <section className={`timeline-editor-action-effect ${actionEffectClassName}`} aria-label={`${lane.label} action ${item.title}`}>
+                                    <div
+                                      className={`${laneInlineScrollClassName} min-w-0 w-full justify-center px-2 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}
+                                      style={laneInlineScrollStyle}
+                                    >
+                                      <span className={`${actionEffectClassName}-text min-w-0 truncate text-[9px] leading-3.5 font-normal`}>{item.title}</span>
                                       {selectedItemNodeId === item.nodeId ? (
-                                        <div className={`${actionEffectClassName}-text mt-1 truncate text-[10px] opacity-80`}>{item.subtitle || item.kind}</div>
-                                      ) : null}
-                                      {selectedItemNodeId === item.nodeId ? (
-                                        <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px] text-cyan-100">
-                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Up/Down focus</span>
-                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">Home/End rail</span>
-                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">, prev beat</span>
-                                          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5">. next beat</span>
+                                        <div className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                                          {SELECTED_ITEM_HINTS.map(hint => (
+                                            <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
+                                              {hint.label}
+                                            </span>
+                                          ))}
                                         </div>
                                       ) : null}
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <nav
+                                      aria-label={`Move ${item.title} between beats`}
+                                      className={`absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-0.5 transition-opacity duration-150 ${selectedItemNodeId === item.nodeId ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 group-focus-within/item:pointer-events-auto group-focus-within/item:opacity-100'}`}
+                                    >
                                       <IconButton
                                         title={previousBeat ? `Move ${item.title} to ${previousBeat.label}` : `No previous beat for ${item.title}`}
                                         showTooltip
-                                        className={getTimelineCompactIconButtonClassName(!!previousBeat)}
+                                        className={getTimelineInlineMoveIconButtonClassName(!!previousBeat)}
                                         onClick={() => void handleMoveItemToBeat(item.nodeId, previousBeat)}
                                         disabled={!previousBeat}
                                       >
@@ -2264,28 +2389,48 @@ export default function AnimationCanvas({
                                       <IconButton
                                         title={nextBeat ? `Move ${item.title} to ${nextBeat.label}` : `No next beat for ${item.title}`}
                                         showTooltip
-                                        className={getTimelineCompactIconButtonClassName(!!nextBeat)}
+                                        className={getTimelineInlineMoveIconButtonClassName(!!nextBeat)}
                                         onClick={() => void handleMoveItemToBeat(item.nodeId, nextBeat)}
                                         disabled={!nextBeat}
                                       >
                                         <ArrowRight className={compactToolbarIconClassName} />
                                       </IconButton>
-                                    </div>
-                                  </div>
-                                  <div className="timeline-editor-action-left-stretch" aria-hidden="true"></div>
-                                  <div className="timeline-editor-action-right-stretch" aria-hidden="true"></div>
+                                    </nav>
+                                  </section>
+                                  <button
+                                    type="button"
+                                    className="timeline-editor-action-left-stretch"
+                                    aria-label={`Resize ${item.title} start`}
+                                    tabIndex={-1}
+                                    data-kg-timeline-action-ignore-drag="true"
+                                    onPointerDown={event => {
+                                      event.stopPropagation()
+                                      handleBeatPointerStart(event, beat, index, 'resize-start')
+                                    }}
+                                  ></button>
+                                  <button
+                                    type="button"
+                                    className="timeline-editor-action-right-stretch"
+                                    aria-label={`Resize ${item.title} end`}
+                                    tabIndex={-1}
+                                    data-kg-timeline-action-ignore-drag="true"
+                                    onPointerDown={event => {
+                                      event.stopPropagation()
+                                      handleBeatPointerStart(event, beat, index, 'resize-end')
+                                    }}
+                                  ></button>
                                 </article>
                               )
                             })}
                           </div>
                         ) : lane.soloFiltered ? (
-                          <div className="flex h-full items-center text-xs text-slate-600">Solo filtered</div>
+                          <div className="flex h-full items-center text-[10px] text-slate-600">Solo filtered</div>
                         ) : lane.hidden ? (
-                          <div className="flex h-full items-center text-xs text-slate-600">Hidden lane</div>
+                          <div className="flex h-full items-center text-[10px] text-slate-600">Hidden lane</div>
                         ) : lane.muted ? (
-                          <div className="flex h-full items-center text-xs text-slate-600">Muted lane</div>
+                          <div className="flex h-full items-center text-[10px] text-slate-600">Muted lane</div>
                         ) : (
-                          <div className="flex h-full items-center text-xs text-slate-600">No {lane.label.toLowerCase()} item</div>
+                          <div className="flex h-full items-center text-[10px] text-slate-600">No {lane.label.toLowerCase()} item</div>
                         )}
                       </div>
                     )

@@ -18,6 +18,7 @@ import {
   updateAnimationTimelineMarkdownBeatSummary,
   updateAnimationTimelineMarkdownBeatTags,
   updateAnimationTimelineMarkdownBeatTiming,
+  updateAnimationTimelineMarkdownBeatTimingOverrides,
 } from '@/components/AnimationCanvas/animationTimeline'
 
 export function testAnimationTimelineModelUsesMarkdownFrontmatterTimingAndGraphBeatRefs() {
@@ -173,8 +174,11 @@ timeline:
     minDurationMs: 300,
   })
   if (!moved) throw new Error('expected move timing override')
-  if (moved.startMs !== 4000 || moved.endMs !== 9000) {
-    throw new Error(`expected move to clamp against next beat, got ${JSON.stringify(moved)}`)
+  if (moved.beat_02?.startMs !== 12000 || moved.beat_02?.endMs !== 17000) {
+    throw new Error(`expected move to shift the edited beat forward, got ${JSON.stringify(moved)}`)
+  }
+  if (moved.beat_03?.startMs !== 17000 || moved.beat_03?.endMs !== 20000) {
+    throw new Error(`expected move to carry following beats forward, got ${JSON.stringify(moved)}`)
   }
 
   const resized = resolveAnimationTimelineBeatTimingEdit({
@@ -185,8 +189,11 @@ timeline:
     minDurationMs: 300,
   })
   if (!resized) throw new Error('expected resize timing override')
-  if (resized.endMs !== 9000) {
-    throw new Error(`expected resize end to clamp at next beat boundary, got ${JSON.stringify(resized)}`)
+  if (resized.beat_02?.endMs !== 13000) {
+    throw new Error(`expected resize end to extend the edited beat, got ${JSON.stringify(resized)}`)
+  }
+  if (resized.beat_03?.startMs !== 13000 || resized.beat_03?.endMs !== 16000) {
+    throw new Error(`expected resize end to carry following beats forward, got ${JSON.stringify(resized)}`)
   }
 
   const overridden = applyAnimationTimelineBeatTimingOverrides(model, {
@@ -230,6 +237,35 @@ timeline:
   }
   if (!updated.includes('# Body')) {
     throw new Error('expected markdown body to remain intact after frontmatter rewrite')
+  }
+}
+
+export function testAnimationTimelineMarkdownTimingOverrideUpdateRewritesMultipleBeatWindows() {
+  const updated = updateAnimationTimelineMarkdownBeatTimingOverrides({
+    markdownText: `---
+title: Demo
+timeline:
+  beats:
+    beat_01:
+      label: Hook
+      start_ms: 0
+      end_ms: 4000
+    beat_02:
+      label: Problem
+      start_ms: 4000
+      end_ms: 9000
+---
+`,
+    overrides: {
+      beat_01: { startMs: 250, endMs: 4250 },
+      beat_02: { startMs: 4250, endMs: 9750 },
+    },
+  })
+
+  for (const snippet of ['beat_01:', 'start_ms: 250', 'end_ms: 4250', 'duration_ms: 4000', 'beat_02:', 'start_ms: 4250', 'end_ms: 9750', 'duration_ms: 5500']) {
+    if (!updated.includes(snippet)) {
+      throw new Error(`expected multi-beat timing override update to include ${snippet}, got ${updated}`)
+    }
   }
 }
 

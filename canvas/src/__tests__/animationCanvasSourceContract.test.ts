@@ -37,7 +37,13 @@ export function testAnimationCanvasRetainsReferencePlayerAndTimelineShellContrac
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
   for (const snippet of [
     'const SCALE_ROW_HEIGHT_PX = 32',
-    'const LANE_ROW_HEIGHT_PX = 72',
+    'const LANE_ROW_HEIGHT_PX = 32',
+    "useMediaQuery('(max-width: 768px), (pointer: coarse)')",
+    'uiToolbarRowScrollClassName',
+    'uiToolbarResponsiveRowScrollClassName',
+    'uiToolbarTouchRowScrollClassName',
+    'UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME',
+    "touchAction: 'pan-x manipulation'",
     '<div className="timeline-player">',
     'className="play-control"',
     "aria-label={playing ? 'pause' : 'caret-right'}",
@@ -45,10 +51,15 @@ export function testAnimationCanvasRetainsReferencePlayerAndTimelineShellContrac
     '<div className="rate-control">',
     'className="ant-select ant-select-sm ant-select-single ant-select-show-arrow"',
     '<div ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">',
+    '<header className="timeline-editor-header sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">',
     'className="timeline-editor-time-area relative border-b border-slate-800"',
+    'className="timeline-editor-time-scale-list"',
     'timeline-editor-time-unit',
     'timeline-editor-time-unit-big',
     'timeline-editor-time-unit-scale',
+    '<time className="timeline-editor-time-unit-scale"',
+    'className="timeline-editor-time-mark absolute inset-y-0"',
+    'className="timeline-editor-time-mark-layer"',
     'className="timeline-editor-edit-area flex border-b border-slate-800"',
     'className="timeline-editor-cursor pointer-events-none absolute z-20"',
     'className="timeline-editor-cursor-top"',
@@ -58,23 +69,43 @@ export function testAnimationCanvasRetainsReferencePlayerAndTimelineShellContrac
     'resolveTimelineEditorActionEffectClassName',
     "laneId === 'audio' ? 'effect0' : 'effect1'",
     'timeline-editor-action-effect-${actionEffectClassName}',
-    '${actionEffectClassName} flex items-start justify-between gap-1.5',
+    'timeline-editor-action-effect ${actionEffectClassName}',
     '${actionEffectClassName}-text',
-    'timeline-editor-action-left-stretch',
-    'timeline-editor-action-right-stretch',
+    'const LANE_ITEM_RESIZE_EDGE_PX = 14',
+    'shouldIgnoreTimelineActionPointerMoveStart',
+    'resolveLaneItemPointerStartMode',
+    'if (offsetX <= LANE_ITEM_RESIZE_EDGE_PX) return \'resize-start\'',
+    'if (rect.right - event.clientX <= LANE_ITEM_RESIZE_EDGE_PX) return \'resize-end\'',
+    'handleLaneItemPointerStart(event, beat, index)',
+    '<section className={`timeline-editor-action-effect ${actionEffectClassName}`}',
+    'aria-label={`${lane.label} action ${item.title}`}',
+    'aria-label={`Move ${item.title} between beats`}',
+    'type="button"',
+    'className="timeline-editor-action-left-stretch"',
+    'className="timeline-editor-action-right-stretch"',
+    "handleBeatPointerStart(event, beat, index, 'resize-start')",
+    "handleBeatPointerStart(event, beat, index, 'resize-end')",
+    'getTimelineCompactStatusChipClassName',
     'getTimelineCompactIconButtonClassName(lanePresentations[0]?.id !== lane.id)',
-    'getTimelineCompactIconButtonClassName(!!previousBeat)',
+    'getTimelineInlineMoveIconButtonClassName(!!previousBeat)',
+    'getTimelineCompactIconButtonClassName(true, lane.muted ? \'amber\' : \'default\')',
+    'getTimelineCompactIconButtonClassName(true, lane.solo ? \'cyan\' : \'default\')',
+    'getTimelineCompactIconButtonClassName(canDeleteActiveBeat)',
+    'group/item',
+    'Grid {snapStepMs}ms',
     'compactToolbarIconClassName',
     'dragPointerClientXRef',
     'dragEdgeScrollDirectionRef',
     'window.requestAnimationFrame(tick)',
     'updateDragEdgeScrollDirection(pointerClientX)',
+    'bg-cyan-500/6',
+    'bg-cyan-500/4',
   ]) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimationCanvas to retain reference player/timeline shell snippet: ${snippet}`)
     }
   }
-  for (const forbiddenSnippet of ['timeline-player-meta', 'timeline-player-chip', 'Auto Scroll On', 'Auto Scroll Off']) {
+  for (const forbiddenSnippet of ['timeline-player-meta', 'timeline-player-chip', 'Auto Scroll On', 'Auto Scroll Off', 'Selected Lane:', 'Selected Item:', 'Beat Strip:', 'Drag beat bars to move. Drag edges to resize. Snap follows the active grid step. Split uses the current playhead.', 'No note', 'No summary', 'No tags', 'Active Beat:']) {
     if (text.includes(forbiddenSnippet)) {
       throw new Error(`expected AnimationCanvas player shell to avoid local-only meta chrome snippet: ${forbiddenSnippet}`)
     }
@@ -94,6 +125,21 @@ export function testAnimationCanvasDoesNotImportVendorTimelineEditor() {
   }
 }
 
+export function testAnimationCanvasRetainsSoftenedVisualTextureContract() {
+  const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
+  const cssText = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.css'), 'utf8')
+  for (const snippet of ['border-cyan-400/30 bg-cyan-500/8', 'border-fuchsia-400/30 bg-fuchsia-500/8', 'border-amber-400/30 bg-amber-500/8', 'border-emerald-400/30 bg-emerald-500/8', 'border-slate-500/30 bg-slate-500/8']) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected AnimationCanvas to retain softened lane accent snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of ['rgb(147 51 234 / 0.18)', 'rgb(109 40 217 / 0.16)', 'rgb(217 119 6 / 0.18)', 'rgb(180 83 9 / 0.16)', 'box-sizing: border-box;', 'display: flex;', 'align-items: center;', 'height: 28px;', 'height: 100%;', 'min-height: 28px;', 'margin-left: 4px;', 'top: 0;', 'width: 10px;', 'z-index: 20;', 'padding: 0;', 'border: 0;', 'appearance: none;', 'cursor: ew-resize;', 'background: transparent;', 'border-radius: 4px;', 'opacity: 1;', 'pointer-events: none;', 'user-select: none;', 'overflow: hidden;', 'list-style: none;', 'inset: 0;', '0 0 10px rgb(34 211 238 / 0.22)']) {
+    if (!cssText.includes(snippet)) {
+      throw new Error(`expected AnimationCanvas CSS to retain softened visual texture snippet: ${snippet}`)
+    }
+  }
+}
+
 export function testAnimationCanvasReusesSharedToolbarIconButtons() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
   for (const snippet of ['import IconButton', 'getIconSizeClass', '<IconButton', 'toolbarIconClassName']) {
@@ -110,7 +156,7 @@ export function testAnimationCanvasReusesSharedToolbarIconButtons() {
 
 export function testAnimationCanvasSurfacesBeatSummaryAndTagsInTimelineCards() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
-  for (const snippet of ['BEAT_HEADER_HEIGHT_PX = 104', 'buildBeatLaneSummary', 'handleFocusLaneFromBeatCard', 'highlightedLaneShortcutId === lane.id', 'beatLaneSummary.length > 0 ? (', 'LANE_LABEL[laneId]', 'beat.summary ? (', 'beat.tags.length > 0 ? (', 'beat.tags.slice(0, 3)', '+{beat.tags.length - 3}', 'title="Rename beat (L)"', 'title="Duplicate beat (D)"']) {
+  for (const snippet of ['BEAT_HEADER_HEIGHT_PX = 72', 'buildBeatLaneSummary', 'handleFocusLaneFromBeatCard', 'highlightedLaneShortcutId === lane.id', 'beatLaneSummary.length > 0 ? (', 'LANE_LABEL[laneId]', 'beat.summary ? (', 'beat.tags.length > 0 ? (', 'beat.tags.slice(0, 3)', '+{beat.tags.length - 3}', 'SELECTED_BEAT_HINTS', 'laneInlineScrollClassName', 'laneInlineScrollStyle', "title: 'Rename beat (L)'", "title: 'Duplicate beat (D)'"]) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimationCanvas beat cards to surface metadata snippet: ${snippet}`)
     }
@@ -119,7 +165,7 @@ export function testAnimationCanvasSurfacesBeatSummaryAndTagsInTimelineCards() {
 
 export function testAnimationCanvasExposesBeatCardQuickMetadataActions() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimationCanvas.tsx'), 'utf8')
-  for (const snippet of ['group/beat', 'getTimelineCompactIconButtonClassName', 'handleInsertBeatBeforeQuick', 'handleInsertBeatAfterQuick', 'handleDeleteBeatQuick', 'handleDuplicateBeatQuick', 'handleSplitBeatQuick', 'handleMergeBeatWithNextQuick', 'handleRemoveGapBeforeBeatQuick', 'handleStartBeatLabelQuickEdit', 'handleStartBeatNoteQuickEdit', 'handleStartBeatSummaryQuickEdit', 'handleStartBeatTagsQuickEdit', 'currentEditingBeatRef']) {
+  for (const snippet of ['group/beat', 'getTimelineCompactIconButtonClassName', 'getTimelineBeatQuickIconButtonClassName', 'handleInsertBeatBeforeQuick', 'handleInsertBeatAfterQuick', 'handleDeleteBeatQuick', 'handleDuplicateBeatQuick', 'handleSplitBeatQuick', 'handleMergeBeatWithNextQuick', 'handleRemoveGapBeforeBeatQuick', 'handleStartBeatLabelQuickEdit', 'handleStartBeatNoteQuickEdit', 'handleStartBeatSummaryQuickEdit', 'handleStartBeatTagsQuickEdit', 'currentEditingBeatRef', 'justify-end', 'w-2.5 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/12']) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimationCanvas beat cards to expose quick metadata action snippet: ${snippet}`)
     }
@@ -177,8 +223,6 @@ export function testAnimationCanvasRegistersNativeTimelineHotkeys() {
     "action === 'toggle-lane-solo'",
     "action === 'move-lane-up'",
     "action === 'move-lane-down'",
-    'Selected Lane:',
-    '([ / ] reorder, H hide, U mute, O solo)',
     'laneOptionRefs',
     'selectedOrFirstLaneId',
     'handleFocusLaneOption',
@@ -188,15 +232,21 @@ export function testAnimationCanvasRegistersNativeTimelineHotkeys() {
     'role="option"',
     'aria-selected={selectedLaneId === lane.id}',
     'onFocus={() => setSelectedLaneId(lane.id)}',
+    'SELECTED_LANE_HINTS',
+    'TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME',
+    'SELECTED_LANE_HINTS.map(hint => (',
+    'laneInlineScrollClassName',
+    'laneInlineScrollStyle',
+    'title={hint.title}',
     "if (event.key === 'ArrowUp')",
     "if (event.key === 'ArrowDown')",
     "if (event.key === 'Home')",
     "if (event.key === 'End')",
     'Tab to focus ${lane.label}; use Arrow Up/Down, Home, End, [ / ], H, U, O',
-    '[ / ] reorder',
-    'H hide',
-    'U mute',
-    'O solo',
+    "label: '[ / ]'",
+    "label: 'H'",
+    "label: 'U'",
+    "label: 'O'",
     'selectedItemNodeId',
     'selectedLaneVisibleItemContexts',
     'selectedItemContext',
@@ -204,8 +254,6 @@ export function testAnimationCanvasRegistersNativeTimelineHotkeys() {
     'handleFocusLaneItemOption',
     "action === 'move-selected-item-prev-beat'",
     "action === 'move-selected-item-next-beat'",
-    'Selected Item:',
-    '(, prev beat, . next beat)',
     'laneItemOptionRefs.current[item.nodeId] = node',
     'tabIndex={selectedLaneId === lane.id && selectedOrFirstLaneItemNodeId === item.nodeId ? 0 : -1}',
     'role="option"',
@@ -214,30 +262,34 @@ export function testAnimationCanvasRegistersNativeTimelineHotkeys() {
     'timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible',
     'timeline-editor-action-left-stretch',
     'timeline-editor-action-right-stretch',
+    'getTimelineInlineMoveIconButtonClassName(!!nextBeat)',
+    'absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-0.5',
+    'group-hover/item:pointer-events-auto',
+    'group-focus-within/item:pointer-events-auto',
     'focus-visible:ring-cyan-300',
     'setSelectedItemNodeId(item.nodeId)',
     "const itemIndex = selectedLaneVisibleItemContexts.findIndex(entry => entry.nodeId === item.nodeId)",
-    'Up/Down focus',
-    'Home/End rail',
-    ', prev beat',
-    '. next beat',
+    'SELECTED_ITEM_HINTS',
+    'SELECTED_ITEM_HINTS.map(hint => (',
+    'laneInlineScrollClassName',
+    'laneInlineScrollStyle',
+    "label: ','",
+    "label: '.'",
     'beatOptionRefs',
     'selectedOrActiveBeatRef',
     'handleFocusBeatOption',
-    'Beat Strip:',
-    '(Tab, Left/Right, Home, End)',
     'aria-label="Animation timeline beats"',
     'tabIndex={selectedOrActiveBeatRef === beat.beatRef ? 0 : -1}',
     'aria-selected={isActiveBeat}',
     'Tab to focus ${beat.label}; use Arrow Left/Right, Home, End',
     "if (event.key === 'ArrowLeft')",
     "if (event.key === 'ArrowRight')",
-    'title="Rename beat (L)"',
-    'title="Edit note (N)"',
-    'title="Edit summary (M)"',
-    'title="Edit tags (T)"',
-    'title="Duplicate beat (D)"',
-    'title="Split beat (S)"',
+    "title: 'Rename beat (L)'",
+    "title: 'Edit note (N)'",
+    "title: 'Edit summary (M)'",
+    "title: 'Edit tags (T)'",
+    "title: 'Duplicate beat (D)'",
+    "title: 'Split beat (S)'",
   ]) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimationCanvas to retain native hotkey contract snippet: ${snippet}`)

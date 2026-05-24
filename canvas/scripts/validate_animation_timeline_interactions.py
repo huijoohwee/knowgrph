@@ -5,6 +5,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Callable
 
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
@@ -490,7 +491,13 @@ def read_timeline_state(page: Page) -> dict[str, object]:
     )
 
 
-def drag_button_to_right_edge(page: Page, button_name: str, hold_ms: float) -> dict[str, object]:
+def drag_button_to_right_edge(
+    page: Page,
+    button_name: str,
+    hold_ms: float,
+    state_reader: Callable[[Page], dict[str, object]] | None = None,
+) -> dict[str, object]:
+    read_state = state_reader or read_timeline_state
     timeline = page.locator(".timeline-editor")
     button = page.get_by_role("button", name=button_name, exact=True)
     timeline_box = timeline.bounding_box()
@@ -504,10 +511,10 @@ def drag_button_to_right_edge(page: Page, button_name: str, hold_ms: float) -> d
     page.mouse.down()
     page.mouse.move(edge_x, start_y, steps=8)
     page.wait_for_timeout(hold_ms)
-    during_hold_state = read_timeline_state(page)
+    during_hold_state = read_state(page)
     page.mouse.up()
     page.wait_for_timeout(200)
-    after_release_state = read_timeline_state(page)
+    after_release_state = read_state(page)
     return {
         "during_hold": during_hold_state,
         "after_release": after_release_state,
@@ -524,6 +531,42 @@ def assert_resize_commit(result: dict[str, object], initial_state: dict[str, obj
     after_release = result["after_release"]
     if after_release["ctaText"] == initial_state["ctaText"]:
         raise AssertionError("resize: expected CTA beat timing text to change after release")
+
+
+def read_lane_item_state(page: Page, item_title: str, beat_ref: str) -> dict[str, object]:
+    return evaluate(
+        page,
+        """
+        ({ itemTitle, beatRef }) => {
+          const article = [...document.querySelectorAll('article.timeline-editor-action')].find(
+            node => node.textContent?.includes(itemTitle)
+          );
+          const beatOption = [...document.querySelectorAll('[aria-label="Animation timeline beats"] [role="option"]')].find(
+            option => option.textContent?.includes(beatRef)
+          );
+          const rect = article?.getBoundingClientRect();
+          return {
+            width: rect?.width ?? null,
+            x: rect?.x ?? null,
+            beatText: beatOption?.textContent?.replace(/\\s+/g, ' ').trim() ?? null,
+            resizeButtonExists: !![...document.querySelectorAll('button')].find(
+              button => button.getAttribute('aria-label') === `Resize ${itemTitle} end`
+            ),
+          };
+        }
+        """,
+        {"itemTitle": item_title, "beatRef": beat_ref},
+    )
+
+
+def assert_lane_item_resize_commit(
+    result: dict[str, object],
+    initial_state: dict[str, object],
+    item_title: str,
+) -> None:
+    after_release = result["after_release"]
+    if after_release["width"] == initial_state["width"] and after_release["beatText"] == initial_state["beatText"]:
+        raise AssertionError(f"resize: expected {item_title} lane item timing to change after release")
 
 
 def find_beat_option(page: Page, beat_ref: str) -> object:
@@ -1074,6 +1117,22 @@ def main() -> int:
             resize_result = drag_button_to_right_edge(page, "Resize CTA end", 420)
             assert_edge_hold_autoscroll("resize", resize_result, resize_initial_state)
             assert_resize_commit(resize_result, resize_initial_state)
+
+            apply_markdown_document(
+                page,
+                "workspace:/local/knowgrph-timeline-wide-interaction-demo.md",
+                WIDE_TIMELINE_MARKDOWN,
+            )
+            hook_overlay_initial_state = read_lane_item_state(page, "Hook Overlay", "beat_01")
+            if not hook_overlay_initial_state["resizeButtonExists"]:
+                raise AssertionError(f"expected Hook Overlay resize handle, got {hook_overlay_initial_state}")
+            hook_overlay_resize_result = drag_button_to_right_edge(
+                page,
+                "Resize Hook Overlay end",
+                220,
+                lambda current_page: read_lane_item_state(current_page, "Hook Overlay", "beat_01"),
+            )
+            assert_lane_item_resize_commit(hook_overlay_resize_result, hook_overlay_initial_state, "Hook Overlay")
             insert_result = assert_insert_before_compaction(page)
             delete_result = assert_delete_compaction(page)
             duplicate_result = assert_duplicate_compaction(page)
@@ -1089,6 +1148,7 @@ def main() -> int:
                     "url": APP_URL,
                     "move": move_result,
                     "resize": resize_result,
+                    "hook_overlay_resize": hook_overlay_resize_result,
                     "insert_before": insert_result,
                     "delete": delete_result,
                     "duplicate": duplicate_result,

@@ -516,6 +516,25 @@ export function applyAnimationTimelineBeatTimingOverrides(
   }
 }
 
+function shiftFollowingBeatTimingOverrides(
+  beats: readonly AnimationTimelineBeat[],
+  beatIndex: number,
+  deltaMs: number,
+): Record<string, AnimationTimelineBeatTimingOverride> {
+  const roundedDeltaMs = Math.max(0, Math.round(deltaMs))
+  if (roundedDeltaMs <= 0) return {}
+  const overrides: Record<string, AnimationTimelineBeatTimingOverride> = {}
+  for (let i = beatIndex + 1; i < beats.length; i += 1) {
+    const beat = beats[i]
+    if (!beat || beat.startMs == null || beat.endMs == null) continue
+    overrides[beat.beatRef] = {
+      startMs: beat.startMs + roundedDeltaMs,
+      endMs: beat.endMs + roundedDeltaMs,
+    }
+  }
+  return overrides
+}
+
 export function resolveAnimationTimelineBeatTimingEdit(args: {
   beats: readonly AnimationTimelineBeat[]
   beatIndex: number
@@ -523,7 +542,7 @@ export function resolveAnimationTimelineBeatTimingEdit(args: {
   deltaMs: number
   minDurationMs?: number
   snapStepMs?: number | null
-}): AnimationTimelineBeatTimingOverride | null {
+}): Record<string, AnimationTimelineBeatTimingOverride> | null {
   const beats = Array.isArray(args.beats) ? args.beats : []
   const beat = beats[args.beatIndex]
   if (!beat || beat.startMs == null || beat.endMs == null) return null
@@ -538,28 +557,38 @@ export function resolveAnimationTimelineBeatTimingEdit(args: {
   const snapStepMs = Math.max(0, Math.round(args.snapStepMs ?? 0))
   if (args.mode === 'move') {
     const minStart = Math.max(0, previousBoundary)
-    const maxStart = Number.isFinite(nextBoundary) ? Math.max(minStart, nextBoundary - currentDuration) : Number.POSITIVE_INFINITY
     const nextStart = snapStepMs > 0 ? snapAnimationTimelineValue(currentStart + args.deltaMs, snapStepMs) : currentStart + args.deltaMs
-    const startMs = Math.min(maxStart, Math.max(minStart, nextStart))
+    const startMs = Math.max(minStart, nextStart)
+    const endMs = startMs + currentDuration
+    const overflowMs = Number.isFinite(nextBoundary) ? Math.max(0, endMs - nextBoundary) : 0
     return {
-      startMs,
-      endMs: startMs + currentDuration,
+      [beat.beatRef]: {
+        startMs,
+        endMs,
+      },
+      ...shiftFollowingBeatTimingOverrides(beats, args.beatIndex, overflowMs),
     }
   }
   if (args.mode === 'resize-start') {
     const maxStart = Math.max(previousBoundary, currentEnd - minDurationMs)
     const nextStart = snapStepMs > 0 ? snapAnimationTimelineValue(currentStart + args.deltaMs, snapStepMs) : currentStart + args.deltaMs
     return {
-      startMs: Math.min(maxStart, Math.max(previousBoundary, nextStart)),
-      endMs: currentEnd,
+      [beat.beatRef]: {
+        startMs: Math.min(maxStart, Math.max(previousBoundary, nextStart)),
+        endMs: currentEnd,
+      },
     }
   }
   const minEnd = currentStart + minDurationMs
   const nextEnd = snapStepMs > 0 ? snapAnimationTimelineValue(currentEnd + args.deltaMs, snapStepMs) : currentEnd + args.deltaMs
-  const endMs = Math.max(minEnd, Math.min(nextBoundary, nextEnd))
+  const endMs = Math.max(minEnd, nextEnd)
+  const overflowMs = Number.isFinite(nextBoundary) ? Math.max(0, endMs - nextBoundary) : 0
   return {
-    startMs: currentStart,
-    endMs,
+    [beat.beatRef]: {
+      startMs: currentStart,
+      endMs,
+    },
+    ...shiftFollowingBeatTimingOverrides(beats, args.beatIndex, overflowMs),
   }
 }
 
@@ -581,6 +610,27 @@ export function updateAnimationTimelineMarkdownBeatTiming(args: {
   nextBeat.duration_ms = roundedEndMs - roundedStartMs
   if (!readString(nextBeat.label)) nextBeat.label = beatRef
   frontmatterState.beats[beatRef] = nextBeat
+  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+}
+
+export function updateAnimationTimelineMarkdownBeatTimingOverrides(args: {
+  markdownText: string | null | undefined
+  overrides: Record<string, AnimationTimelineBeatTimingOverride>
+}): string {
+  const markdownText = String(args.markdownText || '')
+  const overrideEntries = Object.entries(args.overrides || {}).filter(([beatRef]) => String(beatRef || '').trim())
+  if (overrideEntries.length === 0) return markdownText
+  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  for (const [beatRef, override] of overrideEntries) {
+    const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
+    const roundedStartMs = Math.max(0, Math.round(override.startMs))
+    const roundedEndMs = Math.max(roundedStartMs, Math.round(override.endMs))
+    nextBeat.start_ms = roundedStartMs
+    nextBeat.end_ms = roundedEndMs
+    nextBeat.duration_ms = roundedEndMs - roundedStartMs
+    if (!readString(nextBeat.label)) nextBeat.label = beatRef
+    frontmatterState.beats[beatRef] = nextBeat
+  }
   return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
