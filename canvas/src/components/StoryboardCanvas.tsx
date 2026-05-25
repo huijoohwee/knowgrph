@@ -18,11 +18,24 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DataViewStatusChip, DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
-import { buildStoryboardBoardModel, type StoryboardCardModel, type StoryboardCardReference } from '@/components/StoryboardCanvas/storyboardModel'
+import { buildStoryboardBoardModel, STORYBOARD_EMPTY_LANE, type StoryboardCardModel, type StoryboardCardReference } from '@/components/StoryboardCanvas/storyboardModel'
+import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
+import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
+import { isKanbanMoveNoOp, buildKanbanDropOutcomeText } from '@/features/markdown/ui/kanban/kanbanMoveOutcomes'
+import { buildKanbanCardDropIntentLabel, buildKanbanDragStatusText, buildKanbanLaneDropIntentLabel } from '@/features/markdown/ui/kanban/kanbanDragIntent'
+import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/features/markdown/ui/kanban/kanbanDragVisualState'
+import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
 
 type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
   url: string
+}
+
+function readStoryboardNodeProperties(node: unknown): Record<string, unknown> {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return {}
+  const properties = (node as { properties?: unknown }).properties
+  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return {}
+  return properties as Record<string, unknown>
 }
 
 function resolveStoryboardDisplayMedia(card: StoryboardCardModel): StoryboardDisplayMedia | null {
@@ -46,7 +59,7 @@ function StoryboardMediaPreview(props: {
       <img
         src={media.url}
         alt={title}
-        className="h-full w-full object-cover"
+        className="pointer-events-none h-full w-full select-none object-cover"
         loading="lazy"
         draggable={false}
       />
@@ -56,10 +69,11 @@ function StoryboardMediaPreview(props: {
     return (
       <video
         src={media.url}
-        className="h-full w-full object-cover"
+        className="pointer-events-none h-full w-full select-none object-cover"
         muted
         playsInline
         preload="metadata"
+        draggable={false}
       />
     )
   }
@@ -124,6 +138,10 @@ function StoryboardReferenceStrip(props: {
                 rel="noreferrer"
                 className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-white"
                 title={reference.url}
+                draggable={false}
+                onDragStart={event => {
+                  event.preventDefault()
+                }}
               >
                 <img src={reference.url} alt="Reference" className="h-full w-full object-cover" loading="lazy" draggable={false} />
               </a>
@@ -137,6 +155,10 @@ function StoryboardReferenceStrip(props: {
               rel="noreferrer"
               className={['inline-flex h-14 min-w-14 max-w-[8rem] shrink-0 items-center justify-center rounded-lg border px-2 text-center text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
               title={reference.url}
+              draggable={false}
+              onDragStart={event => {
+                event.preventDefault()
+              }}
             >
               {reference.kind === 'video' ? 'Video ref' : 'Open ref'}
             </a>
@@ -153,22 +175,172 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { graphRevision, selectedNodeId, selectNode } = useGraphStore(
+  const { graphRevision, selectedNodeId, selectNode, updateNode, upsertUiToast, dismissUiToast } = useGraphStore(
     useShallow(s => ({
       graphRevision: s.graphDataRevision || 0,
       selectedNodeId: String(s.selectedNodeId || '').trim(),
       selectNode: s.selectNode,
+      updateNode: s.updateNode,
+      upsertUiToast: s.upsertUiToast,
+      dismissUiToast: s.dismissUiToast,
     })),
   )
+  const boardScrollRef = React.useRef<HTMLElement>(null)
+  const laneScrollElementsRef = React.useRef(new Map<string, HTMLOListElement>())
   const board = React.useMemo(() => {
     return buildStoryboardBoardModel({
       graphData,
       graphRevision,
     })
   }, [graphData, graphRevision])
+  const rowIdToLaneKey = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const lane of board.lanes) {
+      for (const card of lane.cards) map.set(card.id, lane.id)
+    }
+    return map
+  }, [board.lanes])
+  const laneToRowIds = React.useMemo(() => {
+    const map = new Map<string, readonly string[]>()
+    for (const lane of board.lanes) {
+      map.set(lane.id, lane.cards.map(card => card.id))
+    }
+    return map
+  }, [board.lanes])
+  const orderedCardIds = React.useMemo(() => board.lanes.flatMap(lane => lane.cards.map(card => card.id)), [board.lanes])
+  const rowIdToOrder = React.useMemo(() => {
+    const map = new Map<string, number>()
+    for (const lane of board.lanes) {
+      for (const card of lane.cards) map.set(card.id, card.order)
+    }
+    return map
+  }, [board.lanes])
+  const cardById = React.useMemo(() => {
+    const map = new Map<string, StoryboardCardModel>()
+    for (const lane of board.lanes) {
+      for (const card of lane.cards) map.set(card.id, card)
+    }
+    return map
+  }, [board.lanes])
+  const currentPropertiesByCardId = React.useMemo(() => {
+    const map = new Map<string, Record<string, unknown>>()
+    const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+    for (const node of nodes) {
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      map.set(id, readStoryboardNodeProperties(node))
+    }
+    return map
+  }, [graphData])
+  const isStoryboardMoveNoOp = React.useCallback((move: {
+    rowId: string
+    sourceGroupKey: string
+    targetGroupKey: string
+    targetRowId: string | null
+    position: KanbanDropPosition
+  }): boolean => {
+    const currentSourceGroupKey = rowIdToLaneKey.get(move.rowId) || move.sourceGroupKey || ''
+    if (!currentSourceGroupKey) return false
+    const nextOrderedRowIds = reorderKanbanRowIds({
+      orderedRowIds: orderedCardIds,
+      availableRowIds: orderedCardIds,
+      rowIdToGroupKey: rowIdToLaneKey,
+      draggedRowId: move.rowId,
+      targetGroupKey: move.targetGroupKey,
+      targetRowId: move.targetRowId,
+      position: move.position,
+    })
+    const sameLane = currentSourceGroupKey === move.targetGroupKey
+    const sameOrder =
+      nextOrderedRowIds.length === orderedCardIds.length
+      && nextOrderedRowIds.every((rowId, index) => rowId === orderedCardIds[index])
+    if (sameLane && sameOrder) return true
+    return isKanbanMoveNoOp({
+      groupToRowIds: laneToRowIds,
+      draggedRowId: move.rowId,
+      sourceGroupKey: currentSourceGroupKey,
+      targetGroupKey: move.targetGroupKey,
+      targetRowId: move.targetRowId,
+      position: move.position,
+    })
+  }, [laneToRowIds, orderedCardIds, rowIdToLaneKey])
+  const storyboardDrag = useKanbanDragAndDrop({
+    enabled: active && typeof updateNode === 'function' && board.totalCards > 0,
+    getBoardScrollElement: () => boardScrollRef.current,
+    getLaneScrollElement: groupKey => laneScrollElementsRef.current.get(groupKey) || null,
+    isNoOpMove: isStoryboardMoveNoOp,
+    buildOutcomeMessage: ({ kind, move, sourceGroupKey, blockedReason }) => buildKanbanDropOutcomeText({
+      kind,
+      sourceLaneLabel: sourceGroupKey || move?.sourceGroupKey || null,
+      targetLaneLabel: move?.targetGroupKey || null,
+      targetCardLabel: move?.targetRowId ? cardById.get(move.targetRowId)?.title || move.targetRowId : null,
+      blockedReason,
+    }),
+    onCommitMove: move => {
+      const orderedRowIds = reorderKanbanRowIds({
+        orderedRowIds: orderedCardIds,
+        availableRowIds: orderedCardIds,
+        rowIdToGroupKey: rowIdToLaneKey,
+        draggedRowId: move.rowId,
+        targetGroupKey: move.targetGroupKey,
+        targetRowId: move.targetRowId,
+        position: move.position,
+      })
+      for (let index = 0; index < orderedRowIds.length; index += 1) {
+        const cardId = orderedRowIds[index]
+        const card = cardById.get(cardId)
+        if (!card) continue
+        const nextOrder = index + 1
+        const currentOrder = rowIdToOrder.get(cardId) ?? card.order
+        const currentProperties = currentPropertiesByCardId.get(cardId) || {}
+        const nextLaneValue =
+          cardId === move.rowId
+            ? (move.targetGroupKey === STORYBOARD_EMPTY_LANE ? '' : move.targetGroupKey)
+            : card.lane === STORYBOARD_EMPTY_LANE
+              ? ''
+              : card.lane
+        const currentLaneValue = String(currentProperties[card.lanePropertyKey] ?? currentProperties.lane ?? card.lane).trim()
+        if (cardId !== move.rowId && currentOrder === nextOrder) continue
+        if (cardId === move.rowId && currentOrder === nextOrder && currentLaneValue === nextLaneValue) continue
+        updateNode(card.id, {
+          properties: {
+            ...currentProperties,
+            lane: nextLaneValue,
+            [card.lanePropertyKey]: nextLaneValue,
+            order: nextOrder,
+          } as never,
+        })
+      }
+    },
+  })
   const laneCount = board.lanes.length
   const mediaCount = board.lanes.reduce((sum, lane) => sum + lane.cards.filter(card => card.media !== null).length, 0)
   const referenceCount = board.lanes.reduce((sum, lane) => sum + lane.cards.reduce((laneSum, card) => laneSum + card.references.length, 0), 0)
+  const activeDragStatusText = buildKanbanDragStatusText({
+    sourceLaneLabel: storyboardDrag.dragSourceGroupKey,
+    targetLaneLabel: storyboardDrag.dragOverGroupKey,
+    targetCardLabel: storyboardDrag.dragOverRowId ? cardById.get(storyboardDrag.dragOverRowId)?.title || storyboardDrag.dragOverRowId : null,
+    position: storyboardDrag.dragOverPosition as KanbanDropPosition,
+    isDragging: storyboardDrag.draggingRowId !== null,
+  })
+  const dragToastMessage = activeDragStatusText || storyboardDrag.dragOutcomeMessage
+
+  React.useEffect(() => {
+    const toastId = 'storyboard:drag-status'
+    const message = String(dragToastMessage || '').trim()
+    if (!message) {
+      dismissUiToast(toastId)
+      return
+    }
+    upsertUiToast({
+      id: toastId,
+      kind: activeDragStatusText ? 'neutral' : storyboardDrag.commitFlashRowId ? 'success' : 'neutral',
+      message,
+      ttlMs: activeDragStatusText ? null : 2200,
+      dismissible: !activeDragStatusText,
+      log: false,
+    })
+  }, [activeDragStatusText, dismissUiToast, dragToastMessage, storyboardDrag.commitFlashRowId, upsertUiToast])
 
   return (
     <section className={['relative flex h-full w-full flex-col overflow-hidden', UI_THEME_TOKENS.panel.bg].join(' ')} aria-label="Storyboard canvas">
@@ -205,17 +377,33 @@ export default function StoryboardCanvas({
       </header>
 
       {board.totalCards > 0 ? (
-        <section className="flex-1 overflow-x-auto overflow-y-hidden p-4" aria-label="Storyboard lanes">
+        <section ref={boardScrollRef} className="flex-1 overflow-x-auto overflow-y-hidden p-4" aria-label="Storyboard lanes">
           <div className="flex h-full min-w-fit items-start gap-4">
             {board.lanes.map(lane => (
+              (() => {
+                const laneDropProps = storyboardDrag.createLaneDropProps(lane.id)
+                return (
               <section
                 key={lane.id}
                 className={[
                   'flex h-full w-[360px] shrink-0 flex-col overflow-hidden rounded-2xl border shadow-sm',
+                  getKanbanLaneDragVisualState({
+                    hasActiveDrag: storyboardDrag.draggingRowId !== null,
+                    isDragOver: storyboardDrag.dragOverGroupKey === lane.id && storyboardDrag.dragSourceGroupKey !== lane.id,
+                    isSourceLane: storyboardDrag.dragSourceGroupKey === lane.id,
+                    isCommitFlash: storyboardDrag.commitFlashGroupKey === lane.id,
+                  }).className,
                   UI_THEME_TOKENS.panel.border,
                   UI_THEME_TOKENS.kanban.groupBg,
                 ].join(' ')}
+                style={getKanbanLaneDragVisualState({
+                  hasActiveDrag: storyboardDrag.draggingRowId !== null,
+                  isDragOver: storyboardDrag.dragOverGroupKey === lane.id && storyboardDrag.dragSourceGroupKey !== lane.id,
+                  isSourceLane: storyboardDrag.dragSourceGroupKey === lane.id,
+                  isCommitFlash: storyboardDrag.commitFlashGroupKey === lane.id,
+                }).style}
                 aria-label={`Storyboard lane ${readMarkdownSigilDisplayText(lane.label)}`}
+                {...laneDropProps}
               >
                 <header className={['sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm', UI_THEME_TOKENS.panel.divider, UI_THEME_TOKENS.kanban.groupBg].join(' ')}>
                   <div className="min-w-0">
@@ -231,33 +419,82 @@ export default function StoryboardCanvas({
                   </span>
                 </header>
 
-                <ol className="flex-1 space-y-3 overflow-y-auto p-3 list-none m-0" aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}>
+                <ol
+                  ref={element => {
+                    if (element) {
+                      laneScrollElementsRef.current.set(lane.id, element)
+                      return
+                    }
+                    laneScrollElementsRef.current.delete(lane.id)
+                  }}
+                  className="flex-1 space-y-3 overflow-y-auto p-3 list-none m-0"
+                  aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}
+                  {...laneDropProps}
+                >
                   {lane.cards.map((card, cardIndex) => {
                     const selected = selectedNodeId === card.id
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displaySummary = readMarkdownSigilDisplayText(card.summary)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const cardDragProps = storyboardDrag.createCardDragProps({ rowId: card.id, groupKey: lane.id })
+                    const cardDragVisualState = getKanbanCardDragVisualState({
+                      hasActiveDrag: storyboardDrag.draggingRowId !== null,
+                      isDragging: storyboardDrag.draggingRowId === card.id,
+                      isDropTarget: storyboardDrag.dragOverRowId === card.id,
+                      isCommitFlash: storyboardDrag.commitFlashRowId === card.id,
+                    })
                     return (
                       <li key={card.id} className="list-none">
                         <article
                           className={[
-                            'group overflow-hidden rounded-2xl border bg-white shadow-sm transition-transform duration-150',
+                            'group overflow-hidden rounded-2xl border bg-white shadow-sm transition-transform duration-150 select-none',
                             UI_THEME_TOKENS.kanban.cardHoverBg,
                             selected ? 'border-black/30 ring-1 ring-black/10' : UI_THEME_TOKENS.panel.border,
+                            cardDragVisualState.className,
                             'hover:-translate-y-[1px]',
                           ].join(' ')}
-                        >
-                          <button
-                            type="button"
-                            className="block w-full text-left"
-                            onClick={() => {
+                          style={cardDragVisualState.style}
+                          ref={element => {
+                            storyboardDrag.registerFocusableRowElement({
+                              rowId: card.id,
+                              element,
+                            })
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-pressed={selected}
+                          aria-grabbed={cardDragProps.draggable ? storyboardDrag.draggingRowId === card.id : undefined}
+                          aria-label={`Select storyboard card ${displayTitle}`}
+                          {...storyboardDrag.createCardDropProps({ rowId: card.id, groupKey: lane.id })}
+                          draggable={cardDragProps.draggable}
+                          onDragStart={cardDragProps.onDragStart}
+                          onDragEnd={cardDragProps.onDragEnd}
+                          onClick={() => {
+                            selectNode(card.id)
+                          }}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
                               selectNode(card.id)
-                            }}
-                            aria-pressed={selected}
-                            aria-label={`Select storyboard card ${displayTitle}`}
-                          >
-                            <div className="border-b border-black/5 px-3 py-2.5">
+                            }
+                          }}
+                        >
+                          {storyboardDrag.dragOverRowId === card.id ? (
+                            <KanbanCardDropPreview
+                              position={storyboardDrag.dragOverPosition as KanbanDropPosition}
+                              label={buildKanbanCardDropIntentLabel({
+                                position: storyboardDrag.dragOverPosition as KanbanDropPosition,
+                                targetCardLabel: card.title,
+                                targetLaneLabel: lane.label,
+                              })}
+                            />
+                          ) : null}
+                          <div className="block w-full cursor-pointer text-left">
+                            <div
+                              data-kg-kanban-card-drag-region="1"
+                              className="border-b border-black/5 px-3 py-2.5 cursor-grab active:cursor-grabbing select-none"
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <div className="mb-2 flex items-center gap-2">
@@ -284,11 +521,17 @@ export default function StoryboardCanvas({
                               </div>
                             </div>
 
-                            <div className={['aspect-[16/9] overflow-hidden border-b border-black/5', selected ? 'bg-black/10' : 'bg-black/5'].join(' ')}>
+                            <div
+                              data-kg-kanban-card-drag-region="1"
+                              className={['aspect-[16/9] overflow-hidden border-b border-black/5 cursor-grab active:cursor-grabbing select-none', selected ? 'bg-black/10' : 'bg-black/5'].join(' ')}
+                            >
                               <StoryboardMediaPreview title={displayTitle} href={card.href} media={displayMedia} />
                             </div>
 
-                            <div className="space-y-3 px-3 py-3">
+                            <div
+                              data-kg-kanban-card-drag-region="1"
+                              className="space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
+                            >
                               {card.summary ? (
                                 <div>
                                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
@@ -340,8 +583,12 @@ export default function StoryboardCanvas({
                                         target="_blank"
                                         rel="noreferrer"
                                         className={['inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                        draggable={false}
                                         onClick={event => {
                                           event.stopPropagation()
+                                        }}
+                                        onDragStart={event => {
+                                          event.preventDefault()
                                         }}
                                         title={card.href}
                                       >
@@ -380,8 +627,12 @@ export default function StoryboardCanvas({
                                     target="_blank"
                                     rel="noreferrer"
                                     className={['inline-flex max-w-full items-center gap-1 text-xs underline underline-offset-2', UI_THEME_TOKENS.text.secondary].join(' ')}
+                                    draggable={false}
                                     onClick={event => {
                                       event.stopPropagation()
+                                    }}
+                                    onDragStart={event => {
+                                      event.preventDefault()
                                     }}
                                     title={card.href}
                                   >
@@ -391,13 +642,20 @@ export default function StoryboardCanvas({
                                 </div>
                               ) : null}
                             </div>
-                          </button>
+                          </div>
                         </article>
                       </li>
                     )
                   })}
+                  {storyboardDrag.draggingRowId !== null && storyboardDrag.dragOverGroupKey === lane.id && storyboardDrag.dragOverRowId == null ? (
+                    <li className="list-none">
+                      <KanbanLaneDropPreview label={buildKanbanLaneDropIntentLabel({ targetLaneLabel: lane.label })} compact />
+                    </li>
+                  ) : null}
                 </ol>
               </section>
+                )
+              })()
             ))}
           </div>
         </section>

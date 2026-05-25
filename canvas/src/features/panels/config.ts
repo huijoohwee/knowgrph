@@ -27,6 +27,7 @@ import {
 } from '@/lib/config'
 
 import { CANVAS_SHORTCUT_COPY_LINES } from '@/lib/canvas/interaction-ssot'
+import { KANBAN_SHORTCUT_HELP_LINES } from '@/features/markdown/ui/kanban/kanbanShortcutCopy'
 
 export const PANEL_MIN_PX = 120
 export const PANEL_MAX_RATIO = 1.0
@@ -174,6 +175,7 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   'Canvas: Click the chevron on a group label to collapse/expand the group (clusters/communities/subgraphs).',
   'Canvas: Alt + double-click a group label expand-selects member nodes/edges.',
   'Canvas: Click the chevron on a collapsed group node to expand the group.',
+  ...KANBAN_SHORTCUT_HELP_LINES,
   'Help: Launch re-opens the launch spotlight.',
   'Canvas: Cmd/Ctrl + Shift + G replays the launch spotlight.',
   'Settings: uiIconScale under “UI Density: Icons” controls compact vs default icon size across toolbars and panels.',

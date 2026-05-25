@@ -14,6 +14,7 @@ import {
   allocateNewRowId,
   createRowFromGraphEntity,
   getGraphTableDb,
+  reorderGraphTableRows,
   syncGraphDataToGraphTableDb,
   updateGraphTableCell,
   updateGraphTableColumnKind,
@@ -589,6 +590,39 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     [activeTableId, columns, infiniteCanvasInteractionMode, noteGraphWrite, rowById, tableToGraphRenderingEnabled],
   )
 
+  const noteGraphRevisionBump = useCallback(() => {
+    const st = useGraphStore.getState()
+    const prev = infiniteCanvasInteractionMode === 'interactive' ? st.graphDataRevision : st.graphContentRevision
+    noteGraphWrite(prev + 1)
+  }, [infiniteCanvasInteractionMode, noteGraphWrite])
+
+  const handleMoveRowToGroup = useCallback(
+    ({ rowId, columnId, nextValue, orderedRowIds }: {
+      rowId: string
+      columnId: string
+      nextValue: string
+      orderedRowIds: readonly string[]
+    }) => {
+      void (async () => {
+        const currentRow = rowById.get(rowId) || null
+        const prevRaw = currentRow ? (currentRow as unknown as Record<string, unknown>)[columnId] : null
+        const normPrev = typeof prevRaw === 'string' && !prevRaw.trim() ? null : prevRaw
+        const normNext = typeof nextValue === 'string' && !nextValue.trim() ? null : nextValue
+        await reorderGraphTableRows({ tableId: activeTableId, orderedRowIds })
+        if (!Object.is(normPrev, normNext)) {
+          await updateGraphTableCell(activeTableId, rowId, columnId, nextValue)
+        }
+        noteGraphRevisionBump()
+        if (!tableToGraphRenderingEnabled) return
+        const columnKind = columns.find(column => column.columnId === columnId)?.kind
+        if (!Object.is(normPrev, normNext)) {
+          applyCellUpdateToGraphStore(activeTableId, rowId, columnId, nextValue, columnKind)
+        }
+      })()
+    },
+    [activeTableId, columns, noteGraphRevisionBump, rowById, tableToGraphRenderingEnabled],
+  )
+
   const handleColumnKindChanged = useCallback(
     (columnId: string, nextKind: GraphColumnDoc['kind']) => {
       void (async () => {
@@ -813,6 +847,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       onUpsertColumnFilter={handleUpsertColumnFilter}
       onSetSingleColumnSort={handleSetSingleColumnSort}
       onRowClicked={handleActivateRow}
+      onMoveRowToGroup={handleMoveRowToGroup}
       columnOrderIds={columnOrderByTableId[activeTableId]}
     />
   )

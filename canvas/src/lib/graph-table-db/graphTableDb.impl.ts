@@ -508,6 +508,8 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
     const existingEdgeIds = new Set(existingEdges.map(d => d.get('rowId')))
     const existingNodeDocsById = new Map(existingNodes.map(d => [String(d.get('rowId')), d] as const))
     const existingEdgeDocsById = new Map(existingEdges.map(d => [String(d.get('rowId')), d] as const))
+    const existingNodeOrderById = new Map(existingNodes.map(d => [String(d.get('rowId')), Number(d.get('order')) || 0] as const))
+    const existingEdgeOrderById = new Map(existingEdges.map(d => [String(d.get('rowId')), Number(d.get('order')) || 0] as const))
 
     for (let i = 0; i < graph.nodes.length; i += 1) {
       const n = graph.nodes[i]
@@ -517,23 +519,22 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
       const doc = existingNodeDocsById.get(rowId) || null
       const nextData = nodeRows[i]
       if (!doc) {
+        const nextOrder = existingNodes.length + i + 1
         await collections.rows.incrementalUpsert({
           pk,
           tableId: 'nodes',
           rowId,
-          order: i + 1,
+          order: nextOrder,
           data: nextData,
           createdAtMs: now,
           updatedAtMs: now,
         })
         continue
       }
-      const prevOrder = Number(doc.get('order'))
       const prevData = doc.get('data') as unknown
       const prevDataRec = isPlainObject(prevData) ? (prevData as Record<string, JSONValue>) : {}
-      const nextOrder = i + 1
-      if (prevOrder === nextOrder && isJsonRecordEqual(prevDataRec, nextData)) continue
-      await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })
+      if (isJsonRecordEqual(prevDataRec, nextData)) continue
+      await doc.incrementalPatch({ data: nextData, updatedAtMs: now })
     }
 
     for (let i = 0; i < graph.edges.length; i += 1) {
@@ -544,23 +545,22 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
       const doc = existingEdgeDocsById.get(rowId) || null
       const nextData = edgeRows[i]
       if (!doc) {
+        const nextOrder = existingEdges.length + i + 1
         await collections.rows.incrementalUpsert({
           pk,
           tableId: 'edges',
           rowId,
-          order: i + 1,
+          order: nextOrder,
           data: nextData,
           createdAtMs: now,
           updatedAtMs: now,
         })
         continue
       }
-      const prevOrder = Number(doc.get('order'))
       const prevData = doc.get('data') as unknown
       const prevDataRec = isPlainObject(prevData) ? (prevData as Record<string, JSONValue>) : {}
-      const nextOrder = i + 1
-      if (prevOrder === nextOrder && isJsonRecordEqual(prevDataRec, nextData)) continue
-      await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })
+      if (isJsonRecordEqual(prevDataRec, nextData)) continue
+      await doc.incrementalPatch({ data: nextData, updatedAtMs: now })
     }
 
     for (const rowId of existingNodeIds) {
@@ -570,6 +570,28 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
     for (const rowId of existingEdgeIds) {
       const doc = existingEdgeDocsById.get(rowId) || null
       if (doc) await doc.remove()
+    }
+  })
+}
+
+export const reorderGraphTableRows = async (args: { tableId: GraphTableId; orderedRowIds: readonly string[] }): Promise<void> => {
+  await withGraphTableDbWrite(async () => {
+    const { collections } = await getGraphTableDb()
+    const docs = await collections.rows.find({ selector: { tableId: args.tableId } }).exec()
+    const docsById = new Map(docs.map(doc => [String(doc.get('rowId')), doc] as const))
+    const remainingIds = docs
+      .map(doc => String(doc.get('rowId')))
+      .filter(rowId => !args.orderedRowIds.includes(rowId))
+    const nextIds = [...args.orderedRowIds, ...remainingIds]
+    const now = Date.now()
+    for (let i = 0; i < nextIds.length; i += 1) {
+      const rowId = nextIds[i]
+      const doc = docsById.get(rowId)
+      if (!doc) continue
+      const nextOrder = i + 1
+      const prevOrder = Number(doc.get('order'))
+      if (prevOrder === nextOrder) continue
+      await doc.incrementalPatch({ order: nextOrder, updatedAtMs: now })
     }
   })
 }

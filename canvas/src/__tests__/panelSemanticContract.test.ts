@@ -288,12 +288,137 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!dataViewTable.includes('uiToolbarRowScrollClassName') || dataViewTable.includes('flex flex-wrap gap-1')) {
     throw new Error('Expected Data View table chip rows to use toolbar-owned same-row scrolling')
   }
+  const kanbanViewPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewKanbanView.tsx')
+  const kanbanShortcutCopyPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'kanbanShortcutCopy.ts')
+  const kanbanGroupPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanGroup.tsx')
+  const kanbanDropPreviewPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanDropPreview.tsx')
+  const kanbanDragHookPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'useKanbanDragAndDrop.ts')
+  const kanbanDragVisualStatePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'kanbanDragVisualState.ts')
+  const kanbanDragIntentPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'kanbanDragIntent.ts')
+  const kanbanMoveOutcomesPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'kanbanMoveOutcomes.ts')
   const kanbanCard = readUtf8(kanbanCardPath)
+  const kanbanShortcutCopy = readUtf8(kanbanShortcutCopyPath)
+  const panelConfig = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'config.ts'))
+  const kanbanGroup = readUtf8(kanbanGroupPath)
+  const kanbanDropPreview = readUtf8(kanbanDropPreviewPath)
+  const kanbanDragHook = readUtf8(kanbanDragHookPath)
+  const kanbanDragVisualState = readUtf8(kanbanDragVisualStatePath)
+  const kanbanDragIntent = readUtf8(kanbanDragIntentPath)
+  const kanbanMoveOutcomes = readUtf8(kanbanMoveOutcomesPath)
   if (!kanbanCard.includes('kg-click-expand-menu-children') || kanbanCard.includes('-translate-x-full')) {
     throw new Error('Expected kanban card child menus to expand inline without offscreen side placement')
   }
   if (!kanbanCard.includes('uiToolbarRowScrollClassName') || kanbanCard.includes('flex flex-wrap gap-1 list-none')) {
     throw new Error('Expected Kanban tag rows to use toolbar-owned same-row scrolling')
+  }
+  if (
+    !kanbanCard.includes('data-kg-kanban-card-drag-region="1"') ||
+    !kanbanCard.includes("const sharedDragRegionClassName = props.cardDragProps?.draggable ? 'cursor-grab active:cursor-grabbing' : ''") ||
+    !kanbanCard.includes('const sharedDragRegionProps = props.cardDragProps?.draggable') ||
+    !kanbanCard.includes('{...sharedDragRegionProps}')
+  ) {
+    throw new Error('Expected Kanban cards to expose shared non-handle drag regions instead of a visible grip handle or full-card drag shell')
+  }
+  if (!kanbanCard.includes('props.canMutate && (e.altKey || e.metaKey)') || !kanbanCard.includes('props.onKeyboardMove?.({ rowId: props.row.id, direction })')) {
+    throw new Error('Expected Kanban cards to expose shared keyboard move controls for accessible reorder')
+  }
+  if (kanbanCard.includes('KANBAN_DRAG_HANDLE_LABEL') || kanbanCard.includes('KanbanShortcutDetails') || kanbanCard.includes('aria-describedby={props.canMutate && props.onKeyboardMove ? shortcutHintId : undefined}')) {
+    throw new Error('Expected Kanban cards to keep shortcut copy out of the local card surface and avoid reintroducing a visible drag handle')
+  }
+  if (!kanbanCard.includes('KanbanCardDropPreview') || kanbanCard.includes('absolute inset-x-2 top-0 h-[2px] z-10')) {
+    throw new Error('Expected Kanban cards to reuse the shared drop preview helper instead of inline-only drop lines')
+  }
+  if (!kanbanCard.includes('onFocusableRowElement?:') || !kanbanCard.includes('props.onFocusableRowElement?.({')) {
+    throw new Error('Expected Kanban cards to expose shared focusable-row registration instead of local-only focus recovery')
+  }
+  if (!kanbanCard.includes('getKanbanCardDragVisualState') || !kanbanGroup.includes('getKanbanLaneDragVisualState') || !kanbanCard.includes('isCommitFlash') || !kanbanGroup.includes('commitFlashRowId')) {
+    throw new Error('Expected Kanban cards and lanes to reuse shared drag ghost/emphasis and commit flash visuals instead of local styling branches')
+  }
+  if (!kanbanCard.includes('buildKanbanCardDropIntentLabel') || !kanbanGroup.includes('laneDropPreviewLabel')) {
+    throw new Error('Expected Kanban cards and lanes to reuse shared drag-intent captions instead of static drop labels')
+  }
+  const kanbanView = readUtf8(kanbanViewPath)
+  const kanbanReorderPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'kanbanReorder.ts')
+  const dataViewModelPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownDataViewModel.ts')
+  const kanbanReorder = readUtf8(kanbanReorderPath)
+  const dataViewModel = readUtf8(dataViewModelPath)
+  if (!kanbanShortcutCopy.includes('KANBAN_SHORTCUT_HELP_LINES') || !panelConfig.includes('...KANBAN_SHORTCUT_HELP_LINES')) {
+    throw new Error('Expected Kanban shortcut copy to be owned by a shared helper and surfaced from MainPanel Help shortcuts')
+  }
+  if (!kanbanDropPreview.includes('export function KanbanCardDropPreview') || !kanbanDropPreview.includes('export function KanbanLaneDropPreview')) {
+    throw new Error('Expected Kanban drop previews to be owned by a shared helper')
+  }
+  if (!kanbanDragVisualState.includes('export const getKanbanCardDragVisualState') || !kanbanDragVisualState.includes('export const getKanbanLaneDragVisualState') || !kanbanDragVisualState.includes('isCommitFlash')) {
+    throw new Error('Expected Kanban drag ghost, lane emphasis, and commit flash visuals to be owned by a shared helper')
+  }
+  if (!kanbanDragIntent.includes('export const buildKanbanCardDropIntentLabel') || !kanbanDragIntent.includes('export const buildKanbanDragStatusText')) {
+    throw new Error('Expected Kanban drag intent messaging to be owned by a shared helper')
+  }
+  if (!kanbanMoveOutcomes.includes("kind: 'blocked' | 'cancelled' | 'no-op' | 'committed'") || !kanbanMoveOutcomes.includes('export type KanbanBlockedMoveReason') || !kanbanMoveOutcomes.includes('export const isKanbanMoveNoOp') || !kanbanMoveOutcomes.includes('export const buildKanbanDropOutcomeText')) {
+    throw new Error('Expected Kanban move outcome suppression and success/cancel/boundary messaging to be owned by a shared helper')
+  }
+  if (!kanbanDragHook.includes('getBoardScrollElement?: () => HTMLElement | null') || !kanbanDragHook.includes('getLaneScrollElement?: (groupKey: string) => HTMLElement | null') || !kanbanDragHook.includes('window.requestAnimationFrame(tick)')) {
+    throw new Error('Expected Kanban drag owner to manage shared board and lane auto-scroll via a requestAnimationFrame loop')
+  }
+  if (!kanbanDragHook.includes('KANBAN_LANE_HOVER_DWELL_MS') || !kanbanDragHook.includes('window.setTimeout(() =>') || !kanbanDragHook.includes('resolveDropTarget')) {
+    throw new Error('Expected Kanban drag owner to stabilize cross-lane hover with a shared dwell contract instead of immediate target thrash')
+  }
+  if (!kanbanDragHook.includes('KANBAN_DIRECTIONAL_LANE_ENTRY_BIAS_PX') || !kanbanDragHook.includes('KANBAN_CARD_TARGET_HYSTERESIS_PX') || !kanbanDragHook.includes('lastAppliedTargetPointerRef')) {
+    throw new Error('Expected Kanban drag owner to apply shared directional lane-entry bias and card-target hysteresis instead of raw pointer switching')
+  }
+  if (kanbanDragHook.indexOf('const updateAutoScrollTargets = React.useCallback') > kanbanDragHook.indexOf('const resolveDropTarget = React.useCallback')) {
+    throw new Error('Expected Markdown kanban shared auto-scroll callback to be declared before the shared drop-target resolver to avoid TDZ runtime crashes')
+  }
+  if (!kanbanDragHook.includes('const clearActiveDropTarget = React.useCallback') || !kanbanDragHook.includes('if (dragOverRowIdRef.current == null) {') || !kanbanDragHook.includes('clearActiveDropTarget()')) {
+    throw new Error('Expected Markdown kanban lane-end drag previews to clear from the shared drag owner when the pointer leaves the lane target')
+  }
+  if (!kanbanDragHook.includes('registerFocusableRowElement') || !kanbanDragHook.includes('requestFocusRow') || !kanbanDragHook.includes('attemptFocusRow')) {
+    throw new Error('Expected Kanban drag owner to centralize post-move focus recovery instead of per-surface focus patches')
+  }
+  if (!kanbanDragHook.includes('const commitMove = React.useCallback') || !kanbanDragHook.includes('const reportBlockedMove = React.useCallback') || !kanbanDragHook.includes("commitMove(move) === 'committed' ? 'commit' : 'no-op'")) {
+    throw new Error('Expected Kanban drag owner to centralize shared commit/no-op/boundary resolution for pointer and keyboard moves')
+  }
+  if (!kanbanDragHook.includes('const [dragOutcomeSequence, setDragOutcomeSequence] = React.useState(0)') || !kanbanDragHook.includes('setDragOutcomeSequence(value => value + 1)') || !kanbanView.includes('kanbanDrag.dragOutcomeSequence')) {
+    throw new Error('Expected Markdown kanban repeated outcome announcements to be driven by a shared outcome sequence instead of local live-region retries')
+  }
+  if (!kanbanDragHook.includes('clearCommitFeedback()') || !kanbanDragHook.includes("kind: 'no-op'")) {
+    throw new Error('Expected Markdown kanban no-op moves to clear stale success feedback in the shared drag owner before announcing no change')
+  }
+  if (!kanbanDragHook.includes('const draggingRowIdRef = React.useRef<string | null>(null)') || !kanbanDragHook.includes('const dragSourceGroupKeyRef = React.useRef<string | null>(null)') || !kanbanDragHook.includes('const resolveDraggedRowId = React.useCallback') || !kanbanDragHook.includes('const resolveDraggedGroupKey = React.useCallback')) {
+    throw new Error('Expected Kanban drag owner to retain active drag identity in shared refs when browser dragover/drop dataTransfer payloads are unavailable')
+  }
+  if (!kanbanDragHook.includes('setCommitFlashRowId(move.rowId)') || !kanbanView.includes('commitFlashRowId={kanbanDrag.commitFlashRowId}') || !kanbanGroup.includes('props.commitFlashRowId === row.id')) {
+    throw new Error('Expected Markdown kanban commit flash to follow the moved row through the shared drag owner and card registration path')
+  }
+  if (!kanbanView.includes('useKanbanDragAndDrop') || !kanbanView.includes('reorderKanbanRowIds') || !kanbanView.includes('onReorderRows({') || !kanbanView.includes('handleKeyboardMove')) {
+    throw new Error('Expected Markdown kanban view to reuse the shared drag-and-drop hook and keyboard reorder through the root data-view reorder contract')
+  }
+  if (kanbanView.includes('KanbanShortcutLegend') || kanbanView.includes('KanbanShortcutDetails')) {
+    throw new Error('Expected Kanban shortcut guidance to move out of local kanban surfaces and into MainPanel Help shortcuts')
+  }
+  if (!kanbanView.includes('buildKanbanDragStatusText') || !kanbanView.includes('activeDragStatusText')) {
+    throw new Error('Expected Markdown kanban view to expose visible shared drag-intent status before drop')
+  }
+  if (!kanbanView.includes('const liveRegionKey = [') || !kanbanView.includes('kanbanDrag.dragOutcomeSequence') || !kanbanView.includes('aria-live="polite">{statusPillText}</div>') || kanbanView.includes("setLiveMessage(statusPillText || '')")) {
+    throw new Error('Expected Markdown kanban live-region announcements to stay aligned with the shared status pill without local live-message state churn')
+  }
+  if (!kanbanView.includes('isKanbanMoveNoOp') || !kanbanView.includes('dragOutcomeMessage') || !kanbanView.includes('commitFlashGroupKey') || !kanbanView.includes('statusPillText')) {
+    throw new Error('Expected Markdown kanban view to reuse shared success/no-op/cancel messaging and commit flash feedback')
+  }
+  if (!kanbanView.includes('registerFocusableRowElement') || !kanbanView.includes('kanbanDrag.commitMove({') || !kanbanView.includes('kanbanDrag.reportBlockedMove({') || !kanbanView.includes("'start-of-lane'") || !kanbanView.includes("'start-of-board'") || !kanbanView.includes("'end-of-board'") || !kanbanGroup.includes('onFocusableRowElement={props.onFocusableRowElement}')) {
+    throw new Error('Expected Markdown kanban keyboard reorder, boundary feedback, and focus recovery to stay rooted in the shared drag owner and card registration path')
+  }
+  if (!kanbanReorder.includes('export const resolveKanbanGroupOrder') || !kanbanView.includes('resolveKanbanGroupOrder')) {
+    throw new Error('Expected Markdown kanban lane ordering to reuse the shared configured-option order helper')
+  }
+  if (!kanbanGroup.includes('KanbanLaneDropPreview') || !kanbanView.includes('showLaneDropPreview=')) {
+    throw new Error('Expected Markdown kanban lanes to expose a shared end-of-lane drop affordance during pointer drag')
+  }
+  if (!kanbanGroup.includes('max-h-[min(65vh,720px)] overflow-y-auto') || !kanbanView.includes('getBoardScrollElement: () => boardScrollRef.current')) {
+    throw new Error('Expected Markdown kanban lanes and board to expose explicit scroll owners for shared edge-aware drag assistance')
+  }
+  if (!dataViewModel.includes('export const reorderMarkdownDataViewRows') || !dataViewModel.includes('columns: recomputeColumnsForRows')) {
+    throw new Error('Expected Markdown data-view model to own persisted row reorder and enum option recomputation upstream')
   }
   const fileTree = readUtf8(fileTreePath)
   if (!fileTree.includes('clampOverlayTopLeftFullyInViewport') || !fileTree.includes('kg-data-view-floating-menu fixed') || !fileTree.includes('UI_RESPONSIVE_MENU_ROW_CLASSNAME')) {

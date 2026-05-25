@@ -5,12 +5,17 @@ import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUt
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { ArrowDown, ArrowRight, ArrowUp, ChevronDown, CircleChevronDown, Expand, Link2, List, MoreHorizontal, Trash2 } from 'lucide-react'
 import { DataViewStatusChip, DataViewTagChip } from '../MarkdownDataViewChips'
+import { KanbanCardDropPreview } from './KanbanDropPreview'
+import { buildKanbanCardDropIntentLabel } from './kanbanDragIntent'
+import { getKanbanCardDragVisualState } from './kanbanDragVisualState'
 import { isInteractiveEventTarget, useDismissableMenu } from './kanbanMenu'
 import { KanbanCell } from './KanbanCell'
 import { KanbanTypeBadge } from './KanbanTypeBadge'
+import type { KanbanCardDragProps, KanbanCardDropProps } from './useKanbanDragAndDrop'
 import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import type { KanbanDropPosition } from './kanbanReorder'
 
 export type KanbanCardProps = {
   row: MarkdownDataViewRow
@@ -25,10 +30,33 @@ export type KanbanCardProps = {
   otherColumnIndices: number[]
   onUpdateCell: (args: { rowId: string; columnId: string; nextValue: string }) => void
   onActivateRow?: (rowId: string) => void
+  cardDragProps?: KanbanCardDragProps
+  cardDropProps?: KanbanCardDropProps
+  isDragging?: boolean
+  isDropTarget?: boolean
+  dropPosition?: KanbanDropPosition
+  onKeyboardMove?: (args: { rowId: string; direction: 'up' | 'down' | 'left' | 'right' }) => boolean
+  hasActiveDrag?: boolean
+  dropPreviewLabel?: string
+  isCommitFlash?: boolean
+  onFocusableRowElement?: (args: { rowId: string; element: HTMLElement | null }) => void
 }
 
 export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps) {
   const articleRef = React.useRef<HTMLElement>(null)
+  const setArticleRef = React.useCallback((element: HTMLElement | null) => {
+    articleRef.current = element
+    props.onFocusableRowElement?.({
+      rowId: props.row.id,
+      element,
+    })
+  }, [props.onFocusableRowElement, props.row.id])
+  const dragVisualState = getKanbanCardDragVisualState({
+    hasActiveDrag: !!props.hasActiveDrag,
+    isDragging: !!props.isDragging,
+    isDropTarget: !!props.isDropTarget,
+    isCommitFlash: !!props.isCommitFlash,
+  })
   const isCoarsePointer = React.useMemo(() => {
     if (typeof window === 'undefined') return false
     try {
@@ -78,19 +106,37 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
       }
     : undefined
 
-  const onActivateByKeyboard = props.onActivateRow
-    ? (e: React.KeyboardEvent<HTMLElement>) => {
-        if (isInteractiveEventTarget(e.target)) return
-        if (e.key === 'Enter' || e.key === ' ') {
+  const onActivateByKeyboard = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (isInteractiveEventTarget(e.target)) return
+    if (props.canMutate && (e.altKey || e.metaKey)) {
+      const direction =
+        e.key === 'ArrowUp'
+          ? 'up'
+          : e.key === 'ArrowDown'
+            ? 'down'
+            : e.key === 'ArrowLeft'
+              ? 'left'
+              : e.key === 'ArrowRight'
+                ? 'right'
+                : null
+      if (direction) {
+        const handled = props.onKeyboardMove?.({ rowId: props.row.id, direction })
+        if (handled) {
           e.preventDefault()
-          props.onActivateRow?.(props.row.id)
-        }
-        if (e.key === 'ArrowDown' && menuOpen) {
-          e.preventDefault()
-          firstMenuItemRef.current?.focus()
+          return
         }
       }
-    : undefined
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && props.onActivateRow) {
+      e.preventDefault()
+      props.onActivateRow(props.row.id)
+      return
+    }
+    if (e.key === 'ArrowDown' && menuOpen) {
+      e.preventDefault()
+      firstMenuItemRef.current?.focus()
+    }
+  }
 
   const urlEntries = React.useMemo(() => {
     const out: Array<{ id: string; label: string; href: string }> = []
@@ -121,29 +167,59 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
   }, [props.otherColumnIndices, props.row.cells, props.view.columns])
 
   const statusValue = String(props.groupValue || '').trim()
+  const sharedDragRegionClassName = props.cardDragProps?.draggable ? 'cursor-grab active:cursor-grabbing' : ''
+  const sharedDragRegionProps = props.cardDragProps?.draggable
+    ? {
+        draggable: props.cardDragProps.draggable,
+        onDragStart: props.cardDragProps.onDragStart,
+        onDragEnd: props.cardDragProps.onDragEnd,
+      }
+    : undefined
 
   return (
     <article
-      ref={articleRef}
+      ref={setArticleRef}
       data-kg-kanban-card="1"
       className={[
-        'relative border transition-transform transition-shadow duration-150 ease-out',
+        'group relative border transition-transform transition-shadow duration-150 ease-out',
         UI_THEME_TOKENS.kanban.cardBg,
         UI_THEME_TOKENS.kanban.cardHoverBg,
         'rounded-[var(--kg-kanban-card-radius)]',
         'shadow-[var(--kg-kanban-card-shadow)]',
         'hover:shadow-[var(--kg-kanban-card-shadow-hover)]',
         UI_THEME_TOKENS.panel.border,
-        'hover:-translate-y-[1px] active:translate-y-0',
+        dragVisualState.className,
+        !props.isDragging ? 'hover:-translate-y-[1px] active:translate-y-0' : '',
         props.onActivateRow ? `cursor-pointer ${UI_THEME_TOKENS.focus.primarySofterRing}` : '',
       ].join(' ')}
+      style={dragVisualState.style}
       tabIndex={props.onActivateRow ? 0 : undefined}
       role={props.onActivateRow ? 'button' : undefined}
+      aria-grabbed={props.cardDragProps?.draggable ? props.isDragging : undefined}
+      onDragEnter={props.cardDropProps?.onDragEnter}
+      onDragOver={props.cardDropProps?.onDragOver}
+      onDragLeave={props.cardDropProps?.onDragLeave}
+      onDrop={props.cardDropProps?.onDrop}
       onClick={onActivate}
       onKeyDown={onActivateByKeyboard}
       aria-label={props.title ? `Card: ${props.title}` : 'Card'}
     >
-      <header className={['flex items-center justify-between gap-2 px-3 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
+      {props.isDropTarget ? (
+        <KanbanCardDropPreview
+          position={props.dropPosition || 'end'}
+          label={props.dropPreviewLabel || buildKanbanCardDropIntentLabel({ position: props.dropPosition || 'end', targetCardLabel: props.title, targetLaneLabel: props.groupValue })}
+        />
+      ) : null}
+      <header
+        data-kg-kanban-card-drag-region="1"
+        className={[
+          'flex items-center justify-between gap-2 px-3 py-2 border-b',
+          sharedDragRegionClassName,
+          UI_THEME_TOKENS.panel.divider,
+        ].join(' ')}
+        aria-grabbed={props.cardDragProps?.draggable ? props.isDragging : undefined}
+        {...sharedDragRegionProps}
+      >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <KanbanTypeBadge size="sm" />
           <h4 className={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
@@ -288,7 +364,12 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
         </menu>
       </header>
 
-      <section className="px-3 py-2" aria-label="Card body">
+      <section
+        data-kg-kanban-card-drag-region="1"
+        className={['px-3 py-2', sharedDragRegionClassName].join(' ')}
+        aria-label="Card body"
+        {...sharedDragRegionProps}
+      >
         <section className="flex items-center gap-2 mb-2" aria-label="Status">
           <CircleChevronDown className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
           <DataViewStatusChip value={statusValue} checked={false} hideIcon />

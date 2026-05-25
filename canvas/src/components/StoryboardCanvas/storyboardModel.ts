@@ -3,7 +3,7 @@ import { inferMediaKindFromResourceUrl, type UrlMediaKind } from '@/lib/graph/me
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 
-const STORYBOARD_EMPTY_LANE = 'Storyboard'
+export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
 const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\b/i
 const LANE_PROPERTY_KEYS = ['status', 'stage', 'column', 'lane', 'phase', 'track', 'swimlane', 'group', 'bucket', 'category', 'columnKey'] as const
@@ -41,6 +41,7 @@ export type StoryboardCardModel = {
   title: string
   summary: string
   lane: string
+  lanePropertyKey: string
   typeLabel: string
   indexLabel: string
   slugline: string
@@ -219,6 +220,19 @@ const readLaneLabel = (node: GraphNode, properties: GraphNodeProperties): string
   return STORYBOARD_EMPTY_LANE
 }
 
+const readLanePropertyKey = (properties: GraphNodeProperties): string => {
+  for (const key of LANE_PROPERTY_KEYS) {
+    const text = readString(properties[key])
+    if (text) return key
+    const value = properties[key]
+    if (Array.isArray(value) && value.length > 0) {
+      const first = readString(value[0])
+      if (first) return key
+    }
+  }
+  return 'stage'
+}
+
 const readTypeLabel = (node: GraphNode): string => {
   const typeLabel = readString(node.type)
   return typeLabel ? toTitleCase(typeLabel) : 'Node'
@@ -326,6 +340,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
     title: readCardTitle(node, properties),
     summary,
     lane,
+    lanePropertyKey: readLanePropertyKey(properties),
     typeLabel,
     indexLabel: readIndexLabel(properties),
     slugline,

@@ -79,6 +79,7 @@ export function GraphTableWorkspaceLeft(props: {
   onUpsertColumnFilter: (args: { columnId: string; operator: GraphTableFilterOperator; value: string }) => void
   onSetSingleColumnSort: (args: { columnId: string; direction: GraphTableSortDirection }) => void
   onRowClicked: (rowId: string) => void
+  onMoveRowToGroup: (args: { rowId: string; columnId: string; nextValue: string; orderedRowIds: readonly string[] }) => void
 
   columnOrderIds: string[] | undefined
 }) {
@@ -151,6 +152,7 @@ export function GraphTableWorkspaceLeft(props: {
               columnOrderIds={props.columnOrderIds}
               selectedRowIds={props.selectedRowIds}
               onRowClicked={props.onRowClicked}
+              onMoveRowToGroup={props.onMoveRowToGroup}
             />
           ) : (
             <GraphTableDomTableView

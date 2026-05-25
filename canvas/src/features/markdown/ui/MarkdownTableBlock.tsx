@@ -57,7 +57,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
     !opts.markdownForcePlainTables &&
     (useEditableDataView || isMarkdownDataViewCandidate(tbl))
   const canInsertLine = blockControlsAllowed && !!opts.onInsertLineAfter && Number.isFinite(endLine)
-  const canReorder = blockControlsAllowed && !!opts.onReorderLineBlock && Number.isFinite(t.startLine)
+  const canReorder = blockControlsAllowed && !isDataView && !!opts.onReorderLineBlock && Number.isFinite(t.startLine)
   const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false
 
   const dnd = useMarkdownLineBlockDnD({

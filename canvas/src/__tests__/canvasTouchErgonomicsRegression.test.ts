@@ -251,6 +251,75 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveToolbarCssText.includes('.kg-graph-table-kanban-lane') || !graphTableKanbanViewText.includes('kg-graph-table-kanban-lane')) {
     throw new Error('expected graph-table kanban lanes to use valid shared viewport sizing')
   }
+  const graphTableDbText = readUtf8(path.resolve(root, 'src/lib/graph-table-db/graphTableDb.impl.ts'))
+  const kanbanReorderText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanReorder.ts'))
+  const kanbanShortcutCopyText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanShortcutCopy.ts'))
+  const panelConfigText = readUtf8(path.resolve(root, 'src/features/panels/config.ts'))
+  const kanbanDropPreviewText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/KanbanDropPreview.tsx'))
+  const kanbanDragHookText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/useKanbanDragAndDrop.ts'))
+  const kanbanDragVisualStateText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanDragVisualState.ts'))
+  const kanbanDragIntentText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanDragIntent.ts'))
+  const kanbanMoveOutcomesText = readUtf8(path.resolve(root, 'src/features/markdown/ui/kanban/kanbanMoveOutcomes.ts'))
+  if (!graphTableKanbanViewText.includes('useKanbanDragAndDrop') || !graphTableKanbanViewText.includes('reorderKanbanRowIds') || !graphTableKanbanViewText.includes('orderedRowIds: nextOrderedRowIds') || !graphTableKanbanViewText.includes('handleKeyboardMove')) {
+    throw new Error('expected graph-table kanban view to reuse the shared drag-and-drop contract and keyboard reorder lane order ids')
+  }
+  if (!kanbanShortcutCopyText.includes('KANBAN_SHORTCUT_HELP_LINES') || !panelConfigText.includes('...KANBAN_SHORTCUT_HELP_LINES') || graphTableKanbanViewText.includes('KanbanShortcutLegend') || graphTableKanbanViewText.includes('KanbanShortcutDetails')) {
+    throw new Error('expected kanban shortcut guidance to live in shared Help shortcut copy instead of graph-table local hint surfaces')
+  }
+  if (!kanbanDropPreviewText.includes('export function KanbanCardDropPreview') || !graphTableKanbanViewText.includes('KanbanCardDropPreview') || !graphTableKanbanViewText.includes('KanbanLaneDropPreview')) {
+    throw new Error('expected graph-table kanban view to reuse the shared pointer drop preview helper for cards and lane-end affordances')
+  }
+  if (!kanbanDragHookText.includes('KANBAN_EDGE_SCROLL_THRESHOLD_PX') || !kanbanDragHookText.includes('window.requestAnimationFrame(tick)') || !graphTableKanbanViewText.includes('getBoardScrollElement: () => boardScrollRef.current')) {
+    throw new Error('expected graph-table kanban drag assistance to reuse the shared edge-aware auto-scroll owner instead of local scroll patches')
+  }
+  if (!kanbanDragHookText.includes('KANBAN_LANE_HOVER_DWELL_MS') || !kanbanDragHookText.includes('window.setTimeout(() =>') || !kanbanDragHookText.includes('resolveDropTarget')) {
+    throw new Error('expected graph-table kanban lane target switching to reuse the shared hover dwell stabilization contract')
+  }
+  if (!kanbanDragHookText.includes('KANBAN_DIRECTIONAL_LANE_ENTRY_BIAS_PX') || !kanbanDragHookText.includes('KANBAN_CARD_TARGET_HYSTERESIS_PX') || !kanbanDragHookText.includes('lastAppliedTargetPointerRef')) {
+    throw new Error('expected graph-table kanban lane entry and card target stickiness to reuse the shared bias and hysteresis contract')
+  }
+  if (!kanbanDragHookText.includes('registerFocusableRowElement') || !kanbanDragHookText.includes('requestFocusRow') || !kanbanDragHookText.includes('attemptFocusRow')) {
+    throw new Error('expected graph-table kanban focus recovery to stay centralized in the shared drag owner')
+  }
+  if (!kanbanDragHookText.includes('const commitMove = React.useCallback') || !kanbanDragHookText.includes('const reportBlockedMove = React.useCallback') || !kanbanDragHookText.includes("commitMove(move) === 'committed' ? 'commit' : 'no-op'")) {
+    throw new Error('expected graph-table kanban pointer and keyboard moves to share one upstream commit/no-op/boundary resolver')
+  }
+  if (!kanbanDragVisualStateText.includes('export const getKanbanCardDragVisualState') || !kanbanDragVisualStateText.includes('isCommitFlash') || !graphTableKanbanViewText.includes('getKanbanCardDragVisualState') || !graphTableKanbanViewText.includes('getKanbanLaneDragVisualState') || !graphTableKanbanViewText.includes('commitFlashGroupKey')) {
+    throw new Error('expected graph-table kanban drag ghost, lane hover emphasis, and commit flash to reuse the shared visual state helper')
+  }
+  if (kanbanDragHookText.indexOf('const updateAutoScrollTargets = React.useCallback') > kanbanDragHookText.indexOf('const resolveDropTarget = React.useCallback')) {
+    throw new Error('expected graph-table shared auto-scroll callback to be declared before the shared drop-target resolver to avoid TDZ runtime crashes')
+  }
+  if (!kanbanDragHookText.includes('const clearActiveDropTarget = React.useCallback') || !kanbanDragHookText.includes('if (dragOverRowIdRef.current == null) {') || !kanbanDragHookText.includes('clearActiveDropTarget()')) {
+    throw new Error('expected graph-table lane-end drag previews to clear from the shared drag owner when the pointer leaves the lane target')
+  }
+  if (!kanbanDragHookText.includes('const [dragOutcomeSequence, setDragOutcomeSequence] = React.useState(0)') || !kanbanDragHookText.includes('setDragOutcomeSequence(value => value + 1)') || !graphTableKanbanViewText.includes('kanbanDrag.dragOutcomeSequence')) {
+    throw new Error('expected graph-table repeated outcome announcements to be driven by the shared outcome sequence')
+  }
+  if (!kanbanDragHookText.includes('clearCommitFeedback()') || !kanbanDragHookText.includes("kind: 'no-op'")) {
+    throw new Error('expected graph-table kanban no-op moves to clear stale success feedback in the shared drag owner')
+  }
+  if (!kanbanDragHookText.includes('setCommitFlashRowId(move.rowId)') || !graphTableKanbanViewText.includes('commitFlashRowId === row.id')) {
+    throw new Error('expected graph-table kanban commit flash to follow the moved row from the shared drag owner')
+  }
+  if (!kanbanDragIntentText.includes('export const buildKanbanCardDropIntentLabel') || !graphTableKanbanViewText.includes('buildKanbanDragStatusText') || !graphTableKanbanViewText.includes('activeDragStatusText')) {
+    throw new Error('expected graph-table kanban drag intent captions and status text to reuse the shared intent helper')
+  }
+  if (!graphTableKanbanViewText.includes('const liveRegionKey = [') || !graphTableKanbanViewText.includes('kanbanDrag.dragOutcomeSequence') || !graphTableKanbanViewText.includes('aria-live="polite">{statusPillText}</div>') || graphTableKanbanViewText.includes("setLiveMessage(statusPillText || '')")) {
+    throw new Error('expected graph-table live-region announcements to stay aligned with the shared status pill without local live-message state churn')
+  }
+  if (!kanbanMoveOutcomesText.includes("kind: 'blocked' | 'cancelled' | 'no-op' | 'committed'") || !kanbanMoveOutcomesText.includes('export type KanbanBlockedMoveReason') || !kanbanMoveOutcomesText.includes('export const isKanbanMoveNoOp') || !graphTableKanbanViewText.includes('dragOutcomeMessage') || !graphTableKanbanViewText.includes('commitFlashRowId') || !graphTableKanbanViewText.includes('statusPillText')) {
+    throw new Error('expected graph-table kanban success, cancel, no-op, and boundary outcomes to reuse the shared move outcome helper')
+  }
+  if (!graphTableKanbanViewText.includes('registerFocusableRowElement') || !graphTableKanbanViewText.includes('kanbanDrag.commitMove({') || !graphTableKanbanViewText.includes('kanbanDrag.reportBlockedMove({') || !graphTableKanbanViewText.includes("'start-of-lane'") || !graphTableKanbanViewText.includes("'start-of-board'") || !graphTableKanbanViewText.includes("'end-of-board'")) {
+    throw new Error('expected graph-table kanban view to reuse the shared keyboard commit, boundary feedback, and focus recovery path')
+  }
+  if (!kanbanReorderText.includes('export const resolveKanbanGroupOrder') || !graphTableKanbanViewText.includes('resolveKanbanGroupOrder({')) {
+    throw new Error('expected graph-table kanban lanes to reuse the shared lane ordering helper instead of local alphabetical sorting')
+  }
+  if (!graphTableDbText.includes('export const reorderGraphTableRows') || graphTableDbText.includes('await doc.incrementalPatch({ order: nextOrder, data: nextData, updatedAtMs: now })')) {
+    throw new Error('expected graph-table db owner to persist manual row reorder upstream and preserve it during graph sync')
+  }
   if (!responsiveToolbarCssText.includes('.kg-toast-card') || !toastHostText.includes('kg-toast-list')) {
     throw new Error('expected toast notifications to use valid shared mobile viewport sizing')
   }

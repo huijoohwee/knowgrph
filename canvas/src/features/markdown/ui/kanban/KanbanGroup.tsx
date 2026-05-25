@@ -5,7 +5,12 @@ import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { DataViewTagChip } from '../MarkdownDataViewChips'
 import { KanbanCard } from './KanbanCard'
+import { KanbanLaneDropPreview } from './KanbanDropPreview'
+import { getKanbanLaneDragVisualState } from './kanbanDragVisualState'
+import type { KanbanCardDragProps, KanbanCardDropProps, KanbanLaneDropProps } from './useKanbanDragAndDrop'
 import { UI_RESPONSIVE_ACTION_ROW_CLASSNAME, UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_COLOR_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
+import type { KanbanDropPosition } from './kanbanReorder'
 
 export type KanbanGroupModel = {
   key: string
@@ -24,10 +29,33 @@ export type KanbanGroupProps = {
   onUpdateCell: (args: { rowId: string; columnId: string; nextValue: string }) => void
   onNewRecord: (seed?: Partial<Record<string, string>>) => void
   onActivateRow?: (rowId: string) => void
+  isDragOver?: boolean
+  getCardDragProps?: (args: { rowId: string; groupKey: string }) => KanbanCardDragProps
+  getCardDropProps?: (args: { rowId: string; groupKey: string }) => KanbanCardDropProps
+  laneDropProps?: KanbanLaneDropProps
+  draggingRowId?: string | null
+  dragOverRowId?: string | null
+  dragOverPosition?: KanbanDropPosition
+  onKeyboardMove?: (args: { rowId: string; direction: 'up' | 'down' | 'left' | 'right' }) => boolean
+  showLaneDropPreview?: boolean
+  laneScrollRef?: (element: HTMLOListElement | null) => void
+  hasActiveDrag?: boolean
+  isSourceLane?: boolean
+  isCommitFlash?: boolean
+  commitFlashRowId?: string | null
+  laneDropPreviewLabel?: string
+  getCardDropPreviewLabel?: (args: { rowId: string; groupKey: string }) => string
+  onFocusableRowElement?: (args: { rowId: string; element: HTMLElement | null }) => void
 }
 
 export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupProps) {
   const groupByColumnId = String(props.view.groupByColumnId || '')
+  const laneDragVisualState = getKanbanLaneDragVisualState({
+    hasActiveDrag: !!props.hasActiveDrag,
+    isDragOver: !!props.isDragOver,
+    isSourceLane: !!props.isSourceLane,
+    isCommitFlash: !!props.isCommitFlash,
+  })
   const [expanded, setExpanded] = React.useState(true)
   const toggleExpanded = React.useCallback(() => {
     setExpanded(prev => !prev)
@@ -38,13 +66,19 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
       <section
         data-kg-kanban-group="1"
         className={[
-          'kg-data-view-kanban-group w-[260px] flex-shrink-0 border',
+          'kg-data-view-kanban-group relative w-[260px] flex-shrink-0 border transition-colors',
           'rounded-[var(--kg-kanban-card-radius)]',
+          laneDragVisualState.className,
           UI_THEME_TOKENS.panel.border,
           UI_THEME_TOKENS.kanban.groupBg,
         ].join(' ')}
+        style={laneDragVisualState.style}
         aria-label={`Group: ${props.group.key}`}
+        {...props.laneDropProps}
       >
+        {props.isDragOver ? (
+          <div className="absolute inset-x-0 top-0 h-[2px]" style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} aria-hidden="true" />
+        ) : null}
         <header className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
           <button
             type="button"
@@ -104,7 +138,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
         </header>
 
         {expanded ? (
-          <ol className="p-2 space-y-2 list-none m-0" aria-label={`Cards in ${props.group.key}`}>
+          <ol ref={props.laneScrollRef} className="p-2 space-y-2 list-none m-0 max-h-[min(65vh,720px)] overflow-y-auto" aria-label={`Cards in ${props.group.key}`}>
             {props.group.rows.map(row => {
               const title = String(row.cells[props.titleIndex] ?? '')
               const groupValue = String(row.cells[props.groupByIndex] ?? '').trim() || props.group.key
@@ -123,6 +157,16 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                     otherColumnIndices={props.otherColumnIndices}
                     onUpdateCell={props.onUpdateCell}
                     onActivateRow={props.onActivateRow}
+                    cardDragProps={props.getCardDragProps?.({ rowId: row.id, groupKey: props.group.key })}
+                    cardDropProps={props.getCardDropProps?.({ rowId: row.id, groupKey: props.group.key })}
+                    isDragging={props.draggingRowId === row.id}
+                    isDropTarget={props.dragOverRowId === row.id}
+                    dropPosition={props.dragOverPosition}
+                    onKeyboardMove={props.onKeyboardMove}
+                    hasActiveDrag={!!props.hasActiveDrag}
+                    dropPreviewLabel={props.getCardDropPreviewLabel?.({ rowId: row.id, groupKey: props.group.key })}
+                    isCommitFlash={props.commitFlashRowId === row.id}
+                    onFocusableRowElement={props.onFocusableRowElement}
                   />
                 </li>
               )
@@ -148,6 +192,11 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                   <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
                   <span className="kg-truncate">{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
                 </button>
+              </li>
+            ) : null}
+            {props.showLaneDropPreview ? (
+              <li className="list-none">
+                <KanbanLaneDropPreview label={props.laneDropPreviewLabel || `Drop to place at end of ${props.group.key}`} compact />
               </li>
             ) : null}
           </ol>

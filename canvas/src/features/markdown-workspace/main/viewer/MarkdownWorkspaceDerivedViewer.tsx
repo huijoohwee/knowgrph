@@ -9,6 +9,7 @@ import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/Markd
 import {
   appendMarkdownDataViewRow,
   appendMarkdownDataViewColumn,
+  reorderMarkdownDataViewRows,
   updateMarkdownDataViewCell,
   type MarkdownDataView,
   type MarkdownDataViewColumnKind,
@@ -262,6 +263,24 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       if (!selected) return
       if (!canMutate) return
       const next = appendMarkdownDataViewRow({ view: selected.view, seed })
+      const replacementLines = serializeMarkdownDataViewToTableLines(next)
+      props.onReplaceLineRange({ startLine: selected.table.startLine, endLine: selected.table.endLine, replacementLines })
+    },
+    [canMutate, props, selected],
+  )
+
+  const onReorderRows = React.useCallback(
+    (args: {
+      orderedRowIds: readonly string[]
+      rowPatch?: { rowId: string; columnId: string; nextValue: string }
+    }) => {
+      if (!selected) return
+      if (!canMutate) return
+      const next = reorderMarkdownDataViewRows({
+        view: selected.view,
+        orderedRowIds: args.orderedRowIds,
+        rowPatch: args.rowPatch,
+      })
       const replacementLines = serializeMarkdownDataViewToTableLines(next)
       props.onReplaceLineRange({ startLine: selected.table.startLine, endLine: selected.table.endLine, replacementLines })
     },
@@ -557,6 +576,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             visibleColumnIds={visibleColumnIds}
             canMutate={canMutate}
             onUpdateCell={onUpdateCell}
+            onReorderRows={onReorderRows}
             onNewRecord={onNewRecord}
             onActivateRow={onActivateRow}
           />

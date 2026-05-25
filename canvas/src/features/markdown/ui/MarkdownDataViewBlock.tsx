@@ -8,6 +8,7 @@ import {
   appendMarkdownDataViewRow,
   appendMarkdownDataViewColumn,
   buildMarkdownDataViewFromTableToken,
+  reorderMarkdownDataViewRows,
   updateMarkdownDataViewCell,
   type MarkdownDataView,
   type MarkdownDataViewColumnKind,
@@ -134,6 +135,19 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
       if (!view) return
       if (!canMutate) return
       const next = appendMarkdownDataViewRow({ view, seed })
+      commitView(next)
+    },
+    [canMutate, commitView, view],
+  )
+
+  const handleReorderRows = React.useCallback(
+    (args: {
+      orderedRowIds: readonly string[]
+      rowPatch?: { rowId: string; columnId: string; nextValue: string }
+    }) => {
+      if (!view) return
+      if (!canMutate) return
+      const next = reorderMarkdownDataViewRows({ view, orderedRowIds: args.orderedRowIds, rowPatch: args.rowPatch })
       commitView(next)
     },
     [canMutate, commitView, view],
@@ -365,6 +379,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
             visibleColumnIds={viewConfig.visibleColumnIds}
             canMutate={canMutate}
             onUpdateCell={handleUpdateCell}
+            onReorderRows={handleReorderRows}
             onNewRecord={handleNewRecord}
           />
         ) : (

@@ -38,6 +38,17 @@ const uniqueStrings = (vals: string[]): string[] => {
   return out
 }
 
+const recomputeColumnsForRows = (columns: MarkdownDataViewColumn[], rows: MarkdownDataViewRow[]): MarkdownDataViewColumn[] => {
+  return columns.map((column, columnIndex) => {
+    if (column.kind !== 'select' && column.kind !== 'multi-select') return column
+    const allValues = rows.map(row => row.cells[columnIndex] ?? '')
+    const options = column.kind === 'multi-select'
+      ? uniqueStrings(allValues.flatMap(value => toTableCellStringArray(value)))
+      : uniqueStrings(allValues)
+    return { ...column, options: options.length ? options : column.options }
+  })
+}
+
 const looksLikeStatusOptions = (options: string[]): boolean => {
   const tokens = new Set(['todo', 'doing', 'done', 'backlog', 'in progress', 'blocked', 'wip'])
   let hits = 0
@@ -186,18 +197,46 @@ export const updateMarkdownDataViewCell = (args: {
     cells[colIndex] = normalizeCellText(args.nextValue)
     return { ...r, cells }
   })
+  return { ...view, columns: recomputeColumnsForRows(view.columns, rows), rows }
+}
 
-  const columns = view.columns.map((c, i) => {
-    if (i !== colIndex) return c
-    if (c.kind !== 'select' && c.kind !== 'multi-select') return c
-    const allValues = rows.map(r => r.cells[i] ?? '')
-    const options = c.kind === 'multi-select'
-      ? uniqueStrings(allValues.flatMap(v => toTableCellStringArray(v)))
-      : uniqueStrings(allValues)
-    return { ...c, options: options.length ? options : c.options }
-  })
+export const reorderMarkdownDataViewRows = (args: {
+  view: MarkdownDataView
+  orderedRowIds: readonly string[]
+  rowPatch?: { rowId: string; columnId: string; nextValue: string }
+}): MarkdownDataView => {
+  const rowsById = new Map(args.view.rows.map(row => [row.id, row] as const))
+  const nextRows: MarkdownDataViewRow[] = []
+  const seen = new Set<string>()
+  for (const rowId of args.orderedRowIds) {
+    const row = rowsById.get(rowId)
+    if (!row || seen.has(rowId)) continue
+    seen.add(rowId)
+    nextRows.push(row)
+  }
+  for (const row of args.view.rows) {
+    if (seen.has(row.id)) continue
+    nextRows.push(row)
+  }
 
-  return { ...view, columns, rows }
+  let rows = nextRows
+  if (args.rowPatch) {
+    const colIndex = args.view.columns.findIndex(column => column.id === args.rowPatch?.columnId)
+    if (colIndex >= 0) {
+      rows = nextRows.map(row => {
+        if (row.id !== args.rowPatch?.rowId) return row
+        const cells = [...row.cells]
+        cells[colIndex] = normalizeCellText(args.rowPatch.nextValue)
+        return { ...row, cells }
+      })
+    }
+  }
+
+  return {
+    ...args.view,
+    columns: recomputeColumnsForRows(args.view.columns, rows),
+    rows,
+  }
 }
 
 export const appendMarkdownDataViewRow = (args: {
