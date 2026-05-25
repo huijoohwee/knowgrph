@@ -19,6 +19,7 @@ const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const AnimationCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/AnimationCanvas'), { retries: 2, retryDelayMs: 50 }))
+const StoryboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/StoryboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorWidgetDropBridgeLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorWidgetDropBridge'), { retries: 2, retryDelayMs: 50 }))
 const MarkdownMetricsDevOverlayLazy = React.lazy(() =>
@@ -101,6 +102,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </div>
             <div className={`absolute inset-0 ${active2dSurface === 'animation' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'animation'}>
               {active2dSurface === 'animation' ? <AnimationCanvasLazy active /> : null}
+            </div>
+            <div className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
+              {active2dSurface === 'storyboard' ? <StoryboardCanvasLazy active /> : null}
             </div>
             <div className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
               {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}

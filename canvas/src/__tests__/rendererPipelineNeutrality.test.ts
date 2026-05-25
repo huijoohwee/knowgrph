@@ -72,6 +72,9 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!uiCopyText.includes('2D Renderer: Flow Canvas')) {
     throw new Error('expected Flow renderer to be labeled as 2D Renderer: Flow Canvas')
   }
+  if (!uiCopyText.includes('2D Renderer: Storyboard')) {
+    throw new Error('expected Storyboard renderer to be labeled as 2D Renderer: Storyboard')
+  }
   if (uiCopyText.includes('2D Renderer: Flow\'')) {
     throw new Error('expected legacy 2D Renderer: Flow naming to be removed')
   }

@@ -1,12 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animation', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animation', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animation', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animation', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animation', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animation', 'storyboard', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -44,6 +44,13 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Anim',
     aliases: ['anim', 'timelineanimation'],
     sharesFlowEditorFrontmatterSyntax: true,
+  },
+  storyboard: {
+    surfaceId: 'storyboard',
+    registryLabel: 'Storyboard',
+    menuLabel: 'Story',
+    aliases: ['story'],
+    sharesFlowEditorFrontmatterSyntax: false,
   },
   flowEditor: {
     surfaceId: 'flowEditor',
@@ -121,6 +128,10 @@ export const isAnimationCanvas2dRenderer = (id: Canvas2dRendererId | null | unde
   return id === 'animation'
 }
 
+export const isStoryboardCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'storyboard'
+}
+
 export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flowEditor'
 }
@@ -141,7 +152,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isAnimationCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isAnimationCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const

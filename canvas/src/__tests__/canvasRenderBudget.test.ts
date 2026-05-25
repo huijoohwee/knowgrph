@@ -82,7 +82,7 @@ export const testCanvasRenderBudgetCompactsSurface3dMoreAggressively = () => {
 
 export const testCanvasRenderBudgetLeavesOther2dRenderersUntouched = () => {
   const graph = buildLargeGraph(720, 8)
-  for (const renderer of ['flowchart', 'flow', 'animation', 'flowEditor', 'design']) {
+  for (const renderer of ['flowchart', 'flow', 'animation', 'storyboard', 'flowEditor', 'design']) {
     const surface = resolveCanvasRenderBudgetSurface({ canvasRenderMode: '2d', canvas2dRenderer: renderer })
     if (surface !== 'none') throw new Error(`expected ${renderer} to bypass shared d3/3d budget`)
     const out = applyCanvasRenderBudget({

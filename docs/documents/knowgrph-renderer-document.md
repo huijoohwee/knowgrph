@@ -49,10 +49,10 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
 
-### Renderer Mode Matrix (2D: D3 Graph/Flowchart/Flow Canvas/Design/Flow Editor; 3D; Voxel)
+### Renderer Mode Matrix (2D: D3 Graph/Flowchart/Flow Canvas/Animation/Storyboard/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
-  - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Animation/Storyboard/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes). Flow Editor uses a frontmatter-only derived view: keyword/table/composed-source derivations are disabled while Flow/Flow Editor frontmatter-only policy is active so other document modes/renderers cannot interfere with Flow Editor graph state.
@@ -61,7 +61,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Subgraph/group metadata must stay explicit-only (`kg:subgraphs` and cluster derivation); renderer paths must not rely on synthetic fallback groups such as `frontmatter:all`, tier buckets, or category buckets.
   - Frontmatter Mode **Off**: renderers fall back to the Markdown→JSON‑LD pipeline; the active graph is still `graphDataForDisplay`, and mode switches are view‑only (no store mutations of imported Markdown/JSON‑LD).
 - **2D vs 3D renderer parity**:
-  - 2D D3 runs force/layout; 2D Flow Canvas/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
+  - 2D D3 runs force/layout; 2D Flow Canvas/Animation/Storyboard/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
   - 3D reuses 2D layout positions (when present) as a baseline and applies its own camera + depth presentation, but must not introduce a separate derivation pipeline or a different node/edge set.
   - Switching 2D↔3D must preserve selection and view keys (per‑renderer zoom keys are isolated; layout caches are renderer‑variant aware but share the same schema/layout fingerprint).
   - Standard 3D stays available for Block/frontmatter-flow graphs and reuses the same display-graph + layout-cache path as 2D; only Radial auto-demotes to 2D.
@@ -187,10 +187,11 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Flow initial zoom uses a bounds guard: if node bounds cannot be computed yet, do not apply stored transforms (prevents "blank" due to stale pan); prefer fit/identity. Flow Editor init keys must be stable per graph: when dataset keys collapse to `rev:*`, compute a per-graph hashed init key to avoid cross-file collisions.
   - Collision avoidance is renderer-parity SSOT: run bounded collision relaxation when layouts are produced/frozen (post-collective-fit in D3; post-layout in Flow/Flow Editor) and use overlap-pressure heuristics to avoid leaving persistent overlaps when positions are “stable” but still colliding.
   - Store writes that affect layout must be bounded: batch multi-node position patches (e.g., Design frames post-relax) to avoid N-per-node rerender churn and forbid feedback loops from frequent writes.
-  - 2D wheel + pinch zoom (D3, Flow, Design, Flow Editor) uses SSOT normalization and a shared continuous zoom factor, honoring the same user-tunable settings in MainPanel Settings (`canvasInteractionSpeedMultiplier`, `canvasPanSpeedMultiplier`, `wheelZoomCtrlMetaBoostMultiplier`, `flowWheelZoomSpeedMultiplier`, `flowWheelZoomIncrementMultiplier`, `flowWheelZoomSmoothMinDurationMs`, `flowWheelZoomSmoothMaxDurationMs`). Defaults may be upgraded once via `LS_KEYS.flowWheelZoomDefaultsVersion` to improve pinch/zoom responsiveness without overriding user-tuned values. While the pointer is over the active canvas, default page scroll/zoom is prevented so zooming never triggers horizontal/vertical page scrolling. All 2D renderers apply a short anchored easing animation for wheel deltas (rAF-driven) to prevent per-frame delta clumping; cancel on pan/drag and cleanup RAF on unmount. Zoom actions and modes are also shared (`zoomDurationFitMs`, `zoomDurationSelectionMs`, `viewPinned`, `fitToScreenMode`, `zoomToSelectionMode`).
+  - 2D wheel + pinch zoom (D3, Flow, Animation, Storyboard, Design, Flow Editor) uses SSOT normalization and a shared continuous zoom factor, honoring the same user-tunable settings in MainPanel Settings (`canvasInteractionSpeedMultiplier`, `canvasPanSpeedMultiplier`, `wheelZoomCtrlMetaBoostMultiplier`, `flowWheelZoomSpeedMultiplier`, `flowWheelZoomIncrementMultiplier`, `flowWheelZoomSmoothMinDurationMs`, `flowWheelZoomSmoothMaxDurationMs`). Defaults may be upgraded once via `LS_KEYS.flowWheelZoomDefaultsVersion` to improve pinch/zoom responsiveness without overriding user-tuned values. While the pointer is over the active canvas, default page scroll/zoom is prevented so zooming never triggers horizontal/vertical page scrolling. All 2D renderers apply a short anchored easing animation for wheel deltas (rAF-driven) to prevent per-frame delta clumping; cancel on pan/drag and cleanup RAF on unmount. Zoom actions and modes are also shared (`zoomDurationFitMs`, `zoomDurationSelectionMs`, `viewPinned`, `fitToScreenMode`, `zoomToSelectionMode`).
   - UI container: `canvas/src/pages/Canvas.tsx`
   - 2D D3 renderer entry: `canvas/src/components/GraphCanvas.tsx`
   - 2D Flow renderer entry: `canvas/src/components/FlowCanvas.tsx`
+  - 2D Storyboard renderer entry: `canvas/src/components/StoryboardCanvas.tsx`
   - 2D Design renderer entry: `canvas/src/components/DesignCanvas.tsx`
   - 2D Flow Editor (draft + commit) entry: `canvas/src/components/FlowEditorCanvas.tsx`
   - 3D renderer entry: `canvas/src/features/three/ThreeGraph.tsx`
