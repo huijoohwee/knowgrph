@@ -609,7 +609,9 @@ export const updateGraphTableCell = async (
     if (!doc) return
     const raw = doc.toJSON() as GraphRowDoc
     const data = isPlainObject(raw.data) ? { ...(raw.data as Record<string, JSONValue>) } : {}
-    data[columnId] = toJsonValueForDb(value)
+    const normalizedValue = typeof value === 'string' && !value.trim() ? null : value
+    if (normalizedValue == null) delete data[columnId]
+    else data[columnId] = toJsonValueForDb(normalizedValue)
     const prev = isPlainObject(raw.data) ? (raw.data as Record<string, JSONValue>) : {}
     if (isJsonRecordEqual(prev, data)) return
     await doc.incrementalPatch({ data, updatedAtMs: Date.now() })

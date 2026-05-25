@@ -13,22 +13,24 @@ export const applyCellUpdateToGraphStore = (
   options?: { skipGeospatialAutoEnable?: boolean },
 ): void => {
   const s = useGraphStore.getState()
+  const normalizedValue = typeof value === 'string' && !value.trim() ? null : value
   if (tableId === 'nodes') {
     if (columnId === 'label') {
-      s.updateNode(rowId, { label: String(value ?? '') })
+      s.updateNode(rowId, { label: String(normalizedValue ?? '') })
       return
     }
     if (columnId === 'type') {
-      s.updateNode(rowId, { type: String(value ?? '') })
+      s.updateNode(rowId, { type: String(normalizedValue ?? '') })
       return
     }
     if (columnId === 'id') return
     const key = columnId.startsWith('prop:') ? columnId.slice('prop:'.length) : columnId
     const current = s.graphData?.nodes.find(n => n.id === rowId)
     const properties = { ...(current?.properties || {}) }
-    properties[key] = value as never
+    if (normalizedValue == null) delete properties[key]
+    else properties[key] = normalizedValue as never
     if (columnKind === 'geodata') {
-      const geo = parseGeodataValueToLatLng(value)
+      const geo = parseGeodataValueToLatLng(normalizedValue)
       if (geo) {
         const baseGeo =
           properties.geo && typeof properties.geo === 'object' && !Array.isArray(properties.geo)
@@ -49,21 +51,22 @@ export const applyCellUpdateToGraphStore = (
   }
 
   if (columnId === 'label') {
-    s.updateEdge(rowId, { label: String(value ?? '') })
+    s.updateEdge(rowId, { label: String(normalizedValue ?? '') })
     return
   }
   if (columnId === 'source') {
-    s.updateEdge(rowId, { source: String(value ?? '') })
+    s.updateEdge(rowId, { source: String(normalizedValue ?? '') })
     return
   }
   if (columnId === 'target') {
-    s.updateEdge(rowId, { target: String(value ?? '') })
+    s.updateEdge(rowId, { target: String(normalizedValue ?? '') })
     return
   }
   if (columnId === 'id') return
   const key = columnId.startsWith('prop:') ? columnId.slice('prop:'.length) : columnId
   const current = s.graphData?.edges.find(e => e.id === rowId)
   const properties = { ...(current?.properties || {}) }
-  properties[key] = value as never
+  if (normalizedValue == null) delete properties[key]
+  else properties[key] = normalizedValue as never
   s.updateEdge(rowId, { properties })
 }

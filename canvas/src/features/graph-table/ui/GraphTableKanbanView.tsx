@@ -20,9 +20,17 @@ import { buildKanbanCardDropIntentLabel, buildKanbanDragStatusText, buildKanbanL
 import { buildKanbanDropOutcomeText, isKanbanMoveNoOp } from '@/features/markdown/ui/kanban/kanbanMoveOutcomes'
 import { reorderKanbanRowIds, resolveKanbanGroupOrder } from '@/features/markdown/ui/kanban/kanbanReorder'
 import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/features/markdown/ui/kanban/kanbanDragVisualState'
+import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
+import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 
 const EMPTY_COLUMN_WIDTHS: Record<string, number> = {}
 const EMPTY_LANE_LABEL = '(empty)'
+const TITLE_COLUMN_KEYS = ['label', 'title', 'name', 'heading'] as const
+const SUMMARY_COLUMN_KEYS = ['summary', 'description', 'content', 'text', 'note', 'notes'] as const
+const ACTION_COLUMN_KEYS = ['action', 'direction', 'instructions'] as const
+const DIALOGUE_COLUMN_KEYS = ['dialogue', 'voiceover', 'narration'] as const
+const PROMPT_COLUMN_KEYS = ['prompt', 'imagePrompt', 'visualPrompt'] as const
 
 type LaneModel = {
   id: string
@@ -43,6 +51,29 @@ const getRowTitle = (row: GraphTableGridRow): string => {
   return row.id
 }
 
+const isVisibleTextColumn = (column: GraphColumnDoc, columnVisibilityById: GraphTableColumnVisibilityById): boolean => {
+  if (column.kind !== 'text') return false
+  if (column.hidden) return false
+  if (columnVisibilityById[column.columnId] === false) return false
+  return true
+}
+
+const findEditableColumn = (
+  columns: readonly GraphColumnDoc[],
+  columnVisibilityById: GraphTableColumnVisibilityById,
+  keys: readonly string[],
+): GraphColumnDoc | null => {
+  for (const key of keys) {
+    const direct = columns.find(column => column.columnId === key)
+    if (direct && isVisibleTextColumn(direct, columnVisibilityById)) return direct
+  }
+  for (const key of keys) {
+    const byName = columns.find(column => column.name === key)
+    if (byName && isVisibleTextColumn(byName, columnVisibilityById)) return byName
+  }
+  return null
+}
+
 const getRowMeta = (row: GraphTableGridRow, tableId: GraphTableId): string => {
   const anyRow = row as unknown as Record<string, unknown>
   if (tableId === 'edges') {
@@ -51,6 +82,24 @@ const getRowMeta = (row: GraphTableGridRow, tableId: GraphTableId): string => {
     if (source || target) return [source, target].filter(Boolean).join(' → ')
   }
   return ''
+}
+
+const getRowParagraphEntries = (
+  row: GraphTableGridRow,
+  columns: readonly GraphColumnDoc[],
+  columnVisibilityById: GraphTableColumnVisibilityById,
+) => {
+  const anyRow = row as unknown as Record<string, unknown>
+  const summaryColumn = findEditableColumn(columns, columnVisibilityById, SUMMARY_COLUMN_KEYS)
+  const actionColumn = findEditableColumn(columns, columnVisibilityById, ACTION_COLUMN_KEYS)
+  const dialogueColumn = findEditableColumn(columns, columnVisibilityById, DIALOGUE_COLUMN_KEYS)
+  const promptColumn = findEditableColumn(columns, columnVisibilityById, PROMPT_COLUMN_KEYS)
+  return buildCardParagraphEntries([
+    { id: summaryColumn?.columnId || '', label: summaryColumn?.name || 'Summary', value: summaryColumn ? anyRow[summaryColumn.columnId] : '' },
+    { id: actionColumn?.columnId || '', label: actionColumn?.name || 'Action', value: actionColumn ? anyRow[actionColumn.columnId] : '' },
+    { id: dialogueColumn?.columnId || '', label: dialogueColumn?.name || 'Dialogue', value: dialogueColumn ? anyRow[dialogueColumn.columnId] : '' },
+    { id: promptColumn?.columnId || '', label: promptColumn?.name || 'Prompt', value: promptColumn ? anyRow[promptColumn.columnId] : '' },
+  ], { excludeUrlLike: true })
 }
 
 export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(props: {
@@ -65,6 +114,7 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
   columnOrderIds?: string[]
   selectedRowIds: readonly string[]
   onRowClicked: (rowId: string) => void
+  onUpdateCell?: (rowId: string, columnId: string, nextValue: unknown) => void
   onMoveRowToGroup?: (args: {
     rowId: string
     columnId: string
@@ -318,22 +368,25 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                 const displayTitle = readMarkdownSigilDisplayText(title)
                 const meta = getRowMeta(row, props.tableId)
                 const displayMeta = readMarkdownSigilDisplayText(meta)
+                const paragraphEntries = getRowParagraphEntries(row, props.columns, props.columnVisibilityById)
+                const titleColumn = findEditableColumn(props.columns, props.columnVisibilityById, TITLE_COLUMN_KEYS)
                 const cardDragVisualState = getKanbanCardDragVisualState({
                   hasActiveDrag: kanbanDrag.draggingRowId !== null,
                   isDragging: kanbanDrag.draggingRowId === row.id,
                   isDropTarget: kanbanDrag.dragOverRowId === row.id,
                   isCommitFlash: kanbanDrag.commitFlashRowId === row.id,
                 })
+                const cardDragProps = kanbanDrag.createCardDragProps({ rowId: row.id, groupKey: lane.id })
+                const cardDropProps = kanbanDrag.createCardDropProps({ rowId: row.id, groupKey: lane.id })
                 return (
                   <li key={row.id} className="list-none">
-                    <button
+                    <article
                       ref={element => {
                         kanbanDrag.registerFocusableRowElement({
                           rowId: row.id,
                           element,
                         })
                       }}
-                      type="button"
                       className={[
                         'group relative w-full min-w-0 max-w-full overflow-hidden text-left rounded border px-3 py-2 transition-transform transition-shadow duration-150 ease-out',
                         typography.microLabelClass,
@@ -343,17 +396,25 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                         UI_THEME_TOKENS.panel.border,
                       ].join(' ')}
                       style={cardDragVisualState.style}
+                      tabIndex={0}
+                      role="button"
                       aria-current={selected ? 'true' : undefined}
-                      aria-grabbed={kanbanDrag.draggingRowId === row.id}
+                      aria-grabbed={cardDragProps.draggable ? kanbanDrag.draggingRowId === row.id : undefined}
                       title={displayTitle}
-                      draggable={!!props.groupBy && typeof props.onMoveRowToGroup === 'function'}
-                      onDragStart={kanbanDrag.createCardDragProps({ rowId: row.id, groupKey: lane.id }).onDragStart}
-                      onDragEnd={kanbanDrag.createCardDragProps({ rowId: row.id, groupKey: lane.id }).onDragEnd}
-                      onDragEnter={kanbanDrag.createCardDropProps({ rowId: row.id, groupKey: lane.id }).onDragEnter}
-                      onDragOver={kanbanDrag.createCardDropProps({ rowId: row.id, groupKey: lane.id }).onDragOver}
-                      onDragLeave={kanbanDrag.createCardDropProps({ rowId: row.id, groupKey: lane.id }).onDragLeave}
-                      onDrop={kanbanDrag.createCardDropProps({ rowId: row.id, groupKey: lane.id }).onDrop}
+                      draggable={cardDragProps.draggable}
+                      onDragStart={cardDragProps.onDragStart}
+                      onDragEnd={cardDragProps.onDragEnd}
+                      onDragEnter={cardDropProps.onDragEnter}
+                      onDragOver={cardDropProps.onDragOver}
+                      onDragLeave={cardDropProps.onDragLeave}
+                      onDrop={cardDropProps.onDrop}
                       onKeyDown={event => {
+                        if (isInteractiveEventTarget(event.target)) return
+                        if ((event.key === 'Enter' || event.key === ' ') && !event.altKey && !event.metaKey) {
+                          event.preventDefault()
+                          props.onRowClicked(row.id)
+                          return
+                        }
                         if (!props.onMoveRowToGroup || (!event.altKey && !event.metaKey)) return
                         const direction =
                           event.key === 'ArrowUp'
@@ -370,7 +431,8 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                         if (!handled) return
                         event.preventDefault()
                       }}
-                      onClick={() => {
+                      onClick={event => {
+                        if (isInteractiveEventTarget(event.target)) return
                         props.onRowClicked(row.id)
                       }}
                     >
@@ -384,14 +446,53 @@ export const GraphTableKanbanView = React.memo(function GraphTableKanbanView(pro
                           })}
                         />
                       ) : null}
-                      <div className={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>{renderMarkdownSigilInlineText(title)}</div>
+                      <CardInlineTextEditor
+                        value={title}
+                        ariaLabel={`Title for ${row.id}`}
+                        placeholder="Add title"
+                        canEdit={!!props.onUpdateCell && !!titleColumn}
+                        onCommit={nextValue => {
+                          if (!props.onUpdateCell || !titleColumn) return
+                          props.onUpdateCell(row.id, titleColumn.columnId, nextValue)
+                        }}
+                        displayClassName={['font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
+                        editorClassName="min-h-[1.5rem] px-0 py-0 text-sm font-medium leading-5"
+                      />
                       {meta ? (
                         <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')} title={displayMeta}>
                           {renderMarkdownSigilInlineText(meta)}
                         </div>
                       ) : null}
+                      {paragraphEntries.length ? (
+                        <div className="mt-2 flex flex-col gap-2">
+                          {paragraphEntries.map(entry => {
+                            const displayValue = readMarkdownSigilDisplayText(entry.value)
+                            return (
+                              <div key={`${row.id}:${entry.id}`} className="rounded border border-black/5 bg-black/[0.025] px-2.5 py-2">
+                                <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                                  {entry.label}
+                                </p>
+                                <CardInlineTextEditor
+                                  value={entry.value}
+                                  ariaLabel={`${entry.label} for ${row.id}`}
+                                  placeholder={`Add ${entry.label.toLowerCase()}`}
+                                  canEdit={!!props.onUpdateCell}
+                                  multiline
+                                  rows={3}
+                                  onCommit={nextValue => {
+                                    if (!props.onUpdateCell) return
+                                    props.onUpdateCell(row.id, entry.id, nextValue)
+                                  }}
+                                  displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
+                                  editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : null}
                       <div className={['mt-1', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.tertiary].join(' ')}>{row.id}</div>
-                    </button>
+                    </article>
                   </li>
                 )
               })}

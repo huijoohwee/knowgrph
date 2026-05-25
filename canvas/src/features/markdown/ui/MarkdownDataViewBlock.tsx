@@ -8,7 +8,10 @@ import {
   appendMarkdownDataViewRow,
   appendMarkdownDataViewColumn,
   buildMarkdownDataViewFromTableToken,
+  deleteMarkdownDataViewColumn,
+  duplicateMarkdownDataViewColumn,
   reorderMarkdownDataViewRows,
+  renameMarkdownDataViewColumn,
   updateMarkdownDataViewCell,
   type MarkdownDataView,
   type MarkdownDataViewColumnKind,
@@ -26,7 +29,9 @@ import type { WorkspaceDataViewHeaderState } from '@/features/markdown-workspace
 import {
   applyWorkspaceDataViewQuery,
   defaultWorkspaceDataViewConfig,
+  duplicateWorkspaceDataViewConfigColumn,
   readWorkspaceDataViewConfig,
+  removeWorkspaceDataViewConfigColumn,
   type WorkspaceDataViewConfig,
   type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
@@ -172,6 +177,57 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     [canMutate, commitView, view],
   )
 
+  const handleDuplicateColumn = React.useCallback(
+    (columnId: string) => {
+      if (!view) return
+      if (!canMutate) return
+      const next = duplicateMarkdownDataViewColumn({ view, columnId })
+      if (next === view) return
+      commitView(next)
+      const nextColumnId = next.columns.find(column => !view.columns.some(existing => existing.id === column.id))?.id
+      if (!nextColumnId) return
+      setViewConfig(prev => {
+        if (!prev) return prev
+        return duplicateWorkspaceDataViewConfigColumn({
+          viewConfig: prev,
+          sourceColumnId: columnId,
+          nextColumnId,
+        })
+      })
+    },
+    [canMutate, commitView, view],
+  )
+
+  const handleDeleteColumn = React.useCallback(
+    (columnId: string) => {
+      if (!view) return
+      if (!canMutate) return
+      const next = deleteMarkdownDataViewColumn({ view, columnId })
+      if (next === view) return
+      commitView(next)
+      setViewConfig(prev => {
+        if (!prev) return prev
+        return removeWorkspaceDataViewConfigColumn({
+          viewConfig: prev,
+          columnId,
+          nextGroupByColumnId: next.groupByColumnId,
+        })
+      })
+    },
+    [canMutate, commitView, view],
+  )
+
+  const handleRenameColumn = React.useCallback(
+    (columnId: string, nextName: string) => {
+      if (!view) return
+      if (!canMutate) return
+      const next = renameMarkdownDataViewColumn({ view, columnId, nextName })
+      if (next === view) return
+      commitView(next)
+    },
+    [canMutate, commitView, view],
+  )
+
   const handleChangeColumnType = React.useCallback((args: { columnId: string; nextType: MarkdownDataViewColumnType }) => {
     if (!view) return
     setViewConfig(prev => {
@@ -310,11 +366,17 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
       },
       onReset: () => setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' }),
       onAddColumn: canMutate ? handleAddColumn : undefined,
+      onDuplicateColumn: canMutate ? handleDuplicateColumn : undefined,
+      onDeleteColumn: canMutate ? handleDeleteColumn : undefined,
+      onRenameColumn: canMutate ? handleRenameColumn : undefined,
     }
   }, [
     canMutate,
     effectiveGroupByColumnId,
     handleAddColumn,
+    handleDeleteColumn,
+    handleDuplicateColumn,
+    handleRenameColumn,
     registrationId,
     settingsPanel,
     tableId,

@@ -7,8 +7,8 @@ export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
 const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\b/i
 const LANE_PROPERTY_KEYS = ['status', 'stage', 'column', 'lane', 'phase', 'track', 'swimlane', 'group', 'bucket', 'category', 'columnKey'] as const
-const TITLE_PROPERTY_KEYS = ['title', 'name', 'heading', 'scene', 'shot'] as const
-const SUMMARY_PROPERTY_KEYS = ['summary', 'description', 'caption', 'content', 'text', 'note', 'notes'] as const
+export const STORYBOARD_TITLE_PROPERTY_KEYS = ['title', 'name', 'heading', 'scene', 'shot'] as const
+export const STORYBOARD_SUMMARY_PROPERTY_KEYS = ['summary', 'description', 'caption', 'content', 'text', 'note', 'notes'] as const
 const ORDER_PROPERTY_KEYS = ['order', 'sort', 'sequence', 'sceneOrder', 'shotOrder', 'index', 'rank'] as const
 const INDEX_PROPERTY_KEYS = ['frame', 'frameNumber', 'sceneNumber', 'shotNumber', 'panelNumber', 'number', 'index', 'step', 'stepNumber', 'sequenceNumber', 'position', 'ordinal'] as const
 const TAG_PROPERTY_KEYS = ['tags', 'keywords'] as const
@@ -18,9 +18,9 @@ const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'b
 const SLUGLINE_PROPERTY_KEYS = ['slugline'] as const
 const LOCATION_PROPERTY_KEYS = ['location', 'setting', 'place', 'surface', 'context'] as const
 const TIME_PROPERTY_KEYS = ['timeOfDay', 'time', 'dayPart', 'moment', 'state'] as const
-const ACTION_PROPERTY_KEYS = ['action', 'direction', 'beats', 'blocking', 'instructions', 'steps', 'workflow', 'task'] as const
-const DIALOGUE_PROPERTY_KEYS = ['dialogue', 'voiceover', 'vo', 'quote', 'line', 'speakerLine', 'speaker_line', 'narration', 'narrationText', 'voiceOver'] as const
-const PROMPT_PROPERTY_KEYS = ['prompt', 'imagePrompt', 'visualPrompt', 'brief', 'visualBrief', 'visual_brief', 'artDirection'] as const
+export const STORYBOARD_ACTION_PROPERTY_KEYS = ['action', 'direction', 'beats', 'blocking', 'instructions', 'steps', 'workflow', 'task'] as const
+export const STORYBOARD_DIALOGUE_PROPERTY_KEYS = ['dialogue', 'voiceover', 'vo', 'quote', 'line', 'speakerLine', 'speaker_line', 'narration', 'narrationText', 'voiceOver'] as const
+export const STORYBOARD_PROMPT_PROPERTY_KEYS = ['prompt', 'imagePrompt', 'visualPrompt', 'brief', 'visualBrief', 'visual_brief', 'artDirection'] as const
 const STYLE_PROPERTY_KEYS = ['style', 'look', 'treatment', 'theme', 'preset', 'variant'] as const
 const REFERENCE_PROPERTY_KEYS = ['references', 'referenceUrls', 'reference_urls', 'referenceImages', 'reference_images', 'moodboard', 'referenceLinks', 'reference_links', 'refs', 'assets', 'assetRefs', 'asset_refs'] as const
 
@@ -245,14 +245,14 @@ const readIndexLabel = (properties: GraphNodeProperties): string => {
 const readCardTitle = (node: GraphNode, properties: GraphNodeProperties): string => {
   const label = readString(node.label)
   if (label) return label
-  const propertyTitle = readFirstPropertyString(properties, TITLE_PROPERTY_KEYS)
+  const propertyTitle = readFirstPropertyString(properties, STORYBOARD_TITLE_PROPERTY_KEYS)
   if (propertyTitle) return propertyTitle
   const id = readString(node.id)
   return id || 'Untitled'
 }
 
 const readCardSummary = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, SUMMARY_PROPERTY_KEYS)
+  return readFirstPropertyString(properties, STORYBOARD_SUMMARY_PROPERTY_KEYS)
 }
 
 const readCardSlugline = (properties: GraphNodeProperties): string => {
@@ -265,15 +265,15 @@ const readCardSlugline = (properties: GraphNodeProperties): string => {
 }
 
 const readCardAction = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, ACTION_PROPERTY_KEYS)
+  return readFirstPropertyString(properties, STORYBOARD_ACTION_PROPERTY_KEYS)
 }
 
 const readCardDialogue = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, DIALOGUE_PROPERTY_KEYS)
+  return readFirstPropertyString(properties, STORYBOARD_DIALOGUE_PROPERTY_KEYS)
 }
 
 const readCardPrompt = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, PROMPT_PROPERTY_KEYS)
+  return readFirstPropertyString(properties, STORYBOARD_PROMPT_PROPERTY_KEYS)
 }
 
 const readCardStyle = (properties: GraphNodeProperties): string => {

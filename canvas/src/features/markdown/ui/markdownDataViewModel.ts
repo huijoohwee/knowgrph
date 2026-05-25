@@ -24,6 +24,36 @@ export type MarkdownDataView = {
 
 const normalizeCellText = (v: unknown): string => normalizeTableCellText(v)
 
+const parseTrailingColumnIndex = (columnId: string): number | null => {
+  const match = /^col_(\d+)$/.exec(String(columnId || '').trim())
+  if (!match) return null
+  const parsed = Number.parseInt(match[1] || '', 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const buildNextColumnId = (columns: readonly MarkdownDataViewColumn[]): string => {
+  let maxIndex = -1
+  for (const column of columns) {
+    const parsed = parseTrailingColumnIndex(column.id)
+    if (parsed == null) continue
+    if (parsed > maxIndex) maxIndex = parsed
+  }
+  return `col_${maxIndex + 1}`
+}
+
+const buildUniqueColumnName = (columns: readonly MarkdownDataViewColumn[], preferredName: string): string => {
+  const baseName = normalizeCellText(preferredName) || `Column ${columns.length + 1}`
+  const taken = new Set(columns.map(column => normalizeCellText(column.name).toLowerCase()).filter(Boolean))
+  if (!taken.has(baseName.toLowerCase())) return baseName
+  let copyIndex = 2
+  while (copyIndex < 10_000) {
+    const candidate = `${baseName} ${copyIndex}`
+    if (!taken.has(candidate.toLowerCase())) return candidate
+    copyIndex += 1
+  }
+  return `${baseName} Copy`
+}
+
 const uniqueStrings = (vals: string[]): string[] => {
   const seen = new Set<string>()
   const out: string[] = []
@@ -254,12 +284,91 @@ export const appendMarkdownDataViewColumn = (args: {
   name: string
   kind: MarkdownDataViewColumnKind
 }): MarkdownDataView => {
+  const id = buildNextColumnId(args.view.columns)
   const nextIndex = args.view.columns.length
-  const id = `col_${nextIndex}`
-  const name = normalizeCellText(args.name) || `Column ${nextIndex + 1}`
+  const name = buildUniqueColumnName(args.view.columns, args.name || `Column ${nextIndex + 1}`)
   const col: MarkdownDataViewColumn = { id, name, kind: args.kind }
   const columns = [...args.view.columns, col]
   const rows = args.view.rows.map(r => ({ ...r, cells: [...r.cells, ''] }))
   const titleColumnId = args.view.titleColumnId || (columns[0]?.id ?? id)
   return { ...args.view, columns, rows, titleColumnId }
+}
+
+export const renameMarkdownDataViewColumn = (args: {
+  view: MarkdownDataView
+  columnId: string
+  nextName: string
+}): MarkdownDataView => {
+  const nextName = normalizeCellText(args.nextName)
+  if (!nextName) return args.view
+  const columnIndex = args.view.columns.findIndex(column => column.id === args.columnId)
+  if (columnIndex < 0) return args.view
+  const current = args.view.columns[columnIndex]
+  if (current && normalizeCellText(current.name) === nextName) return args.view
+  const columns = args.view.columns.map((column, index) => {
+    if (index !== columnIndex) return column
+    return { ...column, name: nextName }
+  })
+  return { ...args.view, columns }
+}
+
+export const duplicateMarkdownDataViewColumn = (args: {
+  view: MarkdownDataView
+  columnId: string
+}): MarkdownDataView => {
+  const sourceIndex = args.view.columns.findIndex(column => column.id === args.columnId)
+  if (sourceIndex < 0) return args.view
+  const sourceColumn = args.view.columns[sourceIndex]
+  if (!sourceColumn) return args.view
+  const nextColumn: MarkdownDataViewColumn = {
+    ...sourceColumn,
+    id: buildNextColumnId(args.view.columns),
+    name: buildUniqueColumnName(args.view.columns, `${sourceColumn.name} Copy`),
+    options: Array.isArray(sourceColumn.options) ? [...sourceColumn.options] : sourceColumn.options,
+  }
+  const columns = [
+    ...args.view.columns.slice(0, sourceIndex + 1),
+    nextColumn,
+    ...args.view.columns.slice(sourceIndex + 1),
+  ]
+  const rows = args.view.rows.map(row => {
+    const cells = [...row.cells]
+    cells.splice(sourceIndex + 1, 0, row.cells[sourceIndex] ?? '')
+    return { ...row, cells }
+  })
+  return {
+    ...args.view,
+    columns: recomputeColumnsForRows(columns, rows),
+    rows,
+  }
+}
+
+export const deleteMarkdownDataViewColumn = (args: {
+  view: MarkdownDataView
+  columnId: string
+}): MarkdownDataView => {
+  if (args.view.columns.length <= 1) return args.view
+  const columnIndex = args.view.columns.findIndex(column => column.id === args.columnId)
+  if (columnIndex < 0) return args.view
+  const columns = args.view.columns.filter(column => column.id !== args.columnId)
+  const rows = args.view.rows.map(row => {
+    const cells = row.cells.filter((_, index) => index !== columnIndex)
+    return { ...row, cells }
+  })
+  const recomputedColumns = recomputeColumnsForRows(columns, rows)
+  const groupByColumnId =
+    args.view.groupByColumnId === args.columnId
+      ? pickGroupByColumnId(recomputedColumns)
+      : args.view.groupByColumnId
+  const titleColumnId =
+    args.view.titleColumnId === args.columnId
+      ? pickTitleColumnId(recomputedColumns, groupByColumnId)
+      : args.view.titleColumnId
+  return {
+    ...args.view,
+    columns: recomputedColumns,
+    rows,
+    titleColumnId,
+    groupByColumnId,
+  }
 }

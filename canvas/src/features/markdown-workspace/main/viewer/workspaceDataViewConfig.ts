@@ -208,6 +208,93 @@ export function defaultWorkspaceDataViewConfig(args: {
   }
 }
 
+export function duplicateWorkspaceDataViewConfigColumn(args: {
+  viewConfig: WorkspaceDataViewConfig
+  sourceColumnId: string
+  nextColumnId: string
+}): WorkspaceDataViewConfig {
+  const sourceColumnId = String(args.sourceColumnId || '').trim()
+  const nextColumnId = String(args.nextColumnId || '').trim()
+  if (!sourceColumnId || !nextColumnId) return args.viewConfig
+
+  const nextVisibleColumnIds = (() => {
+    const current = args.viewConfig.visibleColumnIds
+    if (!current) return current
+    const sourceIndex = current.indexOf(sourceColumnId)
+    if (sourceIndex < 0) return current
+    const next = current.slice()
+    next.splice(sourceIndex + 1, 0, nextColumnId)
+    return next
+  })()
+
+  const nextColumnTypesById = (() => {
+    const current = args.viewConfig.columnTypesById
+    if (!current || !current[sourceColumnId]) return current
+    return { ...current, [nextColumnId]: current[sourceColumnId] }
+  })()
+
+  const nextGraphRolesByColumnId = (() => {
+    const current = args.viewConfig.graphRolesByColumnId
+    if (!current || !current[sourceColumnId]) return current
+    return { ...current, [nextColumnId]: current[sourceColumnId] }
+  })()
+
+  return {
+    ...args.viewConfig,
+    visibleColumnIds: nextVisibleColumnIds,
+    columnTypesById: nextColumnTypesById,
+    graphRolesByColumnId: nextGraphRolesByColumnId,
+  }
+}
+
+export function removeWorkspaceDataViewConfigColumn(args: {
+  viewConfig: WorkspaceDataViewConfig
+  columnId: string
+  nextGroupByColumnId: string | null
+}): WorkspaceDataViewConfig {
+  const columnId = String(args.columnId || '').trim()
+  if (!columnId) return args.viewConfig
+
+  const visibleColumnIds = args.viewConfig.visibleColumnIds
+    ? args.viewConfig.visibleColumnIds.filter(id => id !== columnId)
+    : null
+
+  const columnTypesById = (() => {
+    if (!args.viewConfig.columnTypesById || !(columnId in args.viewConfig.columnTypesById)) {
+      return args.viewConfig.columnTypesById
+    }
+    const next = { ...args.viewConfig.columnTypesById }
+    delete next[columnId]
+    return Object.keys(next).length ? next : null
+  })()
+
+  const graphRolesByColumnId = (() => {
+    if (!args.viewConfig.graphRolesByColumnId || !(columnId in args.viewConfig.graphRolesByColumnId)) {
+      return args.viewConfig.graphRolesByColumnId
+    }
+    const next = { ...args.viewConfig.graphRolesByColumnId }
+    delete next[columnId]
+    return Object.keys(next).length ? next : null
+  })()
+
+  const filterGroups = args.viewConfig.filterGroups.map(group => ({
+    ...group,
+    rules: group.rules.filter(rule => rule.columnId !== columnId),
+  }))
+
+  const sortRules = args.viewConfig.sortRules.filter(rule => rule.columnId !== columnId)
+
+  return {
+    ...args.viewConfig,
+    groupByColumnId: args.viewConfig.groupByColumnId === columnId ? args.nextGroupByColumnId : args.viewConfig.groupByColumnId,
+    visibleColumnIds,
+    columnTypesById,
+    filterGroups,
+    sortRules,
+    graphRolesByColumnId,
+  }
+}
+
 const DEFAULT_VIEW: WorkspaceDataViewViewV2 = {
   v: 2,
   id: 'v0',

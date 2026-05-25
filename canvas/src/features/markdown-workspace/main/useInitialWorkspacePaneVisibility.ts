@@ -18,11 +18,10 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
   const appliedPresetKeyRef = React.useRef('')
   const previousWebpageViewRef = React.useRef<WebpageViewMode | ''>('')
   React.useEffect(() => {
-    if (!args.workspaceEditorOverlayOpen) {
-      appliedPresetKeyRef.current = ''
-      previousWebpageViewRef.current = ''
-      return
-    }
+    // Preserve the last applied preset across overlay close/reopen cycles so a
+    // user-enabled Viewer pane does not get reset back to markdown-only for the
+    // same workspace document.
+    if (!args.workspaceEditorOverlayOpen) return
     const webpageView = args.webpageView || ''
     const presetKey = [
       args.activeDocumentKey,

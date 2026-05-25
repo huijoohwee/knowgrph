@@ -3,6 +3,9 @@ import type { TokensTable } from '@/features/markdown/ui/MarkdownTokens'
 import {
   appendMarkdownDataViewRow,
   buildMarkdownDataViewFromTableToken,
+  deleteMarkdownDataViewColumn,
+  duplicateMarkdownDataViewColumn,
+  renameMarkdownDataViewColumn,
   updateMarkdownDataViewCell,
 } from '@/features/markdown/ui/markdownDataViewModel'
 import { serializeMarkdownDataViewToTableLines } from '@/features/markdown/ui/markdownDataViewSerialize'
@@ -73,3 +76,56 @@ export function testMarkdownDataViewEditsRoundTripToMarkdownTable() {
   }
 }
 
+export function testMarkdownDataViewColumnCrudRoundTripsToMarkdownTable() {
+  const markdown = [
+    '| Title | Status | Notes |',
+    '| --- | --- | --- |',
+    '| Cold Open | Draft | Merge overlapping requests before implementation. |',
+    '| Reveal | Review | Same source stays in sync across surfaces. |',
+  ].join('\n')
+
+  const { tokens } = lexMarkdown(markdown)
+  const tableTok = tokens.find(t => t.type === 'table') as unknown as (TokensTable & { startLine: number; endLine: number }) | undefined
+  if (!tableTok) throw new Error('expected a table token')
+
+  const baseView = buildMarkdownDataViewFromTableToken(tableTok)
+  if (!baseView) throw new Error('expected dataview to be inferred from table')
+
+  const duplicated = duplicateMarkdownDataViewColumn({
+    view: baseView,
+    columnId: 'col_2',
+  })
+  const duplicatedColumnId = duplicated.columns.find(column => !baseView.columns.some(existing => existing.id === column.id))?.id
+  if (!duplicatedColumnId) {
+    throw new Error('expected duplicate column id to be created')
+  }
+
+  const renamed = renameMarkdownDataViewColumn({
+    view: duplicated,
+    columnId: duplicatedColumnId,
+    nextName: 'Storyboard Notes',
+  })
+
+  const deleted = deleteMarkdownDataViewColumn({
+    view: renamed,
+    columnId: 'col_1',
+  })
+
+  const replacementLines = serializeMarkdownDataViewToTableLines(deleted)
+  const next = replaceMarkdownLineRange({
+    markdownText: markdown,
+    startLine: tableTok.startLine,
+    endLine: tableTok.endLine,
+    replacementLines,
+  })
+
+  if (!next.includes('| Title | Notes | Storyboard Notes |')) {
+    throw new Error('expected renamed duplicate header written to markdown table')
+  }
+  if (next.includes('| Title | Status |')) {
+    throw new Error('expected deleted column to be removed from markdown table output')
+  }
+  if (!next.includes('| Cold Open | Merge overlapping requests before implementation. | Merge overlapping requests before implementation. |')) {
+    throw new Error('expected duplicated text values to persist in markdown table output')
+  }
+}

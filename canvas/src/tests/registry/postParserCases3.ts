@@ -67,6 +67,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.importUrl.youtubeTranscriptConversion.timestampMarkdown","@/__tests__/youtubeTranscriptConversion.test","testYouTubeTranscriptConversionPreservesTimestampRowsAsMarkdownLinks"],
   ["markdown.workspace.viewShell.noFileRowFormatControls","@/__tests__/markdownWorkspaceViewShellSelectionSource.test.tsx","testMarkdownWorkspaceViewShellKeepsYoutubeFormatOutOfSourceFileRow"],
   ["markdown.workspace.toolbar.contentFormatPaneChecks","@/__tests__/markdownWorkspaceToolbarWebpageViewControls.test.tsx","testMarkdownWorkspaceToolbarContentFormatUsesPaneChecks"],
+  ["markdown.workspace.initialPaneVisibility.preservesViewerAcrossOverlayReopen","@/__tests__/markdownWorkspaceToolbarWebpageViewControls.test.tsx","testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerToggleAcrossOverlayReopen"],
   ["markdown.largeDense.summaryGraphBeforeFullParse","@/__tests__/markdownLargeDocumentGraph.test","testDenseLargeMarkdownUsesSummaryGraphBeforeFullParse"],
   ["keywordMode.derivesEntitiesAndPredicateEdges","@/__tests__/keywordMode.test","testKeywordModeDerivesEntitiesAndPredicateEdges"],
   ["keywordMode.mergesMediaNodesForOverlays","@/__tests__/keywordMode.test","testKeywordModeMergesMediaNodesForOverlays"],

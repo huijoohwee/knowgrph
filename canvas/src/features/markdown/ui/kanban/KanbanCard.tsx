@@ -16,6 +16,10 @@ import { UI_RESPONSIVE_MENU_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClas
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import type { KanbanDropPosition } from './kanbanReorder'
+import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 export type KanbanCardProps = {
   row: MarkdownDataViewRow
@@ -67,6 +71,9 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
   }, [])
 
   const statusOptions = props.groupColumnOptions.length ? props.groupColumnOptions : props.moveTargets
+  const titleColumnIndex = React.useMemo(() => {
+    return props.view.columns.findIndex(column => column.id === props.view.titleColumnId)
+  }, [props.view.columns, props.view.titleColumnId])
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [moveMenuOpen, setMoveMenuOpen] = React.useState(false)
   const menuRootRef = React.useRef<HTMLElement>(null)
@@ -166,6 +173,24 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
     return out
   }, [props.otherColumnIndices, props.row.cells, props.view.columns])
 
+  const paragraphEntries = React.useMemo(() => {
+    return buildCardParagraphEntries(
+      props.otherColumnIndices.flatMap(colIndex => {
+        const col = props.view.columns[colIndex]
+        if (col.kind !== 'text') return []
+        const raw = String(props.row.cells[colIndex] ?? '').trim()
+        if (!raw) return []
+        if (raw.includes('://') || raw.startsWith('mailto:')) return []
+        return [{
+          id: col.id,
+          label: col.name || 'Text',
+          value: raw,
+        }]
+      }),
+      { excludeUrlLike: true },
+    )
+  }, [props.otherColumnIndices, props.row.cells, props.view.columns])
+
   const statusValue = String(props.groupValue || '').trim()
   const sharedDragRegionClassName = props.cardDragProps?.draggable ? 'cursor-grab active:cursor-grabbing' : ''
   const sharedDragRegionProps = props.cardDragProps?.draggable
@@ -222,9 +247,23 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <KanbanTypeBadge size="sm" />
-          <h4 className={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
-            {props.title || (props.canMutate ? 'Untitled' : '')}
-          </h4>
+          <CardInlineTextEditor
+            value={props.title}
+            ariaLabel={`Title for ${props.row.id}`}
+            placeholder="Add title"
+            canEdit={props.canMutate && titleColumnIndex >= 0}
+            onCommit={nextValue => {
+              const titleColumn = titleColumnIndex >= 0 ? props.view.columns[titleColumnIndex] : null
+              if (!titleColumn) return
+              props.onUpdateCell({
+                rowId: props.row.id,
+                columnId: titleColumn.id,
+                nextValue,
+              })
+            }}
+            displayClassName={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
+            editorClassName="min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
+          />
         </div>
         <menu
           data-kg-kanban-actions="1"
@@ -407,6 +446,37 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                 </li>
               ))}
             </ul>
+          </section>
+        ) : null}
+
+        {paragraphEntries.length ? (
+          <section className="flex flex-col gap-2 mb-2" aria-label="Details">
+            {paragraphEntries.map(entry => {
+              return (
+                <div key={`${props.row.id}:text:${entry.id}`} className="rounded border border-black/5 bg-black/[0.025] px-2.5 py-2">
+                  <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                    {entry.label}
+                  </p>
+                  <CardInlineTextEditor
+                    value={entry.value}
+                    ariaLabel={`${entry.label} for ${props.row.id}`}
+                    placeholder={`Add ${entry.label.toLowerCase()}`}
+                    canEdit={props.canMutate}
+                    multiline
+                    rows={3}
+                    onCommit={nextValue => {
+                      props.onUpdateCell({
+                        rowId: props.row.id,
+                        columnId: entry.id,
+                        nextValue,
+                      })
+                    }}
+                    displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
+                    editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                  />
+                </div>
+              )
+            })}
           </section>
         ) : null}
 

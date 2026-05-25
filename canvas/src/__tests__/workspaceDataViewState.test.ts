@@ -1,9 +1,11 @@
 import {
   coerceWorkspaceDataViewConfig,
+  duplicateWorkspaceDataViewConfigColumn,
   ensureWorkspaceDataViewState,
   duplicateWorkspaceDataViewInState,
   deleteWorkspaceDataViewFromState,
   getWorkspaceDataViewActiveView,
+  removeWorkspaceDataViewConfigColumn,
   type WorkspaceDataViewState,
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 
@@ -69,3 +71,53 @@ export function testWorkspaceDataViewStateDuplicateDelete() {
   }
 }
 
+export function testWorkspaceDataViewConfigColumnCrudCleanup() {
+  const base = coerceWorkspaceDataViewConfig({
+    v: 2,
+    id: 'v0',
+    name: 'Kanban',
+    layout: 'kanban',
+    groupByColumnId: 'status',
+    visibleColumnIds: ['title', 'status', 'summary'],
+    columnTypesById: { summary: 'text' },
+    filterGroups: [{ id: 'g0', rules: [{ id: 'r0', columnId: 'summary', columnKind: 'text', op: 'contains', value: 'sync' }] }],
+    sortRules: [{ id: 's0', columnId: 'summary', direction: 'asc' }],
+    graphRolesByColumnId: { summary: 'node' },
+  })
+  if (!base) {
+    throw new Error('expected config to coerce')
+  }
+
+  const duplicated = duplicateWorkspaceDataViewConfigColumn({
+    viewConfig: base,
+    sourceColumnId: 'summary',
+    nextColumnId: 'summary_copy',
+  })
+  if (!duplicated.visibleColumnIds || duplicated.visibleColumnIds.join(',') !== 'title,status,summary,summary_copy') {
+    throw new Error('expected duplicated column to inherit visible ordering next to source column')
+  }
+  if (duplicated.columnTypesById?.summary_copy !== 'text') {
+    throw new Error('expected duplicated column to inherit configured type override')
+  }
+  if (duplicated.graphRolesByColumnId?.summary_copy !== 'node') {
+    throw new Error('expected duplicated column to inherit graph role')
+  }
+
+  const removed = removeWorkspaceDataViewConfigColumn({
+    viewConfig: duplicated,
+    columnId: 'summary',
+    nextGroupByColumnId: null,
+  })
+  if (removed.columnTypesById && 'summary' in removed.columnTypesById) {
+    throw new Error('expected removed column to be dropped from type overrides')
+  }
+  if (removed.graphRolesByColumnId && 'summary' in removed.graphRolesByColumnId) {
+    throw new Error('expected removed column to be dropped from graph roles')
+  }
+  if (removed.filterGroups.some(group => group.rules.some(rule => rule.columnId === 'summary'))) {
+    throw new Error('expected removed column to be dropped from filters')
+  }
+  if (removed.sortRules.some(rule => rule.columnId === 'summary')) {
+    throw new Error('expected removed column to be dropped from sort rules')
+  }
+}

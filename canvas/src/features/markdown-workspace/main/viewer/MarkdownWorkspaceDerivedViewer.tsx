@@ -9,7 +9,10 @@ import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/Markd
 import {
   appendMarkdownDataViewRow,
   appendMarkdownDataViewColumn,
+  deleteMarkdownDataViewColumn,
+  duplicateMarkdownDataViewColumn,
   reorderMarkdownDataViewRows,
+  renameMarkdownDataViewColumn,
   updateMarkdownDataViewCell,
   type MarkdownDataView,
   type MarkdownDataViewColumnKind,
@@ -29,6 +32,8 @@ import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import {
   applyWorkspaceDataViewQuery,
   defaultWorkspaceDataViewConfig,
+  duplicateWorkspaceDataViewConfigColumn,
+  removeWorkspaceDataViewConfigColumn,
   readWorkspaceDataViewConfig,
   readWorkspaceDataViewStateWithMeta,
   type WorkspaceDataViewConfig,
@@ -325,6 +330,70 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     [canMutate, props, selected],
   )
 
+  const onDuplicateColumn = React.useCallback(
+    (columnId: string) => {
+      if (!selected) return
+      if (!canMutate) return
+      const next = duplicateMarkdownDataViewColumn({
+        view: selected.view,
+        columnId,
+      })
+      if (next === selected.view) return
+      const replacementLines = serializeMarkdownDataViewToTableLines(next)
+      props.onReplaceLineRange({ startLine: selected.table.startLine, endLine: selected.table.endLine, replacementLines })
+      const nextColumnId = next.columns.find(column => !selected.view.columns.some(existing => existing.id === column.id))?.id
+      if (!nextColumnId) return
+      setViewConfig(prev => {
+        if (!prev) return prev
+        return duplicateWorkspaceDataViewConfigColumn({
+          viewConfig: prev,
+          sourceColumnId: columnId,
+          nextColumnId,
+        })
+      })
+    },
+    [canMutate, props, selected],
+  )
+
+  const onDeleteColumn = React.useCallback(
+    (columnId: string) => {
+      if (!selected) return
+      if (!canMutate) return
+      const next = deleteMarkdownDataViewColumn({
+        view: selected.view,
+        columnId,
+      })
+      if (next === selected.view) return
+      const replacementLines = serializeMarkdownDataViewToTableLines(next)
+      props.onReplaceLineRange({ startLine: selected.table.startLine, endLine: selected.table.endLine, replacementLines })
+      setViewConfig(prev => {
+        if (!prev) return prev
+        return removeWorkspaceDataViewConfigColumn({
+          viewConfig: prev,
+          columnId,
+          nextGroupByColumnId: next.groupByColumnId,
+        })
+      })
+    },
+    [canMutate, props, selected],
+  )
+
+  const onRenameColumn = React.useCallback(
+    (columnId: string, nextName: string) => {
+      if (!selected) return
+      if (!canMutate) return
+      const next = renameMarkdownDataViewColumn({
+        view: selected.view,
+        columnId,
+        nextName,
+      })
+      if (next === selected.view) return
+      const replacementLines = serializeMarkdownDataViewToTableLines(next)
+      props.onReplaceLineRange({ startLine: selected.table.startLine, endLine: selected.table.endLine, replacementLines })
+    },
+    [canMutate, props, selected],
+  )
+
   const onChangeColumnType = React.useCallback(
     (args: { columnId: string; nextType: MarkdownDataViewColumnType }) => {
       if (!selected) return
@@ -441,13 +510,19 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       onSelectGeospatialView: handleSelectGeospatialView,
       onReset: onResetDataView,
       onAddColumn: canMutate ? onAddColumn : undefined,
+      onDuplicateColumn: canMutate ? onDuplicateColumn : undefined,
+      onDeleteColumn: canMutate ? onDeleteColumn : undefined,
+      onRenameColumn: canMutate ? onRenameColumn : undefined,
     }
   }, [
     canMutate,
     canMutate,
     handleSelectGeospatialView,
     onAddColumn,
+    onDeleteColumn,
+    onDuplicateColumn,
     onResetDataView,
+    onRenameColumn,
     props,
     settingsPanel,
     viewConfig,

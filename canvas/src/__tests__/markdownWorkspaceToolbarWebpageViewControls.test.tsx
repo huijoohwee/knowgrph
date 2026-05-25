@@ -5,6 +5,7 @@ import { MarkdownWorkspaceToolbar } from '@/features/markdown-workspace/Markdown
 import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import { resolveMarkdownWorkspaceInitialPaneVisibility } from '@/features/markdown-workspace/main/types'
 import type { MarkdownWorkspacePaneVisibility } from '@/features/markdown-workspace/main/types'
+import { useInitialWorkspacePaneVisibility } from '@/features/markdown-workspace/main/useInitialWorkspacePaneVisibility'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
@@ -161,6 +162,126 @@ export async function testMarkdownWorkspaceToolbarViewerToggleKeepsEditablePane(
     }
     if (!checkboxFor(dom.window.document, 'Markdown').checked) {
       throw new Error('expected Viewer toggle to keep an editable Markdown pane visible')
+    }
+
+    await act(async () => {
+      root.unmount()
+      await tick()
+    })
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerToggleAcrossOverlayReopen() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    function Harness() {
+      const [overlayOpen, setOverlayOpen] = React.useState(true)
+      const [activeDocumentKey, setActiveDocumentKey] = React.useState('doc-a')
+      const [visibility, setVisibility] = React.useState<MarkdownWorkspacePaneVisibility>({
+        json: false,
+        markdown: false,
+        viewer: false,
+        html: false,
+      })
+      useInitialWorkspacePaneVisibility({
+        activeDocumentKey,
+        workspaceEditorOverlayOpen: overlayOpen,
+        setSplitPaneVisibility: setVisibility,
+      })
+      const summary = JSON.stringify({
+        overlayOpen,
+        activeDocumentKey,
+        visibility,
+      })
+
+      return (
+        <div>
+          <button type="button" onClick={() => {
+            setVisibility(prev => ({ ...prev, markdown: true, viewer: true }))
+          }}
+          >
+            Enable Viewer
+          </button>
+          <button type="button" onClick={() => {
+            setOverlayOpen(prev => !prev)
+          }}
+          >
+            Toggle Overlay
+          </button>
+          <button type="button" onClick={() => {
+            setActiveDocumentKey('doc-b')
+          }}
+          >
+            Switch Document
+          </button>
+          <output data-testid="pane-state">{summary}</output>
+        </div>
+      )
+    }
+
+    const readState = () => {
+      const el = dom.window.document.querySelector('[data-testid="pane-state"]')
+      if (!(el instanceof dom.window.HTMLElement)) {
+        throw new Error('expected pane state output')
+      }
+      return JSON.parse(el.textContent || '{}') as {
+        overlayOpen: boolean
+        activeDocumentKey: string
+        visibility: MarkdownWorkspacePaneVisibility
+      }
+    }
+
+    const buttonFor = (text: string): HTMLButtonElement => {
+      const button = Array.from(dom.window.document.querySelectorAll('button')).find(node => String(node.textContent || '').trim() === text)
+      if (!(button instanceof dom.window.HTMLButtonElement)) {
+        throw new Error(`expected ${text} button`)
+      }
+      return button
+    }
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<Harness />)
+      await tick()
+    })
+
+    const initial = readState()
+    if (!initial.visibility.markdown || initial.visibility.viewer) {
+      throw new Error(`expected markdown-only initial pane preset, got ${JSON.stringify(initial)}`)
+    }
+
+    await act(async () => {
+      buttonFor('Enable Viewer').click()
+      await tick()
+    })
+    const viewerEnabled = readState()
+    if (!viewerEnabled.visibility.markdown || !viewerEnabled.visibility.viewer) {
+      throw new Error(`expected viewer toggle to keep markdown + viewer visible, got ${JSON.stringify(viewerEnabled)}`)
+    }
+
+    await act(async () => {
+      buttonFor('Toggle Overlay').click()
+      await tick()
+      buttonFor('Toggle Overlay').click()
+      await tick()
+    })
+    const reopened = readState()
+    if (!reopened.visibility.markdown || !reopened.visibility.viewer) {
+      throw new Error(`expected overlay reopen to preserve viewer pane visibility for the same document, got ${JSON.stringify(reopened)}`)
+    }
+
+    await act(async () => {
+      buttonFor('Switch Document').click()
+      await tick()
+    })
+    const switched = readState()
+    if (!switched.visibility.markdown || switched.visibility.viewer) {
+      throw new Error(`expected a new document to receive the initial pane preset, got ${JSON.stringify(switched)}`)
     }
 
     await act(async () => {

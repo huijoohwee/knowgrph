@@ -152,6 +152,7 @@ export function GraphTableWorkspaceLeft(props: {
               columnOrderIds={props.columnOrderIds}
               selectedRowIds={props.selectedRowIds}
               onRowClicked={props.onRowClicked}
+              onUpdateCell={props.onCellValueChanged}
               onMoveRowToGroup={props.onMoveRowToGroup}
             />
           ) : (

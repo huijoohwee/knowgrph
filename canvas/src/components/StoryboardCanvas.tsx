@@ -18,13 +18,25 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { DataViewStatusChip, DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
-import { buildStoryboardBoardModel, STORYBOARD_EMPTY_LANE, type StoryboardCardModel, type StoryboardCardReference } from '@/components/StoryboardCanvas/storyboardModel'
+import {
+  buildStoryboardBoardModel,
+  STORYBOARD_ACTION_PROPERTY_KEYS,
+  STORYBOARD_DIALOGUE_PROPERTY_KEYS,
+  STORYBOARD_EMPTY_LANE,
+  STORYBOARD_PROMPT_PROPERTY_KEYS,
+  STORYBOARD_SUMMARY_PROPERTY_KEYS,
+  type StoryboardCardModel,
+  type StoryboardCardReference,
+} from '@/components/StoryboardCanvas/storyboardModel'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
 import { isKanbanMoveNoOp, buildKanbanDropOutcomeText } from '@/features/markdown/ui/kanban/kanbanMoveOutcomes'
 import { buildKanbanCardDropIntentLabel, buildKanbanDragStatusText, buildKanbanLaneDropIntentLabel } from '@/features/markdown/ui/kanban/kanbanDragIntent'
 import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/features/markdown/ui/kanban/kanbanDragVisualState'
 import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
+import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 
 type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
@@ -89,9 +101,12 @@ function StoryboardDetailRow(props: {
   icon: React.ReactNode
   label: string
   value: string
+  canEdit?: boolean
+  placeholder?: string
+  onCommit?: (nextValue: string) => void
 }) {
   const displayValue = readMarkdownSigilDisplayText(props.value)
-  if (!displayValue) return null
+  if (!displayValue && !props.canEdit) return null
   return (
     <div className="flex items-start gap-2 rounded-lg border border-black/5 bg-black/[0.025] px-2.5 py-2">
       <span className={['mt-0.5 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')}>{props.icon}</span>
@@ -99,9 +114,17 @@ function StoryboardDetailRow(props: {
         <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {props.label}
         </p>
-        <p className={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')} title={displayValue}>
-          {renderMarkdownSigilInlineText(props.value)}
-        </p>
+        <CardInlineTextEditor
+          value={props.value}
+          ariaLabel={props.label}
+          placeholder={props.placeholder || `Add ${props.label.toLowerCase()}`}
+          canEdit={props.canEdit}
+          multiline
+          rows={3}
+          onCommit={props.onCommit}
+          displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
+          editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+        />
       </div>
     </div>
   )
@@ -232,6 +255,26 @@ export default function StoryboardCanvas({
     }
     return map
   }, [graphData])
+  const updateStoryboardCanonicalProperty = React.useCallback((args: {
+    cardId: string
+    aliasKeys: readonly string[]
+    canonicalKey: string
+    nextValue: string
+  }) => {
+    const currentProperties = currentPropertiesByCardId.get(args.cardId) || {}
+    const nextProperties: Record<string, unknown> = { ...currentProperties }
+    for (const key of args.aliasKeys) delete nextProperties[key]
+    const normalized = String(args.nextValue || '').trim()
+    if (normalized) nextProperties[args.canonicalKey] = normalized
+    updateNode(args.cardId, {
+      properties: nextProperties as never,
+    })
+  }, [currentPropertiesByCardId, updateNode])
+  const updateStoryboardTitle = React.useCallback((cardId: string, nextValue: string) => {
+    updateNode(cardId, {
+      label: String(nextValue || '').trim(),
+    })
+  }, [updateNode])
   const isStoryboardMoveNoOp = React.useCallback((move: {
     rowId: string
     sourceGroupKey: string
@@ -434,9 +477,14 @@ export default function StoryboardCanvas({
                   {lane.cards.map((card, cardIndex) => {
                     const selected = selectedNodeId === card.id
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
-                    const displaySummary = readMarkdownSigilDisplayText(card.summary)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const cardParagraphEntries = buildCardParagraphEntries([
+                      { id: 'summary', label: 'Summary', value: card.summary },
+                      { id: 'action', label: 'Action', value: card.action },
+                      { id: 'dialogue', label: 'Dialogue', value: card.dialogue },
+                    ])
+                    const summaryEntry = cardParagraphEntries.find(entry => entry.id === 'summary') || null
                     const cardDragProps = storyboardDrag.createCardDragProps({ rowId: card.id, groupKey: lane.id })
                     const cardDragVisualState = getKanbanCardDragVisualState({
                       hasActiveDrag: storyboardDrag.draggingRowId !== null,
@@ -470,10 +518,12 @@ export default function StoryboardCanvas({
                           draggable={cardDragProps.draggable}
                           onDragStart={cardDragProps.onDragStart}
                           onDragEnd={cardDragProps.onDragEnd}
-                          onClick={() => {
+                          onClick={event => {
+                            if (isInteractiveEventTarget(event.target)) return
                             selectNode(card.id)
                           }}
                           onKeyDown={event => {
+                            if (isInteractiveEventTarget(event.target)) return
                             if (event.key === 'Enter' || event.key === ' ') {
                               event.preventDefault()
                               selectNode(card.id)
@@ -504,9 +554,17 @@ export default function StoryboardCanvas({
                                     <DataViewTagChip value={card.typeLabel} />
                                     <DataViewStatusChip value={card.lane} checked={selected} hideIcon />
                                   </div>
-                                  <h4 className={['m-0 truncate text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')} title={displayTitle}>
-                                    {renderMarkdownSigilInlineText(card.title)}
-                                  </h4>
+                                  <CardInlineTextEditor
+                                    value={card.title}
+                                    ariaLabel={`Storyboard title for ${card.id}`}
+                                    placeholder="Add title"
+                                    canEdit={typeof updateNode === 'function'}
+                                    onCommit={nextValue => {
+                                      updateStoryboardTitle(card.id, nextValue)
+                                    }}
+                                    displayClassName={['m-0 truncate text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}
+                                    editorClassName="min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
+                                  />
                                   {card.slugline ? (
                                     <p className={['m-0 mt-1 text-[11px] uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                       {renderMarkdownSigilInlineText(card.slugline)}
@@ -532,14 +590,29 @@ export default function StoryboardCanvas({
                               data-kg-kanban-card-drag-region="1"
                               className="space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
                             >
-                              {card.summary ? (
+                              {summaryEntry || typeof updateNode === 'function' ? (
                                 <div>
                                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
-                                    Summary
+                                    {summaryEntry?.label || 'Summary'}
                                   </p>
-                                  <p className={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')} title={displaySummary}>
-                                    {renderMarkdownSigilInlineText(card.summary)}
-                                  </p>
+                                  <CardInlineTextEditor
+                                    value={summaryEntry?.value || ''}
+                                    ariaLabel={`Summary for ${card.id}`}
+                                    placeholder="Add summary"
+                                    canEdit={typeof updateNode === 'function'}
+                                    multiline
+                                    rows={3}
+                                    onCommit={nextValue => {
+                                      updateStoryboardCanonicalProperty({
+                                        cardId: card.id,
+                                        aliasKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS,
+                                        canonicalKey: 'summary',
+                                        nextValue,
+                                      })
+                                    }}
+                                    displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
+                                    editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                                  />
                                 </div>
                               ) : null}
 
@@ -547,11 +620,29 @@ export default function StoryboardCanvas({
                                 icon={<FileText className="h-3.5 w-3.5" aria-hidden="true" />}
                                 label="Action"
                                 value={card.action}
+                                canEdit={typeof updateNode === 'function'}
+                                onCommit={nextValue => {
+                                  updateStoryboardCanonicalProperty({
+                                    cardId: card.id,
+                                    aliasKeys: STORYBOARD_ACTION_PROPERTY_KEYS,
+                                    canonicalKey: 'action',
+                                    nextValue,
+                                  })
+                                }}
                               />
                               <StoryboardDetailRow
                                 icon={<MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />}
                                 label="Dialogue"
                                 value={card.dialogue}
+                                canEdit={typeof updateNode === 'function'}
+                                onCommit={nextValue => {
+                                  updateStoryboardCanonicalProperty({
+                                    cardId: card.id,
+                                    aliasKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS,
+                                    canonicalKey: 'dialogue',
+                                    nextValue,
+                                  })
+                                }}
                               />
 
                               {card.prompt || card.style || card.references.length > 0 ? (
@@ -566,9 +657,24 @@ export default function StoryboardCanvas({
                                     {card.style ? <DataViewTagChip value={card.style} /> : null}
                                   </div>
                                   {card.prompt ? (
-                                    <p className={['m-0 mt-2 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}>
-                                      {renderMarkdownSigilInlineText(card.prompt)}
-                                    </p>
+                                    <CardInlineTextEditor
+                                      value={card.prompt}
+                                      ariaLabel={`Visual brief for ${card.id}`}
+                                      placeholder="Add visual brief"
+                                      canEdit={typeof updateNode === 'function'}
+                                      multiline
+                                      rows={3}
+                                      onCommit={nextValue => {
+                                        updateStoryboardCanonicalProperty({
+                                          cardId: card.id,
+                                          aliasKeys: STORYBOARD_PROMPT_PROPERTY_KEYS,
+                                          canonicalKey: 'prompt',
+                                          nextValue,
+                                        })
+                                      }}
+                                      displayClassName={['m-0 mt-2 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      editorClassName="mt-2 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                                    />
                                   ) : null}
                                   <div className="mt-2 flex items-center gap-2">
                                     {card.references.length > 0 ? (
