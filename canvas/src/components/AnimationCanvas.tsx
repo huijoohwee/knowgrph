@@ -59,6 +59,7 @@ import {
   type AnimationTimelineLaneControlState,
   type AnimationTimelineBeat,
   type AnimationTimelineBeatTimingOverride,
+  type AnimationTimelineScaleConfig,
   updateAnimationTimelineMarkdownBeatLabel,
   updateAnimationTimelineMarkdownItemBeatRef,
   updateAnimationTimelineMarkdownLaneControlState,
@@ -79,6 +80,7 @@ const SNAP_STEP_OPTIONS_MS = [100, 250, 500, 1000] as const
 const EDIT_MIN_DURATION_MS = 300
 const DRAG_EDGE_SCROLL_THRESHOLD_PX = 72
 const DRAG_EDGE_SCROLL_STEP_PX = 28
+const DRAG_COMMIT_MIN_DELTA_PX = 4
 const BEAT_LANE_SUMMARY_LIMIT = 3
 const TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME =
   'rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1 py-0 text-[8px] leading-3 text-cyan-100'
@@ -124,8 +126,6 @@ const LANE_LABEL: Record<AnimationTimelineLaneId, string> = {
   node: 'Node',
 }
 
-const LANE_ITEM_RESIZE_EDGE_PX = 14
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -134,15 +134,6 @@ function shouldIgnoreTimelineActionPointerMoveStart(target: EventTarget | null):
   const element = target instanceof Element ? target : null
   if (!element) return false
   return !!element.closest('button, a, input, textarea, select, [data-kg-timeline-action-ignore-drag="true"]')
-}
-
-function resolveLaneItemPointerStartMode(event: React.PointerEvent<HTMLElement>): AnimationDragState['mode'] {
-  const currentTarget = event.currentTarget
-  const rect = currentTarget.getBoundingClientRect()
-  const offsetX = event.clientX - rect.left
-  if (offsetX <= LANE_ITEM_RESIZE_EDGE_PX) return 'resize-start'
-  if (rect.right - event.clientX <= LANE_ITEM_RESIZE_EDGE_PX) return 'resize-end'
-  return 'move'
 }
 
 function areTimingOverrideRecordsEqual(
@@ -164,76 +155,95 @@ function areTimingOverrideRecordsEqual(
 function buildScaleMarks(args: {
   totalSpan: number
   usesAbsoluteTiming: boolean
-}): Array<{ key: string; position: number; label: string }> {
-  const totalSpan = Math.max(0, args.totalSpan)
-  if (totalSpan <= 0) return []
-  if (args.usesAbsoluteTiming) {
-    const maxSeconds = Math.max(1, Math.ceil(totalSpan / 1000))
-    const divisions = Math.min(5, maxSeconds)
-    const marks = new Map<number, string>()
-    for (let i = 0; i <= divisions; i += 1) {
-      const second = Math.round((i / divisions) * maxSeconds)
-      const position = clamp(second * 1000, 0, totalSpan)
-      marks.set(position, String(second))
-    }
-    return Array.from(marks.entries()).map(([position, label]) => ({
-      key: `ms:${position}`,
-      position,
-      label,
-    }))
-  }
-  return Array.from({ length: totalSpan + 1 }, (_, index) => ({
-    key: `beat:${index}`,
-    position: index,
-    label: String(index),
+  scaleConfig: AnimationTimelineScaleConfig
+}): Array<{ key: string; left: number }> {
+  const totalSpanUnits = resolveTimelineSpanUnits(args.totalSpan, args.usesAbsoluteTiming)
+  if (totalSpanUnits <= 0) return []
+  const majorScale = Math.max(0.0001, args.scaleConfig.scale)
+  const markCount = Math.floor(totalSpanUnits / majorScale)
+  return Array.from({ length: markCount + 1 }, (_, index) => ({
+    key: `scale-mark:${index}`,
+    left: args.scaleConfig.startLeft + index * args.scaleConfig.scaleWidth,
   }))
 }
 
 function buildTimelineEditorTimeUnits(args: {
   totalSpan: number
-  totalTimelineWidth: number
   usesAbsoluteTiming: boolean
+  scaleConfig: AnimationTimelineScaleConfig
 }): Array<{ key: string; left: number; width: number; label: string | null; big: boolean }> {
-  const totalSpan = Math.max(0, args.totalSpan)
-  const totalTimelineWidth = Math.max(0, args.totalTimelineWidth)
-  if (totalSpan <= 0 || totalTimelineWidth <= 0) return []
-  if (!args.usesAbsoluteTiming) {
-    const unitWidth = totalTimelineWidth / totalSpan
-    return Array.from({ length: totalSpan }, (_, index) => ({
-      key: `beat-unit:${index}`,
-      left: unitWidth * index,
-      width: unitWidth,
-      label: String(index),
-      big: true,
-    }))
-  }
-  const unitMs = totalSpan <= 30000 ? 500 : 1000
-  const majorStepMs = unitMs * 10
+  const totalSpanUnits = resolveTimelineSpanUnits(args.totalSpan, args.usesAbsoluteTiming)
+  if (totalSpanUnits <= 0) return []
+  const majorScale = Math.max(0.0001, args.scaleConfig.scale)
+  const splitCount = Math.max(1, args.scaleConfig.scaleSplitCount)
+  const minorScale = majorScale / splitCount
   const units: Array<{ key: string; left: number; width: number; label: string | null; big: boolean }> = []
-  for (let start = 0; start < totalSpan; start += unitMs) {
-    const end = Math.min(totalSpan, start + unitMs)
-    const left = (start / totalSpan) * totalTimelineWidth
-    const nextLeft = (end / totalSpan) * totalTimelineWidth
-    const big = start % majorStepMs === 0
+  const unitCount = Math.ceil(totalSpanUnits / minorScale)
+  for (let index = 0; index < unitCount; index += 1) {
+    const start = index * minorScale
+    const end = Math.min(totalSpanUnits, start + minorScale)
+    const left = args.scaleConfig.startLeft + (start / majorScale) * args.scaleConfig.scaleWidth
+    const nextLeft = args.scaleConfig.startLeft + (end / majorScale) * args.scaleConfig.scaleWidth
+    const big = index % splitCount === 0
     units.push({
-      key: `time-unit:${start}`,
+      key: `time-unit:${index}`,
       left,
-      width: Math.max(16, nextLeft - left),
-      label: big ? String(Math.round(start / 1000)) : null,
+      width: Math.max(1, nextLeft - left),
+      label: big ? formatTimelineScaleLabel(start) : null,
       big,
     })
   }
   return units
 }
 
-type AnimationDragState = {
+function formatTimelineScaleLabel(value: number): string {
+  const roundedValue = Math.round(value * 100) / 100
+  return Number.isInteger(roundedValue) ? String(roundedValue) : roundedValue.toFixed(2).replace(/\.?0+$/, '')
+}
+
+function resolveTimelineSpanUnits(totalSpan: number, usesAbsoluteTiming: boolean): number {
+  return usesAbsoluteTiming ? Math.max(0, totalSpan) / 1000 : Math.max(0, totalSpan)
+}
+
+function resolveTimelineSpanToPixels(totalSpan: number, usesAbsoluteTiming: boolean, pixelsPerUnit: number): number {
+  return resolveTimelineSpanUnits(totalSpan, usesAbsoluteTiming) * pixelsPerUnit
+}
+
+type AnimationBeatDragState = {
+  kind: 'beat'
+  sessionId: number
   beatRef: string
   beatIndex: number
   mode: 'move' | 'resize-start' | 'resize-end'
   pointerId: number
   originClientX: number
   originScrollLeft: number
+  markdownDocumentName: string
+  markdownText: string
   beatsSnapshot: AnimationTimelineBeat[]
+}
+
+type AnimationLaneItemDragState = {
+  kind: 'item'
+  sessionId: number
+  itemNodeId: string
+  itemTitle: string
+  laneId: AnimationTimelineLaneId
+  sourceBeatRef: string
+  pointerId: number
+  originClientX: number
+  originScrollLeft: number
+  markdownDocumentName: string
+  markdownText: string
+}
+
+type AnimationDragState = AnimationBeatDragState | AnimationLaneItemDragState
+
+type AnimationLaneItemMoveSource = {
+  nodeId: string
+  title: string
+  laneId: AnimationTimelineLaneId
+  beatRef: string
 }
 
 function buildSnapMarks(totalSpan: number, snapStepMs: number, enabled: boolean): number[] {
@@ -338,13 +348,17 @@ export default function AnimationCanvas({
   const [selectedItemNodeId, setSelectedItemNodeId] = React.useState<string | null>(null)
   const [timingOverrides, setTimingOverrides] = React.useState<Record<string, AnimationTimelineBeatTimingOverride>>({})
   const [dragState, setDragState] = React.useState<AnimationDragState | null>(null)
+  const [laneItemDragPreviewOffsetPx, setLaneItemDragPreviewOffsetPx] = React.useState(0)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const laneRowRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
+  const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
   const laneOptionRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
   const laneItemOptionRefs = React.useRef<Record<string, HTMLElement | null>>({})
   const beatOptionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
   const laneShortcutHighlightTimeoutRef = React.useRef<number | null>(null)
   const timingOverridesRef = React.useRef<Record<string, AnimationTimelineBeatTimingOverride>>({})
+  const dragSessionIdRef = React.useRef(0)
+  const dragDeltaPxRef = React.useRef(0)
   const dragPointerClientXRef = React.useRef<number | null>(null)
   const dragEdgeScrollDirectionRef = React.useRef<-1 | 0 | 1>(0)
   const toolbarIconClassName = getIconSizeClass('default')
@@ -409,8 +423,12 @@ export default function AnimationCanvas({
 
   React.useEffect(() => {
     if (timelineModel.usesAbsoluteTiming) return
+    dragSessionIdRef.current += 1
+    dragDeltaPxRef.current = 0
     setTimingOverrides({})
+    timingOverridesRef.current = {}
     setDragState(null)
+    setLaneItemDragPreviewOffsetPx(0)
     dragPointerClientXRef.current = null
     dragEdgeScrollDirectionRef.current = 0
   }, [timelineModel.usesAbsoluteTiming])
@@ -440,49 +458,96 @@ export default function AnimationCanvas({
     }
   }, [active, playbackPosition, playbackRate, playing, timelineModel.totalSpan, timelineModel.usesAbsoluteTiming])
 
+  React.useEffect(() => {
+    dragSessionIdRef.current += 1
+    dragDeltaPxRef.current = 0
+    setTimingOverrides({})
+    timingOverridesRef.current = {}
+    setDragState(null)
+    setLaneItemDragPreviewOffsetPx(0)
+    dragPointerClientXRef.current = null
+    dragEdgeScrollDirectionRef.current = 0
+  }, [markdownDocumentName, markdownText])
+
   const activeBeatIndex = React.useMemo(
     () => findAnimationTimelineBeatIndexAtPosition(timelineModel, playbackPosition),
     [timelineModel, playbackPosition],
   )
 
-  const beatWidths = React.useMemo(() => {
-    if (timelineModel.beats.length === 0) return [] as number[]
-    if (!timelineModel.usesAbsoluteTiming || !timelineModel.totalDurationMs) {
-      return timelineModel.beats.map(() => 220)
-    }
-    const targetWidth = Math.max(960, timelineModel.beats.length * 220)
-    return timelineModel.beats.map(beat => {
-      const duration = Math.max(1, beat.durationMs ?? beat.displayEnd - beat.displayStart)
-      const proportionalWidth = (duration / timelineModel.totalDurationMs) * targetWidth
-      return Math.max(180, Math.round(proportionalWidth))
-    })
-  }, [timelineModel])
+  const timelinePixelsPerUnit = React.useMemo(
+    () => timelineModel.scaleConfig.scaleWidth / Math.max(0.0001, timelineModel.scaleConfig.scale),
+    [timelineModel.scaleConfig.scale, timelineModel.scaleConfig.scaleWidth],
+  )
+  const beatWidths = React.useMemo(
+    () =>
+      timelineModel.beats.map(beat =>
+        Math.max(
+          1,
+          Math.round(
+            resolveTimelineSpanToPixels(
+              Math.max(0, beat.displayEnd - beat.displayStart),
+              timelineModel.usesAbsoluteTiming,
+              timelinePixelsPerUnit,
+            ),
+          ),
+        ),
+      ),
+    [timelineModel.beats, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit],
+  )
 
-  const beatOffsets = React.useMemo(() => {
-    let currentOffset = 0
-    return beatWidths.map(width => {
-      const offset = currentOffset
-      currentOffset += width
-      return offset
-    })
-  }, [beatWidths])
+  const beatTrackOffsets = React.useMemo(() => {
+    return timelineModel.beats.map(beat =>
+      resolveTimelineSpanToPixels(beat.displayStart, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit),
+    )
+  }, [timelineModel.beats, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit])
+  const laneActionWidths = React.useMemo(
+    () => beatWidths.map(width => Math.max(width, timelineModel.scaleConfig.scaleWidth)),
+    [beatWidths, timelineModel.scaleConfig.scaleWidth],
+  )
+  const resolveBeatAtLaneTrackClientX = React.useCallback(
+    (laneId: AnimationTimelineLaneId, clientX: number): AnimationTimelineBeat | null => {
+      const overlay = laneTrackOverlayRefs.current[laneId]
+      if (!overlay || timelineModel.beats.length === 0) return null
+      const rect = overlay.getBoundingClientRect()
+      const relativeX = clamp(clientX - rect.left, 0, rect.width)
+      let closestBeat: AnimationTimelineBeat | null = null
+      let closestDistance = Number.POSITIVE_INFINITY
+      for (let i = 0; i < timelineModel.beats.length; i += 1) {
+        const beat = timelineModel.beats[i]
+        if (!beat) continue
+        const beatOffset = beatTrackOffsets[i] ?? 0
+        const beatWidth = beatWidths[i] ?? 0
+        const beatCenter = beatOffset + beatWidth / 2
+        const distance = Math.abs(relativeX - beatCenter)
+        if (distance < closestDistance) {
+          closestDistance = distance
+          closestBeat = beat
+        }
+      }
+      return closestBeat
+    },
+    [beatTrackOffsets, beatWidths, timelineModel.beats],
+  )
 
-  const totalTimelineWidth = React.useMemo(() => beatWidths.reduce((sum, width) => sum + width, 0), [beatWidths])
+  const totalTimelineTrackWidth = React.useMemo(
+    () => resolveTimelineSpanToPixels(timelineModel.totalSpan, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit),
+    [timelineModel.totalSpan, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit],
+  )
+  const totalTimelineWidth = React.useMemo(
+    () => timelineModel.scaleConfig.startLeft + totalTimelineTrackWidth,
+    [timelineModel.scaleConfig.startLeft, totalTimelineTrackWidth],
+  )
   const timelineUnitsPerPixel = React.useMemo(
-    () => (timelineModel.totalSpan > 0 && totalTimelineWidth > 0 ? timelineModel.totalSpan / totalTimelineWidth : 0),
-    [timelineModel.totalSpan, totalTimelineWidth],
+    () => (timelineModel.totalSpan > 0 && totalTimelineTrackWidth > 0 ? timelineModel.totalSpan / totalTimelineTrackWidth : 0),
+    [timelineModel.totalSpan, totalTimelineTrackWidth],
   )
 
   const playheadOffsetPx = React.useMemo(() => {
-    if (timelineModel.beats.length === 0 || totalTimelineWidth <= 0) return 0
-    const activeBeat = timelineModel.beats[activeBeatIndex] || timelineModel.beats[timelineModel.beats.length - 1]
-    if (!activeBeat) return 0
-    const beatStart = beatOffsets[activeBeatIndex] || 0
-    const beatWidth = beatWidths[activeBeatIndex] || 0
-    const beatSpan = Math.max(0.0001, activeBeat.displayEnd - activeBeat.displayStart)
-    const progressWithinBeat = clamp((playbackPosition - activeBeat.displayStart) / beatSpan, 0, 1)
-    return beatStart + beatWidth * progressWithinBeat
-  }, [activeBeatIndex, beatOffsets, beatWidths, playbackPosition, timelineModel.beats])
+    return (
+      timelineModel.scaleConfig.startLeft +
+      resolveTimelineSpanToPixels(playbackPosition, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit)
+    )
+  }, [playbackPosition, timelineModel.scaleConfig.startLeft, timelineModel.usesAbsoluteTiming, timelinePixelsPerUnit])
 
   React.useEffect(() => {
     if (!runtimeAutoScrollEnabled) return
@@ -502,18 +567,19 @@ export default function AnimationCanvas({
     () =>
       buildTimelineEditorTimeUnits({
         totalSpan: timelineModel.totalSpan,
-        totalTimelineWidth,
         usesAbsoluteTiming: timelineModel.usesAbsoluteTiming,
+        scaleConfig: timelineModel.scaleConfig,
       }),
-    [timelineModel.totalSpan, timelineModel.usesAbsoluteTiming, totalTimelineWidth],
+    [timelineModel.scaleConfig, timelineModel.totalSpan, timelineModel.usesAbsoluteTiming],
   )
   const scaleMarks = React.useMemo(
     () =>
       buildScaleMarks({
         totalSpan: timelineModel.totalSpan,
         usesAbsoluteTiming: timelineModel.usesAbsoluteTiming,
+        scaleConfig: timelineModel.scaleConfig,
       }),
-    [timelineModel.totalSpan, timelineModel.usesAbsoluteTiming],
+    [timelineModel.scaleConfig, timelineModel.totalSpan, timelineModel.usesAbsoluteTiming],
   )
   const snapMarks = React.useMemo(
     () => buildSnapMarks(timelineModel.totalSpan, snapStepMs, timelineModel.usesAbsoluteTiming && snapEnabled),
@@ -602,6 +668,15 @@ export default function AnimationCanvas({
     activeBeat.startMs != null &&
     nextBeat.endMs != null &&
     nextBeat.items.length === 0
+  const timelineRowStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      height: LANE_ROW_HEIGHT_PX,
+      backgroundPositionX: `0px, ${timelineModel.scaleConfig.startLeft}px`,
+      backgroundSize: `${timelineModel.scaleConfig.startLeft}px, ${timelineModel.scaleConfig.scaleWidth}px`,
+      paddingLeft: timelineModel.scaleConfig.startLeft,
+    }),
+    [timelineModel.scaleConfig.scaleWidth, timelineModel.scaleConfig.startLeft],
+  )
 
   React.useEffect(() => {
     if (!selectedLaneId) return
@@ -702,13 +777,37 @@ export default function AnimationCanvas({
     [commitLaneControlState, hiddenLaneIds, mutedLaneIds, soloLaneId],
   )
 
+  const resolveLaneItemMoveNodeId = React.useCallback(
+    (itemSource: AnimationLaneItemMoveSource) => {
+      const requestedNodeId = String(itemSource.nodeId || '').trim()
+      const sourceBeatRef = String(itemSource.beatRef || '').trim()
+      const itemTitle = String(itemSource.title || '').trim()
+      const sourceBeat = timelineModel.beats.find(beat => beat.beatRef === sourceBeatRef) || null
+      if (!sourceBeat) return requestedNodeId
+      const exactNodeMatch = sourceBeat.items.find(item => item.nodeId === requestedNodeId)
+      if (exactNodeMatch?.nodeId) return exactNodeMatch.nodeId
+      const titledLaneMatch = sourceBeat.items.find(
+        item => item.laneId === itemSource.laneId && item.title === itemTitle && item.nodeId,
+      )
+      if (titledLaneMatch?.nodeId) return titledLaneMatch.nodeId
+      const laneMatch = sourceBeat.items.find(item => item.laneId === itemSource.laneId && item.nodeId)
+      return laneMatch?.nodeId || requestedNodeId
+    },
+    [timelineModel.beats],
+  )
+
   const handleMoveItemToBeat = React.useCallback(
-    async (itemNodeId: string, nextBeat: AnimationTimelineBeat | null | undefined) => {
+    async (itemSource: AnimationLaneItemMoveSource, nextBeat: AnimationTimelineBeat | null | undefined) => {
       const targetBeatRef = String(nextBeat?.beatRef || '').trim()
       if (!targetBeatRef) return
+      const resolvedNodeId = resolveLaneItemMoveNodeId(itemSource)
+      if (!resolvedNodeId) return
       const updateResult = updateAnimationTimelineMarkdownItemBeatRef({
         markdownText,
-        nodeId: itemNodeId,
+        nodeId: resolvedNodeId,
+        title: itemSource.title,
+        laneId: itemSource.laneId,
+        sourceBeatRef: itemSource.beatRef,
         beatRef: targetBeatRef,
       })
       if (!updateResult.updated) return
@@ -717,7 +816,7 @@ export default function AnimationCanvas({
       setPlaying(false)
       setPlaybackPosition(nextBeat?.displayStart ?? 0)
     },
-    [commitMarkdownGraphDocumentText, markdownText],
+    [commitMarkdownGraphDocumentText, markdownText, resolveLaneItemMoveNodeId],
   )
 
   const handleReorderLane = React.useCallback(
@@ -1273,11 +1372,11 @@ export default function AnimationCanvas({
       }
       if (!selectedItemContext) return
       if (action === 'move-selected-item-prev-beat') {
-        void handleMoveItemToBeat(selectedItemContext.nodeId, selectedItemContext.previousBeat)
+        void handleMoveItemToBeat(selectedItemContext, selectedItemContext.previousBeat)
         return
       }
       if (action === 'move-selected-item-next-beat') {
-        void handleMoveItemToBeat(selectedItemContext.nodeId, selectedItemContext.nextBeat)
+        void handleMoveItemToBeat(selectedItemContext, selectedItemContext.nextBeat)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1306,36 +1405,71 @@ export default function AnimationCanvas({
   ])
 
   const handleBeatPointerStart = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>, beat: AnimationTimelineBeat, beatIndex: number, mode: AnimationDragState['mode']) => {
+    (event: React.PointerEvent<HTMLElement>, beat: AnimationTimelineBeat, beatIndex: number, mode: AnimationBeatDragState['mode']) => {
       if (!timelineModel.usesAbsoluteTiming) return
       if (beat.startMs == null || beat.endMs == null) return
       if (event.button !== 0) return
       event.preventDefault()
       event.stopPropagation()
       const scrollLeft = scrollRef.current?.scrollLeft || 0
+      dragDeltaPxRef.current = 0
       dragPointerClientXRef.current = event.clientX
       dragEdgeScrollDirectionRef.current = 0
       ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
       setPlaying(false)
       setDragState({
+        kind: 'beat',
+        sessionId: dragSessionIdRef.current,
         beatRef: beat.beatRef,
         beatIndex,
         mode,
         pointerId: event.pointerId,
         originClientX: event.clientX,
         originScrollLeft: scrollLeft,
+        markdownDocumentName,
+        markdownText,
         beatsSnapshot: timelineModel.beats.map(entry => ({ ...entry, items: entry.items.slice() })),
       })
     },
-    [timelineModel.beats, timelineModel.usesAbsoluteTiming],
+    [markdownDocumentName, markdownText, timelineModel.beats, timelineModel.usesAbsoluteTiming],
   )
 
   const handleLaneItemPointerStart = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>, beat: AnimationTimelineBeat, beatIndex: number) => {
+    (
+      event: React.PointerEvent<HTMLElement>,
+      laneId: AnimationTimelineLaneId,
+      beat: AnimationTimelineBeat,
+      itemNodeId: string,
+      itemTitle: string,
+    ) => {
       if (shouldIgnoreTimelineActionPointerMoveStart(event.target)) return
-      handleBeatPointerStart(event, beat, beatIndex, resolveLaneItemPointerStartMode(event))
+      if (event.button !== 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      const scrollLeft = scrollRef.current?.scrollLeft || 0
+      dragDeltaPxRef.current = 0
+      dragPointerClientXRef.current = event.clientX
+      dragEdgeScrollDirectionRef.current = 0
+      ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+      setPlaying(false)
+      setSelectedLaneId(laneId)
+      setSelectedItemNodeId(itemNodeId)
+      setLaneItemDragPreviewOffsetPx(0)
+      setDragState({
+        kind: 'item',
+        sessionId: dragSessionIdRef.current,
+        itemNodeId,
+        itemTitle,
+        laneId,
+        sourceBeatRef: beat.beatRef,
+        pointerId: event.pointerId,
+        originClientX: event.clientX,
+        originScrollLeft: scrollLeft,
+        markdownDocumentName,
+        markdownText,
+      })
     },
-    [handleBeatPointerStart],
+    [markdownDocumentName, markdownText],
   )
 
   React.useEffect(() => {
@@ -1344,6 +1478,11 @@ export default function AnimationCanvas({
       const scrollEl = scrollRef.current
       const currentScrollLeft = scrollEl?.scrollLeft || 0
       const deltaPx = clientX - dragState.originClientX + (currentScrollLeft - dragState.originScrollLeft)
+      dragDeltaPxRef.current = Math.max(dragDeltaPxRef.current, Math.abs(deltaPx))
+      if (dragState.kind === 'item') {
+        setLaneItemDragPreviewOffsetPx(deltaPx)
+        return
+      }
       const deltaMs = deltaPx * timelineUnitsPerPixel
       const nextOverrides = resolveAnimationTimelineBeatTimingEdit({
         beats: dragState.beatsSnapshot,
@@ -1383,13 +1522,57 @@ export default function AnimationCanvas({
       updateDragEdgeScrollDirection(event.clientX)
       updateDragPreview(event.clientX)
     }
-    const commitDrag = async () => {
+    const commitDrag = async (pointerClientX: number | null) => {
       const overrides = timingOverridesRef.current
       setDragState(null)
-      dragPointerClientXRef.current = null
-      dragEdgeScrollDirectionRef.current = 0
+      setLaneItemDragPreviewOffsetPx(0)
+      if (dragState.sessionId !== dragSessionIdRef.current) {
+        setTimingOverrides({})
+        timingOverridesRef.current = {}
+        dragDeltaPxRef.current = 0
+        dragPointerClientXRef.current = null
+        dragEdgeScrollDirectionRef.current = 0
+        return
+      }
+      if (dragState.markdownDocumentName !== markdownDocumentName || dragState.markdownText !== markdownText) {
+        setTimingOverrides({})
+        timingOverridesRef.current = {}
+        dragDeltaPxRef.current = 0
+        dragPointerClientXRef.current = null
+        dragEdgeScrollDirectionRef.current = 0
+        return
+      }
+      if (dragDeltaPxRef.current < DRAG_COMMIT_MIN_DELTA_PX) {
+        setTimingOverrides({})
+        timingOverridesRef.current = {}
+        dragDeltaPxRef.current = 0
+        dragPointerClientXRef.current = null
+        dragEdgeScrollDirectionRef.current = 0
+        return
+      }
+      if (dragState.kind === 'item') {
+        const nextBeat = resolveBeatAtLaneTrackClientX(dragState.laneId, pointerClientX ?? dragState.originClientX)
+        dragDeltaPxRef.current = 0
+        dragPointerClientXRef.current = null
+        dragEdgeScrollDirectionRef.current = 0
+        if (!nextBeat || nextBeat.beatRef === dragState.sourceBeatRef) return
+        await handleMoveItemToBeat(
+          {
+            nodeId: dragState.itemNodeId,
+            title: dragState.itemTitle,
+            laneId: dragState.laneId,
+            beatRef: dragState.sourceBeatRef,
+          },
+          nextBeat,
+        )
+        return
+      }
       if (!overrides[dragState.beatRef]) {
         setTimingOverrides({})
+        timingOverridesRef.current = {}
+        dragDeltaPxRef.current = 0
+        dragPointerClientXRef.current = null
+        dragEdgeScrollDirectionRef.current = 0
         return
       }
       const nextMarkdownText = updateAnimationTimelineMarkdownBeatTimingOverrides({
@@ -1398,12 +1581,15 @@ export default function AnimationCanvas({
       })
       await commitMarkdownDocumentText(nextMarkdownText)
       setTimingOverrides({})
+      timingOverridesRef.current = {}
+      dragDeltaPxRef.current = 0
+      dragPointerClientXRef.current = null
+      dragEdgeScrollDirectionRef.current = 0
     }
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerId !== dragState.pointerId) return
-      dragPointerClientXRef.current = null
-      dragEdgeScrollDirectionRef.current = 0
-      void commitDrag()
+      const pointerClientX = dragPointerClientXRef.current ?? event.clientX
+      void commitDrag(pointerClientX)
     }
     let animationFrameId = 0
     const tick = () => {
@@ -1433,7 +1619,17 @@ export default function AnimationCanvas({
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
     }
-  }, [commitMarkdownDocumentText, dragState, markdownText, snapEnabled, snapStepMs, timelineModel.usesAbsoluteTiming, timelineUnitsPerPixel])
+  }, [
+    commitMarkdownDocumentText,
+    dragState,
+    handleMoveItemToBeat,
+    markdownText,
+    resolveBeatAtLaneTrackClientX,
+    snapEnabled,
+    snapStepMs,
+    timelineModel.usesAbsoluteTiming,
+    timelineUnitsPerPixel,
+  ])
 
   if (!timelineModel.beats.length) {
     return (
@@ -1965,7 +2161,9 @@ export default function AnimationCanvas({
                   </ol>
                   <aside className="timeline-editor-time-mark-layer" aria-hidden="true">
                     {snapMarks.map(mark => {
-                    const left = timelineModel.totalSpan > 0 ? (mark / timelineModel.totalSpan) * totalTimelineWidth : 0
+                    const left =
+                      timelineModel.scaleConfig.startLeft +
+                      (timelineModel.totalSpan > 0 ? (mark / timelineModel.totalSpan) * totalTimelineTrackWidth : 0)
                     return (
                       <span key={`snap:${mark}`} aria-hidden="true" className="pointer-events-none absolute inset-y-0" style={{ left }}>
                         <span className="block h-full w-px bg-cyan-500/15" />
@@ -1973,17 +2171,20 @@ export default function AnimationCanvas({
                     )
                   })}
                   {scaleMarks.map(mark => {
-                    const left = timelineModel.totalSpan > 0 ? (mark.position / timelineModel.totalSpan) * totalTimelineWidth : 0
                     return (
-                      <span key={mark.key} aria-hidden="true" className="timeline-editor-time-mark absolute inset-y-0" style={{ left }}>
+                      <span key={mark.key} aria-hidden="true" className="timeline-editor-time-mark absolute inset-y-0" style={{ left: mark.left }}>
                         <span className="block h-full w-px bg-slate-700/80" />
-                        <span className="absolute left-2 top-1 text-[11px] font-medium text-slate-400">{mark.label}</span>
                       </span>
                     )
                   })}
                   </aside>
                 </div>
-                <div className="timeline-editor-edit-area flex border-b border-slate-800" role="listbox" aria-label="Animation timeline beats">
+                <div
+                  className="timeline-editor-edit-area flex border-b border-slate-800"
+                  role="listbox"
+                  aria-label="Animation timeline beats"
+                  style={{ paddingLeft: timelineModel.scaleConfig.startLeft }}
+                >
                   {timelineModel.beats.map((beat, index) => {
                     const isActiveBeat = index === activeBeatIndex
                     const beatLaneSummary = buildBeatLaneSummary(beat.items)
@@ -2283,158 +2484,197 @@ export default function AnimationCanvas({
                   ref={node => {
                     laneRowRefs.current[lane.id] = node
                   }}
-                  className={`timeline-editor-edit-row flex border-b transition ${
+                  className={`timeline-editor-edit-row relative flex border-b transition ${
                     highlightedLaneShortcutId === lane.id ? 'border-cyan-500/50 bg-cyan-500/4' : 'border-slate-900/80'
                   }`}
-                  style={{ height: LANE_ROW_HEIGHT_PX }}
+                  style={timelineRowStyle}
                 >
-                  {timelineModel.beats.map((beat, index) => {
-                    const laneItems = beat.items.filter(item => item.laneId === lane.id)
-                    const isActiveBeat = index === activeBeatIndex
+                  <div className="pointer-events-none flex shrink-0" style={{ width: totalTimelineTrackWidth, minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}>
+                    {timelineModel.beats.map((beat, index) => {
+                      const isActiveBeat = index === activeBeatIndex
+                      return (
+                        <div
+                          key={`${lane.id}:${beat.beatRef}`}
+                          className={`shrink-0 border-r border-slate-800 ${isActiveBeat ? 'bg-slate-900/75' : 'bg-[#0b1020]'}`}
+                          style={{ width: beatWidths[index], minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}
+                        ></div>
+                      )
+                    })}
+                  </div>
+                  {(() => {
+                    const laneItemContexts = timelineModel.beats.flatMap((beat, index) =>
+                      beat.items
+                        .filter(item => item.laneId === lane.id)
+                        .map(item => ({
+                          item,
+                          beat,
+                          beatIndex: index,
+                          previousBeat: timelineModel.beats[index - 1] || null,
+                          nextBeat: timelineModel.beats[index + 1] || null,
+                        })),
+                    )
+                    if (!lane.visibleItems) {
+                      return (
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-[10px] text-slate-600">
+                          {lane.soloFiltered ? 'Solo filtered' : lane.hidden ? 'Hidden lane' : lane.muted ? 'Muted lane' : `No ${lane.label.toLowerCase()} item`}
+                        </div>
+                      )
+                    }
+                    if (laneItemContexts.length === 0) {
+                      return (
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-[10px] text-slate-600">
+                          No {lane.label.toLowerCase()} item
+                        </div>
+                      )
+                    }
                     return (
                       <div
-                        key={`${lane.id}:${beat.beatRef}`}
-                        className={`shrink-0 border-r border-slate-800 px-0.5 py-0 ${
-                          isActiveBeat ? 'bg-slate-900/75' : 'bg-[#0b1020]'
-                        }`}
-                        style={{ width: beatWidths[index], minHeight: LANE_ROW_HEIGHT_PX - 1, height: LANE_ROW_HEIGHT_PX - 1 }}
+                        ref={node => {
+                          laneTrackOverlayRefs.current[lane.id] = node
+                        }}
+                        className="pointer-events-none absolute inset-y-0 left-0"
+                        style={{ width: totalTimelineTrackWidth }}
                       >
-                        {lane.visibleItems && laneItems.length > 0 ? (
-                          <div className="flex flex-col gap-0">
-                            {laneItems.map(item => {
-                              const previousBeat = timelineModel.beats[index - 1] || null
-                              const nextBeat = timelineModel.beats[index + 1] || null
-                              const actionEffectClassName = resolveTimelineEditorActionEffectClassName(item.laneId)
-                              return (
-                                <article
-                                  key={item.id}
-                                  ref={node => {
-                                    laneItemOptionRefs.current[item.nodeId] = node
-                                  }}
-                                  tabIndex={selectedLaneId === lane.id && selectedOrFirstLaneItemNodeId === item.nodeId ? 0 : -1}
-                                  role="option"
-                                  aria-selected={selectedItemNodeId === item.nodeId}
-                                  title={`Focus ${item.title}; use Arrow Up/Down, Home, End, , and .`}
-                                  className={`group/item timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible timeline-editor-action-effect-${actionEffectClassName} rounded-[4px] border px-0 py-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
-                                    lane.muted ? 'opacity-40 saturate-50' : ''
-                                  } ${
-                                    selectedItemNodeId === item.nodeId ? 'ring-1 ring-cyan-300' : ''
-                                  }`}
-                                  onPointerDown={event => handleLaneItemPointerStart(event, beat, index)}
-                                  onClick={() => {
-                                    setSelectedLaneId(lane.id)
-                                    setSelectedItemNodeId(item.nodeId)
-                                  }}
-                                  onFocus={() => {
-                                    setSelectedLaneId(lane.id)
-                                    setSelectedItemNodeId(item.nodeId)
-                                  }}
-                                  onKeyDown={event => {
-                                    const itemIndex = selectedLaneVisibleItemContexts.findIndex(entry => entry.nodeId === item.nodeId)
-                                    if (event.key === 'ArrowUp') {
-                                      event.preventDefault()
-                                      event.stopPropagation()
-                                      const previousItem = selectedLaneVisibleItemContexts[Math.max(0, itemIndex - 1)]
-                                      if (previousItem) handleFocusLaneItemOption(previousItem.nodeId)
-                                    }
-                                    if (event.key === 'ArrowDown') {
-                                      event.preventDefault()
-                                      event.stopPropagation()
-                                      const nextItem = selectedLaneVisibleItemContexts[Math.min(selectedLaneVisibleItemContexts.length - 1, itemIndex + 1)]
-                                      if (nextItem) handleFocusLaneItemOption(nextItem.nodeId)
-                                    }
-                                    if (event.key === 'Home') {
-                                      event.preventDefault()
-                                      event.stopPropagation()
-                                      const firstItem = selectedLaneVisibleItemContexts[0]
-                                      if (firstItem) handleFocusLaneItemOption(firstItem.nodeId)
-                                    }
-                                    if (event.key === 'End') {
-                                      event.preventDefault()
-                                      event.stopPropagation()
-                                      const lastItem = selectedLaneVisibleItemContexts[selectedLaneVisibleItemContexts.length - 1]
-                                      if (lastItem) handleFocusLaneItemOption(lastItem.nodeId)
-                                    }
-                                  }}
+                        {laneItemContexts.map(({ item, beat, beatIndex, previousBeat, nextBeat }) => {
+                          const actionEffectClassName = resolveTimelineEditorActionEffectClassName(item.laneId)
+                          const isDraggingLaneItem = dragState?.kind === 'item' && dragState.itemNodeId === item.nodeId
+                          return (
+                            <article
+                              key={item.id}
+                              ref={node => {
+                                laneItemOptionRefs.current[item.nodeId] = node
+                              }}
+                              tabIndex={selectedLaneId === lane.id && selectedOrFirstLaneItemNodeId === item.nodeId ? 0 : -1}
+                              role="option"
+                              aria-selected={selectedItemNodeId === item.nodeId}
+                              title={`Focus ${item.title}; use Arrow Up/Down, Home, End, , and .`}
+                              className={`group/item timeline-editor-action timeline-editor-action-movable timeline-editor-action-flexible timeline-editor-action-effect-${actionEffectClassName} pointer-events-auto absolute rounded-[4px] border px-0 py-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${LANE_ACCENT_CLASS[item.laneId]} ${
+                                lane.muted ? 'opacity-40 saturate-50' : ''
+                              } ${
+                                selectedItemNodeId === item.nodeId ? 'ring-1 ring-cyan-300' : ''
+                              }`}
+                              style={{
+                                left: beatTrackOffsets[beatIndex],
+                                top: 1,
+                                width: laneActionWidths[beatIndex],
+                                transform: isDraggingLaneItem ? `translateX(${laneItemDragPreviewOffsetPx}px)` : undefined,
+                                zIndex: isDraggingLaneItem ? 20 : undefined,
+                              }}
+                              onPointerDown={event => handleLaneItemPointerStart(event, lane.id, beat, item.nodeId, item.title)}
+                              onClick={() => {
+                                setSelectedLaneId(lane.id)
+                                setSelectedItemNodeId(item.nodeId)
+                              }}
+                              onFocus={() => {
+                                setSelectedLaneId(lane.id)
+                                setSelectedItemNodeId(item.nodeId)
+                              }}
+                              onKeyDown={event => {
+                                const itemIndex = selectedLaneVisibleItemContexts.findIndex(entry => entry.nodeId === item.nodeId)
+                                if (event.key === 'ArrowUp') {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  const previousItem = selectedLaneVisibleItemContexts[Math.max(0, itemIndex - 1)]
+                                  if (previousItem) handleFocusLaneItemOption(previousItem.nodeId)
+                                }
+                                if (event.key === 'ArrowDown') {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  const nextItem = selectedLaneVisibleItemContexts[Math.min(selectedLaneVisibleItemContexts.length - 1, itemIndex + 1)]
+                                  if (nextItem) handleFocusLaneItemOption(nextItem.nodeId)
+                                }
+                                if (event.key === 'Home') {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  const firstItem = selectedLaneVisibleItemContexts[0]
+                                  if (firstItem) handleFocusLaneItemOption(firstItem.nodeId)
+                                }
+                                if (event.key === 'End') {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  const lastItem = selectedLaneVisibleItemContexts[selectedLaneVisibleItemContexts.length - 1]
+                                  if (lastItem) handleFocusLaneItemOption(lastItem.nodeId)
+                                }
+                              }}
+                            >
+                              <section className={`timeline-editor-action-effect ${actionEffectClassName}`} aria-label={`${lane.label} action ${item.title}`}>
+                                <div
+                                  className={`${laneInlineScrollClassName} min-w-0 w-full justify-center px-2 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}
+                                  style={laneInlineScrollStyle}
                                 >
-                                  <section className={`timeline-editor-action-effect ${actionEffectClassName}`} aria-label={`${lane.label} action ${item.title}`}>
-                                    <div
-                                      className={`${laneInlineScrollClassName} min-w-0 w-full justify-center px-2 ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`}
-                                      style={laneInlineScrollStyle}
-                                    >
-                                      <span className={`${actionEffectClassName}-text min-w-0 truncate text-[9px] leading-3.5 font-normal`}>{item.title}</span>
-                                      {selectedItemNodeId === item.nodeId ? (
-                                        <div className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
-                                          {SELECTED_ITEM_HINTS.map(hint => (
-                                            <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
-                                              {hint.label}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      ) : null}
+                                  <span className={`${actionEffectClassName}-text min-w-0 truncate text-[9px] leading-3.5 font-normal`}>{item.title}</span>
+                                  {selectedItemNodeId === item.nodeId ? (
+                                    <div className={`${laneInlineScrollClassName} shrink-0`} style={laneInlineScrollStyle}>
+                                      {SELECTED_ITEM_HINTS.map(hint => (
+                                        <span key={hint.label} className={TIMELINE_COMPACT_HINT_CHIP_CLASS_NAME} title={hint.title}>
+                                          {hint.label}
+                                        </span>
+                                      ))}
                                     </div>
-                                    <nav
-                                      aria-label={`Move ${item.title} between beats`}
-                                      className={`absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-0.5 transition-opacity duration-150 ${selectedItemNodeId === item.nodeId ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 group-focus-within/item:pointer-events-auto group-focus-within/item:opacity-100'}`}
-                                    >
-                                      <IconButton
-                                        title={previousBeat ? `Move ${item.title} to ${previousBeat.label}` : `No previous beat for ${item.title}`}
-                                        showTooltip
-                                        className={getTimelineInlineMoveIconButtonClassName(!!previousBeat)}
-                                        onClick={() => void handleMoveItemToBeat(item.nodeId, previousBeat)}
-                                        disabled={!previousBeat}
-                                      >
-                                        <ArrowLeft className={compactToolbarIconClassName} />
-                                      </IconButton>
-                                      <IconButton
-                                        title={nextBeat ? `Move ${item.title} to ${nextBeat.label}` : `No next beat for ${item.title}`}
-                                        showTooltip
-                                        className={getTimelineInlineMoveIconButtonClassName(!!nextBeat)}
-                                        onClick={() => void handleMoveItemToBeat(item.nodeId, nextBeat)}
-                                        disabled={!nextBeat}
-                                      >
-                                        <ArrowRight className={compactToolbarIconClassName} />
-                                      </IconButton>
-                                    </nav>
-                                  </section>
-                                  <button
-                                    type="button"
-                                    className="timeline-editor-action-left-stretch"
-                                    aria-label={`Resize ${item.title} start`}
-                                    tabIndex={-1}
-                                    data-kg-timeline-action-ignore-drag="true"
-                                    onPointerDown={event => {
-                                      event.stopPropagation()
-                                      handleBeatPointerStart(event, beat, index, 'resize-start')
-                                    }}
-                                  ></button>
-                                  <button
-                                    type="button"
-                                    className="timeline-editor-action-right-stretch"
-                                    aria-label={`Resize ${item.title} end`}
-                                    tabIndex={-1}
-                                    data-kg-timeline-action-ignore-drag="true"
-                                    onPointerDown={event => {
-                                      event.stopPropagation()
-                                      handleBeatPointerStart(event, beat, index, 'resize-end')
-                                    }}
-                                  ></button>
-                                </article>
-                              )
-                            })}
-                          </div>
-                        ) : lane.soloFiltered ? (
-                          <div className="flex h-full items-center text-[10px] text-slate-600">Solo filtered</div>
-                        ) : lane.hidden ? (
-                          <div className="flex h-full items-center text-[10px] text-slate-600">Hidden lane</div>
-                        ) : lane.muted ? (
-                          <div className="flex h-full items-center text-[10px] text-slate-600">Muted lane</div>
-                        ) : (
-                          <div className="flex h-full items-center text-[10px] text-slate-600">No {lane.label.toLowerCase()} item</div>
-                        )}
+                                  ) : null}
+                                </div>
+                                <nav
+                                  aria-label={`Move ${item.title} between beats`}
+                                  className={`absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-0.5 transition-opacity duration-150 ${selectedItemNodeId === item.nodeId ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 group-focus-within/item:pointer-events-auto group-focus-within/item:opacity-100'}`}
+                                >
+                                  <IconButton
+                                    title={previousBeat ? `Move ${item.title} to ${previousBeat.label}` : `No previous beat for ${item.title}`}
+                                    showTooltip
+                                    className={getTimelineInlineMoveIconButtonClassName(!!previousBeat)}
+                                    onClick={() => void handleMoveItemToBeat({
+                                      nodeId: item.nodeId,
+                                      title: item.title,
+                                      laneId: item.laneId,
+                                      beatRef: beat.beatRef,
+                                    }, previousBeat)}
+                                    disabled={!previousBeat}
+                                  >
+                                    <ArrowLeft className={compactToolbarIconClassName} />
+                                  </IconButton>
+                                  <IconButton
+                                    title={nextBeat ? `Move ${item.title} to ${nextBeat.label}` : `No next beat for ${item.title}`}
+                                    showTooltip
+                                    className={getTimelineInlineMoveIconButtonClassName(!!nextBeat)}
+                                    onClick={() => void handleMoveItemToBeat({
+                                      nodeId: item.nodeId,
+                                      title: item.title,
+                                      laneId: item.laneId,
+                                      beatRef: beat.beatRef,
+                                    }, nextBeat)}
+                                    disabled={!nextBeat}
+                                  >
+                                    <ArrowRight className={compactToolbarIconClassName} />
+                                  </IconButton>
+                                </nav>
+                              </section>
+                              <button
+                                type="button"
+                                className="timeline-editor-action-left-stretch"
+                                aria-label={`Resize ${item.title} start`}
+                                tabIndex={-1}
+                                data-kg-timeline-action-ignore-drag="true"
+                                onPointerDown={event => {
+                                  event.stopPropagation()
+                                  handleBeatPointerStart(event, beat, beatIndex, 'resize-start')
+                                }}
+                              ></button>
+                              <button
+                                type="button"
+                                className="timeline-editor-action-right-stretch"
+                                aria-label={`Resize ${item.title} end`}
+                                tabIndex={-1}
+                                data-kg-timeline-action-ignore-drag="true"
+                                onPointerDown={event => {
+                                  event.stopPropagation()
+                                  handleBeatPointerStart(event, beat, beatIndex, 'resize-end')
+                                }}
+                              ></button>
+                            </article>
+                          )
+                        })}
                       </div>
                     )
-                  })}
+                  })()}
                 </div>
               ))}
             </div>

@@ -29,6 +29,11 @@ export function testTimelineAnimationDemoReusesSharedFlowFrontmatterContract() {
   if (!text.includes('\ntimeline:\n') || !text.includes('\n  beats:\n')) {
     throw new Error('expected timeline animation demo to keep additive timing under timeline.beats.*')
   }
+  for (const snippet of ['\n  scale:\n', 'scale: 5', 'scale_split_count: 10', 'scale_width: 160', 'start_left: 20']) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected timeline animation demo to keep native scale config snippet: ${snippet}`)
+    }
+  }
   if (!text.includes('id: NODE_TIMELINE') || !text.includes('"flow:sourcePortKey": beat_01_out')) {
     throw new Error('expected timeline animation demo to define canonical beat ordering through the shared flow graph')
   }

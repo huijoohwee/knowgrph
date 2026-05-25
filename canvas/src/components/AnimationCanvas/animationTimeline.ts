@@ -48,7 +48,15 @@ export type AnimationTimelineModel = {
   lanes: AnimationTimelineLane[]
   totalSpan: number
   totalDurationMs: number | null
+  scaleConfig: AnimationTimelineScaleConfig
   usesAbsoluteTiming: boolean
+}
+
+export type AnimationTimelineScaleConfig = {
+  scale: number
+  scaleSplitCount: number
+  scaleWidth: number
+  startLeft: number
 }
 
 export type AnimationTimelineBeatTimingOverride = {
@@ -58,6 +66,13 @@ export type AnimationTimelineBeatTimingOverride = {
 
 type AnimationTimelineEditMode = 'move' | 'resize-start' | 'resize-end'
 type AnimationTimelineBeatRecord = Record<string, unknown>
+type AnimationTimelineNodeBeatRefMatchArgs = {
+  nodeId: string
+  title: string
+  laneId: AnimationTimelineLaneId | null
+  sourceBeatRef: string
+  nextBeatRef: string
+}
 
 type FrontmatterBeatMeta = {
   beatRef: string
@@ -72,6 +87,12 @@ type FrontmatterBeatMeta = {
 }
 
 const LANE_ORDER: ReadonlyArray<AnimationTimelineLaneId> = ['clip', 'overlay', 'audio', 'scene', 'node']
+const DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG: AnimationTimelineScaleConfig = {
+  scale: 5,
+  scaleSplitCount: 10,
+  scaleWidth: 160,
+  startLeft: 20,
+}
 
 const LANE_LABELS: Record<AnimationTimelineLaneId, string> = {
   clip: 'Clip',
@@ -141,8 +162,32 @@ function readFiniteNumber(value: unknown): number | null {
   return null
 }
 
+function readPositiveNumber(value: unknown): number | null {
+  const parsed = readFiniteNumber(value)
+  if (parsed == null || parsed <= 0) return null
+  return parsed
+}
+
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function sanitizeAnimationTimelineScaleConfig(
+  value: Partial<AnimationTimelineScaleConfig> | null | undefined,
+): AnimationTimelineScaleConfig {
+  const scale = readPositiveNumber(value?.scale) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.scale
+  const scaleSplitCount = Math.max(
+    1,
+    Math.round(readPositiveNumber(value?.scaleSplitCount) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.scaleSplitCount),
+  )
+  const scaleWidth = Math.max(40, Math.round(readPositiveNumber(value?.scaleWidth) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.scaleWidth))
+  const startLeft = Math.max(0, Math.round(readFiniteNumber(value?.startLeft) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.startLeft))
+  return {
+    scale,
+    scaleSplitCount,
+    scaleWidth,
+    startLeft,
+  }
 }
 
 function readStringList(value: unknown): string[] {
@@ -416,6 +461,7 @@ export function buildAnimationTimelineModel(args: {
   const { itemsByBeatRef, orderHints } = buildGraphBeatItems({ graphData: args.graphData })
   const frontmatterBeats = readFrontmatterBeatMeta(args.markdownText)
   const preferredLaneOrder = readAnimationTimelineLaneOrder(args.markdownText)
+  const scaleConfig = readAnimationTimelineScaleConfig(args.markdownText)
   const frontmatterByBeatRef = new Map(frontmatterBeats.map(beat => [beat.beatRef, beat]))
   const beatRefSet = new Set<string>()
   for (const beat of frontmatterBeats) {
@@ -483,6 +529,7 @@ export function buildAnimationTimelineModel(args: {
     lanes: lanes.length > 0 ? lanes : [{ id: 'node', label: LANE_LABELS.node }],
     totalSpan,
     totalDurationMs,
+    scaleConfig,
     usesAbsoluteTiming,
   }
 }
@@ -613,6 +660,22 @@ export function updateAnimationTimelineMarkdownBeatTiming(args: {
   return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
+export function updateAnimationTimelineMarkdownScaleConfig(args: {
+  markdownText: string | null | undefined
+  scaleConfig: Partial<AnimationTimelineScaleConfig> | null | undefined
+}): string {
+  const markdownText = String(args.markdownText || '')
+  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const nextScaleConfig = sanitizeAnimationTimelineScaleConfig(args.scaleConfig)
+  frontmatterState.timeline.scale = {
+    scale: nextScaleConfig.scale,
+    scale_split_count: nextScaleConfig.scaleSplitCount,
+    scale_width: nextScaleConfig.scaleWidth,
+    start_left: nextScaleConfig.startLeft,
+  }
+  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+}
+
 export function updateAnimationTimelineMarkdownBeatTimingOverrides(args: {
   markdownText: string | null | undefined
   overrides: Record<string, AnimationTimelineBeatTimingOverride>
@@ -731,19 +794,63 @@ export function readAnimationTimelineLaneOrder(markdownText: string | null | und
   return readLaneIdList(timeline.lane_order)
 }
 
+export function readAnimationTimelineScaleConfig(markdownText: string | null | undefined): AnimationTimelineScaleConfig {
+  const text = String(markdownText || '')
+  if (!text.trim()) return DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(text))
+  const meta = readRecord(parsed.meta)
+  const timeline = readRecord(meta.timeline)
+  const scaleRecord = readRecord(timeline.scale)
+  return sanitizeAnimationTimelineScaleConfig({
+    scale: scaleRecord.scale,
+    scaleSplitCount: scaleRecord.scale_split_count ?? scaleRecord.scaleSplitCount,
+    scaleWidth: scaleRecord.scale_width ?? scaleRecord.scaleWidth,
+    startLeft: scaleRecord.start_left ?? scaleRecord.startLeft,
+  })
+}
+
 function updateAnimationTimelineNodeBeatRefInRows(
   rows: unknown,
-  nodeId: string,
-  nextBeatRef: string,
+  matchArgs: AnimationTimelineNodeBeatRefMatchArgs,
 ): { rows: unknown; updated: boolean } {
   const rawRows = Array.isArray(rows) ? rows : []
   let updated = false
   const nextRows = rawRows.map(row => {
     const record = readRecord(cloneJsonLike(row))
-    if (readString(record.id) !== nodeId) return record
+    const rowId = readString(record.id)
+    const rowLabel = readString(record.label) || readString(record.title) || readString(record.name)
+    const rowType = readString(record.type).toLowerCase()
     const params = readRecord(cloneJsonLike(record.params))
-    params.beat_ref = nextBeatRef
-    record.params = params
+    const properties = readRecord(cloneJsonLike(record.properties))
+    const propertyParams = readRecord(cloneJsonLike(properties.params))
+    const currentBeatRef = readString(params.beat_ref) || readString(propertyParams.beat_ref)
+    const rowLaneSignature = `${rowId.toLowerCase()} ${rowLabel.toLowerCase()} ${rowType}`
+    const rowLaneId: AnimationTimelineLaneId =
+      rowLaneSignature.includes('overlay')
+        ? 'overlay'
+        : rowLaneSignature.includes('clip') || rowLaneSignature.includes('video') || rowLaneSignature.includes('shot')
+          ? 'clip'
+          : rowLaneSignature.includes('audio') || rowLaneSignature.includes('voice') || rowLaneSignature.includes('music') || rowLaneSignature.includes('sfx')
+            ? 'audio'
+            : rowLaneSignature.includes('scene') || rowLaneSignature.includes('beat') || rowLaneSignature.includes('timeline')
+              ? 'scene'
+              : 'node'
+    const matchesNodeId = matchArgs.nodeId ? rowId === matchArgs.nodeId : false
+    const matchesFallback =
+      !!matchArgs.title &&
+      rowLabel === matchArgs.title &&
+      currentBeatRef === matchArgs.sourceBeatRef &&
+      (!matchArgs.laneId || rowLaneId === matchArgs.laneId)
+    if (!matchesNodeId && !matchesFallback) return record
+    if (Object.keys(params).length > 0 || !Object.keys(propertyParams).length) {
+      params.beat_ref = matchArgs.nextBeatRef
+      record.params = params
+    }
+    if (Object.keys(propertyParams).length > 0) {
+      propertyParams.beat_ref = matchArgs.nextBeatRef
+      properties.params = propertyParams
+      record.properties = properties
+    }
     updated = true
     return record
   })
@@ -752,15 +859,28 @@ function updateAnimationTimelineNodeBeatRefInRows(
 
 export function updateAnimationTimelineMarkdownItemBeatRef(args: {
   markdownText: string | null | undefined
-  nodeId: string
+  nodeId?: string | null
+  title?: string | null
+  laneId?: AnimationTimelineLaneId | null
+  sourceBeatRef?: string | null
   beatRef: string
 }): { markdownText: string; updated: boolean } {
   const markdownText = String(args.markdownText || '')
   const nodeId = readString(args.nodeId)
+  const title = readString(args.title)
+  const laneId = readLaneId(args.laneId)
+  const sourceBeatRef = readString(args.sourceBeatRef)
   const beatRef = readString(args.beatRef)
-  if (!markdownText.trim() || !nodeId || !beatRef) return { markdownText, updated: false }
+  if (!markdownText.trim() || !beatRef || (!nodeId && !(title && sourceBeatRef))) return { markdownText, updated: false }
+  const matchArgs: AnimationTimelineNodeBeatRefMatchArgs = {
+    nodeId,
+    title,
+    laneId,
+    sourceBeatRef,
+    nextBeatRef: beatRef,
+  }
   const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
-  const rootRowsResult = updateAnimationTimelineNodeBeatRefInRows(frontmatterState.meta.nodes, nodeId, beatRef)
+  const rootRowsResult = updateAnimationTimelineNodeBeatRefInRows(frontmatterState.meta.nodes, matchArgs)
   if (rootRowsResult.updated) {
     frontmatterState.meta.nodes = rootRowsResult.rows
     return {
@@ -769,7 +889,7 @@ export function updateAnimationTimelineMarkdownItemBeatRef(args: {
     }
   }
   const flow = readRecord(cloneJsonLike(frontmatterState.meta.flow))
-  const flowRowsResult = updateAnimationTimelineNodeBeatRefInRows(flow.nodes, nodeId, beatRef)
+  const flowRowsResult = updateAnimationTimelineNodeBeatRefInRows(flow.nodes, matchArgs)
   if (!flowRowsResult.updated) return { markdownText, updated: false }
   flow.nodes = flowRowsResult.rows
   frontmatterState.meta.flow = flow

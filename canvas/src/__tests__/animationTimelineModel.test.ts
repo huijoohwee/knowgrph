@@ -8,6 +8,7 @@ import {
   formatAnimationTimelineTimestamp,
   insertAnimationTimelineBeat,
   mergeAnimationTimelineBeatWithNext,
+  readAnimationTimelineScaleConfig,
   removeAnimationTimelineGapBeforeBeat,
   resolveAnimationTimelineBeatTimingEdit,
   splitAnimationTimelineBeat,
@@ -19,6 +20,7 @@ import {
   updateAnimationTimelineMarkdownBeatTags,
   updateAnimationTimelineMarkdownBeatTiming,
   updateAnimationTimelineMarkdownBeatTimingOverrides,
+  updateAnimationTimelineMarkdownScaleConfig,
 } from '@/components/AnimationCanvas/animationTimeline'
 
 export function testAnimationTimelineModelUsesMarkdownFrontmatterTimingAndGraphBeatRefs() {
@@ -107,6 +109,70 @@ timeline:
   }
   if (findAnimationTimelineBeatIndexAtPosition(model, 4500) !== 1) {
     throw new Error('expected playhead at 4500ms to resolve to beat_02')
+  }
+}
+
+export function testAnimationTimelineModelReadsNativeScaleConfigFromFrontmatter() {
+  const model = buildAnimationTimelineModel({
+    graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
+    markdownText: `---
+timeline:
+  scale:
+    scale: 8
+    scale_split_count: 4
+    scale_width: 240
+    start_left: 28
+  beats:
+    beat_01:
+      label: Hook
+      start_ms: 0
+      end_ms: 4000
+---
+`,
+  })
+
+  if (model.scaleConfig.scale !== 8) {
+    throw new Error(`expected scale 8, got ${model.scaleConfig.scale}`)
+  }
+  if (model.scaleConfig.scaleSplitCount !== 4) {
+    throw new Error(`expected split count 4, got ${model.scaleConfig.scaleSplitCount}`)
+  }
+  if (model.scaleConfig.scaleWidth !== 240) {
+    throw new Error(`expected scale width 240, got ${model.scaleConfig.scaleWidth}`)
+  }
+  if (model.scaleConfig.startLeft !== 28) {
+    throw new Error(`expected start left 28, got ${model.scaleConfig.startLeft}`)
+  }
+}
+
+export function testAnimationTimelineScaleConfigRewriteStaysUnderTimelineScaleOwner() {
+  const updated = updateAnimationTimelineMarkdownScaleConfig({
+    markdownText: `---
+title: Demo
+timeline:
+  beats:
+    beat_01:
+      label: Hook
+      start_ms: 0
+      end_ms: 4000
+---
+`,
+    scaleConfig: {
+      scale: 6,
+      scaleSplitCount: 8,
+      scaleWidth: 192,
+      startLeft: 24,
+    },
+  })
+
+  for (const snippet of ['scale:', 'scale: 6', 'scale_split_count: 8', 'scale_width: 192', 'start_left: 24']) {
+    if (!updated.includes(snippet)) {
+      throw new Error(`expected rewritten scale config to include ${snippet}, got ${updated}`)
+    }
+  }
+  const scaleConfig = readAnimationTimelineScaleConfig(updated)
+  if (scaleConfig.scale !== 6 || scaleConfig.scaleSplitCount !== 8 || scaleConfig.scaleWidth !== 192 || scaleConfig.startLeft !== 24) {
+    throw new Error(`expected scale config round-trip to match rewrite, got ${JSON.stringify(scaleConfig)}`)
   }
 }
 
@@ -722,5 +788,71 @@ timeline:
   }
   if (!updated.markdownText.includes('id: NODE_CLIP_01\n      type: Clip\n      label: Hook\n      params:\n        beat_ref: beat_02')) {
     throw new Error(`expected flow node beat_ref to be rewritten, got ${updated.markdownText}`)
+  }
+}
+
+export function testAnimationTimelineItemBeatRefUpdateFallsBackToLaneAndTitle() {
+  const markdownText = `---
+flow:
+  nodes:
+    - id: NODE_AUDIO_01
+      type: Audio
+      label: Problem Voiceover
+      params:
+        beat_ref: beat_02
+timeline:
+  beats:
+    beat_01:
+      label: Hook
+    beat_02:
+      label: Problem
+---
+`
+  const updated = updateAnimationTimelineMarkdownItemBeatRef({
+    markdownText,
+    nodeId: '',
+    title: 'Problem Voiceover',
+    laneId: 'audio',
+    sourceBeatRef: 'beat_02',
+    beatRef: 'beat_01',
+  })
+
+  if (!updated.updated) {
+    throw new Error('expected flow node beat ref rewrite fallback to report updated')
+  }
+  if (!updated.markdownText.includes('id: NODE_AUDIO_01\n      type: Audio\n      label: Problem Voiceover\n      params:\n        beat_ref: beat_01')) {
+    throw new Error(`expected fallback beat_ref rewrite to be applied, got ${updated.markdownText}`)
+  }
+}
+
+export function testAnimationTimelineItemBeatRefUpdateRewritesPropertiesParamsBeatRef() {
+  const markdownText = `---
+flow:
+  nodes:
+    - id: NODE_AUDIO_01
+      type: Audio
+      label: Problem Voiceover
+      properties:
+        params:
+          beat_ref: beat_02
+timeline:
+  beats:
+    beat_01:
+      label: Hook
+    beat_02:
+      label: Problem
+---
+`
+  const updated = updateAnimationTimelineMarkdownItemBeatRef({
+    markdownText,
+    nodeId: 'NODE_AUDIO_01',
+    beatRef: 'beat_01',
+  })
+
+  if (!updated.updated) {
+    throw new Error('expected properties.params beat ref rewrite to report updated')
+  }
+  if (!updated.markdownText.includes('properties:\n        params:\n          beat_ref: beat_01')) {
+    throw new Error(`expected properties.params beat_ref rewrite to be applied, got ${updated.markdownText}`)
   }
 }
