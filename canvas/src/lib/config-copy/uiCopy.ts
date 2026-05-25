@@ -12,12 +12,12 @@ const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the ta
 const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
 const CANVAS_VIEW_RENDERER_FLOWCHART_TITLE = '2D Renderer: Flowchart'
 const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
-const CANVAS_VIEW_RENDERER_ANIMATION_TITLE = '2D Renderer: Animation'
+const CANVAS_VIEW_RENDERER_ANIMATIC_TITLE = '2D Renderer: Animatic'
 const CANVAS_VIEW_RENDERER_STORYBOARD_TITLE = '2D Renderer: Storyboard'
 const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
 const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
 const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP =
-  '2D Renderer: switch between D3, Flowchart, Flow Canvas, Animation, Storyboard, Design, and Flow Editor.'
+  '2D Renderer: switch between D3, Flowchart, Flow Canvas, Animatic, Storyboard, Design, and Flow Editor.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -206,7 +206,7 @@ export const UI_COPY = {
   canvasViewRendererD3Title: CANVAS_VIEW_RENDERER_D3_TITLE,
   canvasViewRendererD3FlowchartTitle: CANVAS_VIEW_RENDERER_FLOWCHART_TITLE,
   canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,
-  canvasViewRendererAnimationTitle: CANVAS_VIEW_RENDERER_ANIMATION_TITLE,
+  canvasViewRendererAnimaticTitle: CANVAS_VIEW_RENDERER_ANIMATIC_TITLE,
   canvasViewRendererStoryboardTitle: CANVAS_VIEW_RENDERER_STORYBOARD_TITLE,
   canvasViewRendererFlowEditorTitle: CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE,
   canvasViewRendererDesignTitle: CANVAS_VIEW_RENDERER_DESIGN_TITLE,

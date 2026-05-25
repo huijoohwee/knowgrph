@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export function testAnimationInteractionValidatorUsesMountedRuntimeCommand() {
-  const text = readFileSync(resolve(process.cwd(), 'scripts', 'validate_animation_timeline_interactions.py'), 'utf8')
+export function testAnimaticInteractionValidatorUsesMountedRuntimeCommand() {
+  const text = readFileSync(resolve(process.cwd(), 'scripts', 'validate_animatic_timeline_interactions.py'), 'utf8')
   for (const snippet of [
     'window.knowgrphWorkspaceCommand.applyMarkdownDocument',
     'Move CTA',
@@ -37,7 +37,7 @@ export function testAnimationInteractionValidatorUsesMountedRuntimeCommand() {
     'timeline-editor',
   ]) {
     if (!text.includes(snippet)) {
-      throw new Error(`expected animation interaction validator to retain mounted runtime command snippet: ${snippet}`)
+      throw new Error(`expected animatic interaction validator to retain mounted runtime command snippet: ${snippet}`)
     }
   }
 }

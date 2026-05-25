@@ -14,6 +14,7 @@ import type { ChatExchangeLogEntry, GraphState, RecentFileEntry, UiLogEntry } fr
 import { downloadBlob } from '@/lib/graph/save'
 import { useShallow } from 'zustand/react/shallow'
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 type HistorySubTab = 'chat' | 'history' | 'log'
 type HistoryEntry = GraphState['history'][number]
@@ -263,6 +264,15 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
 
   const applySnapshot = React.useCallback(() => { addHistory('Manual Snapshot') }, [addHistory])
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const historyTabs = React.useMemo(
+    () =>
+      [
+        { id: 'chat' as const, title: 'Chat' },
+        { id: 'history' as const, title: UI_LABELS.history },
+        { id: 'log' as const, title: UI_LABELS.log },
+      ] satisfies Array<{ id: HistorySubTab; title: string }>,
+    [],
+  )
 
   const canUndo = historyIndex > 0
   const canRedo = historyIndex >= 0 && historyIndex < history.length - 1
@@ -311,35 +321,17 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
               </>
             )}
           </div>
-          <nav className="flex items-center gap-1" aria-label="History tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'chat'}
-              className={`App-toolbar__btn ${tab === 'chat' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-              onClick={() => setTab('chat')}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'history'}
-              className={`App-toolbar__btn ${tab === 'history' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-              onClick={() => setTab('history')}
-            >
-              {UI_LABELS.history}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'log'}
-              className={`App-toolbar__btn ${tab === 'log' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-              onClick={() => setTab('log')}
-            >
-              {UI_LABELS.log}
-            </button>
-          </nav>
+          <ToolbarDropdownSelect
+            value={tab}
+            options={historyTabs}
+            title={`History section: ${historyTabs.find(item => item.id === tab)?.title || 'Chat'}`}
+            showTooltip={false}
+            isButtonActive={true}
+            onSelect={id => setTab(id as HistorySubTab)}
+            renderButtonContent={activeOption => <span>{activeOption.title}</span>}
+            renderOptionContent={option => <span className="truncate">{option.title}</span>}
+            menuWidthClass="w-40"
+          />
         </div>
       </header>
       <section className="flex-1 overflow-auto px-3 py-2 space-y-6">

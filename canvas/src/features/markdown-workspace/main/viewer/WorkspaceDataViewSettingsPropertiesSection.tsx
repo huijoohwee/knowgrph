@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Copy, Link2, Trash2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
 import { defaultColumnTypeForInferredKind, type MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
+import { MarkdownDataViewAddColumnMenu } from '@/features/markdown/ui/MarkdownDataViewAddColumnMenu'
 import { MarkdownDataViewColumnTypeMenu } from '@/features/markdown/ui/MarkdownDataViewColumnTypeMenu'
 import { iconByColumnType } from '@/features/markdown/ui/markdownDataViewColumnTypeMenuIcons'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
@@ -22,6 +23,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
   columns: readonly MarkdownDataViewColumn[]
   view: WorkspaceDataViewConfig
   onChangeView: (next: WorkspaceDataViewConfig) => void
+  onAddColumn?: (args: { name: string; columnType: MarkdownDataViewColumnType }) => void
   onDuplicateColumn?: (columnId: string) => void
   onDeleteColumn?: (columnId: string) => void
   onRenameColumn?: (columnId: string, nextName: string) => void
@@ -150,6 +152,25 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
 
   return (
     <section aria-label="Properties">
+      {props.canMutate && props.onAddColumn ? (
+        <section className="mb-3" aria-label="Add column">
+          <MarkdownDataViewAddColumnMenu
+            ariaLabel="Add column"
+            nextColumnNumber={props.columns.length + 1}
+            canMutate={props.canMutate}
+            onAddColumn={props.onAddColumn}
+            summaryClassName={[
+              UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
+              'inline-flex h-9 rounded border px-3 text-sm',
+              UI_THEME_TOKENS.panel.border,
+              UI_THEME_TOKENS.button.hoverBg,
+              UI_THEME_TOKENS.text.primary,
+            ].join(' ')}
+            summaryContent={<span className={UI_TEXT_TRUNCATE}>Add column</span>}
+            menuPositionClassName="mt-2 w-[280px]"
+          />
+        </section>
+      ) : null}
       <section className="space-y-1" aria-label="Properties chooser">
         {visibleIds.map(columnId => {
           const c = props.columns.find(x => x.id === columnId)

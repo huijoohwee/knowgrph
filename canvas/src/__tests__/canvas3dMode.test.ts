@@ -252,7 +252,7 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
   const rendererMenu = options.find(option => option.id === 'renderer:menu')
   if (!rendererMenu?.children?.length) throw new Error('Expected renderer menu children')
   const disabled = new Map(rendererMenu.children.map(option => [option.id, option.disabled === true]))
-  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:animation', 'renderer:storyboard', 'renderer:flowEditor', 'renderer:d3', 'renderer:design']
+  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:animatic', 'renderer:storyboard', 'renderer:flowEditor', 'renderer:d3', 'renderer:design']
   for (const id of requiredSelectable) {
     if (disabled.get(id)) {
       throw new Error(`Expected ${id} to stay selectable for a 2D renderer choice even when inactive canvas3dMode is voxel`)

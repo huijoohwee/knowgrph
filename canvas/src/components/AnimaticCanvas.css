@@ -1,23 +1,23 @@
 .player-config {
-  --kg-animation-switch-width: 185px;
-  --kg-animation-switch-height: 22px;
-  --kg-animation-switch-handle-size: 18px;
-  --kg-animation-switch-handle-offset: 163px;
+  --kg-animatic-switch-width: 185px;
+  --kg-animatic-switch-height: 22px;
+  --kg-animatic-switch-handle-size: 18px;
+  --kg-animatic-switch-handle-offset: 163px;
 }
 
 .player-config .ant-switch {
   position: relative;
   display: inline-flex;
-  width: var(--kg-animation-switch-width);
-  min-height: var(--kg-animation-switch-height);
-  height: var(--kg-animation-switch-height);
+  width: var(--kg-animatic-switch-width);
+  min-height: var(--kg-animatic-switch-height);
+  height: var(--kg-animatic-switch-height);
   align-items: center;
   border: 0;
   border-radius: 100px;
   background: rgb(191 191 191 / 1);
   color: rgb(0 0 0 / 0.85);
   font-size: 14px;
-  line-height: var(--kg-animation-switch-height);
+  line-height: var(--kg-animatic-switch-height);
   padding: 0;
   overflow: hidden;
   transition:
@@ -36,8 +36,8 @@
   position: absolute;
   left: 2px;
   top: 2px;
-  height: var(--kg-animation-switch-handle-size);
-  width: var(--kg-animation-switch-handle-size);
+  height: var(--kg-animatic-switch-handle-size);
+  width: var(--kg-animatic-switch-handle-size);
   transform: none;
   border-radius: 9999px;
   background: rgb(255 255 255 / 1);
@@ -46,7 +46,7 @@
 }
 
 .player-config .ant-switch.ant-switch-checked .ant-switch-handle {
-  transform: translateX(var(--kg-animation-switch-handle-offset));
+  transform: translateX(var(--kg-animatic-switch-handle-offset));
 }
 
 .player-config .ant-switch-inner {
@@ -55,8 +55,8 @@
   text-align: left;
   font-size: 12px;
   font-weight: 400;
-  line-height: var(--kg-animation-switch-height);
-  height: var(--kg-animation-switch-height);
+  line-height: var(--kg-animatic-switch-height);
+  height: var(--kg-animatic-switch-height);
   padding: 0 12px 0 26px;
   color: rgb(255 255 255 / 1);
 }
@@ -69,8 +69,8 @@
 }
 
 .timeline-player {
-  --kg-animation-player-height: 32px;
-  --kg-animation-player-padding-x: 10px;
+  --kg-animatic-player-height: 32px;
+  --kg-animatic-player-padding-x: 10px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -78,9 +78,9 @@
   background: rgb(58 58 58 / 1);
   color: rgb(221 221 221 / 1);
   margin-bottom: 0;
-  padding: 0 var(--kg-animation-player-padding-x);
-  min-height: var(--kg-animation-player-height);
-  height: var(--kg-animation-player-height);
+  padding: 0 var(--kg-animatic-player-padding-x);
+  min-height: var(--kg-animatic-player-height);
+  height: var(--kg-animatic-player-height);
 }
 
 .timeline-player .play-control {

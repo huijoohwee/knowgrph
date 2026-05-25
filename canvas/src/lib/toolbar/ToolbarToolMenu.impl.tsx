@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ChevronDown, GitBranch, Hand, Map, MessageCircle, MonitorPlay, Palette, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, GitBranch, Hand, LayoutGrid, Map, MessageCircle, MonitorPlay, Palette, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -35,8 +35,9 @@ import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView'
 
-type FloatingPanelView = 'propsPanel' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 type RequestedFloatingPanelView = FloatingPanelView
 type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
@@ -94,7 +95,7 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'interaction'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -446,6 +447,7 @@ export function ToolbarToolMenu({
   const floatingPanelPrimaryViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: SlidersHorizontal },
+      { view: 'view', title: UI_LABELS.view, icon: LayoutGrid },
       { view: 'interaction', title: 'Interaction', icon: Hand },
       { view: 'design', title: 'Design', icon: Palette },
       { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
@@ -635,6 +637,7 @@ export function ToolbarToolMenu({
           </header>
           <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
+            {floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />}
             {floatingPanelView === 'interaction' && (
               <section className="h-full flex flex-col" aria-label="Interaction panel">
                 <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>

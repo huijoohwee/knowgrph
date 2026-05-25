@@ -20,6 +20,7 @@ interface CollapsibleSectionProps {
   stickyHeader?: boolean
   toolbarAligned?: boolean
   stickyOffsetClassName?: string
+  flushTop?: boolean
 }
 
 export default function CollapsibleSection({
@@ -35,6 +36,7 @@ export default function CollapsibleSection({
   stickyHeader = true,
   toolbarAligned = false,
   stickyOffsetClassName = 'top-0',
+  flushTop = false,
 }: CollapsibleSectionProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
@@ -78,7 +80,12 @@ export default function CollapsibleSection({
   )
 
   return (
-    <div className={clsx(`mt-3 border-t ${UI_THEME_TOKENS.panel.border} pt-2`, className)}>
+    <div
+      className={clsx(
+        flushTop ? 'mt-0 border-t-0 pt-0' : `mt-3 border-t ${UI_THEME_TOKENS.panel.border} pt-2`,
+        className,
+      )}
+    >
       <div
         className={clsx(
           'flex min-w-0 max-w-full items-center justify-between gap-1 cursor-pointer select-none',

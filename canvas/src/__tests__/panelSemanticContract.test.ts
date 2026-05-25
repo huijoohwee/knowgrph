@@ -195,7 +195,8 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const columnHeaderMenuPath = path.resolve(root, 'src', 'components', 'ui', 'ColumnHeaderMenu.tsx')
   const typeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'TypeMenu.tsx')
   const dataViewHeaderPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewHeader.tsx')
-  const dataViewDialogPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsDialog.tsx')
+  const dataViewPanelPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsPanel.tsx')
+  const dataViewPropertiesPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsPropertiesSection.tsx')
   const dataViewFilterPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewFilterMenu.tsx')
   const dataViewChipsPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewChips.tsx')
   const dataViewAddColumnPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewAddColumnMenu.tsx')
@@ -208,8 +209,8 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!responsiveCss.includes('.kg-toolbar-dropdown-menu') || !responsiveCss.includes('.kg-column-header-menu')) {
     throw new Error('Expected shared responsive CSS to bound toolbar and column menus')
   }
-  if (!responsiveCss.includes('.kg-data-view-settings-dialog') || !responsiveCss.includes('.kg-data-view-kanban-group')) {
-    throw new Error('Expected shared responsive CSS to bound data-view dialogs and kanban groups')
+  if (!responsiveCss.includes('.kg-data-view-settings-panel') || !responsiveCss.includes('.kg-data-view-kanban-group')) {
+    throw new Error('Expected shared responsive CSS to bound data-view panels and kanban groups')
   }
   if (!responsiveCss.includes('.kg-click-expand-menu-children') || !responsiveCss.includes('.kg-menu-row svg')) {
     throw new Error('Expected nested menu children and menu icons to avoid offscreen transforms and icon wrapping')
@@ -239,12 +240,37 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (!dataViewHeader.includes('kg-data-view-header-controls') || !dataViewHeader.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME')) {
     throw new Error('Expected Data View header controls to stay inside viewport bounds')
   }
-  const dataViewDialog = readUtf8(dataViewDialogPath)
-  if (!dataViewDialog.includes('kg-data-view-settings-layout') || !dataViewDialog.includes('kg-data-view-settings-nav')) {
-    throw new Error('Expected Data View settings dialog to stack navigation and content on mobile')
+  if (!dataViewHeader.includes("openSettingsPanel('layout')")) {
+    throw new Error('Expected Data View layout control to open the shared FloatingPanel View layout section')
   }
-  if (!dataViewDialog.includes('uiToolbarResponsiveRowScrollClassName')) {
-    throw new Error('Expected Data View settings nav to use the toolbar-owned mobile row-scroll helper')
+  if (!dataViewHeader.includes("openSettingsPanel('group')") || !dataViewHeader.includes("openSettingsPanel('properties')")) {
+    throw new Error('Expected Data View group, settings, and more controls to route into the shared FloatingPanel View sections')
+  }
+  if (!dataViewHeader.includes('aria-label="Add column"') || dataViewHeader.includes('MarkdownDataViewAddColumnMenu')) {
+    throw new Error('Expected Data View add-column trigger to route through the shared FloatingPanel View instead of a local menu')
+  }
+  if (dataViewHeader.includes('layoutDetailsRef') || dataViewHeader.includes('FLOATING_MENU_LEFT_W220_CLASSNAME')) {
+    throw new Error('Expected Data View header to remove the legacy local layout dropdown after View-panel consolidation')
+  }
+  if (dataViewHeader.includes('FLOATING_MENU_RIGHT_W220_CLASSNAME') || dataViewHeader.includes('<details className="relative z-30">')) {
+    throw new Error('Expected Data View header to remove the legacy local More dropdown after View-panel consolidation')
+  }
+  const dataViewPanel = readUtf8(dataViewPanelPath)
+  const dataViewProperties = readUtf8(dataViewPropertiesPath)
+  if (!dataViewPanel.includes('kg-data-view-settings-layout flex h-full min-h-0 flex-col') || !dataViewPanel.includes('secondaryNode={(') || !dataViewPanel.includes('secondaryNodeClassName="flex max-w-[45%] shrink-0 items-center justify-end gap-1 text-right"')) {
+    throw new Error('Expected Data View settings panel to consolidate shared header actions into the shell header using the shared right-edge action lane')
+  }
+  if (!dataViewPanel.includes('<ExpandCollapseAllButton') || !dataViewPanel.includes('titleCollapse="Collapse (Default)"') || !dataViewPanel.includes('<CollapsibleSection') || dataViewPanel.includes('kg-data-view-settings-nav') || dataViewPanel.includes('<ToolbarDropdownSelect') || dataViewPanel.includes('uiToolbarResponsiveRowScrollClassName') || dataViewPanel.includes('onMouseEnter={() => setActivePanel(') || dataViewPanel.includes('w-[220px]') || dataViewPanel.includes('border-r')) {
+    throw new Error('Expected Data View settings panel to consolidate collapse/expand into the header and remove legacy chooser / side rail wrappers')
+  }
+  if (!dataViewPanel.includes('overflow-y-auto px-3 pb-3') || !dataViewPanel.includes('flushTop')) {
+    throw new Error('Expected Data View settings panel to remove the spacer between the header border and the first collapsible section')
+  }
+  if (!dataViewPanel.includes("key: 'reset'") || dataViewPanel.includes("key: 'duplicate'") || dataViewPanel.includes("key: 'delete'")) {
+    throw new Error('Expected Data View settings panel to expose reset and remove legacy placeholder duplicate/delete sections')
+  }
+  if (!dataViewPanel.includes('onAddColumn={props.onAddColumn}') || !dataViewProperties.includes('aria-label="Add column"') || !dataViewProperties.includes('MarkdownDataViewAddColumnMenu')) {
+    throw new Error('Expected Data View Properties section to own add-column creation after header consolidation')
   }
   const dataViewFilter = readUtf8(dataViewFilterPath)
   if (!dataViewFilter.includes('kg-data-view-filter-menu') || !dataViewFilter.includes('UI_TEXT_TRUNCATE')) {
@@ -523,6 +549,12 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (text.includes("view: 'designLayers'")) {
     throw new Error('Expected FloatingPanel to remove designLayers view after Workflow Manager consolidation')
   }
+  if (!text.includes("view: 'view'")) {
+    throw new Error('Expected FloatingPanel to expose a dedicated View tab beside Props Panel')
+  }
+  if (!text.includes("floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />")) {
+    throw new Error('Expected FloatingPanel to render the dedicated View settings surface')
+  }
   if (text.includes("floatingPanelView === 'designLayers'")) {
     throw new Error('Expected FloatingPanel to avoid rendering designLayers branch after consolidation')
   }
@@ -538,8 +570,14 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (launcherText.includes("'discovery'")) {
     throw new Error('Expected ToolbarMenuLauncher to remove legacy discovery requested-view support')
   }
+  if (!launcherText.includes("tab === 'view'")) {
+    throw new Error('Expected ToolbarMenuLauncher to route shared View requests into the FloatingPanel')
+  }
   if (typesText.includes("'discovery'")) {
     throw new Error('Expected ToolbarToolMenuProps to remove legacy discovery requested-view type support')
+  }
+  if (!typesText.includes("'view'")) {
+    throw new Error('Expected ToolbarToolMenuProps to include the dedicated View floating panel type')
   }
 }
 

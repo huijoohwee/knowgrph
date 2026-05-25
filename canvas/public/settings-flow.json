@@ -5554,7 +5554,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L171"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L172"
   },
   "viewport.fitReferenceWidth": {
     "area": "—",
@@ -5571,7 +5571,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L179"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L180"
   },
   "viewport.fitReferenceHeight": {
     "area": "—",
@@ -5588,7 +5588,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L187"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L188"
   },
   "flow.frontmatter.initialFitFillRatio": {
     "area": "—",
@@ -5605,7 +5605,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L197"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L198"
   },
   "flow.frontmatter.overlayFitProxyScale.phone": {
     "area": "—",
@@ -5622,7 +5622,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L204; canvas/src/hooks/store/uiSliceInitialState.ts:L207"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L204; canvas/src/hooks/store/uiSliceInitialState.ts:L208"
   },
   "flow.frontmatter.overlayFitProxyScale.tablet": {
     "area": "—",
@@ -5639,7 +5639,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L205; canvas/src/hooks/store/uiSliceInitialState.ts:L217"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L205; canvas/src/hooks/store/uiSliceInitialState.ts:L218"
   },
   "flow.frontmatter.overlayFitProxyScale.laptop": {
     "area": "—",
@@ -5656,7 +5656,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L206; canvas/src/hooks/store/uiSliceInitialState.ts:L227"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L206; canvas/src/hooks/store/uiSliceInitialState.ts:L228"
   },
   "flow.frontmatter.overlayFitProxyScale.desktop": {
     "area": "—",
@@ -5673,7 +5673,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L207; canvas/src/hooks/store/uiSliceInitialState.ts:L237"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L207; canvas/src/hooks/store/uiSliceInitialState.ts:L238"
   },
   "schema.layout.forces.physics2dChargeScale": {
     "area": "Graph Physics 2D",
@@ -9749,7 +9749,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L88; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L133"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L88; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L134"
   },
   "payments.stripe.checkoutUrl": {
     "area": "—",
@@ -9767,7 +9767,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L99; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L146"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L99; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L147"
   },
   "payments.stripe.mcp.serverKey": {
     "area": "—",

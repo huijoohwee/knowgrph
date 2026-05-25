@@ -42,7 +42,7 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
   ]
 
   emitPropsPanelOpen({ clientX: 12, clientY: 34 })
-  emitSidePanelOpen({ tab: 'chat', open: true })
+  emitSidePanelOpen({ tab: 'view', open: true })
   emitChatInputAppend({ text: 'hello', mode: 'append' })
   emitWorkflowRunAll({ source: 'toolbar' })
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -56,7 +56,7 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
   }
 
   expectEvent(PROPS_PANEL_OPEN_EVENT, 'clientX', 12)
-  expectEvent(SIDE_PANEL_OPEN_EVENT, 'tab', 'chat')
+  expectEvent(SIDE_PANEL_OPEN_EVENT, 'tab', 'view')
   expectEvent(CHAT_INPUT_APPEND_EVENT, 'text', 'hello')
   expectEvent(WORKFLOW_RUN_ALL_EVENT, 'source', 'toolbar')
 
@@ -67,6 +67,9 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   const utilsText = readUtf8('src/features/canvas/utils.ts')
   const floatingPropsText = readUtf8('src/lib/toolbar/useFloatingPropsPanelModel.impl.ts')
   const actionsToolbarText = readUtf8('src/components/FlowEditor/NodeOverlayEditorActionsToolbar.tsx')
+  const launcherText = readUtf8('src/features/toolbar/ToolbarMenuLauncher.tsx')
+  const floatingBridgeText = readUtf8('src/features/toolbar/floatingPanelBridge.ts')
+  const markdownDataViewBlockText = readUtf8('src/features/markdown/ui/MarkdownDataViewBlock.tsx')
 
   if (!utilsText.includes('function emitCanvasCustomEvent')) {
     throw new Error('expected canvas utils to centralize repeated CustomEvent dispatch in a shared helper')
@@ -91,5 +94,17 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   }
   if (!actionsToolbarText.includes('emitSidePanelOpen({ tab: \'node\', open: true })')) {
     throw new Error('expected node overlay actions toolbar to keep using the shared side panel emitter')
+  }
+  if (!utilsText.includes('requestSidePanelOpen(detail)') || !utilsText.includes('requestPropsPanelOpen(detail)')) {
+    throw new Error('expected canvas emitters to call the shared floating panel bridge before dispatching passive events')
+  }
+  if (!launcherText.includes('installFloatingPanelBridge({') || !launcherText.includes('openSidePanel')) {
+    throw new Error('expected ToolbarMenuLauncher to register the shared floating panel bridge')
+  }
+  if (!floatingBridgeText.includes('requestSidePanelOpen') || !floatingBridgeText.includes('openSidePanel')) {
+    throw new Error('expected floating panel bridge to centralize side-panel open requests')
+  }
+  if (!markdownDataViewBlockText.includes('useWorkspaceDataViewFloatingRegistration') || !markdownDataViewBlockText.includes("emitSidePanelOpen({ tab: 'view', open: true })")) {
+    throw new Error('expected MarkdownDataViewBlock viewer path to reuse the shared floating View registration and open emitter')
   }
 }

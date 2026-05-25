@@ -1,10 +1,10 @@
 import {
-  isAnimationTimelineMutationHotkeyAction,
-  resolveAnimationTimelineHotkeyAction,
-  shouldIgnoreAnimationTimelineHotkeys,
-} from '@/components/AnimationCanvas/animationKeyboard'
+  isAnimaticTimelineMutationHotkeyAction,
+  resolveAnimaticTimelineHotkeyAction,
+  shouldIgnoreAnimaticTimelineHotkeys,
+} from '@/components/AnimaticCanvas/animaticKeyboard'
 
-export function testResolveAnimationTimelineHotkeyActionMapsNativeKeyboardShortcuts() {
+export function testResolveAnimaticTimelineHotkeyActionMapsNativeKeyboardShortcuts() {
   const cases = [
     [{ code: 'Space' }, 'toggle-playback'],
     [{ code: 'ArrowLeft' }, 'step-prev-beat'],
@@ -38,17 +38,17 @@ export function testResolveAnimationTimelineHotkeyActionMapsNativeKeyboardShortc
     [{ key: '.' }, 'move-selected-item-next-beat'],
   ] as const
   for (const [input, expected] of cases) {
-    const actual = resolveAnimationTimelineHotkeyAction(input)
+    const actual = resolveAnimaticTimelineHotkeyAction(input)
     if (actual !== expected) {
       throw new Error(`expected hotkey ${JSON.stringify(input)} to resolve to ${expected}, got ${String(actual)}`)
     }
   }
-  if (resolveAnimationTimelineHotkeyAction({ code: 'KeyZ', key: 'z' }) !== null) {
+  if (resolveAnimaticTimelineHotkeyAction({ code: 'KeyZ', key: 'z' }) !== null) {
     throw new Error('expected unsupported keys to resolve to null')
   }
 }
 
-export function testShouldIgnoreAnimationTimelineHotkeysBlocksEditingAndInteractiveTargets() {
+export function testShouldIgnoreAnimaticTimelineHotkeysBlocksEditingAndInteractiveTargets() {
   const ignoredCases = [
     { editingBeat: true },
     { dragging: true },
@@ -62,14 +62,14 @@ export function testShouldIgnoreAnimationTimelineHotkeysBlocksEditingAndInteract
     { targetContentEditable: true },
   ] as const
   for (const input of ignoredCases) {
-    if (!shouldIgnoreAnimationTimelineHotkeys(input)) {
+    if (!shouldIgnoreAnimaticTimelineHotkeys(input)) {
       throw new Error(`expected hotkey gate to ignore ${JSON.stringify(input)}`)
     }
   }
 }
 
-export function testShouldIgnoreAnimationTimelineHotkeysAllowsPlainCanvasFocus() {
-  const ignored = shouldIgnoreAnimationTimelineHotkeys({
+export function testShouldIgnoreAnimaticTimelineHotkeysAllowsPlainCanvasFocus() {
+  const ignored = shouldIgnoreAnimaticTimelineHotkeys({
     targetTagName: 'div',
     targetRole: 'presentation',
     targetContentEditable: false,
@@ -79,20 +79,20 @@ export function testShouldIgnoreAnimationTimelineHotkeysAllowsPlainCanvasFocus()
   }
 }
 
-export function testIsAnimationTimelineMutationHotkeyActionOnlyFlagsMutatingShortcuts() {
-  if (!isAnimationTimelineMutationHotkeyAction('duplicate-beat')) {
+export function testIsAnimaticTimelineMutationHotkeyActionOnlyFlagsMutatingShortcuts() {
+  if (!isAnimaticTimelineMutationHotkeyAction('duplicate-beat')) {
     throw new Error('expected duplicate-beat to be treated as a mutation hotkey')
   }
-  if (!isAnimationTimelineMutationHotkeyAction('split-beat')) {
+  if (!isAnimaticTimelineMutationHotkeyAction('split-beat')) {
     throw new Error('expected split-beat to be treated as a mutation hotkey')
   }
   for (const action of ['toggle-lane-hidden', 'toggle-lane-muted', 'toggle-lane-solo', 'move-lane-up', 'move-lane-down', 'move-selected-item-prev-beat', 'move-selected-item-next-beat'] as const) {
-    if (!isAnimationTimelineMutationHotkeyAction(action)) {
+    if (!isAnimaticTimelineMutationHotkeyAction(action)) {
       throw new Error(`expected ${action} to be treated as a mutation hotkey`)
     }
   }
   for (const action of ['toggle-playback', 'step-prev-beat', 'step-next-beat', 'reset-playhead', 'edit-beat-label', 'edit-beat-note', 'edit-beat-summary', 'edit-beat-tags'] as const) {
-    if (isAnimationTimelineMutationHotkeyAction(action)) {
+    if (isAnimaticTimelineMutationHotkeyAction(action)) {
       throw new Error(`expected ${action} to stay non-mutating`)
     }
   }

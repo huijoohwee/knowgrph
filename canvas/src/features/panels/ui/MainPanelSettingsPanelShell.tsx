@@ -7,6 +7,7 @@ export function MainPanelSettingsPanelShell(props: {
   ariaLabel: string
   titleNode: React.ReactNode
   secondaryNode?: React.ReactNode
+  secondaryNodeClassName?: string
   uiPanelKeyValueTextSizeClass: string
   children: React.ReactNode
   className?: string
@@ -17,6 +18,7 @@ export function MainPanelSettingsPanelShell(props: {
     ariaLabel,
     titleNode,
     secondaryNode,
+    secondaryNodeClassName,
     uiPanelKeyValueTextSizeClass,
     children,
     className,
@@ -41,7 +43,10 @@ export function MainPanelSettingsPanelShell(props: {
         <section className="flex-1 min-w-0">{titleNode}</section>
         {secondaryNode != null ? (
           <section
-            className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[55%] truncate text-right`}
+            className={cn(
+              `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap max-w-[55%] truncate text-right`,
+              secondaryNodeClassName,
+            )}
             aria-label="Selection summary"
           >
             {secondaryNode}
@@ -59,4 +64,3 @@ export function MainPanelSettingsPanelShell(props: {
     </section>
   )
 }
-

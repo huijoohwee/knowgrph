@@ -21,15 +21,20 @@ import { serializeMarkdownDataViewToTableLines } from './markdownDataViewSeriali
 import { MarkdownDataViewKanbanView } from './MarkdownDataViewKanbanView'
 import { MarkdownDataViewTableView } from './MarkdownDataViewTableView'
 import { WorkspaceDataViewHeader } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewHeader'
+import type { WorkspaceDataViewHeaderState } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewHeader'
 import {
   applyWorkspaceDataViewQuery,
-  computeWorkspaceDataViewGroupOptions,
   defaultWorkspaceDataViewConfig,
   readWorkspaceDataViewConfig,
   type WorkspaceDataViewConfig,
   type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
+import {
+  useWorkspaceDataViewFloatingRegistration,
+  type WorkspaceDataViewSettingsPanelKey,
+} from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
+import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 type MarkdownDataViewBlockProps = {
@@ -51,12 +56,13 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
   const activeDocumentPath = opts.activeDocumentPath ?? null
 
   const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
-  const [headerState, setHeaderState] = React.useState(() => ({
+  const [settingsPanel, setSettingsPanel] = React.useState<WorkspaceDataViewSettingsPanelKey>('properties')
+  const [headerState, setHeaderState] = React.useState<WorkspaceDataViewHeaderState>(() => ({
     searchQuery: '',
     visibleGroups: null as readonly string[] | null,
     sortMode: 'none' as 'none' | 'title_asc' | 'title_desc',
   }))
+  const registrationId = React.useId()
 
   React.useEffect(() => {
     if (!view) {
@@ -234,11 +240,6 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     return applyWorkspaceDataViewQuery({ view: baseView, viewConfig, state: headerState })
   }, [baseView, headerState, viewConfig])
 
-  const groupOptions = React.useMemo((): string[] => {
-    if (!view) return []
-    return computeWorkspaceDataViewGroupOptions({ view, groupByColumnId: effectiveGroupByColumnId })
-  }, [effectiveGroupByColumnId, view])
-
   const hasViewConfig = !!viewConfig
   const viewLayout = viewConfig?.layout
   const graphEnabled = !!viewConfig?.graphEnabled
@@ -247,6 +248,67 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     if (!(viewLayout === 'table' || !effectiveGroupByColumnId)) return 'kanban'
     return graphEnabled ? 'multiDimTable' : 'table'
   }, [effectiveGroupByColumnId, graphEnabled, hasViewConfig, viewLayout])
+
+  const openViewSettingsPanel = React.useCallback((panel: WorkspaceDataViewSettingsPanelKey) => {
+    setSettingsPanel(panel)
+    emitSidePanelOpen({ tab: 'view', open: true })
+  }, [])
+
+  const floatingBinding = React.useMemo(() => {
+    if (!view || !viewConfig) return null
+    return {
+      registrationId: `markdown-data-view-block:${tableId}:${registrationId}`,
+      contextLabel: `${UI_COPY.markdownDataViewTitleDefault} - ${tableId}`,
+      activePanel: settingsPanel,
+      canMutate,
+      viewerLayout: viewConfig.layout,
+      viewerMode,
+      allowMultiDimLayout: true,
+      columns: view.columns,
+      groupByColumnId: effectiveGroupByColumnId,
+      viewConfig,
+      setViewConfig,
+      onChangeLayout: (layout: WorkspaceDataViewConfig['layout']) => {
+        setViewConfig(prev => {
+          if (!prev) return prev
+          if (prev.layout === layout) return prev
+          return { ...prev, layout }
+        })
+      },
+      onChangeLayoutMode: (mode: 'table' | 'kanban' | 'multiDimTable') => {
+        setViewConfig(prev => {
+          if (!prev) return prev
+          const nextGraphEnabled = mode === 'multiDimTable'
+          const nextLayout = mode === 'kanban' ? 'kanban' : 'table'
+          if (prev.layout === nextLayout && !!prev.graphEnabled === nextGraphEnabled && prev.geospatialViewEnabled !== true) {
+            return prev
+          }
+          return { ...prev, layout: nextLayout, graphEnabled: nextGraphEnabled, geospatialViewEnabled: false }
+        })
+      },
+      onSelectGeospatialView: () => {
+        setViewConfig(prev => {
+          if (!prev) return prev
+          if (prev.layout === 'table' && prev.graphEnabled === true && prev.geospatialViewEnabled === true) return prev
+          return { ...prev, layout: 'table', graphEnabled: true, geospatialViewEnabled: true }
+        })
+        void setGeospatialModeEnabled(true).catch(() => void 0)
+      },
+      onReset: () => setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' }),
+      onAddColumn: canMutate ? handleAddColumn : undefined,
+    }
+  }, [
+    canMutate,
+    effectiveGroupByColumnId,
+    handleAddColumn,
+    registrationId,
+    settingsPanel,
+    tableId,
+    view,
+    viewConfig,
+    viewerMode,
+  ])
+  useWorkspaceDataViewFloatingRegistration(floatingBinding)
 
   if (!view) return null
   if (!viewConfig) return null
@@ -262,7 +324,6 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
         canMutate={canMutate}
         columns={view.columns}
         groupByColumnId={effectiveGroupByColumnId}
-        groupOptions={groupOptions}
         state={headerState}
         onChangeState={setHeaderState}
         onChangeViewerMode={(mode) => {
@@ -291,13 +352,10 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
         }}
         supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => handleNewRecord() : undefined}
-        onAddColumn={canMutate ? handleAddColumn : undefined}
         viewConfig={viewConfig}
         setViewConfig={setViewConfig}
-        openSettings={() => setSettingsOpen(true)}
-        settingsOpen={settingsOpen}
-        closeSettings={() => setSettingsOpen(false)}
-        onReset={() => setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' })}
+        openSettings={() => openViewSettingsPanel('properties')}
+        openSettingsPanel={openViewSettingsPanel}
       />
 
       <div className={UI_THEME_TOKENS.panel.bg}>

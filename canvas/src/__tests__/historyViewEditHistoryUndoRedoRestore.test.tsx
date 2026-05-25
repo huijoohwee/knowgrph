@@ -40,9 +40,17 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
     })
     await tick()
 
-    const historyTab = (Array.from(dom.window.document.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[])
+    const historyChooser = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[])
+      .find(button => button.getAttribute('aria-label')?.startsWith('History section:'))
+    if (!historyChooser) throw new Error('expected History section chooser')
+    await act(async () => {
+      historyChooser.click()
+      await tick()
+    })
+
+    const historyTab = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[])
       .find(button => button.textContent?.trim() === 'History')
-    if (!historyTab) throw new Error('expected History tab')
+    if (!historyTab) throw new Error('expected History option')
     await act(async () => {
       historyTab.click()
       await tick()
@@ -100,5 +108,8 @@ export function testHistoryViewUsesScopedStoreSelectionAndSemanticSignatures() {
   }
   if (!text.includes('const historyIndexById = React.useMemo(() => {')) {
     throw new Error('expected HistoryView to precompute a history index lookup instead of rescanning history rows per render')
+  }
+  if (!text.includes('<ToolbarDropdownSelect') || !text.includes('title={`History section:') || text.includes('aria-label="History tabs"')) {
+    throw new Error('expected HistoryView section switching to use the shared click-expand-down chooser instead of a local horizontal tabs row')
   }
 }

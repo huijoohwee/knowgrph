@@ -7,6 +7,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getChatProviderLabel, getChatProviderRegionLabel } from '@/lib/chatEndpoint'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 export type FlowEditorManagerTabKey = 'graph' | 'mapping'
 
@@ -54,6 +55,14 @@ export default function MainPanelFlowEditorManagerHeader(props: {
     : activeTab === 'mapping'
       ? UI_LABELS.flowEditorMapping
       : UI_LABELS.flowEditorGraph
+  const tabOptions = React.useMemo(
+    () =>
+      [
+        { id: 'graph' as const, title: UI_LABELS.flowEditorGraph },
+        { id: 'mapping' as const, title: UI_LABELS.flowEditorMapping },
+      ] satisfies Array<{ id: FlowEditorManagerTabKey; title: string }>,
+    [],
+  )
 
   return (
     <header
@@ -104,23 +113,19 @@ export default function MainPanelFlowEditorManagerHeader(props: {
             {tabLabel}
           </section>
         ) : (
-          <nav className="inline-flex items-center gap-1" aria-label={UI_LABELS.workflowManager}>
-            {(['graph', 'mapping'] as const).map(tabKey => {
-              const active = activeTab === tabKey
-              const label = tabKey === 'mapping' ? UI_LABELS.flowEditorMapping : UI_LABELS.flowEditorGraph
-              return (
-                <button
-                  key={tabKey}
-                  type="button"
-                  className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${active ? UI_THEME_TOKENS.panel.headerBg : UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}
-                  onClick={() => onTabChange?.(tabKey)}
-                  aria-pressed={active}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </nav>
+          <ToolbarDropdownSelect
+            value={activeTab}
+            options={tabOptions}
+            title={`Workflow section: ${tabOptions.find(option => option.id === activeTab)?.title || UI_LABELS.flowEditorGraph}`}
+            showTooltip={false}
+            isButtonActive={true}
+            onSelect={id => onTabChange?.(id as FlowEditorManagerTabKey)}
+            renderButtonContent={activeOption => (
+              <span className={uiPanelMicroLabelTextSizeClass}>{activeOption.title}</span>
+            )}
+            renderOptionContent={option => <span className="truncate">{option.title}</span>}
+            menuWidthClass="w-44"
+          />
         )}
       </section>
     </header>

@@ -4,14 +4,7 @@ import IconButton from '@/components/IconButton'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import {
-  PROPS_PANEL_OPEN_EVENT,
-  RENDERER_FLOATING_PANEL_OPEN_EVENT,
-  RENDERER_PANEL_OPEN_EVENT,
-  SIDE_PANEL_OPEN_EVENT,
-  type PropsPanelOpenEventDetail,
-  type SidePanelOpenEventDetail,
-} from '@/features/canvas/utils'
+import type { PropsPanelOpenEventDetail, SidePanelOpenEventDetail } from '@/features/canvas/utils'
 import { LS_KEYS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
@@ -19,6 +12,7 @@ import { lsBool } from '@/lib/persistence'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
+import { installFloatingPanelBridge, type FloatingPanelRequestedView } from '@/features/toolbar/floatingPanelBridge'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -45,7 +39,7 @@ export function ToolbarMenuLauncher({
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
     {
-      view: 'propsPanel' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+      view: 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
       seq: number
     } | null
   >(null)
@@ -75,16 +69,18 @@ export function ToolbarMenuLauncher({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const handleOpenPropsPanel = (event: Event) => {
+    const openRequestedFloatingPanel = (view: FloatingPanelRequestedView) => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
-        view: 'propsPanel',
+        view,
         seq: floatingPanelRequestSeqRef.current,
       })
+      setIsToolMenuOpen(true)
+    }
+
+    const openPropsPanel = (detail?: PropsPanelOpenEventDetail) => {
       try {
         const isPinned = lsBool(LS_KEYS.floatingPanelPinned, false)
-        const custom = event as CustomEvent<PropsPanelOpenEventDetail>
-        const detail = custom.detail
         const clientX = detail && typeof detail.clientX === 'number' ? detail.clientX : null
         const clientY = detail && typeof detail.clientY === 'number' ? detail.clientY : null
         if (!isPinned && clientX !== null && clientY !== null && Number.isFinite(clientX) && Number.isFinite(clientY)) {
@@ -101,56 +97,42 @@ export function ToolbarMenuLauncher({
       } catch {
         void 0
       }
-      setIsToolMenuOpen(true)
+      openRequestedFloatingPanel('propsPanel')
     }
 
-    const handleOpenRenderer = () => {
-      floatingPanelRequestSeqRef.current += 1
-      setFloatingPanelRequestedView({
-        view: 'renderer',
-        seq: floatingPanelRequestSeqRef.current,
-      })
-      setIsToolMenuOpen(true)
+    const openRendererPanel = () => {
+      openRequestedFloatingPanel('renderer')
     }
 
-    const handleOpenSidePanel = (ev: Event) => {
-      const e = ev as CustomEvent<SidePanelOpenEventDetail | undefined>
-      const tab = e.detail?.tab
+    const openSidePanel = (detail?: SidePanelOpenEventDetail) => {
+      const tab = detail?.tab
       if (tab === 'inspector' || tab === 'node') {
-        if (e.detail?.open === false) return
+        if (detail?.open === false) return
         _onOpenMainPanel('workflowManager')
         closeToolMenu()
         return
       }
       const requested =
-        tab === 'chat'
+        tab === 'view'
+          ? 'view'
+          : tab === 'chat'
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
             : null
       if (!requested) return
-      floatingPanelRequestSeqRef.current += 1
-      setFloatingPanelRequestedView({
-        view: requested,
-        seq: floatingPanelRequestSeqRef.current,
-      })
-      if (e.detail?.open === false) {
+      if (detail?.open === false) {
         closeToolMenu()
         return
       }
-      setIsToolMenuOpen(true)
+      openRequestedFloatingPanel(requested)
     }
 
-    window.addEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
-    window.addEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
-    window.addEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
-    window.addEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
-    return () => {
-      window.removeEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
-      window.removeEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
-      window.removeEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
-      window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
-    }
+    return installFloatingPanelBridge({
+      openPropsPanel,
+      openSidePanel,
+      openRendererPanel,
+    })
   }, [_onOpenMainPanel, closeToolMenu, setIsToolMenuOpen, setToolMenuDragPos])
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)

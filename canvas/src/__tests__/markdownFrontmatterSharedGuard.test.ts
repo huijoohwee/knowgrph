@@ -56,18 +56,22 @@ kgCanvas2dRenderer: "Flow Editor"
   }
 }
 
-export const testCanvas2dRendererNormalizationSharesAnimationAndFlowEditorSyntaxOwner = () => {
+export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxOwner = () => {
+  const legacyTimelineRendererAlias = ['Timeline', 'Animation'].join(' ')
   if (resolveCanvas2dRendererId('Flow Editor') !== 'flowEditor') {
     throw new Error('expected shared renderer normalizer to resolve Flow Editor alias upstream')
   }
-  if (resolveCanvas2dRendererId('Timeline Animation') !== 'animation') {
-    throw new Error('expected shared renderer normalizer to resolve Timeline Animation alias upstream')
+  if (resolveCanvas2dRendererId('Animatic') !== 'animatic') {
+    throw new Error('expected shared renderer normalizer to resolve Animatic upstream')
   }
   if (!sharesFlowEditorFrontmatterSyntax('flowEditor')) {
     throw new Error('expected Flow Editor to remain on the shared flow-frontmatter syntax owner')
   }
-  if (!sharesFlowEditorFrontmatterSyntax('animation')) {
-    throw new Error('expected Animation renderer to reuse the shared Flow Editor frontmatter syntax owner')
+  if (resolveCanvas2dRendererId(legacyTimelineRendererAlias) !== undefined) {
+    throw new Error('expected legacy timeline renderer alias to be removed instead of remapped')
+  }
+  if (!sharesFlowEditorFrontmatterSyntax('animatic')) {
+    throw new Error('expected Animatic renderer to reuse the shared Flow Editor frontmatter syntax owner')
   }
   if (sharesFlowEditorFrontmatterSyntax('d3')) {
     throw new Error('expected non-flow renderers to stay outside the shared Flow Editor frontmatter syntax owner')

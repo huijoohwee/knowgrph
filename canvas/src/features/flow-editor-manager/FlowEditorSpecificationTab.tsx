@@ -8,6 +8,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 import {
   buildDefaultFlowNodeSpec,
@@ -60,6 +61,14 @@ export default function FlowEditorSpecificationTab({
     }
   })
   const [error, setError] = React.useState<string | null>(null)
+  const specTabOptions = React.useMemo(
+    () =>
+      [
+        { id: 'node' as const, title: UI_LABELS.node },
+        { id: 'workflow' as const, title: UI_LABELS.workflow },
+      ] satisfies Array<{ id: SpecTab; title: string }>,
+    [],
+  )
 
   const resetNode = React.useCallback(() => {
     setError(null)
@@ -153,26 +162,17 @@ export default function FlowEditorSpecificationTab({
               </button>
             </li>
           </menu>
-          <nav className="flex items-center gap-1" aria-label="Specification tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'node'}
-            className={`App-toolbar__btn ${tab === 'node' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setTab('node')}
-          >
-            {UI_LABELS.node}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'workflow'}
-            className={`App-toolbar__btn ${tab === 'workflow' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setTab('workflow')}
-          >
-            {UI_LABELS.workflow}
-          </button>
-          </nav>
+          <ToolbarDropdownSelect
+            value={tab}
+            options={specTabOptions}
+            title={`Specification section: ${specTabOptions.find(option => option.id === tab)?.title || UI_LABELS.node}`}
+            showTooltip={false}
+            isButtonActive={true}
+            onSelect={id => setTab(id as SpecTab)}
+            renderButtonContent={activeOption => <span>{activeOption.title}</span>}
+            renderOptionContent={option => <span className="truncate">{option.title}</span>}
+            menuWidthClass="w-44"
+          />
         </nav>
       </header>
 

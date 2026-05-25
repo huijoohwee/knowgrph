@@ -34,42 +34,42 @@ import {
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import {
-  isAnimationTimelineMutationHotkeyAction,
-  resolveAnimationTimelineHotkeyAction,
-  shouldIgnoreAnimationTimelineHotkeys,
-} from '@/components/AnimationCanvas/animationKeyboard'
-import { resolveAnimationTimelineLanePresentation } from '@/components/AnimationCanvas/animationLaneControls'
+  isAnimaticTimelineMutationHotkeyAction,
+  resolveAnimaticTimelineHotkeyAction,
+  shouldIgnoreAnimaticTimelineHotkeys,
+} from '@/components/AnimaticCanvas/animaticKeyboard'
+import { resolveAnimaticTimelineLanePresentation } from '@/components/AnimaticCanvas/animaticLaneControls'
 import { getIconSizeClass } from '@/lib/ui'
 import {
-  applyAnimationTimelineBeatTimingOverrides,
-  buildAnimationTimelineModel,
-  deleteAnimationTimelineBeat,
-  duplicateAnimationTimelineBeat,
-  findAnimationTimelineBeatIndexAtPosition,
-  formatAnimationTimelineTimestamp,
-  insertAnimationTimelineBeat,
-  mergeAnimationTimelineBeatWithNext,
-  readAnimationTimelineLaneControlState,
-  updateAnimationTimelineMarkdownLaneOrder,
-  removeAnimationTimelineGapBeforeBeat,
-  resolveAnimationTimelineBeatTimingEdit,
-  splitAnimationTimelineBeat,
-  snapAnimationTimelineValue,
-  type AnimationTimelineLaneId,
-  type AnimationTimelineLaneControlState,
-  type AnimationTimelineBeat,
-  type AnimationTimelineBeatTimingOverride,
-  type AnimationTimelineScaleConfig,
-  updateAnimationTimelineMarkdownBeatLabel,
-  updateAnimationTimelineMarkdownItemBeatRef,
-  updateAnimationTimelineMarkdownLaneControlState,
-  updateAnimationTimelineMarkdownBeatNote,
-  updateAnimationTimelineMarkdownBeatSummary,
-  updateAnimationTimelineMarkdownBeatTags,
-  updateAnimationTimelineMarkdownBeatTiming,
-  updateAnimationTimelineMarkdownBeatTimingOverrides,
-} from '@/components/AnimationCanvas/animationTimeline'
-import './AnimationCanvas.css'
+  applyAnimaticTimelineBeatTimingOverrides,
+  buildAnimaticTimelineModel,
+  deleteAnimaticTimelineBeat,
+  duplicateAnimaticTimelineBeat,
+  findAnimaticTimelineBeatIndexAtPosition,
+  formatAnimaticTimelineTimestamp,
+  insertAnimaticTimelineBeat,
+  mergeAnimaticTimelineBeatWithNext,
+  readAnimaticTimelineLaneControlState,
+  updateAnimaticTimelineMarkdownLaneOrder,
+  removeAnimaticTimelineGapBeforeBeat,
+  resolveAnimaticTimelineBeatTimingEdit,
+  splitAnimaticTimelineBeat,
+  snapAnimaticTimelineValue,
+  type AnimaticTimelineLaneId,
+  type AnimaticTimelineLaneControlState,
+  type AnimaticTimelineBeat,
+  type AnimaticTimelineBeatTimingOverride,
+  type AnimaticTimelineScaleConfig,
+  updateAnimaticTimelineMarkdownBeatLabel,
+  updateAnimaticTimelineMarkdownItemBeatRef,
+  updateAnimaticTimelineMarkdownLaneControlState,
+  updateAnimaticTimelineMarkdownBeatNote,
+  updateAnimaticTimelineMarkdownBeatSummary,
+  updateAnimaticTimelineMarkdownBeatTags,
+  updateAnimaticTimelineMarkdownBeatTiming,
+  updateAnimaticTimelineMarkdownBeatTimingOverrides,
+} from '@/components/AnimaticCanvas/animaticTimeline'
+import './AnimaticCanvas.css'
 
 const ORDINAL_PLAYBACK_BEAT_MS = 1000
 const SCALE_ROW_HEIGHT_PX = 32
@@ -110,7 +110,7 @@ const SELECTED_BEAT_HINTS = [
   { label: 'S', title: 'Split beat (S)' },
 ] as const
 
-const LANE_ACCENT_CLASS: Record<AnimationTimelineLaneId, string> = {
+const LANE_ACCENT_CLASS: Record<AnimaticTimelineLaneId, string> = {
   clip: 'border-cyan-400/30 bg-cyan-500/8 text-cyan-50',
   overlay: 'border-fuchsia-400/30 bg-fuchsia-500/8 text-fuchsia-50',
   audio: 'border-amber-400/30 bg-amber-500/8 text-amber-50',
@@ -118,7 +118,7 @@ const LANE_ACCENT_CLASS: Record<AnimationTimelineLaneId, string> = {
   node: 'border-slate-500/30 bg-slate-500/8 text-slate-100',
 }
 
-const LANE_LABEL: Record<AnimationTimelineLaneId, string> = {
+const LANE_LABEL: Record<AnimaticTimelineLaneId, string> = {
   clip: 'Clip',
   overlay: 'Overlay',
   audio: 'Audio',
@@ -137,8 +137,8 @@ function shouldIgnoreTimelineActionPointerMoveStart(target: EventTarget | null):
 }
 
 function areTimingOverrideRecordsEqual(
-  left: Record<string, AnimationTimelineBeatTimingOverride>,
-  right: Record<string, AnimationTimelineBeatTimingOverride>,
+  left: Record<string, AnimaticTimelineBeatTimingOverride>,
+  right: Record<string, AnimaticTimelineBeatTimingOverride>,
 ): boolean {
   const leftKeys = Object.keys(left)
   const rightKeys = Object.keys(right)
@@ -155,7 +155,7 @@ function areTimingOverrideRecordsEqual(
 function buildScaleMarks(args: {
   totalSpan: number
   usesAbsoluteTiming: boolean
-  scaleConfig: AnimationTimelineScaleConfig
+  scaleConfig: AnimaticTimelineScaleConfig
 }): Array<{ key: string; left: number }> {
   const totalSpanUnits = resolveTimelineSpanUnits(args.totalSpan, args.usesAbsoluteTiming)
   if (totalSpanUnits <= 0) return []
@@ -170,7 +170,7 @@ function buildScaleMarks(args: {
 function buildTimelineEditorTimeUnits(args: {
   totalSpan: number
   usesAbsoluteTiming: boolean
-  scaleConfig: AnimationTimelineScaleConfig
+  scaleConfig: AnimaticTimelineScaleConfig
 }): Array<{ key: string; left: number; width: number; label: string | null; big: boolean }> {
   const totalSpanUnits = resolveTimelineSpanUnits(args.totalSpan, args.usesAbsoluteTiming)
   if (totalSpanUnits <= 0) return []
@@ -209,7 +209,7 @@ function resolveTimelineSpanToPixels(totalSpan: number, usesAbsoluteTiming: bool
   return resolveTimelineSpanUnits(totalSpan, usesAbsoluteTiming) * pixelsPerUnit
 }
 
-type AnimationBeatDragState = {
+type AnimaticBeatDragState = {
   kind: 'beat'
   sessionId: number
   beatRef: string
@@ -220,7 +220,7 @@ type AnimationBeatDragState = {
   originScrollLeft: number
   markdownDocumentName: string
   markdownText: string
-  beatsSnapshot: AnimationTimelineBeat[]
+  beatsSnapshot: AnimaticTimelineBeat[]
 }
 
 type AnimationLaneItemDragState = {
@@ -228,7 +228,7 @@ type AnimationLaneItemDragState = {
   sessionId: number
   itemNodeId: string
   itemTitle: string
-  laneId: AnimationTimelineLaneId
+  laneId: AnimaticTimelineLaneId
   sourceBeatRef: string
   pointerId: number
   originClientX: number
@@ -237,12 +237,12 @@ type AnimationLaneItemDragState = {
   markdownText: string
 }
 
-type AnimationDragState = AnimationBeatDragState | AnimationLaneItemDragState
+type AnimationDragState = AnimaticBeatDragState | AnimationLaneItemDragState
 
 type AnimationLaneItemMoveSource = {
   nodeId: string
   title: string
-  laneId: AnimationTimelineLaneId
+  laneId: AnimaticTimelineLaneId
   beatRef: string
 }
 
@@ -255,8 +255,8 @@ function buildSnapMarks(totalSpan: number, snapStepMs: number, enabled: boolean)
   return marks
 }
 
-function buildBeatLaneSummary(items: ReadonlyArray<AnimationTimelineBeat['items'][number]>): Array<{ laneId: AnimationTimelineLaneId; count: number }> {
-  const countByLaneId = new Map<AnimationTimelineLaneId, number>()
+function buildBeatLaneSummary(items: ReadonlyArray<AnimaticTimelineBeat['items'][number]>): Array<{ laneId: AnimaticTimelineLaneId; count: number }> {
+  const countByLaneId = new Map<AnimaticTimelineLaneId, number>()
   for (const item of items) {
     countByLaneId.set(item.laneId, (countByLaneId.get(item.laneId) || 0) + 1)
   }
@@ -268,7 +268,7 @@ function buildBeatLaneSummary(items: ReadonlyArray<AnimationTimelineBeat['items'
     })
 }
 
-function resolveTimelineEditorActionEffectClassName(laneId: AnimationTimelineLaneId): 'effect0' | 'effect1' {
+function resolveTimelineEditorActionEffectClassName(laneId: AnimaticTimelineLaneId): 'effect0' | 'effect1' {
   return laneId === 'audio' ? 'effect0' : 'effect1'
 }
 
@@ -308,7 +308,7 @@ function getTimelineCompactStatusChipClassName(
   return 'rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-300'
 }
 
-export default function AnimationCanvas({
+export default function AnimaticCanvas({
   active = true,
 }: {
   active?: boolean
@@ -320,7 +320,7 @@ export default function AnimationCanvas({
   const setActiveMarkdownDocument = useGraphStore(s => s.setActiveMarkdownDocument)
   const baseTimelineModel = React.useMemo(
     () =>
-      buildAnimationTimelineModel({
+      buildAnimaticTimelineModel({
         graphData,
         markdownText,
       }),
@@ -332,9 +332,9 @@ export default function AnimationCanvas({
   const [runtimeAutoScrollEnabled, setRuntimeAutoScrollEnabled] = React.useState(true)
   const [snapEnabled, setSnapEnabled] = React.useState(true)
   const [snapStepMs, setSnapStepMs] = React.useState<(typeof SNAP_STEP_OPTIONS_MS)[number]>(500)
-  const [hiddenLaneIds, setHiddenLaneIds] = React.useState<AnimationTimelineLaneId[]>([])
-  const [mutedLaneIds, setMutedLaneIds] = React.useState<AnimationTimelineLaneId[]>([])
-  const [soloLaneId, setSoloLaneId] = React.useState<AnimationTimelineLaneId | null>(null)
+  const [hiddenLaneIds, setHiddenLaneIds] = React.useState<AnimaticTimelineLaneId[]>([])
+  const [mutedLaneIds, setMutedLaneIds] = React.useState<AnimaticTimelineLaneId[]>([])
+  const [soloLaneId, setSoloLaneId] = React.useState<AnimaticTimelineLaneId | null>(null)
   const [editingBeatRef, setEditingBeatRef] = React.useState<string | null>(null)
   const [editingBeatLabel, setEditingBeatLabel] = React.useState('')
   const [editingBeatNoteRef, setEditingBeatNoteRef] = React.useState<string | null>(null)
@@ -343,20 +343,20 @@ export default function AnimationCanvas({
   const [editingBeatSummary, setEditingBeatSummary] = React.useState('')
   const [editingBeatTagsRef, setEditingBeatTagsRef] = React.useState<string | null>(null)
   const [editingBeatTags, setEditingBeatTags] = React.useState('')
-  const [highlightedLaneShortcutId, setHighlightedLaneShortcutId] = React.useState<AnimationTimelineLaneId | null>(null)
-  const [selectedLaneId, setSelectedLaneId] = React.useState<AnimationTimelineLaneId | null>(null)
+  const [highlightedLaneShortcutId, setHighlightedLaneShortcutId] = React.useState<AnimaticTimelineLaneId | null>(null)
+  const [selectedLaneId, setSelectedLaneId] = React.useState<AnimaticTimelineLaneId | null>(null)
   const [selectedItemNodeId, setSelectedItemNodeId] = React.useState<string | null>(null)
-  const [timingOverrides, setTimingOverrides] = React.useState<Record<string, AnimationTimelineBeatTimingOverride>>({})
+  const [timingOverrides, setTimingOverrides] = React.useState<Record<string, AnimaticTimelineBeatTimingOverride>>({})
   const [dragState, setDragState] = React.useState<AnimationDragState | null>(null)
   const [laneItemDragPreviewOffsetPx, setLaneItemDragPreviewOffsetPx] = React.useState(0)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
-  const laneRowRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
-  const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
-  const laneOptionRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})
+  const laneRowRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})
+  const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})
+  const laneOptionRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})
   const laneItemOptionRefs = React.useRef<Record<string, HTMLElement | null>>({})
   const beatOptionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
   const laneShortcutHighlightTimeoutRef = React.useRef<number | null>(null)
-  const timingOverridesRef = React.useRef<Record<string, AnimationTimelineBeatTimingOverride>>({})
+  const timingOverridesRef = React.useRef<Record<string, AnimaticTimelineBeatTimingOverride>>({})
   const dragSessionIdRef = React.useRef(0)
   const dragDeltaPxRef = React.useRef(0)
   const dragPointerClientXRef = React.useRef<number | null>(null)
@@ -398,11 +398,11 @@ export default function AnimationCanvas({
   }, [])
 
   const timelineModel = React.useMemo(
-    () => applyAnimationTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides),
+    () => applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides),
     [baseTimelineModel, timingOverrides],
   )
   const persistedLaneControls = React.useMemo(
-    () => readAnimationTimelineLaneControlState(markdownText),
+    () => readAnimaticTimelineLaneControlState(markdownText),
     [markdownText],
   )
 
@@ -470,7 +470,7 @@ export default function AnimationCanvas({
   }, [markdownDocumentName, markdownText])
 
   const activeBeatIndex = React.useMemo(
-    () => findAnimationTimelineBeatIndexAtPosition(timelineModel, playbackPosition),
+    () => findAnimaticTimelineBeatIndexAtPosition(timelineModel, playbackPosition),
     [timelineModel, playbackPosition],
   )
 
@@ -505,12 +505,12 @@ export default function AnimationCanvas({
     [beatWidths, timelineModel.scaleConfig.scaleWidth],
   )
   const resolveBeatAtLaneTrackClientX = React.useCallback(
-    (laneId: AnimationTimelineLaneId, clientX: number): AnimationTimelineBeat | null => {
+    (laneId: AnimaticTimelineLaneId, clientX: number): AnimaticTimelineBeat | null => {
       const overlay = laneTrackOverlayRefs.current[laneId]
       if (!overlay || timelineModel.beats.length === 0) return null
       const rect = overlay.getBoundingClientRect()
       const relativeX = clamp(clientX - rect.left, 0, rect.width)
-      let closestBeat: AnimationTimelineBeat | null = null
+      let closestBeat: AnimaticTimelineBeat | null = null
       let closestDistance = Number.POSITIVE_INFINITY
       for (let i = 0; i < timelineModel.beats.length; i += 1) {
         const beat = timelineModel.beats[i]
@@ -562,7 +562,7 @@ export default function AnimationCanvas({
 
   const activeBeat = activeBeatIndex >= 0 ? timelineModel.beats[activeBeatIndex] : null
   const currentEditingBeatRef = editingBeatRef || editingBeatNoteRef || editingBeatSummaryRef || editingBeatTagsRef
-  const currentTimeLabel = timelineModel.usesAbsoluteTiming ? formatAnimationTimelineTimestamp(playbackPosition) : formatAnimationTimelineTimestamp(playbackPosition * 1000)
+  const currentTimeLabel = timelineModel.usesAbsoluteTiming ? formatAnimaticTimelineTimestamp(playbackPosition) : formatAnimaticTimelineTimestamp(playbackPosition * 1000)
   const timelineEditorTimeUnits = React.useMemo(
     () =>
       buildTimelineEditorTimeUnits({
@@ -587,7 +587,7 @@ export default function AnimationCanvas({
   )
   const lanePresentations = React.useMemo(
     () =>
-      resolveAnimationTimelineLanePresentation({
+      resolveAnimaticTimelineLanePresentation({
         lanes: timelineModel.lanes,
         controls: {
           hiddenLaneIds,
@@ -607,19 +607,19 @@ export default function AnimationCanvas({
     if (!selectedLane) return [] as Array<{
       nodeId: string
       title: string
-      laneId: AnimationTimelineLaneId
+      laneId: AnimaticTimelineLaneId
       beatRef: string
-      previousBeat: AnimationTimelineBeat | null
-      nextBeat: AnimationTimelineBeat | null
+      previousBeat: AnimaticTimelineBeat | null
+      nextBeat: AnimaticTimelineBeat | null
     }>
     if (!selectedLane.visibleItems) return []
     const contexts: Array<{
       nodeId: string
       title: string
-      laneId: AnimationTimelineLaneId
+      laneId: AnimaticTimelineLaneId
       beatRef: string
-      previousBeat: AnimationTimelineBeat | null
-      nextBeat: AnimationTimelineBeat | null
+      previousBeat: AnimaticTimelineBeat | null
+      nextBeat: AnimaticTimelineBeat | null
     }> = []
     for (let index = 0; index < timelineModel.beats.length; index += 1) {
       const beat = timelineModel.beats[index]
@@ -649,7 +649,7 @@ export default function AnimationCanvas({
   const nextBeat = activeBeatIndex >= 0 ? timelineModel.beats[activeBeatIndex + 1] || null : null
   const previousBeat = activeBeatIndex > 0 ? timelineModel.beats[activeBeatIndex - 1] || null : null
   const snappedPlaybackPosition = React.useMemo(
-    () => (snapEnabled ? snapAnimationTimelineValue(playbackPosition, snapStepMs) : Math.round(playbackPosition)),
+    () => (snapEnabled ? snapAnimaticTimelineValue(playbackPosition, snapStepMs) : Math.round(playbackPosition)),
     [playbackPosition, snapEnabled, snapStepMs],
   )
   const canSplitActiveBeat =
@@ -722,8 +722,8 @@ export default function AnimationCanvas({
   )
 
   const commitLaneControlState = React.useCallback(
-    async (nextControls: AnimationTimelineLaneControlState) => {
-      const nextMarkdownText = updateAnimationTimelineMarkdownLaneControlState({
+    async (nextControls: AnimaticTimelineLaneControlState) => {
+      const nextMarkdownText = updateAnimaticTimelineMarkdownLaneControlState({
         markdownText,
         hiddenLaneIds: nextControls.hiddenLaneIds,
         mutedLaneIds: nextControls.mutedLaneIds,
@@ -735,7 +735,7 @@ export default function AnimationCanvas({
   )
 
   const handleToggleHiddenLane = React.useCallback(
-    async (laneId: AnimationTimelineLaneId) => {
+    async (laneId: AnimaticTimelineLaneId) => {
       const nextHiddenLaneIds = hiddenLaneIds.includes(laneId)
         ? hiddenLaneIds.filter(entry => entry !== laneId)
         : [...hiddenLaneIds, laneId]
@@ -750,7 +750,7 @@ export default function AnimationCanvas({
   )
 
   const handleToggleMutedLane = React.useCallback(
-    async (laneId: AnimationTimelineLaneId) => {
+    async (laneId: AnimaticTimelineLaneId) => {
       const nextMutedLaneIds = mutedLaneIds.includes(laneId)
         ? mutedLaneIds.filter(entry => entry !== laneId)
         : [...mutedLaneIds, laneId]
@@ -765,7 +765,7 @@ export default function AnimationCanvas({
   )
 
   const handleToggleSoloLane = React.useCallback(
-    async (laneId: AnimationTimelineLaneId) => {
+    async (laneId: AnimaticTimelineLaneId) => {
       const nextSoloLaneId = soloLaneId === laneId ? null : laneId
       setSoloLaneId(nextSoloLaneId)
       await commitLaneControlState({
@@ -797,12 +797,12 @@ export default function AnimationCanvas({
   )
 
   const handleMoveItemToBeat = React.useCallback(
-    async (itemSource: AnimationLaneItemMoveSource, nextBeat: AnimationTimelineBeat | null | undefined) => {
+    async (itemSource: AnimationLaneItemMoveSource, nextBeat: AnimaticTimelineBeat | null | undefined) => {
       const targetBeatRef = String(nextBeat?.beatRef || '').trim()
       if (!targetBeatRef) return
       const resolvedNodeId = resolveLaneItemMoveNodeId(itemSource)
       if (!resolvedNodeId) return
-      const updateResult = updateAnimationTimelineMarkdownItemBeatRef({
+      const updateResult = updateAnimaticTimelineMarkdownItemBeatRef({
         markdownText,
         nodeId: resolvedNodeId,
         title: itemSource.title,
@@ -820,7 +820,7 @@ export default function AnimationCanvas({
   )
 
   const handleReorderLane = React.useCallback(
-    async (laneId: AnimationTimelineLaneId, direction: -1 | 1) => {
+    async (laneId: AnimaticTimelineLaneId, direction: -1 | 1) => {
       const currentLaneOrder = lanePresentations.map(lane => lane.id)
       const currentIndex = currentLaneOrder.indexOf(laneId)
       if (currentIndex < 0) return
@@ -830,7 +830,7 @@ export default function AnimationCanvas({
       const [movedLaneId] = nextLaneOrder.splice(currentIndex, 1)
       if (!movedLaneId) return
       nextLaneOrder.splice(nextIndex, 0, movedLaneId)
-      const nextMarkdownText = updateAnimationTimelineMarkdownLaneOrder({
+      const nextMarkdownText = updateAnimaticTimelineMarkdownLaneOrder({
         markdownText,
         laneOrder: nextLaneOrder,
       })
@@ -887,12 +887,12 @@ export default function AnimationCanvas({
     [activeBeatIndex, timelineModel.beats],
   )
 
-  const handleFocusBeat = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleFocusBeat = React.useCallback((beat: AnimaticTimelineBeat) => {
     setPlaying(false)
     setPlaybackPosition(beat.displayStart)
   }, [])
 
-  const handleFocusLaneFromBeatCard = React.useCallback((laneId: AnimationTimelineLaneId) => {
+  const handleFocusLaneFromBeatCard = React.useCallback((laneId: AnimaticTimelineLaneId) => {
     const row = laneRowRefs.current[laneId]
     if (!row) return
     setSelectedLaneId(laneId)
@@ -911,12 +911,12 @@ export default function AnimationCanvas({
     }, 1600)
   }, [])
 
-  const handleFocusLaneOption = React.useCallback((laneId: AnimationTimelineLaneId) => {
+  const handleFocusLaneOption = React.useCallback((laneId: AnimaticTimelineLaneId) => {
     setSelectedLaneId(laneId)
     laneOptionRefs.current[laneId]?.focus()
   }, [])
 
-  const handleFocusBeatOption = React.useCallback((beat: AnimationTimelineBeat | null | undefined) => {
+  const handleFocusBeatOption = React.useCallback((beat: AnimaticTimelineBeat | null | undefined) => {
     if (!beat) return
     handleFocusBeat(beat)
     beatOptionRefs.current[beat.beatRef]?.focus()
@@ -928,8 +928,8 @@ export default function AnimationCanvas({
   }, [])
 
   const handleInsertBeatAtTarget = React.useCallback(
-    async (targetBeat: AnimationTimelineBeat | null | undefined, position: 'before' | 'after' = 'after') => {
-      const insertResult = insertAnimationTimelineBeat({
+    async (targetBeat: AnimaticTimelineBeat | null | undefined, position: 'before' | 'after' = 'after') => {
+      const insertResult = insertAnimaticTimelineBeat({
         markdownText,
         model: timelineModel,
         insertAfterBeatRef:
@@ -945,7 +945,7 @@ export default function AnimationCanvas({
       const committed = await commitMarkdownDocumentText(insertResult.markdownText)
       if (!committed) return
       setPlaying(false)
-      const insertedBeat = buildAnimationTimelineModel({
+      const insertedBeat = buildAnimaticTimelineModel({
         graphData,
         markdownText: insertResult.markdownText,
       }).beats.find(beat => beat.beatRef === insertResult.beatRef)
@@ -965,7 +965,7 @@ export default function AnimationCanvas({
 
   const handleDeleteBeat = React.useCallback(async () => {
     if (!activeBeat || activeBeat.items.length > 0) return
-    const nextMarkdownText = deleteAnimationTimelineBeat({
+    const nextMarkdownText = deleteAnimaticTimelineBeat({
       markdownText,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
@@ -978,11 +978,11 @@ export default function AnimationCanvas({
   }, [activeBeat, activeBeatIndex, commitMarkdownDocumentText, markdownText, timelineModel])
 
   const handleDeleteBeatAtTarget = React.useCallback(
-    async (targetBeat: AnimationTimelineBeat | null | undefined) => {
+    async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beat = targetBeat || activeBeat
       if (!beat || beat.items.length > 0) return
       const beatIndex = timelineModel.beats.findIndex(entry => entry.beatRef === beat.beatRef)
-      const nextMarkdownText = deleteAnimationTimelineBeat({
+      const nextMarkdownText = deleteAnimaticTimelineBeat({
         markdownText,
         model: timelineModel,
         beatRef: beat.beatRef,
@@ -997,10 +997,10 @@ export default function AnimationCanvas({
   )
 
   const handleDuplicateBeatAtTarget = React.useCallback(
-    async (targetBeat: AnimationTimelineBeat | null | undefined) => {
+    async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beatRef = String(targetBeat?.beatRef || activeBeat?.beatRef || '').trim()
       if (!beatRef) return
-      const duplicateResult = duplicateAnimationTimelineBeat({
+      const duplicateResult = duplicateAnimaticTimelineBeat({
         markdownText,
         model: timelineModel,
         beatRef,
@@ -1010,7 +1010,7 @@ export default function AnimationCanvas({
       const committed = await commitMarkdownDocumentText(duplicateResult.markdownText)
       if (!committed) return
       setPlaying(false)
-      const duplicatedBeat = buildAnimationTimelineModel({
+      const duplicatedBeat = buildAnimaticTimelineModel({
         graphData,
         markdownText: duplicateResult.markdownText,
       }).beats.find(beat => beat.beatRef === duplicateResult.beatRef)
@@ -1024,12 +1024,12 @@ export default function AnimationCanvas({
   }, [activeBeat, handleDuplicateBeatAtTarget])
 
   const handleSplitBeatAtTarget = React.useCallback(
-    async (targetBeat: AnimationTimelineBeat | null | undefined) => {
+    async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beat = targetBeat || activeBeat
       if (!beat || beat.startMs == null || beat.endMs == null) return
       if (beat.endMs - beat.startMs < EDIT_MIN_DURATION_MS * 2) return
       const midpointMs = beat.startMs + (beat.endMs - beat.startMs) * 0.5
-      const splitResult = splitAnimationTimelineBeat({
+      const splitResult = splitAnimaticTimelineBeat({
         markdownText,
         model: timelineModel,
         beatRef: beat.beatRef,
@@ -1041,7 +1041,7 @@ export default function AnimationCanvas({
       const committed = await commitMarkdownDocumentText(splitResult.markdownText)
       if (!committed) return
       setPlaying(false)
-      const splitBeat = buildAnimationTimelineModel({
+      const splitBeat = buildAnimaticTimelineModel({
         graphData,
         markdownText: splitResult.markdownText,
       }).beats.find(entry => entry.beatRef === splitResult.beatRef)
@@ -1052,7 +1052,7 @@ export default function AnimationCanvas({
 
   const handleSplitBeat = React.useCallback(async () => {
     if (!activeBeat || !canSplitActiveBeat) return
-    const splitResult = splitAnimationTimelineBeat({
+    const splitResult = splitAnimaticTimelineBeat({
       markdownText,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
@@ -1064,7 +1064,7 @@ export default function AnimationCanvas({
     const committed = await commitMarkdownDocumentText(splitResult.markdownText)
     if (!committed) return
     setPlaying(false)
-    const splitBeat = buildAnimationTimelineModel({
+    const splitBeat = buildAnimaticTimelineModel({
       graphData,
       markdownText: splitResult.markdownText,
     }).beats.find(beat => beat.beatRef === splitResult.beatRef)
@@ -1073,7 +1073,7 @@ export default function AnimationCanvas({
 
   const handleMergeBeatWithNext = React.useCallback(async () => {
     if (!activeBeat || !canMergeActiveBeatWithNext) return
-    const nextMarkdownText = mergeAnimationTimelineBeatWithNext({
+    const nextMarkdownText = mergeAnimaticTimelineBeatWithNext({
       markdownText,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
@@ -1085,7 +1085,7 @@ export default function AnimationCanvas({
   }, [activeBeat, canMergeActiveBeatWithNext, commitMarkdownDocumentText, markdownText, timelineModel])
 
   const handleMergeBeatWithNextAtTarget = React.useCallback(
-    async (targetBeat: AnimationTimelineBeat | null | undefined) => {
+    async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beat = targetBeat || activeBeat
       if (!beat) return
       const beatIndex = timelineModel.beats.findIndex(entry => entry.beatRef === beat.beatRef)
@@ -1096,7 +1096,7 @@ export default function AnimationCanvas({
         nextBeat?.endMs != null &&
         (nextBeat?.items.length || 0) === 0
       if (!canMergeAtTarget) return
-      const nextMarkdownText = mergeAnimationTimelineBeatWithNext({
+      const nextMarkdownText = mergeAnimaticTimelineBeatWithNext({
         markdownText,
         model: timelineModel,
         beatRef: beat.beatRef,
@@ -1111,7 +1111,7 @@ export default function AnimationCanvas({
 
   const handleRemoveGapBeforeBeat = React.useCallback(async () => {
     if (!activeBeat || !canRemoveGapBeforeActiveBeat) return
-    const nextMarkdownText = removeAnimationTimelineGapBeforeBeat({
+    const nextMarkdownText = removeAnimaticTimelineGapBeforeBeat({
       markdownText,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
@@ -1123,7 +1123,7 @@ export default function AnimationCanvas({
   }, [activeBeat, activeGapBeforeMs, canRemoveGapBeforeActiveBeat, commitMarkdownDocumentText, markdownText, playbackPosition, timelineModel])
 
   const handleRemoveGapBeforeBeatAtTarget = React.useCallback(
-    async (targetBeat: AnimationTimelineBeat | null | undefined) => {
+    async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beat = targetBeat || activeBeat
       if (!beat || beat.startMs == null) return
       const beatIndex = timelineModel.beats.findIndex(entry => entry.beatRef === beat.beatRef)
@@ -1132,7 +1132,7 @@ export default function AnimationCanvas({
       const gapBeforeBeatMs =
         timelineModel.usesAbsoluteTiming && previousBeat?.endMs != null ? Math.max(0, beat.startMs - previousBeat.endMs) : 0
       if (gapBeforeBeatMs <= 0) return
-      const nextMarkdownText = removeAnimationTimelineGapBeforeBeat({
+      const nextMarkdownText = removeAnimaticTimelineGapBeforeBeat({
         markdownText,
         model: timelineModel,
         beatRef: beat.beatRef,
@@ -1145,7 +1145,7 @@ export default function AnimationCanvas({
     [activeBeat, commitMarkdownDocumentText, markdownText, timelineModel],
   )
 
-  const handleStartBeatLabelEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatLabelEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     setEditingBeatRef(beat.beatRef)
     setEditingBeatLabel(beat.label)
   }, [])
@@ -1157,7 +1157,7 @@ export default function AnimationCanvas({
 
   const handleCommitBeatLabelEdit = React.useCallback(async () => {
     if (!editingBeatRef) return
-    const nextMarkdownText = updateAnimationTimelineMarkdownBeatLabel({
+    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatLabel({
       markdownText,
       beatRef: editingBeatRef,
       label: editingBeatLabel,
@@ -1167,7 +1167,7 @@ export default function AnimationCanvas({
     setEditingBeatLabel('')
   }, [commitMarkdownDocumentText, editingBeatLabel, editingBeatRef, markdownText])
 
-  const handleStartBeatNoteEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatNoteEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     setEditingBeatNoteRef(beat.beatRef)
     setEditingBeatNote(beat.note)
   }, [])
@@ -1179,7 +1179,7 @@ export default function AnimationCanvas({
 
   const handleCommitBeatNoteEdit = React.useCallback(async () => {
     if (!editingBeatNoteRef) return
-    const nextMarkdownText = updateAnimationTimelineMarkdownBeatNote({
+    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatNote({
       markdownText,
       beatRef: editingBeatNoteRef,
       note: editingBeatNote,
@@ -1189,7 +1189,7 @@ export default function AnimationCanvas({
     setEditingBeatNote('')
   }, [commitMarkdownDocumentText, editingBeatNote, editingBeatNoteRef, markdownText])
 
-  const handleStartBeatSummaryEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatSummaryEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     setEditingBeatSummaryRef(beat.beatRef)
     setEditingBeatSummary(beat.summary)
   }, [])
@@ -1201,7 +1201,7 @@ export default function AnimationCanvas({
 
   const handleCommitBeatSummaryEdit = React.useCallback(async () => {
     if (!editingBeatSummaryRef) return
-    const nextMarkdownText = updateAnimationTimelineMarkdownBeatSummary({
+    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatSummary({
       markdownText,
       beatRef: editingBeatSummaryRef,
       summary: editingBeatSummary,
@@ -1211,7 +1211,7 @@ export default function AnimationCanvas({
     setEditingBeatSummary('')
   }, [commitMarkdownDocumentText, editingBeatSummary, editingBeatSummaryRef, markdownText])
 
-  const handleStartBeatTagsEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatTagsEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     setEditingBeatTagsRef(beat.beatRef)
     setEditingBeatTags(beat.tags.join(', '))
   }, [])
@@ -1223,7 +1223,7 @@ export default function AnimationCanvas({
 
   const handleCommitBeatTagsEdit = React.useCallback(async () => {
     if (!editingBeatTagsRef) return
-    const nextMarkdownText = updateAnimationTimelineMarkdownBeatTags({
+    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatTags({
       markdownText,
       beatRef: editingBeatTagsRef,
       tags: editingBeatTags,
@@ -1233,50 +1233,50 @@ export default function AnimationCanvas({
     setEditingBeatTags('')
   }, [commitMarkdownDocumentText, editingBeatTags, editingBeatTagsRef, markdownText])
 
-  const handleStartBeatSummaryQuickEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatSummaryQuickEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     handleFocusBeat(beat)
     handleStartBeatSummaryEdit(beat)
   }, [handleFocusBeat, handleStartBeatSummaryEdit])
 
-  const handleStartBeatLabelQuickEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatLabelQuickEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     handleFocusBeat(beat)
     handleStartBeatLabelEdit(beat)
   }, [handleFocusBeat, handleStartBeatLabelEdit])
 
-  const handleInsertBeatBeforeQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleInsertBeatBeforeQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleInsertBeatAtTarget(beat, 'before')
   }, [handleInsertBeatAtTarget])
 
-  const handleInsertBeatAfterQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleInsertBeatAfterQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleInsertBeatAtTarget(beat, 'after')
   }, [handleInsertBeatAtTarget])
 
-  const handleDeleteBeatQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleDeleteBeatQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleDeleteBeatAtTarget(beat)
   }, [handleDeleteBeatAtTarget])
 
-  const handleDuplicateBeatQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleDuplicateBeatQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleDuplicateBeatAtTarget(beat)
   }, [handleDuplicateBeatAtTarget])
 
-  const handleSplitBeatQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleSplitBeatQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleSplitBeatAtTarget(beat)
   }, [handleSplitBeatAtTarget])
 
-  const handleMergeBeatWithNextQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleMergeBeatWithNextQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleMergeBeatWithNextAtTarget(beat)
   }, [handleMergeBeatWithNextAtTarget])
 
-  const handleRemoveGapBeforeBeatQuick = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleRemoveGapBeforeBeatQuick = React.useCallback((beat: AnimaticTimelineBeat) => {
     void handleRemoveGapBeforeBeatAtTarget(beat)
   }, [handleRemoveGapBeforeBeatAtTarget])
 
-  const handleStartBeatNoteQuickEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatNoteQuickEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     handleFocusBeat(beat)
     handleStartBeatNoteEdit(beat)
   }, [handleFocusBeat, handleStartBeatNoteEdit])
 
-  const handleStartBeatTagsQuickEdit = React.useCallback((beat: AnimationTimelineBeat) => {
+  const handleStartBeatTagsQuickEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     handleFocusBeat(beat)
     handleStartBeatTagsEdit(beat)
   }, [handleFocusBeat, handleStartBeatTagsEdit])
@@ -1284,7 +1284,7 @@ export default function AnimationCanvas({
   React.useEffect(() => {
     if (!active) return
     const onKeyDown = (event: KeyboardEvent) => {
-      const action = resolveAnimationTimelineHotkeyAction(event)
+      const action = resolveAnimaticTimelineHotkeyAction(event)
       if (!action) return
       const targetElement =
         event.target instanceof HTMLElement
@@ -1292,7 +1292,7 @@ export default function AnimationCanvas({
             event.target
           : null
       if (
-        shouldIgnoreAnimationTimelineHotkeys({
+        shouldIgnoreAnimaticTimelineHotkeys({
           defaultPrevented: event.defaultPrevented,
           ctrlKey: event.ctrlKey,
           metaKey: event.metaKey,
@@ -1306,7 +1306,7 @@ export default function AnimationCanvas({
       ) {
         return
       }
-      if (event.repeat && isAnimationTimelineMutationHotkeyAction(action)) return
+      if (event.repeat && isAnimaticTimelineMutationHotkeyAction(action)) return
       event.preventDefault()
       if (action === 'toggle-playback') {
         handleTogglePlayback()
@@ -1405,7 +1405,7 @@ export default function AnimationCanvas({
   ])
 
   const handleBeatPointerStart = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>, beat: AnimationTimelineBeat, beatIndex: number, mode: AnimationBeatDragState['mode']) => {
+    (event: React.PointerEvent<HTMLElement>, beat: AnimaticTimelineBeat, beatIndex: number, mode: AnimaticBeatDragState['mode']) => {
       if (!timelineModel.usesAbsoluteTiming) return
       if (beat.startMs == null || beat.endMs == null) return
       if (event.button !== 0) return
@@ -1437,8 +1437,8 @@ export default function AnimationCanvas({
   const handleLaneItemPointerStart = React.useCallback(
     (
       event: React.PointerEvent<HTMLElement>,
-      laneId: AnimationTimelineLaneId,
-      beat: AnimationTimelineBeat,
+      laneId: AnimaticTimelineLaneId,
+      beat: AnimaticTimelineBeat,
       itemNodeId: string,
       itemTitle: string,
     ) => {
@@ -1484,7 +1484,7 @@ export default function AnimationCanvas({
         return
       }
       const deltaMs = deltaPx * timelineUnitsPerPixel
-      const nextOverrides = resolveAnimationTimelineBeatTimingEdit({
+      const nextOverrides = resolveAnimaticTimelineBeatTimingEdit({
         beats: dragState.beatsSnapshot,
         beatIndex: dragState.beatIndex,
         mode: dragState.mode,
@@ -1575,7 +1575,7 @@ export default function AnimationCanvas({
         dragEdgeScrollDirectionRef.current = 0
         return
       }
-      const nextMarkdownText = updateAnimationTimelineMarkdownBeatTimingOverrides({
+      const nextMarkdownText = updateAnimaticTimelineMarkdownBeatTimingOverrides({
         markdownText,
         overrides,
       })
@@ -1636,7 +1636,7 @@ export default function AnimationCanvas({
       <section className="w-full h-full bg-[#0b0f17] text-slate-100">
         <div className="h-full w-full flex items-center justify-center p-8">
           <div className="max-w-xl rounded-2xl border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold">2D Renderer: Animation</h2>
+            <h2 className="text-lg font-semibold">2D Renderer: Animatic</h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
               Add beat-linked nodes like <code>NODE_CLIP_01</code> / <code>NODE_OVERLAY_01</code> or provide
               <code> timeline.beats </code> in Markdown frontmatter to populate the native timeline surface.
@@ -1691,12 +1691,12 @@ export default function AnimationCanvas({
             </button>
             <div className="time">{currentTimeLabel}</div>
             <div className="rate-control">
-              <label className="sr-only" htmlFor="animation-timeline-playback-rate">
+              <label className="sr-only" htmlFor="animatic-timeline-playback-rate">
                 Playback rate
               </label>
               <div className="ant-select ant-select-sm ant-select-single ant-select-show-arrow" style={{ width: 90 }}>
                 <select
-                  id="animation-timeline-playback-rate"
+                  id="animatic-timeline-playback-rate"
                   className="ant-select-selection-native"
                   value={String(playbackRate)}
                   onChange={event => setPlaybackRate(Number(event.target.value) as (typeof PLAYBACK_RATES)[number])}
@@ -2143,7 +2143,7 @@ export default function AnimationCanvas({
               </div>
               <header className="timeline-editor-header sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">
                 <div className="timeline-editor-time-area relative border-b border-slate-800" style={{ height: SCALE_ROW_HEIGHT_PX }}>
-                  <ol className="timeline-editor-time-scale-list" aria-label="Animation timeline scale">
+                  <ol className="timeline-editor-time-scale-list" aria-label="Animatic timeline scale">
                   {timelineEditorTimeUnits.map(unit => (
                     <li
                       key={unit.key}
@@ -2182,7 +2182,7 @@ export default function AnimationCanvas({
                 <div
                   className="timeline-editor-edit-area flex border-b border-slate-800"
                   role="listbox"
-                  aria-label="Animation timeline beats"
+                  aria-label="Animatic timeline beats"
                   style={{ paddingLeft: timelineModel.scaleConfig.startLeft }}
                 >
                   {timelineModel.beats.map((beat, index) => {
@@ -2399,7 +2399,7 @@ export default function AnimationCanvas({
                         >
                           <span>
                             {timelineModel.usesAbsoluteTiming
-                              ? `${formatAnimationTimelineTimestamp(beat.startMs)} -> ${formatAnimationTimelineTimestamp(beat.endMs)}`
+                              ? `${formatAnimaticTimelineTimestamp(beat.startMs)} -> ${formatAnimaticTimelineTimestamp(beat.endMs)}`
                               : `${beat.items.length} item${beat.items.length === 1 ? '' : 's'}`}
                           </span>
                           <span className="rounded-full border border-slate-700 bg-slate-900/70 px-1 py-0 text-[9px] leading-3 text-slate-300">

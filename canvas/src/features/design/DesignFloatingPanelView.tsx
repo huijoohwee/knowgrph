@@ -11,6 +11,7 @@ import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveE
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
@@ -161,31 +162,35 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
             Snap:{snapGrid.enabled ? 'On' : 'Off'}
           </span>
         </nav>
-        <nav className={`${uiToolbarRowScrollClassName} gap-1`} aria-label="Design panel tabs">
-          {tabs.map(t => {
-            const Icon = t.icon
-            const isActive = tab === t.id
+        <ToolbarDropdownSelect
+          value={tab}
+          options={tabs}
+          title={`Design section: ${tabs.find(item => item.id === tab)?.title || 'Overview'}`}
+          showTooltip={false}
+          isButtonActive={true}
+          onSelect={id => setTab(id as DesignFloatingPanelTab)}
+          renderButtonContent={activeOption => {
+            const ActiveIcon = activeOption.icon
             return (
-              <button
-                key={t.id}
-                type="button"
-                className={cn(
-                  'App-toolbar__btn',
-                  UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
-                  'gap-1',
-                  isActive ? UI_THEME_TOKENS.text.primary : UI_THEME_TOKENS.text.secondary,
-                  UI_THEME_TOKENS.button.hoverBg,
-                  panelTypography.microLabelClass,
-                )}
-                onClick={() => setTab(t.id)}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <Icon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                <span className="hidden sm:inline">{t.title}</span>
-              </button>
+              <>
+                <ActiveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                <span className={cn('hidden sm:inline', panelTypography.microLabelClass)}>
+                  {activeOption.title}
+                </span>
+              </>
             )
-          })}
-        </nav>
+          }}
+          renderOptionContent={option => {
+            const OptionIcon = option.icon
+            return (
+              <>
+                <OptionIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                <span className="truncate">{option.title}</span>
+              </>
+            )
+          }}
+          menuWidthClass="w-56"
+        />
       </header>
       <section className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTypography.panelTextClass)}>
         {tab === 'overview' && (

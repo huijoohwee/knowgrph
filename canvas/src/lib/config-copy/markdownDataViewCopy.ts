@@ -11,6 +11,7 @@ export const MARKDOWN_DATA_VIEW_COPY = {
   ungroupedLabel: 'Ungrouped',
   filterLabel: 'Filter',
   sortLabel: 'Sort',
+  viewLabel: 'View',
   viewSettingsLabel: 'View settings',
   addViewAriaLabel: 'Add view',
   moreMenuAriaLabel: 'More menu',

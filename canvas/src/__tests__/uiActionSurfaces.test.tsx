@@ -109,10 +109,20 @@ export async function testHistoryViewRendersSharedLogActionsAndDispatchesUiRunti
     })
     await tick()
 
-    const logTab = (Array.from(dom.window.document.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[]).find(
+    const historyChooser = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.getAttribute('aria-label')?.startsWith('History section:'),
+    )
+    if (!historyChooser) throw new Error('expected History section chooser')
+
+    await act(async () => {
+      historyChooser.click()
+      await tick()
+    })
+
+    const logTab = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[]).find(
       button => button.textContent?.trim() === 'Log',
     )
-    if (!logTab) throw new Error('expected Log tab')
+    if (!logTab) throw new Error('expected Log option')
 
     await act(async () => {
       logTab.click()

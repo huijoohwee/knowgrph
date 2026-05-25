@@ -1,29 +1,29 @@
 import type { GraphData } from '@/lib/graph/types'
 import {
-  applyAnimationTimelineBeatTimingOverrides,
-  buildAnimationTimelineModel,
-  deleteAnimationTimelineBeat,
-  duplicateAnimationTimelineBeat,
-  findAnimationTimelineBeatIndexAtPosition,
-  formatAnimationTimelineTimestamp,
-  insertAnimationTimelineBeat,
-  mergeAnimationTimelineBeatWithNext,
-  readAnimationTimelineScaleConfig,
-  removeAnimationTimelineGapBeforeBeat,
-  resolveAnimationTimelineBeatTimingEdit,
-  splitAnimationTimelineBeat,
-  snapAnimationTimelineValue,
-  updateAnimationTimelineMarkdownBeatLabel,
-  updateAnimationTimelineMarkdownItemBeatRef,
-  updateAnimationTimelineMarkdownBeatNote,
-  updateAnimationTimelineMarkdownBeatSummary,
-  updateAnimationTimelineMarkdownBeatTags,
-  updateAnimationTimelineMarkdownBeatTiming,
-  updateAnimationTimelineMarkdownBeatTimingOverrides,
-  updateAnimationTimelineMarkdownScaleConfig,
-} from '@/components/AnimationCanvas/animationTimeline'
+  applyAnimaticTimelineBeatTimingOverrides,
+  buildAnimaticTimelineModel,
+  deleteAnimaticTimelineBeat,
+  duplicateAnimaticTimelineBeat,
+  findAnimaticTimelineBeatIndexAtPosition,
+  formatAnimaticTimelineTimestamp,
+  insertAnimaticTimelineBeat,
+  mergeAnimaticTimelineBeatWithNext,
+  readAnimaticTimelineScaleConfig,
+  removeAnimaticTimelineGapBeforeBeat,
+  resolveAnimaticTimelineBeatTimingEdit,
+  splitAnimaticTimelineBeat,
+  snapAnimaticTimelineValue,
+  updateAnimaticTimelineMarkdownBeatLabel,
+  updateAnimaticTimelineMarkdownItemBeatRef,
+  updateAnimaticTimelineMarkdownBeatNote,
+  updateAnimaticTimelineMarkdownBeatSummary,
+  updateAnimaticTimelineMarkdownBeatTags,
+  updateAnimaticTimelineMarkdownBeatTiming,
+  updateAnimaticTimelineMarkdownBeatTimingOverrides,
+  updateAnimaticTimelineMarkdownScaleConfig,
+} from '@/components/AnimaticCanvas/animaticTimeline'
 
-export function testAnimationTimelineModelUsesMarkdownFrontmatterTimingAndGraphBeatRefs() {
+export function testAnimaticTimelineModelUsesMarkdownFrontmatterTimingAndGraphBeatRefs() {
   const graphData = {
     type: 'Graph',
     nodes: [
@@ -71,7 +71,7 @@ export function testAnimationTimelineModelUsesMarkdownFrontmatterTimingAndGraphB
   } as GraphData
 
   const markdownText = `---
-title: Animation Demo
+title: Animatic Demo
 timeline:
   beats:
     beat_01:
@@ -89,7 +89,7 @@ timeline:
 ---
 `
 
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData,
     markdownText,
   })
@@ -107,13 +107,13 @@ timeline:
   if (model.beats[1]?.items[0]?.laneId !== 'audio') {
     throw new Error(`expected second beat lane to classify audio, got ${String(model.beats[1]?.items[0]?.laneId || '')}`)
   }
-  if (findAnimationTimelineBeatIndexAtPosition(model, 4500) !== 1) {
+  if (findAnimaticTimelineBeatIndexAtPosition(model, 4500) !== 1) {
     throw new Error('expected playhead at 4500ms to resolve to beat_02')
   }
 }
 
-export function testAnimationTimelineModelReadsNativeScaleConfigFromFrontmatter() {
-  const model = buildAnimationTimelineModel({
+export function testAnimaticTimelineModelReadsNativeScaleConfigFromFrontmatter() {
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText: `---
 timeline:
@@ -145,8 +145,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineScaleConfigRewriteStaysUnderTimelineScaleOwner() {
-  const updated = updateAnimationTimelineMarkdownScaleConfig({
+export function testAnimaticTimelineScaleConfigRewriteStaysUnderTimelineScaleOwner() {
+  const updated = updateAnimaticTimelineMarkdownScaleConfig({
     markdownText: `---
 title: Demo
 timeline:
@@ -170,13 +170,13 @@ timeline:
       throw new Error(`expected rewritten scale config to include ${snippet}, got ${updated}`)
     }
   }
-  const scaleConfig = readAnimationTimelineScaleConfig(updated)
+  const scaleConfig = readAnimaticTimelineScaleConfig(updated)
   if (scaleConfig.scale !== 6 || scaleConfig.scaleSplitCount !== 8 || scaleConfig.scaleWidth !== 192 || scaleConfig.startLeft !== 24) {
     throw new Error(`expected scale config round-trip to match rewrite, got ${JSON.stringify(scaleConfig)}`)
   }
 }
 
-export function testAnimationTimelineModelFallsBackToOrdinalBeatSequenceWithoutFrontmatterTiming() {
+export function testAnimaticTimelineModelFallsBackToOrdinalBeatSequenceWithoutFrontmatterTiming() {
   const graphData = {
     type: 'Graph',
     nodes: [
@@ -196,7 +196,7 @@ export function testAnimationTimelineModelFallsBackToOrdinalBeatSequenceWithoutF
     edges: [],
   } as GraphData
 
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData,
     markdownText: null,
   })
@@ -205,13 +205,13 @@ export function testAnimationTimelineModelFallsBackToOrdinalBeatSequenceWithoutF
   if (model.totalSpan !== 2) throw new Error(`expected ordinal span of 2 beats, got ${model.totalSpan}`)
   if (model.beats[0]?.beatRef !== 'beat_01') throw new Error(`expected beat_01 first, got ${String(model.beats[0]?.beatRef || '')}`)
   if (model.beats[1]?.beatRef !== 'beat_02') throw new Error(`expected beat_02 second, got ${String(model.beats[1]?.beatRef || '')}`)
-  if (formatAnimationTimelineTimestamp(4510) !== '00:04.51') {
-    throw new Error(`expected timestamp formatting to preserve centiseconds, got ${formatAnimationTimelineTimestamp(4510)}`)
+  if (formatAnimaticTimelineTimestamp(4510) !== '00:04.51') {
+    throw new Error(`expected timestamp formatting to preserve centiseconds, got ${formatAnimaticTimelineTimestamp(4510)}`)
   }
 }
 
-export function testAnimationTimelineBeatTimingEditClampsAgainstNeighborsAndResizes() {
-  const model = buildAnimationTimelineModel({
+export function testAnimaticTimelineBeatTimingEditClampsAgainstNeighborsAndResizes() {
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText: `---
 timeline:
@@ -232,7 +232,7 @@ timeline:
 `,
   })
 
-  const moved = resolveAnimationTimelineBeatTimingEdit({
+  const moved = resolveAnimaticTimelineBeatTimingEdit({
     beats: model.beats,
     beatIndex: 1,
     mode: 'move',
@@ -247,7 +247,7 @@ timeline:
     throw new Error(`expected move to carry following beats forward, got ${JSON.stringify(moved)}`)
   }
 
-  const resized = resolveAnimationTimelineBeatTimingEdit({
+  const resized = resolveAnimaticTimelineBeatTimingEdit({
     beats: model.beats,
     beatIndex: 1,
     mode: 'resize-end',
@@ -262,7 +262,7 @@ timeline:
     throw new Error(`expected resize end to carry following beats forward, got ${JSON.stringify(resized)}`)
   }
 
-  const overridden = applyAnimationTimelineBeatTimingOverrides(model, {
+  const overridden = applyAnimaticTimelineBeatTimingOverrides(model, {
     beat_02: {
       startMs: 4200,
       endMs: 8600,
@@ -273,8 +273,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineMarkdownTimingUpdateRewritesBeatWindow() {
-  const updated = updateAnimationTimelineMarkdownBeatTiming({
+export function testAnimaticTimelineMarkdownTimingUpdateRewritesBeatWindow() {
+  const updated = updateAnimaticTimelineMarkdownBeatTiming({
     markdownText: `---
 title: Demo
 timeline:
@@ -306,8 +306,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineMarkdownTimingOverrideUpdateRewritesMultipleBeatWindows() {
-  const updated = updateAnimationTimelineMarkdownBeatTimingOverrides({
+export function testAnimaticTimelineMarkdownTimingOverrideUpdateRewritesMultipleBeatWindows() {
+  const updated = updateAnimaticTimelineMarkdownBeatTimingOverrides({
     markdownText: `---
 title: Demo
 timeline:
@@ -335,19 +335,19 @@ timeline:
   }
 }
 
-export function testAnimationTimelineSnapRoundsToConfiguredGrid() {
-  if (snapAnimationTimelineValue(1124, 250) !== 1000) {
-    throw new Error(`expected 1124ms to snap down to 1000ms, got ${snapAnimationTimelineValue(1124, 250)}`)
+export function testAnimaticTimelineSnapRoundsToConfiguredGrid() {
+  if (snapAnimaticTimelineValue(1124, 250) !== 1000) {
+    throw new Error(`expected 1124ms to snap down to 1000ms, got ${snapAnimaticTimelineValue(1124, 250)}`)
   }
-  if (snapAnimationTimelineValue(1130, 250) !== 1250) {
-    throw new Error(`expected 1130ms to snap up to 1250ms, got ${snapAnimationTimelineValue(1130, 250)}`)
+  if (snapAnimaticTimelineValue(1130, 250) !== 1250) {
+    throw new Error(`expected 1130ms to snap up to 1250ms, got ${snapAnimaticTimelineValue(1130, 250)}`)
   }
-  if (snapAnimationTimelineValue(1130, 0) !== 1130) {
-    throw new Error(`expected zero-step snap to preserve value, got ${snapAnimationTimelineValue(1130, 0)}`)
+  if (snapAnimaticTimelineValue(1130, 0) !== 1130) {
+    throw new Error(`expected zero-step snap to preserve value, got ${snapAnimaticTimelineValue(1130, 0)}`)
   }
 }
 
-export function testAnimationTimelineInsertBeatAppendsAndShiftsFollowingTiming() {
+export function testAnimaticTimelineInsertBeatAppendsAndShiftsFollowingTiming() {
   const markdownText = `---
 timeline:
   beats:
@@ -361,11 +361,11 @@ timeline:
       end_ms: 9000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const inserted = insertAnimationTimelineBeat({
+  const inserted = insertAnimaticTimelineBeat({
     markdownText,
     model,
     insertAfterBeatRef: 'beat_01',
@@ -389,7 +389,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineDeleteEmptyBeatCompactsFollowingTiming() {
+export function testAnimaticTimelineDeleteEmptyBeatCompactsFollowingTiming() {
   const markdownText = `---
 timeline:
   beats:
@@ -407,11 +407,11 @@ timeline:
       end_ms: 9000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const updated = deleteAnimationTimelineBeat({
+  const updated = deleteAnimaticTimelineBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -425,8 +425,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineBeatLabelUpdateRewritesFrontmatterLabel() {
-  const updated = updateAnimationTimelineMarkdownBeatLabel({
+export function testAnimaticTimelineBeatLabelUpdateRewritesFrontmatterLabel() {
+  const updated = updateAnimaticTimelineMarkdownBeatLabel({
     markdownText: `---
 timeline:
   beats:
@@ -444,8 +444,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineBeatNoteUpdateRewritesFrontmatterNote() {
-  const updated = updateAnimationTimelineMarkdownBeatNote({
+export function testAnimaticTimelineBeatNoteUpdateRewritesFrontmatterNote() {
+  const updated = updateAnimaticTimelineMarkdownBeatNote({
     markdownText: `---
 timeline:
   beats:
@@ -464,8 +464,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineBeatSummaryUpdateRewritesAndClearsFrontmatterSummary() {
-  const updated = updateAnimationTimelineMarkdownBeatSummary({
+export function testAnimaticTimelineBeatSummaryUpdateRewritesAndClearsFrontmatterSummary() {
+  const updated = updateAnimaticTimelineMarkdownBeatSummary({
     markdownText: `---
 timeline:
   beats:
@@ -483,7 +483,7 @@ timeline:
     throw new Error(`expected beat summary update to persist in frontmatter, got ${updated}`)
   }
 
-  const cleared = updateAnimationTimelineMarkdownBeatSummary({
+  const cleared = updateAnimaticTimelineMarkdownBeatSummary({
     markdownText: updated,
     beatRef: 'beat_01',
     summary: '   ',
@@ -493,8 +493,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineBeatTagsUpdateRewritesAndClearsFrontmatterTags() {
-  const updated = updateAnimationTimelineMarkdownBeatTags({
+export function testAnimaticTimelineBeatTagsUpdateRewritesAndClearsFrontmatterTags() {
+  const updated = updateAnimaticTimelineMarkdownBeatTags({
     markdownText: `---
 timeline:
   beats:
@@ -513,7 +513,7 @@ timeline:
     throw new Error(`expected beat tags update to persist deduplicated frontmatter tags, got ${updated}`)
   }
 
-  const cleared = updateAnimationTimelineMarkdownBeatTags({
+  const cleared = updateAnimaticTimelineMarkdownBeatTags({
     markdownText: updated,
     beatRef: 'beat_01',
     tags: [],
@@ -523,7 +523,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineInsertBeatBeforeShiftsTargetForward() {
+export function testAnimaticTimelineInsertBeatBeforeShiftsTargetForward() {
   const markdownText = `---
 timeline:
   beats:
@@ -537,11 +537,11 @@ timeline:
       end_ms: 9000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const inserted = insertAnimationTimelineBeat({
+  const inserted = insertAnimaticTimelineBeat({
     markdownText,
     model,
     insertBeforeBeatRef: 'beat_02',
@@ -559,7 +559,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineDuplicateBeatAppendsCopyAndShiftsFollowingTiming() {
+export function testAnimaticTimelineDuplicateBeatAppendsCopyAndShiftsFollowingTiming() {
   const markdownText = `---
 timeline:
   beats:
@@ -577,11 +577,11 @@ timeline:
       end_ms: 12000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const duplicated = duplicateAnimationTimelineBeat({
+  const duplicated = duplicateAnimaticTimelineBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -597,7 +597,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineSplitBeatCreatesSecondSegmentAtPlayhead() {
+export function testAnimaticTimelineSplitBeatCreatesSecondSegmentAtPlayhead() {
   const markdownText = `---
 timeline:
   beats:
@@ -611,11 +611,11 @@ timeline:
       end_ms: 9000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const split = splitAnimationTimelineBeat({
+  const split = splitAnimaticTimelineBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -633,7 +633,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineMergeBeatWithNextConsumesEmptyAdjacentBeat() {
+export function testAnimaticTimelineMergeBeatWithNextConsumesEmptyAdjacentBeat() {
   const markdownText = `---
 timeline:
   beats:
@@ -651,7 +651,7 @@ timeline:
       end_ms: 9000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: {
       type: 'Graph',
       nodes: [
@@ -670,7 +670,7 @@ timeline:
     } as GraphData,
     markdownText,
   })
-  const merged = mergeAnimationTimelineBeatWithNext({
+  const merged = mergeAnimaticTimelineBeatWithNext({
     markdownText,
     model,
     beatRef: 'beat_01',
@@ -684,7 +684,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineRemoveGapBeforeBeatCompactsCurrentAndFollowingBeats() {
+export function testAnimaticTimelineRemoveGapBeforeBeatCompactsCurrentAndFollowingBeats() {
   const markdownText = `---
 timeline:
   beats:
@@ -702,11 +702,11 @@ timeline:
       end_ms: 12000
 ---
 `
-  const model = buildAnimationTimelineModel({
+  const model = buildAnimaticTimelineModel({
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const compacted = removeAnimationTimelineGapBeforeBeat({
+  const compacted = removeAnimaticTimelineGapBeforeBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -720,7 +720,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineItemBeatRefUpdateRewritesRootNodes() {
+export function testAnimaticTimelineItemBeatRefUpdateRewritesRootNodes() {
   const markdownText = `---
 nodes:
   - id: NODE_CLIP_01
@@ -741,7 +741,7 @@ timeline:
       label: CTA
 ---
 `
-  const updated = updateAnimationTimelineMarkdownItemBeatRef({
+  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
     markdownText,
     nodeId: 'NODE_AUDIO_01',
     beatRef: 'beat_02',
@@ -755,7 +755,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineItemBeatRefUpdateRewritesFlowNodes() {
+export function testAnimaticTimelineItemBeatRefUpdateRewritesFlowNodes() {
   const markdownText = `---
 flow:
   nodes:
@@ -777,7 +777,7 @@ timeline:
       label: CTA
 ---
 `
-  const updated = updateAnimationTimelineMarkdownItemBeatRef({
+  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
     markdownText,
     nodeId: 'NODE_CLIP_01',
     beatRef: 'beat_02',
@@ -791,7 +791,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineItemBeatRefUpdateFallsBackToLaneAndTitle() {
+export function testAnimaticTimelineItemBeatRefUpdateFallsBackToLaneAndTitle() {
   const markdownText = `---
 flow:
   nodes:
@@ -808,7 +808,7 @@ timeline:
       label: Problem
 ---
 `
-  const updated = updateAnimationTimelineMarkdownItemBeatRef({
+  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
     markdownText,
     nodeId: '',
     title: 'Problem Voiceover',
@@ -825,7 +825,7 @@ timeline:
   }
 }
 
-export function testAnimationTimelineItemBeatRefUpdateRewritesPropertiesParamsBeatRef() {
+export function testAnimaticTimelineItemBeatRefUpdateRewritesPropertiesParamsBeatRef() {
   const markdownText = `---
 flow:
   nodes:
@@ -843,7 +843,7 @@ timeline:
       label: Problem
 ---
 `
-  const updated = updateAnimationTimelineMarkdownItemBeatRef({
+  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
     markdownText,
     nodeId: 'NODE_AUDIO_01',
     beatRef: 'beat_01',

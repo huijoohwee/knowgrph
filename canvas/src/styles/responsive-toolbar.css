@@ -266,12 +266,6 @@
     min-height: 0;
   }
 
-  .kg-data-view-settings-dialog {
-    width: min(45rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
-    max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
-    max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1rem);
-  }
-
   .kg-explorer-search-control,
   .kg-explorer-search-input,
   .kg-workspace-pane-toggles,

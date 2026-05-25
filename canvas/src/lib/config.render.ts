@@ -1,12 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animation', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animation', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animation', 'storyboard', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -38,11 +38,11 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     aliases: ['flowcanvas'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
-  animation: {
-    surfaceId: 'animation',
-    registryLabel: 'Animation',
-    menuLabel: 'Anim',
-    aliases: ['anim', 'timelineanimation'],
+  animatic: {
+    surfaceId: 'animatic',
+    registryLabel: 'Animatic',
+    menuLabel: 'Animatic',
+    aliases: [],
     sharesFlowEditorFrontmatterSyntax: true,
   },
   storyboard: {
@@ -124,8 +124,8 @@ export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined
   return id === 'flow' || id === 'flowEditor'
 }
 
-export const isAnimationCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'animation'
+export const isAnimaticCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'animatic'
 }
 
 export const isStoryboardCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
@@ -152,7 +152,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isAnimationCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id) && !isAnimaticCanvas2dRenderer(id) && !isStoryboardCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'xr', 'voxel'] as const

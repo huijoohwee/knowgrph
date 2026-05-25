@@ -27,7 +27,6 @@ import { WorkspaceDataViewHeader, type WorkspaceDataViewHeaderState } from './Wo
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import {
   applyWorkspaceDataViewQuery,
-  computeWorkspaceDataViewGroupOptions,
   defaultWorkspaceDataViewConfig,
   readWorkspaceDataViewConfig,
   readWorkspaceDataViewStateWithMeta,
@@ -41,10 +40,16 @@ import { WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE } 
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { emitSidePanelOpen } from '@/features/canvas/utils'
 import {
   buildDataViewCandidates,
   tryBuildApiGraphMarkdownTablesFromJson,
 } from './markdownWorkspaceDataViewCandidates'
+import { hashSignatureParts } from '@/lib/hash/signature'
+import {
+  useWorkspaceDataViewFloatingRegistration,
+  type WorkspaceDataViewFloatingBinding,
+} from './workspaceDataViewFloatingStore'
 
 const MarkdownWorkspaceHtmlViewerPaneLazy = React.lazy(
   async (): Promise<{ default: typeof import('./MarkdownWorkspaceHtmlViewerPane')['MarkdownWorkspaceHtmlViewerPane'] }> =>
@@ -113,8 +118,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   )
   const [selectedTableId, setSelectedTableId] = React.useState<string>('')
   const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
-  const [settingsPanel, setSettingsPanel] = React.useState<'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'duplicate' | 'delete'>('properties')
+  const [settingsPanel, setSettingsPanel] = React.useState<'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'reset'>('properties')
   const [headerState, setHeaderState] = React.useState<WorkspaceDataViewHeaderState>(() => ({
     searchQuery: '',
     visibleGroups: null,
@@ -232,14 +236,6 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     const base: MarkdownDataView = viewConfig?.groupByColumnId ? { ...selected.view, groupByColumnId: viewConfig.groupByColumnId } : selected.view
     return applyWorkspaceDataViewQuery({ view: base, viewConfig, state: headerState })
   }, [headerState.searchQuery, headerState.sortMode, headerState.visibleGroups, selected, viewConfig])
-
-  const groupOptions = React.useMemo((): string[] => {
-    if (!selected) return []
-    return computeWorkspaceDataViewGroupOptions({
-      view: selected.view,
-      groupByColumnId: viewConfig?.groupByColumnId || selected.view.groupByColumnId,
-    })
-  }, [selected, viewConfig?.groupByColumnId])
 
   const visibleColumnIds = viewConfig?.visibleColumnIds ?? null
   const columnTypesById = viewConfig?.columnTypesById ?? null
@@ -376,6 +372,70 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     [selected],
   )
 
+  const handleSelectGeospatialView = React.useCallback(() => {
+    setViewConfig(prev => {
+      if (!prev) return prev
+      if (prev.layout === 'table' && prev.graphEnabled === true && prev.geospatialViewEnabled === true) {
+        return prev
+      }
+      return { ...prev, layout: 'table', graphEnabled: true, geospatialViewEnabled: true }
+    })
+    props.onChangeViewerMode?.('geospatial')
+    void setGeospatialModeEnabled(true).catch(() => void 0)
+  }, [props])
+
+  const openViewSettingsPanel = React.useCallback((panel: 'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'reset') => {
+    setSettingsPanel(panel)
+    emitSidePanelOpen({ tab: 'view', open: true })
+  }, [])
+
+  const viewSettingsBinding = React.useMemo<WorkspaceDataViewFloatingBinding | null>(() => {
+    if (!selected || !viewConfig) return null
+    const registrationId = hashSignatureParts([
+      'workspace-data-view-floating-settings',
+      props.activeDocumentPath ?? '',
+      selected.id,
+      props.viewerMode,
+    ])
+    return {
+      registrationId,
+      contextLabel: selected.label,
+      activePanel: settingsPanel,
+      canMutate,
+      viewerLayout: props.viewerMode === 'kanban' ? 'kanban' : 'table',
+      viewerMode: props.viewerMode === 'kanban'
+        ? 'kanban'
+        : props.viewerMode === 'multiDimTable'
+          ? 'multiDimTable'
+          : 'table',
+      allowMultiDimLayout: true,
+      columns: selected.view.columns,
+      groupByColumnId: viewConfig.groupByColumnId || selected.view.groupByColumnId || null,
+      viewConfig,
+      setViewConfig,
+      onChangeLayout: layout => {
+        props.onChangeViewerMode?.(layout)
+      },
+      onChangeLayoutMode: mode => {
+        props.onChangeViewerMode?.(mode)
+      },
+      onSelectGeospatialView: handleSelectGeospatialView,
+      onReset: onResetDataView,
+      onAddColumn: canMutate ? onAddColumn : undefined,
+    }
+  }, [
+    canMutate,
+    canMutate,
+    handleSelectGeospatialView,
+    onAddColumn,
+    onResetDataView,
+    props,
+    settingsPanel,
+    viewConfig,
+  ])
+
+  useWorkspaceDataViewFloatingRegistration(viewSettingsBinding)
+
   if (props.viewerMode === 'read') {
     if (props.viewerKind === 'json') {
       if (derivedStructuredText) {
@@ -464,38 +524,16 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         canMutate={canMutate}
         columns={(selected?.view.columns ?? [])}
         groupByColumnId={viewConfig?.groupByColumnId || selected?.view.groupByColumnId || null}
-        groupOptions={groupOptions}
         state={headerState}
         onChangeState={setHeaderState}
         onChangeViewerMode={(mode) => props.onChangeViewerMode?.(mode)}
-        onSelectGeospatialView={() => {
-          setViewConfig(prev => {
-            if (!prev) return prev
-            if (prev.layout === 'table' && prev.graphEnabled === true && prev.geospatialViewEnabled === true) return prev
-            return { ...prev, layout: 'table', graphEnabled: true, geospatialViewEnabled: true }
-          })
-          props.onChangeViewerMode?.('geospatial')
-          void setGeospatialModeEnabled(true).catch(() => void 0)
-        }}
+        onSelectGeospatialView={handleSelectGeospatialView}
         supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => onNewRecord() : undefined}
-        onAddColumn={canMutate ? onAddColumn : undefined}
         viewConfig={viewConfig}
         setViewConfig={(next) => setViewConfig(next)}
-        openSettings={() => {
-          setSettingsPanel('properties')
-          setSettingsOpen(true)
-        }}
-        openSettingsPanel={(panel) => {
-          setSettingsPanel(panel)
-          setSettingsOpen(true)
-        }}
-        settingsOpen={settingsOpen}
-        settingsPanel={settingsPanel}
-        closeSettings={() => {
-          setSettingsOpen(false)
-          setSettingsPanel('properties')
-        }}
+        openSettings={() => openViewSettingsPanel('properties')}
+        openSettingsPanel={openViewSettingsPanel}
         tableSelector={
           candidates.length > 1 ? (
             <WorkspaceModeSelect
@@ -507,7 +545,6 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             />
           ) : null
         }
-        onReset={onResetDataView}
       />
       <main className="flex-1 min-h-0 overflow-auto">
         {!selected ? (

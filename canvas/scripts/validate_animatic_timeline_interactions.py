@@ -10,11 +10,11 @@ from typing import Callable
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 
-APP_URL = os.environ.get("KG_ANIMATION_TIMELINE_URL", "http://localhost:5172/")
+APP_URL = os.environ.get("KG_ANIMATIC_TIMELINE_URL", "http://localhost:5172/")
 SCREENSHOT_PATH = Path(
     os.environ.get(
-        "KG_ANIMATION_TIMELINE_SCREENSHOT",
-        "/tmp/knowgrph-animation-timeline-interactions.png",
+        "KG_ANIMATIC_TIMELINE_SCREENSHOT",
+        "/tmp/knowgrph-animatic-timeline-interactions.png",
     )
 )
 
@@ -22,7 +22,7 @@ WIDE_TIMELINE_MARKDOWN = """---
 title: Wide Timeline Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -102,7 +102,7 @@ INSERT_BEAT_MARKDOWN = """---
 title: Insert Beat Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -156,7 +156,7 @@ DELETE_BEAT_MARKDOWN = """---
 title: Delete Beat Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -223,7 +223,7 @@ DUPLICATE_BEAT_MARKDOWN = """---
 title: Duplicate Beat Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -268,7 +268,7 @@ SPLIT_BEAT_MARKDOWN = """---
 title: Split Beat Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -308,7 +308,7 @@ MERGE_BEAT_MARKDOWN = """---
 title: Merge Beat Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -348,7 +348,7 @@ REMOVE_GAP_MARKDOWN = """---
 title: Remove Gap Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -393,7 +393,7 @@ LANE_CONTROLS_MARKDOWN = """---
 title: Lane Controls Interaction Demo
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "animation"
+kgCanvas2dRenderer: "animatic"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
@@ -455,7 +455,7 @@ def apply_markdown_document(page: Page, name: str, text: str) -> None:
             forceApplyToGraph: true,
             applyViewPreset: true,
             canvasRenderMode: '2d',
-            canvas2dRenderer: 'animation',
+            canvas2dRenderer: 'animatic',
             documentSemanticMode: 'document',
             frontmatterModeEnabled: true,
             workspaceViewMode: 'canvas',
@@ -475,7 +475,7 @@ def read_timeline_state(page: Page) -> dict[str, object]:
         """
         () => {
           const scrollEl = document.querySelector('.timeline-editor');
-          const beatOptions = [...document.querySelectorAll('[aria-label="Animation timeline beats"] [role="option"]')];
+          const beatOptions = [...document.querySelectorAll('[aria-label="Animatic timeline beats"] [role="option"]')];
           const ctaBeat = beatOptions.find(option => option.textContent?.includes('beat_04'));
           return {
             scrollLeft: scrollEl?.scrollLeft ?? 0,
@@ -541,7 +541,7 @@ def read_lane_item_state(page: Page, item_title: str, beat_ref: str) -> dict[str
           const article = [...document.querySelectorAll('article.timeline-editor-action')].find(
             node => node.textContent?.includes(itemTitle)
           );
-          const beatOption = [...document.querySelectorAll('[aria-label="Animation timeline beats"] [role="option"]')].find(
+          const beatOption = [...document.querySelectorAll('[aria-label="Animatic timeline beats"] [role="option"]')].find(
             option => option.textContent?.includes(beatRef)
           );
           const rect = article?.getBoundingClientRect();
@@ -570,7 +570,7 @@ def assert_lane_item_resize_commit(
 
 
 def find_beat_option(page: Page, beat_ref: str) -> object:
-    return page.locator('[aria-label="Animation timeline beats"] [role="option"]').filter(has_text=beat_ref).first
+    return page.locator('[aria-label="Animatic timeline beats"] [role="option"]').filter(has_text=beat_ref).first
 
 
 def hover_beat_option(page: Page, beat_ref: str) -> object:
@@ -631,7 +631,7 @@ def read_lane_state(page: Page) -> dict[str, object]:
         page,
         """
         () => {
-          const laneRoot = document.querySelector('[aria-label="Animation timeline lanes"]');
+          const laneRoot = document.querySelector('[aria-label="Animatic timeline lanes"]');
           const laneRows = laneRoot ? [...laneRoot.children] : [];
           const readLaneButtonState = label => {
             const button = [...document.querySelectorAll('button')].find(entry => entry.getAttribute('aria-label') === label);

@@ -1,6 +1,6 @@
-import type { AnimationTimelineLane, AnimationTimelineLaneControlState } from '@/components/AnimationCanvas/animationTimeline'
+import type { AnimaticTimelineLane, AnimaticTimelineLaneControlState } from '@/components/AnimaticCanvas/animaticTimeline'
 
-export type AnimationTimelineLanePresentation = AnimationTimelineLane & {
+export type AnimaticTimelineLanePresentation = AnimaticTimelineLane & {
   hidden: boolean
   muted: boolean
   solo: boolean
@@ -8,10 +8,10 @@ export type AnimationTimelineLanePresentation = AnimationTimelineLane & {
   visibleItems: boolean
 }
 
-export function resolveAnimationTimelineLanePresentation(args: {
-  lanes: readonly AnimationTimelineLane[]
-  controls?: AnimationTimelineLaneControlState
-}): AnimationTimelineLanePresentation[] {
+export function resolveAnimaticTimelineLanePresentation(args: {
+  lanes: readonly AnimaticTimelineLane[]
+  controls?: AnimaticTimelineLaneControlState
+}): AnimaticTimelineLanePresentation[] {
   const lanes = Array.isArray(args.lanes) ? args.lanes : []
   const hiddenLaneIds = new Set(args.controls?.hiddenLaneIds || [])
   const mutedLaneIds = new Set(args.controls?.mutedLaneIds || [])

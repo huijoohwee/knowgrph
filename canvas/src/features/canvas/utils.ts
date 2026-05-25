@@ -1,4 +1,9 @@
 import * as d3 from 'd3'
+import {
+  requestPropsPanelOpen,
+  requestRendererPanelOpen,
+  requestSidePanelOpen,
+} from '@/features/toolbar/floatingPanelBridge'
 
 export const PROPS_PANEL_OPEN_EVENT = 'kg:propsPanelOpen' as const
 export const RENDERER_PANEL_OPEN_EVENT = 'kg:rendererPanelOpen' as const
@@ -13,7 +18,7 @@ export type PropsPanelOpenEventDetail = {
 }
 
 export type SidePanelOpenEventDetail = {
-  tab?: 'inspector' | 'node' | 'chat' | 'geo'
+  tab?: 'inspector' | 'node' | 'view' | 'chat' | 'geo'
   open?: boolean
 }
 
@@ -47,10 +52,12 @@ function emitCanvasEvent(eventName: string): void {
 }
 
 export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
+  requestPropsPanelOpen(detail)
   emitCanvasCustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT, detail)
 }
 
 export function emitSidePanelOpen(detail?: SidePanelOpenEventDetail): void {
+  requestSidePanelOpen(detail)
   emitCanvasCustomEvent<SidePanelOpenEventDetail>(SIDE_PANEL_OPEN_EVENT, detail)
 }
 
@@ -63,6 +70,7 @@ export function emitWorkflowRunAll(detail?: WorkflowRunAllEventDetail): void {
 }
 
 export function emitRendererPanelOpen(): void {
+  requestRendererPanelOpen()
   emitCanvasEvent(RENDERER_PANEL_OPEN_EVENT)
   emitCanvasEvent(RENDERER_FLOATING_PANEL_OPEN_EVENT)
 }

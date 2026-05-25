@@ -5,19 +5,19 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import yaml from 'js-yaml'
 
-export type AnimationTimelineLaneId = 'clip' | 'overlay' | 'audio' | 'scene' | 'node'
+export type AnimaticTimelineLaneId = 'clip' | 'overlay' | 'audio' | 'scene' | 'node'
 
-export type AnimationTimelineItem = {
+export type AnimaticTimelineItem = {
   id: string
   nodeId: string
   beatRef: string
-  laneId: AnimationTimelineLaneId
+  laneId: AnimaticTimelineLaneId
   title: string
   subtitle: string
   kind: string
 }
 
-export type AnimationTimelineBeat = {
+export type AnimaticTimelineBeat = {
   beatRef: string
   label: string
   note: string
@@ -29,47 +29,47 @@ export type AnimationTimelineBeat = {
   durationMs: number | null
   displayStart: number
   displayEnd: number
-  items: AnimationTimelineItem[]
+  items: AnimaticTimelineItem[]
 }
 
-export type AnimationTimelineLane = {
-  id: AnimationTimelineLaneId
+export type AnimaticTimelineLane = {
+  id: AnimaticTimelineLaneId
   label: string
 }
 
-export type AnimationTimelineLaneControlState = {
-  hiddenLaneIds: AnimationTimelineLaneId[]
-  mutedLaneIds: AnimationTimelineLaneId[]
-  soloLaneId: AnimationTimelineLaneId | null
+export type AnimaticTimelineLaneControlState = {
+  hiddenLaneIds: AnimaticTimelineLaneId[]
+  mutedLaneIds: AnimaticTimelineLaneId[]
+  soloLaneId: AnimaticTimelineLaneId | null
 }
 
-export type AnimationTimelineModel = {
-  beats: AnimationTimelineBeat[]
-  lanes: AnimationTimelineLane[]
+export type AnimaticTimelineModel = {
+  beats: AnimaticTimelineBeat[]
+  lanes: AnimaticTimelineLane[]
   totalSpan: number
   totalDurationMs: number | null
-  scaleConfig: AnimationTimelineScaleConfig
+  scaleConfig: AnimaticTimelineScaleConfig
   usesAbsoluteTiming: boolean
 }
 
-export type AnimationTimelineScaleConfig = {
+export type AnimaticTimelineScaleConfig = {
   scale: number
   scaleSplitCount: number
   scaleWidth: number
   startLeft: number
 }
 
-export type AnimationTimelineBeatTimingOverride = {
+export type AnimaticTimelineBeatTimingOverride = {
   startMs: number
   endMs: number
 }
 
-type AnimationTimelineEditMode = 'move' | 'resize-start' | 'resize-end'
-type AnimationTimelineBeatRecord = Record<string, unknown>
-type AnimationTimelineNodeBeatRefMatchArgs = {
+type AnimaticTimelineEditMode = 'move' | 'resize-start' | 'resize-end'
+type AnimaticTimelineBeatRecord = Record<string, unknown>
+type AnimaticTimelineNodeBeatRefMatchArgs = {
   nodeId: string
   title: string
-  laneId: AnimationTimelineLaneId | null
+  laneId: AnimaticTimelineLaneId | null
   sourceBeatRef: string
   nextBeatRef: string
 }
@@ -86,15 +86,15 @@ type FrontmatterBeatMeta = {
   durationMs: number | null
 }
 
-const LANE_ORDER: ReadonlyArray<AnimationTimelineLaneId> = ['clip', 'overlay', 'audio', 'scene', 'node']
-const DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG: AnimationTimelineScaleConfig = {
+const LANE_ORDER: ReadonlyArray<AnimaticTimelineLaneId> = ['clip', 'overlay', 'audio', 'scene', 'node']
+const DEFAULT_ANIMATIC_TIMELINE_SCALE_CONFIG: AnimaticTimelineScaleConfig = {
   scale: 5,
   scaleSplitCount: 10,
   scaleWidth: 160,
   startLeft: 20,
 }
 
-const LANE_LABELS: Record<AnimationTimelineLaneId, string> = {
+const LANE_LABELS: Record<AnimaticTimelineLaneId, string> = {
   clip: 'Clip',
   overlay: 'Overlay',
   audio: 'Audio',
@@ -102,7 +102,7 @@ const LANE_LABELS: Record<AnimationTimelineLaneId, string> = {
   node: 'Node',
 }
 
-function readLaneId(value: unknown): AnimationTimelineLaneId | null {
+function readLaneId(value: unknown): AnimaticTimelineLaneId | null {
   const normalized = readString(value).toLowerCase()
   if (normalized === 'clip' || normalized === 'overlay' || normalized === 'audio' || normalized === 'scene' || normalized === 'node') {
     return normalized
@@ -110,9 +110,9 @@ function readLaneId(value: unknown): AnimationTimelineLaneId | null {
   return null
 }
 
-function readLaneIdList(value: unknown): AnimationTimelineLaneId[] {
+function readLaneIdList(value: unknown): AnimaticTimelineLaneId[] {
   const rawValues = Array.isArray(value) ? value : []
-  const uniqueLaneIds = new Set<AnimationTimelineLaneId>()
+  const uniqueLaneIds = new Set<AnimaticTimelineLaneId>()
   for (const rawValue of rawValues) {
     const laneId = readLaneId(rawValue)
     if (laneId) uniqueLaneIds.add(laneId)
@@ -120,11 +120,11 @@ function readLaneIdList(value: unknown): AnimationTimelineLaneId[] {
   return Array.from(uniqueLaneIds)
 }
 
-function sortAnimationTimelineLanesByOrder(
-  laneIds: readonly AnimationTimelineLaneId[],
-  preferredOrder: readonly AnimationTimelineLaneId[],
-): AnimationTimelineLaneId[] {
-  const preferredIndexByLaneId = new Map<AnimationTimelineLaneId, number>()
+function sortAnimaticTimelineLanesByOrder(
+  laneIds: readonly AnimaticTimelineLaneId[],
+  preferredOrder: readonly AnimaticTimelineLaneId[],
+): AnimaticTimelineLaneId[] {
+  const preferredIndexByLaneId = new Map<AnimaticTimelineLaneId, number>()
   preferredOrder.forEach((laneId, index) => preferredIndexByLaneId.set(laneId, index))
   return [...laneIds].sort((left, right) => {
     const leftIndex = preferredIndexByLaneId.get(left)
@@ -172,16 +172,16 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function sanitizeAnimationTimelineScaleConfig(
-  value: Partial<AnimationTimelineScaleConfig> | null | undefined,
-): AnimationTimelineScaleConfig {
-  const scale = readPositiveNumber(value?.scale) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.scale
+function sanitizeAnimaticTimelineScaleConfig(
+  value: Partial<AnimaticTimelineScaleConfig> | null | undefined,
+): AnimaticTimelineScaleConfig {
+  const scale = readPositiveNumber(value?.scale) ?? DEFAULT_ANIMATIC_TIMELINE_SCALE_CONFIG.scale
   const scaleSplitCount = Math.max(
     1,
-    Math.round(readPositiveNumber(value?.scaleSplitCount) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.scaleSplitCount),
+    Math.round(readPositiveNumber(value?.scaleSplitCount) ?? DEFAULT_ANIMATIC_TIMELINE_SCALE_CONFIG.scaleSplitCount),
   )
-  const scaleWidth = Math.max(40, Math.round(readPositiveNumber(value?.scaleWidth) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.scaleWidth))
-  const startLeft = Math.max(0, Math.round(readFiniteNumber(value?.startLeft) ?? DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG.startLeft))
+  const scaleWidth = Math.max(40, Math.round(readPositiveNumber(value?.scaleWidth) ?? DEFAULT_ANIMATIC_TIMELINE_SCALE_CONFIG.scaleWidth))
+  const startLeft = Math.max(0, Math.round(readFiniteNumber(value?.startLeft) ?? DEFAULT_ANIMATIC_TIMELINE_SCALE_CONFIG.startLeft))
   return {
     scale,
     scaleSplitCount,
@@ -210,12 +210,12 @@ function readStringList(value: unknown): string[] {
   return Array.from(uniqueValues)
 }
 
-function collectAnimationTimelineFrontmatterState(markdownText: string): {
+function collectAnimaticTimelineFrontmatterState(markdownText: string): {
   lines: string[]
   frontmatterEndLine: number
   meta: Record<string, unknown>
   timeline: Record<string, unknown>
-  beats: Record<string, AnimationTimelineBeatRecord>
+  beats: Record<string, AnimaticTimelineBeatRecord>
   bodyText: string
 } {
   const lines = splitMarkdownLines(markdownText)
@@ -232,7 +232,7 @@ function collectAnimationTimelineFrontmatterState(markdownText: string): {
   const meta = readRecord(cloneJsonLike(parsed.meta))
   const timeline = readRecord(cloneJsonLike(meta.timeline))
   const beatsRaw = readRecord(cloneJsonLike(timeline.beats))
-  const beats: Record<string, AnimationTimelineBeatRecord> = {}
+  const beats: Record<string, AnimaticTimelineBeatRecord> = {}
   for (const [beatRef, value] of Object.entries(beatsRaw)) {
     beats[beatRef] = readRecord(cloneJsonLike(value))
   }
@@ -250,10 +250,10 @@ function collectAnimationTimelineFrontmatterState(markdownText: string): {
   }
 }
 
-function buildAnimationTimelineMarkdownFromFrontmatterState(args: {
+function buildAnimaticTimelineMarkdownFromFrontmatterState(args: {
   meta: Record<string, unknown>
   timeline: Record<string, unknown>
-  beats: Record<string, AnimationTimelineBeatRecord>
+  beats: Record<string, AnimaticTimelineBeatRecord>
   bodyText: string
 }): string {
   args.timeline.beats = args.beats
@@ -269,7 +269,7 @@ function buildAnimationTimelineMarkdownFromFrontmatterState(args: {
   return ['---', dumpedFrontmatter, '---', normalizedBody].join('\n').replace(/\n+$/, '\n')
 }
 
-function createNextAnimationTimelineBeatRef(usedBeatRefs: Iterable<string>): string {
+function createNextAnimaticTimelineBeatRef(usedBeatRefs: Iterable<string>): string {
   const used = new Set<string>()
   for (const ref of usedBeatRefs) {
     const normalized = String(ref || '').trim()
@@ -282,7 +282,7 @@ function createNextAnimationTimelineBeatRef(usedBeatRefs: Iterable<string>): str
   return `beat_${Date.now()}`
 }
 
-export function snapAnimationTimelineValue(value: number, stepMs: number | null | undefined): number {
+export function snapAnimaticTimelineValue(value: number, stepMs: number | null | undefined): number {
   const normalizedStep = Math.max(0, Math.round(stepMs ?? 0))
   if (!normalizedStep) return Math.max(0, Math.round(value))
   return Math.max(0, Math.round(value / normalizedStep) * normalizedStep)
@@ -359,7 +359,7 @@ function readFrontmatterBeatMeta(markdownText: string | null | undefined): Front
   })
 }
 
-function classifyAnimationLane(node: GraphNode): AnimationTimelineLaneId {
+function classifyAnimationLane(node: GraphNode): AnimaticTimelineLaneId {
   const nodeId = String(node.id || '').trim().toLowerCase()
   const label = String(node.label || '').trim().toLowerCase()
   const type = String(node.type || '').trim().toLowerCase()
@@ -403,12 +403,12 @@ function buildBeatOrderHints(edges: readonly GraphEdge[]): Map<string, number> {
 
 function buildGraphBeatItems(args: {
   graphData: GraphData | null | undefined
-}): { itemsByBeatRef: Map<string, AnimationTimelineItem[]>; orderHints: Map<string, number> } {
+}): { itemsByBeatRef: Map<string, AnimaticTimelineItem[]>; orderHints: Map<string, number> } {
   const graphData = args.graphData || null
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   const edges = Array.isArray(graphData?.edges) ? graphData.edges : []
   const edgeCountByNodeId = buildEdgeCountByNodeId(edges)
-  const itemsByBeatRef = new Map<string, AnimationTimelineItem[]>()
+  const itemsByBeatRef = new Map<string, AnimaticTimelineItem[]>()
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     if (!node) continue
@@ -420,7 +420,7 @@ function buildGraphBeatItems(args: {
     const typeLabel = String(node.type || '').trim()
     const connectionCount = edgeCountByNodeId.get(nodeId) || 0
     const subtitle = [typeLabel, connectionCount > 0 ? `${connectionCount} links` : 'standalone'].filter(Boolean).join(' · ')
-    const item: AnimationTimelineItem = {
+    const item: AnimaticTimelineItem = {
       id: nodeId || `${beatRef}:${i}`,
       nodeId,
       beatRef,
@@ -454,14 +454,14 @@ function compareAnimationBeatMeta(
   return readBeatOrderFromRef(left.beatRef, left.orderIndex) - readBeatOrderFromRef(right.beatRef, right.orderIndex)
 }
 
-export function buildAnimationTimelineModel(args: {
+export function buildAnimaticTimelineModel(args: {
   graphData: GraphData | null | undefined
   markdownText?: string | null
-}): AnimationTimelineModel {
+}): AnimaticTimelineModel {
   const { itemsByBeatRef, orderHints } = buildGraphBeatItems({ graphData: args.graphData })
   const frontmatterBeats = readFrontmatterBeatMeta(args.markdownText)
-  const preferredLaneOrder = readAnimationTimelineLaneOrder(args.markdownText)
-  const scaleConfig = readAnimationTimelineScaleConfig(args.markdownText)
+  const preferredLaneOrder = readAnimaticTimelineLaneOrder(args.markdownText)
+  const scaleConfig = readAnimaticTimelineScaleConfig(args.markdownText)
   const frontmatterByBeatRef = new Map(frontmatterBeats.map(beat => [beat.beatRef, beat]))
   const beatRefSet = new Set<string>()
   for (const beat of frontmatterBeats) {
@@ -503,7 +503,7 @@ export function buildAnimationTimelineModel(args: {
       displayStart,
       displayEnd,
       items: itemsByBeatRef.get(beat.beatRef) || [],
-    } satisfies AnimationTimelineBeat
+    } satisfies AnimaticTimelineBeat
   })
   const totalSpan =
     beats.length === 0
@@ -512,11 +512,11 @@ export function buildAnimationTimelineModel(args: {
         ? Math.max(...beats.map(beat => beat.displayEnd), beats[0]?.displayEnd || 0)
         : beats.length
   const totalDurationMs = usesAbsoluteTiming ? totalSpan : null
-  const laneUsage = new Set<AnimationTimelineLaneId>()
+  const laneUsage = new Set<AnimaticTimelineLaneId>()
   for (const beat of beats) {
     for (const item of beat.items) laneUsage.add(item.laneId)
   }
-  const orderedLaneIds = sortAnimationTimelineLanesByOrder(
+  const orderedLaneIds = sortAnimaticTimelineLanesByOrder(
     LANE_ORDER.filter(laneId => laneUsage.has(laneId)),
     preferredLaneOrder,
   )
@@ -534,10 +534,10 @@ export function buildAnimationTimelineModel(args: {
   }
 }
 
-export function applyAnimationTimelineBeatTimingOverrides(
-  model: AnimationTimelineModel,
-  overrides: Record<string, AnimationTimelineBeatTimingOverride>,
-): AnimationTimelineModel {
+export function applyAnimaticTimelineBeatTimingOverrides(
+  model: AnimaticTimelineModel,
+  overrides: Record<string, AnimaticTimelineBeatTimingOverride>,
+): AnimaticTimelineModel {
   if (!model.usesAbsoluteTiming) return model
   if (!overrides || Object.keys(overrides).length === 0) return model
   const beats = model.beats.map(beat => {
@@ -564,13 +564,13 @@ export function applyAnimationTimelineBeatTimingOverrides(
 }
 
 function shiftFollowingBeatTimingOverrides(
-  beats: readonly AnimationTimelineBeat[],
+  beats: readonly AnimaticTimelineBeat[],
   beatIndex: number,
   deltaMs: number,
-): Record<string, AnimationTimelineBeatTimingOverride> {
+): Record<string, AnimaticTimelineBeatTimingOverride> {
   const roundedDeltaMs = Math.max(0, Math.round(deltaMs))
   if (roundedDeltaMs <= 0) return {}
-  const overrides: Record<string, AnimationTimelineBeatTimingOverride> = {}
+  const overrides: Record<string, AnimaticTimelineBeatTimingOverride> = {}
   for (let i = beatIndex + 1; i < beats.length; i += 1) {
     const beat = beats[i]
     if (!beat || beat.startMs == null || beat.endMs == null) continue
@@ -582,14 +582,14 @@ function shiftFollowingBeatTimingOverrides(
   return overrides
 }
 
-export function resolveAnimationTimelineBeatTimingEdit(args: {
-  beats: readonly AnimationTimelineBeat[]
+export function resolveAnimaticTimelineBeatTimingEdit(args: {
+  beats: readonly AnimaticTimelineBeat[]
   beatIndex: number
-  mode: AnimationTimelineEditMode
+  mode: AnimaticTimelineEditMode
   deltaMs: number
   minDurationMs?: number
   snapStepMs?: number | null
-}): Record<string, AnimationTimelineBeatTimingOverride> | null {
+}): Record<string, AnimaticTimelineBeatTimingOverride> | null {
   const beats = Array.isArray(args.beats) ? args.beats : []
   const beat = beats[args.beatIndex]
   if (!beat || beat.startMs == null || beat.endMs == null) return null
@@ -604,7 +604,7 @@ export function resolveAnimationTimelineBeatTimingEdit(args: {
   const snapStepMs = Math.max(0, Math.round(args.snapStepMs ?? 0))
   if (args.mode === 'move') {
     const minStart = Math.max(0, previousBoundary)
-    const nextStart = snapStepMs > 0 ? snapAnimationTimelineValue(currentStart + args.deltaMs, snapStepMs) : currentStart + args.deltaMs
+    const nextStart = snapStepMs > 0 ? snapAnimaticTimelineValue(currentStart + args.deltaMs, snapStepMs) : currentStart + args.deltaMs
     const startMs = Math.max(minStart, nextStart)
     const endMs = startMs + currentDuration
     const overflowMs = Number.isFinite(nextBoundary) ? Math.max(0, endMs - nextBoundary) : 0
@@ -618,7 +618,7 @@ export function resolveAnimationTimelineBeatTimingEdit(args: {
   }
   if (args.mode === 'resize-start') {
     const maxStart = Math.max(previousBoundary, currentEnd - minDurationMs)
-    const nextStart = snapStepMs > 0 ? snapAnimationTimelineValue(currentStart + args.deltaMs, snapStepMs) : currentStart + args.deltaMs
+    const nextStart = snapStepMs > 0 ? snapAnimaticTimelineValue(currentStart + args.deltaMs, snapStepMs) : currentStart + args.deltaMs
     return {
       [beat.beatRef]: {
         startMs: Math.min(maxStart, Math.max(previousBoundary, nextStart)),
@@ -627,7 +627,7 @@ export function resolveAnimationTimelineBeatTimingEdit(args: {
     }
   }
   const minEnd = currentStart + minDurationMs
-  const nextEnd = snapStepMs > 0 ? snapAnimationTimelineValue(currentEnd + args.deltaMs, snapStepMs) : currentEnd + args.deltaMs
+  const nextEnd = snapStepMs > 0 ? snapAnimaticTimelineValue(currentEnd + args.deltaMs, snapStepMs) : currentEnd + args.deltaMs
   const endMs = Math.max(minEnd, nextEnd)
   const overflowMs = Number.isFinite(nextBoundary) ? Math.max(0, endMs - nextBoundary) : 0
   return {
@@ -639,7 +639,7 @@ export function resolveAnimationTimelineBeatTimingEdit(args: {
   }
 }
 
-export function updateAnimationTimelineMarkdownBeatTiming(args: {
+export function updateAnimaticTimelineMarkdownBeatTiming(args: {
   markdownText: string | null | undefined
   beatRef: string
   startMs: number
@@ -648,7 +648,7 @@ export function updateAnimationTimelineMarkdownBeatTiming(args: {
   const markdownText = String(args.markdownText || '')
   const beatRef = String(args.beatRef || '').trim()
   if (!beatRef) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const roundedStartMs = Math.max(0, Math.round(args.startMs))
   const roundedEndMs = Math.max(roundedStartMs, Math.round(args.endMs))
@@ -657,33 +657,33 @@ export function updateAnimationTimelineMarkdownBeatTiming(args: {
   nextBeat.duration_ms = roundedEndMs - roundedStartMs
   if (!readString(nextBeat.label)) nextBeat.label = beatRef
   frontmatterState.beats[beatRef] = nextBeat
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownScaleConfig(args: {
+export function updateAnimaticTimelineMarkdownScaleConfig(args: {
   markdownText: string | null | undefined
-  scaleConfig: Partial<AnimationTimelineScaleConfig> | null | undefined
+  scaleConfig: Partial<AnimaticTimelineScaleConfig> | null | undefined
 }): string {
   const markdownText = String(args.markdownText || '')
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
-  const nextScaleConfig = sanitizeAnimationTimelineScaleConfig(args.scaleConfig)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
+  const nextScaleConfig = sanitizeAnimaticTimelineScaleConfig(args.scaleConfig)
   frontmatterState.timeline.scale = {
     scale: nextScaleConfig.scale,
     scale_split_count: nextScaleConfig.scaleSplitCount,
     scale_width: nextScaleConfig.scaleWidth,
     start_left: nextScaleConfig.startLeft,
   }
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownBeatTimingOverrides(args: {
+export function updateAnimaticTimelineMarkdownBeatTimingOverrides(args: {
   markdownText: string | null | undefined
-  overrides: Record<string, AnimationTimelineBeatTimingOverride>
+  overrides: Record<string, AnimaticTimelineBeatTimingOverride>
 }): string {
   const markdownText = String(args.markdownText || '')
   const overrideEntries = Object.entries(args.overrides || {}).filter(([beatRef]) => String(beatRef || '').trim())
   if (overrideEntries.length === 0) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   for (const [beatRef, override] of overrideEntries) {
     const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
     const roundedStartMs = Math.max(0, Math.round(override.startMs))
@@ -694,10 +694,10 @@ export function updateAnimationTimelineMarkdownBeatTimingOverrides(args: {
     if (!readString(nextBeat.label)) nextBeat.label = beatRef
     frontmatterState.beats[beatRef] = nextBeat
   }
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownBeatLabel(args: {
+export function updateAnimaticTimelineMarkdownBeatLabel(args: {
   markdownText: string | null | undefined
   beatRef: string
   label: string
@@ -705,15 +705,15 @@ export function updateAnimationTimelineMarkdownBeatLabel(args: {
   const markdownText = String(args.markdownText || '')
   const beatRef = String(args.beatRef || '').trim()
   if (!beatRef) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const nextLabel = readString(args.label) || beatRef
   nextBeat.label = nextLabel
   frontmatterState.beats[beatRef] = nextBeat
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownBeatNote(args: {
+export function updateAnimaticTimelineMarkdownBeatNote(args: {
   markdownText: string | null | undefined
   beatRef: string
   note: string
@@ -721,17 +721,17 @@ export function updateAnimationTimelineMarkdownBeatNote(args: {
   const markdownText = String(args.markdownText || '')
   const beatRef = String(args.beatRef || '').trim()
   if (!beatRef) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const nextNote = readString(args.note)
   if (nextNote) nextBeat.note = nextNote
   else delete nextBeat.note
   delete nextBeat.notes
   frontmatterState.beats[beatRef] = nextBeat
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownBeatSummary(args: {
+export function updateAnimaticTimelineMarkdownBeatSummary(args: {
   markdownText: string | null | undefined
   beatRef: string
   summary: string
@@ -739,16 +739,16 @@ export function updateAnimationTimelineMarkdownBeatSummary(args: {
   const markdownText = String(args.markdownText || '')
   const beatRef = String(args.beatRef || '').trim()
   if (!beatRef) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const nextSummary = readString(args.summary)
   if (nextSummary) nextBeat.summary = nextSummary
   else delete nextBeat.summary
   frontmatterState.beats[beatRef] = nextBeat
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownBeatTags(args: {
+export function updateAnimaticTimelineMarkdownBeatTags(args: {
   markdownText: string | null | undefined
   beatRef: string
   tags: readonly string[] | string
@@ -756,16 +756,16 @@ export function updateAnimationTimelineMarkdownBeatTags(args: {
   const markdownText = String(args.markdownText || '')
   const beatRef = String(args.beatRef || '').trim()
   if (!beatRef) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextBeat = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const nextTags = readStringList(args.tags)
   if (nextTags.length > 0) nextBeat.tags = nextTags
   else delete nextBeat.tags
   frontmatterState.beats[beatRef] = nextBeat
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function readAnimationTimelineLaneControlState(markdownText: string | null | undefined): AnimationTimelineLaneControlState {
+export function readAnimaticTimelineLaneControlState(markdownText: string | null | undefined): AnimaticTimelineLaneControlState {
   const text = String(markdownText || '')
   if (!text.trim()) {
     return {
@@ -785,7 +785,7 @@ export function readAnimationTimelineLaneControlState(markdownText: string | nul
   }
 }
 
-export function readAnimationTimelineLaneOrder(markdownText: string | null | undefined): AnimationTimelineLaneId[] {
+export function readAnimaticTimelineLaneOrder(markdownText: string | null | undefined): AnimaticTimelineLaneId[] {
   const text = String(markdownText || '')
   if (!text.trim()) return []
   const parsed = parseMarkdownFrontmatter(splitMarkdownLines(text))
@@ -794,14 +794,14 @@ export function readAnimationTimelineLaneOrder(markdownText: string | null | und
   return readLaneIdList(timeline.lane_order)
 }
 
-export function readAnimationTimelineScaleConfig(markdownText: string | null | undefined): AnimationTimelineScaleConfig {
+export function readAnimaticTimelineScaleConfig(markdownText: string | null | undefined): AnimaticTimelineScaleConfig {
   const text = String(markdownText || '')
-  if (!text.trim()) return DEFAULT_ANIMATION_TIMELINE_SCALE_CONFIG
+  if (!text.trim()) return DEFAULT_ANIMATIC_TIMELINE_SCALE_CONFIG
   const parsed = parseMarkdownFrontmatter(splitMarkdownLines(text))
   const meta = readRecord(parsed.meta)
   const timeline = readRecord(meta.timeline)
   const scaleRecord = readRecord(timeline.scale)
-  return sanitizeAnimationTimelineScaleConfig({
+  return sanitizeAnimaticTimelineScaleConfig({
     scale: scaleRecord.scale,
     scaleSplitCount: scaleRecord.scale_split_count ?? scaleRecord.scaleSplitCount,
     scaleWidth: scaleRecord.scale_width ?? scaleRecord.scaleWidth,
@@ -809,9 +809,9 @@ export function readAnimationTimelineScaleConfig(markdownText: string | null | u
   })
 }
 
-function updateAnimationTimelineNodeBeatRefInRows(
+function updateAnimaticTimelineNodeBeatRefInRows(
   rows: unknown,
-  matchArgs: AnimationTimelineNodeBeatRefMatchArgs,
+  matchArgs: AnimaticTimelineNodeBeatRefMatchArgs,
 ): { rows: unknown; updated: boolean } {
   const rawRows = Array.isArray(rows) ? rows : []
   let updated = false
@@ -825,7 +825,7 @@ function updateAnimationTimelineNodeBeatRefInRows(
     const propertyParams = readRecord(cloneJsonLike(properties.params))
     const currentBeatRef = readString(params.beat_ref) || readString(propertyParams.beat_ref)
     const rowLaneSignature = `${rowId.toLowerCase()} ${rowLabel.toLowerCase()} ${rowType}`
-    const rowLaneId: AnimationTimelineLaneId =
+    const rowLaneId: AnimaticTimelineLaneId =
       rowLaneSignature.includes('overlay')
         ? 'overlay'
         : rowLaneSignature.includes('clip') || rowLaneSignature.includes('video') || rowLaneSignature.includes('shot')
@@ -857,11 +857,11 @@ function updateAnimationTimelineNodeBeatRefInRows(
   return { rows: nextRows, updated }
 }
 
-export function updateAnimationTimelineMarkdownItemBeatRef(args: {
+export function updateAnimaticTimelineMarkdownItemBeatRef(args: {
   markdownText: string | null | undefined
   nodeId?: string | null
   title?: string | null
-  laneId?: AnimationTimelineLaneId | null
+  laneId?: AnimaticTimelineLaneId | null
   sourceBeatRef?: string | null
   beatRef: string
 }): { markdownText: string; updated: boolean } {
@@ -872,41 +872,41 @@ export function updateAnimationTimelineMarkdownItemBeatRef(args: {
   const sourceBeatRef = readString(args.sourceBeatRef)
   const beatRef = readString(args.beatRef)
   if (!markdownText.trim() || !beatRef || (!nodeId && !(title && sourceBeatRef))) return { markdownText, updated: false }
-  const matchArgs: AnimationTimelineNodeBeatRefMatchArgs = {
+  const matchArgs: AnimaticTimelineNodeBeatRefMatchArgs = {
     nodeId,
     title,
     laneId,
     sourceBeatRef,
     nextBeatRef: beatRef,
   }
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
-  const rootRowsResult = updateAnimationTimelineNodeBeatRefInRows(frontmatterState.meta.nodes, matchArgs)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
+  const rootRowsResult = updateAnimaticTimelineNodeBeatRefInRows(frontmatterState.meta.nodes, matchArgs)
   if (rootRowsResult.updated) {
     frontmatterState.meta.nodes = rootRowsResult.rows
     return {
-      markdownText: buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState),
+      markdownText: buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState),
       updated: true,
     }
   }
   const flow = readRecord(cloneJsonLike(frontmatterState.meta.flow))
-  const flowRowsResult = updateAnimationTimelineNodeBeatRefInRows(flow.nodes, matchArgs)
+  const flowRowsResult = updateAnimaticTimelineNodeBeatRefInRows(flow.nodes, matchArgs)
   if (!flowRowsResult.updated) return { markdownText, updated: false }
   flow.nodes = flowRowsResult.rows
   frontmatterState.meta.flow = flow
   return {
-    markdownText: buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState),
+    markdownText: buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState),
     updated: true,
   }
 }
 
-export function updateAnimationTimelineMarkdownLaneControlState(args: {
+export function updateAnimaticTimelineMarkdownLaneControlState(args: {
   markdownText: string | null | undefined
-  hiddenLaneIds: readonly AnimationTimelineLaneId[]
-  mutedLaneIds: readonly AnimationTimelineLaneId[]
-  soloLaneId?: AnimationTimelineLaneId | null
+  hiddenLaneIds: readonly AnimaticTimelineLaneId[]
+  mutedLaneIds: readonly AnimaticTimelineLaneId[]
+  soloLaneId?: AnimaticTimelineLaneId | null
 }): string {
   const markdownText = String(args.markdownText || '')
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextHiddenLaneIds = readLaneIdList(args.hiddenLaneIds)
   const nextMutedLaneIds = readLaneIdList(args.mutedLaneIds)
   const nextSoloLaneId = readLaneId(args.soloLaneId)
@@ -920,36 +920,36 @@ export function updateAnimationTimelineMarkdownLaneControlState(args: {
   } else {
     delete frontmatterState.timeline.lane_controls
   }
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimationTimelineMarkdownLaneOrder(args: {
+export function updateAnimaticTimelineMarkdownLaneOrder(args: {
   markdownText: string | null | undefined
-  laneOrder: readonly AnimationTimelineLaneId[]
+  laneOrder: readonly AnimaticTimelineLaneId[]
 }): string {
   const markdownText = String(args.markdownText || '')
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const nextLaneOrder = readLaneIdList(args.laneOrder)
   if (nextLaneOrder.length > 0) frontmatterState.timeline.lane_order = nextLaneOrder
   else delete frontmatterState.timeline.lane_order
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function insertAnimationTimelineBeat(args: {
+export function insertAnimaticTimelineBeat(args: {
   markdownText: string | null | undefined
-  model: AnimationTimelineModel
+  model: AnimaticTimelineModel
   insertAfterBeatRef?: string | null
   insertBeforeBeatRef?: string | null
   snapStepMs?: number | null
 }): { markdownText: string; beatRef: string } {
   const markdownText = String(args.markdownText || '')
   const snapStepMs = Math.max(0, Math.round(args.snapStepMs ?? 0)) || 1000
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const existingBeatRefs = new Set<string>([
     ...Object.keys(frontmatterState.beats),
     ...args.model.beats.map(beat => beat.beatRef),
   ])
-  const beatRef = createNextAnimationTimelineBeatRef(existingBeatRefs)
+  const beatRef = createNextAnimaticTimelineBeatRef(existingBeatRefs)
   const insertMode = args.insertBeforeBeatRef ? 'before' : 'after'
   const relativeBeatRef = args.insertBeforeBeatRef || args.insertAfterBeatRef || null
   const relativeIndex = (() => {
@@ -967,7 +967,7 @@ export function insertAnimationTimelineBeat(args: {
           ? targetBeat.endMs
           : 0
     const defaultDuration = snapStepMs
-    const newBeatRecord: AnimationTimelineBeatRecord = {
+    const newBeatRecord: AnimaticTimelineBeatRecord = {
       label: `New Beat ${beatRef.replace(/^beat_/, '')}`,
       start_ms: insertStart,
       end_ms: insertStart + defaultDuration,
@@ -985,7 +985,7 @@ export function insertAnimationTimelineBeat(args: {
     const orderedBeatRefs = args.model.beats.map(beat => beat.beatRef)
     const insertAt = insertMode === 'before' ? Math.max(0, relativeIndex) : Math.max(0, relativeIndex + 1)
     orderedBeatRefs.splice(insertAt, 0, beatRef)
-    const nextOrderedBeats: Record<string, AnimationTimelineBeatRecord> = {}
+    const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
     for (const orderedBeatRef of orderedBeatRefs) {
       if (orderedBeatRef === beatRef) {
         nextOrderedBeats[orderedBeatRef] = newBeatRecord
@@ -1007,20 +1007,20 @@ export function insertAnimationTimelineBeat(args: {
     }
   }
   return {
-    markdownText: buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState),
+    markdownText: buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState),
     beatRef,
   }
 }
 
-export function deleteAnimationTimelineBeat(args: {
+export function deleteAnimaticTimelineBeat(args: {
   markdownText: string | null | undefined
-  model: AnimationTimelineModel
+  model: AnimaticTimelineModel
   beatRef: string
 }): string {
   const markdownText = String(args.markdownText || '')
   const beatRef = String(args.beatRef || '').trim()
   if (!beatRef) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
   if (beatIndex < 0) return markdownText
   const beat = args.model.beats[beatIndex]
@@ -1043,12 +1043,12 @@ export function deleteAnimationTimelineBeat(args: {
       frontmatterState.beats[nextBeat.beatRef] = current
     }
   }
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function duplicateAnimationTimelineBeat(args: {
+export function duplicateAnimaticTimelineBeat(args: {
   markdownText: string | null | undefined
-  model: AnimationTimelineModel
+  model: AnimaticTimelineModel
   beatRef: string
   snapStepMs?: number | null
 }): { markdownText: string; beatRef: string } {
@@ -1057,12 +1057,12 @@ export function duplicateAnimationTimelineBeat(args: {
   const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
   const beat = beatIndex >= 0 ? args.model.beats[beatIndex] : null
   if (!beat) return { markdownText, beatRef: '' }
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const existingBeatRefs = new Set<string>([
     ...Object.keys(frontmatterState.beats),
     ...args.model.beats.map(entry => entry.beatRef),
   ])
-  const nextBeatRef = createNextAnimationTimelineBeatRef(existingBeatRefs)
+  const nextBeatRef = createNextAnimaticTimelineBeatRef(existingBeatRefs)
   const nextBeatRecord = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const durationMs =
     beat.startMs != null && beat.endMs != null
@@ -1087,7 +1087,7 @@ export function duplicateAnimationTimelineBeat(args: {
   nextBeatRecord.label = `${readString(nextBeatRecord.label) || beat.label} Copy`
   const orderedBeatRefs = args.model.beats.map(entry => entry.beatRef)
   orderedBeatRefs.splice(Math.max(0, beatIndex + 1), 0, nextBeatRef)
-  const nextOrderedBeats: Record<string, AnimationTimelineBeatRecord> = {}
+  const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
   for (const orderedBeatRef of orderedBeatRefs) {
     if (orderedBeatRef === nextBeatRef) {
       nextOrderedBeats[orderedBeatRef] = nextBeatRecord
@@ -1104,14 +1104,14 @@ export function duplicateAnimationTimelineBeat(args: {
   }
   frontmatterState.beats = nextOrderedBeats
   return {
-    markdownText: buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState),
+    markdownText: buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState),
     beatRef: nextBeatRef,
   }
 }
 
-export function splitAnimationTimelineBeat(args: {
+export function splitAnimaticTimelineBeat(args: {
   markdownText: string | null | undefined
-  model: AnimationTimelineModel
+  model: AnimaticTimelineModel
   beatRef: string
   splitAtMs: number
   minDurationMs?: number
@@ -1124,15 +1124,15 @@ export function splitAnimationTimelineBeat(args: {
   if (!beat || beat.startMs == null || beat.endMs == null) return { markdownText, beatRef: '' }
   const minDurationMs = Math.max(100, Math.round(args.minDurationMs ?? 300))
   const snapStepMs = Math.max(0, Math.round(args.snapStepMs ?? 0))
-  const rawSplitAtMs = snapStepMs > 0 ? snapAnimationTimelineValue(args.splitAtMs, snapStepMs) : Math.round(args.splitAtMs)
+  const rawSplitAtMs = snapStepMs > 0 ? snapAnimaticTimelineValue(args.splitAtMs, snapStepMs) : Math.round(args.splitAtMs)
   const splitAtMs = Math.max(beat.startMs + minDurationMs, Math.min(beat.endMs - minDurationMs, rawSplitAtMs))
   if (splitAtMs <= beat.startMs || splitAtMs >= beat.endMs) return { markdownText, beatRef: '' }
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const existingBeatRefs = new Set<string>([
     ...Object.keys(frontmatterState.beats),
     ...args.model.beats.map(entry => entry.beatRef),
   ])
-  const nextBeatRef = createNextAnimationTimelineBeatRef(existingBeatRefs)
+  const nextBeatRef = createNextAnimaticTimelineBeatRef(existingBeatRefs)
   const currentBeatRecord = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   const nextBeatRecord = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   currentBeatRecord.end_ms = splitAtMs
@@ -1144,7 +1144,7 @@ export function splitAnimationTimelineBeat(args: {
   frontmatterState.beats[beatRef] = currentBeatRecord
   const orderedBeatRefs = args.model.beats.map(entry => entry.beatRef)
   orderedBeatRefs.splice(Math.max(0, beatIndex + 1), 0, nextBeatRef)
-  const nextOrderedBeats: Record<string, AnimationTimelineBeatRecord> = {}
+  const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
   for (const orderedBeatRef of orderedBeatRefs) {
     if (orderedBeatRef === nextBeatRef) {
       nextOrderedBeats[orderedBeatRef] = nextBeatRecord
@@ -1161,14 +1161,14 @@ export function splitAnimationTimelineBeat(args: {
   }
   frontmatterState.beats = nextOrderedBeats
   return {
-    markdownText: buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState),
+    markdownText: buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState),
     beatRef: nextBeatRef,
   }
 }
 
-export function mergeAnimationTimelineBeatWithNext(args: {
+export function mergeAnimaticTimelineBeatWithNext(args: {
   markdownText: string | null | undefined
-  model: AnimationTimelineModel
+  model: AnimaticTimelineModel
   beatRef: string
 }): string {
   const markdownText = String(args.markdownText || '')
@@ -1181,14 +1181,14 @@ export function mergeAnimationTimelineBeatWithNext(args: {
   if (!args.model.usesAbsoluteTiming) return markdownText
   if (beat.startMs == null || beat.endMs == null || nextBeat.endMs == null) return markdownText
   if (nextBeat.items.length > 0) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   const currentBeatRecord = readRecord(cloneJsonLike(frontmatterState.beats[beatRef]))
   currentBeatRecord.end_ms = nextBeat.endMs
   currentBeatRecord.duration_ms = Math.max(0, nextBeat.endMs - beat.startMs)
   frontmatterState.beats[beatRef] = currentBeatRecord
   delete frontmatterState.beats[nextBeat.beatRef]
   const orderedBeatRefs = args.model.beats.map(entry => entry.beatRef).filter(entry => entry !== nextBeat.beatRef)
-  const nextOrderedBeats: Record<string, AnimationTimelineBeatRecord> = {}
+  const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
   for (const orderedBeatRef of orderedBeatRefs) {
     if (frontmatterState.beats[orderedBeatRef]) nextOrderedBeats[orderedBeatRef] = frontmatterState.beats[orderedBeatRef]
   }
@@ -1198,12 +1198,12 @@ export function mergeAnimationTimelineBeatWithNext(args: {
     }
   }
   frontmatterState.beats = nextOrderedBeats
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function removeAnimationTimelineGapBeforeBeat(args: {
+export function removeAnimaticTimelineGapBeforeBeat(args: {
   markdownText: string | null | undefined
-  model: AnimationTimelineModel
+  model: AnimaticTimelineModel
   beatRef: string
 }): string {
   const markdownText = String(args.markdownText || '')
@@ -1217,7 +1217,7 @@ export function removeAnimationTimelineGapBeforeBeat(args: {
   if (beat.startMs == null || previousBeat.endMs == null) return markdownText
   const gapMs = Math.max(0, beat.startMs - previousBeat.endMs)
   if (gapMs <= 0) return markdownText
-  const frontmatterState = collectAnimationTimelineFrontmatterState(markdownText)
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(markdownText)
   for (let i = beatIndex; i < args.model.beats.length; i += 1) {
     const currentBeat = args.model.beats[i]
     if (!currentBeat) continue
@@ -1229,10 +1229,10 @@ export function removeAnimationTimelineGapBeforeBeat(args: {
     }
     frontmatterState.beats[currentBeat.beatRef] = currentBeatRecord
   }
-  return buildAnimationTimelineMarkdownFromFrontmatterState(frontmatterState)
+  return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function findAnimationTimelineBeatIndexAtPosition(model: AnimationTimelineModel, position: number): number {
+export function findAnimaticTimelineBeatIndexAtPosition(model: AnimaticTimelineModel, position: number): number {
   if (model.beats.length === 0) return -1
   const normalizedPosition = Number.isFinite(position) ? position : 0
   for (let i = 0; i < model.beats.length; i += 1) {
@@ -1242,7 +1242,7 @@ export function findAnimationTimelineBeatIndexAtPosition(model: AnimationTimelin
   return model.beats.length - 1
 }
 
-export function formatAnimationTimelineTimestamp(value: number | null | undefined): string {
+export function formatAnimaticTimelineTimestamp(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '--:--.--'
   const totalMs = Math.max(0, Math.floor(value))
   const minutes = Math.floor(totalMs / 60000)

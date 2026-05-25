@@ -8,6 +8,9 @@ export function testDesignRendererMountsEditorChromeAndTokensPanel() {
   if (!panel.includes('DesignTokensPanel') || !panel.includes("id: 'tokens'")) {
     throw new Error('expected Design floating panel to expose semantic token analysis tab')
   }
+  if (!panel.includes('<ToolbarDropdownSelect') || !panel.includes('title={`Design section:') || panel.includes('aria-label="Design panel tabs"')) {
+    throw new Error('expected Design floating panel section switching to use the shared click-expand-down chooser instead of a horizontal tabs row')
+  }
 }
 
 export function testDesignEditorChromeUsesExistingStoreActions() {

@@ -1,21 +1,21 @@
-import { resolveAnimationTimelineLanePresentation } from '@/components/AnimationCanvas/animationLaneControls'
+import { resolveAnimaticTimelineLanePresentation } from '@/components/AnimaticCanvas/animaticLaneControls'
 import {
-  buildAnimationTimelineModel,
-  readAnimationTimelineLaneControlState,
-  readAnimationTimelineLaneOrder,
-  updateAnimationTimelineMarkdownLaneControlState,
-  updateAnimationTimelineMarkdownLaneOrder,
-} from '@/components/AnimationCanvas/animationTimeline'
+  buildAnimaticTimelineModel,
+  readAnimaticTimelineLaneControlState,
+  readAnimaticTimelineLaneOrder,
+  updateAnimaticTimelineMarkdownLaneControlState,
+  updateAnimaticTimelineMarkdownLaneOrder,
+} from '@/components/AnimaticCanvas/animaticTimeline'
 import type { GraphData } from '@/lib/graph/types'
 
-export function testAnimationLaneControlsHideMutedAndSoloFlagsProjectOntoLanes() {
+export function testAnimaticLaneControlsHideMutedAndSoloFlagsProjectOntoLanes() {
   const lanes = [
     { id: 'clip', label: 'Clips' },
     { id: 'audio', label: 'Audio' },
     { id: 'overlay', label: 'Overlays' },
   ] as const
 
-  const projected = resolveAnimationTimelineLanePresentation({
+  const projected = resolveAnimaticTimelineLanePresentation({
     lanes,
     controls: {
       hiddenLaneIds: ['audio'],
@@ -32,13 +32,13 @@ export function testAnimationLaneControlsHideMutedAndSoloFlagsProjectOntoLanes()
   }
 }
 
-export function testAnimationLaneControlsSoloOverridesHiddenState() {
+export function testAnimaticLaneControlsSoloOverridesHiddenState() {
   const lanes = [
     { id: 'clip', label: 'Clips' },
     { id: 'audio', label: 'Audio' },
   ] as const
 
-  const projected = resolveAnimationTimelineLanePresentation({
+  const projected = resolveAnimaticTimelineLanePresentation({
     lanes,
     controls: {
       hiddenLaneIds: ['audio'],
@@ -55,8 +55,8 @@ export function testAnimationLaneControlsSoloOverridesHiddenState() {
   }
 }
 
-export function testAnimationLaneControlsReadPersistedFrontmatterState() {
-  const controls = readAnimationTimelineLaneControlState(`---
+export function testAnimaticLaneControlsReadPersistedFrontmatterState() {
+  const controls = readAnimaticTimelineLaneControlState(`---
 timeline:
   lane_controls:
     hidden:
@@ -78,8 +78,8 @@ timeline:
   }
 }
 
-export function testAnimationLaneControlsRewritePersistedFrontmatterState() {
-  const updated = updateAnimationTimelineMarkdownLaneControlState({
+export function testAnimaticLaneControlsRewritePersistedFrontmatterState() {
+  const updated = updateAnimaticTimelineMarkdownLaneControlState({
     markdownText: `---
 timeline:
   beats:
@@ -106,8 +106,8 @@ timeline:
   }
 }
 
-export function testAnimationLaneControlsReadPersistedLaneOrder() {
-  const laneOrder = readAnimationTimelineLaneOrder(`---
+export function testAnimaticLaneControlsReadPersistedLaneOrder() {
+  const laneOrder = readAnimaticTimelineLaneOrder(`---
 timeline:
   lane_order:
     - audio
@@ -120,8 +120,8 @@ timeline:
   }
 }
 
-export function testAnimationLaneControlsRewritePersistedLaneOrder() {
-  const updated = updateAnimationTimelineMarkdownLaneOrder({
+export function testAnimaticLaneControlsRewritePersistedLaneOrder() {
+  const updated = updateAnimaticTimelineMarkdownLaneOrder({
     markdownText: `---
 timeline:
   beats:
@@ -140,8 +140,8 @@ timeline:
   }
 }
 
-export function testAnimationTimelineModelAppliesPersistedLaneOrder() {
-  const model = buildAnimationTimelineModel({
+export function testAnimaticTimelineModelAppliesPersistedLaneOrder() {
+  const model = buildAnimaticTimelineModel({
     graphData: {
       type: 'Graph',
       nodes: [

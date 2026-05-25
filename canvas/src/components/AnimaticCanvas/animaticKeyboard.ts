@@ -1,4 +1,4 @@
-export type AnimationTimelineHotkeyAction =
+export type AnimaticTimelineHotkeyAction =
   | 'toggle-playback'
   | 'step-prev-beat'
   | 'step-next-beat'
@@ -17,12 +17,12 @@ export type AnimationTimelineHotkeyAction =
   | 'move-selected-item-prev-beat'
   | 'move-selected-item-next-beat'
 
-type ResolveAnimationTimelineHotkeyActionArgs = {
+type ResolveAnimaticTimelineHotkeyActionArgs = {
   code?: string | null
   key?: string | null
 }
 
-type ShouldIgnoreAnimationTimelineHotkeysArgs = {
+type ShouldIgnoreAnimaticTimelineHotkeysArgs = {
   defaultPrevented?: boolean
   ctrlKey?: boolean
   metaKey?: boolean
@@ -37,9 +37,9 @@ type ShouldIgnoreAnimationTimelineHotkeysArgs = {
 const HOTKEY_TAG_BLOCKLIST = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'])
 const HOTKEY_ROLE_BLOCKLIST = new Set(['button', 'link', 'textbox'])
 
-export function resolveAnimationTimelineHotkeyAction(
-  args: ResolveAnimationTimelineHotkeyActionArgs,
-): AnimationTimelineHotkeyAction | null {
+export function resolveAnimaticTimelineHotkeyAction(
+  args: ResolveAnimaticTimelineHotkeyActionArgs,
+): AnimaticTimelineHotkeyAction | null {
   const code = String(args.code || '').trim()
   if (code === 'Space') return 'toggle-playback'
   if (code === 'ArrowLeft') return 'step-prev-beat'
@@ -80,7 +80,7 @@ export function resolveAnimationTimelineHotkeyAction(
   return null
 }
 
-export function isAnimationTimelineMutationHotkeyAction(action: AnimationTimelineHotkeyAction): boolean {
+export function isAnimaticTimelineMutationHotkeyAction(action: AnimaticTimelineHotkeyAction): boolean {
   return (
     action === 'duplicate-beat' ||
     action === 'split-beat' ||
@@ -94,7 +94,7 @@ export function isAnimationTimelineMutationHotkeyAction(action: AnimationTimelin
   )
 }
 
-export function shouldIgnoreAnimationTimelineHotkeys(args: ShouldIgnoreAnimationTimelineHotkeysArgs): boolean {
+export function shouldIgnoreAnimaticTimelineHotkeys(args: ShouldIgnoreAnimaticTimelineHotkeysArgs): boolean {
   if (args.defaultPrevented) return true
   if (args.ctrlKey || args.metaKey || args.altKey) return true
   if (args.editingBeat || args.dragging) return true

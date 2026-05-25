@@ -69,3 +69,10 @@ export const testMainPanelOpenCallsitesUseSharedEmitter = () => {
     }
   }
 }
+
+export const testWorkflowManagerHeaderUsesSharedSectionChooser = () => {
+  const text = readUtf8('src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx')
+  if (!text.includes('<ToolbarDropdownSelect') || !text.includes('title={`Workflow section:') || text.includes('inline-flex items-center gap-1" aria-label={UI_LABELS.workflowManager}')) {
+    throw new Error('expected workflow manager header section switching to use the shared click-expand-down chooser instead of a local horizontal row')
+  }
+}
