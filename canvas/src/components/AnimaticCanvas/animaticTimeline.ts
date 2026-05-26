@@ -1033,7 +1033,12 @@ export function resolveAnimaticTimelineBeatTimingEdit(args: {
   }
 }
 
-export function updateAnimaticTimelineMarkdownBeatTiming(args: {
+// Serializer-only helpers below are kept for low-level utility tests and
+// tooling that need to rewrite authored Animatic frontmatter text directly.
+// AnimaticCanvas runtime mutations must go through graph-owned record mutators
+// and shared store writeback instead of these markdown string helpers.
+
+export function serializeAnimaticTimelineMarkdownWithBeatTiming(args: {
   markdownText: string | null | undefined
   beatRef: string
   startMs: number
@@ -1054,7 +1059,7 @@ export function updateAnimaticTimelineMarkdownBeatTiming(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownScaleConfig(args: {
+export function serializeAnimaticTimelineMarkdownWithScaleConfig(args: {
   markdownText: string | null | undefined
   scaleConfig: Partial<AnimaticTimelineScaleConfig> | null | undefined
 }): string {
@@ -1070,7 +1075,7 @@ export function updateAnimaticTimelineMarkdownScaleConfig(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownBeatTimingOverrides(args: {
+export function serializeAnimaticTimelineMarkdownWithBeatTimingOverrides(args: {
   markdownText: string | null | undefined
   overrides: Record<string, AnimaticTimelineBeatTimingOverride>
 }): string {
@@ -1091,7 +1096,7 @@ export function updateAnimaticTimelineMarkdownBeatTimingOverrides(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownBeatLabel(args: {
+export function serializeAnimaticTimelineMarkdownWithBeatLabel(args: {
   markdownText: string | null | undefined
   beatRef: string
   label: string
@@ -1107,7 +1112,7 @@ export function updateAnimaticTimelineMarkdownBeatLabel(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownBeatNote(args: {
+export function serializeAnimaticTimelineMarkdownWithBeatNote(args: {
   markdownText: string | null | undefined
   beatRef: string
   note: string
@@ -1125,7 +1130,7 @@ export function updateAnimaticTimelineMarkdownBeatNote(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownBeatSummary(args: {
+export function serializeAnimaticTimelineMarkdownWithBeatSummary(args: {
   markdownText: string | null | undefined
   beatRef: string
   summary: string
@@ -1142,7 +1147,7 @@ export function updateAnimaticTimelineMarkdownBeatSummary(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownBeatTags(args: {
+export function serializeAnimaticTimelineMarkdownWithBeatTags(args: {
   markdownText: string | null | undefined
   beatRef: string
   tags: readonly string[] | string
@@ -1251,7 +1256,7 @@ function updateAnimaticTimelineNodeBeatRefInRows(
   return { rows: nextRows, updated }
 }
 
-export function updateAnimaticTimelineMarkdownItemBeatRef(args: {
+export function serializeAnimaticTimelineMarkdownWithItemBeatRef(args: {
   markdownText: string | null | undefined
   nodeId?: string | null
   title?: string | null
@@ -1293,7 +1298,7 @@ export function updateAnimaticTimelineMarkdownItemBeatRef(args: {
   }
 }
 
-export function updateAnimaticTimelineMarkdownLaneControlState(args: {
+export function serializeAnimaticTimelineMarkdownWithLaneControlState(args: {
   markdownText: string | null | undefined
   hiddenLaneIds: readonly AnimaticTimelineLaneId[]
   mutedLaneIds: readonly AnimaticTimelineLaneId[]
@@ -1317,7 +1322,7 @@ export function updateAnimaticTimelineMarkdownLaneControlState(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function updateAnimaticTimelineMarkdownLaneOrder(args: {
+export function serializeAnimaticTimelineMarkdownWithLaneOrder(args: {
   markdownText: string | null | undefined
   laneOrder: readonly AnimaticTimelineLaneId[]
 }): string {
@@ -1329,7 +1334,7 @@ export function updateAnimaticTimelineMarkdownLaneOrder(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function insertAnimaticTimelineBeat(args: {
+export function serializeAnimaticTimelineMarkdownWithInsertedBeat(args: {
   markdownText: string | null | undefined
   model: AnimaticTimelineModel
   insertAfterBeatRef?: string | null
@@ -1406,7 +1411,7 @@ export function insertAnimaticTimelineBeat(args: {
   }
 }
 
-export function deleteAnimaticTimelineBeat(args: {
+export function serializeAnimaticTimelineMarkdownWithDeletedBeat(args: {
   markdownText: string | null | undefined
   model: AnimaticTimelineModel
   beatRef: string
@@ -1440,7 +1445,7 @@ export function deleteAnimaticTimelineBeat(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function duplicateAnimaticTimelineBeat(args: {
+export function serializeAnimaticTimelineMarkdownWithDuplicatedBeat(args: {
   markdownText: string | null | undefined
   model: AnimaticTimelineModel
   beatRef: string
@@ -1503,7 +1508,7 @@ export function duplicateAnimaticTimelineBeat(args: {
   }
 }
 
-export function splitAnimaticTimelineBeat(args: {
+export function serializeAnimaticTimelineMarkdownWithSplitBeat(args: {
   markdownText: string | null | undefined
   model: AnimaticTimelineModel
   beatRef: string
@@ -1560,7 +1565,7 @@ export function splitAnimaticTimelineBeat(args: {
   }
 }
 
-export function mergeAnimaticTimelineBeatWithNext(args: {
+export function serializeAnimaticTimelineMarkdownWithMergedBeatWithNext(args: {
   markdownText: string | null | undefined
   model: AnimaticTimelineModel
   beatRef: string
@@ -1595,7 +1600,7 @@ export function mergeAnimaticTimelineBeatWithNext(args: {
   return buildAnimaticTimelineMarkdownFromFrontmatterState(frontmatterState)
 }
 
-export function removeAnimaticTimelineGapBeforeBeat(args: {
+export function serializeAnimaticTimelineMarkdownWithRemovedGapBeforeBeat(args: {
   markdownText: string | null | undefined
   model: AnimaticTimelineModel
   beatRef: string

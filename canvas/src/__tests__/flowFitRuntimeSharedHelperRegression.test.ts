@@ -37,6 +37,21 @@ export function testFlowFitRuntimePathsReuseSharedHelpers() {
   if (!nativeZoomText.includes('fitFlowEditorPinnedWidgets({') || !nativeZoomText.includes('buildFlowFitOptions({') || !nativeZoomText.includes('readFlowEditorPortExtraPadScreenPx(')) {
     throw new Error('expected FlowCanvas zoom reset/fit actions to reuse the shared pinned-widget fit and fit-runtime helpers')
   }
+  if (!nativeZoomText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'")) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to reuse the shared scoped widget-state helper for Flow Editor fits')
+  }
+  if (!nativeZoomText.includes("import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'")) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to derive one active render-graph key before reading Flow Editor widget state')
+  }
+  if (!nativeZoomText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(args.graphData || null)')) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to derive the active graph key from the fit graph source')
+  }
+  if (!nativeZoomText.includes('pinnedById: resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to read pinned widget state from the active graph scope')
+  }
+  if (!nativeZoomText.includes('worldPosById: resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to read widget world positions from the active graph scope')
+  }
   if (!nativeZoomText.includes('recenterVisibleFlowEditorOverlayCentroid') || !nativeZoomText.includes('collectCanonicalFlowEditorOverlayRectEntries')) {
     throw new Error('expected FlowCanvas zoom reset/fit actions to nudge the live visible Flow Editor overlay centroid into the viewport center after the shared fit resolves')
   }

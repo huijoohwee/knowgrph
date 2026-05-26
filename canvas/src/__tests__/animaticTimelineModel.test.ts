@@ -2,26 +2,30 @@ import type { GraphData } from '@/lib/graph/types'
 import {
   applyAnimaticTimelineBeatTimingOverrides,
   buildAnimaticTimelineModel,
-  deleteAnimaticTimelineBeat,
-  duplicateAnimaticTimelineBeat,
   findAnimaticTimelineBeatIndexAtPosition,
   formatAnimaticTimelineTimestamp,
-  insertAnimaticTimelineBeat,
-  mergeAnimaticTimelineBeatWithNext,
   readAnimaticTimelineScaleConfig,
-  removeAnimaticTimelineGapBeforeBeat,
   resolveAnimaticTimelineBeatTimingEdit,
-  splitAnimaticTimelineBeat,
+  serializeAnimaticTimelineMarkdownWithBeatLabel,
+  serializeAnimaticTimelineMarkdownWithBeatNote,
+  serializeAnimaticTimelineMarkdownWithBeatSummary,
+  serializeAnimaticTimelineMarkdownWithBeatTags,
+  serializeAnimaticTimelineMarkdownWithBeatTiming,
+  serializeAnimaticTimelineMarkdownWithBeatTimingOverrides,
+  serializeAnimaticTimelineMarkdownWithDeletedBeat,
+  serializeAnimaticTimelineMarkdownWithDuplicatedBeat,
+  serializeAnimaticTimelineMarkdownWithInsertedBeat,
+  serializeAnimaticTimelineMarkdownWithItemBeatRef,
+  serializeAnimaticTimelineMarkdownWithMergedBeatWithNext,
+  serializeAnimaticTimelineMarkdownWithRemovedGapBeforeBeat,
+  serializeAnimaticTimelineMarkdownWithScaleConfig,
+  serializeAnimaticTimelineMarkdownWithSplitBeat,
   snapAnimaticTimelineValue,
-  updateAnimaticTimelineMarkdownBeatLabel,
-  updateAnimaticTimelineMarkdownItemBeatRef,
-  updateAnimaticTimelineMarkdownBeatNote,
-  updateAnimaticTimelineMarkdownBeatSummary,
-  updateAnimaticTimelineMarkdownBeatTags,
-  updateAnimaticTimelineMarkdownBeatTiming,
-  updateAnimaticTimelineMarkdownBeatTimingOverrides,
-  updateAnimaticTimelineMarkdownScaleConfig,
 } from '@/components/AnimaticCanvas/animaticTimeline'
+
+// Low-level serializer utility coverage only.
+// AnimaticCanvas runtime ownership is covered separately by graph writeback tests
+// and source contracts that require updateGraphMetadata/updateNode.
 
 export function testAnimaticTimelineModelUsesMarkdownFrontmatterTimingAndGraphBeatRefs() {
   const graphData = {
@@ -145,8 +149,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineScaleConfigRewriteStaysUnderTimelineScaleOwner() {
-  const updated = updateAnimaticTimelineMarkdownScaleConfig({
+export function testAnimaticTimelineScaleConfigSerializerRewritesTimelineScaleBlock() {
+  const updated = serializeAnimaticTimelineMarkdownWithScaleConfig({
     markdownText: `---
 title: Demo
 timeline:
@@ -273,8 +277,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineMarkdownTimingUpdateRewritesBeatWindow() {
-  const updated = updateAnimaticTimelineMarkdownBeatTiming({
+export function testAnimaticTimelineBeatTimingSerializerRewritesBeatWindow() {
+  const updated = serializeAnimaticTimelineMarkdownWithBeatTiming({
     markdownText: `---
 title: Demo
 timeline:
@@ -306,8 +310,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineMarkdownTimingOverrideUpdateRewritesMultipleBeatWindows() {
-  const updated = updateAnimaticTimelineMarkdownBeatTimingOverrides({
+export function testAnimaticTimelineBeatTimingOverrideSerializerRewritesMultipleBeatWindows() {
+  const updated = serializeAnimaticTimelineMarkdownWithBeatTimingOverrides({
     markdownText: `---
 title: Demo
 timeline:
@@ -347,7 +351,7 @@ export function testAnimaticTimelineSnapRoundsToConfiguredGrid() {
   }
 }
 
-export function testAnimaticTimelineInsertBeatAppendsAndShiftsFollowingTiming() {
+export function testAnimaticTimelineInsertedBeatSerializerAppendsAndShiftsFollowingTiming() {
   const markdownText = `---
 timeline:
   beats:
@@ -365,7 +369,7 @@ timeline:
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const inserted = insertAnimaticTimelineBeat({
+  const inserted = serializeAnimaticTimelineMarkdownWithInsertedBeat({
     markdownText,
     model,
     insertAfterBeatRef: 'beat_01',
@@ -389,7 +393,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineDeleteEmptyBeatCompactsFollowingTiming() {
+export function testAnimaticTimelineDeletedBeatSerializerCompactsFollowingTiming() {
   const markdownText = `---
 timeline:
   beats:
@@ -411,7 +415,7 @@ timeline:
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const updated = deleteAnimaticTimelineBeat({
+  const updated = serializeAnimaticTimelineMarkdownWithDeletedBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -425,8 +429,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineBeatLabelUpdateRewritesFrontmatterLabel() {
-  const updated = updateAnimaticTimelineMarkdownBeatLabel({
+export function testAnimaticTimelineBeatLabelSerializerRewritesFrontmatterLabel() {
+  const updated = serializeAnimaticTimelineMarkdownWithBeatLabel({
     markdownText: `---
 timeline:
   beats:
@@ -444,8 +448,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineBeatNoteUpdateRewritesFrontmatterNote() {
-  const updated = updateAnimaticTimelineMarkdownBeatNote({
+export function testAnimaticTimelineBeatNoteSerializerRewritesFrontmatterNote() {
+  const updated = serializeAnimaticTimelineMarkdownWithBeatNote({
     markdownText: `---
 timeline:
   beats:
@@ -464,8 +468,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineBeatSummaryUpdateRewritesAndClearsFrontmatterSummary() {
-  const updated = updateAnimaticTimelineMarkdownBeatSummary({
+export function testAnimaticTimelineBeatSummarySerializerRewritesAndClearsFrontmatterSummary() {
+  const updated = serializeAnimaticTimelineMarkdownWithBeatSummary({
     markdownText: `---
 timeline:
   beats:
@@ -483,7 +487,7 @@ timeline:
     throw new Error(`expected beat summary update to persist in frontmatter, got ${updated}`)
   }
 
-  const cleared = updateAnimaticTimelineMarkdownBeatSummary({
+  const cleared = serializeAnimaticTimelineMarkdownWithBeatSummary({
     markdownText: updated,
     beatRef: 'beat_01',
     summary: '   ',
@@ -493,8 +497,8 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineBeatTagsUpdateRewritesAndClearsFrontmatterTags() {
-  const updated = updateAnimaticTimelineMarkdownBeatTags({
+export function testAnimaticTimelineBeatTagsSerializerRewritesAndClearsFrontmatterTags() {
+  const updated = serializeAnimaticTimelineMarkdownWithBeatTags({
     markdownText: `---
 timeline:
   beats:
@@ -513,7 +517,7 @@ timeline:
     throw new Error(`expected beat tags update to persist deduplicated frontmatter tags, got ${updated}`)
   }
 
-  const cleared = updateAnimaticTimelineMarkdownBeatTags({
+  const cleared = serializeAnimaticTimelineMarkdownWithBeatTags({
     markdownText: updated,
     beatRef: 'beat_01',
     tags: [],
@@ -523,7 +527,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineInsertBeatBeforeShiftsTargetForward() {
+export function testAnimaticTimelineInsertedBeatSerializerShiftsTargetForward() {
   const markdownText = `---
 timeline:
   beats:
@@ -541,7 +545,7 @@ timeline:
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const inserted = insertAnimaticTimelineBeat({
+  const inserted = serializeAnimaticTimelineMarkdownWithInsertedBeat({
     markdownText,
     model,
     insertBeforeBeatRef: 'beat_02',
@@ -559,7 +563,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineDuplicateBeatAppendsCopyAndShiftsFollowingTiming() {
+export function testAnimaticTimelineDuplicatedBeatSerializerAppendsCopyAndShiftsFollowingTiming() {
   const markdownText = `---
 timeline:
   beats:
@@ -581,7 +585,7 @@ timeline:
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const duplicated = duplicateAnimaticTimelineBeat({
+  const duplicated = serializeAnimaticTimelineMarkdownWithDuplicatedBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -597,7 +601,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineSplitBeatCreatesSecondSegmentAtPlayhead() {
+export function testAnimaticTimelineSplitBeatSerializerCreatesSecondSegmentAtPlayhead() {
   const markdownText = `---
 timeline:
   beats:
@@ -615,7 +619,7 @@ timeline:
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const split = splitAnimaticTimelineBeat({
+  const split = serializeAnimaticTimelineMarkdownWithSplitBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -633,7 +637,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineMergeBeatWithNextConsumesEmptyAdjacentBeat() {
+export function testAnimaticTimelineMergedBeatSerializerConsumesEmptyAdjacentBeat() {
   const markdownText = `---
 timeline:
   beats:
@@ -670,7 +674,7 @@ timeline:
     } as GraphData,
     markdownText,
   })
-  const merged = mergeAnimaticTimelineBeatWithNext({
+  const merged = serializeAnimaticTimelineMarkdownWithMergedBeatWithNext({
     markdownText,
     model,
     beatRef: 'beat_01',
@@ -684,7 +688,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineRemoveGapBeforeBeatCompactsCurrentAndFollowingBeats() {
+export function testAnimaticTimelineRemovedGapSerializerCompactsCurrentAndFollowingBeats() {
   const markdownText = `---
 timeline:
   beats:
@@ -706,7 +710,7 @@ timeline:
     graphData: { type: 'Graph', nodes: [], edges: [] } as GraphData,
     markdownText,
   })
-  const compacted = removeAnimaticTimelineGapBeforeBeat({
+  const compacted = serializeAnimaticTimelineMarkdownWithRemovedGapBeforeBeat({
     markdownText,
     model,
     beatRef: 'beat_02',
@@ -720,7 +724,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineItemBeatRefUpdateRewritesRootNodes() {
+export function testAnimaticTimelineItemBeatRefSerializerRewritesRootNodes() {
   const markdownText = `---
 nodes:
   - id: NODE_CLIP_01
@@ -741,7 +745,7 @@ timeline:
       label: CTA
 ---
 `
-  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
+  const updated = serializeAnimaticTimelineMarkdownWithItemBeatRef({
     markdownText,
     nodeId: 'NODE_AUDIO_01',
     beatRef: 'beat_02',
@@ -755,7 +759,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineItemBeatRefUpdateRewritesFlowNodes() {
+export function testAnimaticTimelineItemBeatRefSerializerRewritesFlowNodes() {
   const markdownText = `---
 flow:
   nodes:
@@ -777,7 +781,7 @@ timeline:
       label: CTA
 ---
 `
-  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
+  const updated = serializeAnimaticTimelineMarkdownWithItemBeatRef({
     markdownText,
     nodeId: 'NODE_CLIP_01',
     beatRef: 'beat_02',
@@ -791,7 +795,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineItemBeatRefUpdateFallsBackToLaneAndTitle() {
+export function testAnimaticTimelineItemBeatRefSerializerFallsBackToLaneAndTitle() {
   const markdownText = `---
 flow:
   nodes:
@@ -808,7 +812,7 @@ timeline:
       label: Problem
 ---
 `
-  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
+  const updated = serializeAnimaticTimelineMarkdownWithItemBeatRef({
     markdownText,
     nodeId: '',
     title: 'Problem Voiceover',
@@ -825,7 +829,7 @@ timeline:
   }
 }
 
-export function testAnimaticTimelineItemBeatRefUpdateRewritesPropertiesParamsBeatRef() {
+export function testAnimaticTimelineItemBeatRefSerializerRewritesPropertiesParamsBeatRef() {
   const markdownText = `---
 flow:
   nodes:
@@ -843,7 +847,7 @@ timeline:
       label: Problem
 ---
 `
-  const updated = updateAnimaticTimelineMarkdownItemBeatRef({
+  const updated = serializeAnimaticTimelineMarkdownWithItemBeatRef({
     markdownText,
     nodeId: 'NODE_AUDIO_01',
     beatRef: 'beat_01',

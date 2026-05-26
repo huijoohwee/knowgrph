@@ -21,6 +21,8 @@ import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanvas/flowEditorOverlayRecenter'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -398,24 +400,35 @@ export const applyZoomRequestNative = (args: {
               Math.max(1, visibleViewport.height),
               { ...fitOpts, graphData: args.graphData || undefined },
             )
-          : fitFlowEditorPinnedWidgets({
-              nodes: args.graphData?.nodes || [],
-              fitW: fitReferenceFrame.width,
-              viewportW: fitReferenceFrame.width,
-              viewportH: fitReferenceFrame.height,
-              openWidgetNodeIds: Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : [],
-              pinnedById: state.flowWidgetPinnedByNodeId || {},
-              worldPosById: state.flowWidgetWorldPosByNodeId || {},
-              portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
-              graphData: args.graphData,
-              frontmatterOverlayFitProxyScales: {
-                phone: state.frontmatterFlowOverlayFitProxyScalePhone,
-                tablet: state.frontmatterFlowOverlayFitProxyScaleTablet,
-                laptop: state.frontmatterFlowOverlayFitProxyScaleLaptop,
-                desktop: state.frontmatterFlowOverlayFitProxyScaleDesktop,
-              },
-              fitOpts,
-            })
+          : (() => {
+              const graphKey = buildGraphMetaKeyIgnoringPending(args.graphData || null)
+              return fitFlowEditorPinnedWidgets({
+                nodes: args.graphData?.nodes || [],
+                fitW: fitReferenceFrame.width,
+                viewportW: fitReferenceFrame.width,
+                viewportH: fitReferenceFrame.height,
+                openWidgetNodeIds: Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : [],
+                pinnedById: resolveScopedFlowWidgetNodeMap({
+                  graphMetaKey: graphKey,
+                  keyedByGraphMetaKey: (state as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+                  globalByNodeId: state.flowWidgetPinnedByNodeId,
+                }),
+                worldPosById: resolveScopedFlowWidgetNodeMap({
+                  graphMetaKey: graphKey,
+                  keyedByGraphMetaKey: (state as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
+                  globalByNodeId: (state as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
+                }),
+                portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
+                graphData: args.graphData,
+                frontmatterOverlayFitProxyScales: {
+                  phone: state.frontmatterFlowOverlayFitProxyScalePhone,
+                  tablet: state.frontmatterFlowOverlayFitProxyScaleTablet,
+                  laptop: state.frontmatterFlowOverlayFitProxyScaleLaptop,
+                  desktop: state.frontmatterFlowOverlayFitProxyScaleDesktop,
+                },
+                fitOpts,
+              })
+            })()
         return {
           nextTransform: fit,
           durationMs:

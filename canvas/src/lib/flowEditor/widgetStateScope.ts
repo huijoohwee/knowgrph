@@ -1,5 +1,7 @@
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
+const EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP: Record<string, never> = {}
+
 export function resolveFlowWidgetStateGraphKey(args: {
   graphMetaKey?: string | null
   graphData?: unknown
@@ -20,8 +22,8 @@ export function resolveScopedFlowWidgetNodeMap<T>(args: {
     graphMetaKey: args.graphMetaKey,
     graphData: args.graphData,
   })
-  if (graphKey) return args.keyedByGraphMetaKey?.[graphKey] || {}
-  return args.globalByNodeId || {}
+  if (graphKey) return args.keyedByGraphMetaKey?.[graphKey] || (EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP as Record<string, T>)
+  return args.globalByNodeId || (EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP as Record<string, T>)
 }
 
 export function readScopedFlowWidgetNodeValue<T>(args: {

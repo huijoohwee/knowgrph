@@ -107,8 +107,8 @@ class SuperAgentHarness:
 
     def _new_state(self) -> JsonDict:
         goal_hash = sha256_text(self.goal_text)[:16]
-        tasks = build_plan()
-        agents = build_agent_contracts()
+        tasks = build_plan(self.provider_mode)
+        agents = build_agent_contracts(self.provider_mode)
         return {
             "run": {
                 "run_id": self.run_id,
@@ -316,7 +316,7 @@ class SuperAgentHarness:
             return {**common, "inspection": memory.get("inspect_goal") or {}}
         if task.tool_name == "image.generate.mock":
             return {**common, "text_plan": memory.get("generate_text") or {}}
-        if task.tool_name == "video.generate.mock":
+        if task.tool_name in {"video.generate.mock", "video.generate.pixverse"}:
             return {
                 **common,
                 "text_plan": memory.get("generate_text") or {},
@@ -412,7 +412,7 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: Optional[str] = None
     parser.add_argument("--goal-file", default="", help="Path to the goal contract. Defaults to ./goal when present.")
     parser.add_argument("--output-dir", default="", help="Directory for state, trace, and artifacts.")
     parser.add_argument("--run-id", default="", help="Stable run id. Defaults to a timestamped id.")
-    parser.add_argument("--provider-mode", default="mock", choices=["mock"], help="Media provider mode. Baseline supports deterministic mock.")
+    parser.add_argument("--provider-mode", default="mock", choices=["mock", "pixverse"], help="Media provider mode. Supports deterministic mock and PixVerse MCP with mock fallback.")
     parser.add_argument("--resume", action="store_true", help="Resume from output-dir/state.json.")
     parser.add_argument("--stop-after-step", type=int, default=0, help="Checkpoint after N completed tasks, then stop as interrupted.")
     parser.add_argument("--fail-once", action="append", default=[], help="Inject one retryable failure for the named tool.")

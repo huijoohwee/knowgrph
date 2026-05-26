@@ -1,4 +1,8 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  isWorkspaceEditorOverlayOpen,
+  isWorkspaceGraphMutationBlocked,
+} from '@/features/workspace-table/workspaceTableSsot'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testWorkspaceCanvasPaneOpenCanCloseWhileEditorMode() {
@@ -21,6 +25,18 @@ export async function testWorkspaceCanvasPaneOpenCanCloseWhileEditorMode() {
     const after = useGraphStore.getState()
     if (after.workspaceCanvasPaneOpen !== false) {
       throw new Error('expected workspaceCanvasPaneOpen to follow explicit close while workspaceViewMode is editor')
+    }
+    if (isWorkspaceEditorOverlayOpen(after)) {
+      throw new Error('expected workspace editor overlay-open SSOT to release when the editor pane is explicitly closed')
+    }
+    if (isWorkspaceGraphMutationBlocked({
+      workspaceViewMode: after.workspaceViewMode,
+      workspaceCanvasPaneOpen: after.workspaceCanvasPaneOpen,
+      markdownWorkspaceIndexingInFlight: false,
+      workspaceGraphMutationBlockUntilMs: 0,
+      workspaceGraphMutationBlockKey: '',
+    })) {
+      throw new Error('expected editor mode with a closed workspace pane not to keep Flow Editor mutation blocked')
     }
     after.setWorkspaceViewState({ mode: 'canvas', paneOpen: false })
     const atomicClose = useGraphStore.getState()

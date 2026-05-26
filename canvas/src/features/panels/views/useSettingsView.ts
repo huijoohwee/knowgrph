@@ -88,6 +88,11 @@ import {
   getGeminiVideoGenerationApiRowAnchorId,
 } from './geminiVideoGenerationApiDocs'
 import {
+  PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
+  PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
+  getPixVerseVideoGenerationApiRowAnchorId,
+} from './pixverseVideoGenerationApiDocs'
+import {
   MAPS_API_DOC_ENTRIES,
   getMapsApiRowAnchorId,
 } from './mapsApiDocs'
@@ -144,6 +149,7 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...GEMINI_VIDEO_GENERATION_API_DOC_ENTRIES,
+  ...PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_IMAGES_API_REQUEST_DOC_ENTRIES,
   ...DEERFLOW_API_REQUEST_DOC_ENTRIES,
@@ -926,6 +932,8 @@ export function useSettingsView({
             ? getBytePlusVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
             ? getGeminiVideoGenerationApiRowAnchorId(entry.meta.key)
+          : area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
+            ? getPixVerseVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
             : area === OPENAI_IMAGES_API_DOC_AREA
@@ -1097,6 +1105,11 @@ export function useSettingsView({
           title: GEMINI_VIDEO_GENERATION_API_DOC_AREA,
           searchIndex: normalizeText('Gemini Veo Video Generation API Google FloatingPanel Gemini Video Widget geminiVideoApi.model geminiVideoModel'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === GEMINI_VIDEO_GENERATION_API_DOC_AREA,
+        },
+        {
+          title: PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
+          searchIndex: normalizeText('PixVerse Video Generation local harness mcp stdio provider_mode pixverse image-to-video transition-video'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
           title: BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,

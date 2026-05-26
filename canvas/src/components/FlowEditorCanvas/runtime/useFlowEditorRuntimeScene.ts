@@ -33,6 +33,8 @@ import {
   type FlowWidgetSeedStoreState,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeSeedPositions'
 import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import {
   isFlowTransformKeepingWorldRectCollectiveInViewport,
   isFlowTransformShowingGraph,
@@ -109,8 +111,22 @@ export function useFlowEditorRuntimeScene(args: {
   const latestAutoSeedWorldPosByNodeIdRef = React.useRef<Record<string, { x: number; y: number }>>({})
   const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
   const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
-  const flowWidgetWorldPosCount = useGraphStore(s => Object.keys(s.flowWidgetWorldPosByNodeId || {}).length)
-  const flowWidgetPinnedCount = useGraphStore(s => Object.keys(s.flowWidgetPinnedByNodeId || {}).length)
+  const flowWidgetWorldPosCount = useGraphStore(s => {
+    const graphKey = buildGraphMetaKeyIgnoringPending(s.graphData)
+    return Object.keys(resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: graphKey,
+      keyedByGraphMetaKey: (s as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
+      globalByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
+    })).length
+  })
+  const flowWidgetPinnedCount = useGraphStore(s => {
+    const graphKey = buildGraphMetaKeyIgnoringPending(s.graphData)
+    return Object.keys(resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: graphKey,
+      keyedByGraphMetaKey: (s as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+      globalByNodeId: s.flowWidgetPinnedByNodeId,
+    })).length
+  })
   const workspaceMutationBlockedPrevRef = React.useRef<boolean>(workspaceMutationBlocked)
   const lastInteractionFrameAtMsRef = React.useRef<number>(0)
   const getVisibleViewport = React.useCallback(() => {
@@ -601,13 +617,22 @@ export function useFlowEditorRuntimeScene(args: {
     })
     const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
     const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
-    const pinnedById = st.flowWidgetPinnedByNodeId || {}
-    const posById =
-      (st as unknown as { flowWidgetPosByNodeId?: Record<string, { top: number; left: number }> })
-        .flowWidgetPosByNodeId || {}
-    const worldById =
-      (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-        .flowWidgetWorldPosByNodeId || {}
+    const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
+    const pinnedById = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: graphKey,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+      globalByNodeId: st.flowWidgetPinnedByNodeId,
+    })
+    const posById = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: graphKey,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>> }).flowWidgetPosByNodeIdByGraphMetaKey,
+      globalByNodeId: (st as unknown as { flowWidgetPosByNodeId?: Record<string, { top: number; left: number }> }).flowWidgetPosByNodeId,
+    })
+    const worldById = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: graphKey,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
+      globalByNodeId: (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
+    })
     const effectiveOpenIds = Array.isArray(widgetPlacementContext?.effectiveOpenWidgetNodeIds)
       ? widgetPlacementContext!.effectiveOpenWidgetNodeIds
       : []

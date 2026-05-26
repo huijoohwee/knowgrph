@@ -6,7 +6,7 @@ This document describes the Codex-compatible harness implemented by:
 python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
 ```
 
-The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts scenes from neutral frontmatter or markdown body text, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. Real media providers can be added behind the same typed tool registry without changing the run loop.
+The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts scenes from neutral frontmatter or markdown body text, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop.
 
 ## Module Ownership
 
@@ -14,6 +14,7 @@ The harness is intentionally project-agnostic. It accepts a user-provided brief,
 - `superagent_contracts.py`: dataclasses, error taxonomy, layout constants, registry, and trace writer.
 - `superagent_plan.py`: agent contracts, task plan, and goal parsing.
 - `superagent_tools.py`: workspace, text, image, video, canvas, and report tools.
+- `superagent_pixverse.py`: local PixVerse MCP stdio adapter, bounded polling, upload-safe reference-image handling, constrained `fusion_video` composition, automated local uploaded-media handoff, optional bounded `extend_video` chaining, optional `lip_sync_video` and `sound_effect_video` post-processing, and fallback-safe live video orchestration.
 - `superagent_verifier.py`: deterministic artifact, graph, layout, trace, and provenance checks.
 - `superagent_renderers.py`: markdown, SVG, HTML, canvas graph, workspace, and report rendering helpers.
 - `superagent_utils.py`: trace reading, payload summaries, run ids, and goal-file loading.
@@ -55,6 +56,23 @@ A completed run writes:
 - `artifacts/responsive/responsive-proof.json`
 - `artifacts/workspace/rich-media-flow.md`
 
+When `provider_mode="pixverse"` resolves live instead of fallback, the video artifact set also includes:
+
+- `artifacts/video/pixverse-video.html`
+- `artifacts/video/pixverse-video.json`
+- `artifacts/video/pixverse-reference-upload.png`
+- `artifacts/video/pixverse-transition-last-frame.png` for multi-scene transition runs
+
+The PixVerse manifest records:
+
+- `base_generation_mode` for the initial generation tool (`text_to_video`, `image_to_video`, `transition_video`, or `fusion_video`)
+- `generation_mode` for the final resolved tool, including `extend_video`, `lip_sync_video`, or `sound_effect_video` when additive post-processing is used
+- `extension_count` and `extension_chain` for continuation provenance
+- `request.fusion_references` when the constrained fusion path derives hero/world/support image references for `fusion_video`
+- `lip_sync` for optional TTS or custom-audio narration augmentation provenance, including video mode, uploaded video media id when present, local upload sources when present, mode, audio media id, speaker id, text, submission, and final status
+- `sound_effect` for optional audio augmentation provenance, including mode, uploaded video media id when present, local upload sources when present, prompt, original-audio retention, submission, and final status
+- `uploads` for upload-safe reference images plus any automated uploaded-video or uploaded-audio MCP resource records used by the live PixVerse run
+
 ## Resume And Recovery
 
 Checkpoint a run:
@@ -75,10 +93,82 @@ Exercise bounded recovery:
 python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-retry --run-id superagent-retry --fail-once video.generate.mock
 ```
 
+Run a real-local PixVerse smoke path:
+
+```bash
+PIXVERSE_API_KEY=... npm run superagent:pixverse:smoke
+```
+
+Optional constrained fusion generation stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --strategy fusion-video
+```
+
+The smoke command uses the shipped local PixVerse MCP stdio adapter, requires a live PixVerse result by default, and fails if the run silently falls back to mock output unless `--allow-fallback` is provided.
+
+Optional sound-effect augmentation stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --sound-effect-prompt "Gentle ocean waves, seagull calls, soft wind"
+```
+
+Optional uploaded-video sound-effect augmentation stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --sound-effect-prompt "Urban traffic, footsteps, city ambiance" --sound-effect-video-media-id "66666"
+```
+
+Optional TTS lip-sync augmentation stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-speaker-id "speaker_001" --lip-sync-text "Welcome to our amazing video tutorial"
+```
+
+Optional custom-audio lip-sync augmentation stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-audio-media-id "44444"
+```
+
+Optional uploaded-video lip-sync augmentation stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-speaker-id "speaker_001" --lip-sync-text "Welcome to our uploaded video tutorial" --lip-sync-video-media-id "77777"
+```
+
+Optional uploaded-video custom-audio lip-sync with automated local media upload stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-video-file /absolute/path/to/video.mp4 --lip-sync-audio-file /absolute/path/to/audio.wav
+```
+
+Optional uploaded-video sound-effect augmentation with automated local media upload stays on the same smoke path:
+
+```bash
+PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --sound-effect-prompt "Urban traffic, footsteps, city ambiance" --sound-effect-video-file /absolute/path/to/video.mp4
+```
+
+The current safe additive path keeps `lip_sync_video` and `sound_effect_video` mutually exclusive per run to avoid conflicting downstream audio ownership.
+
+Run the focused browser-side PixVerse readiness check against a running local dev server:
+
+```bash
+python3 canvas/scripts/validate_pixverse_readiness_e2e.py
+```
+
+Or use the npm shortcut:
+
+```bash
+npm run pixverse:readiness:e2e
+```
+
+The browser check opens the real Settings -> Integrations surface, verifies PixVerse readiness controls and docs visibility, and asserts that strategy toggles update the live `integrationConfigsJson` state without introducing a parallel PixVerse-only settings path.
+
 ## Codex And MCP
 
 Codex can run the harness directly from `/goal` using `superagent` or the equivalent `run-goal` CLI alias. The local setup guide is [knowgrph-codex-goal-setup.md](knowgrph-codex-goal-setup.md), and the repo-owned goal loop is also available as `npm run goal:run`.
 
 MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact. The local stdio MCP tool contract is owned upstream by [local-tool-contract.js](../../mcp/local-tool-contract.js); usage and surface boundaries live in [README.md](../../mcp/README.md) and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md).
 
-Baseline validation is offline and deterministic. It does not require network access, provider credentials, or a specific pre-existing demo document. The static responsive proof covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.
+Baseline validation remains offline and deterministic for mock runs. PixVerse live validation adds a focused local smoke path through `python3 -m knowgrph_parser pixverse-smoke` or `npm run superagent:pixverse:smoke`, while the static responsive proof still covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.

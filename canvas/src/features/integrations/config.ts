@@ -4,6 +4,14 @@ export type IntegrationAiChatConfig = {
   openTab: 'chat'
 }
 
+export type IntegrationPixVerseVideoConfig = {
+  enabled: boolean
+  providerMode: 'pixverse'
+  transport: 'mcp-stdio'
+  strategy: 'auto' | 'image-to-video' | 'transition-video' | 'text-to-video'
+  openTab: 'chat'
+}
+
 export type IntegrationSimulationCommandsConfig = {
   enabled: boolean
   commandPrefix: string
@@ -13,6 +21,7 @@ export type IntegrationSimulationCommandsConfig = {
 
 export type IntegrationConfigs = {
   aiChat: IntegrationAiChatConfig
+  pixverseVideo: IntegrationPixVerseVideoConfig
   simulationCommands: IntegrationSimulationCommandsConfig
   [key: string]: unknown
 }
@@ -21,6 +30,13 @@ export const DEFAULT_INTEGRATION_CONFIGS: IntegrationConfigs = {
   aiChat: {
     enabled: true,
     provider: 'native',
+    openTab: 'chat',
+  },
+  pixverseVideo: {
+    enabled: false,
+    providerMode: 'pixverse',
+    transport: 'mcp-stdio',
+    strategy: 'auto',
     openTab: 'chat',
   },
   simulationCommands: {
@@ -47,13 +63,32 @@ const parsePlatform = (value: unknown, fallback: IntegrationSimulationCommandsCo
   return 'parallel'
 }
 
+const parsePixVerseStrategy = (
+  value: unknown,
+  fallback: IntegrationPixVerseVideoConfig['strategy'],
+): IntegrationPixVerseVideoConfig['strategy'] => {
+  const raw = parseString(value, fallback).toLowerCase()
+  if (raw === 'image-to-video') return 'image-to-video'
+  if (raw === 'transition-video') return 'transition-video'
+  if (raw === 'text-to-video') return 'text-to-video'
+  return 'auto'
+}
+
 export const normalizeIntegrationConfigs = (value: unknown): IntegrationConfigs => {
   const root = toObject(value)
   const aiChatRaw = toObject(root.aiChat)
+  const pixverseVideoRaw = toObject(root.pixverseVideo)
   const simulationCommandsRaw = toObject(root.simulationCommands)
   const aiChat: IntegrationAiChatConfig = {
     enabled: parseBool(aiChatRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.aiChat.enabled),
     provider: 'native',
+    openTab: 'chat',
+  }
+  const pixverseVideo: IntegrationPixVerseVideoConfig = {
+    enabled: parseBool(pixverseVideoRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.pixverseVideo.enabled),
+    providerMode: 'pixverse',
+    transport: 'mcp-stdio',
+    strategy: parsePixVerseStrategy(pixverseVideoRaw.strategy, DEFAULT_INTEGRATION_CONFIGS.pixverseVideo.strategy),
     openTab: 'chat',
   }
   const simulationCommands: IntegrationSimulationCommandsConfig = {
@@ -65,6 +100,7 @@ export const normalizeIntegrationConfigs = (value: unknown): IntegrationConfigs 
   return {
     ...root,
     aiChat,
+    pixverseVideo,
     simulationCommands,
   }
 }

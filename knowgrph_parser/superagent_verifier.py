@@ -232,7 +232,10 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
     checks.append({"id": "provenance:artifact_source_steps", "passed": provenance_ok, "detail": "artifact source steps recorded"})
 
     completed = set(state.get("completed_task_ids") if isinstance(state.get("completed_task_ids"), list) else [])
-    expected_before_verify = {task.task_id for task in build_plan() if task.task_id not in {"verify_outputs", "synthesize_report"}}
+    provider_mode = str(state.get("run", {}).get("provider_mode") or "mock") if isinstance(state.get("run"), dict) else "mock"
+    expected_before_verify = {
+        task.task_id for task in build_plan(provider_mode) if task.task_id not in {"verify_outputs", "synthesize_report"}
+    }
     checks.append(
         {
             "id": "termination:ready_for_synthesis",

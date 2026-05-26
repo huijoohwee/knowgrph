@@ -23,6 +23,7 @@ import {
   normalizeChatModelIdForProvider,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
+import { parseIntegrationConfigsJson } from '@/features/integrations/config'
 import {
   buildHistoryKey,
   CHAT_HISTORY_COALESCE_DELAY_MS,
@@ -98,6 +99,7 @@ export default function SidePanelChat() {
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const docLocationRevision = useGraphStore(s => s.docLocationRevision)
+  const integrationConfigsJson = useGraphStore(s => s.integrationConfigsJson)
 
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState('')
@@ -134,6 +136,17 @@ export default function SidePanelChat() {
     () => getChatRecommendedModelHint(chatProvider),
     [chatProvider],
   )
+  const pixverseVideoConfig = React.useMemo(
+    () => parseIntegrationConfigsJson(integrationConfigsJson).pixverseVideo,
+    [integrationConfigsJson],
+  )
+  const chatProviderHintWithPixVerse = React.useMemo(() => {
+    const pixverseHint = pixverseVideoConfig.enabled
+      ? `PixVerse ${String(pixverseVideoConfig.strategy || 'auto')} is armed for rich-media runs.`
+      : ''
+    if (chatProviderHint && pixverseHint) return `${chatProviderHint} ${pixverseHint}`
+    return pixverseHint || chatProviderHint
+  }, [chatProviderHint, pixverseVideoConfig.enabled, pixverseVideoConfig.strategy])
 
   React.useEffect(() => {
     publishLocalChatPipelineSurfaceSnapshot({
@@ -143,7 +156,7 @@ export default function SidePanelChat() {
       connectivity,
       connectivityDetail,
       chatProviderSummary,
-      chatProviderHint: chatProviderHint || null,
+      chatProviderHint: chatProviderHintWithPixVerse || null,
       chatContextScope,
       chatStorageTarget,
       chatKnowgrphWorkspacePath,
@@ -178,7 +191,7 @@ export default function SidePanelChat() {
     chatHistoryWorkspacePath,
     chatKnowgrphCloudUrl,
     chatKnowgrphWorkspacePath,
-    chatProviderHint,
+    chatProviderHintWithPixVerse,
     chatProviderSummary,
     chatStorageTarget,
     connectivity,
@@ -625,7 +638,7 @@ export default function SidePanelChat() {
         connectivityDetail={connectivityDetail}
         currentNode={currentNode}
         providerSummary={chatProviderSummary}
-        providerHint={chatProviderHint}
+        providerHint={chatProviderHintWithPixVerse}
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
         onModelChanged={setChatModel}

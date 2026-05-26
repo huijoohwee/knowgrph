@@ -13,6 +13,7 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
   const threeGraphText = readSource('src/lib/three/ThreeGraph.impl.tsx')
   const flowEditorText = readSource('src/components/FlowEditorCanvas.runtime.tsx')
   const flowStoreText = readSource('src/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState.ts')
+  const widgetScopeText = readSource('src/lib/flowEditor/widgetStateScope.ts')
 
   if (!helperText.includes("buildScopedGraphSemanticKey('canvas-applied-markdown-document'")) {
     throw new Error('expected Canvas markdown render context to reuse the shared scoped semantic-key helper')
@@ -43,6 +44,18 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
   }
   if (!flowStoreText.includes('markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset')) {
     throw new Error('expected Flow Editor render state to receive the active document apply flag')
+  }
+  if (!flowStoreText.includes("s.openWidgetNodeIdsByRenderer?.flowEditor")) {
+    throw new Error('expected Flow Editor runtime store state to read renderer-scoped open-widget ids before any global fallback')
+  }
+  if (!flowStoreText.includes('flowWidgetPinnedByNodeId: resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor runtime store state to read pinned widget state through the shared graph-scoped helper')
+  }
+  if (!widgetScopeText.includes('const EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP')) {
+    throw new Error('expected scoped Flow Editor widget-state helper to keep one stable empty map for selector-safe fallbacks')
+  }
+  if (!widgetScopeText.includes('EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP as Record<string, T>')) {
+    throw new Error('expected scoped Flow Editor widget-state helper to reuse the stable empty map instead of allocating a fresh object fallback')
   }
   if (!flowEditorText.includes('applyViewPreset: markdownDocumentApplyViewPreset !== false')) {
     throw new Error('expected Flow Editor stable render keys to ignore passive Source Files switches')

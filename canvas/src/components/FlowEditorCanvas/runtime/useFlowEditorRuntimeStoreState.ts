@@ -3,6 +3,8 @@ import { useShallow } from 'zustand/react/shallow'
 import { EMPTY_WIDGET_REGISTRY } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
@@ -27,7 +29,11 @@ export function useFlowEditorRuntimeStoreState() {
       selectedNodeId: typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null,
       selectedNodeIds: Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : EMPTY_STRING_ARRAY,
       selectedEdgeId: typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null,
-      flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId ?? EMPTY_BOOL_RECORD,
+      flowWidgetPinnedByNodeId: resolveScopedFlowWidgetNodeMap({
+        graphMetaKey: buildGraphMetaKeyIgnoringPending(s.graphData),
+        keyedByGraphMetaKey: (s as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+        globalByNodeId: s.flowWidgetPinnedByNodeId,
+      }) ?? EMPTY_BOOL_RECORD,
       setSelectionSource: s.setSelectionSource,
       selectNode: s.selectNode,
       selectEdge: s.selectEdge,
@@ -51,7 +57,10 @@ export function useFlowEditorRuntimeStoreState() {
       documentWidgetRegistry: Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : EMPTY_WIDGET_REGISTRY,
       effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_WIDGET_REGISTRY,
       baseWidgetRegistry: Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_WIDGET_REGISTRY,
-      openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
+      openWidgetNodeIds:
+        (s.openWidgetNodeIdsByRenderer?.flowEditor && Array.isArray(s.openWidgetNodeIdsByRenderer.flowEditor)
+          ? s.openWidgetNodeIdsByRenderer.flowEditor
+          : s.openWidgetNodeIds) ?? EMPTY_STRING_ARRAY,
       updateOpenWidgetNodeIds: s.updateOpenWidgetNodeIds,
       setOpenWidgetNodeIds: s.setOpenWidgetNodeIds,
     })),

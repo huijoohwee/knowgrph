@@ -4,17 +4,25 @@ import { resolve } from 'node:path'
 export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
+  const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
+  const overlaySurfaceRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const widgetScopePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetStateScope.ts')
   const editorText = readFileSync(editorPath, 'utf8')
   const runtimeText = readFileSync(runtimePath, 'utf8')
-  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const overlaySurfaceText = readFileSync(overlaySurfaceElementsPath, 'utf8')
+  const overlaySurfaceRuntimeText = readFileSync(overlaySurfaceRuntimePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const widgetScopeText = readFileSync(widgetScopePath, 'utf8')
 
   if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.renderGraphDataOverride)')) {
     throw new Error('expected Flow Editor overlay surface to pass the active rendered graph key into widget overlays')
+  }
+  if (!overlaySurfaceRuntimeText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'")) {
+    throw new Error('expected Flow Editor overlay surface to reuse the shared scoped widget-state helper for auto-pin seeding')
+  }
+  if (!overlaySurfaceRuntimeText.includes("import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'")) {
+    throw new Error('expected Flow Editor overlay surface to derive the active render graph key before auto-pin seeding')
   }
   if (!overlaySurfaceText.includes('graphMetaKey={graphMetaKey}')) {
     throw new Error('expected Flow Editor overlay surface to thread the active rendered graph key into widget overlay props')
@@ -31,10 +39,19 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (!overlaySurfaceText.includes('key={overlayInstanceKey}')) {
     throw new Error('expected Flow Editor widget overlays to remount when surface or graph identity changes')
   }
+  if (!overlaySurfaceRuntimeText.includes('const renderGraphMetaKey = React.useMemo(')) {
+    throw new Error('expected Flow Editor overlay surface to memoize one active render graph key for scoped auto-pin seeding')
+  }
+  if (!overlaySurfaceRuntimeText.includes('const pinnedById = resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor overlay surface auto-pin seeding to read pinned state from the active graph scope')
+  }
+  if (overlaySurfaceRuntimeText.includes('const pinnedById = st.flowWidgetPinnedByNodeId || {}')) {
+    throw new Error('expected Flow Editor overlay surface auto-pin seeding to forbid direct global pinned-state fallback')
+  }
   if (!widgetScopeText.includes('export function resolveFlowWidgetStateGraphKey')) {
     throw new Error('expected Flow Editor widget overlay state scope to centralize render-graph-key resolution in a shared helper')
   }
-  if (!widgetScopeText.includes('if (graphKey) return args.keyedByGraphMetaKey?.[graphKey] || {}')) {
+  if (!widgetScopeText.includes('if (graphKey) return args.keyedByGraphMetaKey?.[graphKey] || (EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP as Record<string, T>)')) {
     throw new Error('expected Flow Editor widget state scope to read keyed widget state exclusively whenever an active graph key exists')
   }
   if (!editorText.includes('return readScopedFlowWidgetNodeValue({')) {
@@ -70,8 +87,35 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (!runtimeText.includes("const storedWorld = floatingUsesScreenAuthority ? null : (currentStoredWorld || widgetWorldPosRef.current)")) {
     throw new Error('expected Flow Editor widget placement loop to prefer live graph-keyed world SSOT before falling back to the cached widget world ref')
   }
-  if (!runtimeSceneText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding || prevState.graphData || null)')) {
+  if (!runtimeSceneText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)')) {
     throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to write graph-keyed world positions under the active render graph key before falling back to store graph state')
+  }
+  if (!runtimeSceneText.includes('const flowWidgetWorldPosCount = useGraphStore(s => {')) {
+    throw new Error('expected Flow Editor runtime scene to scope world-position dependency counts to the active render graph')
+  }
+  if (!runtimeSceneText.includes('const flowWidgetPinnedCount = useGraphStore(s => {')) {
+    throw new Error('expected Flow Editor runtime scene to scope pinned-state dependency counts to the active render graph')
+  }
+  if (!runtimeSceneText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'")) {
+    throw new Error('expected Flow Editor runtime scene to reuse the shared scoped widget-state helper before reading workspace-blocked widget state')
+  }
+  if (!runtimeSceneText.includes('const pinnedById = resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to read pinned state from the active graph scope')
+  }
+  if (!runtimeSceneText.includes('const posById = resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to read floating screen positions from the active graph scope')
+  }
+  if (!runtimeSceneText.includes('const worldById = resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to read world positions from the active graph scope')
+  }
+  if (runtimeSceneText.includes('const pinnedById = st.flowWidgetPinnedByNodeId || {}')) {
+    throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to forbid direct global pinned-state fallback')
+  }
+  if (runtimeSceneText.includes('const posById =\n      (st as unknown as { flowWidgetPosByNodeId?: Record<string, { top: number; left: number }> })')) {
+    throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to forbid direct global floating-position fallback')
+  }
+  if (runtimeSceneText.includes('const worldById =\n      (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })')) {
+    throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to forbid direct global world-position fallback')
   }
 }
 

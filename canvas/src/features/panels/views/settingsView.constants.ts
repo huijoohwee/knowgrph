@@ -10,11 +10,13 @@ import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA, BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusImageGenerationSsot'
 import { BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA, BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusVideoGenerationSsot'
 import { GEMINI_VIDEO_GENERATION_API_DOC_AREA, GEMINI_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/geminiVideoGenerationSsot'
+import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA, PIXVERSE_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/pixverseVideoGenerationSsot'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
+import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { STRIPE_MCP_DOCS_URL } from 'grph-shared/payments/stripeMcpSsot'
 
 export const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
@@ -87,6 +89,17 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
     note: 'Uses shared Gemini video defaults and the common widget -> edge -> Rich Media Panel output path.',
     openPanel: () => emitPropsPanelOpen(),
   },
+  [PIXVERSE_VIDEO_GENERATION_API_DOC_AREA]: {
+    docsUrl: PIXVERSE_VIDEO_GENERATION_API_DOCS_URL,
+    docsLabel: 'Open PixVerse Video Generation Docs',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    note: 'Uses the shipped local harness PixVerse adapter (`provider_mode=\"pixverse\"`) and keeps output on the shared markdown/frontmatter -> widget -> Rich Media Panel path.',
+    highlights: [
+      'Auto mode prefers transition-video for multi-scene plans and image-to-video for single-scene reference-frame runs.',
+      'Renderer ownership stays unchanged; PixVerse remains upstream of shared graph/media projection.',
+    ],
+    openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
+  },
   [BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA]: {
     docsUrl: BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL,
     docsLabel: 'Open BytePlus Image Generation API Docs',
@@ -116,6 +129,17 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
       'Payment-mutating MCP tools stay behind human confirmation and least-privilege authorization.',
     ],
     openPanel: () => emitMainPanelOpen({ tab: 'payments', searchQuery: 'stripeApi.checkout' }),
+  },
+  [PIXVERSE_MCP_DOC_AREA]: {
+    docsUrl: PIXVERSE_MCP_DOCS_URL,
+    docsLabel: 'Open PixVerse MCP Docs',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    note: 'MainPanel MCP documents local PixVerse MCP readiness, and the local super-agent harness now supports `provider_mode=\"pixverse\"` through PixVerse MCP stdio with bounded polling and mock fallback.',
+    highlights: [
+      'Downstream ownership stays on the shared MainPanel -> FloatingPanel Chat -> markdown YAML frontmatter -> canvas apply path.',
+      'Flow Editor, Storyboard, and Animatic stay provider-neutral and continue to consume shared graph/media fields only.',
+    ],
+    openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
   },
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',

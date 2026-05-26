@@ -36,6 +36,11 @@
 - `tsx src/tests/ci.ts <filter>` runs only tests whose name contains `<filter>` (case-insensitive).
 - Prefer targeted filters (e.g. `parser`, `jsonld`, `settings`) in CI and local iteration to avoid long-running suites.
 
+**Animatic targeted filters**:
+- Run `tsx src/tests/ci.ts animatic.serializerUtilities` for low-level serializer utility coverage that rewrites authored `timeline:` frontmatter text without exercising the live store/runtime owner path.
+- Run `tsx src/tests/ci.ts animatic.timelineBeatMetadata.graphWritebackSyncsMarkdownDocument` and `tsx src/tests/ci.ts animatic.itemBeatRef.nodeWritebackSyncsMarkdownDocument` for graph-owned Animatic runtime regressions that validate `updateGraphMetadata` / `updateNode` writeback into canonical `markdownDocumentText`.
+- Use the serializer prefix for focused utility/debug work inside `animaticTimeline.ts`; use the graph-writeback labels for end-to-end Animatic runtime ownership and Editor Workspace sync checks.
+
 ---
 
 ## Component Responsibility Matrix

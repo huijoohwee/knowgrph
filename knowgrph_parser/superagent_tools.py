@@ -2,6 +2,7 @@ import os
 from typing import Any, List, Optional, Tuple
 
 from .common import read_text, sha256_text, utc_now_iso, write_json, write_text
+from .superagent_pixverse import run_pixverse_text_to_video
 from .superagent_contracts import (
     BALANCED_LAYOUT_ID,
     ERROR_CONFIG,
@@ -83,6 +84,17 @@ def build_default_tool_registry(harness: Any) -> ToolRegistry:
             30,
             [ERROR_RETRYABLE],
             tool_video_generate_mock,
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            "video.generate.pixverse",
+            "Generate a PixVerse-backed video artifact through the official stdio MCP server with bounded polling and mock fallback.",
+            {"text_plan": "object", "image_result": "object", "artifacts_dir": "string", "run_id": "string", "step_id": "string"},
+            {},
+            180,
+            [ERROR_CONFIG, ERROR_RETRYABLE],
+            tool_video_generate_pixverse,
         )
     )
     registry.register(
@@ -178,6 +190,15 @@ def tool_text_generate_mock(payload: JsonDict) -> JsonDict:
     prompts = []
     for index, scene in enumerate(scenes, start=1):
         prompt_source = normalize_space(scene.get("source") or scene.get("summary") or title)
+        previous_scene = scenes[index - 2] if index > 1 and isinstance(scenes[index - 2], dict) else None
+        previous_title = str(previous_scene.get("title") or f"Scene {index - 1}") if previous_scene else ""
+        transition_prompt = (
+            f"Smooth visual transition from {previous_title} to {scene['title']}: "
+            f"{clip_sentence(str(previous_scene.get('summary') or previous_scene.get('source') or ''), 140)} -> "
+            f"{clip_sentence(prompt_source, 140)}"
+            if previous_scene
+            else ""
+        )
         prompts.append(
             {
                 "scene_id": f"scene-{index}",
@@ -187,6 +208,7 @@ def tool_text_generate_mock(payload: JsonDict) -> JsonDict:
                 "narration": clip_sentence(prompt_source, 220),
                 "image_prompt": f"Reference frame for {scene['title']}: {clip_sentence(prompt_source, 280)}",
                 "video_prompt": f"Short motion sequence for {scene['title']}: {clip_sentence(prompt_source, 340)}",
+                "transition_prompt": transition_prompt,
             }
         )
 
@@ -267,9 +289,13 @@ def tool_video_generate_mock(payload: JsonDict) -> JsonDict:
     return {
         "video": {
             "path": video_html_path,
+            "url": video_html_path,
             "manifest_path": video_json_path,
             "media_kind": "video",
             "mime_type": "text/html; charset=utf-8",
+            "provider": "deterministic-mock",
+            "provider_mode_resolved": "mock",
+            "provider_status": "completed",
             "model": "deterministic-mock-video",
             "duration_seconds": video_plan["duration_seconds"],
             "reference_image": video_plan["reference_image"],
@@ -279,6 +305,31 @@ def tool_video_generate_mock(payload: JsonDict) -> JsonDict:
             artifact_record("video_storyboard_manifest", "video", video_json_path, "application/json", str(payload["step_id"])),
         ],
     }
+
+
+def tool_video_generate_pixverse(payload: JsonDict) -> JsonDict:
+    try:
+        return run_pixverse_text_to_video(payload=payload)
+    except HarnessError as error:
+        fallback = tool_video_generate_mock(payload)
+        video = fallback.get("video") if isinstance(fallback.get("video"), dict) else {}
+        if video:
+            video["requested_provider_mode"] = "pixverse"
+            video["provider_mode_resolved"] = "mock"
+            video["provider_status"] = "fallback"
+            video["fallback_kind"] = error.kind
+            video["fallback_reason"] = error.message
+        for artifact in fallback.get("artifacts") or []:
+            if not isinstance(artifact, dict):
+                continue
+            metadata = artifact.get("metadata") if isinstance(artifact.get("metadata"), dict) else {}
+            metadata.update({
+                "requested_provider_mode": "pixverse",
+                "provider_mode_resolved": "mock",
+                "fallback_kind": error.kind,
+            })
+            artifact["metadata"] = metadata
+        return fallback
 
 
 def tool_canvas_write(payload: JsonDict) -> JsonDict:
@@ -291,6 +342,10 @@ def tool_canvas_write(payload: JsonDict) -> JsonDict:
     plan = text_plan.get("plan") if isinstance(text_plan.get("plan"), dict) else {}
     image = image_result.get("image") if isinstance(image_result.get("image"), dict) else {}
     video = video_result.get("video") if isinstance(video_result.get("video"), dict) else {}
+    requested_provider_mode = str(payload.get("state", {}).get("run", {}).get("provider_mode") or "mock")
+    resolved_provider_mode = str(video.get("provider_mode_resolved") or requested_provider_mode or "mock")
+    video_url = str(video.get("url") or video.get("path") or "")
+    video_output_path = str(video.get("manifest_path") or video.get("path") or "")
     artifacts_dir = str(payload["artifacts_dir"])
     canvas_dir = os.path.join(artifacts_dir, "canvas")
     workspace_dir = os.path.join(artifacts_dir, "workspace")
@@ -364,10 +419,14 @@ def tool_canvas_write(payload: JsonDict) -> JsonDict:
             int(balanced_layout_entry("video-storyboard")["y"]),
             balanced_layout_props("video-storyboard", {
                 "mediaKind": "video",
-                "videoUrl": str(video.get("path") or ""),
-                "outputPath": str(video.get("path") or ""),
+                "videoUrl": video_url,
+                "outputPath": video_output_path,
                 "referenceImage": str(video.get("reference_image") or ""),
                 "durationSeconds": int(video.get("duration_seconds") or 0),
+                "provider": str(video.get("provider") or ""),
+                "providerModeResolved": resolved_provider_mode,
+                "providerStatus": str(video.get("provider_status") or "completed"),
+                "videoId": video.get("video_id"),
                 "flow:widgetFormId": "videoGeneration",
                 "handles": {"target": ["reference_image"], "source": ["videoUrl"]},
             }),
@@ -434,7 +493,8 @@ def tool_canvas_write(payload: JsonDict) -> JsonDict:
             "runId": run_id,
             "sourceName": str(inspection.get("source_name") or ""),
             "generatedAt": utc_now_iso(),
-            "providerMode": "mock",
+            "providerMode": resolved_provider_mode,
+            "providerModeRequested": requested_provider_mode,
             "surfaceRoute": RICH_MEDIA_SURFACE_ROUTE,
             "layout": layout,
             "workspaceArtifact": workspace_path,
@@ -456,7 +516,7 @@ def tool_canvas_write(payload: JsonDict) -> JsonDict:
             image_prompt=str(image.get("prompt") or first_scene_value(plan, "image_prompt") or ""),
             image_url=str(image.get("path") or ""),
             video_prompt=first_scene_value(plan, "video_prompt") or "",
-            video_url=str(video.get("path") or ""),
+            video_url=video_url,
             source_name=str(inspection.get("source_name") or ""),
             source_hash=str(inspection.get("source_hash") or ""),
         ),

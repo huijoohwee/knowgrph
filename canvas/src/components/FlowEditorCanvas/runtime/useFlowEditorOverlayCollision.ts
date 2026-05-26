@@ -151,6 +151,7 @@ export function useFlowEditorOverlayCollision(args: {
   const overlayMeasurementWarmupAttemptsRef = React.useRef<number>(0)
   const scheduleOverlayCollisionResolveRef = React.useRef<() => void>(() => void 0)
   const selfCommittedPosSignatureRef = React.useRef<string>('')
+  const observedStorePosSignatureRef = React.useRef<string>('')
   const overlayCollisionSettleBaseKeyRef = React.useRef<string>('')
   const overlayCollisionBestUnresolvedRef = React.useRef<number>(Number.POSITIVE_INFINITY)
   const overlayCollisionRecentSigRef = React.useRef<string[]>([])
@@ -212,7 +213,11 @@ export function useFlowEditorOverlayCollision(args: {
       const overlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
       if (overlayEls.length < 2) {
         const st = useGraphStore.getState()
-        const wantsResolve = (st.openWidgetNodeIds || []).length >= 2 || overlayOnlyModeEnabled
+        const flowEditorOpenWidgetIds =
+          (st.openWidgetNodeIdsByRenderer?.flowEditor && Array.isArray(st.openWidgetNodeIdsByRenderer.flowEditor)
+            ? st.openWidgetNodeIdsByRenderer.flowEditor
+            : st.openWidgetNodeIds) || []
+        const wantsResolve = flowEditorOpenWidgetIds.length >= 2 || overlayOnlyModeEnabled
         overlayCollisionWarmupAttemptsRef.current += 1
         const startedAt = overlayCollisionWarmupStartedAtMsRef.current || Date.now()
         const elapsed = Date.now() - startedAt
@@ -1115,8 +1120,13 @@ export function useFlowEditorOverlayCollision(args: {
       })
       if (currentSig && currentSig === selfCommittedPosSignatureRef.current) {
         selfCommittedPosSignatureRef.current = ''
+        observedStorePosSignatureRef.current = currentSig
         return
       }
+      if (currentSig && currentSig === observedStorePosSignatureRef.current) {
+        return
+      }
+      observedStorePosSignatureRef.current = currentSig
       scheduleOverlayCollisionResolveRef.current()
     }
     const unsubPos = useGraphStore.subscribe(s => s.flowWidgetPosByNodeId, handlePosLikeChange)
@@ -1132,19 +1142,17 @@ export function useFlowEditorOverlayCollision(args: {
       s => (s as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
       handlePosLikeChange,
     )
-    const unsubPinned = useGraphStore.subscribe(s => s.flowWidgetPinnedByNodeId, () => {
-      if (workspaceOverlayOpenRef.current) return
-      scheduleOverlayCollisionResolveRef.current()
-    })
+    const unsubPinned = useGraphStore.subscribe(s => s.flowWidgetPinnedByNodeId, handlePosLikeChange)
     const unsubPinnedByKey = useGraphStore.subscribe(
       s => (s as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
-      () => {
-        if (workspaceOverlayOpenRef.current) return
-        scheduleOverlayCollisionResolveRef.current()
-      },
+      handlePosLikeChange,
     )
     const unsubOpenWidgets = useGraphStore.subscribe(
-      s => normalizeOverlaySignatureIds(Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds : []).join('|'),
+      s => normalizeOverlaySignatureIds(
+        Array.isArray(s.openWidgetNodeIdsByRenderer?.flowEditor)
+          ? s.openWidgetNodeIdsByRenderer.flowEditor
+          : (Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds : []),
+      ).join('|'),
       () => {
         if (workspaceOverlayOpenRef.current) return
         scheduleOverlayCollisionResolveRef.current()

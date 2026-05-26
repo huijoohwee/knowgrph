@@ -25,6 +25,13 @@ import {
   getStripeMcpApiRowAnchorId,
 } from './stripeMcpApiDocs'
 import {
+  PIXVERSE_MCP_DOC_AREA,
+  PIXVERSE_MCP_DOC_ENTRIES,
+  PIXVERSE_MCP_LOCAL_CONFIG_KEY,
+  buildPixVerseLocalMcpConfigJson,
+  getPixVerseMcpApiRowAnchorId,
+} from './pixverseMcpApiDocs'
+import {
   buildDocMappedEntry,
   isMcpOwnedSetting,
   normalizeSettingsAreaLabel,
@@ -38,6 +45,7 @@ export function buildMcpDocEntries(
     ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
     ...STRIPE_MCP_DOC_ENTRIES,
+    ...PIXVERSE_MCP_DOC_ENTRIES,
     ...mapsAndMcpDocEntries.filter(entry => isMcpOwnedSetting(entry.meta.key, entry.details.area)),
     ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
   ]
@@ -55,6 +63,8 @@ export function buildMcpVirtualEntry(
         ? getCrawlerAccessMcpApiRowAnchorId(entry.meta.key)
       : area === STRIPE_MCP_DOC_AREA
         ? getStripeMcpApiRowAnchorId(entry.meta.key)
+      : area === PIXVERSE_MCP_DOC_AREA
+        ? getPixVerseMcpApiRowAnchorId(entry.meta.key)
         : getGrabMapsMcpApiRowAnchorId(entry.meta.key)
   const mappedEntry = buildDocMappedEntry(entry, values, anchorId)
   const configJson =
@@ -66,6 +76,8 @@ export function buildMcpVirtualEntry(
           ? buildStripeRemoteMcpConfigJson(values)
           : entry.meta.key === STRIPE_MCP_LOCAL_CONFIG_KEY
             ? buildStripeLocalMcpConfigJson(values)
+          : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
+            ? buildPixVerseLocalMcpConfigJson(values)
             : ''
   if (!configJson) return mappedEntry
   return {

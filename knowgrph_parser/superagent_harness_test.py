@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import tempfile
 import unittest
 
@@ -12,6 +13,7 @@ from .superagent_harness import (
     read_trace_events,
     run_harness,
 )
+from .pixverse_smoke_cmd import main as pixverse_smoke_main
 from .superagent_contracts import BALANCED_WIDGET_LAYOUT, RICH_MEDIA_PANEL_EDGE_LANES
 from .superagent_responsive import REQUIRED_RESPONSIVE_WIDGET_IDS, required_responsive_proof_class_ids
 
@@ -41,12 +43,207 @@ inputs:
 This neutral fixture exercises the harness without relying on a branded story.
 """
 
+EXTENDED_PIXVERSE_BRIEF = """---
+title: "Portable Product Walkthrough Extended"
+inputs:
+  script: |
+    Intake - A person submits a short brief with constraints.
+    Build - The system creates a reference frame and motion plan.
+    Review - The result is checked and exported with provenance.
+    Continue - The system extends the narrative with a next-step delivery beat.
+---
+
+# Portable Product Walkthrough Extended
+
+This neutral fixture exercises PixVerse extension without relying on a branded story.
+"""
+
 
 class SuperAgentHarnessTests(unittest.TestCase):
     def write_brief(self, tmp: str, text: str = NEUTRAL_BRIEF) -> str:
         path = os.path.join(tmp, "brief.md")
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(text)
+        return path
+
+    def write_dummy_video(self, tmp: str, name: str = "upload-video.mp4") -> str:
+        path = os.path.join(tmp, name)
+        with open(path, "wb") as handle:
+            handle.write(b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom")
+        return path
+
+    def write_dummy_audio(self, tmp: str, name: str = "upload-audio.wav") -> str:
+        path = os.path.join(tmp, name)
+        with open(path, "wb") as handle:
+            handle.write(b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00")
+        return path
+
+    def write_fake_pixverse_server(self, tmp: str) -> str:
+        path = os.path.join(tmp, "fake_pixverse_mcp.py")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(
+                """import json
+import sys
+
+upload_count = 0
+video_status_counts = {}
+
+def read_message():
+    headers = {}
+    while True:
+        line = sys.stdin.buffer.readline()
+        if not line:
+            return None
+        if line in (b"\\r\\n", b"\\n"):
+            break
+        name, _, value = line.decode("utf-8").partition(":")
+        headers[name.strip().lower()] = value.strip()
+    length = int(headers.get("content-length", "0"))
+    if length <= 0:
+        return None
+    body = sys.stdin.buffer.read(length)
+    return json.loads(body.decode("utf-8"))
+
+def write_message(message):
+    payload = json.dumps(message).encode("utf-8")
+    sys.stdout.buffer.write(f"Content-Length: {len(payload)}\\r\\n\\r\\n".encode("ascii") + payload)
+    sys.stdout.buffer.flush()
+
+while True:
+    message = read_message()
+    if message is None:
+        break
+    method = message.get("method")
+    if method == "initialize":
+        write_message({
+            "jsonrpc": "2.0",
+            "id": message.get("id"),
+            "result": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "fake-pixverse", "version": "1.0.0"},
+            },
+        })
+    elif method == "tools/call":
+        name = (message.get("params") or {}).get("name")
+        if name == "upload_image":
+            upload_count += 1
+            write_message({
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "result": {
+                    "structuredContent": {
+                        "success": True,
+                        "img_id": 1000 + upload_count,
+                        "img_url": f"https://example.com/upload-{upload_count}.png",
+                    },
+                    "content": [],
+                    "isError": False,
+                },
+            })
+        elif name == "upload_video":
+            upload_count += 1
+            write_message({
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "result": {
+                    "structuredContent": {
+                        "success": True,
+                        "video_media_id": 7000 + upload_count,
+                        "media_url": f"https://example.com/upload-video-{upload_count}.mp4",
+                    },
+                    "content": [],
+                    "isError": False,
+                },
+            })
+        elif name in ("upload_audio", "upload_media"):
+            arguments = (message.get("params") or {}).get("arguments") or {}
+            media_type = arguments.get("media_type") or ("audio" if name == "upload_audio" else "video")
+            upload_count += 1
+            write_message({
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "result": {
+                    "structuredContent": {
+                        "success": True,
+                        "audio_media_id": 8000 + upload_count if media_type == "audio" else None,
+                        "video_media_id": 7000 + upload_count if media_type != "audio" else None,
+                        "media_id": 8000 + upload_count if media_type == "audio" else 7000 + upload_count,
+                        "media_url": f"https://example.com/upload-{media_type}-{upload_count}",
+                    },
+                    "content": [],
+                    "isError": False,
+                },
+            })
+        elif name in ("text_to_video", "image_to_video", "transition_video", "extend_video", "sound_effect_video", "lip_sync_video", "fusion_video"):
+            generation_mode = name
+            video_id = (
+                8383 if generation_mode == "fusion_video"
+                else (7272 if generation_mode == "lip_sync_video"
+                else (6262 if generation_mode == "sound_effect_video" else (5252 if generation_mode == "extend_video" else 4242)))
+            )
+            write_message({
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "result": {
+                    "structuredContent": {
+                        "success": True,
+                        "video_id": video_id,
+                        "status": "submitted",
+                        "generation_mode": generation_mode,
+                        "polling_config": {"interval_seconds": 0, "max_attempts": 3},
+                    },
+                    "content": [],
+                    "isError": False,
+                },
+            })
+        elif name == "get_video_status":
+            video_id = (((message.get("params") or {}).get("arguments") or {}).get("video_id"))
+            key = str(video_id)
+            video_status_counts[key] = int(video_status_counts.get(key, 0)) + 1
+            status = "completed" if video_status_counts[key] >= 2 else "in_progress"
+            generation_mode = {
+                "4242": "transition_video",
+                "5252": "extend_video",
+                "6262": "sound_effect_video",
+                "7272": "lip_sync_video",
+                "8383": "fusion_video",
+            }.get(key, "transition_video")
+            video_url = (
+                "https://example.com/pixverse-video-fusion.mp4" if key == "8383" and status == "completed"
+                else (
+                "https://example.com/pixverse-video-lipsync.mp4" if key == "7272" and status == "completed"
+                else (
+                    "https://example.com/pixverse-video-sfx.mp4" if key == "6262" and status == "completed"
+                    else ("https://example.com/pixverse-video.mp4" if status == "completed" else None)
+                )
+                )
+            )
+            write_message({
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "result": {
+                    "structuredContent": {
+                        "success": True,
+                        "video_id": video_id,
+                        "status": status,
+                        "generation_mode": generation_mode,
+                        "video_url": video_url,
+                    },
+                    "content": [],
+                    "isError": False,
+                },
+            })
+        else:
+            write_message({
+                "jsonrpc": "2.0",
+                "id": message.get("id"),
+                "error": {"code": -32601, "message": f"Unknown tool: {name}"},
+            })
+    elif method == "notifications/initialized":
+        continue
+"""
+            )
         return path
 
     def test_external_xr_validation_document_is_runtime_input_only(self) -> None:
@@ -310,6 +507,739 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertNotIn("robodrone", serialized)
             self.assertNotIn("-".join(["knowgrph", "video", "demo"]) + ".md", serialized)
             self.assertNotIn("-".join(["knowgrph", "xr", "demo"]) + ".md", serialized)
+
+    def test_pixverse_provider_mode_falls_back_to_mock_without_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            out = os.path.join(tmp, "pixverse-fallback")
+            original_api_key = os.environ.pop("PIXVERSE_API_KEY", None)
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-fallback",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                if original_api_key is not None:
+                    os.environ["PIXVERSE_API_KEY"] = original_api_key
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            canvas_path = os.path.join(out, "artifacts", "canvas", "canvas.graph.json")
+            with open(canvas_path, "r", encoding="utf-8") as handle:
+                graph = json.load(handle)
+            self.assertEqual(graph["metadata"]["providerModeRequested"], "pixverse")
+            self.assertEqual(graph["metadata"]["providerMode"], "mock")
+            video_node = next(node for node in graph["nodes"] if node["id"] == "video-storyboard")
+            self.assertEqual(video_node["properties"]["providerModeResolved"], "mock")
+            self.assertEqual(video_node["properties"]["providerStatus"], "fallback")
+
+    def test_pixverse_provider_mode_uses_stdio_mcp_when_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-live")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-live",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            self.assertTrue(os.path.exists(manifest_path))
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["provider_mode_resolved"], "pixverse")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video.mp4")
+            self.assertEqual(manifest["generation_mode"], "transition_video")
+            canvas_path = os.path.join(out, "artifacts", "canvas", "canvas.graph.json")
+            with open(canvas_path, "r", encoding="utf-8") as handle:
+                graph = json.load(handle)
+            self.assertEqual(graph["metadata"]["providerModeRequested"], "pixverse")
+            self.assertEqual(graph["metadata"]["providerMode"], "pixverse")
+            video_node = next(node for node in graph["nodes"] if node["id"] == "video-storyboard")
+            self.assertEqual(video_node["properties"]["provider"], "pixverse-mcp")
+            self.assertEqual(video_node["properties"]["providerModeResolved"], "pixverse")
+            self.assertEqual(video_node["properties"]["videoUrl"], "https://example.com/pixverse-video.mp4")
+
+    def test_pixverse_smoke_command_requires_live_provider_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-smoke")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--strategy", "transition-video",
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_smoke_command_enables_fusion_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-smoke-fusion")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--strategy", "fusion-video",
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_provider_mode_uses_fusion_video_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-fusion")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_STRATEGY": os.environ.get("KG_PIXVERSE_STRATEGY"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_STRATEGY"] = "fusion-video"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-fusion",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["provider_mode_resolved"], "pixverse")
+            self.assertEqual(manifest["base_generation_mode"], "fusion_video")
+            self.assertEqual(manifest["generation_mode"], "fusion_video")
+            self.assertEqual(manifest["request"]["model"], "v4.5")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-fusion.mp4")
+            self.assertEqual(len(manifest["request"]["fusion_references"]), 3)
+            fusion_uploads = manifest["uploads"]["fusion_references"]
+            self.assertEqual(len(fusion_uploads), 3)
+            self.assertEqual([item["ref_name"] for item in fusion_uploads], ["hero", "world", "support"])
+
+    def test_pixverse_smoke_command_enables_lip_sync_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-smoke-lipsync")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--strategy", "transition-video",
+                    "--lip-sync-speaker-id", "speaker_001",
+                    "--lip-sync-text", "Welcome to our amazing video tutorial",
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_smoke_command_enables_custom_audio_lip_sync_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-smoke-lipsync-audio")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--strategy", "transition-video",
+                    "--lip-sync-audio-media-id", "44444",
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_smoke_command_enables_uploaded_video_lip_sync_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-smoke-lipsync-uploaded-video")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--lip-sync-speaker-id", "speaker_001",
+                    "--lip-sync-text", "Welcome to our uploaded video tutorial",
+                    "--lip-sync-video-media-id", "77777",
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_smoke_command_uploads_local_media_for_uploaded_video_custom_audio_lip_sync(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            video_path = self.write_dummy_video(tmp, "local-lipsync-video.mp4")
+            audio_path = self.write_dummy_audio(tmp, "local-lipsync-audio.wav")
+            out = os.path.join(tmp, "pixverse-smoke-lipsync-uploaded-media")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--lip-sync-video-file", video_path,
+                    "--lip-sync-audio-file", audio_path,
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_smoke_command_rejects_mixed_custom_audio_and_tts_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            audio_path = self.write_dummy_audio(tmp, "local-mixed-audio.wav")
+            previous = {"PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY")}
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", os.path.join(tmp, "pixverse-smoke-invalid-mixed-lipsync"),
+                    "--lip-sync-audio-file", audio_path,
+                    "--lip-sync-speaker-id", "speaker_001",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 2)
+
+    def test_pixverse_smoke_command_rejects_sound_effect_with_custom_audio_lip_sync_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            audio_path = self.write_dummy_audio(tmp, "local-conflict-audio.wav")
+            previous = {"PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY")}
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", os.path.join(tmp, "pixverse-smoke-invalid-audio-conflict"),
+                    "--sound-effect-prompt", "Busy cafe room tone",
+                    "--lip-sync-audio-file", audio_path,
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 2)
+
+    def test_pixverse_provider_mode_extends_video_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp, text=EXTENDED_PIXVERSE_BRIEF)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-extended")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_MAX_EXTENSIONS": os.environ.get("KG_PIXVERSE_MAX_EXTENSIONS"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_MAX_EXTENSIONS"] = "1"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-extended",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "transition_video")
+            self.assertEqual(manifest["generation_mode"], "extend_video")
+            self.assertEqual(manifest["extension_count"], 1)
+
+    def test_pixverse_provider_mode_applies_sound_effect_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-sound-effect")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_ENABLE_SOUND_EFFECT": os.environ.get("KG_PIXVERSE_ENABLE_SOUND_EFFECT"),
+                "KG_PIXVERSE_SOUND_EFFECT_PROMPT": os.environ.get("KG_PIXVERSE_SOUND_EFFECT_PROMPT"),
+                "KG_PIXVERSE_KEEP_ORIGINAL_SOUND": os.environ.get("KG_PIXVERSE_KEEP_ORIGINAL_SOUND"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_ENABLE_SOUND_EFFECT"] = "true"
+            os.environ["KG_PIXVERSE_SOUND_EFFECT_PROMPT"] = "Gentle ocean waves, seagull calls, soft wind"
+            os.environ["KG_PIXVERSE_KEEP_ORIGINAL_SOUND"] = "false"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-sound-effect",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "transition_video")
+            self.assertEqual(manifest["generation_mode"], "sound_effect_video")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-sfx.mp4")
+            self.assertTrue(manifest["sound_effect"]["enabled"])
+            self.assertEqual(manifest["sound_effect"]["tool_name"], "sound_effect_video")
+            self.assertEqual(manifest["sound_effect"]["prompt"], "Gentle ocean waves, seagull calls, soft wind")
+            self.assertFalse(manifest["sound_effect"]["keep_original_sound"])
+            observation = state["memory"]["observations"]["generate_video"]["video"]
+            self.assertTrue(observation["sound_effect_enabled"])
+            self.assertEqual(observation["sound_effect_prompt"], "Gentle ocean waves, seagull calls, soft wind")
+            self.assertFalse(observation["original_sound_switch"])
+
+    def test_pixverse_smoke_command_applies_uploaded_video_sound_effect_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-smoke-sfx-uploaded-video")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            try:
+                code = pixverse_smoke_main([
+                    "--input", brief,
+                    "--output-dir", out,
+                    "--sound-effect-prompt", "Urban traffic, footsteps, city ambiance",
+                    "--sound-effect-video-media-id", "66666",
+                    "--print-summary",
+                ], base_dir=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(code, 0)
+
+    def test_pixverse_provider_mode_applies_uploaded_video_sound_effect_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-sound-effect-uploaded-video")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_ENABLE_SOUND_EFFECT": os.environ.get("KG_PIXVERSE_ENABLE_SOUND_EFFECT"),
+                "KG_PIXVERSE_SOUND_EFFECT_PROMPT": os.environ.get("KG_PIXVERSE_SOUND_EFFECT_PROMPT"),
+                "KG_PIXVERSE_KEEP_ORIGINAL_SOUND": os.environ.get("KG_PIXVERSE_KEEP_ORIGINAL_SOUND"),
+                "KG_PIXVERSE_SOUND_EFFECT_VIDEO_MEDIA_ID": os.environ.get("KG_PIXVERSE_SOUND_EFFECT_VIDEO_MEDIA_ID"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_ENABLE_SOUND_EFFECT"] = "true"
+            os.environ["KG_PIXVERSE_SOUND_EFFECT_PROMPT"] = "Urban traffic, footsteps, city ambiance"
+            os.environ["KG_PIXVERSE_KEEP_ORIGINAL_SOUND"] = "true"
+            os.environ["KG_PIXVERSE_SOUND_EFFECT_VIDEO_MEDIA_ID"] = "66666"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-sound-effect-uploaded-video",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "uploaded_video_media")
+            self.assertEqual(manifest["generation_mode"], "sound_effect_video")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-sfx.mp4")
+            self.assertTrue(manifest["sound_effect"]["enabled"])
+            self.assertEqual(manifest["sound_effect"]["mode"], "uploaded-video")
+            self.assertEqual(manifest["sound_effect"]["video_media_id"], "66666")
+            self.assertTrue(manifest["sound_effect"]["keep_original_sound"])
+            observation = state["memory"]["observations"]["generate_video"]["video"]
+            self.assertTrue(observation["sound_effect_enabled"])
+            self.assertEqual(observation["sound_effect_mode"], "uploaded-video")
+            self.assertEqual(observation["sound_effect_video_media_id"], "66666")
+
+    def test_pixverse_provider_mode_applies_lip_sync_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-lip-sync")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_ENABLE_LIP_SYNC": os.environ.get("KG_PIXVERSE_ENABLE_LIP_SYNC"),
+                "KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID": os.environ.get("KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID"),
+                "KG_PIXVERSE_LIP_SYNC_TTS_CONTENT": os.environ.get("KG_PIXVERSE_LIP_SYNC_TTS_CONTENT"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_ENABLE_LIP_SYNC"] = "true"
+            os.environ["KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID"] = "speaker_001"
+            os.environ["KG_PIXVERSE_LIP_SYNC_TTS_CONTENT"] = "Welcome to our amazing video tutorial"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-lip-sync",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "transition_video")
+            self.assertEqual(manifest["generation_mode"], "lip_sync_video")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-lipsync.mp4")
+            self.assertTrue(manifest["lip_sync"]["enabled"])
+            self.assertEqual(manifest["lip_sync"]["tool_name"], "lip_sync_video")
+            self.assertEqual(manifest["lip_sync"]["tts_speaker_id"], "speaker_001")
+            self.assertEqual(manifest["lip_sync"]["tts_content"], "Welcome to our amazing video tutorial")
+            observation = state["memory"]["observations"]["generate_video"]["video"]
+            self.assertTrue(observation["lip_sync_enabled"])
+            self.assertEqual(observation["lip_sync_tts_speaker_id"], "speaker_001")
+            self.assertEqual(observation["lip_sync_tts_content"], "Welcome to our amazing video tutorial")
+
+    def test_pixverse_provider_mode_applies_custom_audio_lip_sync_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-lip-sync-audio")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_ENABLE_LIP_SYNC": os.environ.get("KG_PIXVERSE_ENABLE_LIP_SYNC"),
+                "KG_PIXVERSE_LIP_SYNC_AUDIO_MEDIA_ID": os.environ.get("KG_PIXVERSE_LIP_SYNC_AUDIO_MEDIA_ID"),
+                "KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID": os.environ.get("KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID"),
+                "KG_PIXVERSE_LIP_SYNC_TTS_CONTENT": os.environ.get("KG_PIXVERSE_LIP_SYNC_TTS_CONTENT"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_ENABLE_LIP_SYNC"] = "true"
+            os.environ["KG_PIXVERSE_LIP_SYNC_AUDIO_MEDIA_ID"] = "44444"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-lip-sync-audio",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "transition_video")
+            self.assertEqual(manifest["generation_mode"], "lip_sync_video")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-lipsync.mp4")
+            self.assertTrue(manifest["lip_sync"]["enabled"])
+            self.assertEqual(manifest["lip_sync"]["mode"], "custom-audio")
+            self.assertEqual(manifest["lip_sync"]["audio_media_id"], "44444")
+            self.assertEqual(manifest["lip_sync"]["tts_speaker_id"], "")
+            self.assertEqual(manifest["lip_sync"]["tts_content"], "")
+            observation = state["memory"]["observations"]["generate_video"]["video"]
+            self.assertTrue(observation["lip_sync_enabled"])
+            self.assertEqual(observation["lip_sync_mode"], "custom-audio")
+            self.assertEqual(observation["lip_sync_audio_media_id"], "44444")
+
+    def test_pixverse_provider_mode_applies_uploaded_video_lip_sync_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            out = os.path.join(tmp, "pixverse-lip-sync-uploaded-video")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_ENABLE_LIP_SYNC": os.environ.get("KG_PIXVERSE_ENABLE_LIP_SYNC"),
+                "KG_PIXVERSE_LIP_SYNC_VIDEO_MEDIA_ID": os.environ.get("KG_PIXVERSE_LIP_SYNC_VIDEO_MEDIA_ID"),
+                "KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID": os.environ.get("KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID"),
+                "KG_PIXVERSE_LIP_SYNC_TTS_CONTENT": os.environ.get("KG_PIXVERSE_LIP_SYNC_TTS_CONTENT"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_ENABLE_LIP_SYNC"] = "true"
+            os.environ["KG_PIXVERSE_LIP_SYNC_VIDEO_MEDIA_ID"] = "77777"
+            os.environ["KG_PIXVERSE_LIP_SYNC_TTS_SPEAKER_ID"] = "speaker_001"
+            os.environ["KG_PIXVERSE_LIP_SYNC_TTS_CONTENT"] = "Welcome to our uploaded video tutorial"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-lip-sync-uploaded-video",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "uploaded_video_media")
+            self.assertEqual(manifest["generation_mode"], "lip_sync_video")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-lipsync.mp4")
+            self.assertTrue(manifest["lip_sync"]["enabled"])
+            self.assertEqual(manifest["lip_sync"]["mode"], "tts")
+            self.assertEqual(manifest["lip_sync"]["video_mode"], "uploaded-video")
+            self.assertEqual(manifest["lip_sync"]["video_media_id"], "77777")
+            self.assertEqual(manifest["lip_sync"]["tts_speaker_id"], "speaker_001")
+            self.assertEqual(manifest["lip_sync"]["tts_content"], "Welcome to our uploaded video tutorial")
+            observation = state["memory"]["observations"]["generate_video"]["video"]
+            self.assertTrue(observation["lip_sync_enabled"])
+            self.assertEqual(observation["lip_sync_video_mode"], "uploaded-video")
+            self.assertEqual(observation["lip_sync_video_media_id"], "77777")
+            self.assertEqual(observation["lip_sync_mode"], "tts")
+
+    def test_pixverse_provider_mode_uploads_local_media_for_uploaded_video_custom_audio_lip_sync(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            fake_server = self.write_fake_pixverse_server(tmp)
+            video_path = self.write_dummy_video(tmp, "local-video.mp4")
+            audio_path = self.write_dummy_audio(tmp, "local-audio.wav")
+            out = os.path.join(tmp, "pixverse-lip-sync-uploaded-media")
+            previous = {
+                "PIXVERSE_API_KEY": os.environ.get("PIXVERSE_API_KEY"),
+                "KG_PIXVERSE_MCP_COMMAND": os.environ.get("KG_PIXVERSE_MCP_COMMAND"),
+                "KG_PIXVERSE_MCP_ARGS_JSON": os.environ.get("KG_PIXVERSE_MCP_ARGS_JSON"),
+                "KG_PIXVERSE_ENABLE_LIP_SYNC": os.environ.get("KG_PIXVERSE_ENABLE_LIP_SYNC"),
+                "KG_PIXVERSE_LIP_SYNC_VIDEO_FILE_PATH": os.environ.get("KG_PIXVERSE_LIP_SYNC_VIDEO_FILE_PATH"),
+                "KG_PIXVERSE_LIP_SYNC_AUDIO_FILE_PATH": os.environ.get("KG_PIXVERSE_LIP_SYNC_AUDIO_FILE_PATH"),
+                "KG_PIXVERSE_UPLOAD_AUDIO_TOOL": os.environ.get("KG_PIXVERSE_UPLOAD_AUDIO_TOOL"),
+            }
+            os.environ["PIXVERSE_API_KEY"] = "test-key"
+            os.environ["KG_PIXVERSE_MCP_COMMAND"] = sys.executable
+            os.environ["KG_PIXVERSE_MCP_ARGS_JSON"] = json.dumps([fake_server])
+            os.environ["KG_PIXVERSE_ENABLE_LIP_SYNC"] = "true"
+            os.environ["KG_PIXVERSE_LIP_SYNC_VIDEO_FILE_PATH"] = video_path
+            os.environ["KG_PIXVERSE_LIP_SYNC_AUDIO_FILE_PATH"] = audio_path
+            os.environ["KG_PIXVERSE_UPLOAD_AUDIO_TOOL"] = "upload_audio"
+            try:
+                state = run_harness(
+                    input_path=brief,
+                    output_dir=out,
+                    goal_text=GOAL_TEXT,
+                    run_id="pixverse-lip-sync-uploaded-media",
+                    provider_mode="pixverse",
+                    budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+                )
+            finally:
+                for key, value in previous.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertTrue(state["verification"]["passed"])
+            manifest_path = os.path.join(out, "artifacts", "video", "pixverse-video.json")
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            self.assertEqual(manifest["base_generation_mode"], "uploaded_video_media")
+            self.assertEqual(manifest["generation_mode"], "lip_sync_video")
+            self.assertEqual(manifest["video_url"], "https://example.com/pixverse-video-lipsync.mp4")
+            self.assertTrue(manifest["lip_sync"]["enabled"])
+            self.assertEqual(manifest["lip_sync"]["mode"], "custom-audio")
+            self.assertEqual(manifest["lip_sync"]["video_mode"], "uploaded-video")
+            self.assertEqual(manifest["lip_sync"]["video_file_path"], video_path)
+            self.assertEqual(manifest["lip_sync"]["audio_file_path"], audio_path)
+            self.assertTrue(str(manifest["lip_sync"]["video_media_id"]).isdigit())
+            self.assertTrue(str(manifest["lip_sync"]["audio_media_id"]).isdigit())
+            self.assertEqual(manifest["uploads"]["lip_sync_video"]["file_path"], video_path)
+            self.assertEqual(manifest["uploads"]["lip_sync_video"]["tool_name"], "upload_video")
+            self.assertEqual(manifest["uploads"]["lip_sync_audio"]["file_path"], audio_path)
+            self.assertEqual(manifest["uploads"]["lip_sync_audio"]["tool_name"], "upload_audio")
+            observation = state["memory"]["observations"]["generate_video"]["video"]
+            self.assertTrue(observation["lip_sync_enabled"])
+            self.assertEqual(observation["lip_sync_video_mode"], "uploaded-video")
+            self.assertEqual(observation["lip_sync_mode"], "custom-audio")
+            self.assertTrue(str(observation["lip_sync_video_media_id"]).isdigit())
+            self.assertTrue(str(observation["lip_sync_audio_media_id"]).isdigit())
 
 
 if __name__ == "__main__":

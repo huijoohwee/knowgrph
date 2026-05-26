@@ -25,6 +25,8 @@ import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
+import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
+import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA } from '@/features/integrations/pixverseVideoGenerationSsot'
 
 export type SettingsEntry = {
   meta: {
@@ -123,6 +125,7 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
+    || area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
     || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA
@@ -157,6 +160,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
   if (area === STRIPE_MCP_DOC_AREA) return true
+  if (area === PIXVERSE_MCP_DOC_AREA) return true
   return key.includes('.mcp.')
 }
 

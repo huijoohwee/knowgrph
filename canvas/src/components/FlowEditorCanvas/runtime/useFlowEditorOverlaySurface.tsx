@@ -17,6 +17,8 @@ import {
   normalizeStringArrayForSignature,
 } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
 import {
   buildRichMediaConnectedValueTargetNodeIdSet,
@@ -187,6 +189,10 @@ export function useFlowEditorOverlaySurface(args: {
     })
   }, [openWidgetNodeIdsSnapshot, renderGraphDataOverride, renderGraphDataRevision])
   const renderGraphMetaKind = renderGraphPlacementContext?.graphMetaKind || renderGraphLookup?.graphMetaKind || null
+  const renderGraphMetaKey = React.useMemo(
+    () => buildGraphMetaKeyIgnoringPending(renderGraphDataOverride),
+    [renderGraphDataOverride],
+  )
 
   const overlayEditorNodeIds = React.useMemo(() => {
     if (!flowEditorViewActive) {
@@ -301,7 +307,11 @@ export function useFlowEditorOverlaySurface(args: {
 
     const st = useGraphStore.getState()
     if (isWorkspaceGraphMutationBlocked(st)) return
-    const pinnedById = st.flowWidgetPinnedByNodeId || {}
+    const pinnedById = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: renderGraphMetaKey,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+      globalByNodeId: st.flowWidgetPinnedByNodeId,
+    })
     const defaultPinned = renderGraphPlacementContext?.defaultPinnedInCanvas ?? true
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
     const missingIdsKey = hashScopedStringArraySignature('missing-frontmatter-pins', missingIds)
@@ -327,7 +337,7 @@ export function useFlowEditorOverlaySurface(args: {
     if (!changed) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
-  }, [overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphPlacementContext, scheduleOverlayCollisionResolve])
+  }, [overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, renderGraphPlacementContext, scheduleOverlayCollisionResolve])
 
   const seededGeospatialOverlayWidgetPinsKeyRef = React.useRef<string>('')
   const overlayEditorNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
@@ -350,7 +360,11 @@ export function useFlowEditorOverlaySurface(args: {
     if (overlayEditorNodeIds.length === 0) return
     const st = useGraphStore.getState()
     if (isWorkspaceGraphMutationBlocked(st)) return
-    const pinnedById = st.flowWidgetPinnedByNodeId || {}
+    const pinnedById = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: renderGraphMetaKey,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+      globalByNodeId: st.flowWidgetPinnedByNodeId,
+    })
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
     const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ geospatialWidgetPanelMode: true })
     const missingIdsKey = hashScopedStringArraySignature('missing-geospatial-pins', missingIds)
@@ -367,7 +381,7 @@ export function useFlowEditorOverlaySurface(args: {
     for (let i = 0; i < missingIds.length; i += 1) nextPinned[missingIds[i]!] = defaultPinned
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
-  }, [geospatialWidgetPanelMode, overlayEditorNodeIds, overlayEditorNodeIdsKey, scheduleOverlayCollisionResolve])
+  }, [geospatialWidgetPanelMode, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, scheduleOverlayCollisionResolve])
   const frontmatterVisibleSceneDisplayRef = React.useRef<{
     key: string
     value: ReturnType<typeof deriveSceneDisplayGraph> | null

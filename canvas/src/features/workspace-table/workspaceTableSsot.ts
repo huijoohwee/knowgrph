@@ -31,7 +31,7 @@ export function isWorkspaceEditorOverlayOpen(args: {
   workspaceViewMode: WorkspaceViewMode
   workspaceCanvasPaneOpen: boolean
 }): boolean {
-  return args.workspaceViewMode === 'editor'
+  return args.workspaceViewMode === 'editor' && args.workspaceCanvasPaneOpen === true
 }
 
 export function isWorkspaceGraphMutationBlocked(args: WorkspaceGraphMutationState): boolean {

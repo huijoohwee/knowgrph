@@ -2,7 +2,13 @@ from typing import List
 
 from .superagent_contracts import AgentContract, GoalSpec, TaskSpec
 
-def build_agent_contracts() -> List[AgentContract]:
+
+def resolve_video_tool_name(provider_mode: str = "mock") -> str:
+    return "video.generate.pixverse" if str(provider_mode or "").strip().lower() == "pixverse" else "video.generate.mock"
+
+
+def build_agent_contracts(provider_mode: str = "mock") -> List[AgentContract]:
+    video_tool_name = resolve_video_tool_name(provider_mode)
     return [
         AgentContract(
             "planner",
@@ -31,7 +37,7 @@ def build_agent_contracts() -> List[AgentContract]:
         AgentContract(
             "video_worker",
             "Generate or mock a video artifact from the scene plan and reference image.",
-            ["video.generate.mock"],
+            [video_tool_name],
             "run",
             "video artifacts",
             "video artifact persisted",
@@ -63,12 +69,13 @@ def build_agent_contracts() -> List[AgentContract]:
     ]
 
 
-def build_plan() -> List[TaskSpec]:
+def build_plan(provider_mode: str = "mock") -> List[TaskSpec]:
+    video_tool_name = resolve_video_tool_name(provider_mode)
     return [
         TaskSpec("inspect_goal", "Inspect goal, input brief, and tool capabilities", "planner", "workspace.inspect"),
         TaskSpec("generate_text", "Generate text plan and media prompts", "text_worker", "text.generate.mock", ["inspect_goal"]),
         TaskSpec("generate_image", "Generate reference image", "image_worker", "image.generate.mock", ["generate_text"]),
-        TaskSpec("generate_video", "Generate storyboard video", "video_worker", "video.generate.mock", ["generate_text", "generate_image"]),
+        TaskSpec("generate_video", "Generate storyboard video", "video_worker", video_tool_name, ["generate_text", "generate_image"]),
         TaskSpec(
             "compose_canvas",
             "Compose rich media canvas graph",

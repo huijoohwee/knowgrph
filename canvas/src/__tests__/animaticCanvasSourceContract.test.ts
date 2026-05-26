@@ -214,9 +214,9 @@ export function testAnimaticCanvasExposesBeatCardQuickMetadataActions() {
       throw new Error(`expected AnimaticCanvas to route timeline mutations through graph-owned upstream owners: ${snippet}`)
     }
   }
-  for (const forbiddenSnippet of ['updateAnimaticTimelineMarkdownItemBeatRef({', 'updateAnimaticTimelineMarkdownLaneOrder({', 'updateAnimaticTimelineMarkdownLaneControlState({', 'await commitMarkdownDocumentText(nextMarkdownText)', 'await commitMarkdownGraphDocumentText(updateResult.markdownText)']) {
+  for (const forbiddenSnippet of ['updateAnimaticTimelineMarkdownItemBeatRef({', 'updateAnimaticTimelineMarkdownLaneOrder({', 'updateAnimaticTimelineMarkdownLaneControlState({', 'serializeAnimaticTimelineMarkdownWithItemBeatRef({', 'serializeAnimaticTimelineMarkdownWithLaneOrder({', 'serializeAnimaticTimelineMarkdownWithLaneControlState({', 'serializeAnimaticTimelineMarkdownWithInsertedBeat({', 'serializeAnimaticTimelineMarkdownWithDeletedBeat({', 'await commitMarkdownDocumentText(nextMarkdownText)', 'await commitMarkdownGraphDocumentText(updateResult.markdownText)']) {
     if (text.includes(forbiddenSnippet)) {
-      throw new Error(`expected AnimaticCanvas to avoid markdown-first mutation owner snippet: ${forbiddenSnippet}`)
+      throw new Error(`expected AnimaticCanvas runtime surface to avoid serializer or markdown-first helper snippet: ${forbiddenSnippet}`)
     }
   }
 }

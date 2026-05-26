@@ -69,19 +69,16 @@ export function testDeriveOpenWidgetOverlayNodeIdsKeepsRichMediaPanelsWhenExplic
   }
 }
 
-export function testFlowCanvasGraphStateFallsBackToStoreGraphForFlowEditorWhenOverrideIsEmpty() {
+export function testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForFlowEditorWhenOverrideIsEmpty() {
   const filePath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
   const text = fs.readFileSync(filePath, 'utf8')
-  if (!text.includes("canvas2dRenderer === 'flowEditor'")) {
-    throw new Error('expected flow canvas graph state to scope empty-override fallback to Flow Editor')
+  if (text.includes('const preferStoreGraphFallback =')) {
+    throw new Error('expected flow canvas graph state to remove the Flow Editor store-graph fallback guard')
   }
-  if (!text.includes('const preferStoreGraphFallback =')) {
-    throw new Error('expected flow canvas graph state to compute an explicit store-graph fallback guard')
+  if (text.includes('if (preferStoreGraphFallback) return storeGraphData')) {
+    throw new Error('expected flow canvas graph state to forbid store-graph fallback when the Flow Editor override is empty')
   }
-  if (!text.includes('&& overrideNodeCount === 0')) {
-    throw new Error('expected flow canvas graph state to detect empty Flow Editor overrides by node count')
-  }
-  if (!text.includes('if (preferStoreGraphFallback) return storeGraphData')) {
-    throw new Error('expected flow canvas graph state to reuse the loaded store graph when the Flow Editor override is empty')
+  if (!text.includes('return graphDataOverride !== undefined ? graphDataOverride : storeGraphData')) {
+    throw new Error('expected flow canvas graph state to keep Flow Editor render-graph ownership on the explicit override contract')
   }
 }

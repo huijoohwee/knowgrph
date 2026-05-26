@@ -3,10 +3,13 @@ import {
   buildAnimaticTimelineModel,
   readAnimaticTimelineLaneControlState,
   readAnimaticTimelineLaneOrder,
-  updateAnimaticTimelineMarkdownLaneControlState,
-  updateAnimaticTimelineMarkdownLaneOrder,
+  serializeAnimaticTimelineMarkdownWithLaneControlState,
+  serializeAnimaticTimelineMarkdownWithLaneOrder,
 } from '@/components/AnimaticCanvas/animaticTimeline'
 import type { GraphData } from '@/lib/graph/types'
+
+// Low-level serializer utility coverage only.
+// Runtime ownership for lane state lives in AnimaticCanvas graph writeback tests.
 
 export function testAnimaticLaneControlsHideMutedAndSoloFlagsProjectOntoLanes() {
   const lanes = [
@@ -78,8 +81,8 @@ timeline:
   }
 }
 
-export function testAnimaticLaneControlsRewritePersistedFrontmatterState() {
-  const updated = updateAnimaticTimelineMarkdownLaneControlState({
+export function testAnimaticLaneControlsSerializerWritesPersistedFrontmatterState() {
+  const updated = serializeAnimaticTimelineMarkdownWithLaneControlState({
     markdownText: `---
 timeline:
   beats:
@@ -120,8 +123,8 @@ timeline:
   }
 }
 
-export function testAnimaticLaneControlsRewritePersistedLaneOrder() {
-  const updated = updateAnimaticTimelineMarkdownLaneOrder({
+export function testAnimaticLaneControlsSerializerWritesPersistedLaneOrder() {
+  const updated = serializeAnimaticTimelineMarkdownWithLaneOrder({
     markdownText: `---
 timeline:
   beats:

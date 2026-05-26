@@ -72,15 +72,8 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
 
   const graphDataRevision = typeof graphDataRevisionOverride === 'number' ? graphDataRevisionOverride : baseGraphDataRevision
   const renderGraphData = React.useMemo(() => {
-    const overrideNodeCount = Array.isArray(graphDataOverride?.nodes) ? graphDataOverride.nodes.length : 0
-    const storeNodeCount = Array.isArray(storeGraphData?.nodes) ? storeGraphData.nodes.length : 0
-    const preferStoreGraphFallback =
-      canvas2dRenderer === 'flowEditor'
-      && overrideNodeCount === 0
-      && storeNodeCount > 0
-    if (preferStoreGraphFallback) return storeGraphData
     return graphDataOverride !== undefined ? graphDataOverride : storeGraphData
-  }, [canvas2dRenderer, graphDataOverride, storeGraphData])
+  }, [graphDataOverride, storeGraphData])
   // Interaction/mutation in Flow Editor runtime must remain available in Workspace-open mode.
   // Structural baseline lock should not freeze pan/zoom/drag interaction pathways.
   const allowMutations = allowNodeDragOverride !== false

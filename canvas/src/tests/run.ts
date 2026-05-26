@@ -376,8 +376,8 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
-      'ui.flowEditor.richMediaPanel.graphState.fallsBackToStoreGraph',
-      modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateFallsBackToStoreGraphForFlowEditorWhenOverrideIsEmpty,
+      'ui.flowEditor.richMediaPanel.graphState.noStoreGraphFallback',
+      modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForFlowEditorWhenOverrideIsEmpty,
     )
 
     const modGdtDrag = await import('../__tests__/graphDataTableDragUsesSharedPointerDragRegression.test')

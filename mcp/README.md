@@ -79,7 +79,7 @@ Canonical local tool inventory owner:
    - Typical use: generate GraphData + A0 exports from a GraphRAG indexing run
 3. `knowgrph.superagent.run`
    - Runs: `python -m knowgrph_parser superagent ...`
-   - Typical use: run the Codex-compatible rich media super-agent harness with deterministic mock text/image/video providers
+   - Typical use: run the Codex-compatible rich media super-agent harness with deterministic mock text/image providers plus either mock video or `provider_mode=pixverse` through local PixVerse MCP stdio, constrained additive `fusion_video`, bounded polling, optional additive `lip_sync_video` on generated clips or uploaded `video_media_id` in TTS mode plus custom-audio on generated clips and uploaded videos, automated local uploaded-media handoff, optional `sound_effect_video` on generated clips or uploaded `video_media_id`, and mock fallback
    - Emits: `state.json`, `trace.jsonl`, `final-report.md`, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
 4. `knowgrph.browser_api.run`
    - Calls a configurable local API-native browser runtime, using an Unbrowse-compatible shape without copying its implementation

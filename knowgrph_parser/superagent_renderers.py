@@ -108,6 +108,7 @@ def render_scene_plan_markdown(plan: JsonDict) -> str:
                 "",
                 f"Video prompt: {scene.get('video_prompt') or ''}",
                 "",
+                *([f"Transition prompt: {scene.get('transition_prompt') or ''}", ""] if str(scene.get("transition_prompt") or "").strip() else []),
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
