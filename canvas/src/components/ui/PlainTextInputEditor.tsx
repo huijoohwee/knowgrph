@@ -60,7 +60,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
         id={id}
         value={value}
         defaultValue={defaultValue}
-        onInput={ev => onChange?.((ev.target as HTMLTextAreaElement).value)}
+        onChange={ev => onChange?.(ev.currentTarget.value)}
         placeholder={placeholder}
         disabled={disabled}
         readOnly={readOnly}
@@ -92,7 +92,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
       type={inputType}
       value={value}
       defaultValue={defaultValue}
-      onInput={ev => onChange?.((ev.target as HTMLInputElement).value)}
+      onChange={ev => onChange?.(ev.currentTarget.value)}
       placeholder={placeholder}
       disabled={disabled}
       readOnly={readOnly}

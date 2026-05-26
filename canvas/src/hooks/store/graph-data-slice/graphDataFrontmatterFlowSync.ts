@@ -287,6 +287,89 @@ export function writeWorkspaceSourceTextIfPresent(file: GraphState['sourceFiles'
     .catch(() => void 0)
 }
 
+function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): boolean {
+  if (!graphData || typeof graphData !== 'object') return false
+  if (String(graphData.context || '').trim() === 'frontmatter-flow') return true
+  const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? (graphData.metadata as Record<string, unknown>)
+    : null
+  return String(meta?.kind || '').trim() === 'frontmatter-flow'
+}
+
+function findActiveMarkdownDocumentSourceFile(args: {
+  state: GraphState
+  sourceFiles: GraphState['sourceFiles']
+}): { index: number; file: GraphState['sourceFiles'][number] } | null {
+  const activeName = String(args.state.markdownDocumentName || '').trim()
+  if (!activeName) return null
+  const activePath = normalizeComposedSourcePath(activeName)
+  if (!activePath) return null
+  for (let i = 0; i < args.sourceFiles.length; i += 1) {
+    const file = args.sourceFiles[i]
+    if (!file) continue
+    const filePath = normalizeComposedSourcePath(readComposedSourceFilePath(file))
+    if (filePath && filePath === activePath) {
+      return { index: i, file }
+    }
+  }
+  return null
+}
+
+export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
+  state: GraphState
+  sourceFiles: GraphState['sourceFiles']
+  parsedGraphData: GraphData
+}): {
+  sourceFiles: GraphState['sourceFiles']
+  markdownDocumentText?: string | null
+  markdownDocumentName?: string | null
+} {
+  const activeName = String(args.state.markdownDocumentName || '').trim()
+  const activeText = String(args.state.markdownDocumentText || '')
+  if (!activeName || !activeText) return { sourceFiles: args.sourceFiles }
+  if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles }
+  if (!isFrontmatterFlowGraphData(args.parsedGraphData)) return { sourceFiles: args.sourceFiles }
+  const nextText = upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData)
+  if (nextText === activeText) return { sourceFiles: args.sourceFiles }
+  const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
+  if (!activeFileMatch) {
+    return {
+      sourceFiles: args.sourceFiles,
+      markdownDocumentText: nextText,
+      markdownDocumentName: activeName,
+    }
+  }
+  const nextSourceFiles = args.sourceFiles.slice()
+  nextSourceFiles[activeFileMatch.index] = {
+    ...activeFileMatch.file,
+    text: nextText,
+    parsedTextHash: '',
+  }
+  return {
+    sourceFiles: nextSourceFiles,
+    markdownDocumentText: nextText,
+    markdownDocumentName: activeName,
+  }
+}
+
+export function writeActiveMarkdownDocumentTextIfPresent(args: {
+  state: GraphState
+  sourceFiles: GraphState['sourceFiles']
+  text: string
+}): void {
+  const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
+  if (activeFileMatch?.file) {
+    writeWorkspaceSourceTextIfPresent(activeFileMatch.file, args.text)
+    return
+  }
+  const activePath = normalizeComposedSourcePath(String(args.state.markdownDocumentName || '').trim())
+  if (!activePath) return
+  if (!isMarkdownLikeFileName(activePath)) return
+  void getWorkspaceFs()
+    .then(fs => fs.writeFileText(activePath as any, args.text))
+    .catch(() => void 0)
+}
+
 export function syncSourceFileTextFromParsedGraph(args: {
   state: GraphState
   sourceFiles: GraphState['sourceFiles']

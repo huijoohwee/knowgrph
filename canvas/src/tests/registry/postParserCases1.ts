@@ -177,6 +177,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspace.import.frontmatterPreset.enablesGeospatialSurfaceMode","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testCanvasFrontmatterPresetEnablesGeospatialSurfaceMode"],
   ["workspace.import.frontmatterPreset.enables3dSurfaceVoxelMode","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testCanvasFrontmatterPresetEnables3dSurfaceModeAndVoxelMode"],
   ["workspace.activeMarkdownDocument.passiveSelection.preservesViewState","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatterPresetForPassiveSelection"],
+  ["workspace.activeMarkdownDocument.frontmatterFlow.updateNode.writeback","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testActiveFrontmatterFlowNodeUpdateKeepsMarkdownDocumentTextCanonical"],
   ["workspace.initializationSeed.selection.appliesGraphAndPresetAtomically","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testInitializationWorkspaceSelectionPromotesAtomicGraphAndPresetLanding"],
   ["workspace.initializationSeed.materialization.preservesCanonicalGraphLanding","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testInitializationWorkspaceMaterializationPreservesCanonicalDocumentGraph"],
   ["workspace.import.pipeline.defersPresetReplayUntilGraphApply","@/__tests__/frontmatterFlowImportModeSeepageRegression.test","testFrontmatterIngestPipelineDefersPresetReplayUntilGraphApply"],

@@ -600,6 +600,80 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
   if (st.documentStructureBaselineLock !== false) throw new Error('expected passive active doc switch to preserve README baseline lock setting')
 }
 
+export async function testActiveFrontmatterFlowNodeUpdateKeepsMarkdownDocumentTextCanonical() {
+  useGraphStore.getState().resetAll()
+  const originalSummary = 'Open on the user pain point before the product is shown.'
+  const nextSummary = 'Live storyboard sync validation: Cold Open summary updated from the canvas card.'
+  const text = [
+    '---',
+    'title: "Knowgrph Storyboard Demo"',
+    'kgCanvasSurfaceMode: "2d"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "storyboard"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgDocumentStructureBaselineLock: false',
+    'flow:',
+    '  nodes:',
+    '    - id: SCENE_01',
+    '      type: Scene',
+    '      label: Cold Open',
+    '      stage: Draft',
+    `      summary: ${JSON.stringify(originalSummary)}`,
+    '  edges: []',
+    '---',
+    '',
+    '# Knowgrph Storyboard Demo',
+  ].join('\n')
+
+  useGraphStore.setState({
+    graphData: {
+      type: 'Graph',
+      context: 'frontmatter-flow',
+      metadata: { kind: 'frontmatter-flow', source: 'markdown:/docs/knowgrph-storyboard-demo.md' },
+      nodes: [
+        {
+          id: 'SCENE_01',
+          type: 'Scene',
+          label: 'Cold Open',
+          properties: {
+            stage: 'Draft',
+            summary: originalSummary,
+          },
+          x: 0,
+          y: 0,
+        },
+      ],
+      edges: [],
+    } as never,
+    graphDataRevision: 1,
+    graphContentRevision: 1,
+    docLocationRevision: 0,
+    markdownDocumentName: '/docs/knowgrph-storyboard-demo.md',
+    markdownDocumentText: text,
+    sourceFiles: [],
+  })
+
+  useGraphStore.getState().updateNode('SCENE_01', {
+    properties: {
+      stage: 'Draft',
+      summary: nextSummary,
+    } as never,
+  })
+
+  const after = useGraphStore.getState()
+  const afterNode = after.graphData?.nodes?.find(node => String(node?.id || '') === 'SCENE_01')
+  if (String((afterNode?.properties || {}).summary || '') !== nextSummary) {
+    throw new Error(`expected graph node summary writeback after updateNode, got ${JSON.stringify(afterNode)}`)
+  }
+  if (!String(after.markdownDocumentText || '').includes(nextSummary)) {
+    throw new Error(`expected active markdown document text to include updated summary, got ${String(after.markdownDocumentText || '').slice(0, 400)}`)
+  }
+  if (String(after.markdownDocumentText || '').includes(originalSummary)) {
+    throw new Error('expected active markdown document text to stop carrying the stale summary after updateNode writeback')
+  }
+}
+
 export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreRuntime.tsx')
   const bootstrapRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreBootstrapRuntime.tsx')

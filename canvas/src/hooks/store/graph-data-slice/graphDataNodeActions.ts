@@ -15,7 +15,12 @@ import {
   queueComposedPositionWrite,
   resolvePreferredComposedLayerId,
 } from './graphDataComposedSource'
-import { syncSourceFileTextFromParsedGraph, writeWorkspaceSourceTextIfPresent } from './graphDataFrontmatterFlowSync'
+import {
+  syncActiveMarkdownDocumentTextFromParsedGraph,
+  syncSourceFileTextFromParsedGraph,
+  writeActiveMarkdownDocumentTextIfPresent,
+  writeWorkspaceSourceTextIfPresent,
+} from './graphDataFrontmatterFlowSync'
 import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
 
 export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
@@ -96,14 +101,29 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
     const positionOnly = isPositionOnlyNodeUpdate(updates)
+    const activeTextSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+      state: get(),
+      sourceFiles: get().sourceFiles || [],
+      parsedGraphData: nextGraphData,
+    })
     set(s => ({
+      ...(activeTextSync.sourceFiles !== (s.sourceFiles || []) ? { sourceFiles: activeTextSync.sourceFiles } : {}),
       graphData: nextGraphData,
       graphDataRevision: nextRevision,
       ...(positionOnly ? {} : { graphContentRevision: (s.graphContentRevision || 0) + 1 }),
       ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText') ? { markdownDocumentText: activeTextSync.markdownDocumentText ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentName') ? { markdownDocumentName: activeTextSync.markdownDocumentName ?? s.markdownDocumentName } : {}),
       graphValidationStatus: null,
       graphValidationTimestamp: null,
     }))
+    if (Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText')) {
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: get(),
+        sourceFiles: activeTextSync.sourceFiles,
+        text: activeTextSync.markdownDocumentText ?? '',
+      })
+    }
     if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -188,14 +208,29 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
     const nextGraphDataBase = { ...graphData, nodes }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    const activeTextSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+      state: get(),
+      sourceFiles: get().sourceFiles || [],
+      parsedGraphData: nextGraphData,
+    })
     set(s => ({
+      ...(activeTextSync.sourceFiles !== (s.sourceFiles || []) ? { sourceFiles: activeTextSync.sourceFiles } : {}),
       graphData: nextGraphData,
       graphDataRevision: nextRevision,
       graphContentRevision: (s.graphContentRevision || 0) + 1,
       docLocationRevision: (s.docLocationRevision || 0) + 1,
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText') ? { markdownDocumentText: activeTextSync.markdownDocumentText ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentName') ? { markdownDocumentName: activeTextSync.markdownDocumentName ?? s.markdownDocumentName } : {}),
       graphValidationStatus: null,
       graphValidationTimestamp: null,
     }))
+    if (Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText')) {
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: get(),
+        sourceFiles: activeTextSync.sourceFiles,
+        text: activeTextSync.markdownDocumentText ?? '',
+      })
+    }
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }
@@ -290,7 +325,13 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
     )
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    const activeTextSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+      state: get(),
+      sourceFiles: get().sourceFiles || [],
+      parsedGraphData: nextGraphData,
+    })
     set(s => ({
+      ...(activeTextSync.sourceFiles !== (s.sourceFiles || []) ? { sourceFiles: activeTextSync.sourceFiles } : {}),
       graphData: nextGraphData,
       graphDataRevision: nextRevision,
       graphContentRevision: (s.graphContentRevision || 0) + 1,
@@ -299,9 +340,18 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
       selectedEdgeId: nextSelectedEdgeId,
       selectedNodeIds: nextSelectedNodeIds,
       selectedEdgeIds: nextSelectedEdgeIds,
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText') ? { markdownDocumentText: activeTextSync.markdownDocumentText ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentName') ? { markdownDocumentName: activeTextSync.markdownDocumentName ?? s.markdownDocumentName } : {}),
       graphValidationStatus: null,
       graphValidationTimestamp: null,
     }));
+    if (Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText')) {
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: get(),
+        sourceFiles: activeTextSync.sourceFiles,
+        text: activeTextSync.markdownDocumentText ?? '',
+      })
+    }
     try {
       get().updateOpenWidgetNodeIds(prev => prev.filter(nodeId => nodeId !== id))
     } catch { void 0 }
