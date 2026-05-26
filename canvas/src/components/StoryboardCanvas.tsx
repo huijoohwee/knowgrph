@@ -37,6 +37,7 @@ import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdow
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
+import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
 
 type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
@@ -262,12 +263,13 @@ export default function StoryboardCanvas({
     nextValue: string
   }) => {
     const currentProperties = currentPropertiesByCardId.get(args.cardId) || {}
-    const nextProperties: Record<string, unknown> = { ...currentProperties }
-    for (const key of args.aliasKeys) delete nextProperties[key]
-    const normalized = String(args.nextValue || '').trim()
-    if (normalized) nextProperties[args.canonicalKey] = normalized
     updateNode(args.cardId, {
-      properties: nextProperties as never,
+      properties: buildGraphNodeCanonicalTextPatch({
+        currentProperties,
+        aliasKeys: args.aliasKeys,
+        canonicalKey: args.canonicalKey,
+        nextValue: args.nextValue,
+      }) as never,
     })
   }, [currentPropertiesByCardId, updateNode])
   const updateStoryboardTitle = React.useCallback((cardId: string, nextValue: string) => {

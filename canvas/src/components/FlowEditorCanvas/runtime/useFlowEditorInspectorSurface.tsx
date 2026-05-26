@@ -42,6 +42,7 @@ export function useFlowEditorInspectorSurface(args: {
   workflowContextJson: string
   setWorkflowContextJson: React.Dispatch<React.SetStateAction<string>>
   setSelectedNodeLabel: (label: string) => void
+  patchSelectedNodeProperties: (patch: Record<string, unknown>) => void
   setSelectedNodeType: (type: string) => void
   setSelectedEdgeLabel: (label: string) => void
   applyJsonToDraft: (args: { target: 'nodeProps' | 'nodeMeta' | 'edgeProps' | 'edgeMeta' | 'workflowMeta' | 'workflowContext' }) => void
@@ -129,6 +130,7 @@ export function useFlowEditorInspectorSurface(args: {
       workflowContextJson={args.workflowContextJson}
       setWorkflowContextJson={args.setWorkflowContextJson}
       onSetNodeLabel={args.setSelectedNodeLabel}
+      onPatchSelectedNodeProperties={args.patchSelectedNodeProperties}
       onSetNodeType={args.setSelectedNodeType}
       onSetEdgeLabel={args.setSelectedEdgeLabel}
       onApplyJson={(target) => args.applyJsonToDraft({ target })}

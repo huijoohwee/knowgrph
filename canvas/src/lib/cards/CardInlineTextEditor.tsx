@@ -9,12 +9,14 @@ type CardInlineTextEditorProps = {
   ariaLabel: string
   placeholder: string
   canEdit?: boolean
+  editRequestKey?: string | number | null
   multiline?: boolean
   displayClassName?: string
   editorClassName?: string
   emptyClassName?: string
   rows?: number
   onCommit?: (nextValue: string) => void
+  onEditingChange?: (editing: boolean) => void
 }
 
 const normalizeEditorValue = (value: string): string => String(value ?? '').replace(/\r/g, '')
@@ -25,16 +27,20 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     ariaLabel,
     placeholder,
     canEdit = false,
+    editRequestKey = null,
     multiline = false,
     displayClassName,
     editorClassName,
     emptyClassName,
     rows,
     onCommit,
+    onEditingChange,
   } = props
   const [editing, setEditing] = React.useState(false)
   const [draft, setDraft] = React.useState(() => normalizeEditorValue(value))
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const lastEditRequestKeyRef = React.useRef<string | number | null>(null)
+  const lastEditingRef = React.useRef(editing)
 
   React.useEffect(() => {
     if (editing) return
@@ -51,6 +57,24 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       input.setSelectionRange(0, end)
     }
   }, [editing])
+
+  React.useEffect(() => {
+    if (editRequestKey == null) {
+      lastEditRequestKeyRef.current = null
+      return
+    }
+    if (!canEdit) return
+    if (Object.is(lastEditRequestKeyRef.current, editRequestKey)) return
+    lastEditRequestKeyRef.current = editRequestKey
+    setDraft(normalizeEditorValue(value))
+    setEditing(true)
+  }, [canEdit, editRequestKey, value])
+
+  React.useEffect(() => {
+    if (lastEditingRef.current === editing) return
+    lastEditingRef.current = editing
+    onEditingChange?.(editing)
+  }, [editing, onEditingChange])
 
   const commit = React.useCallback(() => {
     const next = normalizeEditorValue(draft)

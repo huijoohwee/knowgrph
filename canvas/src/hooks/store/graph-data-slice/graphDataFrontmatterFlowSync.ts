@@ -3,6 +3,7 @@ import type { GraphState } from '@/hooks/store/types'
 import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import yaml from 'js-yaml'
 import {
   normalizeComposedSourcePath,
   readComposedSourceFilePath,
@@ -219,6 +220,90 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
   return lines
 }
 
+function replaceTopLevelYamlSectionLines(args: {
+  yamlLines: string[]
+  sectionKey: string
+  sectionLines: string[]
+}): string[] {
+  const sectionKey = String(args.sectionKey || '').trim()
+  if (!sectionKey) return args.yamlLines
+  const escapedSectionKey = sectionKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const sectionHeaderRe = new RegExp(`^${escapedSectionKey}\\s*:\\s*$`)
+  let start = -1
+  let end = args.yamlLines.length
+  for (let i = 0; i < args.yamlLines.length; i += 1) {
+    const trimmed = String(args.yamlLines[i] || '').trim()
+    if (!sectionHeaderRe.test(trimmed)) continue
+    start = i
+    break
+  }
+  if (start >= 0) {
+    end = args.yamlLines.length
+    for (let i = start + 1; i < args.yamlLines.length; i += 1) {
+      const rawLine = String(args.yamlLines[i] || '')
+      const trimmed = rawLine.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const indent = rawLine.match(/^\s*/)?.[0]?.length || 0
+      if (indent === 0 && /^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) {
+        end = i
+        break
+      }
+    }
+  }
+  return start >= 0
+    ? [...args.yamlLines.slice(0, start), ...args.sectionLines, ...args.yamlLines.slice(end)]
+    : [...args.yamlLines.filter((line, index, arr) => !(arr.length === 1 && line.trim() === '')), ...args.sectionLines]
+}
+
+function buildTopLevelYamlSectionLines(sectionKey: string, sectionValue: unknown): string[] {
+  const key = String(sectionKey || '').trim()
+  if (!key || typeof sectionValue === 'undefined') return []
+  const dumped = String(
+    yaml.dump(
+      { [key]: sectionValue },
+      {
+        lineWidth: -1,
+        noRefs: true,
+        sortKeys: false,
+      },
+    ) || '',
+  ).trimEnd()
+  return dumped ? dumped.split('\n') : []
+}
+
+function readFrontmatterTimelineSectionValue(graphData: GraphData): unknown {
+  const metadata = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? (graphData.metadata as Record<string, unknown>)
+    : null
+  const frontmatterMeta = metadata?.frontmatterMeta && typeof metadata.frontmatterMeta === 'object' && !Array.isArray(metadata.frontmatterMeta)
+    ? (metadata.frontmatterMeta as Record<string, unknown>)
+    : null
+  return frontmatterMeta?.timeline
+}
+
+function upsertTopLevelFrontmatterSectionMarkdownText(args: {
+  rawText: string
+  sectionKey: string
+  sectionValue: unknown
+}): string {
+  const sectionLines = buildTopLevelYamlSectionLines(args.sectionKey, args.sectionValue)
+  if (sectionLines.length === 0) return args.rawText
+  const block = extractYamlFrontmatterBlock(args.rawText)
+  if (!block) {
+    const prefix = ['---', ...sectionLines, '---', ''].join('\n')
+    return args.rawText ? `${prefix}\n${args.rawText}` : `${prefix}\n`
+  }
+  const yamlLines = String(block.yamlText || '').split('\n')
+  const nextYamlLines = replaceTopLevelYamlSectionLines({
+    yamlLines,
+    sectionKey: args.sectionKey,
+    sectionLines,
+  })
+  const nextYaml = nextYamlLines.filter((line, index, arr) => !(arr.length > 1 && index === 0 && line === '')).join('\n')
+  const suffix = args.rawText.slice(block.rawBlock.length)
+  return `---\n${nextYaml}\n---${suffix}`
+}
+
 export function upsertFrontmatterFlowMarkdownText(rawText: string, graphData: GraphData): string {
   const text = String(rawText || '')
   const flowLines = buildFrontmatterFlowBlockLines(graphData)
@@ -255,7 +340,13 @@ export function upsertFrontmatterFlowMarkdownText(rawText: string, graphData: Gr
     : [...yamlLines.filter((line, index, arr) => !(arr.length === 1 && line.trim() === '')), ...flowLines]
   const nextYaml = nextYamlLines.filter((line, index, arr) => !(arr.length > 1 && index === 0 && line === '')).join('\n')
   const suffix = text.slice(block.rawBlock.length)
-  return `---\n${nextYaml}\n---${suffix}`
+  const nextText = `---\n${nextYaml}\n---${suffix}`
+  const timelineSectionValue = readFrontmatterTimelineSectionValue(graphData)
+  return upsertTopLevelFrontmatterSectionMarkdownText({
+    rawText: nextText,
+    sectionKey: 'timeline',
+    sectionValue: timelineSectionValue,
+  })
 }
 
 export function sourceFileShouldWriteFrontmatterFlow(file: GraphState['sourceFiles'][number]): boolean {

@@ -18,6 +18,9 @@ Provide a strict, renderer-safe Markdown contract for {{product}} Chat output th
 - The markdown body itself must carry the real answer content; do not rely on a `{{solution_md}}` shell as the body.
 - Annotation sigils use inline code only: `#HEX:text`, `bg#HEX:text`, or `#HEX|bg#HEX:text` where HEX is exactly 6 uppercase digits.
 - Prefer frontmatter `flow:` YAML for flow graphs; keep schema stable and parseable.
+- Canonical authored Markdown and reusable templates must keep `flow:` in plain YAML scalars, arrays, and objects.
+- Normalized `{key, type, value}` wrappers are reserved for E2E ingestion/parsing/rendering fixtures after parsing; do not mix them into ordinary authored docs or templates.
+- Switch-sensitive frontmatter-first docs must declare the full Canvas View preset explicitly so file switching stays deterministic: `kgCanvasSurfaceMode`, `kgCanvasRenderMode` when applicable, target renderer/mode key, `kgDocumentSemanticMode`, `kgFrontmatterModeEnabled`, `kgMultiDimTableModeEnabled`, and `kgDocumentStructureBaselineLock`.
 
 ## Syntax Validation Rules
 

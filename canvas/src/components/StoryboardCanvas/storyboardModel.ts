@@ -2,13 +2,20 @@ import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUt
 import { inferMediaKindFromResourceUrl, type UrlMediaKind } from '@/lib/graph/mediaUrlKind'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
+import {
+  GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS,
+} from '@/lib/cards/graphNodeCardFields'
 
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
 const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\b/i
 const LANE_PROPERTY_KEYS = ['status', 'stage', 'column', 'lane', 'phase', 'track', 'swimlane', 'group', 'bucket', 'category', 'columnKey'] as const
-export const STORYBOARD_TITLE_PROPERTY_KEYS = ['title', 'name', 'heading', 'scene', 'shot'] as const
-export const STORYBOARD_SUMMARY_PROPERTY_KEYS = ['summary', 'description', 'caption', 'content', 'text', 'note', 'notes'] as const
+export const STORYBOARD_TITLE_PROPERTY_KEYS = GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS
+export const STORYBOARD_SUMMARY_PROPERTY_KEYS = GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS
 const ORDER_PROPERTY_KEYS = ['order', 'sort', 'sequence', 'sceneOrder', 'shotOrder', 'index', 'rank'] as const
 const INDEX_PROPERTY_KEYS = ['frame', 'frameNumber', 'sceneNumber', 'shotNumber', 'panelNumber', 'number', 'index', 'step', 'stepNumber', 'sequenceNumber', 'position', 'ordinal'] as const
 const TAG_PROPERTY_KEYS = ['tags', 'keywords'] as const
@@ -18,9 +25,9 @@ const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'b
 const SLUGLINE_PROPERTY_KEYS = ['slugline'] as const
 const LOCATION_PROPERTY_KEYS = ['location', 'setting', 'place', 'surface', 'context'] as const
 const TIME_PROPERTY_KEYS = ['timeOfDay', 'time', 'dayPart', 'moment', 'state'] as const
-export const STORYBOARD_ACTION_PROPERTY_KEYS = ['action', 'direction', 'beats', 'blocking', 'instructions', 'steps', 'workflow', 'task'] as const
-export const STORYBOARD_DIALOGUE_PROPERTY_KEYS = ['dialogue', 'voiceover', 'vo', 'quote', 'line', 'speakerLine', 'speaker_line', 'narration', 'narrationText', 'voiceOver'] as const
-export const STORYBOARD_PROMPT_PROPERTY_KEYS = ['prompt', 'imagePrompt', 'visualPrompt', 'brief', 'visualBrief', 'visual_brief', 'artDirection'] as const
+export const STORYBOARD_ACTION_PROPERTY_KEYS = GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS
+export const STORYBOARD_DIALOGUE_PROPERTY_KEYS = GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS
+export const STORYBOARD_PROMPT_PROPERTY_KEYS = GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS
 const STYLE_PROPERTY_KEYS = ['style', 'look', 'treatment', 'theme', 'preset', 'variant'] as const
 const REFERENCE_PROPERTY_KEYS = ['references', 'referenceUrls', 'reference_urls', 'referenceImages', 'reference_images', 'moodboard', 'referenceLinks', 'reference_links', 'refs', 'assets', 'assetRefs', 'asset_refs'] as const
 

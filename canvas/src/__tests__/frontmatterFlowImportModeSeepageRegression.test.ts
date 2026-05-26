@@ -674,6 +674,192 @@ export async function testActiveFrontmatterFlowNodeUpdateKeepsMarkdownDocumentTe
   }
 }
 
+export function testAnimaticTimelineBeatMetadataGraphWritebackSyncsActiveMarkdownDocument() {
+  const text = [
+    '---',
+    'kgCanvas2dRenderer: animatic',
+    'flow:',
+    '  nodes:',
+    '    - id: {key: id, type: string, value: NODE_CLIP_01}',
+    '      type: {key: type, type: string, value: Clip}',
+    '      label: {key: label, type: string, value: Clip 01}',
+    '      params: {key: params, type: object, value: {"beat_ref":"beat_01"}}',
+    'timeline:',
+    '  beats:',
+    '    beat_01:',
+    '      label: Opening',
+    '      summary: Original summary',
+    '      note: Original note',
+    '      tags:',
+    '        - intro',
+    '---',
+    '',
+  ].join('\n')
+
+  useGraphStore.setState({
+    graphData: {
+      type: 'Graph',
+      context: 'frontmatter-flow',
+      metadata: {
+        kind: 'frontmatter-flow',
+        source: 'markdown:/docs/knowgrph-animatic-demo.md',
+        frontmatterMeta: {
+          kgCanvas2dRenderer: 'animatic',
+          timeline: {
+            beats: {
+              beat_01: {
+                label: 'Opening',
+                summary: 'Original summary',
+                note: 'Original note',
+                tags: ['intro'],
+              },
+            },
+          },
+        },
+      },
+      nodes: [
+        {
+          id: 'NODE_CLIP_01',
+          type: 'Clip',
+          label: 'Clip 01',
+          properties: {
+            params: {
+              beat_ref: 'beat_01',
+            },
+          },
+          x: 0,
+          y: 0,
+        },
+      ],
+      edges: [],
+    } as never,
+    graphDataRevision: 1,
+    graphContentRevision: 1,
+    docLocationRevision: 0,
+    markdownDocumentName: '/docs/knowgrph-animatic-demo.md',
+    markdownDocumentText: text,
+    sourceFiles: [],
+  })
+
+  useGraphStore.getState().updateGraphMetadata({
+    frontmatterMeta: {
+      kgCanvas2dRenderer: 'animatic',
+      timeline: {
+        beats: {
+          beat_01: {
+            label: 'Opening Revised',
+            summary: 'Updated summary',
+            note: 'Updated note',
+            tags: ['intro', 'hook'],
+          },
+        },
+      },
+    } as never,
+  })
+
+  const after = useGraphStore.getState()
+  const frontmatterMeta = ((after.graphData?.metadata || {}) as Record<string, unknown>).frontmatterMeta as Record<string, unknown> | null
+  const timeline = (frontmatterMeta?.timeline || null) as Record<string, unknown> | null
+  const beats = (timeline?.beats || null) as Record<string, unknown> | null
+  const beat = (beats?.beat_01 || null) as Record<string, unknown> | null
+  if (String(beat?.summary || '') !== 'Updated summary') {
+    throw new Error(`expected graph metadata timeline beat summary writeback, got ${JSON.stringify(beat)}`)
+  }
+  const markdownDocumentText = String(after.markdownDocumentText || '')
+  for (const snippet of ['timeline:', 'beat_01:', 'label: Opening Revised', 'summary: Updated summary', 'note: Updated note', '- intro', '- hook']) {
+    if (!markdownDocumentText.includes(snippet)) {
+      throw new Error(`expected active markdown document text to include updated animatic timeline snippet: ${snippet}`)
+    }
+  }
+  if (markdownDocumentText.includes('summary: Original summary')) {
+    throw new Error('expected active markdown document text to stop carrying the stale animatic beat summary after graph metadata writeback')
+  }
+}
+
+export function testAnimaticItemBeatRefNodeWritebackSyncsActiveMarkdownDocument() {
+  const text = [
+    '---',
+    'kgCanvas2dRenderer: animatic',
+    'flow:',
+    '  nodes:',
+    '    - id: {key: id, type: string, value: NODE_AUDIO_01}',
+    '      type: {key: type, type: string, value: Audio}',
+    '      label: {key: label, type: string, value: Voice}',
+    '      params: {key: params, type: object, value: {"beat_ref":"beat_01"}}',
+    'timeline:',
+    '  beats:',
+    '    beat_01:',
+    '      label: Opening',
+    '    beat_02:',
+    '      label: CTA',
+    '---',
+    '',
+  ].join('\n')
+
+  useGraphStore.setState({
+    graphData: {
+      type: 'Graph',
+      context: 'frontmatter-flow',
+      metadata: {
+        kind: 'frontmatter-flow',
+        source: 'markdown:/docs/knowgrph-animatic-demo.md',
+        frontmatterMeta: {
+          kgCanvas2dRenderer: 'animatic',
+          timeline: {
+            beats: {
+              beat_01: { label: 'Opening' },
+              beat_02: { label: 'CTA' },
+            },
+          },
+        },
+      },
+      nodes: [
+        {
+          id: 'NODE_AUDIO_01',
+          type: 'Audio',
+          label: 'Voice',
+          properties: {
+            params: {
+              beat_ref: 'beat_01',
+            },
+          },
+          x: 0,
+          y: 0,
+        },
+      ],
+      edges: [],
+    } as never,
+    graphDataRevision: 1,
+    graphContentRevision: 1,
+    docLocationRevision: 0,
+    markdownDocumentName: '/docs/knowgrph-animatic-demo.md',
+    markdownDocumentText: text,
+    sourceFiles: [],
+  })
+
+  useGraphStore.getState().updateNode('NODE_AUDIO_01', {
+    properties: {
+      params: {
+        beat_ref: 'beat_02',
+      },
+    } as never,
+  })
+
+  const after = useGraphStore.getState()
+  const node = after.graphData?.nodes.find(entry => entry.id === 'NODE_AUDIO_01') || null
+  const nodeParams = ((node?.properties || {}) as Record<string, unknown>).params as Record<string, unknown> | null
+  if (String(nodeParams?.beat_ref || '') !== 'beat_02') {
+    throw new Error(`expected graph node beat_ref writeback, got ${JSON.stringify(node?.properties || null)}`)
+  }
+  const markdownDocumentText = String(after.markdownDocumentText || '')
+  if (!markdownDocumentText.includes('{"beat_ref":"beat_02"}')) {
+    throw new Error(`expected active markdown document text to include updated flow node beat_ref, got ${markdownDocumentText}`)
+  }
+  if (markdownDocumentText.includes('{"beat_ref":"beat_01"}')) {
+    throw new Error('expected active markdown document text to stop carrying the stale flow node beat_ref after updateNode writeback')
+  }
+}
+
 export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreRuntime.tsx')
   const bootstrapRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreBootstrapRuntime.tsx')

@@ -7,7 +7,6 @@ import {
   ArrowRight,
   ArrowRightToLine,
   ArrowUp,
-  Check,
   CircleDot,
   Copy,
   EyeOff,
@@ -21,9 +20,9 @@ import {
   Tags,
   Trash2,
   VolumeX,
-  X,
 } from 'lucide-react'
 import IconButton from '@/components/IconButton'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
@@ -43,31 +42,27 @@ import { getIconSizeClass } from '@/lib/ui'
 import {
   applyAnimaticTimelineBeatTimingOverrides,
   buildAnimaticTimelineModel,
-  deleteAnimaticTimelineBeat,
-  duplicateAnimaticTimelineBeat,
+  cloneAnimaticTimelineFrontmatterMeta,
+  deleteAnimaticTimelineBeatRecord,
+  duplicateAnimaticTimelineBeatRecord,
   findAnimaticTimelineBeatIndexAtPosition,
   formatAnimaticTimelineTimestamp,
-  insertAnimaticTimelineBeat,
-  mergeAnimaticTimelineBeatWithNext,
+  insertAnimaticTimelineBeatRecord,
+  mergeAnimaticTimelineBeatWithNextRecord,
   readAnimaticTimelineLaneControlState,
-  updateAnimaticTimelineMarkdownLaneOrder,
-  removeAnimaticTimelineGapBeforeBeat,
+  removeAnimaticTimelineGapBeforeBeatRecord,
   resolveAnimaticTimelineBeatTimingEdit,
-  splitAnimaticTimelineBeat,
+  splitAnimaticTimelineBeatRecord,
   snapAnimaticTimelineValue,
   type AnimaticTimelineLaneId,
   type AnimaticTimelineLaneControlState,
   type AnimaticTimelineBeat,
   type AnimaticTimelineBeatTimingOverride,
   type AnimaticTimelineScaleConfig,
-  updateAnimaticTimelineMarkdownBeatLabel,
-  updateAnimaticTimelineMarkdownItemBeatRef,
-  updateAnimaticTimelineMarkdownLaneControlState,
-  updateAnimaticTimelineMarkdownBeatNote,
-  updateAnimaticTimelineMarkdownBeatSummary,
-  updateAnimaticTimelineMarkdownBeatTags,
-  updateAnimaticTimelineMarkdownBeatTiming,
-  updateAnimaticTimelineMarkdownBeatTimingOverrides,
+  updateAnimaticTimelineBeatTimingOverrideRecords,
+  updateAnimaticTimelineBeatRecordField,
+  updateAnimaticTimelineLaneControlStateRecord,
+  updateAnimaticTimelineLaneOrderRecord,
 } from '@/components/AnimaticCanvas/animaticTimeline'
 import './AnimaticCanvas.css'
 
@@ -124,6 +119,14 @@ const LANE_LABEL: Record<AnimaticTimelineLaneId, string> = {
   audio: 'Audio',
   scene: 'Scene',
   node: 'Node',
+}
+
+type AnimaticBeatEditableField = 'label' | 'note' | 'summary' | 'tags'
+
+type AnimaticBeatEditSession = {
+  beatRef: string
+  field: AnimaticBeatEditableField
+  requestKey: number
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -317,7 +320,8 @@ export default function AnimaticCanvas({
   const graphData = useActiveGraphRenderData(active)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
-  const setActiveMarkdownDocument = useGraphStore(s => s.setActiveMarkdownDocument)
+  const updateGraphMetadata = useGraphStore(s => s.updateGraphMetadata)
+  const updateNode = useGraphStore(s => s.updateNode)
   const baseTimelineModel = React.useMemo(
     () =>
       buildAnimaticTimelineModel({
@@ -335,14 +339,7 @@ export default function AnimaticCanvas({
   const [hiddenLaneIds, setHiddenLaneIds] = React.useState<AnimaticTimelineLaneId[]>([])
   const [mutedLaneIds, setMutedLaneIds] = React.useState<AnimaticTimelineLaneId[]>([])
   const [soloLaneId, setSoloLaneId] = React.useState<AnimaticTimelineLaneId | null>(null)
-  const [editingBeatRef, setEditingBeatRef] = React.useState<string | null>(null)
-  const [editingBeatLabel, setEditingBeatLabel] = React.useState('')
-  const [editingBeatNoteRef, setEditingBeatNoteRef] = React.useState<string | null>(null)
-  const [editingBeatNote, setEditingBeatNote] = React.useState('')
-  const [editingBeatSummaryRef, setEditingBeatSummaryRef] = React.useState<string | null>(null)
-  const [editingBeatSummary, setEditingBeatSummary] = React.useState('')
-  const [editingBeatTagsRef, setEditingBeatTagsRef] = React.useState<string | null>(null)
-  const [editingBeatTags, setEditingBeatTags] = React.useState('')
+  const [beatEditSession, setBeatEditSession] = React.useState<AnimaticBeatEditSession | null>(null)
   const [highlightedLaneShortcutId, setHighlightedLaneShortcutId] = React.useState<AnimaticTimelineLaneId | null>(null)
   const [selectedLaneId, setSelectedLaneId] = React.useState<AnimaticTimelineLaneId | null>(null)
   const [selectedItemNodeId, setSelectedItemNodeId] = React.useState<string | null>(null)
@@ -358,6 +355,7 @@ export default function AnimaticCanvas({
   const laneShortcutHighlightTimeoutRef = React.useRef<number | null>(null)
   const timingOverridesRef = React.useRef<Record<string, AnimaticTimelineBeatTimingOverride>>({})
   const dragSessionIdRef = React.useRef(0)
+  const beatEditRequestKeyRef = React.useRef(0)
   const dragDeltaPxRef = React.useRef(0)
   const dragPointerClientXRef = React.useRef<number | null>(null)
   const dragEdgeScrollDirectionRef = React.useRef<-1 | 0 | 1>(0)
@@ -561,7 +559,13 @@ export default function AnimaticCanvas({
   }, [playheadOffsetPx, playing, runtimeAutoScrollEnabled])
 
   const activeBeat = activeBeatIndex >= 0 ? timelineModel.beats[activeBeatIndex] : null
-  const currentEditingBeatRef = editingBeatRef || editingBeatNoteRef || editingBeatSummaryRef || editingBeatTagsRef
+  const currentEditingBeatRef = beatEditSession?.beatRef || null
+  const getBeatFieldEditRequestKey = React.useCallback((beatRef: string, field: AnimaticBeatEditableField): number | null => {
+    if (!beatEditSession) return null
+    if (beatEditSession.beatRef !== beatRef) return null
+    if (beatEditSession.field !== field) return null
+    return beatEditSession.requestKey
+  }, [beatEditSession])
   const currentTimeLabel = timelineModel.usesAbsoluteTiming ? formatAnimaticTimelineTimestamp(playbackPosition) : formatAnimaticTimelineTimestamp(playbackPosition * 1000)
   const timelineEditorTimeUnits = React.useMemo(
     () =>
@@ -690,48 +694,24 @@ export default function AnimaticCanvas({
     setSelectedItemNodeId(null)
   }, [selectedItemNodeId, selectedLaneVisibleItemContexts])
 
-  const commitMarkdownDocumentText = React.useCallback(
-    async (nextMarkdownText: string) => {
-      if (nextMarkdownText === markdownText || !markdownDocumentName) return false
-      await setActiveMarkdownDocument({
-        name: markdownDocumentName,
-        text: nextMarkdownText,
-        autoEnableFrontmatter: false,
-        applyViewPreset: false,
-        applyToGraph: false,
-        normalizeMermaidMmd: false,
-      })
-      return true
-    },
-    [markdownDocumentName, markdownText, setActiveMarkdownDocument],
-  )
-
-  const commitMarkdownGraphDocumentText = React.useCallback(
-    async (nextMarkdownText: string) => {
-      if (nextMarkdownText === markdownText || !markdownDocumentName) return false
-      return await setActiveMarkdownDocument({
-        name: markdownDocumentName,
-        text: nextMarkdownText,
-        autoEnableFrontmatter: false,
-        applyViewPreset: false,
-        applyToGraph: true,
-        normalizeMermaidMmd: false,
-      })
-    },
-    [markdownDocumentName, markdownText, setActiveMarkdownDocument],
-  )
+  const commitTimelineFrontmatterMeta = React.useCallback((nextFrontmatterMeta: Record<string, unknown>) => {
+    updateGraphMetadata({
+      frontmatterMeta: nextFrontmatterMeta as never,
+    })
+  }, [updateGraphMetadata])
 
   const commitLaneControlState = React.useCallback(
     async (nextControls: AnimaticTimelineLaneControlState) => {
-      const nextMarkdownText = updateAnimaticTimelineMarkdownLaneControlState({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      updateAnimaticTimelineLaneControlStateRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         hiddenLaneIds: nextControls.hiddenLaneIds,
         mutedLaneIds: nextControls.mutedLaneIds,
         soloLaneId: nextControls.soloLaneId,
       })
-      await commitMarkdownDocumentText(nextMarkdownText)
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
     },
-    [commitMarkdownDocumentText, markdownText],
+    [commitTimelineFrontmatterMeta, markdownText],
   )
 
   const handleToggleHiddenLane = React.useCallback(
@@ -802,21 +782,28 @@ export default function AnimaticCanvas({
       if (!targetBeatRef) return
       const resolvedNodeId = resolveLaneItemMoveNodeId(itemSource)
       if (!resolvedNodeId) return
-      const updateResult = updateAnimaticTimelineMarkdownItemBeatRef({
-        markdownText,
-        nodeId: resolvedNodeId,
-        title: itemSource.title,
-        laneId: itemSource.laneId,
-        sourceBeatRef: itemSource.beatRef,
-        beatRef: targetBeatRef,
+      const targetNode = graphData?.nodes.find(node => node.id === resolvedNodeId) || null
+      if (!targetNode) return
+      const currentProperties =
+        targetNode.properties && typeof targetNode.properties === 'object' && !Array.isArray(targetNode.properties)
+          ? { ...(targetNode.properties as Record<string, unknown>) }
+          : {}
+      const currentParams =
+        currentProperties.params && typeof currentProperties.params === 'object' && !Array.isArray(currentProperties.params)
+          ? { ...(currentProperties.params as Record<string, unknown>) }
+          : {}
+      if (String(currentParams.beat_ref || '') === targetBeatRef) return
+      currentParams.beat_ref = targetBeatRef
+      updateNode(resolvedNodeId, {
+        properties: {
+          ...currentProperties,
+          params: currentParams,
+        } as never,
       })
-      if (!updateResult.updated) return
-      const committed = await commitMarkdownGraphDocumentText(updateResult.markdownText)
-      if (!committed) return
       setPlaying(false)
       setPlaybackPosition(nextBeat?.displayStart ?? 0)
     },
-    [commitMarkdownGraphDocumentText, markdownText, resolveLaneItemMoveNodeId],
+    [graphData?.nodes, resolveLaneItemMoveNodeId, updateNode],
   )
 
   const handleReorderLane = React.useCallback(
@@ -830,36 +817,23 @@ export default function AnimaticCanvas({
       const [movedLaneId] = nextLaneOrder.splice(currentIndex, 1)
       if (!movedLaneId) return
       nextLaneOrder.splice(nextIndex, 0, movedLaneId)
-      const nextMarkdownText = updateAnimaticTimelineMarkdownLaneOrder({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      updateAnimaticTimelineLaneOrderRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         laneOrder: nextLaneOrder,
       })
-      await commitMarkdownDocumentText(nextMarkdownText)
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
     },
-    [commitMarkdownDocumentText, lanePresentations, markdownText],
+    [commitTimelineFrontmatterMeta, lanePresentations, markdownText],
   )
 
   React.useEffect(() => {
     if (!activeBeat) {
-      setEditingBeatRef(null)
-      setEditingBeatLabel('')
-      setEditingBeatNoteRef(null)
-      setEditingBeatNote('')
-      setEditingBeatSummaryRef(null)
-      setEditingBeatSummary('')
-      setEditingBeatTagsRef(null)
-      setEditingBeatTags('')
+      setBeatEditSession(null)
       return
     }
     if (currentEditingBeatRef === activeBeat.beatRef) return
-    setEditingBeatRef(null)
-    setEditingBeatLabel('')
-    setEditingBeatNoteRef(null)
-    setEditingBeatNote('')
-    setEditingBeatSummaryRef(null)
-    setEditingBeatSummary('')
-    setEditingBeatTagsRef(null)
-    setEditingBeatTags('')
+    setBeatEditSession(null)
   }, [activeBeat, currentEditingBeatRef])
 
   const handleTogglePlayback = React.useCallback(() => {
@@ -929,8 +903,9 @@ export default function AnimaticCanvas({
 
   const handleInsertBeatAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined, position: 'before' | 'after' = 'after') => {
-      const insertResult = insertAnimaticTimelineBeat({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      const insertResult = insertAnimaticTimelineBeatRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         model: timelineModel,
         insertAfterBeatRef:
           position === 'after'
@@ -942,18 +917,14 @@ export default function AnimaticCanvas({
             : null,
         snapStepMs: timelineModel.usesAbsoluteTiming ? snapStepMs : null,
       })
-      const committed = await commitMarkdownDocumentText(insertResult.markdownText)
-      if (!committed) return
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setPlaying(false)
-      const insertedBeat = buildAnimaticTimelineModel({
-        graphData,
-        markdownText: insertResult.markdownText,
-      }).beats.find(beat => beat.beatRef === insertResult.beatRef)
+      const insertedBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(beat => beat.beatRef === insertResult.beatRef)
       if (insertedBeat) {
         setPlaybackPosition(insertedBeat.displayStart)
       }
     },
-    [activeBeat?.beatRef, commitMarkdownDocumentText, graphData, markdownText, snapStepMs, timelineModel],
+    [activeBeat?.beatRef, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, snapStepMs, timelineModel, timingOverrides],
   )
 
   const handleInsertBeat = React.useCallback(
@@ -965,58 +936,57 @@ export default function AnimaticCanvas({
 
   const handleDeleteBeat = React.useCallback(async () => {
     if (!activeBeat || activeBeat.items.length > 0) return
-    const nextMarkdownText = deleteAnimaticTimelineBeat({
-      markdownText,
+    const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+    const deleted = deleteAnimaticTimelineBeatRecord({
+      frontmatterMeta: nextFrontmatterMeta,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
     })
-    const committed = await commitMarkdownDocumentText(nextMarkdownText)
-    if (!committed) return
+    if (!deleted) return
+    commitTimelineFrontmatterMeta(nextFrontmatterMeta)
     setPlaying(false)
     const fallbackBeat = timelineModel.beats[Math.max(0, activeBeatIndex - 1)]
     setPlaybackPosition(fallbackBeat?.displayStart ?? 0)
-  }, [activeBeat, activeBeatIndex, commitMarkdownDocumentText, markdownText, timelineModel])
+  }, [activeBeat, activeBeatIndex, commitTimelineFrontmatterMeta, markdownText, timelineModel])
 
   const handleDeleteBeatAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beat = targetBeat || activeBeat
       if (!beat || beat.items.length > 0) return
       const beatIndex = timelineModel.beats.findIndex(entry => entry.beatRef === beat.beatRef)
-      const nextMarkdownText = deleteAnimaticTimelineBeat({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      const deleted = deleteAnimaticTimelineBeatRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         model: timelineModel,
         beatRef: beat.beatRef,
       })
-      const committed = await commitMarkdownDocumentText(nextMarkdownText)
-      if (!committed) return
+      if (!deleted) return
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setPlaying(false)
       const fallbackBeat = timelineModel.beats[Math.max(0, beatIndex - 1)]
       setPlaybackPosition(fallbackBeat?.displayStart ?? 0)
     },
-    [activeBeat, commitMarkdownDocumentText, markdownText, timelineModel],
+    [activeBeat, commitTimelineFrontmatterMeta, markdownText, timelineModel],
   )
 
   const handleDuplicateBeatAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
       const beatRef = String(targetBeat?.beatRef || activeBeat?.beatRef || '').trim()
       if (!beatRef) return
-      const duplicateResult = duplicateAnimaticTimelineBeat({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      const duplicateResult = duplicateAnimaticTimelineBeatRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         model: timelineModel,
         beatRef,
         snapStepMs: timelineModel.usesAbsoluteTiming ? snapStepMs : null,
       })
       if (!duplicateResult.beatRef) return
-      const committed = await commitMarkdownDocumentText(duplicateResult.markdownText)
-      if (!committed) return
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setPlaying(false)
-      const duplicatedBeat = buildAnimaticTimelineModel({
-        graphData,
-        markdownText: duplicateResult.markdownText,
-      }).beats.find(beat => beat.beatRef === duplicateResult.beatRef)
+      const duplicatedBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(beat => beat.beatRef === duplicateResult.beatRef)
       if (duplicatedBeat) setPlaybackPosition(duplicatedBeat.displayStart)
     },
-    [activeBeat?.beatRef, commitMarkdownDocumentText, graphData, markdownText, snapStepMs, timelineModel],
+    [activeBeat?.beatRef, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, snapStepMs, timelineModel, timingOverrides],
   )
 
   const handleDuplicateBeat = React.useCallback(async () => {
@@ -1029,8 +999,9 @@ export default function AnimaticCanvas({
       if (!beat || beat.startMs == null || beat.endMs == null) return
       if (beat.endMs - beat.startMs < EDIT_MIN_DURATION_MS * 2) return
       const midpointMs = beat.startMs + (beat.endMs - beat.startMs) * 0.5
-      const splitResult = splitAnimaticTimelineBeat({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      const splitResult = splitAnimaticTimelineBeatRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         model: timelineModel,
         beatRef: beat.beatRef,
         splitAtMs: midpointMs,
@@ -1038,22 +1009,19 @@ export default function AnimaticCanvas({
         snapStepMs: snapEnabled ? snapStepMs : null,
       })
       if (!splitResult.beatRef) return
-      const committed = await commitMarkdownDocumentText(splitResult.markdownText)
-      if (!committed) return
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setPlaying(false)
-      const splitBeat = buildAnimaticTimelineModel({
-        graphData,
-        markdownText: splitResult.markdownText,
-      }).beats.find(entry => entry.beatRef === splitResult.beatRef)
+      const splitBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(entry => entry.beatRef === splitResult.beatRef)
       if (splitBeat) setPlaybackPosition(splitBeat.displayStart)
     },
-    [activeBeat, commitMarkdownDocumentText, graphData, markdownText, snapEnabled, snapStepMs, timelineModel],
+    [activeBeat, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, snapEnabled, snapStepMs, timelineModel, timingOverrides],
   )
 
   const handleSplitBeat = React.useCallback(async () => {
     if (!activeBeat || !canSplitActiveBeat) return
-    const splitResult = splitAnimaticTimelineBeat({
-      markdownText,
+    const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+    const splitResult = splitAnimaticTimelineBeatRecord({
+      frontmatterMeta: nextFrontmatterMeta,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
       splitAtMs: snappedPlaybackPosition,
@@ -1061,28 +1029,25 @@ export default function AnimaticCanvas({
       snapStepMs: snapEnabled ? snapStepMs : null,
     })
     if (!splitResult.beatRef) return
-    const committed = await commitMarkdownDocumentText(splitResult.markdownText)
-    if (!committed) return
+    commitTimelineFrontmatterMeta(nextFrontmatterMeta)
     setPlaying(false)
-    const splitBeat = buildAnimaticTimelineModel({
-      graphData,
-      markdownText: splitResult.markdownText,
-    }).beats.find(beat => beat.beatRef === splitResult.beatRef)
+    const splitBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(beat => beat.beatRef === splitResult.beatRef)
     if (splitBeat) setPlaybackPosition(splitBeat.displayStart)
-  }, [activeBeat, canSplitActiveBeat, commitMarkdownDocumentText, graphData, markdownText, snapEnabled, snapStepMs, snappedPlaybackPosition, timelineModel])
+  }, [activeBeat, baseTimelineModel, canSplitActiveBeat, commitTimelineFrontmatterMeta, markdownText, snapEnabled, snapStepMs, snappedPlaybackPosition, timelineModel, timingOverrides])
 
   const handleMergeBeatWithNext = React.useCallback(async () => {
     if (!activeBeat || !canMergeActiveBeatWithNext) return
-    const nextMarkdownText = mergeAnimaticTimelineBeatWithNext({
-      markdownText,
+    const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+    const merged = mergeAnimaticTimelineBeatWithNextRecord({
+      frontmatterMeta: nextFrontmatterMeta,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
     })
-    const committed = await commitMarkdownDocumentText(nextMarkdownText)
-    if (!committed) return
+    if (!merged) return
+    commitTimelineFrontmatterMeta(nextFrontmatterMeta)
     setPlaying(false)
     setPlaybackPosition(activeBeat.displayStart)
-  }, [activeBeat, canMergeActiveBeatWithNext, commitMarkdownDocumentText, markdownText, timelineModel])
+  }, [activeBeat, canMergeActiveBeatWithNext, commitTimelineFrontmatterMeta, markdownText, timelineModel])
 
   const handleMergeBeatWithNextAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
@@ -1096,31 +1061,33 @@ export default function AnimaticCanvas({
         nextBeat?.endMs != null &&
         (nextBeat?.items.length || 0) === 0
       if (!canMergeAtTarget) return
-      const nextMarkdownText = mergeAnimaticTimelineBeatWithNext({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      const merged = mergeAnimaticTimelineBeatWithNextRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         model: timelineModel,
         beatRef: beat.beatRef,
       })
-      const committed = await commitMarkdownDocumentText(nextMarkdownText)
-      if (!committed) return
+      if (!merged) return
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setPlaying(false)
       setPlaybackPosition(beat.displayStart)
     },
-    [activeBeat, commitMarkdownDocumentText, markdownText, timelineModel],
+    [activeBeat, commitTimelineFrontmatterMeta, markdownText, timelineModel],
   )
 
   const handleRemoveGapBeforeBeat = React.useCallback(async () => {
     if (!activeBeat || !canRemoveGapBeforeActiveBeat) return
-    const nextMarkdownText = removeAnimaticTimelineGapBeforeBeat({
-      markdownText,
+    const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+    const removed = removeAnimaticTimelineGapBeforeBeatRecord({
+      frontmatterMeta: nextFrontmatterMeta,
       model: timelineModel,
       beatRef: activeBeat.beatRef,
     })
-    const committed = await commitMarkdownDocumentText(nextMarkdownText)
-    if (!committed) return
+    if (!removed) return
+    commitTimelineFrontmatterMeta(nextFrontmatterMeta)
     setPlaying(false)
     setPlaybackPosition(Math.max(0, playbackPosition - activeGapBeforeMs))
-  }, [activeBeat, activeGapBeforeMs, canRemoveGapBeforeActiveBeat, commitMarkdownDocumentText, markdownText, playbackPosition, timelineModel])
+  }, [activeBeat, activeGapBeforeMs, canRemoveGapBeforeActiveBeat, commitTimelineFrontmatterMeta, markdownText, playbackPosition, timelineModel])
 
   const handleRemoveGapBeforeBeatAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
@@ -1132,106 +1099,86 @@ export default function AnimaticCanvas({
       const gapBeforeBeatMs =
         timelineModel.usesAbsoluteTiming && previousBeat?.endMs != null ? Math.max(0, beat.startMs - previousBeat.endMs) : 0
       if (gapBeforeBeatMs <= 0) return
-      const nextMarkdownText = removeAnimaticTimelineGapBeforeBeat({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      const removed = removeAnimaticTimelineGapBeforeBeatRecord({
+        frontmatterMeta: nextFrontmatterMeta,
         model: timelineModel,
         beatRef: beat.beatRef,
       })
-      const committed = await commitMarkdownDocumentText(nextMarkdownText)
-      if (!committed) return
+      if (!removed) return
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setPlaying(false)
       setPlaybackPosition(Math.max(0, beat.displayStart - gapBeforeBeatMs))
     },
-    [activeBeat, commitMarkdownDocumentText, markdownText, timelineModel],
+    [activeBeat, commitTimelineFrontmatterMeta, markdownText, timelineModel],
   )
 
-  const handleStartBeatLabelEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
-    setEditingBeatRef(beat.beatRef)
-    setEditingBeatLabel(beat.label)
-  }, [])
-
-  const handleCancelBeatLabelEdit = React.useCallback(() => {
-    setEditingBeatRef(null)
-    setEditingBeatLabel('')
-  }, [])
-
-  const handleCommitBeatLabelEdit = React.useCallback(async () => {
-    if (!editingBeatRef) return
-    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatLabel({
-      markdownText,
-      beatRef: editingBeatRef,
-      label: editingBeatLabel,
+  const beginBeatFieldEdit = React.useCallback((beat: AnimaticTimelineBeat, field: AnimaticBeatEditableField) => {
+    beatEditRequestKeyRef.current += 1
+    setBeatEditSession({
+      beatRef: beat.beatRef,
+      field,
+      requestKey: beatEditRequestKeyRef.current,
     })
-    await commitMarkdownDocumentText(nextMarkdownText)
-    setEditingBeatRef(null)
-    setEditingBeatLabel('')
-  }, [commitMarkdownDocumentText, editingBeatLabel, editingBeatRef, markdownText])
+  }, [])
+
+  const clearBeatFieldEdit = React.useCallback((args?: { beatRef?: string; field?: AnimaticBeatEditableField }) => {
+    setBeatEditSession(current => {
+      if (!current) return null
+      if (args?.beatRef && current.beatRef !== args.beatRef) return current
+      if (args?.field && current.field !== args.field) return current
+      return null
+    })
+  }, [])
+
+  const handleBeatFieldEditingChange = React.useCallback((args: {
+    beatRef: string
+    field: AnimaticBeatEditableField
+    editing: boolean
+  }) => {
+    if (args.editing) return
+    clearBeatFieldEdit({
+      beatRef: args.beatRef,
+      field: args.field,
+    })
+  }, [clearBeatFieldEdit])
+
+  const handleCommitBeatFieldEdit = React.useCallback(async (args: {
+    beatRef: string
+    field: AnimaticBeatEditableField
+    nextValue: string
+  }) => {
+    const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+    updateAnimaticTimelineBeatRecordField({
+      frontmatterMeta: nextFrontmatterMeta,
+      beatRef: args.beatRef,
+      field: args.field,
+      nextValue: args.nextValue,
+    })
+    updateGraphMetadata({
+      frontmatterMeta: nextFrontmatterMeta as never,
+    })
+    clearBeatFieldEdit({
+      beatRef: args.beatRef,
+      field: args.field,
+    })
+  }, [clearBeatFieldEdit, markdownText, updateGraphMetadata])
+
+  const handleStartBeatLabelEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
+    beginBeatFieldEdit(beat, 'label')
+  }, [beginBeatFieldEdit])
 
   const handleStartBeatNoteEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
-    setEditingBeatNoteRef(beat.beatRef)
-    setEditingBeatNote(beat.note)
-  }, [])
-
-  const handleCancelBeatNoteEdit = React.useCallback(() => {
-    setEditingBeatNoteRef(null)
-    setEditingBeatNote('')
-  }, [])
-
-  const handleCommitBeatNoteEdit = React.useCallback(async () => {
-    if (!editingBeatNoteRef) return
-    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatNote({
-      markdownText,
-      beatRef: editingBeatNoteRef,
-      note: editingBeatNote,
-    })
-    await commitMarkdownDocumentText(nextMarkdownText)
-    setEditingBeatNoteRef(null)
-    setEditingBeatNote('')
-  }, [commitMarkdownDocumentText, editingBeatNote, editingBeatNoteRef, markdownText])
+    beginBeatFieldEdit(beat, 'note')
+  }, [beginBeatFieldEdit])
 
   const handleStartBeatSummaryEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
-    setEditingBeatSummaryRef(beat.beatRef)
-    setEditingBeatSummary(beat.summary)
-  }, [])
-
-  const handleCancelBeatSummaryEdit = React.useCallback(() => {
-    setEditingBeatSummaryRef(null)
-    setEditingBeatSummary('')
-  }, [])
-
-  const handleCommitBeatSummaryEdit = React.useCallback(async () => {
-    if (!editingBeatSummaryRef) return
-    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatSummary({
-      markdownText,
-      beatRef: editingBeatSummaryRef,
-      summary: editingBeatSummary,
-    })
-    await commitMarkdownDocumentText(nextMarkdownText)
-    setEditingBeatSummaryRef(null)
-    setEditingBeatSummary('')
-  }, [commitMarkdownDocumentText, editingBeatSummary, editingBeatSummaryRef, markdownText])
+    beginBeatFieldEdit(beat, 'summary')
+  }, [beginBeatFieldEdit])
 
   const handleStartBeatTagsEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
-    setEditingBeatTagsRef(beat.beatRef)
-    setEditingBeatTags(beat.tags.join(', '))
-  }, [])
-
-  const handleCancelBeatTagsEdit = React.useCallback(() => {
-    setEditingBeatTagsRef(null)
-    setEditingBeatTags('')
-  }, [])
-
-  const handleCommitBeatTagsEdit = React.useCallback(async () => {
-    if (!editingBeatTagsRef) return
-    const nextMarkdownText = updateAnimaticTimelineMarkdownBeatTags({
-      markdownText,
-      beatRef: editingBeatTagsRef,
-      tags: editingBeatTags,
-    })
-    await commitMarkdownDocumentText(nextMarkdownText)
-    setEditingBeatTagsRef(null)
-    setEditingBeatTags('')
-  }, [commitMarkdownDocumentText, editingBeatTags, editingBeatTagsRef, markdownText])
+    beginBeatFieldEdit(beat, 'tags')
+  }, [beginBeatFieldEdit])
 
   const handleStartBeatSummaryQuickEdit = React.useCallback((beat: AnimaticTimelineBeat) => {
     handleFocusBeat(beat)
@@ -1575,11 +1522,12 @@ export default function AnimaticCanvas({
         dragEdgeScrollDirectionRef.current = 0
         return
       }
-      const nextMarkdownText = updateAnimaticTimelineMarkdownBeatTimingOverrides({
-        markdownText,
+      const nextFrontmatterMeta = cloneAnimaticTimelineFrontmatterMeta(markdownText)
+      updateAnimaticTimelineBeatTimingOverrideRecords({
+        frontmatterMeta: nextFrontmatterMeta,
         overrides,
       })
-      await commitMarkdownDocumentText(nextMarkdownText)
+      commitTimelineFrontmatterMeta(nextFrontmatterMeta)
       setTimingOverrides({})
       timingOverridesRef.current = {}
       dragDeltaPxRef.current = 0
@@ -1620,7 +1568,7 @@ export default function AnimaticCanvas({
       window.removeEventListener('pointercancel', onPointerUp)
     }
   }, [
-    commitMarkdownDocumentText,
+    commitTimelineFrontmatterMeta,
     dragState,
     handleMoveItemToBeat,
     markdownText,
@@ -1817,147 +1765,82 @@ export default function AnimaticCanvas({
                 </span>
               ) : null}
               {activeBeat ? (
-                editingBeatRef === activeBeat.beatRef ? (
-                  <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-2">
-                    <input
-                      aria-label="Active beat label"
-                      className="w-44 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
-                      value={editingBeatLabel}
-                      onChange={event => setEditingBeatLabel(event.target.value)}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault()
-                          void handleCommitBeatLabelEdit()
-                        }
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          handleCancelBeatLabelEdit()
-                        }
-                      }}
-                      autoFocus
-                    />
-                    <IconButton title="Save beat label" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatLabelEdit()}>
-                      <Check className={toolbarIconClassName} />
-                    </IconButton>
-                    <IconButton title="Cancel beat label edit" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatLabelEdit}>
-                      <X className={toolbarIconClassName} />
-                    </IconButton>
-                  </div>
-                ) : (
+                <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
                   <IconButton title={`Rename ${activeBeat.label} (L)`} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatLabelEdit(activeBeat)}>
                     <Pencil className={toolbarIconClassName} />
                   </IconButton>
-                )
+                  <span className="max-w-32 truncate text-[10px] text-slate-400">{activeBeat.label}</span>
+                </div>
               ) : null}
               {activeBeat ? (
-                editingBeatNoteRef === activeBeat.beatRef ? (
-                  <div className="flex items-start gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-2">
-                    <textarea
-                      aria-label="Active beat note"
-                      className="min-h-16 w-52 resize-none rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
-                      value={editingBeatNote}
-                      onChange={event => setEditingBeatNote(event.target.value)}
-                      onKeyDown={event => {
-                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                          event.preventDefault()
-                          void handleCommitBeatNoteEdit()
-                        }
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          handleCancelBeatNoteEdit()
-                        }
-                      }}
-                    />
-                    <div className="flex flex-col gap-2">
-                      <IconButton title="Save beat note (Cmd/Ctrl+Enter)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatNoteEdit()}>
-                        <Check className={toolbarIconClassName} />
-                      </IconButton>
-                      <IconButton title="Cancel beat note edit (Escape)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatNoteEdit}>
-                        <X className={toolbarIconClassName} />
-                      </IconButton>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
-                    <IconButton title={activeBeat.note ? 'Edit beat note (N)' : 'Add beat note (N)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatNoteEdit(activeBeat)}>
-                      <FileText className={toolbarIconClassName} />
-                    </IconButton>
-                    {activeBeat.note ? <span className="max-w-32 truncate text-[10px] text-slate-400">{activeBeat.note}</span> : null}
-                  </div>
-                )
+                <div className="flex items-start gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                  <IconButton title={activeBeat.note ? 'Edit beat note (N)' : 'Add beat note (N)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatNoteEdit(activeBeat)}>
+                    <FileText className={toolbarIconClassName} />
+                  </IconButton>
+                  <CardInlineTextEditor
+                    value={activeBeat.note}
+                    ariaLabel="Active beat note"
+                    placeholder="Add beat note"
+                    canEdit
+                    editRequestKey={getBeatFieldEditRequestKey(activeBeat.beatRef, 'note')}
+                    multiline
+                    rows={3}
+                    onCommit={nextValue => {
+                      void handleCommitBeatFieldEdit({
+                        beatRef: activeBeat.beatRef,
+                        field: 'note',
+                        nextValue,
+                      })
+                    }}
+                    onEditingChange={editing => {
+                      handleBeatFieldEditingChange({
+                        beatRef: activeBeat.beatRef,
+                        field: 'note',
+                        editing,
+                      })
+                    }}
+                    displayClassName="max-w-32 truncate text-[10px] leading-4 text-slate-400"
+                    editorClassName="min-h-16 w-52 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
+                  />
+                </div>
               ) : null}
               {activeBeat ? (
-                editingBeatSummaryRef === activeBeat.beatRef ? (
-                  <div className="flex items-start gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-2">
-                    <textarea
-                      aria-label="Active beat summary"
-                      className="min-h-16 w-60 resize-none rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
-                      value={editingBeatSummary}
-                      onChange={event => setEditingBeatSummary(event.target.value)}
-                      onKeyDown={event => {
-                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                          event.preventDefault()
-                          void handleCommitBeatSummaryEdit()
-                        }
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          handleCancelBeatSummaryEdit()
-                        }
-                      }}
-                    />
-                    <div className="flex flex-col gap-2">
-                      <IconButton title="Save beat summary (Cmd/Ctrl+Enter)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatSummaryEdit()}>
-                        <Check className={toolbarIconClassName} />
-                      </IconButton>
-                      <IconButton title="Cancel beat summary edit (Escape)" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatSummaryEdit}>
-                        <X className={toolbarIconClassName} />
-                      </IconButton>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
-                    <IconButton title={activeBeat.summary ? 'Edit beat summary (M)' : 'Add beat summary (M)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatSummaryEdit(activeBeat)}>
-                      <AlignLeft className={toolbarIconClassName} />
-                    </IconButton>
-                    {activeBeat.summary ? <span className="max-w-36 truncate text-[10px] text-slate-400">{activeBeat.summary}</span> : null}
-                  </div>
-                )
+                <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                  <IconButton title={activeBeat.summary ? 'Edit beat summary (M)' : 'Add beat summary (M)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatSummaryEdit(activeBeat)}>
+                    <AlignLeft className={toolbarIconClassName} />
+                  </IconButton>
+                  {activeBeat.summary ? <span className="max-w-36 truncate text-[10px] text-slate-400">{activeBeat.summary}</span> : null}
+                </div>
               ) : null}
               {activeBeat ? (
-                editingBeatTagsRef === activeBeat.beatRef ? (
-                  <div className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-2">
-                    <input
-                      aria-label="Active beat tags"
-                      className="w-56 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
-                      value={editingBeatTags}
-                      onChange={event => setEditingBeatTags(event.target.value)}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault()
-                          void handleCommitBeatTagsEdit()
-                        }
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          handleCancelBeatTagsEdit()
-                        }
-                      }}
-                      placeholder="comma, separated, tags"
-                    />
-                    <IconButton title="Save beat tags" showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => void handleCommitBeatTagsEdit()}>
-                      <Check className={toolbarIconClassName} />
-                    </IconButton>
-                    <IconButton title="Cancel beat tags edit" showTooltip className={getTimelineIconButtonClassName(true)} onClick={handleCancelBeatTagsEdit}>
-                      <X className={toolbarIconClassName} />
-                    </IconButton>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
-                    <IconButton title={activeBeat.tags.length > 0 ? 'Edit beat tags (T)' : 'Add beat tags (T)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatTagsEdit(activeBeat)}>
-                      <Tags className={toolbarIconClassName} />
-                    </IconButton>
-                    {activeBeat.tags.length > 0 ? <span className="max-w-32 truncate text-[10px] text-slate-400">{activeBeat.tags.join(' · ')}</span> : null}
-                  </div>
-                )
+                <div className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-xs text-slate-300">
+                  <IconButton title={activeBeat.tags.length > 0 ? 'Edit beat tags (T)' : 'Add beat tags (T)'} showTooltip className={getTimelineIconButtonClassName(true)} onClick={() => handleStartBeatTagsEdit(activeBeat)}>
+                    <Tags className={toolbarIconClassName} />
+                  </IconButton>
+                  <CardInlineTextEditor
+                    value={activeBeat.tags.join(', ')}
+                    ariaLabel="Active beat tags"
+                    placeholder="comma, separated, tags"
+                    canEdit
+                    editRequestKey={getBeatFieldEditRequestKey(activeBeat.beatRef, 'tags')}
+                    onCommit={nextValue => {
+                      void handleCommitBeatFieldEdit({
+                        beatRef: activeBeat.beatRef,
+                        field: 'tags',
+                        nextValue,
+                      })
+                    }}
+                    onEditingChange={editing => {
+                      handleBeatFieldEditingChange({
+                        beatRef: activeBeat.beatRef,
+                        field: 'tags',
+                        editing,
+                      })
+                    }}
+                    displayClassName="max-w-32 truncate text-[10px] leading-4 text-slate-400"
+                    editorClassName="w-56 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none"
+                  />
+                </div>
               ) : null}
               {!canDeleteActiveBeat && activeBeat ? (
                 <span className={getTimelineCompactStatusChipClassName('muted')}>
@@ -2392,7 +2275,29 @@ export default function AnimaticCanvas({
                           <span />
                         )}
                         <span className="relative z-10 text-[8px] uppercase leading-3 tracking-[0.14em] text-slate-500">{beat.beatRef}</span>
-                        <span className="relative z-10 text-[10px] font-semibold leading-3.5 text-slate-100">{beat.label}</span>
+                        <CardInlineTextEditor
+                          value={beat.label}
+                          ariaLabel={`Beat label for ${beat.beatRef}`}
+                          placeholder="Add beat label"
+                          canEdit
+                          editRequestKey={getBeatFieldEditRequestKey(beat.beatRef, 'label')}
+                          onCommit={nextValue => {
+                            void handleCommitBeatFieldEdit({
+                              beatRef: beat.beatRef,
+                              field: 'label',
+                              nextValue,
+                            })
+                          }}
+                          onEditingChange={editing => {
+                            handleBeatFieldEditingChange({
+                              beatRef: beat.beatRef,
+                              field: 'label',
+                              editing,
+                            })
+                          }}
+                          displayClassName="relative z-[25] text-[10px] font-semibold leading-3.5 text-slate-100"
+                          editorClassName="relative z-[25] rounded border border-slate-700 bg-slate-950/95 px-1 py-0.5 text-[10px] font-semibold leading-4 text-slate-50 outline-none"
+                        />
                         <div
                           className={`relative z-10 ${laneInlineScrollClassName} text-[9px] leading-3.5 text-slate-400`}
                           style={laneInlineScrollStyle}
@@ -2432,10 +2337,32 @@ export default function AnimaticCanvas({
                             ) : null}
                           </div>
                         ) : null}
-                        {beat.summary ? (
-                          <span className="relative z-10 truncate text-[9px] leading-3.5 text-slate-300" title={beat.summary}>
-                            {beat.summary}
-                          </span>
+                        {beat.summary || isActiveBeat ? (
+                          <CardInlineTextEditor
+                            value={beat.summary}
+                            ariaLabel={`Beat summary for ${beat.beatRef}`}
+                            placeholder="Add beat summary"
+                            canEdit
+                            editRequestKey={getBeatFieldEditRequestKey(beat.beatRef, 'summary')}
+                            multiline
+                            rows={3}
+                            onCommit={nextValue => {
+                              void handleCommitBeatFieldEdit({
+                                beatRef: beat.beatRef,
+                                field: 'summary',
+                                nextValue,
+                              })
+                            }}
+                            onEditingChange={editing => {
+                              handleBeatFieldEditingChange({
+                                beatRef: beat.beatRef,
+                                field: 'summary',
+                                editing,
+                              })
+                            }}
+                            displayClassName="relative z-[25] truncate text-[9px] leading-3.5 text-slate-300"
+                            editorClassName="relative z-[25] min-h-16 rounded border border-slate-700 bg-slate-950/95 px-1.5 py-1 text-[10px] leading-4 text-slate-50 outline-none"
+                          />
                         ) : null}
                         {beat.tags.length > 0 ? (
                           <div

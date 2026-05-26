@@ -6,10 +6,13 @@ const readUtf8 = (relativePath: string) => {
 
 export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   const sharedEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
+  const animatic = readUtf8('../components/AnimaticCanvas.tsx')
   const markdownKanban = readUtf8('../features/markdown/ui/kanban/KanbanCard.tsx')
   const graphKanban = readUtf8('../features/graph-table/ui/GraphTableKanbanView.tsx')
   const graphWorkspaceLeft = readUtf8('../features/graph-table/ui/GraphTableWorkspaceLeft.tsx')
+  const flowEditorInspector = readUtf8('../components/FlowEditor/FlowEditorInspector.tsx')
   const storyboard = readUtf8('../components/StoryboardCanvas.tsx')
+  const sharedCardFields = readUtf8('../lib/cards/graphNodeCardFields.ts')
   const graphStoreSync = readUtf8('../features/graph-table/lib/applyCellUpdateToGraphStore.ts')
   const graphTableDb = readUtf8('../lib/graph-table-db/graphTableDb.impl.ts')
 
@@ -18,15 +21,27 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     'onDoubleClick',
     'event.key === \'Escape\'',
     'event.key === \'Enter\' && (event.metaKey || event.ctrlKey)',
+    'editRequestKey',
+    'onEditingChange',
   ]) {
     if (!sharedEditor.includes(snippet)) {
       throw new Error(`expected shared inline card editor contract snippet: ${snippet}`)
     }
   }
 
-  for (const text of [markdownKanban, graphKanban, storyboard]) {
+  for (const text of [animatic, markdownKanban, graphKanban, flowEditorInspector, storyboard]) {
     if (!text.includes('CardInlineTextEditor')) {
       throw new Error('expected all card surfaces to reuse the shared inline card editor')
+    }
+  }
+
+  for (const snippet of [
+    'GRAPH_NODE_CARD_TEXT_FIELDS',
+    'buildGraphNodeCanonicalTextPatch',
+    'readGraphNodeCardTitle',
+  ]) {
+    if (!sharedCardFields.includes(snippet)) {
+      throw new Error(`expected shared graph-node card field helper snippet: ${snippet}`)
     }
   }
 
@@ -48,6 +63,15 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   ]) {
     if (!storyboard.includes(snippet)) {
       throw new Error(`expected storyboard inline editing to canonicalize text properties through shared aliases: ${snippet}`)
+    }
+  }
+
+  if (!flowEditorInspector.includes('onPatchSelectedNodeProperties')) {
+    throw new Error('expected Flow Editor inspector to commit shared card edits through the selected-node property owner callback')
+  }
+  for (const snippet of ['beatEditSession', 'handleCommitBeatFieldEdit', 'commitTimelineFrontmatterMeta', 'updateGraphMetadata({', "updateNode(resolvedNodeId, {"]) {
+    if (!animatic.includes(snippet)) {
+      throw new Error(`expected Animatic to route shared card edits and timeline mutations through graph-owned upstream owners: ${snippet}`)
     }
   }
 

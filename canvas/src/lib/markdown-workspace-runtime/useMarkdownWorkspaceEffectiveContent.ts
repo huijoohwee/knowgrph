@@ -2,6 +2,7 @@ import React from 'react'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { isMarkdownPath, languageForPath } from '@/features/markdown-workspace/markdownWorkspaceUtils'
+import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 
 type WebpageWorkspaceMeta = {
   url?: unknown
@@ -51,15 +52,36 @@ export function useMarkdownWorkspaceEffectiveContent(args: {
     ? `inmemory://workspace/${encodeURIComponent(activeDocumentKey || 'document')}${webpageEditorMode ? `?mode=${webpageEditorMode}` : ''}`
     : 'inmemory://model/empty'
   const editorLanguage = activePath ? webpageEditorMode || languageForPath(activePath) : 'markdown'
+  const isMatchingMarkdownDocument = React.useMemo(() => {
+    const docKey = String(activeDocumentKey || '').trim()
+    const markdownName = String(markdownDocumentName || '').trim()
+    if (!docKey || !markdownName) return false
+    return matchesMarkdownDocumentPath(docKey, markdownName)
+  }, [activeDocumentKey, markdownDocumentName])
+  const canonicalMarkdownText = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
+  const shouldSyncProgrammaticActiveText = (
+    contentMode !== 'widget'
+    && isMatchingMarkdownDocument
+    && !!canonicalMarkdownText
+    && !userEditedActiveTextRef.current
+    && activeText !== canonicalMarkdownText
+  )
+
+  React.useEffect(() => {
+    if (!shouldSyncProgrammaticActiveText) return
+    userEditedActiveTextRef.current = false
+    setActiveText(prev => (prev === canonicalMarkdownText ? prev : canonicalMarkdownText))
+  }, [canonicalMarkdownText, setActiveText, shouldSyncProgrammaticActiveText, userEditedActiveTextRef])
 
   const effectiveActiveText = React.useMemo(() => {
     if (contentMode === 'widget') return widgetEditorText
+    if (shouldSyncProgrammaticActiveText) return canonicalMarkdownText
     if (activeText) return activeText
-    if (markdownDocumentName === activeDocumentKey && typeof markdownDocumentText === 'string' && markdownDocumentText) {
-      return markdownDocumentText
+    if (isMatchingMarkdownDocument && canonicalMarkdownText) {
+      return canonicalMarkdownText
     }
     return activeText
-  }, [activeDocumentKey, activeText, contentMode, markdownDocumentName, markdownDocumentText, widgetEditorText])
+  }, [activeText, canonicalMarkdownText, contentMode, isMatchingMarkdownDocument, shouldSyncProgrammaticActiveText, widgetEditorText])
 
   const effectiveSetActiveText = React.useCallback(
     (next: string) => {

@@ -120,6 +120,11 @@ export function useFlowEditorNodeDraftActions(args: {
     args.updateNode(id, { properties: nextProps as never })
   }, [args])
 
+  const patchSelectedNodeProperties = React.useCallback((patch: Record<string, unknown>) => {
+    if (!args.selectedNodeId) return
+    patchNodePropertiesById(args.selectedNodeId, patch)
+  }, [args.selectedNodeId, patchNodePropertiesById])
+
   const renameSchemaFieldIdByNodeId = React.useCallback((nodeId: string, prevId: string, nextId: string) => {
     const id = String(nodeId || '').trim()
     const from = String(prevId || '').trim()
@@ -287,6 +292,7 @@ export function useFlowEditorNodeDraftActions(args: {
     duplicateNodeById,
     enableHandlesForAllInputs,
     patchNodePropertiesById,
+    patchSelectedNodeProperties,
     removeNodeById,
     renameSchemaFieldIdByNodeId,
     setNodeLabelById,

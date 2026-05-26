@@ -204,9 +204,19 @@ export function testAnimaticCanvasSurfacesBeatSummaryAndTagsInTimelineCards() {
 
 export function testAnimaticCanvasExposesBeatCardQuickMetadataActions() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
-  for (const snippet of ['group/beat', 'getTimelineCompactIconButtonClassName', 'getTimelineBeatQuickIconButtonClassName', 'handleInsertBeatBeforeQuick', 'handleInsertBeatAfterQuick', 'handleDeleteBeatQuick', 'handleDuplicateBeatQuick', 'handleSplitBeatQuick', 'handleMergeBeatWithNextQuick', 'handleRemoveGapBeforeBeatQuick', 'handleStartBeatLabelQuickEdit', 'handleStartBeatNoteQuickEdit', 'handleStartBeatSummaryQuickEdit', 'handleStartBeatTagsQuickEdit', 'currentEditingBeatRef', 'justify-end', 'w-2.5 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/12']) {
+  for (const snippet of ['group/beat', 'getTimelineCompactIconButtonClassName', 'getTimelineBeatQuickIconButtonClassName', 'handleInsertBeatBeforeQuick', 'handleInsertBeatAfterQuick', 'handleDeleteBeatQuick', 'handleDuplicateBeatQuick', 'handleSplitBeatQuick', 'handleMergeBeatWithNextQuick', 'handleRemoveGapBeforeBeatQuick', 'handleStartBeatLabelQuickEdit', 'handleStartBeatNoteQuickEdit', 'handleStartBeatSummaryQuickEdit', 'handleStartBeatTagsQuickEdit', 'currentEditingBeatRef', 'beatEditSession', 'justify-end', 'w-2.5 cursor-ew-resize bg-cyan-300/0 hover:bg-cyan-300/12']) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimaticCanvas beat cards to expose quick metadata action snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of ['commitTimelineFrontmatterMeta', 'cloneAnimaticTimelineFrontmatterMeta', 'updateAnimaticTimelineLaneControlStateRecord', 'updateAnimaticTimelineLaneOrderRecord', 'insertAnimaticTimelineBeatRecord', 'deleteAnimaticTimelineBeatRecord', 'duplicateAnimaticTimelineBeatRecord', 'splitAnimaticTimelineBeatRecord', 'mergeAnimaticTimelineBeatWithNextRecord', 'removeAnimaticTimelineGapBeforeBeatRecord', 'updateAnimaticTimelineBeatTimingOverrideRecords', 'updateGraphMetadata({', "updateNode(resolvedNodeId, {", 'currentParams.beat_ref = targetBeatRef']) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected AnimaticCanvas to route timeline mutations through graph-owned upstream owners: ${snippet}`)
+    }
+  }
+  for (const forbiddenSnippet of ['updateAnimaticTimelineMarkdownItemBeatRef({', 'updateAnimaticTimelineMarkdownLaneOrder({', 'updateAnimaticTimelineMarkdownLaneControlState({', 'await commitMarkdownDocumentText(nextMarkdownText)', 'await commitMarkdownGraphDocumentText(updateResult.markdownText)']) {
+    if (text.includes(forbiddenSnippet)) {
+      throw new Error(`expected AnimaticCanvas to avoid markdown-first mutation owner snippet: ${forbiddenSnippet}`)
     }
   }
 }
@@ -227,9 +237,9 @@ export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
   for (const snippet of [
     "from '@/components/AnimaticCanvas/animaticKeyboard'",
-    'resolveAnimationTimelineHotkeyAction(event)',
-    'shouldIgnoreAnimationTimelineHotkeys({',
-    'isAnimationTimelineMutationHotkeyAction(action)',
+    'resolveAnimaticTimelineHotkeyAction(event)',
+    'shouldIgnoreAnimaticTimelineHotkeys({',
+    'isAnimaticTimelineMutationHotkeyAction(action)',
     "window.addEventListener('keydown', onKeyDown)",
     "window.removeEventListener('keydown', onKeyDown)",
     "Play (Space)",
@@ -249,13 +259,12 @@ export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
     'Add beat summary (M)',
     'Edit beat tags (T)',
     'Add beat tags (T)',
-    "aria-label=\"Active beat note\"",
-    "aria-label=\"Active beat summary\"",
-    "(event.metaKey || event.ctrlKey) && event.key === 'Enter'",
-    'Save beat note (Cmd/Ctrl+Enter)',
-    'Cancel beat note edit (Escape)',
-    'Save beat summary (Cmd/Ctrl+Enter)',
-    'Cancel beat summary edit (Escape)',
+    'CardInlineTextEditor',
+    'editRequestKey',
+    'onEditingChange',
+    'handleCommitBeatFieldEdit',
+    "ariaLabel=\"Active beat note\"",
+    "ariaLabel={`Beat summary for ${beat.beatRef}`}",
     'selectedLaneId',
     "action === 'toggle-lane-hidden'",
     "action === 'toggle-lane-muted'",
@@ -266,7 +275,7 @@ export function testAnimaticCanvasRegistersNativeTimelineHotkeys() {
     'selectedOrFirstLaneId',
     'handleFocusLaneOption',
     'role="listbox"',
-    'aria-label="Animatic timeline lanes"',
+    'aria-label="Animation timeline lanes"',
     'tabIndex={selectedOrFirstLaneId === lane.id ? 0 : -1}',
     'role="option"',
     'aria-selected={selectedLaneId === lane.id}',

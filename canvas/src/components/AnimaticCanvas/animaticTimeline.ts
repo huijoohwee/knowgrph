@@ -250,6 +250,400 @@ function collectAnimaticTimelineFrontmatterState(markdownText: string): {
   }
 }
 
+export function cloneAnimaticTimelineFrontmatterMeta(markdownText: string | null | undefined): Record<string, unknown> {
+  const frontmatterState = collectAnimaticTimelineFrontmatterState(String(markdownText || ''))
+  return readRecord(cloneJsonLike(frontmatterState.meta))
+}
+
+export function updateAnimaticTimelineBeatRecordField(args: {
+  frontmatterMeta: Record<string, unknown>
+  beatRef: string
+  field: 'label' | 'note' | 'summary' | 'tags'
+  nextValue: string
+}): void {
+  const beatRef = String(args.beatRef || '').trim()
+  if (!beatRef) return
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats))
+  const nextBeat = readRecord(cloneJsonLike(beats[beatRef]))
+  if (args.field === 'label') {
+    nextBeat.label = readString(args.nextValue) || beatRef
+  } else if (args.field === 'note') {
+    const nextNote = readString(args.nextValue)
+    if (nextNote) nextBeat.note = nextNote
+    else delete nextBeat.note
+    delete nextBeat.notes
+  } else if (args.field === 'summary') {
+    const nextSummary = readString(args.nextValue)
+    if (nextSummary) nextBeat.summary = nextSummary
+    else delete nextBeat.summary
+  } else if (args.field === 'tags') {
+    const nextTags = readStringList(args.nextValue)
+    if (nextTags.length > 0) nextBeat.tags = nextTags
+    else delete nextBeat.tags
+  }
+  beats[beatRef] = nextBeat
+  timeline.beats = beats
+  meta.timeline = timeline
+}
+
+export function updateAnimaticTimelineBeatTimingOverrideRecords(args: {
+  frontmatterMeta: Record<string, unknown>
+  overrides: Record<string, AnimaticTimelineBeatTimingOverride>
+}): void {
+  const overrideEntries = Object.entries(args.overrides || {}).filter(([beatRef]) => String(beatRef || '').trim())
+  if (overrideEntries.length === 0) return
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats))
+  for (const [beatRef, override] of overrideEntries) {
+    const nextBeat = readRecord(cloneJsonLike(beats[beatRef]))
+    const roundedStartMs = Math.max(0, Math.round(override.startMs))
+    const roundedEndMs = Math.max(roundedStartMs, Math.round(override.endMs))
+    nextBeat.start_ms = roundedStartMs
+    nextBeat.end_ms = roundedEndMs
+    nextBeat.duration_ms = roundedEndMs - roundedStartMs
+    if (!readString(nextBeat.label)) nextBeat.label = beatRef
+    beats[beatRef] = nextBeat
+  }
+  timeline.beats = beats
+  meta.timeline = timeline
+}
+
+export function updateAnimaticTimelineLaneControlStateRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  hiddenLaneIds: readonly AnimaticTimelineLaneId[]
+  mutedLaneIds: readonly AnimaticTimelineLaneId[]
+  soloLaneId?: AnimaticTimelineLaneId | null
+}): void {
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const nextHiddenLaneIds = readLaneIdList(args.hiddenLaneIds)
+  const nextMutedLaneIds = readLaneIdList(args.mutedLaneIds)
+  const nextSoloLaneId = readLaneId(args.soloLaneId)
+  const shouldPersistControls = nextHiddenLaneIds.length > 0 || nextMutedLaneIds.length > 0 || nextSoloLaneId != null
+  if (shouldPersistControls) {
+    timeline.lane_controls = {
+      hidden: nextHiddenLaneIds,
+      muted: nextMutedLaneIds,
+      ...(nextSoloLaneId ? { solo: nextSoloLaneId } : {}),
+    }
+  } else {
+    delete timeline.lane_controls
+  }
+  meta.timeline = timeline
+}
+
+export function updateAnimaticTimelineLaneOrderRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  laneOrder: readonly AnimaticTimelineLaneId[]
+}): void {
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const nextLaneOrder = readLaneIdList(args.laneOrder)
+  if (nextLaneOrder.length > 0) timeline.lane_order = nextLaneOrder
+  else delete timeline.lane_order
+  meta.timeline = timeline
+}
+
+export function insertAnimaticTimelineBeatRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  model: AnimaticTimelineModel
+  insertAfterBeatRef?: string | null
+  insertBeforeBeatRef?: string | null
+  snapStepMs?: number | null
+}): { beatRef: string } {
+  const snapStepMs = Math.max(0, Math.round(args.snapStepMs ?? 0)) || 1000
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats)) as Record<string, AnimaticTimelineBeatRecord>
+  const existingBeatRefs = new Set<string>([
+    ...Object.keys(beats),
+    ...args.model.beats.map(beat => beat.beatRef),
+  ])
+  const beatRef = createNextAnimaticTimelineBeatRef(existingBeatRefs)
+  const insertMode = args.insertBeforeBeatRef ? 'before' : 'after'
+  const relativeBeatRef = args.insertBeforeBeatRef || args.insertAfterBeatRef || null
+  const relativeIndex = (() => {
+    if (!relativeBeatRef) return args.model.beats.length - 1
+    const found = args.model.beats.findIndex(beat => beat.beatRef === relativeBeatRef)
+    return found >= 0 ? found : args.model.beats.length - 1
+  })()
+  if (args.model.usesAbsoluteTiming) {
+    const targetBeat = relativeIndex >= 0 ? args.model.beats[relativeIndex] : null
+    const nextBeats = args.model.beats.filter((_, index) => (insertMode === 'before' ? index >= relativeIndex : index > relativeIndex))
+    const insertStart =
+      insertMode === 'before'
+        ? targetBeat?.startMs ?? 0
+        : targetBeat?.endMs != null
+          ? targetBeat.endMs
+          : 0
+    const defaultDuration = snapStepMs
+    const newBeatRecord: AnimaticTimelineBeatRecord = {
+      label: `New Beat ${beatRef.replace(/^beat_/, '')}`,
+      start_ms: insertStart,
+      end_ms: insertStart + defaultDuration,
+      duration_ms: defaultDuration,
+    }
+    for (const beat of nextBeats) {
+      const current = readRecord(cloneJsonLike(beats[beat.beatRef]))
+      if (beat.startMs != null) current.start_ms = beat.startMs + defaultDuration
+      if (beat.endMs != null) current.end_ms = beat.endMs + defaultDuration
+      if (typeof current.start_ms === 'number' && typeof current.end_ms === 'number') {
+        current.duration_ms = Math.max(0, current.end_ms - current.start_ms)
+      }
+      beats[beat.beatRef] = current
+    }
+    const orderedBeatRefs = args.model.beats.map(beat => beat.beatRef)
+    const insertAt = insertMode === 'before' ? Math.max(0, relativeIndex) : Math.max(0, relativeIndex + 1)
+    orderedBeatRefs.splice(insertAt, 0, beatRef)
+    const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
+    for (const orderedBeatRef of orderedBeatRefs) {
+      if (orderedBeatRef === beatRef) {
+        nextOrderedBeats[orderedBeatRef] = newBeatRecord
+        continue
+      }
+      if (beats[orderedBeatRef]) nextOrderedBeats[orderedBeatRef] = beats[orderedBeatRef]
+    }
+    for (const [existingBeatRef, existingBeatRecord] of Object.entries(beats)) {
+      if (!Object.prototype.hasOwnProperty.call(nextOrderedBeats, existingBeatRef)) {
+        nextOrderedBeats[existingBeatRef] = existingBeatRecord
+      }
+    }
+    timeline.beats = nextOrderedBeats
+  } else {
+    beats[beatRef] = {
+      label: `New Beat ${beatRef.replace(/^beat_/, '')}`,
+    }
+    timeline.beats = beats
+  }
+  meta.timeline = timeline
+  return { beatRef }
+}
+
+export function deleteAnimaticTimelineBeatRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  model: AnimaticTimelineModel
+  beatRef: string
+}): boolean {
+  const beatRef = String(args.beatRef || '').trim()
+  if (!beatRef) return false
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats)) as Record<string, AnimaticTimelineBeatRecord>
+  const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
+  if (beatIndex < 0) return false
+  const beat = args.model.beats[beatIndex]
+  if (!beat || beat.items.length > 0) return false
+  const durationToRemove =
+    beat.startMs != null && beat.endMs != null
+      ? Math.max(0, beat.endMs - beat.startMs)
+      : null
+  delete beats[beatRef]
+  if (args.model.usesAbsoluteTiming && durationToRemove && durationToRemove > 0) {
+    for (let i = beatIndex + 1; i < args.model.beats.length; i += 1) {
+      const nextBeat = args.model.beats[i]
+      if (!nextBeat) continue
+      const current = readRecord(cloneJsonLike(beats[nextBeat.beatRef]))
+      if (nextBeat.startMs != null) current.start_ms = Math.max(0, nextBeat.startMs - durationToRemove)
+      if (nextBeat.endMs != null) current.end_ms = Math.max(0, nextBeat.endMs - durationToRemove)
+      if (typeof current.start_ms === 'number' && typeof current.end_ms === 'number') {
+        current.duration_ms = Math.max(0, current.end_ms - current.start_ms)
+      }
+      beats[nextBeat.beatRef] = current
+    }
+  }
+  timeline.beats = beats
+  meta.timeline = timeline
+  return true
+}
+
+export function duplicateAnimaticTimelineBeatRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  model: AnimaticTimelineModel
+  beatRef: string
+  snapStepMs?: number | null
+}): { beatRef: string } {
+  const beatRef = String(args.beatRef || '').trim()
+  const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
+  const beat = beatIndex >= 0 ? args.model.beats[beatIndex] : null
+  if (!beat) return { beatRef: '' }
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats)) as Record<string, AnimaticTimelineBeatRecord>
+  const existingBeatRefs = new Set<string>([
+    ...Object.keys(beats),
+    ...args.model.beats.map(entry => entry.beatRef),
+  ])
+  const nextBeatRef = createNextAnimaticTimelineBeatRef(existingBeatRefs)
+  const nextBeatRecord = readRecord(cloneJsonLike(beats[beatRef]))
+  const durationMs =
+    beat.startMs != null && beat.endMs != null
+      ? Math.max(0, beat.endMs - beat.startMs)
+      : Math.max(0, Math.round(args.snapStepMs ?? 1000)) || 1000
+  if (args.model.usesAbsoluteTiming && beat.endMs != null) {
+    for (let i = beatIndex + 1; i < args.model.beats.length; i += 1) {
+      const followingBeat = args.model.beats[i]
+      if (!followingBeat) continue
+      const current = readRecord(cloneJsonLike(beats[followingBeat.beatRef]))
+      if (followingBeat.startMs != null) current.start_ms = followingBeat.startMs + durationMs
+      if (followingBeat.endMs != null) current.end_ms = followingBeat.endMs + durationMs
+      if (typeof current.start_ms === 'number' && typeof current.end_ms === 'number') {
+        current.duration_ms = Math.max(0, current.end_ms - current.start_ms)
+      }
+      beats[followingBeat.beatRef] = current
+    }
+    nextBeatRecord.start_ms = beat.endMs
+    nextBeatRecord.end_ms = beat.endMs + durationMs
+    nextBeatRecord.duration_ms = durationMs
+  }
+  nextBeatRecord.label = `${readString(nextBeatRecord.label) || beat.label} Copy`
+  const orderedBeatRefs = args.model.beats.map(entry => entry.beatRef)
+  orderedBeatRefs.splice(Math.max(0, beatIndex + 1), 0, nextBeatRef)
+  const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
+  for (const orderedBeatRef of orderedBeatRefs) {
+    if (orderedBeatRef === nextBeatRef) {
+      nextOrderedBeats[orderedBeatRef] = nextBeatRecord
+      continue
+    }
+    if (beats[orderedBeatRef]) nextOrderedBeats[orderedBeatRef] = beats[orderedBeatRef]
+  }
+  for (const [existingBeatRef, existingBeatRecord] of Object.entries(beats)) {
+    if (!Object.prototype.hasOwnProperty.call(nextOrderedBeats, existingBeatRef)) {
+      nextOrderedBeats[existingBeatRef] = existingBeatRecord
+    }
+  }
+  timeline.beats = nextOrderedBeats
+  meta.timeline = timeline
+  return { beatRef: nextBeatRef }
+}
+
+export function splitAnimaticTimelineBeatRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  model: AnimaticTimelineModel
+  beatRef: string
+  splitAtMs: number
+  minDurationMs?: number
+  snapStepMs?: number | null
+}): { beatRef: string } {
+  const beatRef = String(args.beatRef || '').trim()
+  const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
+  const beat = beatIndex >= 0 ? args.model.beats[beatIndex] : null
+  if (!beat || beat.startMs == null || beat.endMs == null) return { beatRef: '' }
+  const minDurationMs = Math.max(100, Math.round(args.minDurationMs ?? 300))
+  const snapStepMs = Math.max(0, Math.round(args.snapStepMs ?? 0))
+  const rawSplitAtMs = snapStepMs > 0 ? snapAnimaticTimelineValue(args.splitAtMs, snapStepMs) : Math.round(args.splitAtMs)
+  const splitAtMs = Math.max(beat.startMs + minDurationMs, Math.min(beat.endMs - minDurationMs, rawSplitAtMs))
+  if (splitAtMs <= beat.startMs || splitAtMs >= beat.endMs) return { beatRef: '' }
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats)) as Record<string, AnimaticTimelineBeatRecord>
+  const existingBeatRefs = new Set<string>([
+    ...Object.keys(beats),
+    ...args.model.beats.map(entry => entry.beatRef),
+  ])
+  const nextBeatRef = createNextAnimaticTimelineBeatRef(existingBeatRefs)
+  const currentBeatRecord = readRecord(cloneJsonLike(beats[beatRef]))
+  const nextBeatRecord = readRecord(cloneJsonLike(beats[beatRef]))
+  currentBeatRecord.end_ms = splitAtMs
+  currentBeatRecord.duration_ms = splitAtMs - beat.startMs
+  nextBeatRecord.start_ms = splitAtMs
+  nextBeatRecord.end_ms = beat.endMs
+  nextBeatRecord.duration_ms = beat.endMs - splitAtMs
+  nextBeatRecord.label = `${readString(nextBeatRecord.label) || beat.label} Part 2`
+  beats[beatRef] = currentBeatRecord
+  const orderedBeatRefs = args.model.beats.map(entry => entry.beatRef)
+  orderedBeatRefs.splice(Math.max(0, beatIndex + 1), 0, nextBeatRef)
+  const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
+  for (const orderedBeatRef of orderedBeatRefs) {
+    if (orderedBeatRef === nextBeatRef) {
+      nextOrderedBeats[orderedBeatRef] = nextBeatRecord
+      continue
+    }
+    if (beats[orderedBeatRef]) nextOrderedBeats[orderedBeatRef] = beats[orderedBeatRef]
+  }
+  for (const [existingBeatRef, existingBeatRecord] of Object.entries(beats)) {
+    if (!Object.prototype.hasOwnProperty.call(nextOrderedBeats, existingBeatRef)) {
+      nextOrderedBeats[existingBeatRef] = existingBeatRecord
+    }
+  }
+  timeline.beats = nextOrderedBeats
+  meta.timeline = timeline
+  return { beatRef: nextBeatRef }
+}
+
+export function mergeAnimaticTimelineBeatWithNextRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  model: AnimaticTimelineModel
+  beatRef: string
+}): boolean {
+  const beatRef = String(args.beatRef || '').trim()
+  const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
+  if (beatIndex < 0) return false
+  const beat = args.model.beats[beatIndex]
+  const nextBeat = args.model.beats[beatIndex + 1]
+  if (!beat || !nextBeat) return false
+  if (!args.model.usesAbsoluteTiming) return false
+  if (beat.startMs == null || beat.endMs == null || nextBeat.endMs == null) return false
+  if (nextBeat.items.length > 0) return false
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats)) as Record<string, AnimaticTimelineBeatRecord>
+  const currentBeatRecord = readRecord(cloneJsonLike(beats[beatRef]))
+  currentBeatRecord.end_ms = nextBeat.endMs
+  currentBeatRecord.duration_ms = Math.max(0, nextBeat.endMs - beat.startMs)
+  beats[beatRef] = currentBeatRecord
+  delete beats[nextBeat.beatRef]
+  const orderedBeatRefs = args.model.beats.map(entry => entry.beatRef).filter(entry => entry !== nextBeat.beatRef)
+  const nextOrderedBeats: Record<string, AnimaticTimelineBeatRecord> = {}
+  for (const orderedBeatRef of orderedBeatRefs) {
+    if (beats[orderedBeatRef]) nextOrderedBeats[orderedBeatRef] = beats[orderedBeatRef]
+  }
+  for (const [existingBeatRef, existingBeatRecord] of Object.entries(beats)) {
+    if (!Object.prototype.hasOwnProperty.call(nextOrderedBeats, existingBeatRef)) {
+      nextOrderedBeats[existingBeatRef] = existingBeatRecord
+    }
+  }
+  timeline.beats = nextOrderedBeats
+  meta.timeline = timeline
+  return true
+}
+
+export function removeAnimaticTimelineGapBeforeBeatRecord(args: {
+  frontmatterMeta: Record<string, unknown>
+  model: AnimaticTimelineModel
+  beatRef: string
+}): boolean {
+  const beatRef = String(args.beatRef || '').trim()
+  const beatIndex = args.model.beats.findIndex(beat => beat.beatRef === beatRef)
+  if (beatIndex <= 0) return false
+  const beat = args.model.beats[beatIndex]
+  const previousBeat = args.model.beats[beatIndex - 1]
+  if (!beat || !previousBeat) return false
+  if (!args.model.usesAbsoluteTiming) return false
+  if (beat.startMs == null || previousBeat.endMs == null) return false
+  const gapMs = Math.max(0, beat.startMs - previousBeat.endMs)
+  if (gapMs <= 0) return false
+  const meta = readRecord(args.frontmatterMeta)
+  const timeline = readRecord(cloneJsonLike(meta.timeline))
+  const beats = readRecord(cloneJsonLike(timeline.beats)) as Record<string, AnimaticTimelineBeatRecord>
+  for (let i = beatIndex; i < args.model.beats.length; i += 1) {
+    const currentBeat = args.model.beats[i]
+    if (!currentBeat) continue
+    const currentBeatRecord = readRecord(cloneJsonLike(beats[currentBeat.beatRef]))
+    if (currentBeat.startMs != null) currentBeatRecord.start_ms = Math.max(0, currentBeat.startMs - gapMs)
+    if (currentBeat.endMs != null) currentBeatRecord.end_ms = Math.max(0, currentBeat.endMs - gapMs)
+    if (typeof currentBeatRecord.start_ms === 'number' && typeof currentBeatRecord.end_ms === 'number') {
+      currentBeatRecord.duration_ms = Math.max(0, currentBeatRecord.end_ms - currentBeatRecord.start_ms)
+    }
+    beats[currentBeat.beatRef] = currentBeatRecord
+  }
+  timeline.beats = beats
+  meta.timeline = timeline
+  return true
+}
+
 function buildAnimaticTimelineMarkdownFromFrontmatterState(args: {
   meta: Record<string, unknown>
   timeline: Record<string, unknown>

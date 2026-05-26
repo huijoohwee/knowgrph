@@ -177,6 +177,7 @@ export interface GraphStateStructure {
   resyncGraphFieldsFromGraphData: () => void;
   clearGraphData: () => void;
   updateNode: (id: string, updates: Partial<GraphNode>) => void;
+  updateGraphMetadata: (updates: Record<string, JSONValue | undefined>) => void;
   flushComposedPositionWritesNow: () => void;
   updateEdge: (id: string, updates: Partial<GraphEdge>) => void;
   addNode: (node: GraphNode) => void;

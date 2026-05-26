@@ -9,6 +9,14 @@ import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { UserSubgraph } from '@/lib/graph/subgraphs'
 import { subgraphGroupId } from '@/lib/graph/subgraphs'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import {
+  GRAPH_NODE_CARD_TEXT_FIELDS,
+  buildGraphNodeCanonicalTextPatch,
+  readGraphNodeCanonicalTextProperty,
+  readGraphNodeCardTitle,
+  readGraphNodeProperties,
+} from '@/lib/cards/graphNodeCardFields'
 import { FlowEditorInspectorTabs, type InspectorTab } from './FlowEditorInspectorTabs'
 import {
   FlowEditorInspectorJsonButton,
@@ -54,6 +62,7 @@ export default function FlowEditorInspector({
   workflowContextJson,
   setWorkflowContextJson,
   onSetNodeLabel,
+  onPatchSelectedNodeProperties,
   onSetNodeType,
   onSetEdgeLabel,
   onApplyJson,
@@ -94,6 +103,7 @@ export default function FlowEditorInspector({
   workflowContextJson: string
   setWorkflowContextJson: (v: string) => void
   onSetNodeLabel: (label: string) => void
+  onPatchSelectedNodeProperties: (patch: Record<string, unknown>) => void
   onSetNodeType: (type: string) => void
   onSetEdgeLabel: (label: string) => void
   onApplyJson: (target: FlowEditorInspectorJsonTarget) => void
@@ -101,6 +111,16 @@ export default function FlowEditorInspector({
   const { panelTextClass, microLabelClass, monospaceTextClass, keyValueInputClass, textSizeClass, keyLabelClass } = usePanelTypography()
   const [newSubgraphLabel, setNewSubgraphLabel] = React.useState('')
   const [newSubgraphKind, setNewSubgraphKind] = React.useState<'subgraph' | 'cluster'>('subgraph')
+  const selectedNodeProperties = React.useMemo(() => readGraphNodeProperties(selectedNode), [selectedNode])
+  const selectedNodeCardTitle = React.useMemo(() => readGraphNodeCardTitle(selectedNode), [selectedNode])
+  const selectedNodeCardFields = React.useMemo(
+    () => GRAPH_NODE_CARD_TEXT_FIELDS.map(field => ({
+      ...field,
+      value: readGraphNodeCanonicalTextProperty(selectedNodeProperties, field.aliasKeys),
+    })),
+    [selectedNodeProperties],
+  )
+  const canEditSelectedNodeCard = active && !!selectedNode
 
   return (
     <section
@@ -119,23 +139,54 @@ export default function FlowEditorInspector({
           <p className={cn('mt-2', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
             {selectedNode ? selectedNode.id : 'No selection'}
           </p>
-          <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-label">
-            Label
-          </label>
-          <input
-            id="flow-editor-label"
+          <section
             className={cn(
-              'mt-1 w-full rounded-md',
-              keyValueInputClass,
-              textSizeClass,
-              UI_THEME_TOKENS.input.bg,
-              UI_THEME_TOKENS.input.border,
-              UI_THEME_TOKENS.input.text,
+              'mt-3 rounded-lg border p-3',
+              UI_THEME_TOKENS.panel.border,
+              UI_THEME_TOKENS.panel.bg,
             )}
-            value={String(selectedNode?.label || '')}
-            onChange={e => onSetNodeLabel(e.target.value)}
-            disabled={!active || !selectedNode}
-          />
+            aria-label="Shared card editor"
+          >
+            <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>Card</p>
+            <CardInlineTextEditor
+              value={selectedNodeCardTitle}
+              ariaLabel={selectedNode ? `Card title for ${selectedNode.id}` : 'Card title'}
+              placeholder="Add title"
+              canEdit={canEditSelectedNodeCard}
+              onCommit={onSetNodeLabel}
+              displayClassName={cn('mt-2 text-sm font-semibold leading-5', UI_THEME_TOKENS.text.primary)}
+              editorClassName="mt-2 min-h-[1.5rem] px-0 py-0 text-sm font-semibold leading-5"
+            />
+            <div className="mt-3 flex flex-col gap-2">
+              {selectedNodeCardFields.map(field => (
+                <div key={field.id} className="rounded-md border border-black/5 bg-black/[0.025] px-2.5 py-2">
+                  <p className={cn('m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary)}>
+                    {field.label}
+                  </p>
+                  <CardInlineTextEditor
+                    value={field.value}
+                    ariaLabel={selectedNode ? `${field.label} for ${selectedNode.id}` : field.label}
+                    placeholder={field.placeholder}
+                    canEdit={canEditSelectedNodeCard}
+                    multiline
+                    rows={3}
+                    onCommit={nextValue => {
+                      onPatchSelectedNodeProperties(
+                        buildGraphNodeCanonicalTextPatch({
+                          currentProperties: selectedNodeProperties,
+                          aliasKeys: field.aliasKeys,
+                          canonicalKey: field.canonicalKey,
+                          nextValue,
+                        }),
+                      )
+                    }}
+                    displayClassName={cn('m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary)}
+                    editorClassName="mt-1 min-h-[4.5rem] px-0 py-0 text-xs leading-5"
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
           <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-type">
             Type
           </label>

@@ -16,7 +16,7 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Widget registry SSOT | Reuse canonical widget fields, ports, and `flow:widgetFormId` values. |
 | `canvas/src/features/integrations/*Ssot*.ts` | Integration field SSOT | Reuse canonical integration field keys and row semantics. |
 | `canvas/src/lib/render/richMediaSsot.ts` | Panel behavior SSOT | Reuse canonical Rich Media Panel writeback and tab behavior. |
-| `canvas/src/__tests__/markdownFrontmatterFlowGraphImport.test.ts` | Parser fidelity SSOT | Keep typed envelopes and frontmatter-flow syntax aligned to test expectations. |
+| `canvas/src/__tests__/markdownFrontmatterFlowGraphImport.test.ts` | Parser fidelity SSOT | Keep canonical plain-YAML authoring and normalized typed-wrapper fixtures aligned to parser expectations. |
 
 ## Contract Rules
 
@@ -24,7 +24,7 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | --- | --- | --- |
 | Document shape | Keep one YAML frontmatter block as the machine SSOT and Markdown body as the human projection. | `kgc-pipeline/v1` templates |
 | SSOT surfaces | Keep `widget_bundle`, `runner`, `pipeline`, `mermaid`, `flow`, and `graph_meta` mutually consistent. | frontmatter templates |
-| Serialization | Keep widget and panel properties in typed envelope form `{key, type, value}`. | parser fidelity tests |
+| Serialization | Keep canonical templates authored in plain YAML; use `{key, type, value}` only in normalized validation fixtures that audit parser fidelity. | parser fidelity tests |
 | Text widget | Reuse canonical text keys `chatProvider`, `chatAuthMode`, `chatEndpointUrl`, `chatModel`, `prompt`. | text integration SSOT |
 | Image widget | Reuse canonical image keys `model`, `prompt`, `size`, `output_format`, `response_format`, `optimize_prompt_options`, `aspect_ratio`, `stream`, `watermark`, `seed`, `guidance_scale`, `reference_image`. | image integration SSOT |
 | Video widget | Reuse canonical video keys `model`, `prompt`, `content_json`, `resolution`, `ratio`, `duration`, `generate_audio`, `draft`, `camera_fixed`, `image_url_url`, `reference_image`. | video integration SSOT |
@@ -41,8 +41,8 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | --- | --- |
 | FloatingPanel Props Panel | Read and write the same canonical `properties.*` keys serialized in template `flow.nodes`. |
 | MainPanel Integrations | Reuse the same field names and row semantics as the widget registry SSOT. |
-| NodeOverlayEditor KTV rows | Render the same typed envelope fields without local alias keys. |
-| Frontmatter parser | Parse the same canonical `flow:widgetFormId`, handles, and typed envelopes emitted by the templates. |
+| NodeOverlayEditor KTV rows | Render declared canonical fields without local alias keys; normalized typed-wrapper fixtures must map to the same fields. |
+| Frontmatter parser | Parse the same canonical `flow:widgetFormId` and handles from plain-YAML templates, while also accepting normalized typed-wrapper fixtures in validation paths. |
 | Rich Media renderer | Apply connected values before display filtering or media dedupe. |
 
 ## Authoring Rules
@@ -51,7 +51,7 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | --- | --- |
 | Placeholder data | Keep project-specific content inside frontmatter placeholders only. |
 | Defaults | Use generic defaults; do not pin demo-only subjects, brands, assets, or scenes. |
-| Extensions | Add new nodes and edges through the same typed-envelope pattern. |
+| Extensions | Add new nodes and edges through the same canonical field vocabulary; keep templates plain YAML and reserve typed wrappers for normalized fixtures only. |
 | Drift prevention | Fix schema drift in shared TS SSOT sources, not in downstream docs or template prose. |
 | Legacy cleanup | Remove stale or duplicate template formats instead of preserving compatibility shims. |
 
@@ -63,4 +63,4 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | Registry fidelity | Template field keys match shared widget and integration SSOT keys. |
 | Panel fidelity | Widget outputs land on Rich Media Panel canonical properties. |
 | Neutrality | Templates remain project-agnostic and validation-demo-agnostic. |
-| Parser safety | Typed envelopes and `flow:widgetFormId` values remain parser-safe. |
+| Parser safety | Plain-YAML templates and normalized typed-wrapper fixtures both remain parser-safe and keep `flow:widgetFormId` values aligned. |

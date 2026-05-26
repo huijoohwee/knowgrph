@@ -1,4 +1,4 @@
-import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GetGraph, SetGraph } from './graphDataSliceAccess'
 import { validateNodeProperties } from '@/features/schema/validation'
 import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
@@ -131,6 +131,56 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
     }
     const fields = Object.keys(updates || {}).join(',') || 'none';
     get().scheduleHistory(`Update Node: ${id} [${fields}]`);
+  },
+
+  updateGraphMetadata: (updates: Record<string, JSONValue | undefined>) => {
+    const { graphData } = get();
+    if (!graphData) return;
+    const nextMetadata = { ...(graphData.metadata || {}) } as Record<string, JSONValue>
+    let changed = false
+    for (const [key, value] of Object.entries(updates || {})) {
+      const normalizedKey = String(key || '').trim()
+      if (!normalizedKey) continue
+      if (typeof value === 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(nextMetadata, normalizedKey)) {
+          delete nextMetadata[normalizedKey]
+          changed = true
+        }
+        continue
+      }
+      if (nextMetadata[normalizedKey] === value) continue
+      nextMetadata[normalizedKey] = value
+      changed = true
+    }
+    if (!changed) return
+    const nextGraphDataBase = { ...graphData, metadata: nextMetadata }
+    const nextRevision = (get().graphDataRevision || 0) + 1
+    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    const activeTextSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+      state: get(),
+      sourceFiles: get().sourceFiles || [],
+      parsedGraphData: nextGraphData,
+    })
+    set(s => ({
+      ...(activeTextSync.sourceFiles !== (s.sourceFiles || []) ? { sourceFiles: activeTextSync.sourceFiles } : {}),
+      graphData: nextGraphData,
+      graphDataRevision: nextRevision,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      docLocationRevision: (s.docLocationRevision || 0) + 1,
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText') ? { markdownDocumentText: activeTextSync.markdownDocumentText ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentName') ? { markdownDocumentName: activeTextSync.markdownDocumentName ?? s.markdownDocumentName } : {}),
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
+    }))
+    if (Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText')) {
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: get(),
+        sourceFiles: activeTextSync.sourceFiles,
+        text: activeTextSync.markdownDocumentText ?? '',
+      })
+    }
+    const fields = Object.keys(updates || {}).join(',') || 'none';
+    get().scheduleHistory(`Update Graph Metadata [${fields}]`);
   },
 
   flushComposedPositionWritesNow: () => {
