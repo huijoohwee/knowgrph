@@ -80,8 +80,8 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   },
   'workspace.sync.sourceFiles.docsOnly': {
     area: 'Source File Management',
-    responsibility: 'Constrain automated Source Files hydration to canonical /docs workspace mirror entries',
-    notes: 'Default automated path is D1/docs backed; Import local files remains manual-only.',
+    responsibility: 'Constrain automated Source Files hydration to canonical workspace mirror roots such as /docs and the configured chat storage root',
+    notes: 'Default automated paths are D1/docs plus the configured chat workspace root; Import local files remains manual-only.',
   },
   'workspace.sync.sourceFiles.debounceMs': {
     area: 'Source File Management',

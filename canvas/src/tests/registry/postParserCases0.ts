@@ -508,6 +508,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["chat.floatingPanel.streaming.sseParser.skipsHeartbeatAndKeepsBlocks","@/__tests__/floatingPanelChatStreamingMetadata.test","testParseSseEventsSkipsHeartbeatCommentsAndKeepsMultiLinePayloads"],
   ["chat.floatingPanel.streaming.miromindDelta.readsReasoningAndUsage","@/__tests__/floatingPanelChatStreamingMetadata.test","testExtractAssistantStreamDeltaReadsMiroMindReasoningAndUsage"],
   ["chat.floatingPanel.streamArtifacts.bundle.reusesKgcTimestampFolder","@/__tests__/chatStreamArtifacts.test","testChatStreamArtifactBundleReusesKgcTimestampSessionFolder"],
+  ["chat.floatingPanel.streamArtifacts.requestShape.genericQueryRelevantMetadata","@/__tests__/chatStreamArtifacts.test","testRenderChatStreamArtifactsBuildsGenericQueryRelevantMetadata"],
   ["chat.floatingPanel.streamArtifacts.workspaceWrites.storyboardDocs","@/__tests__/chatStreamArtifacts.test","testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs"],
   ["chat.floatingPanel.streamArtifacts.forbidHardcodedSharedUrls","@/__tests__/miromindStreamArtifactHardcodeGuard.test","testMiroMindStreamArtifactsForbidHardcodedSharedUrls"],
   ["flow.widgets.byteplusTextWidget.ssotIsolation","@/__tests__/byteplusTextWidgetSsotContract.test","testBytePlusTextWidgetKtvRowsStayBytePlus"],

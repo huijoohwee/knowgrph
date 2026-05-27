@@ -105,6 +105,7 @@ export const useFinalizeAssistantSuccess = (args: {
       modelId,
       requestText,
       rawAssistantText,
+      workspaceAssistantText: assistantTextForKgc,
       usageSummary: payload.streamUsageSummary || null,
       finishReason: payload.streamFinishReason || null,
       reasoningSteps: streamReasoningSteps,

@@ -160,6 +160,8 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
     'Tier B keys: product, domain, subject, objective, artifact, owner, version, status.',
     'Table cells: never empty',
     'TBD (unknown) or — (not applicable)',
+    'Every streamed paragraph must remain relevant to the active query',
+    'never output placeholder or example links',
   ]
   requiredSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
@@ -742,7 +744,7 @@ export function testChatResponseContractPromptStaysCompatibleWithComputingFlowSa
   })
 }
 
-export function testChatKgcResponseContractPromptAlignsWithBaseTemplateFixture() {
+export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
   const prompt = CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
   const template = readBaseTemplateSample()
 
@@ -750,6 +752,9 @@ export function testChatKgcResponseContractPromptAlignsWithBaseTemplateFixture()
     'Use canonical structure, not canonical wording',
     'schema guidance only',
     'Stream the final document progressively',
+    'Every streamed chunk must stay relevant to the active query',
+    'Do not widen a narrow request into a stock "PRD + TAD", "monetization pipeline", or similarly prepackaged deliverable',
+    'never emit example, placeholder, or fixture URLs',
     'the answer itself must be the KGC document',
     'exactly one standalone KGC document',
     'Do not return prose plus a partial KGC fragment',
@@ -923,7 +928,7 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
 
   const normalized = normalizeKgcFrontmatterIdentityToFileName({
     markdown: mutated,
-    workspacePath: '/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md',
+    workspacePath: '/chat-log/20260419T180222Z/kgc_20260419T180222Z.md',
     timestampMs: Date.UTC(2026, 3, 19, 18, 2, 22),
   })
 
@@ -954,22 +959,22 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
 }
 
 export function testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonical() {
-  const tracePath = '/sandbox/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md'
-  const outputPath = '/sandbox/chat-log/20260419T180222Z/kgc-output_20260419T180222Z.svg'
+  const tracePath = '/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md'
+  const outputPath = '/chat-log/20260419T180222Z/kgc-output_20260419T180222Z.svg'
 
-  if (toCanonicalKgcWorkspacePath(tracePath) !== '/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') {
+  if (toCanonicalKgcWorkspacePath(tracePath) !== '/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') {
     throw new Error('Expected trace path to canonicalize to the runnable KGC markdown path')
   }
-  if (toCanonicalKgcWorkspacePath(outputPath) !== '/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') {
+  if (toCanonicalKgcWorkspacePath(outputPath) !== '/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') {
     throw new Error('Expected output companion path to canonicalize back to the runnable KGC markdown path')
   }
-  if (toKgcTraceWorkspacePath('/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') !== tracePath) {
+  if (toKgcTraceWorkspacePath('/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') !== tracePath) {
     throw new Error('Expected canonical KGC path to derive a matching trace companion path')
   }
-  if (toKgcOutputWorkspacePath(tracePath, 'png') !== '/sandbox/chat-log/20260419T180222Z/kgc-output_20260419T180222Z.png') {
+  if (toKgcOutputWorkspacePath(tracePath, 'png') !== '/chat-log/20260419T180222Z/kgc-output_20260419T180222Z.png') {
     throw new Error('Expected trace path to derive a matching output companion path')
   }
-  if (toKgcOutputWorkspacePath(tracePath, 'html', { variant: 'viewer' }) !== '/sandbox/chat-log/20260419T180222Z/kgc-output_20260419T180222Z-viewer.html') {
+  if (toKgcOutputWorkspacePath(tracePath, 'html', { variant: 'viewer' }) !== '/chat-log/20260419T180222Z/kgc-output_20260419T180222Z-viewer.html') {
     throw new Error('Expected trace path to derive a stable variant output companion path')
   }
 
@@ -987,7 +992,7 @@ export function testKgcFallbackWithNonEmptyQueryIsNotByteEqualToCanonicalTemplat
   const canonicalTemplate = readBaseTemplateSample().replace(/\r\n/g, '\n').trimEnd()
   const generated = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 20, 14, 10),
-    workspacePath: '/sandbox/chat-log/20260419T201410Z/kgc_20260419T201410Z.md',
+    workspacePath: '/chat-log/20260419T201410Z/kgc_20260419T201410Z.md',
     requestText: 'Solo founder bootstrap growth with Swipe checkout and RxDB MapLibre stack',
     assistantText: 'invalid fallback trigger',
   }).replace(/\r\n/g, '\n').trimEnd()
@@ -1002,7 +1007,7 @@ export function testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence() {
   const requestText = 'Solo founder bootstrap growth with Swipe checkout, RxDB, MapLibre, MCP marketplace'
   const generated = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 21, 1, 10),
-    workspacePath: '/sandbox/chat-log/20260419T210110Z/kgc_20260419T210110Z.md',
+    workspacePath: '/chat-log/20260419T210110Z/kgc_20260419T210110Z.md',
     requestText,
     assistantText: canonicalTemplate,
   })
@@ -1032,7 +1037,7 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
   ].join('\n')
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 20, 10, 54, 32),
-    workspacePath: '/sandbox/chat-log/20260420T105432Z/kgc_20260420T105432Z.md',
+    workspacePath: '/chat-log/20260420T105432Z/kgc_20260420T105432Z.md',
     requestText,
     assistantText,
   })
@@ -1126,7 +1131,7 @@ export function testKgcDeterministicFallbackShapesCreativeScriptQueryWithoutTrad
   const requestText = 'generate video script inspired by prometheus + jurassic park (FORBID mention/infringe trademark) `video-script-promessic.md`'
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 20, 19, 20, 54),
-    workspacePath: '/sandbox/chat-log/20260420T192054Z/kgc_20260420T192054Z.md',
+    workspacePath: '/chat-log/20260420T192054Z/kgc_20260420T192054Z.md',
     requestText,
     assistantText: 'Need a cinematic script draft with awe and danger.',
   })
@@ -1168,7 +1173,7 @@ export function testKgcDeterministicFallbackStaysNeutralForGenericRequest() {
   const requestText = 'Draft a concise implementation memo for improving offline sync conflict visibility in a local-first workspace'
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 20, 21, 46, 8),
-    workspacePath: '/sandbox/chat-log/20260420T214608Z/kgc_20260420T214608Z.md',
+    workspacePath: '/chat-log/20260420T214608Z/kgc_20260420T214608Z.md',
     requestText,
     assistantText: 'Need a short memo with implementation direction and constraints.',
   })
@@ -1294,7 +1299,7 @@ export function testNormalizeKgcAssistantBodyForStorageSalvagesWrappedStructured
   ].join('\n')
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 4, 22, 16, 10, 0),
-    workspacePath: '/sandbox/chat-log/20260522T161000Z/kgc_20260522T161000Z.md',
+    workspacePath: '/chat-log/20260522T161000Z/kgc_20260522T161000Z.md',
     requestText: '',
     assistantText: wrapped,
   })
@@ -1330,7 +1335,7 @@ export function testNormalizeKgcAssistantBodyForStorageRemovesLegacyGroupingAlia
   )
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 4, 22, 16, 12, 0),
-    workspacePath: '/sandbox/chat-log/20260522T161200Z/kgc_20260522T161200Z.md',
+    workspacePath: '/chat-log/20260522T161200Z/kgc_20260522T161200Z.md',
     requestText: '',
     assistantText: aliased,
   })
@@ -1515,14 +1520,14 @@ export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWri
   await flushDraft('alpha', false)
   await flushDraft('alpha', false)
   await flushDraft('alpha', true)
-  if (persisted.length !== 2) {
-    throw new Error(`Expected duplicate non-force draft write to be skipped, got ${persisted.length} writes`)
+  if (persisted.length !== 0) {
+    throw new Error(`Expected streaming draft writer to avoid workspace persistence churn, got ${persisted.length} writes`)
   }
-  if (persisted[0] !== 'alpha' || persisted[1] !== 'alpha') {
-    throw new Error(`Expected persisted draft writes to preserve assistant text, got: ${persisted.join(' | ')}`)
+  if (followed.length !== 1) {
+    throw new Error(`Expected duplicate draft updates to avoid repeated follow-path churn, got ${followed.length}`)
   }
-  if (followed.length !== 2) {
-    throw new Error(`Expected follow path updates only for persisted writes, got ${followed.length}`)
+  if (streamDraftTextRef.current?.text !== 'alpha') {
+    throw new Error(`Expected live streaming draft state to retain the latest text, got: ${JSON.stringify(streamDraftTextRef.current)}`)
   }
 }
 

@@ -35,13 +35,13 @@ export const createChatKnowgrphDraftWriter = (args: {
   setChatKnowgrphWorkspacePath: (path: string) => void
   setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   persistDraft?: typeof upsertChatHistoryWorkspaceDraft
+  persistWorkspaceDrafts?: boolean
 }) => {
-  return async (text: string, force: boolean): Promise<void> => {
+  return async (text: string, _force: boolean): Promise<void> => {
     if (args.chatStorageTarget !== 'chatKnowgrph') return
     if (!args.liveKgcPath) return
     const liveTracePath = toKgcTraceWorkspacePath(args.liveKgcPath) || args.liveKgcPath
     if (
-      !force &&
       args.streamDraftTextRef.current &&
       args.streamDraftTextRef.current.path === liveTracePath &&
       args.streamDraftTextRef.current.text === text
@@ -51,6 +51,7 @@ export const createChatKnowgrphDraftWriter = (args: {
     args.followWorkspaceMarkdownPath(liveTracePath)
     args.streamDraftTextRef.current = { path: liveTracePath, text }
     args.setChatWorkspaceStreamingState?.({ path: liveTracePath, text })
+    if (args.persistWorkspaceDrafts !== true) return
     const persistDraft = args.persistDraft || upsertChatHistoryWorkspaceDraft
     try {
       await persistDraft({

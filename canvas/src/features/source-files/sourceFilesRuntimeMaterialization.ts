@@ -13,6 +13,7 @@ import {
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   isInitializationWorkspacePath,
@@ -24,7 +25,7 @@ import {
   resolveActiveWorkspaceEntriesSnapshot,
 } from '@/features/source-files/sourceFilesRuntimeActive'
 
-function normalizeWorkspaceSourceFilesToSingleActive(args: {
+function ensureActiveWorkspaceSourceFileEnabled(args: {
   sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
   activeSourcePath: string
 }): ReturnType<typeof useGraphStore.getState>['sourceFiles'] {
@@ -34,35 +35,12 @@ function normalizeWorkspaceSourceFilesToSingleActive(args: {
   const next = list.map(file => {
     if (!file) return file
     const sourcePath = String(file.source?.path || '')
-    if (!sourcePath.startsWith('workspace:')) return file
-    const shouldEnable = sourcePath === args.activeSourcePath
-    if (file.enabled === shouldEnable) return file
+    if (!sourcePath.startsWith('workspace:') || sourcePath !== args.activeSourcePath) return file
+    if (file.enabled === true) return file
     changed = true
-    return { ...file, enabled: shouldEnable }
+    return { ...file, enabled: true }
   })
   return changed ? next : list
-}
-
-function pruneWorkspaceSourceFilesToActive(args: {
-  sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
-  activeSourcePath: string
-}): ReturnType<typeof useGraphStore.getState>['sourceFiles'] {
-  const list = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
-  if (list.length === 0) return list
-  const next = list.filter(file => {
-    if (!file) return false
-    const sourcePath = String(file.source?.path || '')
-    if (!sourcePath.startsWith('workspace:')) return true
-    return sourcePath === args.activeSourcePath
-  })
-  if (next.length === 0) return next
-  const activeIndex = next.findIndex(file => String(file?.source?.path || '') === args.activeSourcePath)
-  if (activeIndex < 0) return next
-  const activeFile = next[activeIndex]
-  if (!activeFile || activeFile.enabled === true) return next
-  const normalized = next.slice()
-  normalized[activeIndex] = { ...activeFile, enabled: true }
-  return normalized
 }
 
 function canSkipActiveWorkspaceSourceFilesRematerialization(args: {
@@ -218,6 +196,7 @@ export function buildActiveWorkspaceRuntimeSourceFilesSnapshot(args: {
   workspaceEntries: WorkspaceEntry[]
   sourcesByPath?: WorkspaceSourceIndex | null
   workspaceDocsOnly?: boolean
+  workspaceSourceRootPaths?: WorkspacePath[]
 }): {
   activeSourcePath: string
   mergedSourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
@@ -233,10 +212,11 @@ export function buildActiveWorkspaceRuntimeSourceFilesSnapshot(args: {
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: activePath,
     }),
-    forceIncludeOnly: true,
+    preserveExistingWorkspaceEntries: true,
     workspaceDocsOnly: args.workspaceDocsOnly,
+    workspaceSourceRootPaths: args.workspaceSourceRootPaths,
   })
-  const runtimeSourceFiles = pruneWorkspaceSourceFilesToActive({
+  const runtimeSourceFiles = ensureActiveWorkspaceSourceFileEnabled({
     sourceFiles: mergedSourceFiles,
     activeSourcePath,
   })
@@ -280,7 +260,7 @@ async function resolveNonGraphActiveWorkspaceSourceFiles(args: {
       }
     }
   }
-  return pruneWorkspaceSourceFilesToActive({
+  return ensureActiveWorkspaceSourceFileEnabled({
     sourceFiles: nextSourceFiles,
     activeSourcePath: args.activeSourcePath,
   })
@@ -302,8 +282,11 @@ async function materializeGraphOwningActiveWorkspaceSourceFiles(args: {
     forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
       activePathOverride: args.activePath,
     }),
-    forceIncludeOnly: true,
+    preserveExistingWorkspaceEntries: true,
     workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+    workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+      chatLocalStorageRootPath: store.chatLocalStorageRootPath,
+    }),
   })
   if (mergedSourceFiles !== args.existingSourceFiles) {
     store.setSourceFiles(mergedSourceFiles)
@@ -353,7 +336,7 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     })
     if (next) {
       if (next !== existing) {
-        store.setSourceFiles(normalizeWorkspaceSourceFilesToSingleActive({
+        store.setSourceFiles(ensureActiveWorkspaceSourceFileEnabled({
           sourceFiles: next,
           activeSourcePath,
         }))
@@ -380,6 +363,9 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
       workspaceEntries,
       sourcesByPath: resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath),
       workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+      workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+        chatLocalStorageRootPath: store.chatLocalStorageRootPath,
+      }),
     })
     if (runtimeSnapshot.runtimeSourceFiles !== existing) {
       store.setSourceFiles(runtimeSnapshot.runtimeSourceFiles)

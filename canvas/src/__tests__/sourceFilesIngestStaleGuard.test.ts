@@ -1651,7 +1651,7 @@ export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisab
     throw new Error('expected workspace entry hydration not to keep a separate storage fallback branch once the shared active-document text resolver owns that path')
   }
   if (runtimeMaterializationText.includes('workspaceEntries.filter(entry => entry?.kind === \'file\' && entry.path === activePath)')) throw new Error('expected workspace active materialization non-graph path to avoid downstream filtering aliases and read the active entry at the source')
-  if (!runtimeMaterializationText.includes('forceIncludeOnly: true')) throw new Error('expected workspace active materialization non-graph path to enforce active-only source-file merging upstream')
+  if (!runtimeMaterializationText.includes('preserveExistingWorkspaceEntries: true')) throw new Error('expected workspace active materialization paths to preserve existing canonical workspace source files across active-entry refreshes')
   if (!runtimeMaterializationText.includes('const mergedSourceFiles = args.premergedSourceFiles || mergeWorkspaceEntriesIntoSourceFiles({')) {
     throw new Error('expected graph-owning workspace active materialization to reuse premerged source-files snapshots inside the dedicated graph-owning helper')
   }

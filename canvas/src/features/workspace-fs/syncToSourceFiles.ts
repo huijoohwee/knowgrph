@@ -8,6 +8,10 @@ import {
   isCanonicalWorkspaceSeedSourcePath,
   resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
+import {
+  isWorkspacePathUnderSourceRoots,
+  normalizeWorkspaceSourceRootPaths,
+} from '@/features/workspace-fs/workspaceSourceRoots'
 
 export function workspaceSourcePathKey(path: string): string {
   const p = String(path || '').trim()
@@ -28,19 +32,23 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   sourcesByPath: WorkspaceSourceIndex
   forceIncludePaths?: string[]
   forceIncludeOnly?: boolean
+  preserveExistingWorkspaceEntries?: boolean
   workspaceDocsOnly?: boolean
+  workspaceSourceRootPaths?: string[]
 }): SourceFile[] {
   const existing = Array.isArray(args.existing) ? args.existing : []
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const sourcesByPath = args.sourcesByPath || {}
   const forceInclude = new Set((Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : []).map(path => String(path || '').trim()).filter(Boolean))
   const forceIncludeOnly = args.forceIncludeOnly === true && forceInclude.size > 0
+  const preserveExistingWorkspaceEntries = args.preserveExistingWorkspaceEntries === true
   const workspaceDocsOnly = args.workspaceDocsOnly === true
-  const docsMirrorBasenameSet = new Set<string>(
+  const workspaceSourceRootPaths = normalizeWorkspaceSourceRootPaths(args.workspaceSourceRootPaths)
+  const canonicalMirrorBasenameSet = new Set<string>(
     entries
       .filter(entry => entry?.kind === 'file')
       .map(entry => String(entry.path || '').trim())
-      .filter(path => path.startsWith('/docs/'))
+      .filter(path => isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths))
       .map(path => path.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop()?.toLowerCase() || '')
       .filter(Boolean),
   )
@@ -49,7 +57,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       .filter(entry => entry?.kind === 'file')
       .map(entry => String(entry.path || '').trim())
       .filter(path => !forceIncludeOnly || forceInclude.has(path))
-      .filter(path => path.startsWith('/docs/'))
+      .filter(path => isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths))
       .map(path => {
         const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
         const basename = normalized.split('/').pop() || ''
@@ -82,23 +90,23 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const path = String(e.path || '').trim()
     if (!path) continue
     if (forceIncludeOnly && !forceInclude.has(path)) continue
-    if (workspaceDocsOnly && !path.startsWith('/docs/') && !forceInclude.has(path)) continue
+    if (workspaceDocsOnly && !isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths) && !forceInclude.has(path)) continue
 
     const seedSourcePath = resolveWorkspaceSeedSourcePath(path)
     const basename = path.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || ''
     const isStaleRootDocsAliasCoveredByDocsMirror =
       workspaceDocsOnly
-      && !path.startsWith('/docs/')
+      && !isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
       && !forceInclude.has(path)
       && !seedSourcePath
       && path.split('/').filter(Boolean).length === 1
       && /\.md$/i.test(basename)
-      && docsMirrorBasenameSet.has(basename.toLowerCase())
+      && canonicalMirrorBasenameSet.has(basename.toLowerCase())
     if (isStaleRootDocsAliasCoveredByDocsMirror) continue
     const isLegacyRootSeedAliasCoveredByDocsMirror =
       !!seedSourcePath
       && isCanonicalWorkspaceSeedSourcePath(seedSourcePath)
-      && !path.startsWith('/docs/')
+      && !isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
       && docsMirrorCanonicalSeedSourcePathSet.has(seedSourcePath)
     if (isLegacyRootSeedAliasCoveredByDocsMirror) continue
     const srcPath = resolveWorkspaceSourcePathKey(path)
@@ -140,7 +148,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const nextCandidate = prev && areSourceFileRecordsEqual(prev, candidate) ? prev : candidate
     const candidateRank =
       (forceInclude.has(path) ? 100 : 0)
-      + (path.startsWith('/docs/') ? 10 : 0)
+      + (isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths) ? 10 : 0)
       + (typeof e.text === 'string' ? 1 : 0)
     const candidateSortKey = `${String(path).length}:${String(path)}`
     const previousRank = nextWorkspaceRankBySourcePath.get(srcPath)
@@ -152,6 +160,25 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     nextWorkspaceBySourcePath.set(srcPath, nextCandidate)
     nextWorkspaceRankBySourcePath.set(srcPath, candidateRank)
     nextWorkspaceKeyBySourcePath.set(srcPath, candidateSortKey)
+  }
+
+  if (preserveExistingWorkspaceEntries && !forceIncludeOnly) {
+    for (const file of existing) {
+      if (!file) continue
+      const sourcePath = String(file.source?.path || '')
+      if (!sourcePath.startsWith('workspace:')) continue
+      if (nextWorkspaceBySourcePath.has(sourcePath)) continue
+      const workspacePath = sourcePath.slice('workspace:'.length)
+      if (!workspacePath) continue
+      if (
+        workspaceDocsOnly
+        && !isWorkspacePathUnderSourceRoots(workspacePath, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
+        && !forceInclude.has(workspacePath)
+      ) {
+        continue
+      }
+      nextWorkspaceBySourcePath.set(sourcePath, file)
+    }
   }
 
   const nextWorkspace = [...nextWorkspaceBySourcePath.values()]

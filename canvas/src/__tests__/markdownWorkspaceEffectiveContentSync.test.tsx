@@ -173,13 +173,13 @@ export async function testMarkdownWorkspaceEffectiveContentPreservesUnsavedEdito
 
 export function testMarkdownWorkspaceEffectiveContentPrefersMatchingLiveStreamingDraft() {
   useGraphStore.getState().setChatWorkspaceStreamingState({
-    path: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
+    path: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
     text: '# streaming draft',
   })
   try {
     const state = useGraphStore.getState()
     const resolved = resolveLiveWorkspaceStreamingText({
-      activePath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+      activePath: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
       streamingPath: state.chatWorkspaceStreamingPath,
       streamingText: state.chatWorkspaceStreamingText,
       userEditedActiveText: false,
@@ -188,7 +188,7 @@ export function testMarkdownWorkspaceEffectiveContentPrefersMatchingLiveStreamin
       throw new Error(`expected matching live workspace stream draft to override empty editor content, got ${JSON.stringify({ resolved })}`)
     }
     const hiddenByUserDraft = resolveLiveWorkspaceStreamingText({
-      activePath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+      activePath: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
       streamingPath: state.chatWorkspaceStreamingPath,
       streamingText: state.chatWorkspaceStreamingText,
       userEditedActiveText: true,

@@ -3,6 +3,7 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { ensureMarkdownFileName } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport/urlContent'
+import { ensureChatWorkspaceMirrorFolder, mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
 import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 
 const REPORT_SHARE_HINT_RX = /\/report\/share\//i
@@ -67,6 +68,7 @@ export const persistDereferencedChatStreamArtifacts = async (args: {
   if (eligibleUrls.length === 0) return []
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
+  await ensureChatWorkspaceMirrorFolder(args.folderPath)
   const out: DereferencedChatStreamArtifact[] = []
   for (let i = 0; i < eligibleUrls.length; i += 1) {
     const url = eligibleUrls[i] || ''
@@ -96,6 +98,10 @@ export const persistDereferencedChatStreamArtifacts = async (args: {
     await writeWorkspaceFileTextEnsuringFile({
       fs,
       path: workspacePath,
+      text: String(imported.text || '').trimEnd() + '\n',
+    })
+    void mirrorChatWorkspaceFileToHost({
+      workspacePath,
       text: String(imported.text || '').trimEnd() + '\n',
     })
     out.push({

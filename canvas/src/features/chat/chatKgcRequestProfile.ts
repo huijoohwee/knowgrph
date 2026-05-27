@@ -104,7 +104,7 @@ const ARTIFACT_PATTERNS: Array<{ rx: RegExp; label: string }> = [
 const TOPIC_PATTERNS: Array<{ rx: RegExp; label: string }> = [
   { rx: /\bmcp\b/i, label: 'MCP distribution' },
   { rx: /\bmarketplace\b/i, label: 'marketplace delivery' },
-  { rx: /\bsubscription\b|\bpricing\b|\bmonetization\b|\bpay[- ]?per[- ]?use\b|\busage\b/i, label: 'usage monetization' },
+  { rx: /\bsubscription\b|\bpricing\b|\bmonetization\b|\bmoneti[sz]e\b|\bmake money\b|\bpay[- ]?per[- ]?use\b|\busage\b/i, label: 'usage monetization' },
   { rx: /\bconversion\b|\bcheckout\b|\bpayment\b|\bpayments\b|\bcommerce\b/i, label: 'conversion workflow' },
   { rx: /\blocal-first\b|\boffline\b|\bsync\b|\brxdb\b|\bstorage\b/i, label: 'local-first state' },
   { rx: /\bmaplibre\b|\bgeospatial\b|\bspatial\b|\bmap\b/i, label: 'spatial workflows' },
@@ -185,12 +185,14 @@ const inferSignals = (lowered: string): KgcRequestSignals => ({
   maplibre: /\bmaplibre\b/.test(lowered),
 })
 
-const inferNamedTerms = (signals: KgcRequestSignals): string[] => {
+const inferNamedTerms = (signals: KgcRequestSignals, intent: string): string[] => {
+  const acronymTerms = String(intent || '').match(/\b[A-Z]{2,6}\b/g) || []
   return unique([
     signals.openClaw ? 'OpenClaw' : '',
     signals.swipe ? 'Swipe payment flow' : '',
     signals.rxdb ? 'RxDB' : '',
     signals.maplibre ? 'MapLibre' : '',
+    ...acronymTerms.map(term => sanitizeScalar(term, 24)),
   ])
 }
 
@@ -263,7 +265,7 @@ const inferRequestedSections = (lowered: string): KgcRequestedSections => ({
   dataFlow: /\bdata flow\b/.test(lowered),
   goals: /\bgoals?\b/.test(lowered),
   userStories: /\buser stories\b|\bstories\b/.test(lowered),
-  monetization: /\bmonetization\b|\bpricing\b|\bsubscription\b|\bpayment\b|\bcheckout\b|\bconversion\b/.test(lowered),
+  monetization: /\bmonetization\b|\bmoneti[sz]e\b|\bmake money\b|\bpricing\b|\bsubscription\b|\bpayment\b|\bcheckout\b|\bconversion\b/.test(lowered),
   integrations: /\bintegration\b|\bintegrations\b|\brxdb\b|\bmaplibre\b|\bmcp\b|\bapi\b/.test(lowered),
 })
 
@@ -272,7 +274,7 @@ export const analyzeKgcRequest = (requestText: string): KgcRequestProfile => {
   const lowered = intent.toLowerCase()
   const signals = inferSignals(lowered)
   const topics = inferTopics(lowered)
-  const namedTerms = inferNamedTerms(signals)
+  const namedTerms = inferNamedTerms(signals, intent)
   const subject = sanitizeScalar(inferSubject(lowered), 60)
   const product = inferProduct(intent)
   const artifact = inferArtifact(lowered)

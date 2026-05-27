@@ -3,8 +3,6 @@ export const CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT = '/chat-log'
 const LEGACY_CHAT_LOCAL_STORAGE_ROOT_PATHS = new Set([
   '/chats',
   'chats',
-  '/sandbox/chat-log',
-  'sandbox/chat-log',
 ])
 
 export const normalizeChatLocalStorageRootPath = (value: string | null | undefined): string => {

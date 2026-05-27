@@ -50,8 +50,10 @@ import {
 import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import {
+  ensureWorkspaceChatMirrorFolder,
   ensureWorkspaceDocsMirrorFolder,
   readWorkspaceInitializationDocsMirrorEntries,
+  upsertWorkspaceChatMirrorText,
   upsertWorkspaceDocsMirrorText,
   readWorkspaceInitializationSeedText,
   upsertWorkspaceInitializationSeedText,
@@ -946,7 +948,9 @@ export async function testWorkspaceSeedProviderBrowserUpsertDocsMirrorWritesViaK
 
 export async function testWorkspaceSeedProviderBrowserUpsertChatLogMirrorWritesViaKgFsProxy() {
   const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
-  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = KG_HUIJOOHWEE_CHAT_LOG_ROOT
   const calls: Array<{ url: string; body: string }> = []
   const previousFetch = globalThis.fetch
   const previousWindow = globalThis.window
@@ -968,10 +972,10 @@ export async function testWorkspaceSeedProviderBrowserUpsertChatLogMirrorWritesV
     })
   }) as typeof fetch
   try {
-    const folderOk = await ensureWorkspaceDocsMirrorFolder({
+    const folderOk = await ensureWorkspaceChatMirrorFolder({
       workspacePath: '/chat-log/20260527T123654Z',
     })
-    const fileOk = await upsertWorkspaceDocsMirrorText({
+    const fileOk = await upsertWorkspaceChatMirrorText({
       workspacePath: '/chat-log/20260527T123654Z/kgc-trace_20260527T123654Z.md',
       text: '# streamed',
     })
@@ -989,6 +993,8 @@ export async function testWorkspaceSeedProviderBrowserUpsertChatLogMirrorWritesV
   } finally {
     if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
     if (previousFetch) {
       ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
     } else {

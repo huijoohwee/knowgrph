@@ -12,6 +12,7 @@ import {
   resolveFilePrefix,
   toKgcTraceWorkspacePath,
 } from './chatHistoryWorkspace.paths'
+import { mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
 import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 
@@ -34,50 +35,6 @@ const formatReadableTimestamp = (timestampMs: number): string => {
   const min = pad2(d.getMinutes())
   const sec = pad2(d.getSeconds())
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${sec}`
-}
-
-const looksLikeMirrorableFsPath = (value: string): boolean => {
-  const s = String(value || '').trim()
-  if (!s) return false
-  if (s.startsWith('/')) return true
-  if (/^[a-zA-Z]:\\/.test(s) || /^[a-zA-Z]:\//.test(s)) return true
-  return (
-    s.startsWith('/Users/') ||
-    s.startsWith('/home/') ||
-    s.startsWith('/Volumes/') ||
-    s.startsWith('/private/') ||
-    s.startsWith('/tmp/') ||
-    s.startsWith('/var/')
-  )
-}
-
-const mirrorWorkspaceFileToHostFs = async (args: { absolutePath: string; text: string }): Promise<void> => {
-  if (typeof window === 'undefined') return
-  const abs = String(args.absolutePath || '').trim()
-  if (!looksLikeMirrorableFsPath(abs)) return
-  try {
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => {
-      try {
-        controller.abort()
-      } catch {
-        void 0
-      }
-    }, 5_000)
-    try {
-      const res = await fetch('/__kg_fs_write', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: abs, text: args.text }),
-        signal: controller.signal,
-      })
-      if (!res.ok) return
-    } finally {
-      window.clearTimeout(timeoutId)
-    }
-  } catch {
-    void 0
-  }
 }
 
 const stripDraftBlock = (existing: string, traceId: string): string => {
@@ -160,13 +117,18 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
         timestampMs: args.timestampMs,
       })
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
-      if (next === existingRaw) return
-      await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
-      void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
       const tracePath = toKgcTraceWorkspacePath(key)
-      if (tracePath) {
+      const traceExistingRaw = tracePath ? (await fs.readFileText(tracePath)) || '' : ''
+      const shouldWriteCanonical = next !== existingRaw
+      const shouldWriteTrace = Boolean(tracePath) && next !== traceExistingRaw
+      if (!shouldWriteCanonical && !shouldWriteTrace) return
+      if (shouldWriteCanonical) {
+        await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
+        void mirrorChatWorkspaceFileToHost({ workspacePath: key, text: next })
+      }
+      if (tracePath && shouldWriteTrace) {
         await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
-        void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
+        void mirrorChatWorkspaceFileToHost({ workspacePath: tracePath, text: next })
       }
       return
     }
@@ -179,12 +141,12 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       assistantText: args.assistantText,
     })
     await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: `${entry.trimEnd()}\n` })
-    void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: `${entry.trimEnd()}\n` })
+    void mirrorChatWorkspaceFileToHost({ workspacePath: tracePath, text: `${entry.trimEnd()}\n` })
     const existingRaw = (await fs.readFileText(key)) || ''
     const next = appendChatHistoryEntryText(existingRaw, baseTitle, entry)
     if (next === existingRaw) return
     await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
-    void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+    void mirrorChatWorkspaceFileToHost({ workspacePath: key, text: next })
   })
   inFlightByPath.set(key, run)
   try {
@@ -235,7 +197,6 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
           const next = [traceExisting, draft].filter(Boolean).join(joiner)
           if (next === traceExistingRaw) return
           await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
-          void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
         }
         return
       }
@@ -253,13 +214,8 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       if (next === existingRaw) return
       await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
-      const tracePath = toKgcTraceWorkspacePath(key)
-      if (tracePath) {
-        await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
-        void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
-      }
       if (!existingRaw.trim()) {
-        void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+        void mirrorChatWorkspaceFileToHost({ workspacePath: key, text: next })
       }
       return
     }
@@ -275,7 +231,7 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
     if (next === existingRaw) return
     await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
     if (!existingRaw.trim()) {
-      void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+      void mirrorChatWorkspaceFileToHost({ workspacePath: key, text: next })
     }
   })
   inFlightByPath.set(key, run)

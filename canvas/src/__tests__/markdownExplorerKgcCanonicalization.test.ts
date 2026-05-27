@@ -1,18 +1,18 @@
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 
-export function testMarkdownExplorerStoreCanonicalizesKgcCompanionActivePath() {
+export function testMarkdownExplorerStoreKeepsKgcCompanionActivePathStable() {
   const previous = useMarkdownExplorerStore.getState().activePath
   try {
-    useMarkdownExplorerStore.getState().setActivePath('/sandbox/chat-log/kgc-trace_20260420220645.md')
+    useMarkdownExplorerStore.getState().setActivePath('/chat-log/kgc-trace_20260420220645.md')
     const activePath = useMarkdownExplorerStore.getState().activePath
-    if (activePath !== '/sandbox/chat-log/kgc_20260420220645.md') {
-      throw new Error('Expected markdown explorer active path to canonicalize KGC trace files to the runnable KGC markdown path')
+    if (activePath !== '/chat-log/kgc-trace_20260420220645.md') {
+      throw new Error('Expected markdown explorer active path to keep live KGC trace files stable')
     }
 
-    useMarkdownExplorerStore.getState().setActivePath('/sandbox/chat-log/kgc-output_20260420220645.png')
+    useMarkdownExplorerStore.getState().setActivePath('/chat-log/kgc-output_20260420220645.png')
     const outputActivePath = useMarkdownExplorerStore.getState().activePath
-    if (outputActivePath !== '/sandbox/chat-log/kgc_20260420220645.md') {
-      throw new Error('Expected markdown explorer active path to canonicalize KGC output companions to the runnable KGC markdown path')
+    if (outputActivePath !== '/chat-log/kgc-output_20260420220645.png') {
+      throw new Error('Expected markdown explorer active path to keep KGC output companions stable')
     }
   } finally {
     useMarkdownExplorerStore.getState().setActivePath(previous)

@@ -34,6 +34,7 @@ import {
   runBootstrapSourceFileHydration,
   scheduleBootstrapComposedGraphSync,
 } from '@/features/source-files/sourceFilesBootstrapStartup'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import {
   areSourceFilesEqualByIdAndHash,
   buildSourceFilesCompositionSignature,
@@ -449,7 +450,15 @@ export function SourceFilesPersistenceBootstrap() {
       workspaceEntries: reusableWorkspaceEntriesRef.current,
     })
     const hydratedWorkspaceEntries = await hydrateWorkspaceEntriesInlineText({ fs, workspaceEntries, forceIncludePaths })
-    const signature = buildWorkspaceEntriesSemanticKey({ entries: hydratedWorkspaceEntries, docsOnly: workspaceSourceFilesDocsOnly, forceIncludePaths, forceIncludeOnly: true })
+    const signature = buildWorkspaceEntriesSemanticKey({
+      entries: hydratedWorkspaceEntries,
+      docsOnly: workspaceSourceFilesDocsOnly,
+      forceIncludePaths,
+      forceIncludeOnly: true,
+      workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+        chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+      }),
+    })
     if (signature === lastWorkspaceEntriesSignatureRef.current) return sourceFilesSnapshot
     lastWorkspaceEntriesSignatureRef.current = signature
     const sourcesByPath = readReusableWorkspaceSourceIndexSnapshot()
@@ -465,6 +474,9 @@ export function SourceFilesPersistenceBootstrap() {
       workspaceEntries: hydratedWorkspaceEntries,
       sourcesByPath: sourcesByPath || undefined,
       workspaceDocsOnly: workspaceSourceFilesDocsOnly,
+      workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+        chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+      }),
     })
     const runtimeMerged = runtimeSourceFiles
     if (runtimeMerged !== existing) {

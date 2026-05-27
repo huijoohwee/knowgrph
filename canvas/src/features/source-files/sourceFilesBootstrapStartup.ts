@@ -16,6 +16,7 @@ import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sou
 import { scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import type { SourceFilesWorkspaceState } from '@/features/source-files/sourceFilesWorkspaceState'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 type BootstrapWorkspaceMaterializationArgs = {
@@ -89,6 +90,9 @@ export async function prepareBootstrapWorkspaceMaterialization(
         workspaceEntries: hydratedEntries,
         sourcesByPath: startupSourcesByPath || undefined,
         workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+        workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+          chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+        }),
       }).mergedSourceFiles
     : existingSourceFiles
   return {

@@ -278,6 +278,93 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWor
   if (nonDocs) throw new Error('expected non-docs workspace entries to be excluded in docs-only mode')
 }
 
+export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChatRootFilesVisible() {
+  const chatRootPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'
+  const nonCanonicalPath = '/scratch/places-demo.md'
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: '/docs/documents/knowgrph-storage-sync-document.md',
+        parentPath: '/docs/documents',
+        name: 'knowgrph-storage-sync-document.md',
+        text: '# docs',
+        updatedAtMs: 1,
+      },
+      {
+        kind: 'file',
+        path: chatRootPath,
+        parentPath: '/chat-log/20260527T150000Z',
+        name: 'chat-stream-log_20260527T150000Z.md',
+        text: '# chat stream log',
+        updatedAtMs: 1,
+      },
+      {
+        kind: 'file',
+        path: nonCanonicalPath,
+        parentPath: '/scratch',
+        name: 'places-demo.md',
+        text: '# demo',
+        updatedAtMs: 1,
+      },
+    ],
+    sourcesByPath: {
+      '/docs/documents/knowgrph-storage-sync-document.md': { kind: 'local', originalName: 'knowgrph-storage-sync-document.md' },
+      [chatRootPath]: { kind: 'local', originalName: 'chat-stream-log_20260527T150000Z.md' },
+      [nonCanonicalPath]: { kind: 'local', originalName: 'places-demo.md' },
+    },
+    workspaceDocsOnly: true,
+    workspaceSourceRootPaths: ['/docs', '/chat-log'],
+  })
+
+  const docs = next.find(f => f.source?.path === 'workspace:/docs/documents/knowgrph-storage-sync-document.md')
+  if (!docs) throw new Error('expected docs canonical workspace source file to remain visible')
+  const chatLog = next.find(f => f.source?.path === `workspace:${chatRootPath}`)
+  if (!chatLog) throw new Error('expected canonical chat workspace source file to remain visible in Source Files')
+  const nonCanonical = next.find(f => f.source?.path === `workspace:${nonCanonicalPath}`)
+  if (nonCanonical) throw new Error('expected non-canonical workspace entry to remain excluded in canonical-root mode')
+}
+
+export async function testWorkspaceSourceFilesSyncPreservesExistingCanonicalChatRootFilesAcrossActiveOnlyRefresh() {
+  const activePath = '/chat-log/20260527T150000Z/kgc_20260527T150000Z.md'
+  const existingSidecarPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [
+      {
+        id: 'existing-sidecar',
+        name: 'chat-stream-log_20260527T150000Z.md',
+        text: '# sidecar',
+        enabled: false,
+        status: 'idle',
+        source: { kind: 'local', path: `workspace:${existingSidecarPath}` },
+      },
+    ],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: activePath,
+        parentPath: '/chat-log/20260527T150000Z',
+        name: 'kgc_20260527T150000Z.md',
+        text: '# active',
+        updatedAtMs: 1,
+      },
+    ],
+    sourcesByPath: {
+      [activePath]: { kind: 'local', originalName: 'kgc_20260527T150000Z.md' },
+    },
+    preserveExistingWorkspaceEntries: true,
+    workspaceDocsOnly: true,
+    workspaceSourceRootPaths: ['/docs', '/chat-log'],
+  })
+
+  const active = next.find(f => f.source?.path === `workspace:${activePath}`)
+  if (!active) throw new Error('expected active canonical chat workspace file to remain visible after active-only refresh')
+  const sidecar = next.find(f => f.source?.path === `workspace:${existingSidecarPath}`)
+  if (!sidecar) throw new Error('expected existing canonical chat sidecar file to stay visible across active-only refresh')
+  if (sidecar.enabled !== false) throw new Error('expected preserved canonical chat sidecar file to keep its previous disabled state')
+}
+
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWorkspaceEntries() {
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [

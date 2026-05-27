@@ -74,7 +74,7 @@ const buildKgcFixture = (formatLine = ''): string => [
 
 export function testResolveKgcRunOutputPreferenceReadsOutputNodeFormat() {
   const pngPref = resolveKgcRunOutputPreference({
-    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalPath: '/chat-log/kgc_20260420231505.md',
     canonicalText: buildKgcFixture('format: "png"'),
   })
   if (pngPref.kind !== 'png' || pngPref.extension !== 'png') {
@@ -82,7 +82,7 @@ export function testResolveKgcRunOutputPreferenceReadsOutputNodeFormat() {
   }
 
   const svgPref = resolveKgcRunOutputPreference({
-    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalPath: '/chat-log/kgc_20260420231505.md',
     canonicalText: buildKgcFixture('file: "kgc-output_20260420231505.svg"'),
   })
   if (svgPref.kind !== 'svg' || svgPref.extension !== 'svg') {
@@ -90,7 +90,7 @@ export function testResolveKgcRunOutputPreferenceReadsOutputNodeFormat() {
   }
 
   const videoPref = resolveKgcRunOutputPreference({
-    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalPath: '/chat-log/kgc_20260420231505.md',
     canonicalText: buildKgcFixture('format: "video"'),
   })
   if (videoPref.kind !== 'video' || videoPref.extension !== 'mp4') {
@@ -100,7 +100,7 @@ export function testResolveKgcRunOutputPreferenceReadsOutputNodeFormat() {
 
 export function testResolveKgcRunOutputPreferenceReadsCanonicalMediaKeys() {
   const imagePref = resolveKgcRunOutputPreference({
-    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalPath: '/chat-log/kgc_20260420231505.md',
     canonicalText: buildKgcFixture('image: "https://example.com/output.png"'),
   })
   if (imagePref.kind !== 'png' || imagePref.extension !== 'png') {
@@ -108,7 +108,7 @@ export function testResolveKgcRunOutputPreferenceReadsCanonicalMediaKeys() {
   }
 
   const videoPref = resolveKgcRunOutputPreference({
-    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalPath: '/chat-log/kgc_20260420231505.md',
     canonicalText: buildKgcFixture('videoUrl: "https://example.com/output.mp4"'),
   })
   if (videoPref.kind !== 'video' || videoPref.extension !== 'mp4') {
@@ -125,18 +125,18 @@ export async function testEmitKgcRunOutputWritesMarkdownCompanionBody() {
     resetWorkspaceFsForTests()
     globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
     const result = await emitKgcRunOutput({
-      canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+      canonicalPath: '/chat-log/kgc_20260420231505.md',
       canonicalText: buildKgcFixture('format: "markdown"'),
       getStore: () => ({
         captureCanvasPngSnapshot: async () => null,
         captureCanvasSvgSnapshot: async () => null,
       }),
     })
-    if (result.path !== '/sandbox/chat-log/kgc-output_20260420231505.md') {
+    if (result.path !== '/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md') {
       throw new Error(`expected markdown run output path, got ${String(result.path)}`)
     }
     const fs = await getWorkspaceFs()
-    const written = await fs.readFileText('/sandbox/chat-log/kgc-output_20260420231505.md')
+    const written = await fs.readFileText('/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md')
     if (!written) {
       throw new Error('expected markdown run output text to be written')
     }
@@ -187,7 +187,7 @@ export async function testEmitKgcRunOutputFallsBackToMarkdownForVideoPreference(
     resetWorkspaceFsForTests()
     globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
     const result = await emitKgcRunOutput({
-      canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+      canonicalPath: '/chat-log/kgc_20260420231505.md',
       canonicalText: buildKgcFixture('format: "video"'),
       getStore: () => ({
         captureCanvasPngSnapshot: async () => null,
@@ -197,11 +197,11 @@ export async function testEmitKgcRunOutputFallsBackToMarkdownForVideoPreference(
     if (result.kind !== 'video' || result.degraded !== true) {
       throw new Error('expected video run output to report degraded markdown fallback until direct video bytes are available')
     }
-    if (result.path !== '/sandbox/chat-log/kgc-output_20260420231505.md') {
+    if (result.path !== '/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md') {
       throw new Error(`expected video run output fallback to write markdown companion, got ${String(result.path)}`)
     }
     const fs = await getWorkspaceFs()
-    const written = await fs.readFileText('/sandbox/chat-log/kgc-output_20260420231505.md')
+    const written = await fs.readFileText('/chat-log/20260420T231505Z/kgc-output_20260420T231505Z.md')
     if (!written || !written.includes('## Solution') || written.includes('# Knowledge Graph Canvas · AI Pipeline')) {
       throw new Error('expected video markdown fallback to stay query-responsive instead of copying the runnable KGC scaffold')
     }

@@ -12,7 +12,7 @@ const buildFileEntry = (path: string): WorkspaceEntry => ({
 })
 
 export function testMarkdownWorkspaceSelectionCanonicalPathKeepsLiveKgcTraceSelectionStable() {
-  const tracePath = '/sandbox/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md'
+  const tracePath = '/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md'
 
   const mirrored = resolveMarkdownWorkspaceCanonicalSelection({
     activePath: tracePath as never,

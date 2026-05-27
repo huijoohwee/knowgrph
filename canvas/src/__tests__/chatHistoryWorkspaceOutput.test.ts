@@ -28,23 +28,23 @@ export async function testWriteKgcCompanionOutputTextCreatesSiblingWorkspaceArti
     }) as typeof fetch
 
     const writtenPath = await writeKgcCompanionOutputText({
-      workspacePath: '/sandbox/chat-log/kgc_20260420105432.md',
+      workspacePath: '/chat-log/kgc_20260420105432.md',
       extension: 'html',
       variant: 'viewer',
       text: '<!doctype html><html><body>viewer</body></html>',
     })
 
-    if (writtenPath !== '/sandbox/chat-log/kgc-output_20260420105432-viewer.html') {
+    if (writtenPath !== '/chat-log/20260420T105432Z/kgc-output_20260420T105432Z-viewer.html') {
       throw new Error('Expected KGC output helper to derive the canonical sibling output path')
     }
 
     const fs = await getWorkspaceFs()
-    const persisted = await fs.readFileText('/sandbox/chat-log/kgc-output_20260420105432-viewer.html')
+    const persisted = await fs.readFileText('/chat-log/20260420T105432Z/kgc-output_20260420T105432Z-viewer.html')
     if (persisted !== '<!doctype html><html><body>viewer</body></html>') {
       throw new Error('Expected KGC output helper to persist the companion workspace artifact text')
     }
 
-    if (!fetchCalls.some(call => call.path === '/sandbox/chat-log/kgc-output_20260420105432-viewer.html')) {
+    if (!fetchCalls.some(call => call.path === '/chat-log/20260420T105432Z/kgc-output_20260420T105432Z-viewer.html')) {
       throw new Error('Expected KGC output helper to mirror the companion artifact to the host file writer endpoint')
     }
   } finally {
@@ -81,16 +81,16 @@ export async function testWriteKgcCompanionOutputBlobMirrorsBinaryArtifactToHost
 
     const blob = new Blob([Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10])], { type: 'image/png' })
     const writtenPath = await writeKgcCompanionOutputBlob({
-      workspacePath: '/sandbox/chat-log/kgc_20260420105432.md',
+      workspacePath: '/chat-log/kgc_20260420105432.md',
       extension: 'png',
       blob,
     })
 
-    if (writtenPath !== '/sandbox/chat-log/kgc-output_20260420105432.png') {
+    if (writtenPath !== '/chat-log/20260420T105432Z/kgc-output_20260420T105432Z.png') {
       throw new Error('Expected binary KGC output helper to derive the canonical sibling PNG path')
     }
 
-    const mirrored = fetchCalls.find(call => call.path === '/sandbox/chat-log/kgc-output_20260420105432.png')
+    const mirrored = fetchCalls.find(call => call.path === '/chat-log/20260420T105432Z/kgc-output_20260420T105432Z.png')
     if (!mirrored) {
       throw new Error('Expected binary KGC output helper to mirror the companion artifact to the host file writer endpoint')
     }

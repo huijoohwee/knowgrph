@@ -44,20 +44,31 @@ export function testShouldNotProactivelyReapplyClosedPaneActiveMarkdownDocumentW
 }
 
 export function testBuildActiveWorkspaceRuntimeSourceFilesSnapshotIncludesFreshEmptyActiveWorkspaceFile() {
-  const activePath = '/sandbox/chat-log/kgc_20260527193000.md'
+  const activePath = '/chat-log/kgc_20260527193000.md'
+  const existingSidecarPath = '/chat-log/20260527T193000Z/chat-stream-log_20260527T193000Z.md'
   const snapshot = buildActiveWorkspaceRuntimeSourceFilesSnapshot({
     activePath: activePath as never,
-    existingSourceFiles: [{
-      id: 'old-doc',
-      name: 'knowgrph-animatic-demo.md',
-      text: '# old',
-      enabled: true,
-      source: { kind: 'local', path: resolveWorkspaceSourcePathKey('/docs/knowgrph-animatic-demo.md') },
-      status: 'idle',
-    }],
+    existingSourceFiles: [
+      {
+        id: 'old-doc',
+        name: 'knowgrph-animatic-demo.md',
+        text: '# old',
+        enabled: true,
+        source: { kind: 'local', path: resolveWorkspaceSourcePathKey('/docs/knowgrph-animatic-demo.md') },
+        status: 'idle',
+      },
+      {
+        id: 'existing-sidecar',
+        name: 'chat-stream-log_20260527T193000Z.md',
+        text: '# sidecar',
+        enabled: false,
+        source: { kind: 'local', path: resolveWorkspaceSourcePathKey(existingSidecarPath) },
+        status: 'idle',
+      },
+    ],
     workspaceEntries: [{
       path: activePath as never,
-      parentPath: '/sandbox/chat-log' as never,
+      parentPath: '/chat-log' as never,
       kind: 'file',
       name: 'kgc_20260527193000.md',
       text: '',
@@ -73,5 +84,12 @@ export function testBuildActiveWorkspaceRuntimeSourceFilesSnapshotIncludesFreshE
   }
   if (activeFile.enabled !== true) {
     throw new Error(`expected fresh empty active workspace file to be enabled, got ${String(activeFile.enabled)}`)
+  }
+  const preservedSidecar = snapshot.runtimeSourceFiles.find(file => String(file?.source?.path || '') === resolveWorkspaceSourcePathKey(existingSidecarPath)) || null
+  if (!preservedSidecar) {
+    throw new Error('expected runtime source-file snapshot to preserve existing canonical chat sidecar files')
+  }
+  if (preservedSidecar.enabled !== false) {
+    throw new Error(`expected preserved canonical chat sidecar file to remain disabled, got ${String(preservedSidecar.enabled)}`)
   }
 }

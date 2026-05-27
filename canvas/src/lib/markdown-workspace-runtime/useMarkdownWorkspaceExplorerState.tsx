@@ -10,6 +10,7 @@ import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { buildMaterializedWorkspaceForceIncludePaths, hydrateWorkspaceEntriesInlineText } from '@/features/source-files/sourceFilesRuntimeShared'
 import {
   readWorkspaceAutoRefreshEnabledSetting,
@@ -156,6 +157,9 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       const semanticKey = buildWorkspaceEntriesSemanticKey({
         entries: pruned,
         docsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+        workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+          chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+        }),
       })
       if (silent && semanticKey === workspaceRefreshSemanticKeyRef.current) {
         return buildWorkspaceRefreshSnapshot({
@@ -178,8 +182,10 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
           forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
             activePathOverride: currentActivePath,
           }),
-          forceIncludeOnly: true,
           workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+          workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+            chatLocalStorageRootPath: store.chatLocalStorageRootPath,
+          }),
         })
         if (merged !== store.sourceFiles) {
           store.setSourceFiles(merged)
@@ -298,6 +304,9 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
           const signature = buildWorkspaceEntriesSemanticKey({
             entries: pruned,
             docsOnly,
+            workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+              chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+            }),
           })
           if (signature !== workspaceSeedSyncSignatureRef.current) {
             workspaceSeedSyncSignatureRef.current = signature

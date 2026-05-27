@@ -1,4 +1,5 @@
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
+import { isWorkspacePathUnderSourceRoots } from '@/features/workspace-fs/workspaceSourceRoots'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 
 export function buildWorkspaceEntriesSemanticKey(args: {
@@ -6,6 +7,7 @@ export function buildWorkspaceEntriesSemanticKey(args: {
   docsOnly?: boolean
   forceIncludePaths?: ReadonlyArray<string>
   forceIncludeOnly?: boolean
+  workspaceSourceRootPaths?: ReadonlyArray<string>
 }): string {
   const docsOnly = args.docsOnly === true
   const forceInclude = new Set(
@@ -22,7 +24,7 @@ export function buildWorkspaceEntriesSemanticKey(args: {
     const path = String(entry.path || '').trim()
     if (!path) continue
     if (forceIncludeOnly && !forceInclude.has(path)) continue
-    if (docsOnly && !path.startsWith('/docs/')) continue
+    if (docsOnly && !isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths)) continue
     const text = typeof entry.text === 'string' ? entry.text : ''
     rows.push(`${path}:${hashStringToHex(text)}`)
   }

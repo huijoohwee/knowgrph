@@ -69,6 +69,9 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   'When the user request is non-empty, avoid placeholder-only lines in the body.',
   'When the request contains a long directive list, synthesize it into concise context-responsive prose instead of echoing the full request verbatim.',
   'Keep the body centered on the user request and deliverable; do not spend body prose explaining the canvas, pipeline, or template itself unless the request explicitly asks for that explanation.',
+  'Every streamed chunk must stay relevant to the active query; do not drift into canned examples, stock business cases, or unrelated template prose.',
+  'Do not widen a narrow request into a stock "PRD + TAD", "monetization pipeline", or similarly prepackaged deliverable unless the request explicitly asks for that deliverable shape.',
+  'If you mention a share URL or report URL, it must be generated or explicitly referenced by the current request/stream; never emit example, placeholder, or fixture URLs.',
   'Do not emit stock labels such as "Request Intent", "Monetization Focus", "Use Case", "Problem", or "Solution" unless the user explicitly asks for them.',
   'If the user explicitly asks for sections such as "Use Case", "Problem", "Solution", "User Flow", "Work Flow", "Data Flow", "Monetization", or "Integration", include those exact section labels in the body and fill them with fresh request-shaped content.',
   'Keep the graph contract universal and reusable: frontmatter structure, node IDs, retry wiring, and SSOT surfaces stay canonical even when the request-specific prose changes.',
@@ -505,6 +508,8 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '  Match output depth to request depth — never over-produce.',
   '· If the user explicitly names sections such as Use Case, Problem, Solution, User Flow, Work Flow, Data Flow, Monetization, or Integration, use those exact headings and keep the prose specific to the request.',
   '· Do not inject canned labels or sections that the request did not ask for.',
+  '· Every streamed paragraph must remain relevant to the active query; avoid generic filler, template stories, or unrelated examples.',
+  '· Share/report URLs are allowed only when they come from the current request context or the model stream itself; never output placeholder or example links.',
   '',
 
   // ── RESPONSE YAML BLOCK ───────────────────────────────────────────────────

@@ -88,7 +88,7 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 #### TAD-C06 - KGC Workspace Path Contract
 
 - Owner: `chatHistoryWorkspace.paths.ts`.
-- Responsibility: canonical `kgc_YYYYMMDDHHMMSS.md`, trace companion `kgc-trace_YYYYMMDDHHMMSS.md`, and output companion `kgc-output_YYYYMMDDHHMMSS.*` path derivation.
+- Responsibility: canonical session-folder KGC path derivation: `/chat-log/YYYYMMDDTHHmmssZ/kgc_YYYYMMDDTHHmmssZ.md`, trace companion `kgc-trace_YYYYMMDDTHHmmssZ.md`, and output companion `kgc-output_YYYYMMDDTHHmmssZ.*`.
 - Constraint: path identity is part of the runtime contract; ad hoc filename schemes are forbidden.
 
 #### TAD-C07 - Stream Artifact Session Contract

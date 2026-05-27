@@ -47,6 +47,13 @@ const readWorkspaceInitializationDocsAbsRoot = (): string => {
   return normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', ''))
 }
 
+const readWorkspaceInitializationChatLogAbsRoot = (): string => {
+  const explicit = normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT', ''))
+  if (explicit) return explicit
+  const baseRoot = readWorkspaceMirrorBaseAbsRoot()
+  return baseRoot ? `${baseRoot}/chat-log` : ''
+}
+
 const readWorkspaceMirrorBaseAbsRoot = (): string => {
   const docsRoot = readWorkspaceInitializationDocsAbsRoot()
   if (!docsRoot) return ''
@@ -867,12 +874,16 @@ const resolveWorkspaceDocsMirrorAbsolutePath = (workspacePath: string): string |
   const rootSegment = String(parts[0] || '').trim()
   if (!rootSegment) return null
   const docsRoot = readWorkspaceInitializationDocsAbsRoot()
+  const chatLogRoot = readWorkspaceInitializationChatLogAbsRoot()
   const baseRoot = readWorkspaceMirrorBaseAbsRoot()
-  const root = rootSegment.toLowerCase() === 'docs'
+  const loweredRootSegment = rootSegment.toLowerCase()
+  const root = loweredRootSegment === 'docs'
     ? docsRoot
-    : baseRoot
-      ? `${baseRoot}/${rootSegment}`
-      : ''
+    : loweredRootSegment === 'chat-log'
+      ? chatLogRoot
+      : baseRoot
+        ? `${baseRoot}/${rootSegment}`
+        : ''
   if (!root) return null
   const relPath = normalizeMirrorRelPath(parts.slice(1).join('/'))
   if (!relPath) return root
@@ -1253,7 +1264,44 @@ export async function ensureWorkspaceDocsMirrorFolder(args: {
   }
 }
 
+export async function ensureWorkspaceChatMirrorFolder(args: {
+  workspacePath: string
+}): Promise<boolean> {
+  const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
+  if (!absolutePath) return false
+  if (typeof window !== 'undefined') {
+    return ensureFolderViaLocalFsProxy(absolutePath)
+  }
+  try {
+    const fs = await importNodeFsPromises()
+    await fs.mkdir(absolutePath, { recursive: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function upsertWorkspaceDocsMirrorText(args: {
+  workspacePath: string
+  text: string
+}): Promise<boolean> {
+  const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
+  if (!absolutePath) return false
+  if (typeof window !== 'undefined') {
+    return writeTextViaLocalFsProxy(absolutePath, args.text)
+  }
+  try {
+    const fs = await importNodeFsPromises()
+    const path = await importNodePath()
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true })
+    await fs.writeFile(absolutePath, String(args.text ?? ''), 'utf8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function upsertWorkspaceChatMirrorText(args: {
   workspacePath: string
   text: string
 }): Promise<boolean> {

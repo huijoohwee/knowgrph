@@ -6,9 +6,9 @@ import { shouldCommitResolvedActiveMarkdownText } from '@/features/source-files/
 
 export function testWorkspaceDocumentSelectionAcceptsEmptyRealFileText() {
   const accepted = shouldAcceptWorkspaceDocumentSelectionText({
-    activePath: '/sandbox/chat-log/kgc_20260527193000.md' as never,
+    activePath: '/chat-log/kgc_20260527193000.md' as never,
     activeEntryKind: 'file',
-    activeDocumentKey: '/sandbox/chat-log/kgc_20260527193000.md',
+    activeDocumentKey: '/chat-log/kgc_20260527193000.md',
     text: '',
   })
   if (accepted !== true) {
@@ -18,9 +18,9 @@ export function testWorkspaceDocumentSelectionAcceptsEmptyRealFileText() {
 
 export function testWorkspaceDocumentSelectionAcceptsEmptyPendingWorkspaceFileText() {
   const accepted = shouldAcceptWorkspaceDocumentSelectionText({
-    activePath: '/sandbox/chat-log/kgc_20260527193000.md' as never,
+    activePath: '/chat-log/kgc_20260527193000.md' as never,
     activeEntryKind: '' as never,
-    activeDocumentKey: '/sandbox/chat-log/kgc_20260527193000.md',
+    activeDocumentKey: '/chat-log/kgc_20260527193000.md',
     text: '',
   })
   if (accepted !== true) {
@@ -30,9 +30,9 @@ export function testWorkspaceDocumentSelectionAcceptsEmptyPendingWorkspaceFileTe
 
 export function testWorkspaceDocumentSelectionRejectsEmptyNonFileText() {
   const accepted = shouldAcceptWorkspaceDocumentSelectionText({
-    activePath: '/sandbox/chat-log/kgc_20260527193000.md' as never,
+    activePath: '/chat-log/kgc_20260527193000.md' as never,
     activeEntryKind: 'folder',
-    activeDocumentKey: '/sandbox/chat-log/kgc_20260527193000.md',
+    activeDocumentKey: '/chat-log/kgc_20260527193000.md',
     text: '',
   })
   if (accepted !== false) {
@@ -42,11 +42,11 @@ export function testWorkspaceDocumentSelectionRejectsEmptyNonFileText() {
 
 export function testClosedPaneReapplyCommitsEmptyKnownWorkspaceFile() {
   const accepted = shouldCommitResolvedActiveMarkdownText({
-    activePath: '/sandbox/chat-log/kgc_20260527193000.md' as never,
+    activePath: '/chat-log/kgc_20260527193000.md' as never,
     resolvedText: '',
     activeWorkspaceEntriesSnapshot: [{
-      path: '/sandbox/chat-log/kgc_20260527193000.md' as never,
-      parentPath: '/sandbox/chat-log' as never,
+      path: '/chat-log/kgc_20260527193000.md' as never,
+      parentPath: '/chat-log' as never,
       kind: 'file',
       name: 'kgc_20260527193000.md',
       text: '',
@@ -60,9 +60,9 @@ export function testClosedPaneReapplyCommitsEmptyKnownWorkspaceFile() {
 
 export function testWorkspaceSelectionHydratesStableActivePathAfterRefresh() {
   const accepted = shouldHydrateStableWorkspaceSelectionText({
-    activePath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+    activePath: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
     activeEntryKind: 'file',
-    activeDocumentKey: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
+    activeDocumentKey: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
     currentText: '',
     nextText: '# restored after refresh',
     lastLoadedPath: null,
@@ -75,12 +75,12 @@ export function testWorkspaceSelectionHydratesStableActivePathAfterRefresh() {
 
 export function testWorkspaceSelectionHydrationYieldsToUnsavedUserDraft() {
   const accepted = shouldHydrateStableWorkspaceSelectionText({
-    activePath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+    activePath: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
     activeEntryKind: 'file',
-    activeDocumentKey: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
+    activeDocumentKey: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
     currentText: 'my local draft',
     nextText: '# streamed text',
-    lastLoadedPath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+    lastLoadedPath: '/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
     userEditedActiveText: true,
   })
   if (accepted !== false) {

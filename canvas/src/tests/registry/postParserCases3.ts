@@ -261,6 +261,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.sourceFiles.sync.suppressesEmptyRootDocsAliasWhenDocsMirrorExists","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncSuppressesEmptyRootDocsAliasWhenDocsMirrorExists"],
   ["workspace.sourceFiles.sync.deduplicatesLegacyAliasFamilyToSingleCanonicalSourcePath","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncDeduplicatesLegacyAliasFamilyToSingleCanonicalSourcePath"],
   ["workspace.sourceFiles.sync.docsOnlyModeExcludesNonDocsWorkspaceFiles","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWorkspaceFiles"],
+  ["workspace.sourceFiles.sync.docsOnlyModeKeepsCanonicalChatRootFilesVisible","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChatRootFilesVisible"],
+  ["workspace.sourceFiles.sync.preservesCanonicalChatRootFilesAcrossActiveOnlyRefresh","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncPreservesExistingCanonicalChatRootFilesAcrossActiveOnlyRefresh"],
   ["workspace.sourceFiles.sync.docsOnlyModeDropsExistingNonWorkspaceEntries","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncDocsOnlyModeDropsExistingNonWorkspaceEntries"],
   ["workspace.sourceFiles.sync.seedAliasResolvesToCanonicalSourcePath","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath"],
   ["workspace.sourceFiles.sync.resolvesCanonicalSourceKeyForSeedAliases","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncResolvesCanonicalSourceKeyForSeedAliases"],
