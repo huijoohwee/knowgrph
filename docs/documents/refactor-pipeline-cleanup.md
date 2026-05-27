@@ -75,7 +75,7 @@ Mapped the end-to-end pipeline:
 - Status: This work now continues in `gympgrph` (Knowgrph hosts it via a gympgrph plugin bridge).
 
 ### Changes
-- Added SidePanel Map settings for interaction mode, projection mode, camera animation, and 3D auto-fit.
+- Added FloatingPanel Map settings for interaction mode, projection mode, camera animation, and 3D auto-fit.
 - Centralized basemap lifecycle in a dedicated hook and extracted map interaction toggling utilities.
 
 ### Verification

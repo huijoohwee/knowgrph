@@ -59,9 +59,9 @@ changelog:
 The current repo already has a working upstream path for chat-generated structured Markdown to become live canvas state. That path is not a future standalone orchestrator, a separate JSONB-to-Markdown bridge, or a direct downstream `graphDataSlice` patch. The canonical path today is:
 
 1. MainPanel `SettingsView` and `useSettingsChatAssist` shape chat provider, model, auth, endpoint, and context-scope configuration.
-2. FloatingPanel mounts `SidePanelChat` when `floatingPanelView === 'chat'`.
-3. `useSidePanelChatSubmit` is a thin submit shell: it resolves the request URL, initializes optimistic UI state, and delegates the async runtime to `executeSidePanelChatSubmitCoordinator()`.
-4. `sidePanelChatSubmitCoordinator.ts` owns the async submit lifecycle by composing dedicated helpers for draft bootstrap, request assembly, provider transport fallback, streaming draft writes, and KGC retry/validation.
+2. FloatingPanel mounts `FloatingPanelChat` when `floatingPanelView === 'chat'`.
+3. `useFloatingPanelChatSubmit` is a thin submit shell: it resolves the request URL, initializes optimistic UI state, and delegates the async runtime to `executeFloatingPanelChatSubmitCoordinator()`.
+4. `floatingPanelChatSubmitCoordinator.ts` owns the async submit lifecycle by composing dedicated helpers for draft bootstrap, request assembly, provider transport fallback, streaming draft writes, and KGC retry/validation.
 5. `useFinalizeAssistantSuccess` writes the canonical workspace KGC document and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
 6. `applyChatKgcWorkspaceDocumentToCanvas()` loads the saved Markdown into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
 7. The Markdown parser prefers `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
@@ -79,15 +79,15 @@ This document enhances that existing path. It does not invent a second one.
 | Stage | Canonical owner | Current file(s) | Implementation truth |
 |---|---|---|---|
 | MainPanel chat configuration | MainPanel Settings + settings assist | `canvas/src/features/panels/MainPanel.tsx`, `canvas/src/features/panels/views/SettingsView.tsx`, `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | MainPanel owns chat settings and model discovery, not chat rendering. |
-| Floating chat mount | FloatingPanel toolbar view switch | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx`, `canvas/src/components/ui/FloatingPanel.tsx` | FloatingPanel mounts `SidePanelChatLazy` when the chat panel is selected. |
-| Chat UI | Side panel chat feature | `canvas/src/features/chat/SidePanelChat.tsx` | SidePanelChat is the active runtime owner for LLM chat UI state and graph/workspace context reads. |
+| Floating chat mount | FloatingPanel toolbar view switch | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx`, `canvas/src/components/ui/FloatingPanel.tsx` | FloatingPanel mounts `FloatingPanelChatLazy` when the chat panel is selected. |
+| Chat UI | Floating panel chat feature | `canvas/src/features/chat/FloatingPanelChat.tsx` | FloatingPanelChat is the active runtime owner for LLM chat UI state and graph/workspace context reads. |
 | System prompt contract | Base chat response contracts | `canvas/src/features/chat/chatResponseBaseContract.ts` | `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` is the current chatKnowgrph KGC contract owner. |
-| Submit hook shell | Submit hook shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Thin hook shell that resolves endpoint guards, initializes optimistic state, and delegates the async submit lifecycle. |
-| Submit preflight | Preflight helpers | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitPreflight.ts` | Owns endpoint/model guards, optimistic message setup, cache updates, and trace-draft bootstrap. |
-| Submit coordinator | Submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | Owns the async submit lifecycle and composes request-build, transport, streaming, KGC retry/validation, and terminal state helpers. |
-| Request build and transport | Submit request and transport helpers | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitRequest.ts`, `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitTransport.ts` | Builds packed context and payload messages, resolves token-limit strategy, retries transport safely, and falls back models upstream. |
-| Streaming and KGC retry | Streaming, recovery, and validation helpers | `canvas/src/features/chat/sidePanelChat/sidePanelChatStreaming.ts`, `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts`, `canvas/src/features/chat/chatMarkdownValidation.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Streams assistant text into live drafts, recovers canonical KGC candidates, validates them, and drives correction-prompt retries without downstream reinterpretation. |
-| Final persistence and apply | Finalize success runtime | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` | Writes the canonical KGC workspace file and applies it to canvas through the workspace-document path. |
+| Submit hook shell | Submit hook shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Thin hook shell that resolves endpoint guards, initializes optimistic state, and delegates the async submit lifecycle. |
+| Submit preflight | Preflight helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitPreflight.ts` | Owns endpoint/model guards, optimistic message setup, cache updates, and trace-draft bootstrap. |
+| Submit coordinator | Submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Owns the async submit lifecycle and composes request-build, transport, streaming, KGC retry/validation, and terminal state helpers. |
+| Request build and transport | Submit request and transport helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport.ts` | Builds packed context and payload messages, resolves token-limit strategy, retries transport safely, and falls back models upstream. |
+| Streaming and KGC retry | Streaming, recovery, and validation helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts`, `canvas/src/features/chat/chatMarkdownValidation.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Streams assistant text into live drafts, recovers canonical KGC candidates, validates them, and drives correction-prompt retries without downstream reinterpretation. |
+| Final persistence and apply | Finalize success runtime | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | Writes the canonical KGC workspace file and applies it to canvas through the workspace-document path. |
 | Workspace KGC apply | Chat KGC canvas bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | Applies saved Markdown by reusing `setActiveMarkdownDocument`, not by local graph patching. |
 | Markdown parse priority | Default parser pipeline | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` runs before generic Markdown/JSON-LD parsing. |
 | Frontmatter-flow parse | Frontmatter-flow parser core | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` plus supporting parser modules | Parses YAML frontmatter or body `flow:` blocks, nodes, edges, subgraphs, clusters, and metadata. |
@@ -100,8 +100,8 @@ This document enhances that existing path. It does not invent a second one.
 ```mermaid
 flowchart LR
   A[MainPanel Settings] --> B[FloatingPanel chat]
-  B --> C[SidePanelChat]
-  C --> D[useSidePanelChatSubmit shell]
+  B --> C[FloatingPanelChat]
+  C --> D[useFloatingPanelChatSubmit shell]
   D --> E[submit preflight]
   D --> F[submit coordinator]
   F --> G[CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT]
@@ -144,7 +144,7 @@ Therefore:
 
 The implementation and all future changes under this scope MUST NOT introduce any of the following:
 
-1. A parallel chat orchestrator that bypasses `SidePanelChat` or `useSidePanelChatSubmit`.
+1. A parallel chat orchestrator that bypasses `FloatingPanelChat` or `useFloatingPanelChatSubmit`.
 2. A separate chat-path JSONB-to-Markdown bridge for canvas apply. The chat path already persists Markdown directly.
 3. A Mermaid-only fast path that bypasses `tryParseMarkdownFrontmatterFlowGraph()` as the first Markdown graph parser.
 4. A direct downstream `graphDataSlice` merge from assistant text that skips workspace document persistence and `setActiveMarkdownDocument()`.
@@ -158,8 +158,8 @@ The implementation and all future changes under this scope MUST NOT introduce an
 ### 3.2 Upstream SSOT Rules
 
 - Chat contract SSOT: `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT`.
-- Chat submit shell SSOT: `useSidePanelChatSubmit`.
-- Chat submit lifecycle SSOT: `sidePanelChatSubmitCoordinator.ts` plus its dedicated helper modules.
+- Chat submit shell SSOT: `useFloatingPanelChatSubmit`.
+- Chat submit lifecycle SSOT: `floatingPanelChatSubmitCoordinator.ts` plus its dedicated helper modules.
 - Chat finalize/apply SSOT: `useFinalizeAssistantSuccess` plus `applyChatKgcWorkspaceDocumentToCanvas`.
 - Markdown graph parse SSOT: `tryParseMarkdownFrontmatterFlowGraph()`.
 - Canvas grouping SSOT: `flow.subgraphs` normalized to `kg:subgraphs`.
@@ -207,7 +207,7 @@ A user configures chat from MainPanel, opens FloatingPanel chat, submits a reque
 ### 4.4 In Scope
 
 - MainPanel chat settings and integration posture.
-- FloatingPanel chat mounting and SidePanelChat ownership.
+- FloatingPanel chat mounting and FloatingPanelChat ownership.
 - KGC structured Markdown prompt contract for `chatKnowgrph`.
 - Streaming draft persistence, correction retry, canonical workspace persistence, and canvas apply.
 - Frontmatter-flow parsing of nodes, edges, subgraphs, clusters, groups, and import modes.
@@ -236,16 +236,16 @@ As a maintainer, I want MainPanel settings and FloatingPanel chat to remain one 
 **PRD-E1-AC1**  
 Given a user changes provider, endpoint, model, or context scope in MainPanel settings,  
 when FloatingPanel chat submits a request,  
-then `useSidePanelChatSubmit` MUST use those same store-backed values for request URL, headers, provider options, and context packing.
+then `useFloatingPanelChatSubmit` MUST use those same store-backed values for request URL, headers, provider options, and context packing.
 
 **PRD-E1-AC2**  
 Given the user opens the chat floating view,  
 when `floatingPanelView === 'chat'`,  
-then the UI MUST mount `SidePanelChatLazy` and no second chat renderer or second request path may exist.
+then the UI MUST mount `FloatingPanelChatLazy` and no second chat renderer or second request path may exist.
 
 **PRD-E1-AC3**  
 Given the graph is active,  
-when MainPanel and SidePanelChat both need graph-aware context,  
+when MainPanel and FloatingPanelChat both need graph-aware context,  
 then both paths MUST reuse the shared semantic-key and cached lookup helpers instead of computing local incompatible signatures.
 
 #### Success metric
@@ -323,7 +323,7 @@ then the apply path MUST reuse `setActiveMarkdownDocument({ applyViewPreset: tru
 **PRD-E3-AC4**  
 Given the first returned KGC Markdown fails structural validation,  
 when retry budget remains,  
-then `sidePanelChatSubmitCoordinator.ts` with `sidePanelChatKgcAttempt.ts` MUST build a correction prompt from the first validation error and retry the same upstream contract instead of switching to a parallel fallback architecture.
+then `floatingPanelChatSubmitCoordinator.ts` with `floatingPanelChatKgcAttempt.ts` MUST build a correction prompt from the first validation error and retry the same upstream contract instead of switching to a parallel fallback architecture.
 
 #### Success metric
 
@@ -505,33 +505,33 @@ Therefore the prompt contract MUST be authored so that validator failure drives 
 
 #### TAD-C02 - FloatingPanel Chat Mount
 
-- Owner: `ToolbarToolMenu.impl.tsx` with `SidePanelChatLazy`.
+- Owner: `ToolbarToolMenu.impl.tsx` with `FloatingPanelChatLazy`.
 - Responsibility: mount the chat UI when the floating panel is in chat mode.
 - Constraint: no second chat entrypoint inside MainPanel.
 
-#### TAD-C03 - SidePanelChat Runtime
+#### TAD-C03 - FloatingPanelChat Runtime
 
-- Owner: `SidePanelChat.tsx`.
+- Owner: `FloatingPanelChat.tsx`.
 - Responsibility: read graph data, current node, markdown text, workspace context cache key, and chat settings from the store.
 - Constraint: graph context and workspace context must reuse shared cache and signature helpers.
 
 #### TAD-C04 - Submit Shell / Coordinator / Helpers
 
 - Owners:
-  - `useSidePanelChatSubmit.ts`
-  - `sidePanelChatSubmitPreflight.ts`
-  - `sidePanelChatSubmitCoordinator.ts`
-  - `sidePanelChatSubmitRequest.ts`
-  - `sidePanelChatSubmitTransport.ts`
-  - `sidePanelChatStreaming.ts`
-  - `sidePanelChatKgcAttempt.ts`
+  - `useFloatingPanelChatSubmit.ts`
+  - `floatingPanelChatSubmitPreflight.ts`
+  - `floatingPanelChatSubmitCoordinator.ts`
+  - `floatingPanelChatSubmitRequest.ts`
+  - `floatingPanelChatSubmitTransport.ts`
+  - `floatingPanelChatStreaming.ts`
+  - `floatingPanelChatKgcAttempt.ts`
 - Responsibility:
-  - keep `useSidePanelChatSubmit.ts` as a thin shell for request-url guards and optimistic submit setup
+  - keep `useFloatingPanelChatSubmit.ts` as a thin shell for request-url guards and optimistic submit setup
   - choose KGC or generic contract by `chatStorageTarget` during request-build
   - resolve endpoint and provider request options through dedicated request and transport helpers
   - stream SSE deltas and persist live drafts through the streaming helper
   - validate KGC Markdown and retry with correction prompts through the KGC attempt helper plus validator/recovery modules
-  - keep async lifecycle ownership centralized in `sidePanelChatSubmitCoordinator.ts`
+  - keep async lifecycle ownership centralized in `floatingPanelChatSubmitCoordinator.ts`
 - Constraint: submit-flow enhancements must land in the existing shell-plus-helper stack, not in a second orchestrator and not by re-monolithizing the hook.
 
 #### TAD-C05 - Finalize / Persist / Apply
@@ -616,9 +616,9 @@ The runtime MUST persist and normalize to these forms instead of inventing alter
 
 | Failure point | Current owner | Required behavior |
 |---|---|---|
-| Missing endpoint or model | `sidePanelChatSubmitPreflight.ts` via `useSidePanelChatSubmit` | Abort early with UI error; do not create alternate request path. |
-| Provider request 400/429/model mismatch | `sidePanelChatSubmitTransport.ts` via `sidePanelChatSubmitCoordinator.ts` | Retry token parameter fallback or model fallback in the same runtime. |
-| Empty assistant response | `sidePanelChatStreaming.ts` plus `sidePanelChatSubmitCoordinator.ts` | Surface explicit error and do not persist partial final content as success. |
+| Missing endpoint or model | `floatingPanelChatSubmitPreflight.ts` via `useFloatingPanelChatSubmit` | Abort early with UI error; do not create alternate request path. |
+| Provider request 400/429/model mismatch | `floatingPanelChatSubmitTransport.ts` via `floatingPanelChatSubmitCoordinator.ts` | Retry token parameter fallback or model fallback in the same runtime. |
+| Empty assistant response | `floatingPanelChatStreaming.ts` plus `floatingPanelChatSubmitCoordinator.ts` | Surface explicit error and do not persist partial final content as success. |
 | Invalid KGC structure | `validateChatMarkdown` + `buildCorrectionPrompt` | Retry upstream contract before finalize. |
 | Persist/apply mismatch | `useFinalizeAssistantSuccess` / `chatKgcCanvasApply.ts` | Persist canonical file first, then apply through workspace-document import. |
 | Parse failure | parser stack | Fall back inside the existing parser chain only; do not spawn a parallel parser owner. |
@@ -718,8 +718,8 @@ Therefore the architecture decision is final for this scope:
 
 - MainPanel config stays upstream.
 - FloatingPanel chat stays the chat UI owner.
-- `useSidePanelChatSubmit` stays a thin submit shell.
-- `sidePanelChatSubmitCoordinator.ts` plus the existing submit helpers stay the async submit / stream / validate owner.
+- `useFloatingPanelChatSubmit` stays a thin submit shell.
+- `floatingPanelChatSubmitCoordinator.ts` plus the existing submit helpers stay the async submit / stream / validate owner.
 - `useFinalizeAssistantSuccess` plus `applyChatKgcWorkspaceDocumentToCanvas()` stays the persistence / apply owner.
 - `tryParseMarkdownFrontmatterFlowGraph()` stays the first Markdown graph parser.
 - `flow.subgraphs -> kg:subgraphs -> deriveGraphGroups()` stays the grouping pipeline.

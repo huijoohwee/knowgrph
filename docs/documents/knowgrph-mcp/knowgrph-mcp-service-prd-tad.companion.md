@@ -98,12 +98,12 @@ It answers four questions:
 | Stage | Owner | Notes |
 |---|---|---|
 | Floating panel container | `canvas/src/components/ui/FloatingPanel.tsx` | UI container |
-| Chat mounting surface | `canvas/src/features/chat/SidePanelChat.tsx` | interactive chat state and UI |
-| Submit shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | thin shell by design |
-| Submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | request lifecycle owner |
-| Streaming | `canvas/src/features/chat/sidePanelChat/sidePanelChatStreaming.ts` | assistant draft flush and stream parsing |
-| KGC attempt / retry | `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts` | validation and correction retry |
-| Browser chat pipeline snapshot | `canvas/src/features/chat/SidePanelChat.tsx` + `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | publishes FloatingPanel runtime state and workspace follow/draft state for browser agents |
+| Chat mounting surface | `canvas/src/features/chat/FloatingPanelChat.tsx` | interactive chat state and UI |
+| Submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | thin shell by design |
+| Submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | request lifecycle owner |
+| Streaming | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts` | assistant draft flush and stream parsing |
+| KGC attempt / retry | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` | validation and correction retry |
+| Browser chat pipeline snapshot | `canvas/src/features/chat/FloatingPanelChat.tsx` + `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | publishes FloatingPanel runtime state and workspace follow/draft state for browser agents |
 
 ### KGC Validation And Canvas Apply
 
@@ -111,10 +111,10 @@ It answers four questions:
 |---|---|---|
 | KGC recovery | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | strips wrappers and legacy grouping aliases upstream |
 | KGC validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | frontmatter-first and `flow.subgraphs` enforcement |
-| Validation snapshot publish | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | publishes retry, failed-rule, and validated-YAML readiness state for WebMCP inspection |
-| Finalize write | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` | canonical workspace KGC persistence |
+| Validation snapshot publish | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | publishes retry, failed-rule, and validated-YAML readiness state for WebMCP inspection |
+| Finalize write | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | canonical workspace KGC persistence |
 | Canvas apply bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | calls `setActiveMarkdownDocument()` |
-| Finalize/apply snapshot publish | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` | publishes persisted path and apply outcome for WebMCP inspection |
+| Finalize/apply snapshot publish | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | publishes persisted path and apply outcome for WebMCP inspection |
 | Graph apply action | `canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts` | canonical graph apply gateway |
 | Parse priority | `canvas/src/features/parsers/default.ts` | frontmatter-flow parser first |
 | Graph composition | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + helpers | edge/subgraph/cluster compose |
@@ -142,7 +142,7 @@ flowchart LR
   B["MainPanel integrations"] --> C
   C --> D["useSettingsChatAssist()"]
   D --> E["FloatingPanel Chat"]
-  E --> F["useSidePanelChatSubmit()"]
+  E --> F["useFloatingPanelChatSubmit()"]
   F --> G["Coordinator + streaming"]
   G --> H["KGC recovery + validation"]
   H --> I["Finalize assistant success"]
@@ -157,7 +157,7 @@ flowchart LR
 - MainPanel `mcp` and `integrations` stay thin shells over `SettingsView`.
 - Chat routing and presets stay owned by `useSettingsChatAssist()`.
 - Browser-local settings readiness inspection reuses `useSettingsChatAssist()` output instead of creating a second settings/readiness source of truth.
-- `useSidePanelChatSubmit()` stays a thin shell; complexity remains in dedicated helpers.
+- `useFloatingPanelChatSubmit()` stays a thin shell; complexity remains in dedicated helpers.
 - Canonical KGC output starts at YAML frontmatter.
 - `flow.subgraphs` is the only upstream grouping authoring surface.
 - Canvas graph apply goes through `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`.

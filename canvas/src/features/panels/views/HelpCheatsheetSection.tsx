@@ -82,10 +82,10 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
       },
       {
         mode: 'Create: panel-only',
-        gesture: 'Create edges from side panels or context menus',
+        gesture: 'Create edges from floating panels or context menus',
         zoomDrag: 'Zoom and node drag stay focused on navigation',
         tools:
-          'Panel-only creation → use side panels or context menus to define relationships → keep canvas gestures focused on navigation while still emitting selection-aware overlays and Graph Data Table updates.',
+          'Panel-only creation → use floating panels or context menus to define relationships → keep canvas gestures focused on navigation while still emitting selection-aware overlays and Graph Data Table updates.',
       },
     ],
     [],

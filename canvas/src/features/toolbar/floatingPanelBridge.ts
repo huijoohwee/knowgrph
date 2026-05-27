@@ -1,4 +1,4 @@
-import type { PropsPanelOpenEventDetail, SidePanelOpenEventDetail } from '@/features/canvas/utils'
+import type { PropsPanelOpenEventDetail, FloatingPanelOpenEventDetail } from '@/features/canvas/utils'
 
 export type FloatingPanelRequestedView =
   | 'propsPanel'
@@ -12,7 +12,7 @@ export type FloatingPanelRequestedView =
 
 type FloatingPanelBridge = {
   openPropsPanel: (detail?: PropsPanelOpenEventDetail) => void
-  openSidePanel: (detail?: SidePanelOpenEventDetail) => void
+  openFloatingPanel: (detail?: FloatingPanelOpenEventDetail) => void
   openRendererPanel: () => void
 }
 
@@ -42,11 +42,11 @@ export function requestPropsPanelOpen(detail?: PropsPanelOpenEventDetail): boole
   return true
 }
 
-export function requestSidePanelOpen(detail?: SidePanelOpenEventDetail): boolean {
+export function requestFloatingPanelOpen(detail?: FloatingPanelOpenEventDetail): boolean {
   if (typeof window === 'undefined') return false
   const bridge = window[FLOATING_PANEL_BRIDGE_KEY]
   if (!bridge) return false
-  bridge.openSidePanel(detail)
+  bridge.openFloatingPanel(detail)
   return true
 }
 

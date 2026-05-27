@@ -171,7 +171,7 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   ...CANVAS_SHORTCUT_COPY_LINES,
   'Canvas: Shift + drag from one node to another creates an edge (createMode: shift-drag).',
   'Canvas: Use edge tools in the toolbar to click a source node then a target node (createMode: click-source-target).',
-  'Canvas: Prefer creating edges from side panels or context menus when createMode is panel-only.',
+  'Canvas: Prefer creating edges from floating panels or context menus when createMode is panel-only.',
   'Canvas: Click the chevron on a group label to collapse/expand the group (clusters/communities/subgraphs).',
   'Canvas: Alt + double-click a group label expand-selects member nodes/edges.',
   'Canvas: Click the chevron on a collapsed group node to expand the group.',

@@ -1,9 +1,9 @@
 import type React from 'react'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { SourceFile } from '@/hooks/store/types'
-import type { ChatMessage } from '../SidePanelChatSections'
+import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 
-export type SidePanelChatSubmitArgs = {
+export type FloatingPanelChatSubmitArgs = {
   historyKey: string
   graphData: GraphData | null
   currentNode: GraphNode | null
@@ -58,7 +58,14 @@ export type SidePanelChatSubmitArgs = {
   setErrorText: React.Dispatch<React.SetStateAction<string | null>>
   setConnectivity: React.Dispatch<React.SetStateAction<'unknown' | 'ok' | 'error'>>
   setConnectivityDetail: React.Dispatch<React.SetStateAction<string | null>>
-  setStreamingAssistant: React.Dispatch<React.SetStateAction<{ id: string; text: string } | null>>
+  setStreamingAssistant: React.Dispatch<React.SetStateAction<StreamingAssistantState | null>>
+  setStreamingInsights: React.Dispatch<React.SetStateAction<{
+    reasoningPreview: string | null
+    reasoningStepCount: number
+    usageSummary: string | null
+    finishReason: string | null
+    modelId: string | null
+  } | null>>
   setStreamingWorkspacePath: React.Dispatch<React.SetStateAction<string | null>>
   abortRef: React.MutableRefObject<AbortController | null>
   streamDraftTextRef: React.MutableRefObject<{ path: string; text: string } | null>

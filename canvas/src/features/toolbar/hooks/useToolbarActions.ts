@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitPropsPanelOpen, emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { UI_COPY } from '@/lib/config'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import { type GraphSchema } from '@/lib/graph/schema'
@@ -168,14 +168,14 @@ export function useToolbarActions(
   }, [canvasRenderMode, ensureBaselineUnlocked, setCanvasRenderMode])
 
   const handleOpenChat = useCallback(() => {
-    emitSidePanelOpen({ tab: 'chat', open: true })
+    emitFloatingPanelOpen({ tab: 'chat', open: true })
   }, [])
 
   const handleOpenGeospatialMode = useCallback(() => {
     void toggleGeospatialModeEnabled()
       .then(nextEnabled => {
         onGeospatialEnabledChange?.(nextEnabled)
-        if (nextEnabled) emitSidePanelOpen({ tab: 'geo', open: true })
+        if (nextEnabled) emitFloatingPanelOpen({ tab: 'geo', open: true })
       })
       .catch((err: unknown) => {
         try {

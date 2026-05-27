@@ -1,22 +1,23 @@
 import React from 'react'
-import { loadAvailableModelIds } from '@/features/chat/SidePanelChat.helpers'
+import { loadAvailableModelIds } from '@/features/chat/FloatingPanelChat.helpers'
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
-  CHAT_BYTEPLUS_MODEL_OPTIONS,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
+  CHAT_MIROMIND_MODEL_OPTIONS,
   CHAT_DEFAULT_PROVIDER,
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_LOCAL_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_LM_STUDIO,
+  CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
-  getChatModelOptions,
   getDefaultChatModelForProvider,
+  getSharedChatModelSuggestionOptions,
   resolveChatEndpointForModels,
 } from '@/lib/chatEndpoint'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -64,7 +65,7 @@ export function useSettingsChatAssist({
     setValues(prev => ({ ...prev, integrationConfigsJson: next }))
   }, [dirtyRef, setValues, values.integrationConfigsJson])
 
-  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'openai' | 'local') => {
+  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'miromind' | 'openai' | 'local') => {
     const patch: Record<string, string> =
       preset === 'byteplus-sg'
         ? {
@@ -78,6 +79,12 @@ export function useSettingsChatAssist({
               chatEndpointUrl: CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
               chatModel: getDefaultChatModelForProvider(CHAT_PROVIDER_BYTEPLUS),
             }
+          : preset === 'miromind'
+            ? {
+                chatProvider: CHAT_PROVIDER_MIROMIND,
+                chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_MIROMIND),
+                chatModel: CHAT_MIROMIND_MODEL_OPTIONS[0],
+              }
           : preset === 'openai'
             ? {
                 chatProvider: CHAT_PROVIDER_OPENAI,
@@ -176,21 +183,13 @@ export function useSettingsChatAssist({
     () => parseIntegrationConfigsJson(typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null).pixverseVideo,
     [values.integrationConfigsJson],
   )
-  const providerChatModelOptions = React.useMemo(
-    () => [...getChatModelOptions(values.chatProvider)],
-    [values.chatProvider],
-  )
   const chatModelSuggestions = React.useMemo(() => {
-    const staticOptions = [
-      ...providerChatModelOptions,
-      ...CHAT_BYTEPLUS_MODEL_OPTIONS,
-      ...CHAT_OPENAI_MODEL_OPTIONS,
-      ...CHAT_LOCAL_MODEL_OPTIONS,
-    ]
-    const currentModel = typeof values.chatModel === 'string' ? values.chatModel.trim() : ''
-    const combined = [...staticOptions, ...discoveredChatModels, currentModel].filter(Boolean)
-    return Array.from(new Set(combined))
-  }, [discoveredChatModels, providerChatModelOptions, values.chatModel])
+    return getSharedChatModelSuggestionOptions({
+      provider: values.chatProvider,
+      discoveredModels: discoveredChatModels,
+      currentModel: values.chatModel,
+    })
+  }, [discoveredChatModels, values.chatModel, values.chatProvider])
 
   React.useEffect(() => {
     publishLocalSettingsChatReadinessSurfaceSnapshot({
@@ -282,6 +281,21 @@ export function useSettingsChatAssist({
           }}
         >
           BytePlus EU
+        </button>,
+        <button
+          key="chat-provider-miromind"
+          type="button"
+          className={`App-toolbar__btn text-xs ${
+            normalizedChatProvider === CHAT_PROVIDER_MIROMIND
+              ? uiToolbarToggleActiveClassName
+              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+          }`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('miromind')
+          }}
+        >
+          MiroMind
         </button>,
         <button
           key="chat-provider-openai"

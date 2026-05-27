@@ -445,7 +445,7 @@ How to handle entities with non-WGS84 coordinate systems (UTM, State Plane, cust
 
 ### MVP Implementation Notes (Canvas)
 
-- Geospatial Mode is implemented as a right-side panel **Map** tab opened via a toolbar toggle.
+- Geospatial Mode is implemented as a right-floating panel **Map** tab opened via a toolbar toggle.
 - Implemented components: MapLibre Adapter (GraphNode → GeoJSON), Spatial Query Engine (proximity search), selection synchronization (map ↔ graph).
 - Optional boundary overlay loads external GeoJSON via URL (compatible with exported country/state boundary FeatureCollections).
 - Safety gates: bounded proximity results, bounded remote fetch limits, and StrictMode-safe map initialization (no unbounded effect loops).

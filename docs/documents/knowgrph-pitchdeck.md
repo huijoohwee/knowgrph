@@ -80,7 +80,7 @@ index:
           L_3D["3D Canvas (Three.js)"]:::product
           L_GEO["Geospatial (MapLibre)"]:::product
           L_MD["Markdown Workspace"]:::product
-          L_CHAT["Side Panel Chat"]:::product
+          L_CHAT["Floating Panel Chat"]:::product
         end
       end
 
@@ -273,7 +273,7 @@ flowchart TB
     GC[Graph Canvas]
     MC[Markdown Workspace]
     RMP[Rich Media Panel]
-    SP[Side Panel Chat]
+    SP[Floating Panel Chat]
   end
   subgraph AI ["AI Providers"]
     BPChat[Text API]

@@ -144,8 +144,8 @@
 ### Dataset Fetch Limits (UI)
 
 - Dataset fetch is always bounded by `timeoutMs` and `maxBytes` (user-configurable).
-- In Knowgrph, the host UI surfaces these controls in **MainPanel Workflow → Step 3 (Ingest) → Dataset fetch limits** to avoid duplicating configuration in the Geo side panel.
-- The Geo side panel does not render fetch-limit inputs; it only provides geospatial overlay configuration and a small icon hint pointing users to Source Files for dataset add/import.
+- In Knowgrph, the host UI surfaces these controls in **MainPanel Workflow → Step 3 (Ingest) → Dataset fetch limits** to avoid duplicating configuration in the Geo floating panel.
+- The Geo floating panel does not render fetch-limit inputs; it only provides geospatial overlay configuration and a small icon hint pointing users to Source Files for dataset add/import.
 - Default `maxBytes` is sized to handle common public GeoJSON datasets (for example ~20MB city datasets) while still remaining bounded.
 - If a dataset is too large (based on Content-Length when available), loading fails early with an actionable error instead of streaming indefinitely.
 - Basemap style/tiles are fetched via the local `/__fetch_remote` proxy when running on localhost to avoid CORS issues; binary tile responses are served with a corrected Content-Length to prevent truncated PBF parsing errors.
@@ -219,7 +219,7 @@ Both approaches use the same underlying dataset model and helpers (`addGeospatia
 
 ### Step 3 — Enable Geospatial Mode (MapLibre overlay)
 
-1. In the Canvas toolbar, click **Geospatial Mode** (Geo button) to open the Geo side-panel tab.
+1. In the Canvas toolbar, click **Geospatial Mode** (Geo button) to open the Geo floating-panel tab.
 2. Ensure Geospatial Mode is **enabled** (overlay toggle ON) and interaction mode is `Always` (default).
 3. Verify that the MapLibre basemap (default: OpenFreeMap Liberty) is visible as a translucent overlay on top of the 2D canvas.
 

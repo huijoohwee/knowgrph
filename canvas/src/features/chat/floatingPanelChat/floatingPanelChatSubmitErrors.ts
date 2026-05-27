@@ -1,6 +1,6 @@
 import type React from 'react'
 import { UI_COPY } from '@/lib/config'
-import { dismissPendingSubmitAssistant, finalizeSubmitTerminalState } from './sidePanelChatSubmitLifecycle'
+import { dismissPendingSubmitAssistant, finalizeSubmitTerminalState } from './floatingPanelChatSubmitLifecycle'
 
 export const resolveSubmitRuntimeFriendlyMessage = (args: {
   raw: string

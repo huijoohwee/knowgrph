@@ -248,14 +248,14 @@ This document does not claim that the following are already implemented:
 | Configure | User opens MainPanel `mcp` or `integrations` | thin shell tabs | `McpHubView.tsx`, `IntegrationsHubView.tsx` | Docs previously overstated separate MCP orchestration |
 | Prepare | User applies chat preset or routing | shared settings helpers | `useSettingsChatAssist.tsx` | Needs stronger MCP doc alignment |
 | Open chat | User opens FloatingPanel chat | shared open-panel helpers | settings constants + FloatingPanel | Must remain shared path |
-| Submit | User asks for knowledge graph output | chat submit shell | `useSidePanelChatSubmit.ts` | Future remote adapters must reuse this path |
+| Submit | User asks for knowledge graph output | chat submit shell | `useFloatingPanelChatSubmit.ts` | Future remote adapters must reuse this path |
 
 #### Journey D - FloatingPanel Chat to Canvas graph
 
 | Stage | Action | Touchpoint | Current owner | Gap |
 |---|---|---|---|---|
-| Stream | Assistant draft streams | chat streaming helper | `sidePanelChatStreaming.ts` | Not yet formalized as transport-agnostic contract |
-| Validate | KGC is recovered and validated | KGC retry + validation helpers | `sidePanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Docs previously proposed parallel pipelines |
+| Stream | Assistant draft streams | chat streaming helper | `floatingPanelChatStreaming.ts` | Not yet formalized as transport-agnostic contract |
+| Validate | KGC is recovered and validated | KGC retry + validation helpers | `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Docs previously proposed parallel pipelines |
 | Finalize | KGC persists to workspace | finalize helper | `useFinalizeAssistantSuccess.ts` | Must remain canonical write path |
 | Apply | Canvas graph materializes | parser/store apply chain | `chatKgcCanvasApply.ts` -> `setActiveMarkdownDocument()` -> frontmatter-flow parser | Remote MCP future must wrap, not fork |
 
@@ -355,12 +355,12 @@ This document does not claim that the following are already implemented:
 | Shared settings/chat readiness owner | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | Shipped | chat preset/routing/model readiness |
 | Stripe MCP readiness docs | `canvas/src/features/panels/views/stripeMcpApiDocs.ts` | Shipped | readiness/docs, not remote service implementation |
 | Crawler Access MCP readiness docs | `canvas/src/features/panels/views/crawlerAccessMcpApiDocs.ts` | Shipped | readiness/docs, not a separate tool server |
-| FloatingPanel chat shell | `canvas/src/features/chat/SidePanelChat.tsx` | Shipped | interactive chat UI |
-| Chat submit shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Shipped | thin shell |
-| Chat coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | Shipped | request/stream/retry/finalize |
+| FloatingPanel chat shell | `canvas/src/features/chat/FloatingPanelChat.tsx` | Shipped | interactive chat UI |
+| Chat submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Shipped | thin shell |
+| Chat coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Shipped | request/stream/retry/finalize |
 | KGC validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | Shipped | frontmatter-first, canonical grouping |
 | KGC recovery | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Shipped | wrapper salvage, alias stripping |
-| Chat finalize -> canvas bridge | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `chatKgcCanvasApply.ts` | Shipped | canonical workspace write then graph apply |
+| Chat finalize -> canvas bridge | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `chatKgcCanvasApply.ts` | Shipped | canonical workspace write then graph apply |
 | Structured Markdown parse priority | `canvas/src/features/parsers/default.ts` | Shipped | frontmatter-flow first |
 | Frontmatter-flow graph compose | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` + helpers | Shipped | edges + subgraphs + cluster merge |
 | Canvas group projection | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | Shipped | downstream rendered grouping |
@@ -395,8 +395,8 @@ This document does not claim that the following are already implemented:
 
 - Start points: MainPanel `mcp`, MainPanel `integrations`, or FloatingPanel Chat.
 - Chat readiness owner: `useSettingsChatAssist.tsx`.
-- Submit owner: `useSidePanelChatSubmit.ts` -> `sidePanelChatSubmitCoordinator.ts`.
-- Validation owner: `sidePanelChatKgcAttempt.ts` + `chatMarkdownValidation.ts` + shared KGC recovery helpers.
+- Submit owner: `useFloatingPanelChatSubmit.ts` -> `floatingPanelChatSubmitCoordinator.ts`.
+- Validation owner: `floatingPanelChatKgcAttempt.ts` + `chatMarkdownValidation.ts` + shared KGC recovery helpers.
 - Apply owner: `useFinalizeAssistantSuccess.ts` -> `applyChatKgcWorkspaceDocumentToCanvas()` -> `setActiveMarkdownDocument({ applyToGraph: true })`.
 - Parse owner: `tryParseMarkdownFrontmatterFlowGraph()` and related compose helpers.
 
@@ -442,8 +442,8 @@ flowchart LR
   B["MainPanel mcp"] --> C
   C --> D["useSettingsChatAssist()"]
   D --> E["FloatingPanel Chat"]
-  E --> F["useSidePanelChatSubmit()"]
-  F --> G["sidePanelChatSubmitCoordinator.ts"]
+  E --> F["useFloatingPanelChatSubmit()"]
+  F --> G["floatingPanelChatSubmitCoordinator.ts"]
   G --> H["Streaming draft + KGC retry"]
   H --> I["chatMarkdownValidation.ts"]
   I --> J["useFinalizeAssistantSuccess()"]
@@ -499,7 +499,7 @@ flowchart LR
 - [x] Distinguishes shipped stdio MCP, shipped read-only Pages/browser MCP, and proposed future remote MCP
 - [x] Documents MainPanel `mcp` and `integrations` as thin `SettingsView` shells
 - [x] Documents `useSettingsChatAssist.tsx` as the shared chat readiness owner
-- [x] Documents `useSidePanelChatSubmit.ts` as a thin shell over the coordinator/helper stack
+- [x] Documents `useFloatingPanelChatSubmit.ts` as a thin shell over the coordinator/helper stack
 - [x] Documents canonical KGC validation and recovery before canvas apply
 - [x] Documents `flow.subgraphs` as the sole upstream grouping authoring surface
 - [x] Forbids stale remote Worker module claims and duplicate graph pipelines

@@ -2,7 +2,7 @@ import React from 'react'
 
 import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import IconButton from '@/components/IconButton'
-import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -276,7 +276,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             title={UI_LABELS.openInSidepane}
             tooltipContent={UI_COPY.flowWidgetOpenInSidepane}
             showTooltip
-            onClick={() => emitSidePanelOpen({ tab: 'node', open: true })}
+            onClick={() => emitFloatingPanelOpen({ tab: 'node', open: true })}
             className="App-toolbar__btn"
           >
             <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />

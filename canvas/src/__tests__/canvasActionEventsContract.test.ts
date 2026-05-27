@@ -6,11 +6,11 @@ import { JSDOM } from 'jsdom'
 import {
   CHAT_INPUT_APPEND_EVENT,
   PROPS_PANEL_OPEN_EVENT,
-  SIDE_PANEL_OPEN_EVENT,
+  FLOATING_PANEL_OPEN_EVENT,
   WORKFLOW_RUN_ALL_EVENT,
   emitChatInputAppend,
   emitPropsPanelOpen,
-  emitSidePanelOpen,
+  emitFloatingPanelOpen,
   emitWorkflowRunAll,
 } from '@/features/canvas/utils'
 
@@ -36,13 +36,13 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
 
   const cleanup = [
     listen(PROPS_PANEL_OPEN_EVENT),
-    listen(SIDE_PANEL_OPEN_EVENT),
+    listen(FLOATING_PANEL_OPEN_EVENT),
     listen(CHAT_INPUT_APPEND_EVENT),
     listen(WORKFLOW_RUN_ALL_EVENT),
   ]
 
   emitPropsPanelOpen({ clientX: 12, clientY: 34 })
-  emitSidePanelOpen({ tab: 'view', open: true })
+  emitFloatingPanelOpen({ tab: 'view', open: true })
   emitChatInputAppend({ text: 'hello', mode: 'append' })
   emitWorkflowRunAll({ source: 'toolbar' })
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -56,7 +56,7 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
   }
 
   expectEvent(PROPS_PANEL_OPEN_EVENT, 'clientX', 12)
-  expectEvent(SIDE_PANEL_OPEN_EVENT, 'tab', 'view')
+  expectEvent(FLOATING_PANEL_OPEN_EVENT, 'tab', 'view')
   expectEvent(CHAT_INPUT_APPEND_EVENT, 'text', 'hello')
   expectEvent(WORKFLOW_RUN_ALL_EVENT, 'source', 'toolbar')
 
@@ -80,8 +80,8 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   if (utilsText.includes('new CustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT')) {
     throw new Error('expected props panel emitter to stop owning raw CustomEvent construction')
   }
-  if (utilsText.includes('new CustomEvent<SidePanelOpenEventDetail>(SIDE_PANEL_OPEN_EVENT')) {
-    throw new Error('expected side panel emitter to stop owning raw CustomEvent construction')
+  if (utilsText.includes('new CustomEvent<FloatingPanelOpenEventDetail>(FLOATING_PANEL_OPEN_EVENT')) {
+    throw new Error('expected floating panel emitter to stop owning raw CustomEvent construction')
   }
   if (utilsText.includes('new CustomEvent<ChatInputAppendEventDetail>(CHAT_INPUT_APPEND_EVENT')) {
     throw new Error('expected chat append emitter to stop owning raw CustomEvent construction')
@@ -89,22 +89,22 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   if (utilsText.includes('new CustomEvent<WorkflowRunAllEventDetail>(WORKFLOW_RUN_ALL_EVENT')) {
     throw new Error('expected workflow run-all emitter to stop owning raw CustomEvent construction')
   }
-  if (!floatingPropsText.includes('emitSidePanelOpen(') || !floatingPropsText.includes('emitChatInputAppend(')) {
+  if (!floatingPropsText.includes('emitFloatingPanelOpen(') || !floatingPropsText.includes('emitChatInputAppend(')) {
     throw new Error('expected floating props panel model to keep using shared canvas action emitters')
   }
-  if (!actionsToolbarText.includes('emitSidePanelOpen({ tab: \'node\', open: true })')) {
-    throw new Error('expected node overlay actions toolbar to keep using the shared side panel emitter')
+  if (!actionsToolbarText.includes('emitFloatingPanelOpen({ tab: \'node\', open: true })')) {
+    throw new Error('expected node overlay actions toolbar to keep using the shared floating panel emitter')
   }
-  if (!utilsText.includes('requestSidePanelOpen(detail)') || !utilsText.includes('requestPropsPanelOpen(detail)')) {
+  if (!utilsText.includes('requestFloatingPanelOpen(detail)') || !utilsText.includes('requestPropsPanelOpen(detail)')) {
     throw new Error('expected canvas emitters to call the shared floating panel bridge before dispatching passive events')
   }
-  if (!launcherText.includes('installFloatingPanelBridge({') || !launcherText.includes('openSidePanel')) {
+  if (!launcherText.includes('installFloatingPanelBridge({') || !launcherText.includes('openFloatingPanel')) {
     throw new Error('expected ToolbarMenuLauncher to register the shared floating panel bridge')
   }
-  if (!floatingBridgeText.includes('requestSidePanelOpen') || !floatingBridgeText.includes('openSidePanel')) {
-    throw new Error('expected floating panel bridge to centralize side-panel open requests')
+  if (!floatingBridgeText.includes('requestFloatingPanelOpen') || !floatingBridgeText.includes('openFloatingPanel')) {
+    throw new Error('expected floating panel bridge to centralize floating-panel open requests')
   }
-  if (!markdownDataViewBlockText.includes('useWorkspaceDataViewFloatingRegistration') || !markdownDataViewBlockText.includes("emitSidePanelOpen({ tab: 'view', open: true })")) {
+  if (!markdownDataViewBlockText.includes('useWorkspaceDataViewFloatingRegistration') || !markdownDataViewBlockText.includes("emitFloatingPanelOpen({ tab: 'view', open: true })")) {
     throw new Error('expected MarkdownDataViewBlock viewer path to reuse the shared floating View registration and open emitter')
   }
 }

@@ -50,7 +50,7 @@ export const testMarkdownLayoutRequestHelpersDispatchAndSubscribe = async () => 
 
 export const testMarkdownLayoutRequestCallsitesUseSharedContract = () => {
   const sharedText = readUtf8('src/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared.ts')
-  const chatText = readUtf8('src/features/chat/SidePanelChat.tsx')
+  const chatText = readUtf8('src/features/chat/FloatingPanelChat.tsx')
   const interactionsText = readUtf8('src/lib/markdown-workspace-runtime/useMarkdownWorkspaceInteractions.ts')
 
   if (!sharedText.includes('export const MARKDOWN_LAYOUT_REQUEST_EVENT')) {
@@ -66,13 +66,13 @@ export const testMarkdownLayoutRequestCallsitesUseSharedContract = () => {
     throw new Error('expected markdown layout runtime module to expose a shared subscriber')
   }
   if (!chatText.includes("emitMarkdownLayoutRequest('editor')")) {
-    throw new Error('expected SidePanelChat to emit markdown layout requests via the shared helper')
+    throw new Error('expected FloatingPanelChat to emit markdown layout requests via the shared helper')
   }
   if (chatText.includes("new CustomEvent(MARKDOWN_LAYOUT_REQUEST_EVENT")) {
-    throw new Error('expected SidePanelChat to avoid raw markdown layout event construction')
+    throw new Error('expected FloatingPanelChat to avoid raw markdown layout event construction')
   }
   if (chatText.includes("const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'")) {
-    throw new Error('expected SidePanelChat to avoid owning a duplicate markdown layout event constant')
+    throw new Error('expected FloatingPanelChat to avoid owning a duplicate markdown layout event constant')
   }
   if (!interactionsText.includes('subscribeMarkdownLayoutRequest')) {
     throw new Error('expected useMarkdownWorkspaceInteractions to subscribe via the shared helper')

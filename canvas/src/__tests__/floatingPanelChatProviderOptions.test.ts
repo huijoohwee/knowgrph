@@ -1,5 +1,5 @@
-import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
-import { buildProviderChatRequestOptions } from '@/features/chat/SidePanelChat.helpers'
+import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
+import { buildProviderChatRequestOptions } from '@/features/chat/FloatingPanelChat.helpers'
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
@@ -149,6 +149,50 @@ export function testOpenAiProviderOptionsUseResponsesSurface() {
   const serializedExpected = stableStringify(expected)
   if (serialized !== serializedExpected) {
     throw new Error(`expected OpenAI responses options ${serializedExpected}, got ${serialized}`)
+  }
+}
+
+export function testMiroMindProviderOptionsReuseSharedChatCompletionsShape() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_MIROMIND,
+    endpointUrl: '/v1/chat/completions',
+    chatModel: 'mirothinker-1-7-deepresearch-mini',
+    chatTemperature: 0.4,
+    chatServiceTier: 'default',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'high',
+    chatThinkingType: 'auto',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 0.2,
+    chatPresencePenalty: 0.1,
+    chatTopP: 0.85,
+    chatLogprobs: false,
+    chatTopLogprobs: 0,
+    chatParallelToolCalls: true,
+    chatStopJson: '["DONE"]',
+    chatStreamOptionsJson: '{"include_usage":true}',
+    chatResponseFormatJson: '{"type":"json_object"}',
+    chatLogitBiasJson: '',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  const expected = {
+    temperature: 0.4,
+    service_tier: 'default',
+    frequency_penalty: 0.2,
+    presence_penalty: 0.1,
+    top_p: 0.85,
+    parallel_tool_calls: true,
+    stop: ['DONE'],
+    stream_options: { include_usage: true },
+    response_format: { type: 'json_object' },
+    logprobs: false,
+  }
+  const serialized = stableStringify(options)
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected MiroMind chat-completions options ${serializedExpected}, got ${serialized}`)
   }
 }
 

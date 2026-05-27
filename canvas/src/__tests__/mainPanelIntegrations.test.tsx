@@ -13,7 +13,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames as waitForFramesShared } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { PROPS_PANEL_OPEN_EVENT, SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
+import { PROPS_PANEL_OPEN_EVENT, FLOATING_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import {
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
@@ -127,6 +127,14 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'deerflowApi.endpoint_url',
       'deerflowApi.model',
       'deerflowApi.input',
+      'MiroMind API',
+      'Open FloatingPanel Chat UI (MiroMind)',
+      'miromindApi.provider',
+      'miromindApi.auth_mode',
+      'miromindApi.endpoint_url',
+      'miromindApi.model',
+      'miromindApi.mcp_servers',
+      'miromindApi.streaming.reasoning_steps',
       'BytePlus Video Generation API',
       'Open FloatingPanel BytePlus Video Widget',
       'BytePlus Image Generation API',
@@ -169,14 +177,14 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 3)
 
-    const sidePanelEvents: Array<string> = []
+    const floatingPanelEvents: Array<string> = []
     const propsPanelEvents: Array<string> = []
     const eventWindow = globalThis.window as Window & typeof globalThis
     const originalDispatchEvent = eventWindow.dispatchEvent.bind(eventWindow)
     eventWindow.dispatchEvent = ((event: Event) => {
-      if (event.type === SIDE_PANEL_OPEN_EVENT) {
+      if (event.type === FLOATING_PANEL_OPEN_EVENT) {
         const custom = event as CustomEvent<{ tab?: string }>
-        sidePanelEvents.push(String(custom.detail?.tab || ''))
+        floatingPanelEvents.push(String(custom.detail?.tab || ''))
       }
       if (event.type === PROPS_PANEL_OPEN_EVENT) {
         propsPanelEvents.push('propsPanel')
@@ -202,8 +210,8 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel BytePlus Image Widget')
 
-    if (sidePanelEvents.filter(value => value === 'chat').length !== 1) {
-      throw new Error(`expected chat section link to open floating chat once, got ${JSON.stringify(sidePanelEvents)}`)
+    if (floatingPanelEvents.filter(value => value === 'chat').length !== 1) {
+      throw new Error(`expected chat section link to open floating chat once, got ${JSON.stringify(floatingPanelEvents)}`)
     }
     if (propsPanelEvents.length !== 6) {
       throw new Error(`expected text/openai-chat/openai-images/deerflow/video/image section links to open floating props panel six times, got ${JSON.stringify(propsPanelEvents)}`)
@@ -724,6 +732,18 @@ export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
 
     const text = container.textContent || ''
     assertMcpHubSurfacesGrabMapsMcpConfig(container)
+    ;[
+      'MiroMind MCP',
+      'Open MiroMind MCP Docs',
+      'miromindMcp.request_field',
+      'mcp_servers',
+      'miromindMcp.boundary',
+      'markdown YAML frontmatter',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected MCP hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
     if (text.includes('Global Reset')) {
       throw new Error('expected MCP hub to omit global reset section')
     }

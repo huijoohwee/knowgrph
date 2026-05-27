@@ -176,7 +176,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 **Label Bounds**: Fit calculations account for node labels (estimated width/height from `schema.labelStyles.*`)
 
-**Pin to View**: Toolbar toggle that preserves camera transform across graph updates and viewport resizes (no jump when side panels open/close)
+**Pin to View**: Toolbar toggle that preserves camera transform across graph updates and viewport resizes (no jump when floating panels open/close)
 
 **While Pinned**:
 - Disables Fit to Screen

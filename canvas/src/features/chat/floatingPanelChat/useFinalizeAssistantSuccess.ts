@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ChatMessage } from '../SidePanelChatSections'
+import type { ChatMessage } from '../FloatingPanelChatSections'
 import {
   appendChatHistoryWorkspaceFile,
   isKgcStructuredMarkdown,
@@ -9,7 +9,7 @@ import {
   persistChatExchangeLog,
   pickBestErrorFallbackSource,
   toConciseBulletText,
-} from '../SidePanelChat.helpers'
+} from '../FloatingPanelChat.helpers'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
 import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready/browserLocalSurfaceSnapshots'

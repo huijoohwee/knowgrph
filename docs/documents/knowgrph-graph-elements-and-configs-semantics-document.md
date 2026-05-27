@@ -67,7 +67,7 @@
     - The UI may surface computed “Connected” hints and an explicit “Apply” action, but the compute pipeline must not silently mutate `GraphData`.
     - Connected-value computation is shared across Flow Editor and Table Inspector to prevent cross-mode semantic drift.
   - More actions contract:
-    - Open in sidepane dispatches the side panel open event (no graph mutation).
+    - Open in sidepane dispatches the floating panel open event (no graph mutation).
     - Enable Handles sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` (gated by baseline lock).
     - Convert to Loop sets `node.type='Loop'` and `node.properties['workflow:kind']='loop'` (draft graph only until commit).
 

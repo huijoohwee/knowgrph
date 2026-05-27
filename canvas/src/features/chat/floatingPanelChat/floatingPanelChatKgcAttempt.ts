@@ -1,7 +1,7 @@
 import { buildResolvableVarKeySet, validateChatMarkdown } from '../chatMarkdownValidation'
 import { isKgcStructuredMarkdown } from '../chatHistoryWorkspace'
-import { extractKgcBlockFromAssistantText } from '../SidePanelChat.helpers'
-import { buildCorrectionPrompt } from './sidePanelChatCorrectionPrompt'
+import { extractKgcBlockFromAssistantText } from '../FloatingPanelChat.helpers'
+import { buildCorrectionPrompt } from './floatingPanelChatCorrectionPrompt'
 
 export type ChatKnowgrphAttemptValidationState = {
   stage: 'retrying' | 'validated' | 'failed'

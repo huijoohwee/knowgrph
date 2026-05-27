@@ -10,9 +10,9 @@ import {
   upsertChatHistoryWorkspaceDraft,
 } from '../chatHistoryWorkspace'
 import { toKgcTraceWorkspacePath } from '../chatHistoryWorkspace.paths'
-import { putChatHistoryCache, toShortId } from '../SidePanelChat.helpers'
-import type { ChatMessage } from '../SidePanelChatSections'
-import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
+import { putChatHistoryCache, toShortId } from '../FloatingPanelChat.helpers'
+import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
+import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 
 export const resolveChatSubmitRequestUrlOrSetError = (args: {
   chatModel: string | null
@@ -44,7 +44,14 @@ export const initializeChatSubmitOptimisticState = (args: {
   messages: ChatMessage[]
   setErrorText?: React.Dispatch<React.SetStateAction<string | null>>
   setConnectivityDetail?: React.Dispatch<React.SetStateAction<string | null>>
-  setStreamingAssistant: React.Dispatch<React.SetStateAction<{ id: string; text: string } | null>>
+  setStreamingAssistant: React.Dispatch<React.SetStateAction<StreamingAssistantState | null>>
+  setStreamingInsights?: React.Dispatch<React.SetStateAction<{
+    reasoningPreview: string | null
+    reasoningStepCount: number
+    usageSummary: string | null
+    finishReason: string | null
+    modelId: string | null
+  } | null>>
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
   setInput: React.Dispatch<React.SetStateAction<string>>
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
@@ -61,6 +68,7 @@ export const initializeChatSubmitOptimisticState = (args: {
   const traceId = `trace-${requestTimestampMs}-${assistantMessageId}`
   args.setErrorText?.(null)
   args.setConnectivityDetail?.(null)
+  args.setStreamingInsights?.(null)
   args.setStreamingAssistant({ id: assistantMessageId, text: '' })
   const nextMessages: ChatMessage[] = [
     ...args.messages,
@@ -81,7 +89,7 @@ export const initializeChatSubmitOptimisticState = (args: {
 }
 
 export const bootstrapKnowgrphSubmitDraft = async (args: {
-  submitArgs: SidePanelChatSubmitArgs
+  submitArgs: FloatingPanelChatSubmitArgs
   requestTimestampMs: number
   trimmedInput: string
   traceId: string

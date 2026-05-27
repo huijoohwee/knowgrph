@@ -1,4 +1,4 @@
-import { shouldRetryWithModelFallback } from '../SidePanelChat.helpers'
+import { shouldRetryWithModelFallback } from '../FloatingPanelChat.helpers'
 
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
 

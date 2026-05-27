@@ -112,6 +112,18 @@ export type LocalChatPipelineSurfaceSnapshot = {
   streamingAssistant: {
     id: string
     text: string
+    reasoningPreview?: string | null
+    reasoningStepCount?: number
+    usageSummary?: string | null
+    finishReason?: string | null
+    modelId?: string | null
+  } | null
+  streamingInsights?: {
+    reasoningPreview: string
+    reasoningStepCount: number
+    usageSummary: string
+    finishReason: string
+    modelId: string
   } | null
   streamingWorkspacePath: string | null
   streamFollowPath: string | null

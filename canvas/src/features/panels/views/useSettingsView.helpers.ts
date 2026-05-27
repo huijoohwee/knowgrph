@@ -5,6 +5,7 @@ import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusSharedTextApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
+import { MIROMIND_API_DOC_AREA } from './miromindApiDocs'
 import { STRIPE_PAYMENT_API_DOC_AREA } from './stripePaymentApiDocs'
 import {
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
@@ -26,6 +27,7 @@ import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
+import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
 import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA } from '@/features/integrations/pixverseVideoGenerationSsot'
 
 export type SettingsEntry = {
@@ -88,6 +90,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   GEMINI_VIDEO_GENERATION_API_DOC_AREA,
+  MIROMIND_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
   OPENAI_IMAGES_API_DOC_AREA,
   DEERFLOW_API_DOC_AREA,
@@ -126,6 +129,7 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
     || area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
+    || area === MIROMIND_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
     || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA
@@ -161,6 +165,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
   if (area === STRIPE_MCP_DOC_AREA) return true
   if (area === PIXVERSE_MCP_DOC_AREA) return true
+  if (area === MIROMIND_MCP_DOC_AREA) return true
   return key.includes('.mcp.')
 }
 

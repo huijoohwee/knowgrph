@@ -30,7 +30,7 @@
   - Pixel ratio (1x/2x/3x) for hi-DPI correctness.
   - Canvas sizing derived from viewport and devicePixelRatio.
 - UI chrome:
-  - Export only the graph surface and HUD; omit host-side panels and toolbars.
+  - Export only the graph surface and HUD; omit host-floating panels and toolbars.
 
 ### 2.3 Viewer HUD (Exported HTML)
 

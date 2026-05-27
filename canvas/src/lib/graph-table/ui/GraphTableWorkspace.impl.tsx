@@ -633,7 +633,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
           const raw = (row as unknown as Record<string, unknown>)[columnId]
           applyCellUpdateToGraphStore(activeTableId, row.id, columnId, raw, 'geodata', { skipGeospatialAutoEnable: true })
         }
-        void maybeAutoEnableGeospatialModeForGraphData({ graphData: useGraphStore.getState().graphData, openSidePanel: false })
+        void maybeAutoEnableGeospatialModeForGraphData({ graphData: useGraphStore.getState().graphData, openFloatingPanel: false })
       })()
     },
     [activeTableId, rows, tableToGraphRenderingEnabled],

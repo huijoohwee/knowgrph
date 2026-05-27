@@ -34,7 +34,7 @@ The app keeps one upstream source of truth in Dev, derives interactive workspace
 | Flow Editor canvas | Primary 2D authoring surface | Renders widget-style nodes, rich media panels, handles, overlays, and workspace-linked editing flows |
 | Graph and 3D views | Alternate graph exploration surfaces | Supports graph-oriented rendering paths and 3D/Three.js visualization without changing the upstream workspace model |
 | Geospatial overlay | Map and location-aware exploration | Mounts geospatial overlays and POI-driven rich media previews when map-backed data is active |
-| Search, chat, and panels | Operator workflow tools | Exposes side-panel chat, search, floating panels, history, settings, and import/export utilities |
+| Search, chat, and panels | Operator workflow tools | Exposes floating-panel chat, search, floating panels, history, settings, and import/export utilities |
 | Storage and publish | Persistence and release | Persists local/runtime state, syncs publish artifacts, and deploys Cloudflare Worker APIs for storage and payments |
 
 ## Product Flow
@@ -57,11 +57,11 @@ Knowgrph keeps the LLM chat path workspace-first as well. The current in-repo ow
 | Stage | Current owner | Runtime contract |
 | --- | --- | --- |
 | Chat settings | `MainPanel`, `SettingsView`, `useSettingsChatAssist` | Provider, endpoint, model, auth mode, and context scope are configured upstream once |
-| Chat UI mount | `FloatingPanel`, `SidePanelChat` | FloatingPanel mounts the chat surface; SidePanelChat owns runtime UI state and store reads |
-| Submit shell | `useSidePanelChatSubmit.ts` | Thin shell only: resolves request guards, initializes optimistic state, and delegates |
-| Async submit lifecycle | `sidePanelChatSubmitCoordinator.ts` | Central lifecycle owner for request-build, transport, streaming, retry, and terminal cleanup |
-| Request and transport | `sidePanelChatSubmitRequest.ts`, `sidePanelChatSubmitTransport.ts` | Builds packed context and payload messages, applies token-key/model fallback upstream |
-| Streaming and KGC retry | `sidePanelChatStreaming.ts`, `sidePanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Persists live drafts, validates canonical KGC Markdown, and retries with correction prompts |
+| Chat UI mount | `FloatingPanel`, `FloatingPanelChat` | FloatingPanel mounts the chat surface; FloatingPanelChat owns runtime UI state and store reads |
+| Submit shell | `useFloatingPanelChatSubmit.ts` | Thin shell only: resolves request guards, initializes optimistic state, and delegates |
+| Async submit lifecycle | `floatingPanelChatSubmitCoordinator.ts` | Central lifecycle owner for request-build, transport, streaming, retry, and terminal cleanup |
+| Request and transport | `floatingPanelChatSubmitRequest.ts`, `floatingPanelChatSubmitTransport.ts` | Builds packed context and payload messages, applies token-key/model fallback upstream |
+| Streaming and KGC retry | `floatingPanelChatStreaming.ts`, `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Persists live drafts, validates canonical KGC Markdown, and retries with correction prompts |
 | Finalize and apply | `useFinalizeAssistantSuccess.ts`, `chatKgcCanvasApply.ts` | Persists the canonical workspace document, then applies it through `setActiveMarkdownDocument()` |
 | Parse and group projection | `default.ts`, `markdownFrontmatterFlowGraph.core.ts`, `subgraphs.ts`, `graphGroups.ts` | Prefers frontmatter-flow parsing and keeps `flow.subgraphs -> kg:subgraphs -> deriveGraphGroups()` as the only grouping pipeline |
 
@@ -70,8 +70,8 @@ Knowgrph keeps the LLM chat path workspace-first as well. The current in-repo ow
 ```mermaid
 flowchart LR
     A[MainPanel chat settings] --> B[FloatingPanel chat]
-    B --> C[SidePanelChat]
-    C --> D[useSidePanelChatSubmit shell]
+    B --> C[FloatingPanelChat]
+    C --> D[useFloatingPanelChatSubmit shell]
     D --> E[submit preflight]
     D --> F[submit coordinator]
     F --> G[request build and transport]
@@ -87,7 +87,7 @@ flowchart LR
 ### Chat Rules
 
 - Keep `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` as the only `chatKnowgrph` prompt contract source.
-- Keep `useSidePanelChatSubmit.ts` thin; do not move request-build, transport, streaming, or KGC retry logic back into the hook.
+- Keep `useFloatingPanelChatSubmit.ts` thin; do not move request-build, transport, streaming, or KGC retry logic back into the hook.
 - Persist assistant output to workspace drafts first; do not patch graph state directly from raw assistant text.
 - Keep `flow.subgraphs` as the only grouping authoring surface; do not add parallel cluster or grouping aliases.
 - Fix chat-to-canvas bugs at the highest current owner instead of adding downstream compatibility shims.

@@ -18,9 +18,9 @@ import {
   buildMarkdownNodeSnippetPrompt,
   buildWorkspaceWideContextPrompt,
 } from '../chatPromptHelpers'
-import { buildProviderChatRequestOptions, parseLine, toShortId } from '../SidePanelChat.helpers'
-import type { ChatMessage } from '../SidePanelChatSections'
-import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
+import { buildProviderChatRequestOptions, parseLine, toShortId } from '../FloatingPanelChat.helpers'
+import type { ChatMessage } from '../FloatingPanelChatSections'
+import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 
 export type ChatSubmitMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
@@ -73,7 +73,7 @@ export const buildChatSubmitPayloadMessages = (args: {
 }
 
 export const buildChatSubmitRequestContext = async (args: {
-  submitArgs: SidePanelChatSubmitArgs
+  submitArgs: FloatingPanelChatSubmitArgs
   nextMessages: ChatMessage[]
   assistantMessageId: string
 }): Promise<{
@@ -142,7 +142,7 @@ export const buildChatSubmitRequestContext = async (args: {
 }
 
 export const createChatSubmitRequestSender = (args: {
-  submitArgs: SidePanelChatSubmitArgs
+  submitArgs: FloatingPanelChatSubmitArgs
   requestUrl: string
   controller: AbortController
   fetchFn?: typeof fetch

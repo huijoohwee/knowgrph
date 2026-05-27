@@ -7,7 +7,7 @@ import {
   resolveBinaryDownloadProxyUrl,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
-import { parseErrorBody, parseSseEvents } from './SidePanelChat.helpers'
+import { parseErrorBody, parseSseEvents } from './FloatingPanelChat.helpers'
 import type {
   GeneratedBinaryAsset,
   RunGenerationConfig,

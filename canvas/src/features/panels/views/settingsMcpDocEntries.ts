@@ -32,6 +32,11 @@ import {
   getPixVerseMcpApiRowAnchorId,
 } from './pixverseMcpApiDocs'
 import {
+  MIROMIND_MCP_DOC_AREA,
+  MIROMIND_MCP_DOC_ENTRIES,
+  getMiroMindMcpApiRowAnchorId,
+} from './miromindMcpApiDocs'
+import {
   buildDocMappedEntry,
   isMcpOwnedSetting,
   normalizeSettingsAreaLabel,
@@ -46,6 +51,7 @@ export function buildMcpDocEntries(
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
     ...STRIPE_MCP_DOC_ENTRIES,
     ...PIXVERSE_MCP_DOC_ENTRIES,
+    ...MIROMIND_MCP_DOC_ENTRIES,
     ...mapsAndMcpDocEntries.filter(entry => isMcpOwnedSetting(entry.meta.key, entry.details.area)),
     ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
   ]
@@ -65,6 +71,8 @@ export function buildMcpVirtualEntry(
         ? getStripeMcpApiRowAnchorId(entry.meta.key)
       : area === PIXVERSE_MCP_DOC_AREA
         ? getPixVerseMcpApiRowAnchorId(entry.meta.key)
+      : area === MIROMIND_MCP_DOC_AREA
+        ? getMiroMindMcpApiRowAnchorId(entry.meta.key)
         : getGrabMapsMcpApiRowAnchorId(entry.meta.key)
   const mappedEntry = buildDocMappedEntry(entry, values, anchorId)
   const configJson =

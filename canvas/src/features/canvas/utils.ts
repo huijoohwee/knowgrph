@@ -2,13 +2,13 @@ import * as d3 from 'd3'
 import {
   requestPropsPanelOpen,
   requestRendererPanelOpen,
-  requestSidePanelOpen,
+  requestFloatingPanelOpen,
 } from '@/features/toolbar/floatingPanelBridge'
 
 export const PROPS_PANEL_OPEN_EVENT = 'kg:propsPanelOpen' as const
 export const RENDERER_PANEL_OPEN_EVENT = 'kg:rendererPanelOpen' as const
 export const RENDERER_FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen:renderer' as const
-export const SIDE_PANEL_OPEN_EVENT = 'kg:sidePanelOpen' as const
+export const FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen' as const
 export const CHAT_INPUT_APPEND_EVENT = 'kg:chatInputAppend' as const
 export const WORKFLOW_RUN_ALL_EVENT = 'kg:workflowRunAll' as const
 
@@ -17,7 +17,7 @@ export type PropsPanelOpenEventDetail = {
   clientY?: number
 }
 
-export type SidePanelOpenEventDetail = {
+export type FloatingPanelOpenEventDetail = {
   tab?: 'inspector' | 'node' | 'view' | 'chat' | 'geo'
   open?: boolean
 }
@@ -56,9 +56,9 @@ export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
   emitCanvasCustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT, detail)
 }
 
-export function emitSidePanelOpen(detail?: SidePanelOpenEventDetail): void {
-  requestSidePanelOpen(detail)
-  emitCanvasCustomEvent<SidePanelOpenEventDetail>(SIDE_PANEL_OPEN_EVENT, detail)
+export function emitFloatingPanelOpen(detail?: FloatingPanelOpenEventDetail): void {
+  requestFloatingPanelOpen(detail)
+  emitCanvasCustomEvent<FloatingPanelOpenEventDetail>(FLOATING_PANEL_OPEN_EVENT, detail)
 }
 
 export function emitChatInputAppend(detail?: ChatInputAppendEventDetail): void {

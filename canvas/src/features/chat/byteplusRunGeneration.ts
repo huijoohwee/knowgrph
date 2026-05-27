@@ -21,7 +21,7 @@ import {
   parseErrorBody,
   parseSseEvents,
   shouldRetryWithActivationFallback,
-} from './SidePanelChat.helpers'
+} from './FloatingPanelChat.helpers'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { readBytePlusVideoWidgetDefaults } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { LS_KEYS } from '@/lib/config'

@@ -16,6 +16,8 @@ export const inspectLocalChatPipelineState = (
   }
   const streamingText = normalizeString(snapshot.streamingAssistant?.text)
   const streamDraftText = normalizeString(snapshot.streamDraft?.text)
+  const streamingReasoningPreview = normalizeString(snapshot.streamingInsights?.reasoningPreview || snapshot.streamingAssistant?.reasoningPreview)
+  const streamingUsageSummary = normalizeString(snapshot.streamingInsights?.usageSummary || snapshot.streamingAssistant?.usageSummary)
   return {
     available: true,
     sourceKind: 'browser-local-chat-pipeline',
@@ -47,6 +49,11 @@ export const inspectLocalChatPipelineState = (
       assistantId: snapshot.streamingAssistant?.id || null,
       textLength: streamingText.length,
       preview: buildPreview(streamingText),
+      reasoningPreview: streamingReasoningPreview || null,
+      reasoningStepCount: snapshot.streamingInsights?.reasoningStepCount || snapshot.streamingAssistant?.reasoningStepCount || 0,
+      usageSummary: streamingUsageSummary || null,
+      finishReason: snapshot.streamingInsights?.finishReason || snapshot.streamingAssistant?.finishReason || null,
+      modelId: snapshot.streamingInsights?.modelId || snapshot.streamingAssistant?.modelId || null,
       draftPath: snapshot.streamDraft?.path || null,
       draftTextLength: streamDraftText.length,
       draftPreview: buildPreview(streamDraftText),

@@ -7,8 +7,8 @@ import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
-import type { ChatMessage } from './SidePanelChatSections'
-import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
+import type { ChatMessage, StreamingAssistantState } from './FloatingPanelChatSections'
+import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './FloatingPanelChatSections'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
@@ -16,10 +16,10 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   getDefaultChatModelForProvider,
-  getChatModelOptions,
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getChatRecommendedModelHint,
+  getSharedChatModelCatalogOptions,
   normalizeChatModelIdForProvider,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
@@ -31,9 +31,9 @@ import {
   persistChatExchangeLog,
   putChatHistoryCache,
   toHistoryTaskKey,
-} from '@/features/chat/SidePanelChat.helpers'
-import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
-import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
+} from '@/features/chat/FloatingPanelChat.helpers'
+import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
+import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
@@ -44,7 +44,7 @@ import {
   publishLocalChatPipelineSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
-export default function SidePanelChat() {
+export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -107,7 +107,14 @@ export default function SidePanelChat() {
   const [errorText, setErrorText] = React.useState<string | null>(null)
   const [connectivity, setConnectivity] = React.useState<'unknown' | 'ok' | 'error'>('unknown')
   const [connectivityDetail, setConnectivityDetail] = React.useState<string | null>(null)
-  const [streamingAssistant, setStreamingAssistant] = React.useState<{ id: string; text: string } | null>(null)
+  const [streamingAssistant, setStreamingAssistant] = React.useState<StreamingAssistantState | null>(null)
+  const [streamingInsights, setStreamingInsights] = React.useState<{
+    reasoningPreview: string | null
+    reasoningStepCount: number
+    usageSummary: string | null
+    finishReason: string | null
+    modelId: string | null
+  } | null>(null)
   const [streamingWorkspacePath, setStreamingWorkspacePath] = React.useState<string | null>(null)
 
   const abortRef = React.useRef<AbortController | null>(null)
@@ -171,6 +178,20 @@ export default function SidePanelChat() {
         ? {
             id: String(streamingAssistant.id || ''),
             text: String(streamingAssistant.text || ''),
+            reasoningPreview: String(streamingAssistant.reasoningPreview || ''),
+            reasoningStepCount: Number(streamingAssistant.reasoningStepCount || 0),
+            usageSummary: String(streamingAssistant.usageSummary || ''),
+            finishReason: String(streamingAssistant.finishReason || ''),
+            modelId: String(streamingAssistant.modelId || ''),
+          }
+        : null,
+      streamingInsights: streamingInsights
+        ? {
+            reasoningPreview: String(streamingInsights.reasoningPreview || ''),
+            reasoningStepCount: Number(streamingInsights.reasoningStepCount || 0),
+            usageSummary: String(streamingInsights.usageSummary || ''),
+            finishReason: String(streamingInsights.finishReason || ''),
+            modelId: String(streamingInsights.modelId || ''),
           }
         : null,
       streamingWorkspacePath,
@@ -203,13 +224,14 @@ export default function SidePanelChat() {
     messages.length,
     selectedNodeId,
     streamingAssistant,
+    streamingInsights,
     streamingWorkspacePath,
     workspaceViewMode,
   ])
 
   const chatModelSelect = React.useMemo(() => {
     const normalizedProvider = normalizeChatProviderId(chatProvider)
-    const options = Array.from(getChatModelOptions(normalizedProvider))
+    const options = getSharedChatModelCatalogOptions(normalizedProvider)
     const normalizedModel = normalizeChatModelIdForProvider(chatModel, normalizedProvider)
     const fallbackModel = normalizedModel || getDefaultChatModelForProvider(normalizedProvider)
     const selected = fallbackModel || (options[0] || '')
@@ -297,6 +319,7 @@ export default function SidePanelChat() {
     setConnectivityDetail(null)
     setInput('')
     setStreamingAssistant(null)
+    setStreamingInsights(null)
     setStreamingWorkspacePath(null)
     streamFollowRef.current = null
     streamDraftTextRef.current = null
@@ -323,12 +346,12 @@ export default function SidePanelChat() {
 
   const graphLookup = React.useMemo(() => {
     if (!graphData) return null
-    const graphSemanticKey = buildScopedGraphSemanticKey('side-panel-chat-graph', {
+    const graphSemanticKey = buildScopedGraphSemanticKey('floating-panel-chat-graph', {
       graphData,
       graphRevision: graphDataRevision,
     })
     return getCachedGraphLookup({
-      cacheScope: 'side-panel-chat-graph',
+      cacheScope: 'floating-panel-chat-graph',
       graphData,
       graphRevision: graphDataRevision,
       graphSemanticKey,
@@ -500,7 +523,7 @@ export default function SidePanelChat() {
     streamDraftTextRef,
   })
 
-  const handleSubmit = useSidePanelChatSubmit({
+  const handleSubmit = useFloatingPanelChatSubmit({
     historyKey,
     graphData,
     currentNode,
@@ -561,6 +584,7 @@ export default function SidePanelChat() {
     finalizeAssistantSuccess,
     pushChatExchangeLog,
     persistChatExchangeLog,
+    setStreamingInsights,
   })
 
   const parseDeerFlowIngestCommand = React.useCallback((raw: string): { url: string } | null => {
@@ -616,7 +640,7 @@ export default function SidePanelChat() {
   return (
     <div className="h-full flex flex-col">
       <div ref={scrollRef} className={`${FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
-        <SidePanelChatMessagesSection
+        <FloatingPanelChatMessagesSection
           messages={messages}
           isLoading={isLoading}
           historyKey={historyKey}
@@ -629,7 +653,7 @@ export default function SidePanelChat() {
         />
       </div>
 
-      <SidePanelChatFooter
+      <FloatingPanelChatFooter
         input={input}
         setInput={setInput}
         isLoading={isLoading}
@@ -637,11 +661,12 @@ export default function SidePanelChat() {
         connectivity={connectivity}
         connectivityDetail={connectivityDetail}
         currentNode={currentNode}
-        providerSummary={chatProviderSummary}
-        providerHint={chatProviderHintWithPixVerse}
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
         onModelChanged={setChatModel}
+        streamingReasoningPreview={streamingInsights?.reasoningPreview || null}
+        streamingUsageSummary={streamingInsights?.usageSummary || null}
+        streamingFinishReason={streamingInsights?.finishReason || null}
         writingWorkspaceFileLabel={
           isLoading && chatStorageTarget === 'chatKnowgrph' && streamingWorkspacePath
             ? `Writing to ${(streamingWorkspacePath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md')}...`

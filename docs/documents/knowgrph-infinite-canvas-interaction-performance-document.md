@@ -16,7 +16,7 @@ It is strictly code-backed: it documents the current behavior and forbids duplic
 
 - When the Floating Panel view is **Props**, Interaction is available as a dedicated **Interaction** tab in the same Floating Panel shell.
 - Interaction is intentionally separated from Props but co-located in the Floating Panel so pointer/scroll interactions remain stable and do not require opening a separate “Arrange” surface.
-- Forbid any additional “Arrange” panel variants (canvas overlays, editor tabs, or legacy side panels) that duplicate these controls.
+- Forbid any additional “Arrange” panel variants (canvas overlays, editor tabs, or legacy floating panels) that duplicate these controls.
 
 #### Interaction tab contents
 

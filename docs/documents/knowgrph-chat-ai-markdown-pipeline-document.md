@@ -29,7 +29,7 @@ Chat uses the provider proxy and sends:
 - `packContext()` system prompt
 - Optional bounded subgraph context and workspace-wide context
 - Conversation history
-- A thin submit shell delegates the async lifecycle to `sidePanelChatSubmitCoordinator.ts`, which composes request-build, transport, streaming, and KGC retry helpers instead of re-owning that logic inside the hook
+- A thin submit shell delegates the async lifecycle to `floatingPanelChatSubmitCoordinator.ts`, which composes request-build, transport, streaming, and KGC retry helpers instead of re-owning that logic inside the hook
 
 When `chatStorageTarget=chatKnowgrph`, the assistant must output:
 - A standalone parseable KGC markdown document aligned to `kgc-ai-pipeline-chat-response-base-template.md`
@@ -63,7 +63,7 @@ On failure, Chat re-prompts up to 3 attempts using:
 - `reason: ...`
 - A truncated invalid output excerpt (reference only)
 
-`sidePanelChatSubmitCoordinator.ts` owns that retry lifecycle and delegates KGC-specific validation/recovery to `sidePanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts`, and `chatHistoryWorkspace.kgc.recovery.ts`.
+`floatingPanelChatSubmitCoordinator.ts` owns that retry lifecycle and delegates KGC-specific validation/recovery to `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts`, and `chatHistoryWorkspace.kgc.recovery.ts`.
 
 If attempts are exhausted, Chat persists the best canonical recovered KGC candidate or a parser-safe deterministic KGC fallback while still returning a concise answer; Workspace surfaces never ingest broken Markdown.
 

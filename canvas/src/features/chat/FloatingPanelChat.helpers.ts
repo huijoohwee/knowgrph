@@ -3,12 +3,13 @@ import type { JSONValue } from '@/lib/graph/types'
 import type { GraphData } from '@/lib/graph/types'
 import {
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
   isResponsesEndpointUrl,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
 import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
-import type { ChatMessage } from './SidePanelChatSections'
+import type { ChatMessage } from './FloatingPanelChatSections'
 
 export const clampTemperature = (raw: unknown): number => {
   const t = Number(raw)
@@ -148,17 +149,18 @@ export const buildProviderChatRequestOptions = (args: {
     }
   }
 
-  if (provider !== CHAT_PROVIDER_OPENAI) return base
+  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND) return base
 
+  const providerLabel = provider === CHAT_PROVIDER_MIROMIND ? 'MiroMind' : 'OpenAI'
   const logprobs = coerceBooleanFlag(args.chatLogprobs, false)
   const topLogprobs = clampBytePlusTopLogprobs(args.chatTopLogprobs)
-  const stop = parseOptionalJsonConfig(args.chatStopJson, 'stop', 'OpenAI')
-  const streamOptions = parseOptionalJsonConfig(args.chatStreamOptionsJson, 'stream_options', 'OpenAI')
-  const text = parseOptionalJsonConfig(args.chatResponseFormatJson, 'text', 'OpenAI')
-  const responseFormat = parseOptionalJsonConfig(args.chatResponseFormatJson, 'response_format', 'OpenAI')
-  const logitBias = parseOptionalJsonConfig(args.chatLogitBiasJson, 'logit_bias', 'OpenAI')
-  const tools = parseOptionalJsonConfig(args.chatToolsJson, 'tools', 'OpenAI')
-  const toolChoice = parseOptionalJsonConfig(args.chatToolChoiceJson, 'tool_choice', 'OpenAI')
+  const stop = parseOptionalJsonConfig(args.chatStopJson, 'stop', providerLabel)
+  const streamOptions = parseOptionalJsonConfig(args.chatStreamOptionsJson, 'stream_options', providerLabel)
+  const text = parseOptionalJsonConfig(args.chatResponseFormatJson, 'text', providerLabel)
+  const responseFormat = parseOptionalJsonConfig(args.chatResponseFormatJson, 'response_format', providerLabel)
+  const logitBias = parseOptionalJsonConfig(args.chatLogitBiasJson, 'logit_bias', providerLabel)
+  const tools = parseOptionalJsonConfig(args.chatToolsJson, 'tools', providerLabel)
+  const toolChoice = parseOptionalJsonConfig(args.chatToolChoiceJson, 'tool_choice', providerLabel)
   const effort = normalizeBytePlusReasoningEffort(args.chatReasoningEffort)
 
   const topP = clampBytePlusTopP(args.chatTopP)
@@ -201,6 +203,22 @@ export const parseLine = (raw: unknown): number | null => {
   return null
 }
 
+export type ChatStreamUsage = {
+  promptTokens: number | null
+  completionTokens: number | null
+  totalTokens: number | null
+  reasoningTokens: number | null
+  numSearchQueries: number | null
+}
+
+export type AssistantStreamDelta = {
+  contentDelta: string
+  reasoningStepSummaries: string[]
+  finishReason: string | null
+  usage: ChatStreamUsage | null
+  modelId: string | null
+}
+
 export const buildHistoryKey = (graphData: GraphData | null): string => {
   const meta = graphData?.metadata || null
   const getString = (k: string) => {
@@ -225,17 +243,114 @@ export const buildHistoryKey = (graphData: GraphData | null): string => {
 }
 
 export const parseSseEvents = (buffer: string): { events: string[]; rest: string } => {
-  const lines = buffer.split(/\r?\n/)
-  const rest = lines.pop() || ''
+  const normalized = buffer.replace(/\r\n/g, '\n')
+  const blocks = normalized.split('\n\n')
+  const rest = blocks.pop() || ''
   const events: string[] = []
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-    if (!line.startsWith('data:')) continue
-    const payload = line.slice('data:'.length).trim()
-    if (!payload) continue
-    events.push(payload)
+  for (const block of blocks) {
+    const dataLines: string[] = []
+    block.split('\n').forEach(rawLine => {
+      const line = String(rawLine || '')
+      if (!line) return
+      if (line.startsWith(':')) return
+      if (!line.startsWith('data:')) return
+      dataLines.push(line.slice('data:'.length).trimStart())
+    })
+    const payload = dataLines.join('\n').trim()
+    if (payload) events.push(payload)
   }
   return { events, rest }
+}
+
+const toNullableNumber = (value: unknown): number | null => {
+  const next = Number(value)
+  return Number.isFinite(next) ? next : null
+}
+
+const formatReasoningStepSummary = (step: unknown): string => {
+  if (!step || typeof step !== 'object') return ''
+  const record = step as Record<string, unknown>
+  const type = typeof record.type === 'string' ? record.type.trim() : ''
+  const thought = typeof record.thought === 'string' ? record.thought.trim() : ''
+  const content = typeof record.content === 'string' ? record.content.trim() : ''
+  if (type === 'thinking') return thought || content || 'thinking'
+  if (type === 'web_search') {
+    const search = record.web_search
+    if (search && typeof search === 'object') {
+      const keywords = Array.isArray((search as { search_keywords?: unknown }).search_keywords)
+        ? ((search as { search_keywords: unknown[] }).search_keywords
+          .filter(item => typeof item === 'string')
+          .map(item => String(item).trim())
+          .filter(Boolean))
+        : []
+      if (keywords.length > 0) return `web_search: ${keywords.join(', ')}`
+    }
+    return 'web_search'
+  }
+  if (type === 'fetch_url_content') {
+    const fetchStep = record.fetch_url_content
+    if (fetchStep && typeof fetchStep === 'object') {
+      const title = typeof (fetchStep as { title?: unknown }).title === 'string'
+        ? String((fetchStep as { title: unknown }).title).trim()
+        : ''
+      const url = typeof (fetchStep as { url?: unknown }).url === 'string'
+        ? String((fetchStep as { url: unknown }).url).trim()
+        : ''
+      return `fetch_url: ${title || url || 'source'}`
+    }
+    return 'fetch_url'
+  }
+  if (type === 'execute_python' || type === 'execute_command') return type
+  return thought || content || type
+}
+
+export const formatChatStreamUsageSummary = (usage: ChatStreamUsage | null): string | null => {
+  if (!usage) return null
+  const parts = [
+    usage.promptTokens !== null ? `prompt ${usage.promptTokens}` : null,
+    usage.completionTokens !== null ? `completion ${usage.completionTokens}` : null,
+    usage.totalTokens !== null ? `total ${usage.totalTokens}` : null,
+    usage.reasoningTokens !== null ? `reasoning ${usage.reasoningTokens}` : null,
+    usage.numSearchQueries !== null ? `searches ${usage.numSearchQueries}` : null,
+  ].filter((value): value is string => Boolean(value))
+  return parts.length > 0 ? `Usage: ${parts.join(' · ')}` : null
+}
+
+export const extractAssistantStreamDelta = (payload: unknown): AssistantStreamDelta => {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      contentDelta: '',
+      reasoningStepSummaries: [],
+      finishReason: null,
+      usage: null,
+      modelId: null,
+    }
+  }
+  const record = payload as Record<string, unknown>
+  const choices = Array.isArray(record.choices) ? record.choices : []
+  const first = choices[0] && typeof choices[0] === 'object' ? choices[0] as Record<string, unknown> : null
+  const delta = first?.delta && typeof first.delta === 'object' ? first.delta as Record<string, unknown> : null
+  const reasoningSteps = Array.isArray(delta?.reasoning_steps)
+    ? delta.reasoning_steps
+      .map(formatReasoningStepSummary)
+      .filter(Boolean)
+    : []
+  const usage = record.usage && typeof record.usage === 'object'
+    ? {
+        promptTokens: toNullableNumber((record.usage as Record<string, unknown>).prompt_tokens),
+        completionTokens: toNullableNumber((record.usage as Record<string, unknown>).completion_tokens),
+        totalTokens: toNullableNumber((record.usage as Record<string, unknown>).total_tokens),
+        reasoningTokens: toNullableNumber((record.usage as Record<string, unknown>).reasoning_tokens),
+        numSearchQueries: toNullableNumber((record.usage as Record<string, unknown>).num_search_queries),
+      }
+    : null
+  return {
+    contentDelta: typeof delta?.content === 'string' ? String(delta.content) : '',
+    reasoningStepSummaries: reasoningSteps,
+    finishReason: typeof first?.finish_reason === 'string' ? String(first.finish_reason) : null,
+    usage,
+    modelId: typeof record.model === 'string' ? String(record.model) : null,
+  }
 }
 
 export const extractAssistantDelta = (payload: unknown): string => {

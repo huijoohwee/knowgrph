@@ -307,8 +307,8 @@ Key behaviors:
 - Canvas controls geospatial mounting via `geospatialModeEnabled`, derived from persisted UI state (`kg:ui:geospatial:overlayEnabled`) and updated via:
   - In-window `kg:geospatialModeChanged` CustomEvent (same-document updates)
   - `storage` events (cross-tab + external embedded preview iframe sync)
-- The MapLibre overlay is only mounted when `geospatialModeEnabled === true`, independent of SidePanel expand/collapse and tab selection.
-- Switching SidePanel tabs does not change `graphData`, editor contents, or Document Mode configuration.
+- The MapLibre overlay is only mounted when `geospatialModeEnabled === true`, independent of FloatingPanel expand/collapse and tab selection.
+- Switching FloatingPanel tabs does not change `graphData`, editor contents, or Document Mode configuration.
 - Gympgrph’s `setGeospatialModeEnabled(enabled)` toggles overlay state and interaction mode without mutating Knowgrph’s document parsers or markdown/JSON editors.
 
 **Result**:

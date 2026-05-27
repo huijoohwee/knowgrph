@@ -27,7 +27,7 @@ DeerFlow is a **first-class optional provider**, not a required dependency. Know
 | Image generation | Full (BytePlus) | Full |
 | Video generation | Full (BytePlus) | Full |
 | MainPanel Integrations | Full (all sections visible) | Full |
-| Side panel chat | Full | Full |
+| Floating panel chat | Full | Full |
 | Text generation (DeerFlow agent) | N/A | Full |
 | `npm run dev` | Full | Full |
 | `npm run dev:all` | Full (prints warning, skips DeerFlow) | Full |

@@ -4,7 +4,7 @@ import IconButton from '@/components/IconButton'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { PropsPanelOpenEventDetail, SidePanelOpenEventDetail } from '@/features/canvas/utils'
+import type { PropsPanelOpenEventDetail, FloatingPanelOpenEventDetail } from '@/features/canvas/utils'
 import { LS_KEYS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
@@ -104,7 +104,7 @@ export function ToolbarMenuLauncher({
       openRequestedFloatingPanel('renderer')
     }
 
-    const openSidePanel = (detail?: SidePanelOpenEventDetail) => {
+    const openFloatingPanel = (detail?: FloatingPanelOpenEventDetail) => {
       const tab = detail?.tab
       if (tab === 'inspector' || tab === 'node') {
         if (detail?.open === false) return
@@ -130,7 +130,7 @@ export function ToolbarMenuLauncher({
 
     return installFloatingPanelBridge({
       openPropsPanel,
-      openSidePanel,
+      openFloatingPanel,
       openRendererPanel,
     })
   }, [_onOpenMainPanel, closeToolMenu, setIsToolMenuOpen, setToolMenuDragPos])

@@ -229,7 +229,7 @@ export function FloatingPropsPanel() {
         headerClassName={`px-2 ${uiPanelTextFontClass}`}
       >
         <FloatingPropsPanelMenuButton onClick={doOpenNodeSide} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
-          {UI_COPY.propsPanelOpenInSidePanel}
+          {UI_COPY.propsPanelOpenInFloatingPanel}
         </FloatingPropsPanelMenuButton>
         <FloatingPropsPanelMenuButton onClick={doOpenNodeNodesTab} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelOpenInNodesTab}
@@ -569,10 +569,10 @@ export function FloatingPropsPanel() {
           {UI_COPY.propsPanelAddToChat}
         </FloatingPropsPanelMenuButton>
         <FloatingPropsPanelMenuButton onClick={doOpenSourceSide} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
-          {UI_COPY.propsPanelOpenSourceInSidePanel}
+          {UI_COPY.propsPanelOpenSourceInFloatingPanel}
         </FloatingPropsPanelMenuButton>
         <FloatingPropsPanelMenuButton onClick={doOpenTargetSide} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
-          {UI_COPY.propsPanelOpenTargetInSidePanel}
+          {UI_COPY.propsPanelOpenTargetInFloatingPanel}
         </FloatingPropsPanelMenuButton>
         <FloatingPropsPanelMenuButton onClick={doUpdateSource} disabled={!canUseEdgeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelUpdateSource}

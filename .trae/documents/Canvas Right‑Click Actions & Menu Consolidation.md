@@ -1,12 +1,12 @@
 ## Findings
 - Node context menu already supports:
-  - Side Panel open: `canvas/src/components/GraphCanvas.tsx:368–373`
+  - Floating Panel open: `canvas/src/components/GraphCanvas.tsx:368–373`
   - Bottom Panel → Nodes: `canvas/src/components/GraphCanvas.tsx:379–385`
   - Bottom Panel → Code Editor: `canvas/src/components/GraphCanvas.tsx:389–397`
   - Start Edge From Node: `canvas/src/components/GraphCanvas.tsx:400–410`
 - Edge context menu already supports:
-  - Source → Side Panel: `canvas/src/components/GraphCanvas.tsx:456–463`
-  - Target → Side Panel: `canvas/src/components/GraphCanvas.tsx:471–478`
+  - Source → Floating Panel: `canvas/src/components/GraphCanvas.tsx:456–463`
+  - Target → Floating Panel: `canvas/src/components/GraphCanvas.tsx:471–478`
   - Bottom Panel → Edges: `canvas/src/components/GraphCanvas.tsx:509–517`
   - Bottom Panel → Code Editor: `canvas/src/components/GraphCanvas.tsx:521–529`
 - Edge creation from node is implemented and tested:
@@ -16,7 +16,7 @@
 - Bottom Panel tabs and behavior:
   - Tab keys and routing: `canvas/src/components/BottomPanel.tsx:16`, `356–372`
   - Selection-driven centering for Code/Nodes/Edges: `canvas/src/components/BottomPanel.tsx:185–207`, `209–225`
-- Side Panel implementation:
+- Floating Panel implementation:
   - Layout and visibility: `canvas/src/pages/Canvas.tsx:96–109`
 - Duplication risk: a separate, unused menu component exists:
   - `canvas/src/components/GraphCanvas/Menu.tsx` (not imported anywhere). Inline menu lives in `GraphCanvas.tsx`.
@@ -30,7 +30,7 @@
 ## Implementation Plan
 ### Consolidate Context Menu
 - Enhance `canvas/src/components/GraphCanvas/Menu.tsx` to include missing actions:
-  - Node → Side Panel, Nodes tab, Code Editor
+  - Node → Floating Panel, Nodes tab, Code Editor
   - Edge → Edges tab, Code Editor
 - Export a `CanvasMenu` that accepts store actions (`selectNode`, `selectEdge`, `setSidebarOpen`, `setBottomPanelTab`) and refs (`svgRef`, `tempLinkSelRef`, `linkDragRef`).
 - Replace inline menu in `canvas/src/components/GraphCanvas.tsx` with `<CanvasMenu .../>`.
@@ -57,7 +57,7 @@
   - Node → Code tab selection: sets `bottomPanelTab='code'` and centers ID in editor.
   - Edge → Edges tab selection: sets `bottomPanelTab='edges'` and selects edge.
   - Edge → Code tab selection: sets `bottomPanelTab='code'` and centers ID in editor.
-  - Node → Side Panel: toggles `isSidebarOpen=true` and selection.
+  - Node → Floating Panel: toggles `isSidebarOpen=true` and selection.
   - Start Edge From Node → click another node: creates edge or selects existing.
 - Run existing dev‑console test runner (`knowgrphRunTests`) and manual interaction checks.
 

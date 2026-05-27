@@ -1,6 +1,6 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import SidePanelChat from '@/features/chat/SidePanelChat'
+import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
 import {
   readLocalChatPipelineSurfaceSnapshot,
   resetBrowserLocalSurfaceSnapshotsForTests,
@@ -141,7 +141,7 @@ export async function testSettingsCloudImportActionsKeepDraftStateLocalUntilAppl
       window: dom.window as unknown as Window,
       frames: 10,
     })
-    await mountReactRoot(chatRoot, React.createElement(SidePanelChat), {
+    await mountReactRoot(chatRoot, React.createElement(FloatingPanelChat), {
       window: dom.window as unknown as Window,
       frames: 8,
     })

@@ -12,7 +12,6 @@ import {
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-  CHAT_BYTEPLUS_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
@@ -20,8 +19,7 @@ import {
   CHAT_GEMINI_VIDEO_MODEL_DEFAULT,
   CHAT_GEMINI_VIDEO_MODEL_OPTIONS,
   CHAT_PROVIDER_OPTIONS,
-  CHAT_OPENAI_MODEL_OPTIONS,
-  CHAT_LOCAL_MODEL_OPTIONS,
+  getSharedChatModelCatalogOptions,
   normalizeChatEndpointUrlInput,
 } from '@/lib/chatEndpoint'
 import { DEFAULT_INTEGRATION_CONFIGS, stringifyIntegrationConfigs } from '@/features/integrations/config'
@@ -723,7 +721,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setChatModel(String(v || '').trim() || CHAT_DEFAULT_MODEL),
     docKey: 'chatModel',
     default: () => CHAT_DEFAULT_MODEL,
-    options: [...CHAT_OPENAI_MODEL_OPTIONS, ...CHAT_BYTEPLUS_MODEL_OPTIONS, ...CHAT_LOCAL_MODEL_OPTIONS],
+    options: getSharedChatModelCatalogOptions(),
   },
   {
     key: 'chatTemperature',

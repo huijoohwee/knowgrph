@@ -7,7 +7,7 @@ import type { HighlightedLineRange } from '@/features/markdown-workspace/markdow
 import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationIndex'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
-import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/lib/gympgrph/api'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import {
@@ -127,7 +127,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
           } catch {
             void 0
           }
-          emitSidePanelOpen({ tab: 'geo', open: true })
+          emitFloatingPanelOpen({ tab: 'geo', open: true })
         },
         loadGraphData: (data: { nodes?: unknown[]; edges?: unknown[] }) => {
           try {

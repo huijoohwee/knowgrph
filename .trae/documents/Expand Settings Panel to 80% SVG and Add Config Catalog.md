@@ -2,7 +2,7 @@
 - Size the Settings panel to 80% of the current canvas SVG: width = `canvasDims.w * 0.8`, height = `canvasDims.h * 0.8`.
 - Keep it as a translucent centered overlay and close on outside click.
 
-## Config Catalog (Side Panel)
+## Config Catalog (Floating Panel)
 - Left side: a scrollable navigation with categories:
   - From-Zero-to-One
   - From-Concept-to-Deploy

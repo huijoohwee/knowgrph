@@ -3,7 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_NODE_MEDIA_KIND, getNodeMediaSpec, patchNodeMediaProperties, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
-import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitChatInputAppend, emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createId } from '@/lib/id'
@@ -206,7 +206,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenNodeSide = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
     setSelectionSource('toolbar')
-    emitSidePanelOpen({ tab: 'node', open: true })
+    emitFloatingPanelOpen({ tab: 'node', open: true })
     selectNode(nodeContextId)
   }, [graphData, nodeContextId, selectNode, setSelectionSource])
 
@@ -355,7 +355,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
       return
     }
 
-    emitSidePanelOpen({ tab: 'chat', open: true })
+    emitFloatingPanelOpen({ tab: 'chat', open: true })
     const wrapped = ['Selection context (from canvas):', '', '````text', text, '````'].join('\n')
     emitChatInputAppend({ text: wrapped, mode: 'append' })
   }, [edgeContextId, graphData, graphLookup, nodeContextId])
@@ -409,7 +409,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!e) return
     const srcId = e.source
     setSelectionSource('toolbar')
-    emitSidePanelOpen({ tab: 'node', open: true })
+    emitFloatingPanelOpen({ tab: 'node', open: true })
     selectNode(srcId)
   }, [edgeContextId, graphLookup, selectNode, setSelectionSource])
 
@@ -419,7 +419,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!e) return
     const tgtId = e.target
     setSelectionSource('toolbar')
-    emitSidePanelOpen({ tab: 'node', open: true })
+    emitFloatingPanelOpen({ tab: 'node', open: true })
     selectNode(tgtId)
   }, [edgeContextId, graphLookup, selectNode, setSelectionSource])
 

@@ -1,7 +1,7 @@
 # Page Design Spec — Import/Indexing + Graph Visualization Workspace (Desktop-first)
 
 ## Global Styles
-- Layout system: CSS Grid for app shell (header/toolbar + main + side/bottom panels), Flexbox inside panels.
+- Layout system: CSS Grid for app shell (header/toolbar + main + side/bottom panels), Flexbox infloating panels.
 - Spacing: 8px base; panel gutters 12–16px; canvas is edge-to-edge behind overlays.
 - Typography: 12–14px UI text; 16px section titles; monospace for hashes/logs.
 - Colors: follow existing theme tokens; primary accent reserved for active mode; warning accent reserved for baseline-lock and truncation.
@@ -18,7 +18,7 @@
 ### Page Structure
 - Top: global toolbar (mode/layout/zoom switches) unchanged.
 - Bottom panel: “Workspace” tab (file tree + import actions) and “Indexing” subpanel.
-- Right side panel (optional): diagnostics/timings summary.
+- Right floating panel (optional): diagnostics/timings summary.
 
 ### Sections & Components
 1) Import Controls (bottom panel header row)
@@ -72,5 +72,5 @@
 - If baseline lock blocks a switch: show warning toast (no state change).
 
 ### Responsive behavior (desktop-first)
-- Desktop: bottom panel docked; side panel optional; canvas uses remaining space.
+- Desktop: bottom panel docked; floating panel optional; canvas uses remaining space.
 - Narrow widths: collapse diagnostics to a single “timings” chip; panels become tabbed overlays.

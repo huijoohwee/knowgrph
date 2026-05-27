@@ -93,7 +93,7 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
   return { default: c as React.ComponentType<GeospatialPanelHostProps> }
 })
 
-const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
 
 const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction'])
 
@@ -656,7 +656,7 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'design' && <DesignFloatingPanelView active={designPanelsAvailable} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>
-                <SidePanelChatLazy />
+                <FloatingPanelChatLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'geo' && (

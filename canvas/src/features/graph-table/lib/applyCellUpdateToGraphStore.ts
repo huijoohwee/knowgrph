@@ -45,7 +45,7 @@ export const applyCellUpdateToGraphStore = (
     }
     s.updateNode(rowId, { properties })
     if (columnKind === 'geodata' && !options?.skipGeospatialAutoEnable) {
-      void maybeAutoEnableGeospatialModeForGraphData({ graphData: useGraphStore.getState().graphData, openSidePanel: false })
+      void maybeAutoEnableGeospatialModeForGraphData({ graphData: useGraphStore.getState().graphData, openFloatingPanel: false })
     }
     return
   }

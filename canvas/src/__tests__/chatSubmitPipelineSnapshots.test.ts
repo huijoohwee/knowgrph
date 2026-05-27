@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import type { SidePanelChatSubmitArgs } from '@/features/chat/sidePanelChat/sidePanelChatSubmitTypes'
-import { executeSidePanelChatSubmitCoordinator } from '@/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator'
-import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
+import type { FloatingPanelChatSubmitArgs } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTypes'
+import { executeFloatingPanelChatSubmitCoordinator } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
+import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import {
   publishLocalChatPipelineSurfaceSnapshot,
   readLocalChatPipelineSurfaceSnapshot,
@@ -27,7 +27,7 @@ const readBaseTemplateSample = (): string => {
   return readFileSync(path, 'utf8')
 }
 
-const buildSubmitArgsFixture = (overrides: Partial<SidePanelChatSubmitArgs> = {}): SidePanelChatSubmitArgs => ({
+const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> = {}): FloatingPanelChatSubmitArgs => ({
   historyKey: 'history-key',
   graphData: null,
   currentNode: null,
@@ -118,13 +118,13 @@ const seedChatPipelineSnapshot = () => {
   })
 }
 
-export async function testExecuteSidePanelChatSubmitCoordinatorPublishesRetryThenAppliedPipelineSnapshots() {
+export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetryThenAppliedPipelineSnapshots() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
   const previousFetch = globalThis.fetch
-  let finalizeAssistantSuccess: SidePanelChatSubmitArgs['finalizeAssistantSuccess'] | null = null
+  let finalizeAssistantSuccess: FloatingPanelChatSubmitArgs['finalizeAssistantSuccess'] | null = null
   let transportCallCount = 0
   let retryInspection: ReturnType<typeof inspectLocalChatPipelineState> | null = null
   const connectivity: Array<'unknown' | 'ok' | 'error'> = []
@@ -188,7 +188,7 @@ export async function testExecuteSidePanelChatSubmitCoordinatorPublishesRetryThe
       streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
     })
 
-    await executeSidePanelChatSubmitCoordinator({
+    await executeFloatingPanelChatSubmitCoordinator({
       submitArgs,
       requestUrl: 'https://chat.example.test/v1/chat/completions',
       trimmedInput: 'Generate KGC',

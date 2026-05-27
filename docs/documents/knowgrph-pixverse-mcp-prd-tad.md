@@ -266,7 +266,7 @@ then users will be able to move from MainPanel discovery through chat/frontmatte
 | Shared settings owner | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsView.ts` | Shipped |
 | MCP documentation entry registry | `canvas/src/features/panels/views/settingsMcpDocEntries.ts` | Shipped |
 | MCP section CTA metadata | `canvas/src/features/panels/views/settingsView.constants.ts` | Shipped |
-| Floating chat owner | `canvas/src/features/chat/SidePanelChat.tsx` | Shipped |
+| Floating chat owner | `canvas/src/features/chat/FloatingPanelChat.tsx` | Shipped |
 | Browser-local apply path | chat submit helpers -> KGC -> markdown/frontmatter apply | Shipped |
 | Frontmatter parsing | `canvas/src/lib/markdown/frontmatter.ts` | Shipped |
 | Storyboard projection | `canvas/src/components/StoryboardCanvas/storyboardModel.ts` | Shipped |
@@ -387,7 +387,7 @@ flowchart TB
 | MainPanel | `PixVerse Video Generation docs` | `canvas/src/features/panels/views/pixverseVideoGenerationApiDocs.ts` | Shipped | PixVerse-aware Integrations documentation rows |
 | MainPanel | `buildMcpDocEntries()` | `settingsMcpDocEntries.ts` | Modify | Register PixVerse MCP entries in shared MCP list |
 | MainPanel | `MCP_SECTION_META` | `settingsView.constants.ts` | Modify | Define PixVerse MCP docs CTA and explanatory note |
-| Chat | `SidePanelChat` | `canvas/src/features/chat/SidePanelChat.tsx` | Shipped | Existing downstream chat workflow |
+| Chat | `FloatingPanelChat` | `canvas/src/features/chat/FloatingPanelChat.tsx` | Shipped | Existing downstream chat workflow |
 | Parser | Frontmatter parser | `canvas/src/lib/markdown/frontmatter.ts` | Shipped | Canvas-view and frontmatter preset parsing |
 | Parser | Frontmatter flow graph parser | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowBlock.ts` | Shipped | Canonical graph derivation from markdown |
 | Renderer | Storyboard projection | `storyboardModel.ts` | Shipped | Lane/card projection from GraphData |

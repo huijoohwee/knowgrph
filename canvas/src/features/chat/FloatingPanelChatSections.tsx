@@ -6,6 +6,15 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
+export type StreamingAssistantState = {
+  id: string
+  text: string
+  reasoningPreview?: string | null
+  reasoningStepCount?: number
+  usageSummary?: string | null
+  finishReason?: string | null
+  modelId?: string | null
+}
 
 const WORKSPACE_LINK_RE = /\[([^\]]+)\]\((\/[^\s)]+\.md)\)/g
 
@@ -86,7 +95,7 @@ type MessagesSectionProps = {
   messages: ChatMessage[]
   isLoading: boolean
   historyKey: string
-  streamingAssistant?: { id: string; text: string } | null
+  streamingAssistant?: StreamingAssistantState | null
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMicroLabelTextSizeClass: string
@@ -94,7 +103,7 @@ type MessagesSectionProps = {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 }
 
-export function SidePanelChatMessagesSection({
+export function FloatingPanelChatMessagesSection({
   messages,
   isLoading,
   historyKey,
@@ -165,11 +174,12 @@ type FooterProps = {
   connectivity: 'unknown' | 'ok' | 'error'
   connectivityDetail: string | null
   currentNode: GraphNode | null
-  providerSummary: string
-  providerHint: string
   modelId: string
   modelOptions: string[]
   onModelChanged: (modelId: string) => void
+  streamingReasoningPreview?: string | null
+  streamingUsageSummary?: string | null
+  streamingFinishReason?: string | null
   writingWorkspaceFileLabel?: string | null
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
@@ -181,7 +191,7 @@ type FooterProps = {
   onNewChat?: () => void
 }
 
-export function SidePanelChatFooter({
+export function FloatingPanelChatFooter({
   input,
   setInput,
   isLoading,
@@ -189,11 +199,12 @@ export function SidePanelChatFooter({
   connectivity,
   connectivityDetail,
   currentNode,
-  providerSummary,
-  providerHint,
   modelId,
   modelOptions,
   onModelChanged,
+  streamingReasoningPreview,
+  streamingUsageSummary,
+  streamingFinishReason,
   writingWorkspaceFileLabel,
   uiPanelTextFontClass,
   uiPanelMicroLabelTextSizeClass,
@@ -223,11 +234,6 @@ export function SidePanelChatFooter({
           {connectivity === 'ok' ? UI_COPY.chatEndpointOkStatus : connectivityDetail || UI_COPY.chatEndpointUnreachableStatus}
         </div>
       )}
-
-      <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
-        {providerSummary}
-      </div>
-
       {modelOptions.length > 0 && (
         <div className="flex items-center justify-between gap-2">
           <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
@@ -251,9 +257,21 @@ export function SidePanelChatFooter({
           </select>
         </div>
       )}
-      <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
-        {providerHint}
-      </div>
+      {streamingReasoningPreview ? (
+        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+          {streamingReasoningPreview}
+        </div>
+      ) : null}
+      {streamingUsageSummary ? (
+        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+          {streamingUsageSummary}
+        </div>
+      ) : null}
+      {streamingFinishReason ? (
+        <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+          Finish: {streamingFinishReason}
+        </div>
+      ) : null}
       {writingWorkspaceFileLabel && (
         <div className={[uiPanelTextFontClass, 'text-[10px]', 'inline-flex items-center rounded px-1.5 py-0.5 border', UI_THEME_TOKENS.status.info].join(' ')}>
           {writingWorkspaceFileLabel}
@@ -271,12 +289,12 @@ export function SidePanelChatFooter({
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
-            {currentNode
-              ? UI_COPY.chatUsingSelectedNodeContextStatus(currentNode.label, currentNode.type)
-              : UI_COPY.chatNoSelectionContextStatus}
-          </div>
+        <div className={`flex items-center ${currentNode ? 'justify-between' : 'justify-end'}`}>
+          {currentNode ? (
+            <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+              {UI_COPY.chatUsingSelectedNodeContextStatus(currentNode.label, currentNode.type)}
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             {showNewChatButton && (
               <button

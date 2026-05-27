@@ -1,22 +1,22 @@
 import { UI_COPY } from '@/lib/config'
 import { CHAT_AI_MARKDOWN_MAX_RETRY } from '../chatAiMarkdownSpec'
 import { upsertChatHistoryWorkspaceDraft } from '../chatHistoryWorkspace'
-import { loadAvailableModelIds, parseErrorBody } from '../SidePanelChat.helpers'
-import type { ChatMessage } from '../SidePanelChatSections'
-import { resolveChatKnowgrphAttempt } from './sidePanelChatKgcAttempt'
-import { handleSubmitIssueExit, resolveSubmitRuntimeFriendlyMessage } from './sidePanelChatSubmitErrors'
-import { finalizeSubmitTerminalState } from './sidePanelChatSubmitLifecycle'
+import { loadAvailableModelIds, parseErrorBody } from '../FloatingPanelChat.helpers'
+import type { ChatMessage } from '../FloatingPanelChatSections'
+import { resolveChatKnowgrphAttempt } from './floatingPanelChatKgcAttempt'
+import { handleSubmitIssueExit, resolveSubmitRuntimeFriendlyMessage } from './floatingPanelChatSubmitErrors'
+import { finalizeSubmitTerminalState } from './floatingPanelChatSubmitLifecycle'
 import {
   buildChatSubmitPayloadMessages,
   buildChatSubmitRequestContext,
   createChatSubmitRequestSender,
   resolveChatSubmitTokenLimitKey,
   resolveInitialChatSubmitModel,
-} from './sidePanelChatSubmitRequest'
-import { bootstrapKnowgrphSubmitDraft } from './sidePanelChatSubmitPreflight'
-import { executeChatSubmitTransportAttempt } from './sidePanelChatSubmitTransport'
-import { createChatKnowgrphDraftWriter, readAssistantResponseText } from './sidePanelChatStreaming'
-import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
+} from './floatingPanelChatSubmitRequest'
+import { bootstrapKnowgrphSubmitDraft } from './floatingPanelChatSubmitPreflight'
+import { executeChatSubmitTransportAttempt } from './floatingPanelChatSubmitTransport'
+import { createChatKnowgrphDraftWriter, readAssistantResponseText } from './floatingPanelChatStreaming'
+import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 import { resolveChatEndpointForModels, buildChatProxyHeaders, CHAT_DEFAULT_ENDPOINT_URL } from '@/lib/chatEndpoint'
 import {
   publishLocalChatPipelineFinalizeSnapshot,
@@ -25,8 +25,8 @@ import {
 
 type SubmitRequestContext = Awaited<ReturnType<typeof buildChatSubmitRequestContext>>
 
-export const executeSidePanelChatSubmitCoordinator = async (args: {
-  submitArgs: SidePanelChatSubmitArgs
+export const executeFloatingPanelChatSubmitCoordinator = async (args: {
+  submitArgs: FloatingPanelChatSubmitArgs
   requestUrl: string
   trimmedInput: string
   assistantMessageId: string
@@ -35,7 +35,7 @@ export const executeSidePanelChatSubmitCoordinator = async (args: {
   traceId: string
   bootstrapDraft?: typeof bootstrapKnowgrphSubmitDraft
   buildRequestContext?: (args: {
-    submitArgs: SidePanelChatSubmitArgs
+    submitArgs: FloatingPanelChatSubmitArgs
     nextMessages: ChatMessage[]
     assistantMessageId: string
   }) => Promise<SubmitRequestContext>
@@ -203,11 +203,30 @@ export const executeSidePanelChatSubmitCoordinator = async (args: {
         setChatKnowgrphWorkspacePath: args.submitArgs.setChatKnowgrphWorkspacePath,
         persistDraft: upsertChatHistoryWorkspaceDraft,
       })
-      const assistantText = await readAssistantResponse({
+      const assistantStream = await readAssistantResponse({
         response: res,
         isEventStream: contentType.includes('text/event-stream'),
         flushDraft,
+        onProgress: nextState => {
+          args.submitArgs.setStreamingAssistant(current => ({
+            id: current?.id || args.assistantMessageId,
+            text: nextState.assistantText,
+            reasoningPreview: nextState.reasoningPreview,
+            reasoningStepCount: nextState.reasoningStepCount,
+            usageSummary: nextState.usageSummary,
+            finishReason: nextState.finishReason,
+            modelId: nextState.modelId,
+          }))
+          args.submitArgs.setStreamingInsights({
+            reasoningPreview: nextState.reasoningPreview,
+            reasoningStepCount: nextState.reasoningStepCount,
+            usageSummary: nextState.usageSummary,
+            finishReason: nextState.finishReason,
+            modelId: nextState.modelId,
+          })
+        },
       })
+      const assistantText = assistantStream.assistantText
 
       if (!assistantText) {
         handleIssueExit({

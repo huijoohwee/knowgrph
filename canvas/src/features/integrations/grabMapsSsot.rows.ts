@@ -400,7 +400,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     ssot: 'https://datatracker.ietf.org/doc/html/rfc7946',
     module: ['canvas/src/features/geospatial/geoIndex.ts', 'canvas/src/features/panels/views/SettingsView.tsx'],
     className: ['SettingsView'],
-    functionName: ['emitSidePanelOpen'],
+    functionName: ['emitFloatingPanelOpen'],
     responsibility: 'Floating Geo panel entrypoint for rendered map output and geospatial datasets.',
     searchHints: ['geo panel floating panel geospatial'],
   },

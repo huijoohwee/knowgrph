@@ -40,7 +40,7 @@ import {
   useWorkspaceDataViewFloatingRegistration,
   type WorkspaceDataViewSettingsPanelKey,
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
-import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 type MarkdownDataViewBlockProps = {
@@ -321,7 +321,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
 
   const openViewSettingsPanel = React.useCallback((panel: WorkspaceDataViewSettingsPanelKey) => {
     setSettingsPanel(panel)
-    emitSidePanelOpen({ tab: 'view', open: true })
+    emitFloatingPanelOpen({ tab: 'view', open: true })
   }, [])
 
   const floatingBinding = React.useMemo(() => {

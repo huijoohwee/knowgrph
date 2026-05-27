@@ -10,8 +10,8 @@ export const testGeospatialOverlayHostNotGatedBySidebar = () => {
   const text = readUtf8(canvasPath)
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const viewportText = readUtf8(viewportPath)
-  if (text.includes("active={isSidebarOpen && sidePanelTab === 'geo'}")) {
-    throw new Error('GeospatialOverlayHost must not be gated by SidePanel expand/collapse')
+  if (text.includes("active={isSidebarOpen && floatingPanelTab === 'geo'}")) {
+    throw new Error('GeospatialOverlayHost must not be gated by FloatingPanel expand/collapse')
   }
   if (!text.includes('geospatialModeEnabled')) throw new Error('Expected geospatialModeEnabled state to exist')
   if (!(text.includes('geospatialModeEnabled &&') || viewportText.includes('geospatialModeEnabled &&'))) {

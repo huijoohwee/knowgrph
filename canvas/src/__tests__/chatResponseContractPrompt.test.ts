@@ -10,43 +10,43 @@ import {
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { normalizeKgcFrontmatterIdentityToFileName } from '@/features/chat/chatHistoryWorkspace.kgc.normalize'
-import { extractKgcBlockFromAssistantText } from '@/features/chat/SidePanelChat.helpers'
+import { extractKgcBlockFromAssistantText } from '@/features/chat/FloatingPanelChat.helpers'
 import {
   resolveChatKnowgrphAttempt,
   resolveKgcCorrectionInvalidMarkdown,
-} from '@/features/chat/sidePanelChat/sidePanelChatKgcAttempt'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt'
 import {
   dismissPendingSubmitAssistant,
   finalizeSubmitTerminalState,
-} from '@/features/chat/sidePanelChat/sidePanelChatSubmitLifecycle'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitLifecycle'
 import {
   handleSubmitIssueExit,
   resolveSubmitRuntimeFriendlyMessage,
-} from '@/features/chat/sidePanelChat/sidePanelChatSubmitErrors'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitErrors'
 import {
   executeChatSubmitTransportAttempt,
   resolvePreferredFallbackModel,
-} from '@/features/chat/sidePanelChat/sidePanelChatSubmitTransport'
-import type { SidePanelChatSubmitArgs } from '@/features/chat/sidePanelChat/sidePanelChatSubmitTypes'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport'
+import type { FloatingPanelChatSubmitArgs } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTypes'
 import {
   buildChatSubmitPayloadMessages,
   buildChatSubmitRequestContext,
   createChatSubmitRequestSender,
   resolveChatSubmitTokenLimitKey,
   resolveInitialChatSubmitModel,
-} from '@/features/chat/sidePanelChat/sidePanelChatSubmitRequest'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest'
 import {
   bootstrapKnowgrphSubmitDraft,
   initializeChatSubmitOptimisticState,
   resolveChatSubmitRequestUrlOrSetError,
-} from '@/features/chat/sidePanelChat/sidePanelChatSubmitPreflight'
-import { executeSidePanelChatSubmitCoordinator } from '@/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator'
-import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitPreflight'
+import { executeFloatingPanelChatSubmitCoordinator } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
+import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import {
   createChatKnowgrphDraftWriter,
   readAssistantResponseText,
-} from '@/features/chat/sidePanelChat/sidePanelChatStreaming'
-import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatStreaming'
+import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import {
   toCanonicalKgcWorkspacePath,
   toKgcOutputWorkspacePath,
@@ -80,7 +80,7 @@ const readBaseTemplateSample = (): string => {
   return readFileSync(p, 'utf8')
 }
 
-const buildSubmitArgsFixture = (overrides: Partial<SidePanelChatSubmitArgs> = {}): SidePanelChatSubmitArgs => ({
+const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> = {}): FloatingPanelChatSubmitArgs => ({
   historyKey: 'history-key',
   graphData: null,
   currentNode: null,
@@ -375,7 +375,7 @@ export async function testBootstrapKnowgrphSubmitDraftSeedsTraceWorkspaceAndEmpt
   }
 }
 
-export async function testExecuteSidePanelChatSubmitCoordinatorFinalizesSimpleChatHistorySuccess() {
+export async function testExecuteFloatingPanelChatSubmitCoordinatorFinalizesSimpleChatHistorySuccess() {
   const finalized: Array<{ modelId: string; rawAssistantText: string }> = []
   const connectivity: Array<'unknown' | 'ok' | 'error'> = []
   const connectivityDetail: Array<string | null> = []
@@ -391,7 +391,7 @@ export async function testExecuteSidePanelChatSubmitCoordinatorFinalizesSimpleCh
     streamDraftTextRef: { current: null },
     streamFollowRef: { current: null },
   })
-  await executeSidePanelChatSubmitCoordinator({
+  await executeFloatingPanelChatSubmitCoordinator({
     submitArgs,
     requestUrl: 'https://chat.example.test/v1/chat/completions',
     trimmedInput: 'Generate KGC',
@@ -427,13 +427,13 @@ export async function testExecuteSidePanelChatSubmitCoordinatorFinalizesSimpleCh
   }
 }
 
-export async function testExecuteSidePanelChatSubmitCoordinatorPublishesValidatedAndAppliedPipelineSnapshots() {
+export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesValidatedAndAppliedPipelineSnapshots() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
   const previousFetch = globalThis.fetch
-  let finalizeAssistantSuccess: SidePanelChatSubmitArgs['finalizeAssistantSuccess'] | null = null
+  let finalizeAssistantSuccess: FloatingPanelChatSubmitArgs['finalizeAssistantSuccess'] | null = null
   const connectivity: Array<'unknown' | 'ok' | 'error'> = []
   const connectivityDetail: Array<string | null> = []
   const resolvedKnowgrphPaths: string[] = []
@@ -534,7 +534,7 @@ export async function testExecuteSidePanelChatSubmitCoordinatorPublishesValidate
       streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
     })
 
-    await executeSidePanelChatSubmitCoordinator({
+    await executeFloatingPanelChatSubmitCoordinator({
       submitArgs,
       requestUrl: 'https://chat.example.test/v1/chat/completions',
       trimmedInput: 'Generate KGC',
@@ -600,7 +600,7 @@ export async function testExecuteSidePanelChatSubmitCoordinatorPublishesValidate
   }
 }
 
-export async function testUseSidePanelChatSubmitDelegatesToCoordinatorOnce() {
+export async function testUseFloatingPanelChatSubmitDelegatesToCoordinatorOnce() {
   const { restore: restoreWindow } = initWindowHarness()
   const { dom, restore: restoreDom } = initJsdomHarness()
   let root: ReturnType<typeof createRoot> | null = null
@@ -619,7 +619,7 @@ export async function testUseSidePanelChatSubmitDelegatesToCoordinatorOnce() {
     })
 
     const HookHarness = () => {
-      const handler = useSidePanelChatSubmit(args, {
+      const handler = useFloatingPanelChatSubmit(args, {
         resolveRequestUrlOrSetError: () => 'https://chat.example.test/v1/chat/completions',
         initializeOptimisticState: () => ({
           userMessageId: 'user-1',
@@ -842,7 +842,7 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
 }
 
 export function testChatKgcFinalizeAppliesSavedWorkspaceDocumentToCanvas() {
-  const finalizeText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'sidePanelChat', 'useFinalizeAssistantSuccess.ts'), 'utf8')
+  const finalizeText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'floatingPanelChat', 'useFinalizeAssistantSuccess.ts'), 'utf8')
   const applyText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatKgcCanvasApply.ts'), 'utf8')
   const requiredFinalizeSnippets = [
     'applyChatKgcWorkspaceDocumentToCanvas',

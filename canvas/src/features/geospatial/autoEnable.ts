@@ -1,7 +1,7 @@
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
-import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 
 const hasGeoNodes = (graphData: GraphData): boolean => {
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
@@ -19,7 +19,7 @@ const hasGeoNodes = (graphData: GraphData): boolean => {
 
 export async function maybeAutoEnableGeospatialModeForGraphData(args: {
   graphData: GraphData | null | undefined
-  openSidePanel?: boolean
+  openFloatingPanel?: boolean
 }): Promise<void> {
   const graphData = args.graphData
   if (!graphData) return
@@ -32,7 +32,7 @@ export async function maybeAutoEnableGeospatialModeForGraphData(args: {
 
   try {
     const enabled = await setGeospatialModeEnabled(true)
-    if (enabled && args.openSidePanel) emitSidePanelOpen({ tab: 'geo', open: true })
+    if (enabled && args.openFloatingPanel) emitFloatingPanelOpen({ tab: 'geo', open: true })
   } catch {
     void 0
   }

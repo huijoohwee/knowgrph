@@ -2,25 +2,25 @@ import React from 'react'
 import {
   initializeChatSubmitOptimisticState,
   resolveChatSubmitRequestUrlOrSetError,
-} from './sidePanelChatSubmitPreflight'
-import { executeSidePanelChatSubmitCoordinator } from './sidePanelChatSubmitCoordinator'
-import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
+} from './floatingPanelChatSubmitPreflight'
+import { executeFloatingPanelChatSubmitCoordinator } from './floatingPanelChatSubmitCoordinator'
+import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 
-export type SidePanelChatSubmitHookDeps = {
+export type FloatingPanelChatSubmitHookDeps = {
   resolveRequestUrlOrSetError?: typeof resolveChatSubmitRequestUrlOrSetError
   initializeOptimisticState?: typeof initializeChatSubmitOptimisticState
-  executeCoordinator?: typeof executeSidePanelChatSubmitCoordinator
+  executeCoordinator?: typeof executeFloatingPanelChatSubmitCoordinator
 }
 
 // Keep the hook as a thin shell so request-build, transport, streaming, and
 // KGC retry logic stay centralized in the dedicated submit helpers.
-export const useSidePanelChatSubmit = (
-  args: SidePanelChatSubmitArgs,
-  deps: SidePanelChatSubmitHookDeps = {},
+export const useFloatingPanelChatSubmit = (
+  args: FloatingPanelChatSubmitArgs,
+  deps: FloatingPanelChatSubmitHookDeps = {},
 ) => {
   const resolveRequestUrlOrSetError = deps.resolveRequestUrlOrSetError || resolveChatSubmitRequestUrlOrSetError
   const initializeOptimisticState = deps.initializeOptimisticState || initializeChatSubmitOptimisticState
-  const executeCoordinator = deps.executeCoordinator || executeSidePanelChatSubmitCoordinator
+  const executeCoordinator = deps.executeCoordinator || executeFloatingPanelChatSubmitCoordinator
 
   return React.useCallback<React.FormEventHandler<HTMLFormElement>>(async ev => {
     ev.preventDefault()
@@ -48,6 +48,7 @@ export const useSidePanelChatSubmit = (
       setErrorText: args.setErrorText,
       setConnectivityDetail: args.setConnectivityDetail,
       setStreamingAssistant: args.setStreamingAssistant,
+      setStreamingInsights: args.setStreamingInsights,
       setMessages: args.setMessages,
       setInput: args.setInput,
       setIsLoading: args.setIsLoading,

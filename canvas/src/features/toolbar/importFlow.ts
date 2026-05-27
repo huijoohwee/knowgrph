@@ -38,7 +38,7 @@ export async function runImportFlow(args: {
       }
     }
     if (sideEffectsEnabled) {
-      await maybeAutoEnableGeospatialModeForGraphData({ graphData: res.graphData, openSidePanel: true })
+      await maybeAutoEnableGeospatialModeForGraphData({ graphData: res.graphData, openFloatingPanel: true })
     }
     return res
   } catch {

@@ -46,7 +46,7 @@ import { WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE } 
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
-import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import {
   buildDataViewCandidates,
   tryBuildApiGraphMarkdownTablesFromJson,
@@ -474,7 +474,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
 
   const openViewSettingsPanel = React.useCallback((panel: 'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'reset') => {
     setSettingsPanel(panel)
-    emitSidePanelOpen({ tab: 'view', open: true })
+    emitFloatingPanelOpen({ tab: 'view', open: true })
   }, [])
 
   const viewSettingsBinding = React.useMemo<WorkspaceDataViewFloatingBinding | null>(() => {

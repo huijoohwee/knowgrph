@@ -53,6 +53,7 @@ const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const KG_FS_LIST_PATH = '/__kg_fs_list'
 const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
+const CHAT_PROXY_MIROMIND_HOST = 'api.miromind.ai'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
@@ -71,14 +72,14 @@ const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HO
 const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
-  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   const out = new Set<string>()
   envValue
     .split(',')
     .map(part => normalizeHost(part))
     .filter(Boolean)
     .forEach(host => out.add(host))
-  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   return out
 }
 const toLogSafeText = (value: unknown): string => {
@@ -1813,6 +1814,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const localGatewayOnly = gatewayMode === 'local-only' || (gatewayMode.endsWith('-only') && gatewayMode !== 'openai-only')
     const localProviderSelected = providerHeader === 'lmstudio-local'
     const bytePlusProviderSelected = providerHeader === 'byteplus-modelark'
+    const miromindProviderSelected = providerHeader === 'miromind'
     if (localGatewayOnly && providerHeader === 'openai') {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -1828,6 +1830,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
         return localGatewayBase || legacyLocalUpstream || String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
       }
       if (bytePlusProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST}`
+      if (miromindProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_MIROMIND_HOST}`
       if (providerHeader === 'openai') return 'https://api.openai.com'
       if (requestedUpstreamRaw) return requestedUpstreamRaw
       return String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
@@ -1861,19 +1864,35 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     }
     const bytePlusUpstreamSelected = bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname)
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
+    const requiresMiroMindKey = !localGatewayOnly && (miromindProviderSelected || upstreamHostname === CHAT_PROXY_MIROMIND_HOST)
     const requiresBytePlusKey = !localGatewayOnly && bytePlusUpstreamSelected
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
+    const envMiroMindApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY || process.env.MIROMIND_API_KEY || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
     const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
     const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
+    const miromindApiKey = (headerProviderApiKey || envMiroMindApiKey).slice(0, 512)
     const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
-    const providerApiKey = requiresBytePlusKey ? bytePlusApiKey : openAiApiKey
+    const providerApiKey = requiresBytePlusKey
+      ? bytePlusApiKey
+      : requiresMiroMindKey
+        ? miromindApiKey
+        : openAiApiKey
     if (requiresOpenAiKey && !openAiApiKey) {
       res.statusCode = 401
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify({
         ok: false,
         error: 'Missing OpenAI API key for chat proxy upstream. Set Settings → Chat auth to BYOK, or export OPENAI_API_KEY and restart the dev server.',
+      }))
+      return
+    }
+    if (requiresMiroMindKey && !providerApiKey) {
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({
+        ok: false,
+        error: 'Missing MiroMind API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export MIROMIND_API_KEY and restart the dev server.',
       }))
       return
     }

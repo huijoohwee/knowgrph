@@ -157,9 +157,9 @@ Knowgrph does not currently aim to:
 | MainPanel Integrations hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/IntegrationsHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | Integrations is a thin `SettingsView` specialization, not a second routing owner |
 | MainPanel MCP hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/McpHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | MCP is also a thin `SettingsView` specialization, not a separate chat pipeline |
 | Chat integration routing and presets | Implemented | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Future MCP deep links must reuse the same chat routing, model, and open-panel helpers |
-| FloatingPanel chat submit pipeline | Implemented | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` + coordinator helpers | Browser-local today; not yet exposed as a first-class WebMCP or HTTP MCP tool chain |
-| KGC validation and recovery | Implemented | `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + recovery helpers | Wrapper prose and parallel grouping aliases are rejected or stripped upstream before canvas apply |
-| Chat finalize -> canvas apply | Implemented | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Writes canonical workspace KGC first, then applies to graph through existing store actions |
+| FloatingPanel chat submit pipeline | Implemented | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` + coordinator helpers | Browser-local today; not yet exposed as a first-class WebMCP or HTTP MCP tool chain |
+| KGC validation and recovery | Implemented | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + recovery helpers | Wrapper prose and parallel grouping aliases are rejected or stripped upstream before canvas apply |
+| Chat finalize -> canvas apply | Implemented | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Writes canonical workspace KGC first, then applies to graph through existing store actions |
 | Frontmatter-flow parse priority and graph composition | Implemented | `canvas/src/features/parsers/default.ts` + `canvas/src/features/parsers/markdownFrontmatterFlowGraph.*` | `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown |
 | Subgraph/group projection | Implemented | `canvas/src/lib/graph/subgraphs.ts` + `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | `flow.subgraphs` remains the sole authoring surface; rendered groups are downstream projection only |
 | API catalog | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | `status` relation now targets `/knowgrph/health` |
@@ -190,11 +190,11 @@ Knowgrph does not currently aim to:
 | MainPanel MCP hub | `canvas/src/features/panels/views/McpHubView.tsx` | Thin `SettingsView mode="mcp"` shell |
 | Settings-mode filtering and action registration | `canvas/src/features/panels/views/SettingsView.tsx` | Shared owner for integrations and MCP surfaces |
 | Chat routing and integration assist helpers | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Owns presets, context scope, integration enablement, and open-chat handoff |
-| FloatingPanel chat UI | `canvas/src/features/chat/SidePanelChat.tsx` | Owns interactive chat experience inside the floating panel |
-| Chat submit shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Must remain a thin shell over centralized submit helpers |
-| Chat submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | Owns request lifecycle, streaming, retry, KGC validation, and finalize sequencing |
+| FloatingPanel chat UI | `canvas/src/features/chat/FloatingPanelChat.tsx` | Owns interactive chat experience inside the floating panel |
+| Chat submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Must remain a thin shell over centralized submit helpers |
+| Chat submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Owns request lifecycle, streaming, retry, KGC validation, and finalize sequencing |
 | KGC recovery and validation | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` | Owns wrapper salvage, frontmatter-first enforcement, and grouping-surface validation |
-| Chat finalize and canvas bridge | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Owns canonical workspace persistence then canvas apply |
+| Chat finalize and canvas bridge | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Owns canonical workspace persistence then canvas apply |
 | Storage route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Owns workspace id constant and route builders |
 | Storage worker doc routes | `cloudflare/workers/knowgrph-storage/index.ts` | Serves `/api/storage/doc-default/*` and `/api/storage/doc/*` |
 | Storage worker crawler index | `cloudflare/workers/knowgrph-storage/crawler.ts` | Lists D1-backed published Source Files and points crawlers at doc-view routes for Markdown-pane content |
@@ -230,7 +230,7 @@ The following are explicitly non-authoritative and must not be used to justify n
 - any parallel MainPanel MCP configuration system that bypasses `SettingsView`,
   `useSettingsChatAssist()`, or the existing open-panel helpers
 - any second LLM output -> Markdown -> Canvas graph pipeline that bypasses
-  `useSidePanelChatSubmit()`, the submit coordinator helpers, KGC recovery/validation, or
+  `useFloatingPanelChatSubmit()`, the submit coordinator helpers, KGC recovery/validation, or
   `applyChatKgcWorkspaceDocumentToCanvas()`
 - any grouping authoring alias besides canonical `flow.subgraphs`, including `kg:subgraphs`,
   `clusters`, `groups`, or `layers` as a parallel upstream source
@@ -401,7 +401,7 @@ UI owners or stale downstream panel logic.
 - chat integration routing, preset application, context-scope changes, and model refresh live in
   `useSettingsChatAssist.tsx`
 - section-level open-panel actions route to FloatingPanel chat through the shared
-  `emitSidePanelOpen({ tab: 'chat', open: true })` path
+  `emitFloatingPanelOpen({ tab: 'chat', open: true })` path
 - MainPanel `mcp` and MainPanel `integrations` therefore already converge on one upstream settings
   and chat-routing owner
 
@@ -563,9 +563,9 @@ not create a second LLM-to-graph architecture.
 
 #### Implemented acceptance
 
-- `useSidePanelChatSubmit()` stays a thin shell that delegates lifecycle work to the submit helper
+- `useFloatingPanelChatSubmit()` stays a thin shell that delegates lifecycle work to the submit helper
   stack
-- `sidePanelChatSubmitCoordinator.ts` owns draft bootstrap, request context, transport retry,
+- `floatingPanelChatSubmitCoordinator.ts` owns draft bootstrap, request context, transport retry,
   response streaming, KGC validation/retry, and finalize sequencing
 - `chatMarkdownValidation.ts` enforces frontmatter-first output, canonical frontmatter shape, and
   `flow.subgraphs` as the sole grouping surface
@@ -689,10 +689,10 @@ flowchart LR
   A["MainPanel integrations tab"] --> C["SettingsView"]
   B["MainPanel mcp tab"] --> C
   C --> D["useSettingsChatAssist()"]
-  D --> E["emitSidePanelOpen(tab=chat)"]
-  E --> F["FloatingPanel / SidePanelChat"]
-  F --> G["useSidePanelChatSubmit()"]
-  G --> H["sidePanelChatSubmitCoordinator.ts"]
+  D --> E["emitFloatingPanelOpen(tab=chat)"]
+  E --> F["FloatingPanel / FloatingPanelChat"]
+  F --> G["useFloatingPanelChatSubmit()"]
+  G --> H["floatingPanelChatSubmitCoordinator.ts"]
   H --> I["streaming draft + KGC retry"]
   I --> J["chatMarkdownValidation.ts"]
   J --> K["useFinalizeAssistantSuccess()"]
@@ -713,7 +713,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - canonical workspace/source-file path resolution
 - canonical Markdown body produced by the existing workspace write-through flow
 - canonical MainPanel ownership where `integrations` and `mcp` stay thin `SettingsView` shells
-- canonical chat submit ownership where `useSidePanelChatSubmit()` remains a thin shell and the
+- canonical chat submit ownership where `useFloatingPanelChatSubmit()` remains a thin shell and the
   coordinator/helper stack owns lifecycle complexity
 - canonical KGC contract where output starts at YAML frontmatter and `flow.subgraphs` is the only
   upstream grouping surface
@@ -786,14 +786,14 @@ runtime agent surface must converge on the same document identity and pipeline m
 | MainPanel | MCP hub shell | `canvas/src/features/panels/views/McpHubView.tsx` | Implemented |
 | Settings | Shared MCP / Integrations owner | `canvas/src/features/panels/views/SettingsView.tsx` | Implemented |
 | Settings | Chat assist and routing helpers | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | Implemented |
-| FloatingPanel | Chat UI | `canvas/src/features/chat/SidePanelChat.tsx` | Implemented |
-| Chat submit | Thin submit shell | `canvas/src/features/chat/sidePanelChat/useSidePanelChatSubmit.ts` | Implemented |
-| Chat submit | Submit coordinator | `canvas/src/features/chat/sidePanelChat/sidePanelChatSubmitCoordinator.ts` | Implemented |
-| Chat submit | Streaming draft writer | `canvas/src/features/chat/sidePanelChat/sidePanelChatStreaming.ts` | Implemented |
-| Chat validation | KGC attempt + retry | `canvas/src/features/chat/sidePanelChat/sidePanelChatKgcAttempt.ts` | Implemented |
+| FloatingPanel | Chat UI | `canvas/src/features/chat/FloatingPanelChat.tsx` | Implemented |
+| Chat submit | Thin submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Implemented |
+| Chat submit | Submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Implemented |
+| Chat submit | Streaming draft writer | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts` | Implemented |
+| Chat validation | KGC attempt + retry | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` | Implemented |
 | Chat validation | Frontmatter/grouping validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | Implemented |
 | Chat validation | KGC recovery / normalization | `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Implemented |
-| Chat finalize | Workspace persistence + canvas bridge | `canvas/src/features/chat/sidePanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Implemented |
+| Chat finalize | Workspace persistence + canvas bridge | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` + `canvas/src/features/chat/chatKgcCanvasApply.ts` | Implemented |
 | Storage | Shared route contract | `canvas/src/lib/storage/knowgrphStorageSyncContract.ts` | Implemented |
 | Browser | Shared doc deep-link parsing and Share URL mapping | `canvas/src/features/canvas/{canvasDocDeepLink.ts,canvasDocShareToken.mjs}` | Implemented |
 | Browser | Shared doc import runtime | `canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx` | Implemented |
@@ -859,7 +859,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] MCP server card, HTTP MCP `tools/list`, and browser WebMCP all reuse one shared tool schema
 - [x] MainPanel `integrations` and MainPanel `mcp` both mount `SettingsView` specializations instead of separate routing stacks
 - [x] chat routing and presets stay owned by `useSettingsChatAssist.tsx` and shared open-panel helpers
-- [x] `useSidePanelChatSubmit()` remains a thin shell over the submit coordinator/helper stack
+- [x] `useFloatingPanelChatSubmit()` remains a thin shell over the submit coordinator/helper stack
 - [x] KGC validation rejects wrapper prose before frontmatter and rejects parallel grouping aliases outside `flow.subgraphs`
 - [x] finalized KGC workspace documents apply to Canvas through `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
 - [x] `tryParseMarkdownFrontmatterFlowGraph()` remains first parse priority for structured KGC Markdown

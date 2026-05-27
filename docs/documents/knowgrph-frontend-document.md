@@ -157,7 +157,7 @@ selection_state:
 
 - Floating Panel (tool menu) hosts the Props/Inspector/etc views.
 - Interaction controls for infinite-canvas workflows live in a dedicated **Interaction** floating panel that is positioned adjacent to the Floating Panel when the Props view is active.
-- Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or side panels) that duplicate Interaction/Arrange actions.
+- Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or floating panels) that duplicate Interaction/Arrange actions.
 - Shared panel activation events, default panel sizing, and panel-role ownership must live under `canvas/src/features/panels/*`; forbid a parallel `features/bottom-panel/*` helper namespace or duplicate bottom-surface ownership labels in shared config.
 - Bottom-surface tabs stay thin surfaces over the shared panel contract: lightweight tabs render local quick-review content only, without duplicating workspace or renderer ownership.
 
@@ -178,7 +178,7 @@ Floating Panel views must reuse the same lightweight embedding pattern as Props 
 - **Reusable embedding modes**:
   - Components reused across surfaces must expose an explicit “embedded” mode (example: Inspector supports a parent-scroll embedding mode so it can be mounted inside the Floating Panel without nested scroll/background).
 - **Tokenized styling only**:
-  - Forbid hardcoded Tailwind palette classes inside panel bodies (e.g. `bg-gray-*`, `text-gray-*`); use `UI_THEME_TOKENS` so dark mode and density stay consistent.
+  - Forbid hardcoded Tailwind palette classes infloating panel bodies (e.g. `bg-gray-*`, `text-gray-*`); use `UI_THEME_TOKENS` so dark mode and density stay consistent.
 
 **Configuration Schema (core sections)**:
 
