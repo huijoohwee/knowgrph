@@ -1,4 +1,20 @@
+---
+title: "Goal: 100% Knowgrph Mobile-First Refactoring For E2E Rich Media Generation"
+doc_type: "Goal Contract"
+status: "active"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # Goal: 100% Knowgrph Mobile-First Refactoring For E2E Rich Media Generation
+
+## Authoring Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for this goal document's metadata, status, and scope.
+- This document is a canonical authored goal contract, not a generated registry surface or typed validation fixture.
+- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for goals, acceptance criteria, and refactoring directives.
+- If typed `{key, type, value}` envelopes are needed for ingest -> parse -> render validation, that coverage should live in a dedicated fixture doc rather than replacing canonical goal prose.
+- Execution guidance, source-of-truth boundaries, and acceptance criteria must be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirrors.
 
 Enhance Knowgrph into a Codex-compatible, mobile-first, end-to-end rich media generation system that can turn a user-provided brief into traceable text, image, video, and canvas artifacts while completing a full-codebase refactor. The work must improve the repo itself: runtime harness, provider abstraction, responsive canvas graph output, validation, recovery, documentation, runnable examples, source boundaries, semantic-cache ownership, chunk budgets, and stale-code removal.
 

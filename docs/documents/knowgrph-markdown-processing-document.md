@@ -1,4 +1,21 @@
+---
+title: "Knowgrph Markdown Processing"
+doc_type: "Document"
+date: "2026-05-27"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # Knowgrph Markdown Processing
+
+## Markdown YAML Frontmatter Enforcement
+
+- Canonical Markdown processing docs, parser-facing Markdown specs, and runtime-ready Markdown artifacts must start with a valid YAML frontmatter block as the first block in the file.
+- Frontmatter is the SSOT for document metadata, mode flags, processing hints, and reusable context keys consumed by rendering and parser flows.
+- Canonical authored Markdown docs use plain YAML for frontmatter and related schema-bearing blocks; do not replace normal authoring syntax with normalized typed wrappers.
+- Normalized `{key, type, value}` wrappers are permitted only in dedicated validation fixtures that explicitly test ingest -> parse -> render or ingest -> parse -> validate fidelity.
+- Scalars that contain reserved punctuation, including inline `:` content, must be quoted so strict YAML parsers read processing metadata deterministically.
+- Parser warning, repair, or fallback behavior is recovery-only; malformed YAML frontmatter remains an upstream authoring defect that must be fixed at source.
 
 ## Overview
 The Markdown rendering engine in Knowgrph has been enhanced to support GitHub-style code blocks with semantic HTML structure and optimized token sharing architecture. This ensures high performance during rendering cycles and a consistent, accessible UI.

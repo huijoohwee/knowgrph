@@ -1,4 +1,21 @@
+---
+title: "Knowgrph Client-Side Parsers: Universal Format Specification"
+doc_type: "Document"
+date: "2026-05-27"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # Knowgrph Client-Side Parsers: Universal Format Specification
+
+## Markdown YAML Frontmatter Enforcement
+
+- Canonical parser docs, format specs, and runtime-ready Markdown artifacts must start with a valid YAML frontmatter block as the first block in the file.
+- Frontmatter is the SSOT for parser metadata, format ownership, version intent, and reusable context keys referenced by the body specification.
+- Canonical authored parser docs use plain YAML for frontmatter and related schema-bearing blocks; do not replace normal authoring syntax with normalized typed wrappers.
+- Normalized `{key, type, value}` wrappers are permitted only in dedicated validation fixtures that explicitly test ingest -> parse -> render, ingest -> parse -> validate, or parser-fidelity behavior.
+- Scalars that contain reserved punctuation, including inline `:` content, must be quoted so strict YAML parsers read parser metadata deterministically.
+- Parser warning, repair, or fallback behavior is recovery-only; malformed YAML frontmatter remains an upstream authoring defect that must be fixed at source.
 
 ## Design Mantras
 

@@ -1,5 +1,5 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
-import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
+import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   buildWorkspaceSeedFileEntry,
@@ -80,6 +80,34 @@ const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
 }
 
+const buildDocsMirrorBasenameSet = (
+  docsEntries: ReadonlyArray<{ relPath: string }>,
+): Set<string> => {
+  const out = new Set<string>()
+  for (let i = 0; i < docsEntries.length; i += 1) {
+    const relPath = normalizeDocsMirrorRelPath(String(docsEntries[i]?.relPath || ''))
+    const basename = workspaceBasename(`/${relPath}`).toLowerCase()
+    if (basename) out.add(basename)
+  }
+  return out
+}
+
+const isStaleRootMarkdownAliasCoveredByDocsMirror = (args: {
+  path: WorkspacePath
+  docsMirrorBasenames: ReadonlySet<string>
+  rootSeedPaths: ReadonlySet<WorkspacePath>
+}): boolean => {
+  const path = normalizeWorkspacePath(args.path)
+  if (!path || path.startsWith('/docs/')) return false
+  if (args.rootSeedPaths.has(path)) return false
+  const segments = path.split('/').filter(Boolean)
+  if (segments.length !== 1) return false
+  const basename = workspaceBasename(path)
+  if (!basename || !/\.md$/i.test(basename)) return false
+  if (!args.docsMirrorBasenames.has(basename.toLowerCase())) return false
+  return true
+}
+
 const buildDocsMirrorSyncSignature = (
   docsEntries: ReadonlyArray<{ relPath: string; text: string; updatedAtMs: number }>,
 ): string => {
@@ -100,7 +128,7 @@ const syncWorkspaceDocsMirrorEntries = async (
 ): Promise<boolean> => {
   const docsEntries = Array.isArray(docsEntriesInput)
     ? [...docsEntriesInput]
-    : await readWorkspaceInitializationDocsMirrorEntries()
+    : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
   if (docsEntries.length === 0) return false
   const docsMirrorSignature = buildDocsMirrorSyncSignature(docsEntries)
   if (docsMirrorSignature && docsMirrorSignature === lastDocsMirrorSyncSignature) return false
@@ -223,7 +251,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     let changed = false
     const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
     const docsMirrorEntries = docsOnlyMode
-      ? await readWorkspaceInitializationDocsMirrorEntries()
+      ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
       : []
     const hasDocsMirrorFiles = docsMirrorEntries.length > 0
     const hasAnyFilesNow = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length > 0)
@@ -233,13 +261,20 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
         TEST_VALIDATION_WORKSPACE_SEED_PATH,
         GEOSPATIAL_WORKSPACE_SEED_PATH,
       ])
+      const docsMirrorBasenames = buildDocsMirrorBasenameSet(docsMirrorEntries)
       const rows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i]
         if (!row) continue
         const path = normalizeWorkspacePath(String(row.get('path') || ''))
         if (!path || path.startsWith('/docs/')) continue
-        if (!rootSeedPaths.has(path)) continue
+        const shouldRemoveRootSeedAlias = rootSeedPaths.has(path)
+        const shouldRemoveStaleRootDocsAlias = isStaleRootMarkdownAliasCoveredByDocsMirror({
+          path,
+          docsMirrorBasenames,
+          rootSeedPaths,
+        })
+        if (!shouldRemoveRootSeedAlias && !shouldRemoveStaleRootDocsAlias) continue
         await row.remove()
         changed = true
       }

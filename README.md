@@ -1,17 +1,26 @@
-| title                           | Knowgrph                              |
-| ------------------------------- | ------------------------------------- |
-| id                              | md:knowgrph-readme-chat-to-canvas     |
-| author                          | joohwee                               |
-| date                            | 2026-05-22                            |
-| version                         | 2.1.1                                 |
-| kgCanvasSurfaceMode             | 2d                                    |
-| kgCanvasRenderMode              | 2d                                    |
-| kgCanvas2dRenderer              | flowEditor                            |
-| kgDocumentSemanticMode          | document                              |
-| kgFrontmatterModeEnabled        | true                                  |
-| kgDocumentStructureBaselineLock | false                                 |
+---
+title: "Knowgrph"
+id: "md:knowgrph-readme-chat-to-canvas"
+author: "joohwee"
+date: "2026-05-22"
+version: "2.1.1"
+kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "flowEditor"
+kgDocumentSemanticMode: "document"
+kgFrontmatterModeEnabled: true
+kgDocumentStructureBaselineLock: false
+---
 
 # Knowgrph
+
+## Authoring Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for repo-entry metadata, renderer defaults, and workspace-facing runtime context.
+- This document is a canonical authored repository entrypoint, not a generated registry surface or typed validation fixture.
+- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for README, architecture overview, and runtime-topology docs.
+- If typed `{key, type, value}` envelopes are needed for ingestion-regression coverage, that validation should live in a dedicated fixture doc rather than replacing the canonical repository overview.
+- Runtime behavior and ownership guidance must still be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirror patches.
 
 **Workspace-first knowledge graph canvas.**
 

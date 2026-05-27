@@ -2,6 +2,20 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { hasWorkspaceFileEntry, type WorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
+function resolveDocsMirrorCanonicalPath(
+  path: WorkspacePath,
+  entriesIndex: WorkspaceEntriesIndex,
+): WorkspacePath | null {
+  const normalized = String(path || '').trim()
+  if (!normalized || normalized.startsWith('/docs/')) return null
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length !== 1) return null
+  const basename = String(parts[0] || '').trim()
+  if (!basename || !/\.md$/i.test(basename)) return null
+  const docsPath = `/docs/${basename}` as WorkspacePath
+  return hasWorkspaceFileEntry(entriesIndex, docsPath) ? docsPath : null
+}
+
 export function resolveMarkdownWorkspaceCanonicalSelection(args: {
   activePath: WorkspacePath | null
   selectionPath: WorkspacePath | null
@@ -10,7 +24,9 @@ export function resolveMarkdownWorkspaceCanonicalSelection(args: {
   const path = String(args.activePath || '').trim()
   if (!path) return null
 
-  const canonicalPath = toCanonicalKgcWorkspacePath(path as WorkspacePath)
+  const canonicalPath =
+    resolveDocsMirrorCanonicalPath(path as WorkspacePath, args.entriesIndex)
+    || toCanonicalKgcWorkspacePath(path as WorkspacePath)
   if (!canonicalPath || canonicalPath === path) return null
   if (!hasWorkspaceFileEntry(args.entriesIndex, canonicalPath)) return null
 

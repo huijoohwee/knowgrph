@@ -91,6 +91,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ],
   ["markdown.frontmatterFlowGraph.inlineEnvelopeBraceSuffix.parses","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphParsesInlineEnvelopeBlockScalarBraceOnLastLine"],
   ["markdown.frontmatterFlowGraph.inlineEnvelopeNoSpaceObjectKey.parses","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysForWidgetVisibility"],
+  ["markdown.frontmatterFlowGraph.inlineEnvelopeMalformed.warns","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphWarnsOnMalformedTypedEnvelopeWrappers"],
   ["markdown.frontmatterFlowGraph.chatKnowgrph.leadingBlockOnlyAndDedupedEdges","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphChatKnowgrphUsesLeadingKgcBlockOnlyAndDedupesEdges"],
   ["markdown.frontmatterFlowGraph.chatKnowgrph.flowBlockDottedEdges.parseToWidgetLinks","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphFlowBlockParsesDottedEdgeEndpointsForWidgetLinks"],
   ["markdown.frontmatterFlowGraph.chatKnowgrph.outputNodeSourceHandles.keptForWidgetAnchors","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsOutputSourceHandlesForWidgetEdgeAnchors"],

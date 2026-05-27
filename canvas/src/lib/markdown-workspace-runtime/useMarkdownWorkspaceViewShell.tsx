@@ -11,6 +11,7 @@ import {
 import type { FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import { applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import { buildWorkspaceEntriesIndex, hasWorkspaceFileEntry } from './workspaceEntriesIndex'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 
 export function useMarkdownWorkspaceViewShell(args: {
   entries: WorkspaceEntry[]
@@ -89,6 +90,22 @@ export function useMarkdownWorkspaceViewShell(args: {
 
   const renderSourceFileRight = React.useCallback(
     (renderArgs: { entry: WorkspaceEntry; isActive: boolean }) => {
+      if (renderArgs.entry.kind === 'file') {
+        const text = String(renderArgs.entry.text || '')
+        const warnings = text.startsWith('---') ? (parseMarkdownFrontmatter(splitMarkdownLines(text)).warnings || []) : []
+        const summary = warnings[0] || ''
+        if (summary) {
+          return (
+            <span
+              className="inline-flex items-center rounded border border-amber-300/70 bg-amber-500/10 px-1.5 py-0.5 text-[10px] leading-none text-amber-700"
+              aria-label={`Frontmatter warning in ${renderArgs.entry.name}`}
+              title={summary}
+            >
+              YAML
+            </span>
+          )
+        }
+      }
       if (!renderArgs.isActive) return null
       if (renderArgs.entry.kind === 'folder') {
         const sitemapPath = resolveFolderContractDocPath(renderArgs.entry.path, 'sitemap')

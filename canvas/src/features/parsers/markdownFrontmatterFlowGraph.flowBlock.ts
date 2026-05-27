@@ -609,21 +609,57 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
   return out
 }
 
-function unwrapFlowNodeFieldValue(raw: unknown): unknown {
+function unwrapFlowNodeFieldValue(args: {
+  raw: unknown
+  path: string
+  expectedKey?: string
+  warnings: string[]
+}): unknown {
+  const { raw, path, expectedKey, warnings } = args
   if (!isRecord(raw)) return raw
-  if (!Object.prototype.hasOwnProperty.call(raw, 'value')) return raw
-  const keys = Object.keys(raw)
-  for (let i = 0; i < keys.length; i += 1) {
-    const k = keys[i]!
-    if (k !== 'key' && k !== 'type' && k !== 'value') return raw
+  const record = raw as Record<string, unknown>
+  const hasKey = Object.prototype.hasOwnProperty.call(record, 'key')
+  const hasType = Object.prototype.hasOwnProperty.call(record, 'type')
+  const hasValue = Object.prototype.hasOwnProperty.call(record, 'value')
+  const keys = Object.keys(record)
+  const hasOnlyEnvelopeKeys = keys.every(k => k === 'key' || k === 'type' || k === 'value')
+  const looksLikeEnvelope = hasKey || hasType || (hasValue && hasOnlyEnvelopeKeys)
+  if (!looksLikeEnvelope) return raw
+  if (!hasOnlyEnvelopeKeys || !hasKey || !hasType || !hasValue) {
+    warnings.push(`Flow typed envelope malformed at ${path}: expected exact { key, type, value } wrapper`)
+    return raw
   }
-  return (raw as Record<string, unknown>).value
+  const keyValue = record.key
+  if (typeof keyValue !== 'string' || !keyValue.trim()) {
+    warnings.push(`Flow typed envelope malformed at ${path}: wrapper key must be a non-empty string`)
+    return raw
+  }
+  if (expectedKey && keyValue !== expectedKey) {
+    warnings.push(`Flow typed envelope malformed at ${path}: expected key "${expectedKey}" but found "${keyValue}"`)
+    return raw
+  }
+  const typeValue = record.type
+  if (typeof typeValue !== 'string' || !typeValue.trim()) {
+    warnings.push(`Flow typed envelope malformed at ${path}: wrapper type must be a non-empty string`)
+    return raw
+  }
+  return record.value
 }
 
-function normalizeFlowNodeEnvelope(rawNode: Record<string, unknown>): Record<string, unknown> {
+function normalizeFlowNodeEnvelope(args: {
+  rawNode: Record<string, unknown>
+  nodePath: string
+  warnings: string[]
+}): Record<string, unknown> {
+  const { rawNode, nodePath, warnings } = args
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(rawNode)) {
-    out[k] = unwrapFlowNodeFieldValue(v)
+    out[k] = unwrapFlowNodeFieldValue({
+      raw: v,
+      path: `${nodePath}.${k}`,
+      expectedKey: k,
+      warnings,
+    })
   }
   return out
 }
@@ -705,19 +741,30 @@ function buildFlowTemplateVars(
 export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Record<string, unknown> {
   const flow = isRecord(meta.flow) ? (meta.flow as Record<string, unknown>) : null
   if (!flow) return meta
-  const readFlowValue = (v: unknown): unknown => unwrapFlowNodeFieldValue(v)
   const allowMixedHandles = isChatKnowgrphFlowContractRelaxed(meta)
   const vars = meta
   const pathCache = new Map<string, unknown>()
   const declarationCache = new Map<string, unknown>()
   const resolvedStringCache = new Map<string, string>()
   const flowWarnings: string[] = []
-  const rawNodes = Array.isArray(readFlowValue(flow.nodes)) ? (readFlowValue(flow.nodes) as unknown[]) : []
+  const readFlowValue = (path: string, v: unknown, expectedKey?: string): unknown =>
+    unwrapFlowNodeFieldValue({
+      raw: v,
+      path,
+      expectedKey,
+      warnings: flowWarnings,
+    })
+  const flowNodesValue = readFlowValue('flow.nodes', flow.nodes, 'nodes')
+  const rawNodes = Array.isArray(flowNodesValue) ? (flowNodesValue as unknown[]) : []
   const normalizedNodes: Array<Record<string, unknown>> = []
   for (let i = 0; i < rawNodes.length; i += 1) {
     const rawNode = rawNodes[i]
     if (!isRecord(rawNode)) continue
-    const normalizedRawNode = normalizeFlowNodeEnvelope(rawNode as Record<string, unknown>)
+    const normalizedRawNode = normalizeFlowNodeEnvelope({
+      rawNode: rawNode as Record<string, unknown>,
+      nodePath: `flow.nodes[${i}]`,
+      warnings: flowWarnings,
+    })
     const id = asString(normalizedRawNode.id)
     if (!id) continue
     const rawType = asString(normalizedRawNode.type)
@@ -792,7 +839,8 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   }
   const flowVars = buildFlowTemplateVars(vars, normalizedNodes)
 
-  const rawEdges = Array.isArray(readFlowValue(flow.edges)) ? (readFlowValue(flow.edges) as unknown[]) : []
+  const flowEdgesValue = readFlowValue('flow.edges', flow.edges, 'edges')
+  const rawEdges = Array.isArray(flowEdgesValue) ? (flowEdgesValue as unknown[]) : []
   const normalizedConnections: Array<Record<string, unknown>> = []
   for (let i = 0; i < rawEdges.length; i += 1) {
     const row = rawEdges[i]
@@ -834,9 +882,14 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     if (computeRaw) node.compute = resolveTemplateString(computeRaw, flowVars, pathCache, declarationCache, resolvedStringCache)
   }
 
-  const rawDirection = asString(readFlowValue(flow.direction)).toUpperCase()
+  const flowDirectionValue = readFlowValue('flow.direction', flow.direction, 'direction')
+  const rawDirection = asString(flowDirectionValue).toUpperCase()
   const direction = rawDirection === 'LR' || rawDirection === 'TB' || rawDirection === 'RL' || rawDirection === 'BT' ? rawDirection : 'LR'
-  const rawEdgeType = asString(readFlowValue(flow.edgeType)).toLowerCase()
+  const flowEdgeTypeValue = readFlowValue('flow.edgeType', flow.edgeType, 'edgeType')
+  const rawEdgeType = asString(flowEdgeTypeValue).toLowerCase()
+  const flowSnapToGridValue = readFlowValue('flow.snapToGrid', flow.snapToGrid, 'snapToGrid')
+  const flowGridSizeValue = readFlowValue('flow.gridSize', flow.gridSize, 'gridSize')
+  const flowComputedValue = readFlowValue('flow.computed', flow.computed, 'computed')
   const edgeType = rawEdgeType === 'default' || rawEdgeType === 'straight' || rawEdgeType === 'step' || rawEdgeType === 'smoothstep' || rawEdgeType === 'bezier'
     ? rawEdgeType
     : 'bezier'
@@ -848,12 +901,12 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     balancedHeroRowGapScale: 0.76,
     balancedHeroRowStaggerScale: 0.12,
     balancedPanelOffsetScale: 0.96,
-    ...(asBoolean(readFlowValue(flow.snapToGrid)) != null ? { snapToGrid: asBoolean(readFlowValue(flow.snapToGrid)) } : {}),
-    ...(asFiniteNumber(readFlowValue(flow.gridSize)) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(readFlowValue(flow.gridSize)) as number)) } : {}),
-    ...(asBoolean(readFlowValue(flow.computed)) != null ? { computed: asBoolean(readFlowValue(flow.computed)) } : {}),
+    ...(asBoolean(flowSnapToGridValue) != null ? { snapToGrid: asBoolean(flowSnapToGridValue) } : {}),
+    ...(asFiniteNumber(flowGridSizeValue) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(flowGridSizeValue) as number)) } : {}),
+    ...(asBoolean(flowComputedValue) != null ? { computed: asBoolean(flowComputedValue) } : {}),
   }
   const flowSubgraphs = normalizeFlowSubgraphs({
-    rawSubgraphs: readFlowValue(flow.subgraphs),
+    rawSubgraphs: readFlowValue('flow.subgraphs', flow.subgraphs, 'subgraphs'),
     vars, flowVars, pathCache, declarationCache, resolvedStringCache,
     nodeIds: new Set(normalizedNodes.map(node => asString(node.id)).filter(Boolean)),
     resolveTemplateString,

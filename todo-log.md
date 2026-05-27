@@ -1,4 +1,21 @@
+---
+title: "todo-log"
+doc_type: "Planning Ledger"
+status: "active"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # todo-log
+
+## Planning Ledger Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for this planning ledger's metadata, status, and scope.
+- This document is a canonical authored planning/work log, not a generated registry surface or typed validation fixture.
+- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for repo-level logs, directives, and implementation history.
+- New rows and dated sections belong to the live ledger body; do not duplicate ledger ownership in ad hoc metadata tables or downstream mirrors.
+- If typed `{key, type, value}` envelopes are needed for ingest -> parse -> render validation, that coverage should live in a dedicated fixture doc rather than replacing canonical planning prose.
+- Planning history, next steps, and canonical directives must be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirrors.
 
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.

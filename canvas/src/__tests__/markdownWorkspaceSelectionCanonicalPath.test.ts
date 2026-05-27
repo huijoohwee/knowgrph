@@ -42,3 +42,26 @@ export function testMarkdownWorkspaceSelectionCanonicalPathCentralizesLegacyPath
     throw new Error(`expected no canonical upgrade when target file is absent, got ${JSON.stringify(missingCanonical)}`)
   }
 }
+
+export function testMarkdownWorkspaceSelectionCanonicalPathPromotesRootDocsAliasToDocsMirrorPath() {
+  const rootAliasPath = '/knowgrph-storyboard-demo.md'
+  const docsPath = '/docs/knowgrph-storyboard-demo.md'
+
+  const mirrored = resolveMarkdownWorkspaceCanonicalSelection({
+    activePath: rootAliasPath as never,
+    selectionPath: rootAliasPath as never,
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry(docsPath)]),
+  })
+  if (!mirrored || mirrored.activePath !== docsPath || mirrored.selectionPath !== docsPath) {
+    throw new Error(`expected root docs alias to upgrade to docs mirror path, got ${JSON.stringify(mirrored)}`)
+  }
+
+  const missingDocsMirror = resolveMarkdownWorkspaceCanonicalSelection({
+    activePath: rootAliasPath as never,
+    selectionPath: rootAliasPath as never,
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/notes/other.md')]),
+  })
+  if (missingDocsMirror !== null) {
+    throw new Error(`expected no root-alias upgrade without docs mirror file, got ${JSON.stringify(missingDocsMirror)}`)
+  }
+}

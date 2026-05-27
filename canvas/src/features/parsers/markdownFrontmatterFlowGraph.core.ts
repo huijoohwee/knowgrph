@@ -1312,6 +1312,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const initialSegment = lines.slice(lead, frontmatterClose + 1)
   const initial = parseMarkdownFrontmatter(initialSegment)
   const initialMeta = initial.meta
+  const frontmatterParseWarnings = Array.isArray(initial.warnings) ? initial.warnings.filter(Boolean) : []
   let meta: Record<string, unknown> = {}
   let startIndex = frontmatterClose + 1
   if (initialMeta && typeof initialMeta === 'object' && !Array.isArray(initialMeta)) {
@@ -1471,6 +1472,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
 
   const socketTypes = readSocketTypes(metaRecord)
   const warnings = [
+    ...frontmatterParseWarnings,
     ...readFlowWarnings(metaRecord),
     ...buildConnectionWarnings({
       meta: metaRecord,

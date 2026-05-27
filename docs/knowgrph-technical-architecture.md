@@ -1,4 +1,22 @@
+---
+title: "Knowgrph Technical Architecture"
+doc_type: "Generated Registry Surface"
+status: "generated"
+lang: "en-US"
+frontmatter_contract: "required"
+canonical_docs_root: "docs/documents"
+generator_owner: "canvas/src/cli/lint-doc.ts"
+---
+
 # Knowgrph Technical Architecture
+
+## Generated Registry Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for this registry surface's generated status, canonical owner path, and generator ownership.
+- This file is an auto-generated registry surface, not the canonical authored technical architecture document.
+- Canonical technical architecture prose and behavior ownership live under `docs/documents/`; update the source docs or generator inputs there instead of hand-authoring this registry surface.
+- Registry rows must remain generator-owned output from `canvas/src/cli/lint-doc.ts`, not a parallel authoring surface or validation fixture.
+- Runtime or documentation decisions must never be inferred from stale generated rows when the canonical authored docs disagree; fix the upstream source and regenerate.
 
 Canonical technical architecture documentation lives in `docs/documents/knowgrph-settings-document.md` together with the broader architecture/design set in `docs/documents/`.
 For chat-to-canvas runtime ownership and KGC persistence behavior, use `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.md` and `docs/documents/knowgrph-llm-prompt-contract-prd-tad-proposed.md` as the canonical owner maps rather than inferring behavior from the generated settings registry alone.

@@ -72,6 +72,7 @@ export function useMarkdownWorkspaceBootstrapState(args: {
   const workspaceRootRef = React.useRef<HTMLElement | null>(null)
   const presentationApiRef = React.useRef<MarkdownPresentationApi | null>(null)
   const [highlightedLineRange, setHighlightedLineRange] = React.useState<HighlightedLineRange>(null)
+  const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const [activeText, setActiveText] = React.useState('')
   const activeTextRef = React.useRef('')
   activeTextRef.current = activeText
@@ -83,9 +84,14 @@ export function useMarkdownWorkspaceBootstrapState(args: {
     userEditedActiveTextRef.current = false
     setActiveText(next)
   }, [])
+  const activeTextOwnedByActivePath = !!(
+    args.activePath &&
+    lastLoadedRef.current?.path === args.activePath
+  )
+  const outlineSourceText = activeTextOwnedByActivePath ? activeText : ''
+  const outlineTextResetKey = `${String(args.activePath || '')}:${outlineSourceText ? 'ready' : 'pending'}`
   const debouncedText = useDebouncedValue(activeText, 450, args.activePath)
-  const outlineText = useDebouncedValue(activeText, 160, args.activePath)
-  const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
+  const outlineText = useDebouncedValue(outlineSourceText, 160, outlineTextResetKey)
   const repairedMissingWorkspaceFilesRef = React.useRef<Set<WorkspacePath>>(new Set())
   const lastIndexedByPathRef = React.useRef<Map<WorkspacePath, string>>(new Map())
   const indexJobRef = React.useRef(0)

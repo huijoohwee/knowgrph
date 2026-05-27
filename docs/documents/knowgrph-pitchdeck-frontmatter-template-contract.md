@@ -1,4 +1,21 @@
+---
+title: "Knowgrph Pitchdeck Frontmatter Template Contract"
+doc_type: "Document"
+date: "2026-05-27"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # Knowgrph Pitchdeck Frontmatter Template Contract
+
+## Markdown YAML Frontmatter Enforcement
+
+- Canonical pitchdeck template contracts, reusable template docs, and runtime-ready Markdown artifacts must start with a valid YAML frontmatter block as the first block in the file.
+- Frontmatter is the SSOT for template identity, widget configuration ownership, active variants, and reusable placeholder metadata referenced by the body contract.
+- Canonical authored template docs use plain YAML for frontmatter and related schema-bearing blocks; do not replace normal authoring syntax with normalized typed wrappers.
+- Normalized `{key, type, value}` wrappers are permitted only in dedicated validation fixtures that explicitly test ingest -> parse -> render, ingest -> parse -> validate, or parser-fidelity behavior.
+- Scalars that contain reserved punctuation, including inline `:` content, must be quoted so strict YAML parsers read template metadata deterministically.
+- Parser warning, repair, or fallback behavior is recovery-only; malformed YAML frontmatter remains an upstream authoring defect that must be fixed at source.
 
 ## Purpose
 

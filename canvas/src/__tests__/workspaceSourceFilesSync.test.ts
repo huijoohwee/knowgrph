@@ -238,6 +238,25 @@ export async function testWorkspaceSourceFilesSyncSuppressesLegacyRootSeedAliase
   if (!docsPlaces) throw new Error('expected docs mirrored places markdown to stay present as canonical Source Files entry')
 }
 
+export async function testWorkspaceSourceFilesSyncSuppressesEmptyRootDocsAliasWhenDocsMirrorExists() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      { kind: 'file', path: '/knowgrph-storyboard-demo.md', parentPath: '/', name: 'knowgrph-storyboard-demo.md', text: '# stale root alias', updatedAtMs: 1 },
+      { kind: 'file', path: '/docs/knowgrph-storyboard-demo.md', parentPath: '/docs', name: 'knowgrph-storyboard-demo.md', text: '# Storyboard docs', updatedAtMs: 1 },
+    ],
+    sourcesByPath: {
+      '/docs/knowgrph-storyboard-demo.md': { kind: 'local', originalName: 'knowgrph-storyboard-demo.md' },
+    },
+    workspaceDocsOnly: true,
+  })
+
+  const staleRootAlias = next.find(f => f.source?.path === 'workspace:/knowgrph-storyboard-demo.md')
+  if (staleRootAlias) throw new Error('expected stale root docs alias to be suppressed when docs mirror provides canonical storyboard file')
+  const docsStoryboard = next.find(f => f.source?.path === 'workspace:/docs/knowgrph-storyboard-demo.md')
+  if (!docsStoryboard) throw new Error('expected docs mirrored storyboard markdown to remain as canonical Source Files entry')
+}
+
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWorkspaceFiles() {
   const nonDocsPath = '/scratch/places-demo.md'
   const next = mergeWorkspaceEntriesIntoSourceFiles({

@@ -1,4 +1,21 @@
+---
+title: "todo"
+doc_type: "Backlog + Rules"
+status: "active"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # todo
+
+## Backlog Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for this backlog/rules document's metadata, status, and scope.
+- This document is a canonical authored backlog and rules surface, not a generated registry surface or typed validation fixture.
+- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for backlog items, reusable rules, and work-planning directives.
+- Checklist items, dated backlog sections, and embedded planning notes belong to the live document body; do not duplicate backlog ownership in ad hoc metadata tables or downstream mirrors.
+- If typed `{key, type, value}` envelopes are needed for ingest -> parse -> render validation, that coverage should live in a dedicated fixture doc rather than replacing canonical planning prose.
+- Backlog meaning, rules, and prioritization must be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirrors.
 
 ## RULES
 

@@ -1278,6 +1278,132 @@ export async function testWorkspaceSeedProviderPrefersSourceFilesDocViewOverLarg
   }
 }
 
+export async function testWorkspaceSeedProviderPrefersCompleteStorageExportDatasetForSync() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  const { restore } = initJsdomHarness()
+  const store = useGraphStore.getState()
+  const previousHandle = store.localMarkdownFolderHandle
+  const previousCacheId = store.localMarkdownFolderCacheId
+  const previousSelectedFolderPath = store.localMarkdownSelectedFolderPath
+  const previousSourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles.slice() : []
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (url.includes('/api/storage/doc/')) {
+      if (
+        url.includes(encodeURIComponent('huijoohwee/docs/knowgrph-video-demo.md'))
+        || url.includes(encodeURIComponent('docs/knowgrph-video-demo.md'))
+      ) {
+        return new Response('# from source-files doc view', { status: 200 })
+      }
+      return new Response('', { status: 404 })
+    }
+    if (!url.includes('/api/storage/export/')) return new Response('', { status: 404 })
+    return new Response(JSON.stringify({
+      ok: true,
+      apiVersion: '2026-05-04',
+      workspaceId: 'kgws:test',
+      exportedAtMs: 1710000007000,
+      documents: [
+        {
+          id: 'sf:maps',
+          workspaceId: 'kgws:test',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-maps-readme.md`,
+          title: 'knowgrph-maps-readme.md',
+          docType: 'markdown',
+          lang: null,
+          graphId: null,
+          sourceKind: 'markdown',
+          contentMd: '# export maps',
+          contentHash: 'maps',
+          parserVersion: 'source-files',
+          revision: 1,
+          updatedAtMs: 1710000006900,
+          deleted: false,
+        },
+        {
+          id: 'sf:grabmaps',
+          workspaceId: 'kgws:test',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-maps-grabmap-multim-demo.md`,
+          title: 'knowgrph-maps-grabmap-multim-demo.md',
+          docType: 'markdown',
+          lang: null,
+          graphId: null,
+          sourceKind: 'markdown',
+          contentMd: '# export grabmaps',
+          contentHash: 'grabmaps',
+          parserVersion: 'source-files',
+          revision: 1,
+          updatedAtMs: 1710000006950,
+          deleted: false,
+        },
+        {
+          id: 'sf:video',
+          workspaceId: 'kgws:test',
+          canonicalPath: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`,
+          title: 'knowgrph-video-demo.md',
+          docType: 'markdown',
+          lang: null,
+          graphId: null,
+          sourceKind: 'markdown',
+          contentMd: '# export video',
+          contentHash: 'video',
+          parserVersion: 'source-files',
+          revision: 1,
+          updatedAtMs: 1710000007000,
+          deleted: false,
+        },
+      ],
+      documentChunks: [],
+      graphSnapshots: [],
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    store.setLocalMarkdownFolderHandle(null)
+    store.setLocalMarkdownFolderCacheId(null, null)
+    store.setLocalMarkdownSelectedFolderPath('docs')
+    store.setSourceFiles([
+      {
+        id: 'sf-video',
+        name: 'knowgrph-video-demo.md',
+        text: '',
+        enabled: true,
+        status: 'idle',
+        source: { kind: 'local', path: `${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md` },
+      },
+    ])
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    if (mirrored.length !== 3) {
+      throw new Error(`expected sync mirror to prefer fuller storage export dataset, got ${JSON.stringify(mirrored)}`)
+    }
+    const relPaths = mirrored.map(entry => entry.relPath)
+    if (!relPaths.includes('knowgrph-video-demo.md') || !relPaths.includes('knowgrph-maps-readme.md')) {
+      throw new Error(`expected sync mirror to keep exported docs set, got ${JSON.stringify(mirrored)}`)
+    }
+    const video = mirrored.find(entry => entry.relPath === 'knowgrph-video-demo.md') || null
+    if (String(video?.text || '').trim() !== '# export video') {
+      throw new Error(`expected sync mirror to use export text for complete dataset mode, got ${JSON.stringify(mirrored)}`)
+    }
+  } finally {
+    store.setSourceFiles(previousSourceFiles)
+    store.setLocalMarkdownFolderHandle(previousHandle as FileSystemDirectoryHandle | null)
+    store.setLocalMarkdownFolderCacheId(previousCacheId, null)
+    store.setLocalMarkdownSelectedFolderPath(previousSelectedFolderPath)
+    restore()
+    ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  }
+}
+
 export async function testWorkspaceSeedProviderStorageExportRebuildsMarkdownFromChunksWhenContentMdBlank() {
   const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT

@@ -4,7 +4,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
-import { splitMarkdownLines } from '@/lib/markdown'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { extractYamlFrontmatterBlock, type WebpageFrontmatterMeta, type WebpageViewMode, type WebsiteImportFrontmatterMeta } from '@/lib/markdown/frontmatter'
@@ -400,6 +400,29 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     [activeDocumentKey, activeText, editorUri, isJsonMarkdownEditing, setActiveText],
   )
   const sourceEditorTextRaw = typeof editorTextOverride === 'string' ? editorTextOverride : activeText
+  const frontmatterWarningSourceText = !isJsonMarkdownEditing && isMarkdown ? String(editableMarkdownText || '') : String(sourceEditorTextRaw || '')
+  const frontmatterWarnings = React.useMemo(() => {
+    const text = String(frontmatterWarningSourceText || '')
+    if (!text.startsWith('---')) return [] as string[]
+    return parseMarkdownFrontmatter(splitMarkdownLines(text)).warnings || []
+  }, [frontmatterWarningSourceText])
+  const frontmatterWarningSummary = frontmatterWarnings[0] || ''
+  const frontmatterWarningCount = frontmatterWarnings.length
+  const documentNotice = frontmatterWarningSummary ? (
+    <div
+      className={`rounded border px-3 py-2 text-xs leading-5 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.status.warning}`}
+      role="status"
+      aria-label="Frontmatter warning"
+    >
+      <div className="font-medium">Frontmatter warning</div>
+      <div className="whitespace-pre-wrap break-words">{frontmatterWarningSummary}</div>
+      {frontmatterWarningCount > 1 ? (
+        <div className={`mt-1 ${UI_THEME_TOKENS.text.secondary}`}>
+          {`${frontmatterWarningCount - 1} more warning${frontmatterWarningCount - 1 === 1 ? '' : 's'}`}
+        </div>
+      ) : null}
+    </div>
+  ) : null
   const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)
   const deferredEditableMarkdownText = React.useDeferredValue(editableMarkdownText)
   const jsonEditorText = React.useMemo(() => {
@@ -869,6 +892,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         webpageWorkspaceMeta, onWebpageChangeView, onWebpageUpdateMeta, contentFormat, onContentFormatChange,
       }}
       layoutMode={layoutMode}
+      documentNotice={documentNotice}
       renderMarkdownEditor={renderMarkdownEditorPane}
       renderJsonEditor={renderJsonEditorPane}
       binaryPane={binaryPane}

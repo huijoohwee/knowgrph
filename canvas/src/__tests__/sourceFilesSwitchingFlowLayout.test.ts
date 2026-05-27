@@ -24,8 +24,8 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   if (!selectionText.includes('if (nextPath && prevPath && prevPath !== nextPath) {') || !selectionText.includes('if (switched.next !== args.activePath) return')) {
     throw new Error('expected Source Files switching to preserve the pending switch until the matching active-document apply consumes it')
   }
-  if (!selectionText.includes('await fs.readFileText(nextPath).catch(() => \'\')') || !selectionText.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
-    throw new Error('expected Source Files switching to hydrate metadata-only workspace entries from the authoritative workspace file before Canvas apply')
+  if (!selectionText.includes('readWorkspaceActiveDocumentResolvedText({') || !selectionText.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
+    throw new Error('expected Source Files switching to hydrate metadata-only workspace entries through the shared active-document resolver before Canvas apply')
   }
   if (viewShellText.includes("React.startTransition(() => {\n        setSelectionSource('editor')")) {
     throw new Error('expected Source Files row selection to update the active file synchronously under renderer load')

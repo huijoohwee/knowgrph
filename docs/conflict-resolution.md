@@ -1,4 +1,20 @@
+---
+title: "Knowgrph Conflict Resolution"
+doc_type: "Process Guide"
+status: "active"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # Knowgrph Conflict Resolution
+
+## Authoring Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for this process guide's metadata, status, and scope.
+- This document is a canonical authored operational guide, not a generated registry surface or typed validation fixture.
+- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for governance, merge rules, and process contracts.
+- If typed `{key, type, value}` envelopes are needed for ingest -> parse -> render validation, that coverage should live in a dedicated fixture doc rather than replacing canonical process prose.
+- Conflict-resolution guidance and ownership rules must be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirrors.
 
 ## Overview
 

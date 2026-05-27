@@ -14,6 +14,7 @@ import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/
 import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermaidFrontmatterGeometry'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import {
   buildMarkdownLargeDocumentGraph,
   readMarkdownLargeDocumentProfile,
@@ -147,6 +148,7 @@ const markdownSpec: ParserSpec = {
   },
   parse: (name, text) => {
     const raw = String(text || '')
+    const frontmatterWarnings = parseMarkdownFrontmatter(splitMarkdownLines(raw)).warnings || []
     const largeProfile = readMarkdownLargeDocumentProfile(raw)
     const summaryOnlyLargeGraph = largeProfile.reason && shouldUseSummaryGraphForMarkdown(raw)
       ? buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
@@ -182,11 +184,12 @@ const markdownSpec: ParserSpec = {
     if (extra) {
       graphData = mergeGraphDataPreferOverlay({ base: graphData, overlay: extra })
     }
-    const warnings = Array.from(new Set([...(extraWarnings || [])].filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    const warnings = Array.from(new Set([...(frontmatterWarnings || []), ...(extraWarnings || [])].filter(Boolean))).sort((a, b) => a.localeCompare(b))
     return { graphData, warnings }
   },
   parseAsync: async (name, text) => {
     const raw = String(text || '')
+    const frontmatterWarnings = parseMarkdownFrontmatter(splitMarkdownLines(raw)).warnings || []
     const largeProfile = readMarkdownLargeDocumentProfile(raw)
     const summaryOnlyLargeGraph = largeProfile.reason && shouldUseSummaryGraphForMarkdown(raw)
       ? buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
@@ -233,7 +236,7 @@ const markdownSpec: ParserSpec = {
       }
     }
 
-    const warnings = Array.from(new Set([...(extraWarnings || [])].filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    const warnings = Array.from(new Set([...(frontmatterWarnings || []), ...(extraWarnings || [])].filter(Boolean))).sort((a, b) => a.localeCompare(b))
     return { graphData, warnings }
   },
 }

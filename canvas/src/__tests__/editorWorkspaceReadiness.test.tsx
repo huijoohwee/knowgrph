@@ -140,3 +140,71 @@ export async function testMarkdownWorkspaceMainPublishesLiveEditorWorkspaceInspe
     restore()
   }
 }
+
+export async function testMarkdownWorkspaceMainShowsFrontmatterWarningsInActiveDocumentSurface() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    useGraphStore.getState().resetAll()
+
+    await act(async () => {
+      root.render(React.createElement(MarkdownWorkspaceMain, buildWorkspaceProps({
+        layoutMode: 'editor',
+        activeText: [
+          '---',
+          'title: Valid Frontmatter',
+          'flow:',
+          '  direction: LR',
+          '---',
+          '',
+          '# Valid',
+        ].join('\n'),
+      })))
+      await tick(4)
+    })
+
+    if (doc.querySelector('[aria-label="Frontmatter warning"]')) {
+      throw new Error('expected valid frontmatter to avoid rendering a warning banner')
+    }
+
+    await act(async () => {
+      root.render(React.createElement(MarkdownWorkspaceMain, buildWorkspaceProps({
+        layoutMode: 'editor',
+        activeText: [
+          '---',
+          'title: "Broken',
+          'flow:',
+          '  direction: LR',
+          '---',
+          '',
+          '# Invalid',
+        ].join('\n'),
+      })))
+      await tick(4)
+    })
+
+    const warningEl = doc.querySelector('[aria-label="Frontmatter warning"]') as HTMLElement | null
+    if (!warningEl) throw new Error('expected malformed frontmatter to render an active document warning banner')
+    const warningText = String(warningEl.textContent || '')
+    if (!warningText.includes('Frontmatter warning')) {
+      throw new Error(`expected warning banner label, got ${JSON.stringify(warningText)}`)
+    }
+    if (!warningText.includes('Markdown frontmatter YAML parse failed and frontmatter was ignored:')) {
+      throw new Error(`expected parse failure detail in warning banner, got ${JSON.stringify(warningText)}`)
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+        await tick(2)
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}

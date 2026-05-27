@@ -260,6 +260,45 @@ export function testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysF
   if (String(canvasProps.kanban || '') !== 'done') throw new Error('expected declared kanban to persist in node properties')
 }
 
+export function testMarkdownFrontmatterFlowGraphWarnsOnMalformedTypedEnvelopeWrappers() {
+  const md = [
+    '---',
+    'flow:',
+    '  direction: {key: wrongDirection, type: string, value: "TB"}',
+    '  edgeType: {key: edgeType, value: "smoothstep"}',
+    '  nodes:',
+    '    - id: {key: nodeId, type: string, value: "bad-node"}',
+    '      type: {key: type, type: string, value: "input"}',
+    '      label: {key: label, type: string, value: "Bad Node"}',
+    '      summary: {key: summary, type: "", value: "Broken wrapper metadata should warn"}',
+    '    - id: {key: id, type: string, value: "good-node"}',
+    '      type: {key: type, type: string, value: "default"}',
+    '      label: {key: label, type: string, value: "Good Node"}',
+    '  edges: []',
+    '---',
+    '',
+    '# body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-malformed-envelope.md', md)
+  if (!res) throw new Error('expected parse result for malformed envelope wrappers')
+  const warningBlob = res.warnings.join(' | ')
+  if (!warningBlob.includes('Flow typed envelope malformed at flow.direction: expected key "direction" but found "wrongDirection"')) {
+    throw new Error(`expected direction key mismatch warning, got: ${warningBlob}`)
+  }
+  if (!warningBlob.includes('Flow typed envelope malformed at flow.edgeType: expected exact { key, type, value } wrapper')) {
+    throw new Error(`expected edgeType wrapper shape warning, got: ${warningBlob}`)
+  }
+  if (!warningBlob.includes('Flow typed envelope malformed at flow.nodes[0].id: expected key "id" but found "nodeId"')) {
+    throw new Error(`expected node id key mismatch warning, got: ${warningBlob}`)
+  }
+  if (!warningBlob.includes('Flow typed envelope malformed at flow.nodes[0].summary: wrapper type must be a non-empty string')) {
+    throw new Error(`expected node summary type warning, got: ${warningBlob}`)
+  }
+  const node = res.graphData.nodes.find(n => String(n.label || '') === 'Bad Node')
+  if (node) throw new Error('expected malformed wrapped node id to stay unparsed so the node is skipped instead of silently unwrapping')
+}
+
 export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeIdsAndPorts() {
   const md = [
     '---',

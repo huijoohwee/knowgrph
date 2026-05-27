@@ -12,6 +12,8 @@ const markdownWorkspaceEffectiveContentPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceEffectiveContent.ts')
 const markdownWorkspaceInteractionsPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceInteractions.ts')
+const markdownWorkspaceDocumentSwitchPath = () =>
+  path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceDocumentSwitch.ts')
 const markdownPreviewTokensPath = () =>
   path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'useMarkdownPreviewTokens.ts')
 
@@ -63,6 +65,36 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   }
   if (!bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(false)')) {
     throw new Error('Expected markdown workspace bootstrap cleanup to clear shared indexing status on unmount')
+  }
+  if (!bootstrapText.includes('const outlineSourceText = activeTextOwnedByActivePath ? activeText : \'\'')) {
+    throw new Error('Expected markdown workspace bootstrap state to gate TOC outline parsing by active-path-owned editor text during Source Files switching')
+  }
+  if (!bootstrapText.includes('const outlineText = useDebouncedValue(outlineSourceText, 160, outlineTextResetKey)')) {
+    throw new Error('Expected markdown workspace bootstrap state to debounce TOC outline parsing from the gated active-path text source')
+  }
+  if (bootstrapText.includes('const outlineText = useDebouncedValue(activeText, 160, args.activePath)')) {
+    throw new Error('Expected markdown workspace bootstrap state not to debounce TOC outline parsing directly from stale cross-path editor text')
+  }
+  const documentSwitchText = readUtf8(markdownWorkspaceDocumentSwitchPath())
+  if (!documentSwitchText.includes('export function isMarkdownWorkspaceDocumentSwitchPending(args:')) {
+    throw new Error('Expected markdown workspace document switching to centralize pending-state ownership in a shared helper')
+  }
+  if (!documentSwitchText.includes('return !matchesMarkdownDocumentPath(activePath, markdownDocumentName)')) {
+    throw new Error('Expected markdown workspace pending-state helper to key off active-path versus markdown-document ownership mismatch')
+  }
+  const canvasPageText = readUtf8(path.resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx'))
+  if (!canvasPageText.includes('isMarkdownWorkspaceDocumentSwitchPending({')) {
+    throw new Error('Expected Canvas page toolbar handoff to reuse the shared markdown workspace pending-state helper')
+  }
+  if (!canvasPageText.includes('Switching document:')) {
+    throw new Error('Expected Canvas page to replace stale toolbar controls with a switching-document placeholder during source-file handoff')
+  }
+  const canvasViewportText = readUtf8(path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'))
+  if (!canvasViewportText.includes('documentSwitchPending ? (')) {
+    throw new Error('Expected Canvas viewport to render a switching-document placeholder while the active document handoff is pending')
+  }
+  if (!canvasViewportText.includes('Preparing canvas view...')) {
+    throw new Error('Expected Canvas viewport pending placeholder to suppress stale canvas content during source-file handoff')
   }
 }
 
@@ -236,8 +268,8 @@ export const testMarkdownWorkspaceSelectionAppliesFrontmatterFileSwitchAtActiveD
   if (!text.includes('if (nextPath && prevPath && prevPath !== nextPath) {') || !text.includes('if (switched.next !== args.activePath) return')) {
     throw new Error('Expected markdown workspace selection to keep the pending file switch stable until the active document owner consumes the matching path')
   }
-  if (!text.includes('await fs.readFileText(nextPath).catch(() => \'\')') || !text.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
-    throw new Error('Expected markdown workspace selection to hydrate metadata-only workspace entries from the shared workspace fs before applying selected file frontmatter')
+  if (!text.includes('readWorkspaceActiveDocumentResolvedText({') || !text.includes('args.patchWorkspaceEntryInlineText(nextPath, nextText)')) {
+    throw new Error('Expected markdown workspace selection to hydrate metadata-only workspace entries through the shared active-document resolver before applying selected file frontmatter')
   }
   if (!text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
     throw new Error('Expected Source Files frontmatter replay to keep original markdown flow blocks instead of normalizing to webpage key/value markdown')

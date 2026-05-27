@@ -17,6 +17,9 @@ import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbe
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '@/lib/routing/queryParams'
 import { runGlobalInteractionCleanup } from '@/lib/canvas/interaction-recovery'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { workspaceBasename } from '@/features/workspace-fs/path'
+import { isMarkdownWorkspaceDocumentSwitchPending } from '@/lib/markdown-workspace-runtime/markdownWorkspaceDocumentSwitch'
 import { WORKSPACE_EDITOR_CANVAS_GUTTER_CSS } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
@@ -97,6 +100,7 @@ export default function CanvasPage() {
   }, [workspaceViewMode])
 
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
+  const activePath = useMarkdownExplorerStore(s => s.activePath)
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceCanvasPaneVisible = workspaceEditorOverlayOpen && workspaceCanvasPaneOpen
   const workspacePaneBoundaryCss = `min(${workspacePreviewWidthPx}px, calc(100% - ${WORKSPACE_EDITOR_CANVAS_GUTTER_CSS}))`
@@ -117,15 +121,26 @@ export default function CanvasPage() {
     frontmatterModeEnabled,
     documentSemanticMode,
     markdownDocumentApplyViewPreset,
+    markdownDocumentName,
     markdownDocumentText,
   } = useGraphStore(
     useShallow(s => ({
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
       markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset,
+      markdownDocumentName: s.markdownDocumentName,
       markdownDocumentText: s.markdownDocumentText,
     })),
   )
+  const workspaceDocumentSwitchPending = isMarkdownWorkspaceDocumentSwitchPending({
+    activePath,
+    markdownDocumentName,
+  })
+  const switchingDocumentLabel = React.useMemo(() => {
+    if (!activePath) return 'Switching document...'
+    const basename = workspaceBasename(activePath)
+    return basename ? `Switching document: ${basename}` : 'Switching document...'
+  }, [activePath])
   const geospatialModeEnabled = useCanvasGeospatialRuntime()
   const shouldMountCanvasFrontmatterRuntime = React.useMemo(() => {
     if (documentSemanticMode !== 'document') return false
@@ -207,9 +222,18 @@ export default function CanvasPage() {
               >
                 <nav className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+0.5rem)] left-[calc(var(--kg-safe-left)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent" aria-label="Canvas Toolbar" role="navigation">
                   <div className="pointer-events-auto min-w-0 max-w-full">
-                    <React.Suspense fallback={null}>
-                      <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                    </React.Suspense>
+                    {workspaceDocumentSwitchPending ? (
+                      <div
+                        className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-sm text-[var(--kg-text-secondary)] shadow-sm"
+                        aria-label={switchingDocumentLabel}
+                      >
+                        {switchingDocumentLabel}
+                      </div>
+                    ) : (
+                      <React.Suspense fallback={null}>
+                        <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                      </React.Suspense>
+                    )}
                   </div>
                 </nav>
               </header>
@@ -233,9 +257,18 @@ export default function CanvasPage() {
                         role="navigation"
                       >
                         <div className="pointer-events-auto">
-                          <React.Suspense fallback={null}>
-                            <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                          </React.Suspense>
+                          {workspaceDocumentSwitchPending ? (
+                            <div
+                              className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-sm text-[var(--kg-text-secondary)] shadow-sm"
+                              aria-label={switchingDocumentLabel}
+                            >
+                              {switchingDocumentLabel}
+                            </div>
+                          ) : (
+                            <React.Suspense fallback={null}>
+                              <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                            </React.Suspense>
+                          )}
                         </div>
                       </nav>
                     ) : null}
@@ -247,6 +280,8 @@ export default function CanvasPage() {
                       canvasRenderMode={canvasRenderMode}
                       canvas3dMode={canvas3dMode}
                       canvas2dRenderer={canvas2dRenderer}
+                      documentSwitchPending={workspaceDocumentSwitchPending}
+                      documentSwitchPendingLabel={switchingDocumentLabel}
                     />
                   </section>
 

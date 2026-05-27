@@ -1032,7 +1032,11 @@ const readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl = async (
   }
 }
 
-export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<WorkspaceDocsMirrorEntry[]> {
+export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
+  preferCompleteDataset?: boolean
+}): Promise<WorkspaceDocsMirrorEntry[]> {
+  const preferCompleteDataset = args?.preferCompleteDataset === true
+  const completeDatasetCandidates: WorkspaceDocsMirrorEntry[][] = []
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()
   const knowgrphStorageBaseUrl = readWorkspaceInitializationKnowgrphStorageBaseUrl()
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
@@ -1051,7 +1055,10 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
           selectedFolderPath: sourceFilesSelection.selectedFolderPath,
           sourceFiles: sourceFilesSelection.sourceFiles,
         })
-        if (viaKnowgrphDocView.length > 0) return viaKnowgrphDocView
+        if (viaKnowgrphDocView.length > 0) {
+          if (!preferCompleteDataset) return viaKnowgrphDocView
+          storageDatasets.push(viaKnowgrphDocView)
+        }
       }
       const viaKnowgrphStorage = await readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExport({
         baseUrl: knowgrphStorageBaseUrl,
@@ -1060,7 +1067,10 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
       })
       if (viaKnowgrphStorage.length > 0) storageDatasets.push(viaKnowgrphStorage)
       const bestStorageDataset = chooseBestWorkspaceDocsMirrorDataset(storageDatasets)
-      if (bestStorageDataset.length > 0) return bestStorageDataset
+      if (bestStorageDataset.length > 0) {
+        if (!preferCompleteDataset) return bestStorageDataset
+        completeDatasetCandidates.push(bestStorageDataset)
+      }
     }
   }
   if (sourceFilesSelection?.sourceFiles?.length) {
@@ -1074,42 +1084,71 @@ export async function readWorkspaceInitializationDocsMirrorEntries(): Promise<Wo
         selectedFolderPath: sourceFilesSelection.selectedFolderPath,
         storageDocFallback: knowgrphStorageWorkspaceId && knowgrphStorageBaseUrl ? { workspaceId: knowgrphStorageWorkspaceId, baseUrl: knowgrphStorageBaseUrl } : null,
       })
-      if (viaSourceFilesHydrated.length > 0) return viaSourceFilesHydrated
+      if (viaSourceFilesHydrated.length > 0) {
+        if (!preferCompleteDataset) return viaSourceFilesHydrated
+        completeDatasetCandidates.push(viaSourceFilesHydrated)
+      }
     } else {
       const viaSourceFiles = readWorkspaceDocsMirrorEntriesFromSourceFilesRecords({
         sourceFiles: sourceFilesSelection.sourceFiles,
         selectedFolderPath: sourceFilesSelection.selectedFolderPath,
       })
-      if (viaSourceFiles.length > 0) return viaSourceFiles
+      if (viaSourceFiles.length > 0) {
+        if (!preferCompleteDataset) return viaSourceFiles
+        completeDatasetCandidates.push(viaSourceFiles)
+      }
     }
   }
-  if (knowgrphStorageBaseUrl && sourceFilesSelection && knowgrphStorageWorkspaceId) return []
+  if (!preferCompleteDataset && knowgrphStorageBaseUrl && sourceFilesSelection && knowgrphStorageWorkspaceId) return []
   if (sourceFilesSelection?.localMarkdownFolderHandle) {
     const viaHandle = await readWorkspaceDocsMirrorEntriesFromLocalFolderHandle({
       rootHandle: sourceFilesSelection.localMarkdownFolderHandle,
       selectedFolderPath: sourceFilesSelection.selectedFolderPath,
     })
-    if (viaHandle.length > 0) return viaHandle
+    if (viaHandle.length > 0) {
+      if (!preferCompleteDataset) return viaHandle
+      completeDatasetCandidates.push(viaHandle)
+    }
   }
   if (sourceFilesSelection?.localMarkdownFolderCacheId) {
     const viaCache = await readWorkspaceDocsMirrorEntriesFromLocalFolderCache({
       folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId,
       selectedFolderPath: sourceFilesSelection.selectedFolderPath,
     })
-    if (viaCache.length > 0) return viaCache
+    if (viaCache.length > 0) {
+      if (!preferCompleteDataset) return viaCache
+      completeDatasetCandidates.push(viaCache)
+    }
   }
   if (!knowgrphStorageBaseUrl) {
     const defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
     if (defaultSourceUrl) {
       const viaUrl = await readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl(defaultSourceUrl)
-      if (viaUrl.length > 0) return viaUrl
+      if (viaUrl.length > 0) {
+        if (!preferCompleteDataset) return viaUrl
+        completeDatasetCandidates.push(viaUrl)
+      }
     }
   }
   const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
-  if (!docsAbsRoot) return []
+  if (!docsAbsRoot) {
+    return preferCompleteDataset
+      ? chooseBestWorkspaceDocsMirrorDataset(completeDatasetCandidates)
+      : []
+  }
   const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
-  if (viaProxy.length > 0) return viaProxy
-  return readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
+  if (viaProxy.length > 0) {
+    if (!preferCompleteDataset) return viaProxy
+    completeDatasetCandidates.push(viaProxy)
+  }
+  const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
+  if (viaNodeFs.length > 0) {
+    if (!preferCompleteDataset) return viaNodeFs
+    completeDatasetCandidates.push(viaNodeFs)
+  }
+  return preferCompleteDataset
+    ? chooseBestWorkspaceDocsMirrorDataset(completeDatasetCandidates)
+    : []
 }
 
 export async function upsertWorkspaceInitializationSeedText(args: {

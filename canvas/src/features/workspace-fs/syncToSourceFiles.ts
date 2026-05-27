@@ -36,6 +36,14 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   const forceInclude = new Set((Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : []).map(path => String(path || '').trim()).filter(Boolean))
   const forceIncludeOnly = args.forceIncludeOnly === true && forceInclude.size > 0
   const workspaceDocsOnly = args.workspaceDocsOnly === true
+  const docsMirrorBasenameSet = new Set<string>(
+    entries
+      .filter(entry => entry?.kind === 'file')
+      .map(entry => String(entry.path || '').trim())
+      .filter(path => path.startsWith('/docs/'))
+      .map(path => path.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop()?.toLowerCase() || '')
+      .filter(Boolean),
+  )
   const docsMirrorCanonicalSeedSourcePathSet = new Set<string>(
     entries
       .filter(entry => entry?.kind === 'file')
@@ -77,6 +85,16 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (workspaceDocsOnly && !path.startsWith('/docs/') && !forceInclude.has(path)) continue
 
     const seedSourcePath = resolveWorkspaceSeedSourcePath(path)
+    const basename = path.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || ''
+    const isStaleRootDocsAliasCoveredByDocsMirror =
+      workspaceDocsOnly
+      && !path.startsWith('/docs/')
+      && !forceInclude.has(path)
+      && !seedSourcePath
+      && path.split('/').filter(Boolean).length === 1
+      && /\.md$/i.test(basename)
+      && docsMirrorBasenameSet.has(basename.toLowerCase())
+    if (isStaleRootDocsAliasCoveredByDocsMirror) continue
     const isLegacyRootSeedAliasCoveredByDocsMirror =
       !!seedSourcePath
       && isCanonicalWorkspaceSeedSourcePath(seedSourcePath)

@@ -12,12 +12,21 @@ const E2E_VIDEO_DOC_PATHS = [
   path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-video-demo.md'),
   path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-ralphthon-video-demo.md'),
 ]
-const E2E_TYPED_WRAPPER_DOC_SET = new Set(E2E_VIDEO_DOC_PATHS)
+const STORYBOARD_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo.md')
+const STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-product-ui-demo.md')
+const STORYBOARD_NEUTRAL_CONTRACT_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-neutral-schema-contract-demo.md')
+const APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS = [
+  STORYBOARD_TYPED_WRAPPER_DOC_PATH,
+  STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH,
+  STORYBOARD_NEUTRAL_CONTRACT_TYPED_WRAPPER_DOC_PATH,
+]
+const APPROVED_TYPED_WRAPPER_DOC_PATHS = [
+  ...E2E_VIDEO_DOC_PATHS,
+  ...APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS,
+]
+const E2E_TYPED_WRAPPER_DOC_SET = new Set(APPROVED_TYPED_WRAPPER_DOC_PATHS)
 const CANONICAL_PLAIN_YAML_DOC_CONTRACTS = [
   { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-animatic-demo.md'), renderer: 'animatic', requiresFlow: true },
-  { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo.md'), renderer: 'storyboard', requiresFlow: true },
-  { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-product-ui-demo.md'), renderer: 'storyboard', requiresFlow: true },
-  { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-neutral-schema-contract-demo.md'), renderer: 'storyboard', requiresFlow: true },
   { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo-index.md'), renderer: 'd3', requiresFlow: false },
 ] as const
 const REQUIRED_FLOW_TYPED_SETTING_KEYS = ['direction', 'edgeType', 'snapToGrid', 'computed'] as const
@@ -25,6 +34,15 @@ const REQUIRED_FLOW_EDITOR_TYPED_FIXTURE_PRESET: Record<string, string | boolean
   kgCanvasSurfaceMode: '2d',
   kgCanvasRenderMode: '2d',
   kgCanvas2dRenderer: 'flowEditor',
+  kgDocumentSemanticMode: 'document',
+  kgFrontmatterModeEnabled: true,
+  kgMultiDimTableModeEnabled: false,
+  kgDocumentStructureBaselineLock: false,
+}
+const REQUIRED_STORYBOARD_TYPED_FIXTURE_PRESET: Record<string, string | boolean> = {
+  kgCanvasSurfaceMode: '2d',
+  kgCanvasRenderMode: '2d',
+  kgCanvas2dRenderer: 'storyboard',
   kgDocumentSemanticMode: 'document',
   kgFrontmatterModeEnabled: true,
   kgMultiDimTableModeEnabled: false,
@@ -109,9 +127,13 @@ const listTypedWrapperMarkdownDocs = (): string[] => {
   return listMarkdownFiles(HUIJOOHWEE_DOCS_ROOT).filter(filePath => readUtf8(filePath).includes('{key:'))
 }
 
-const validateTypedWrapperFixtureFrontmatter = (filePath: string, violations: string[]) => {
+const validateTypedWrapperFixtureFrontmatter = (
+  filePath: string,
+  violations: string[],
+  requiredPreset: Record<string, string | boolean>,
+) => {
   const meta = readFrontmatterRecord(filePath)
-  for (const [key, expected] of Object.entries(REQUIRED_FLOW_EDITOR_TYPED_FIXTURE_PRESET)) {
+  for (const [key, expected] of Object.entries(requiredPreset)) {
     if (meta[key] !== expected) {
       violations.push(
         `${toRepoRelativePath(filePath)} expected ${key}=${JSON.stringify(expected)} but found ${JSON.stringify(meta[key])}`,
@@ -196,11 +218,64 @@ export function testE2EVideoFixturesUseTypedFrontmatterValueWrappers() {
   violations.push(...unexpectedTypedWrapperDocs, ...missingTypedWrapperDocs)
 
   for (const filePath of E2E_VIDEO_DOC_PATHS) {
-    validateTypedWrapperFixtureFrontmatter(filePath, violations)
+    validateTypedWrapperFixtureFrontmatter(filePath, violations, REQUIRED_FLOW_EDITOR_TYPED_FIXTURE_PRESET)
   }
 
   if (violations.length > 0) {
     throw new Error(`Expected normalized E2E fixtures to keep typed frontmatter value wrappers:\n${violations.join('\n')}`)
+  }
+}
+
+export function testStoryboardDemoUsesTypedFrontmatterValueWrappers() {
+  const violations: string[] = []
+  const typedWrapperDocs = listTypedWrapperMarkdownDocs()
+  for (const filePath of APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS) {
+    if (!typedWrapperDocs.includes(filePath)) {
+      violations.push(`${toRepoRelativePath(filePath)} is missing typed-wrapper frontmatter content`)
+      continue
+    }
+    validateTypedWrapperFixtureFrontmatter(filePath, violations, REQUIRED_STORYBOARD_TYPED_FIXTURE_PRESET)
+  }
+
+  const meta = readFrontmatterRecord(STORYBOARD_TYPED_WRAPPER_DOC_PATH)
+  const flow = meta.flow
+  if (!isPlainRecord(flow)) {
+    violations.push(`${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected frontmatter.flow to be an object`)
+  } else {
+    for (const key of ['direction', 'edgeType', 'balancedViewportPreset'] as const) {
+      if (!isTypedValueWrapper(flow[key], key)) {
+        violations.push(`${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected flow.${key} to use a {key, type, value} wrapper`)
+      }
+    }
+    if (!Array.isArray(flow.nodes) || flow.nodes.length === 0) {
+      violations.push(`${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected flow.nodes to contain typed-wrapper nodes`)
+    } else {
+      flow.nodes.forEach((node, index) => {
+        if (!isPlainRecord(node)) {
+          violations.push(`${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected flow.nodes[${index}] to be an object`)
+          return
+        }
+        for (const [key, value] of Object.entries(node)) {
+          if (!isTypedValueWrapper(value, key)) {
+            violations.push(
+              `${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected flow.nodes[${index}].${key} to use a {key, type, value} wrapper`,
+            )
+          }
+        }
+      })
+      const targetNode = flow.nodes.find(node => isPlainRecord(node) && isTypedValueWrapper(node.id, 'id') && node.id.value === 'SCENE_03')
+      if (!isPlainRecord(targetNode) || !isTypedValueWrapper(targetNode.position, 'position')) {
+        violations.push(`${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected SCENE_03 to expose wrapped position metadata`)
+      } else if (JSON.stringify(targetNode.position.value) !== JSON.stringify({ x: 0, y: -720 })) {
+        violations.push(
+          `${toRepoRelativePath(STORYBOARD_TYPED_WRAPPER_DOC_PATH)} expected SCENE_03.position to equal {"x":0,"y":-720} but found ${JSON.stringify(targetNode.position.value)}`,
+        )
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(`Expected storyboard demo to keep normalized typed frontmatter value wrappers:\n${violations.join('\n')}`)
   }
 }
 

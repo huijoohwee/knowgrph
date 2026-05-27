@@ -44,10 +44,22 @@ export type CanvasViewportProps = {
   canvasRenderMode: '2d' | '3d'
   canvas3dMode: Canvas3dModeId
   canvas2dRenderer: Canvas2dRendererId
+  documentSwitchPending?: boolean
+  documentSwitchPendingLabel?: string
 }
 
 export function CanvasViewport(props: CanvasViewportProps) {
-  const { variant, layout = 'full', geospatialModeEnabled, workspaceEditorOverlayOpen = false, canvasRenderMode, canvas3dMode, canvas2dRenderer } = props
+  const {
+    variant,
+    layout = 'full',
+    geospatialModeEnabled,
+    workspaceEditorOverlayOpen = false,
+    canvasRenderMode,
+    canvas3dMode,
+    canvas2dRenderer,
+    documentSwitchPending = false,
+    documentSwitchPendingLabel = 'Switching document...',
+  } = props
   const activeGraphData = useActiveGraphRenderData(true)
   const active2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
   const d3SurfaceActive = active2dSurface === 'd3'
@@ -92,7 +104,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
       aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
-        {!geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
+        {!documentSwitchPending && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <div className="absolute inset-0 z-[10]">
             <div className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
               {d3SurfaceActive ? <GraphCanvasLazy active /> : null}
@@ -114,19 +126,19 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </div>
           </div>
         )}
-        {!geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
+        {!documentSwitchPending && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </div>
         ) : null}
 
-        {geospatialModeEnabled && active2dSurface === 'flowEditor' ? (
+        {!documentSwitchPending && geospatialModeEnabled && active2dSurface === 'flowEditor' ? (
           <div className="absolute inset-0 z-[30] pointer-events-none" aria-hidden="true">
             <FlowEditorWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />
           </div>
         ) : null}
 
-        {geospatialOverlayOwnsViewport ? (
+        {!documentSwitchPending && geospatialOverlayOwnsViewport ? (
           <CanvasViewportGeospatialOverlayLazy
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
@@ -137,12 +149,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
 
         {variant === 'workspace' ? (
           <>
-            {layout === 'full' ? (
+            {layout === 'full' && !documentSwitchPending ? (
               <React.Suspense fallback={null}>
                 <LaunchSpotlightLazy />
               </React.Suspense>
             ) : null}
-            {!geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
+            {!documentSwitchPending && !geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 ${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'} pointer-events-auto`}
                 style={layout === 'pane' ? { bottom: 'calc(var(--kg-safe-bottom) + 0.75rem)' } : { bottom: 'calc(40px + 12px)' }}
@@ -151,9 +163,20 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 <MinimapLazy />
               </aside>
             ) : null}
-            <InfiniteCanvasWorkspaceOverlay />
-            {MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
-            {paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
+            {!documentSwitchPending ? <InfiniteCanvasWorkspaceOverlay /> : null}
+            {!documentSwitchPending && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
+            {!documentSwitchPending && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
+            {documentSwitchPending ? (
+              <section
+                className="absolute inset-0 z-[80] flex items-center justify-center bg-[var(--kg-canvas-bg)]"
+                aria-label={documentSwitchPendingLabel}
+              >
+                <div className="rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-4 py-3 text-center shadow-sm">
+                  <p className="text-sm font-medium text-[var(--kg-text-primary)]">{documentSwitchPendingLabel}</p>
+                  <p className="mt-1 text-xs text-[var(--kg-text-secondary)]">Preparing canvas view...</p>
+                </div>
+              </section>
+            ) : null}
           </>
         ) : null}
       </React.Suspense>

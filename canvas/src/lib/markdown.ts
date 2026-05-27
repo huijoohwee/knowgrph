@@ -2,6 +2,11 @@ import { load as parseYaml } from 'js-yaml'
 import { parseAsciiBoxTable } from '../features/markdown/ui/codeblock/asciiBoxTable'
 
 export type MarkdownFrontmatter = Record<string, unknown>
+export type MarkdownFrontmatterParseResult = {
+  meta: MarkdownFrontmatter
+  startIndex: number
+  warnings: string[]
+}
 
 export type MarkdownBlock =
   | { kind: 'heading'; level: number; text: string; startLine: number; endLine: number }
@@ -31,9 +36,9 @@ export const splitMarkdownLines = (raw: string): string[] =>
 
 export const parseMarkdownFrontmatter = (
   lines: string[],
-): { meta: MarkdownFrontmatter; startIndex: number } => {
-  if (!lines.length) return { meta: {}, startIndex: 0 }
-  if ((lines[0] || '').trim() !== '---') return { meta: {}, startIndex: 0 }
+): MarkdownFrontmatterParseResult => {
+  if (!lines.length) return { meta: {}, startIndex: 0, warnings: [] }
+  if ((lines[0] || '').trim() !== '---') return { meta: {}, startIndex: 0, warnings: [] }
   let endIndex = -1
   for (let i = 1; i < lines.length; i += 1) {
     if ((lines[i] || '').trim() === '---') {
@@ -41,9 +46,10 @@ export const parseMarkdownFrontmatter = (
       break
     }
   }
-  if (endIndex < 0) return { meta: {}, startIndex: 0 }
+  if (endIndex < 0) return { meta: {}, startIndex: 0, warnings: [] }
 
   const frontmatterText = lines.slice(1, endIndex).join('\n')
+  const warnings: string[] = []
   const recoverFrontmatterMermaidLiteral = (raw: string): string => {
     const srcLines = String(raw || '').split('\n')
     for (let i = 0; i < srcLines.length; i += 1) {
@@ -102,24 +108,45 @@ export const parseMarkdownFrontmatter = (
     }
     return value
   }
+  const formatYamlError = (error: unknown): string => {
+    if (!error || typeof error !== 'object') return 'unknown YAML parse error'
+    const reason = typeof (error as { reason?: unknown }).reason === 'string'
+      ? String((error as { reason?: unknown }).reason).trim()
+      : ''
+    const message = typeof (error as { message?: unknown }).message === 'string'
+      ? String((error as { message?: unknown }).message).split('\n')[0]!.trim()
+      : ''
+    const mark = (error as { mark?: { line?: unknown; column?: unknown } }).mark
+    const line = typeof mark?.line === 'number' ? mark.line + 1 : null
+    const column = typeof mark?.column === 'number' ? mark.column + 1 : null
+    const base = reason || message || 'unknown YAML parse error'
+    if (line != null && column != null) return `${base} (line ${line}, column ${column})`
+    return base
+  }
 
   let meta: MarkdownFrontmatter = {}
+  let initialParseError: string | null = null
   try {
     const parsed = parseYaml(frontmatterText) as unknown
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       meta = sanitizeYamlValue(parsed) as MarkdownFrontmatter
     }
-  } catch {
+  } catch (error) {
+    initialParseError = formatYamlError(error)
     try {
       const repaired = repairFrontmatterYaml(frontmatterText)
       const parsed = parseYaml(repaired) as unknown
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         meta = sanitizeYamlValue(parsed) as MarkdownFrontmatter
+        warnings.push(`Markdown frontmatter YAML parse recovered after repair: ${initialParseError}`)
       } else {
         meta = {}
       }
-    } catch {
+    } catch (repairError) {
       meta = {}
+      warnings.push(
+        `Markdown frontmatter YAML parse failed and frontmatter was ignored: ${initialParseError}; repair failed: ${formatYamlError(repairError)}`,
+      )
     }
   }
 
@@ -130,7 +157,7 @@ export const parseMarkdownFrontmatter = (
     }
   }
 
-  return { meta, startIndex: endIndex + 1 }
+  return { meta, startIndex: endIndex + 1, warnings }
 }
 
 export const parseMarkdownBlocks = (lines: string[], startIndex: number): MarkdownBlock[] => {

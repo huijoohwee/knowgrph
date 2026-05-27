@@ -1,4 +1,20 @@
+---
+title: "Knowgrph MCP Server (stdio)"
+doc_type: "Subsystem README"
+status: "active"
+lang: "en-US"
+frontmatter_contract: "required"
+---
+
 # Knowgrph MCP Server (stdio)
+
+## Authoring Contract
+
+- The opening YAML frontmatter block remains the first-block machine SSOT for subsystem metadata, transport scope, and runtime context for this MCP README.
+- This document is a canonical authored subsystem README, not a generated registry surface or typed validation fixture.
+- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for MCP subsystem docs, transport boundaries, and operator guidance.
+- If typed `{key, type, value}` envelopes are needed for ingest -> parse -> render validation, that coverage should live in a dedicated fixture doc rather than replacing canonical subsystem prose.
+- Runtime guidance and surface-separation rules must still be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirrors.
 
 This folder provides the **local stdio MCP server** for Knowgrph. It exposes core local
 `knowgrph_parser` and browser-bridge commands as MCP tools so users can operate Knowgrph from

@@ -6,6 +6,7 @@ import { resolveMarkdownWorkspacePaneVisibility, type MarkdownWorkspacePaneAvail
 export function MarkdownWorkspaceLayout(props: {
   toolbarProps: React.ComponentProps<typeof MarkdownWorkspaceToolbar>
   layoutMode: MarkdownWorkspaceLayoutMode
+  documentNotice?: React.ReactNode
   renderMarkdownEditor: () => React.ReactNode
   renderJsonEditor: () => React.ReactNode
   binaryPane?: React.ReactNode
@@ -65,6 +66,11 @@ export function MarkdownWorkspaceLayout(props: {
   return (
     <main className="kg-markdown-workspace-main flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor and Viewer">
       <MarkdownWorkspaceToolbar {...props.toolbarProps} />
+      {props.documentNotice ? (
+        <section className="px-2 pt-2" aria-label="Document notices">
+          {props.documentNotice}
+        </section>
+      ) : null}
 
       {props.layoutMode === 'editor' ? (
         <section className="kg-markdown-workspace-editor-panes flex-1 min-w-0 min-h-0 flex" aria-label="Monaco editors">

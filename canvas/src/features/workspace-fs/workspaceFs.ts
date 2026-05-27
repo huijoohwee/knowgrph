@@ -363,7 +363,9 @@ const loadWorkspaceSeedText = async (args: {
       .map(path => normalizeInitializationSeedRelPath(path))
       .filter(Boolean),
   )
-  const docsMirrorEntries = Array.isArray(args.docsMirrorEntries) ? args.docsMirrorEntries : await readWorkspaceInitializationDocsMirrorEntries()
+  const docsMirrorEntries = Array.isArray(args.docsMirrorEntries)
+    ? args.docsMirrorEntries
+    : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
   if (docsMirrorEntries.length > 0) {
     const byUpdatedDesc = [...docsMirrorEntries].sort((a, b) => Number(b.updatedAtMs || 0) - Number(a.updatedAtMs || 0))
     for (let i = 0; i < byUpdatedDesc.length; i += 1) {
@@ -424,7 +426,7 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
-  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries()
+  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
   const loaded = await Promise.all(
     WORKSPACE_SEED_SPECS.map(async seed => ({
       path: seed.path,

@@ -173,3 +173,78 @@ export async function testMarkdownWorkspaceViewShellKeepsYoutubeFormatOutOfSourc
     harness.restore()
   }
 }
+
+export async function testMarkdownWorkspaceViewShellShowsFrontmatterWarningBadgeForMalformedFileRow() {
+  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const entry: WorkspaceEntry = {
+      path: '/broken-frontmatter.md',
+      parentPath: '/',
+      kind: 'file',
+      name: 'broken-frontmatter.md',
+      text: [
+        '---',
+        'title: "Broken',
+        'flow:',
+        '  direction: LR',
+        '---',
+        '',
+        '# Invalid',
+      ].join('\n'),
+      updatedAtMs: 1,
+    }
+    const container = harness.dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    function TestHarness() {
+      const [folderModeContract, setFolderModeContract] = React.useState<'sitemap' | 'user-journey'>('sitemap')
+      const [, setExpandedPaths] = React.useState<Set<string>>(() => new Set())
+      const viewShell = useMarkdownWorkspaceViewShell({
+        entries: [{ path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 0 }, entry],
+        sourcesByPath: {},
+        folderModeContract,
+        setFolderModeContract,
+        selectionPath: null,
+        selectionEntryKind: 'file',
+        setActivePathSafe: () => {},
+        setSelectionPathSafe: () => {},
+        setSelectionSource: () => {},
+        setExpandedPaths,
+        resolveFolderContractDocPath: folderPath => folderPath,
+        pickFolderContractTargetPath: () => null,
+        revealLineInEditor: () => {},
+        setStatusWithAutoClear: () => {},
+      })
+
+      return <section>{viewShell.renderSourceFileRight({ entry, isActive: false })}</section>
+    }
+
+    root = createRoot(container as unknown as HTMLElement)
+    await act(async () => {
+      root.render(<TestHarness />)
+      await tick()
+    })
+
+    const badge = container.querySelector('[aria-label="Frontmatter warning in broken-frontmatter.md"]') as HTMLElement | null
+    if (!badge) throw new Error('expected malformed frontmatter file row to render a warning badge')
+    if (String(badge.textContent || '').trim() !== 'YAML') {
+      throw new Error(`expected compact YAML warning badge, got ${JSON.stringify(badge.textContent || '')}`)
+    }
+    const title = String(badge.getAttribute('title') || '')
+    if (!title.includes('Markdown frontmatter YAML parse failed and frontmatter was ignored:')) {
+      throw new Error(`expected warning badge title to reuse parse warning summary, got ${JSON.stringify(title)}`)
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+        await tick()
+      })
+    } catch {
+      void 0
+    }
+    harness.restore()
+  }
+}

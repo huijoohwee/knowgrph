@@ -1,5 +1,6 @@
 import React from 'react'
 import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMarkdownEditorSsotSync'
+import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
@@ -72,6 +73,7 @@ function buildWorkspaceDocumentSwitchSignature(args: {
 }
 
 export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
+  const storageFallbackByPathRef = React.useRef<Map<string, string>>(new Map())
   const setActivePathSafe = React.useCallback(
     (path: WorkspacePath) => {
       const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
@@ -171,7 +173,12 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       if (!nextText.trim()) {
         const fs = await args.getFs()
         if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
-        nextText = String((await fs.readFileText(nextPath).catch(() => '')) || '')
+        nextText = await readWorkspaceActiveDocumentResolvedText({
+          activePath: nextPath,
+          currentText: nextText,
+          fs,
+          storageFallbackByPath: storageFallbackByPathRef.current,
+        })
       }
       if (!nextText.trim()) return
       if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
@@ -218,7 +225,12 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       if (!nextText.trim()) {
         const fs = await args.getFs()
         if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
-        nextText = String((await fs.readFileText(switched.next).catch(() => '')) || '')
+        nextText = await readWorkspaceActiveDocumentResolvedText({
+          activePath: switched.next,
+          currentText: nextText,
+          fs,
+          storageFallbackByPath: storageFallbackByPathRef.current,
+        })
       }
       if (!nextText.trim()) return
       if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
