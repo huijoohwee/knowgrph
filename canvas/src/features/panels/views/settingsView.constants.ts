@@ -8,6 +8,7 @@ import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MIROMIND_API_DOC_AREA, MIROMIND_API_DOCS_URL } from './miromindApiDocs'
+import { AGNES_API_DOC_AREA, AGNES_API_DOCS_URL } from './agnesApiDocs'
 import { BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA, BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusImageGenerationSsot'
 import { BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA, BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusVideoGenerationSsot'
 import { GEMINI_VIDEO_GENERATION_API_DOC_AREA, GEMINI_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/geminiVideoGenerationSsot'
@@ -84,6 +85,17 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
     highlights: [
       'Raw SSE parsing preserves reasoning_steps, reasoning_tokens, and num_search_queries without creating a provider-specific finalize path.',
       'Renderer, widget, subgraph, and edge ownership stay provider-neutral and downstream of shared markdown/frontmatter apply.',
+    ],
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [AGNES_API_DOC_AREA]: {
+    docsUrl: AGNES_API_DOCS_URL,
+    docsLabel: 'Open Agnes AI Chat Completions Docs',
+    panelLabel: 'Open FloatingPanel Chat UI (Agnes)',
+    note: 'Agnes stays on the shared chat-completions transport and preserves the canonical chat -> markdown YAML frontmatter -> workspace -> canvas path.',
+    highlights: [
+      'SSE data frames stay on the shared JSON chunk parser and must terminate with one validated KGC markdown artifact.',
+      'Flow Editor, Storyboard, and Animatic remain provider-neutral and keep downstream ownership on shared markdown/frontmatter apply only.',
     ],
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

@@ -54,6 +54,7 @@ const KG_FS_LIST_PATH = '/__kg_fs_list'
 const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_MIROMIND_HOST = 'api.miromind.ai'
+const CHAT_PROXY_AGNES_HOST = 'apihub.agnes-ai.com'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
@@ -72,14 +73,14 @@ const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HO
 const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
-  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   const out = new Set<string>()
   envValue
     .split(',')
     .map(part => normalizeHost(part))
     .filter(Boolean)
     .forEach(host => out.add(host))
-  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   return out
 }
 const toLogSafeText = (value: unknown): string => {
@@ -1815,6 +1816,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const localProviderSelected = providerHeader === 'lmstudio-local'
     const bytePlusProviderSelected = providerHeader === 'byteplus-modelark'
     const miromindProviderSelected = providerHeader === 'miromind'
+    const agnesProviderSelected = providerHeader === 'agnes-ai'
     if (localGatewayOnly && providerHeader === 'openai') {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -1831,6 +1833,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       if (bytePlusProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST}`
       if (miromindProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_MIROMIND_HOST}`
+      if (agnesProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_AGNES_HOST}`
       if (providerHeader === 'openai') return 'https://api.openai.com'
       if (requestedUpstreamRaw) return requestedUpstreamRaw
       return String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
@@ -1865,16 +1868,21 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const bytePlusUpstreamSelected = bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname)
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
     const requiresMiroMindKey = !localGatewayOnly && (miromindProviderSelected || upstreamHostname === CHAT_PROXY_MIROMIND_HOST)
+    const requiresAgnesKey = !localGatewayOnly && (agnesProviderSelected || upstreamHostname === CHAT_PROXY_AGNES_HOST)
     const requiresBytePlusKey = !localGatewayOnly && bytePlusUpstreamSelected
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
     const envMiroMindApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY || process.env.MIROMIND_API_KEY || '').trim()
+    const envAgnesApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_AGNES_API_KEY || process.env.AGNES_API_KEY || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
     const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
     const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
     const miromindApiKey = (headerProviderApiKey || envMiroMindApiKey).slice(0, 512)
+    const agnesApiKey = (headerProviderApiKey || envAgnesApiKey).slice(0, 512)
     const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
     const providerApiKey = requiresBytePlusKey
       ? bytePlusApiKey
+      : requiresAgnesKey
+        ? agnesApiKey
       : requiresMiroMindKey
         ? miromindApiKey
         : openAiApiKey
@@ -1893,6 +1901,15 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({
         ok: false,
         error: 'Missing MiroMind API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export MIROMIND_API_KEY and restart the dev server.',
+      }))
+      return
+    }
+    if (requiresAgnesKey && !providerApiKey) {
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({
+        ok: false,
+        error: 'Missing Agnes API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export AGNES_API_KEY and restart the dev server.',
       }))
       return
     }
@@ -1990,7 +2007,9 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       if (contentType) headers.set('Content-Type', contentType)
       if (accept) headers.set('Accept', accept)
-      if (requiresOpenAiKey || requiresBytePlusKey) headers.set('Authorization', `Bearer ${providerApiKey}`)
+      if (requiresOpenAiKey || requiresMiroMindKey || requiresAgnesKey || requiresBytePlusKey) {
+        headers.set('Authorization', `Bearer ${providerApiKey}`)
+      }
       const clientRequestId = readSingleHeader(req.headers['x-client-request-id']).slice(0, 512)
       if (clientRequestId) headers.set('X-Client-Request-Id', clientRequestId)
       const upstreamRes = await fetch(upstreamUrl.toString(), {

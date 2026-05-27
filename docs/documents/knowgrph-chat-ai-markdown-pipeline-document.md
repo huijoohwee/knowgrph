@@ -32,6 +32,13 @@ Chat uses the provider proxy and sends:
 - A thin submit shell delegates the async lifecycle to `floatingPanelChatSubmitCoordinator.ts`, which composes request-build, transport, streaming, and KGC retry helpers instead of re-owning that logic inside the hook
 - Raw SSE JSON chunks remain owned by the shared streaming helper; provider extensions must not add a second streaming client stack
 
+### Shared Provider Contract
+- MainPanel Integrations and Settings may expose provider-specific readiness rows, but request execution must still converge on the shared FloatingPanel Chat transport path.
+- `openai`, `miromind`, and `agnes-ai` stay on the shared upstream provider boundary; Agnes and MiroMind reuse the shared chat-completions request/options shape instead of adding provider-owned submit or finalize branches.
+- Provider-specific endpoint defaults, model defaults, auth hints, and proxy normalization belong to `chatEndpoint.ts`; downstream markdown validation, workspace persistence, and canvas apply stay provider-neutral.
+- When a provider streams `text/event-stream`, each SSE `data:` frame is treated as one JSON payload or `[DONE]`; provider-specific chunk parsers, graph mutation during streaming, or renderer-specific post-processing are forbidden.
+- Agnes readiness is implemented as `MainPanel Integrations -> Agnes AI API -> FloatingPanel Chat`, and the output contract remains one frontmatter-first KGC markdown document on the shared Workspace / Source Files path.
+
 When `chatStorageTarget=chatKnowgrph`, the assistant must output:
 - A standalone parseable KGC markdown document aligned to `kgc-ai-pipeline-chat-response-base-template.md`
 - Deterministic frontmatter↔body variable linkage using `{{}}`

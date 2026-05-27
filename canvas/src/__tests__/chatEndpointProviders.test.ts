@@ -2,11 +2,14 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import {
+  CHAT_AGNES_BASE,
+  CHAT_AGNES_ENDPOINT_URL,
   CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_MIROMIND_BASE,
   CHAT_MIROMIND_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
+  CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
@@ -59,6 +62,18 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   const miromindRegion = getChatProviderRegionLabel(CHAT_PROVIDER_MIROMIND, CHAT_MIROMIND_ENDPOINT_URL)
   const miromindLabel = getChatProviderLabel(CHAT_PROVIDER_MIROMIND)
   const miromindModelOptions = getChatModelOptions(CHAT_PROVIDER_MIROMIND)
+  const agnesHeaders = buildChatProxyHeaders({
+    provider: CHAT_PROVIDER_AGNES,
+    apiKey: 'agnes-secret',
+    endpointUrl: CHAT_AGNES_ENDPOINT_URL,
+    clientRequestId: 'kg-agnes-test-123',
+  })
+  const agnesRequest = resolveChatEndpointForRequest(CHAT_AGNES_ENDPOINT_URL)
+  const agnesBaseRequest = resolveChatEndpointForRequest(CHAT_AGNES_BASE)
+  const agnesModels = resolveChatEndpointForModels(CHAT_AGNES_ENDPOINT_URL)
+  const agnesRegion = getChatProviderRegionLabel(CHAT_PROVIDER_AGNES, CHAT_AGNES_ENDPOINT_URL)
+  const agnesLabel = getChatProviderLabel(CHAT_PROVIDER_AGNES)
+  const agnesModelOptions = getChatModelOptions(CHAT_PROVIDER_AGNES)
   const openAiRequest = resolveChatEndpointForRequest(CHAT_OPENAI_ENDPOINT_URL)
   const bytePlusRegion = getChatProviderRegionLabel(CHAT_PROVIDER_BYTEPLUS, CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL)
   const openAiLabel = getChatProviderLabel(CHAT_PROVIDER_OPENAI)
@@ -93,6 +108,18 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (miromindHeaders['X-Client-Request-Id'] !== 'kg-miromind-test-123') {
     throw new Error(`expected MiroMind client request id header, got ${JSON.stringify(miromindHeaders)}`)
   }
+  if (agnesHeaders['X-KG-Chat-Provider'] !== CHAT_PROVIDER_AGNES) {
+    throw new Error(`expected Agnes provider header, got ${JSON.stringify(agnesHeaders)}`)
+  }
+  if (agnesHeaders['X-KG-Chat-Upstream'] !== CHAT_AGNES_BASE) {
+    throw new Error(`expected Agnes upstream header, got ${JSON.stringify(agnesHeaders)}`)
+  }
+  if (agnesHeaders['X-KG-Chat-Api-Key'] !== 'agnes-secret') {
+    throw new Error(`expected Agnes API key header, got ${JSON.stringify(agnesHeaders)}`)
+  }
+  if (agnesHeaders['X-Client-Request-Id'] !== 'kg-agnes-test-123') {
+    throw new Error(`expected Agnes client request id header, got ${JSON.stringify(agnesHeaders)}`)
+  }
   if (miromindRequest !== '/__chat_proxy/v1/chat/completions') {
     throw new Error(`unexpected MiroMind request path: ${JSON.stringify(miromindRequest)}`)
   }
@@ -101,6 +128,15 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   }
   if (miromindModels !== '/__chat_proxy/v1/models') {
     throw new Error(`unexpected MiroMind models path: ${JSON.stringify(miromindModels)}`)
+  }
+  if (agnesRequest !== '/__chat_proxy/v1/chat/completions') {
+    throw new Error(`unexpected Agnes request path: ${JSON.stringify(agnesRequest)}`)
+  }
+  if (agnesBaseRequest !== '/__chat_proxy/v1/chat/completions') {
+    throw new Error(`unexpected Agnes base request path: ${JSON.stringify(agnesBaseRequest)}`)
+  }
+  if (agnesModels !== '/__chat_proxy/v1/models') {
+    throw new Error(`unexpected Agnes models path: ${JSON.stringify(agnesModels)}`)
   }
   if (openAiRequest !== '/__chat_proxy/v1/responses') {
     throw new Error(`unexpected OpenAI request path: ${JSON.stringify(openAiRequest)}`)
@@ -111,17 +147,26 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (miromindRegion !== 'Global') {
     throw new Error(`unexpected MiroMind region label: ${JSON.stringify(miromindRegion)}`)
   }
+  if (agnesRegion !== 'Global') {
+    throw new Error(`unexpected Agnes region label: ${JSON.stringify(agnesRegion)}`)
+  }
   if (openAiLabel !== 'OpenAI') {
     throw new Error(`unexpected OpenAI label: ${JSON.stringify(openAiLabel)}`)
   }
   if (miromindLabel !== 'MiroMind API') {
     throw new Error(`unexpected MiroMind label: ${JSON.stringify(miromindLabel)}`)
   }
+  if (agnesLabel !== 'Agnes AI API') {
+    throw new Error(`unexpected Agnes label: ${JSON.stringify(agnesLabel)}`)
+  }
   if (
     miromindModelOptions[0] !== 'mirothinker-1-7-deepresearch-mini'
     || !miromindModelOptions.includes('mirothinker-1-7-deepresearch')
   ) {
     throw new Error(`unexpected MiroMind model options: ${JSON.stringify(miromindModelOptions)}`)
+  }
+  if (agnesModelOptions[0] !== 'agnes-2.0-flash' || agnesModelOptions.length !== 1) {
+    throw new Error(`unexpected Agnes model options: ${JSON.stringify(agnesModelOptions)}`)
   }
 }
 

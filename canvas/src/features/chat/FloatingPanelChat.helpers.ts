@@ -2,6 +2,7 @@ import { getChatHistoryStorageKey } from '@/lib/config'
 import type { JSONValue } from '@/lib/graph/types'
 import type { GraphData } from '@/lib/graph/types'
 import {
+  CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
@@ -149,9 +150,13 @@ export const buildProviderChatRequestOptions = (args: {
     }
   }
 
-  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND) return base
+  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND && provider !== CHAT_PROVIDER_AGNES) return base
 
-  const providerLabel = provider === CHAT_PROVIDER_MIROMIND ? 'MiroMind' : 'OpenAI'
+  const providerLabel = provider === CHAT_PROVIDER_MIROMIND
+    ? 'MiroMind'
+    : provider === CHAT_PROVIDER_AGNES
+      ? 'Agnes AI'
+      : 'OpenAI'
   const logprobs = coerceBooleanFlag(args.chatLogprobs, false)
   const topLogprobs = clampBytePlusTopLogprobs(args.chatTopLogprobs)
   const stop = parseOptionalJsonConfig(args.chatStopJson, 'stop', providerLabel)

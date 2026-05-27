@@ -1,4 +1,4 @@
-import { CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
+import { CHAT_PROVIDER_AGNES, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
 import { buildProviderChatRequestOptions } from '@/features/chat/FloatingPanelChat.helpers'
 
 function stableStringify(value: unknown): string {
@@ -193,6 +193,50 @@ export function testMiroMindProviderOptionsReuseSharedChatCompletionsShape() {
   const serializedExpected = stableStringify(expected)
   if (serialized !== serializedExpected) {
     throw new Error(`expected MiroMind chat-completions options ${serializedExpected}, got ${serialized}`)
+  }
+}
+
+export function testAgnesProviderOptionsReuseSharedChatCompletionsShape() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_AGNES,
+    endpointUrl: '/v1/chat/completions',
+    chatModel: 'agnes-2.0-flash',
+    chatTemperature: 0.35,
+    chatServiceTier: 'default',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'medium',
+    chatThinkingType: 'auto',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 0.2,
+    chatPresencePenalty: 0.1,
+    chatTopP: 0.9,
+    chatLogprobs: false,
+    chatTopLogprobs: 0,
+    chatParallelToolCalls: true,
+    chatStopJson: '["DONE"]',
+    chatStreamOptionsJson: '{"include_usage":true}',
+    chatResponseFormatJson: '{"type":"json_object"}',
+    chatLogitBiasJson: '',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  const expected = {
+    temperature: 0.35,
+    service_tier: 'default',
+    frequency_penalty: 0.2,
+    presence_penalty: 0.1,
+    top_p: 0.9,
+    parallel_tool_calls: true,
+    stop: ['DONE'],
+    stream_options: { include_usage: true },
+    response_format: { type: 'json_object' },
+    logprobs: false,
+  }
+  const serialized = stableStringify(options)
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected Agnes chat-completions options ${serializedExpected}, got ${serialized}`)
   }
 }
 

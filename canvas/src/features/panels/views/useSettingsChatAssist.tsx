@@ -1,6 +1,8 @@
 import React from 'react'
 import { loadAvailableModelIds } from '@/features/chat/FloatingPanelChat.helpers'
 import {
+  CHAT_AGNES_ENDPOINT_URL,
+  CHAT_AGNES_MODEL_OPTIONS,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_DEFAULT_ENDPOINT_URL,
@@ -12,6 +14,7 @@ import {
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_LM_STUDIO,
+  CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
   buildChatProxyHeaders,
@@ -65,7 +68,7 @@ export function useSettingsChatAssist({
     setValues(prev => ({ ...prev, integrationConfigsJson: next }))
   }, [dirtyRef, setValues, values.integrationConfigsJson])
 
-  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'miromind' | 'openai' | 'local') => {
+  const applyChatPreset = React.useCallback((preset: 'byteplus-sg' | 'byteplus-eu' | 'miromind' | 'agnes' | 'openai' | 'local') => {
     const patch: Record<string, string> =
       preset === 'byteplus-sg'
         ? {
@@ -84,6 +87,12 @@ export function useSettingsChatAssist({
                 chatProvider: CHAT_PROVIDER_MIROMIND,
                 chatEndpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_MIROMIND),
                 chatModel: CHAT_MIROMIND_MODEL_OPTIONS[0],
+              }
+          : preset === 'agnes'
+            ? {
+                chatProvider: CHAT_PROVIDER_AGNES,
+                chatEndpointUrl: CHAT_AGNES_ENDPOINT_URL,
+                chatModel: CHAT_AGNES_MODEL_OPTIONS[0],
               }
           : preset === 'openai'
             ? {
@@ -296,6 +305,21 @@ export function useSettingsChatAssist({
           }}
         >
           MiroMind
+        </button>,
+        <button
+          key="chat-provider-agnes"
+          type="button"
+          className={`App-toolbar__btn text-xs ${
+            normalizedChatProvider === CHAT_PROVIDER_AGNES
+              ? uiToolbarToggleActiveClassName
+              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+          }`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('agnes')
+          }}
+        >
+          Agnes
         </button>,
         <button
           key="chat-provider-openai"

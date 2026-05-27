@@ -6,6 +6,7 @@ import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MIROMIND_API_DOC_AREA } from './miromindApiDocs'
+import { AGNES_API_DOC_AREA } from './agnesApiDocs'
 import { STRIPE_PAYMENT_API_DOC_AREA } from './stripePaymentApiDocs'
 import {
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
@@ -91,6 +92,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   GEMINI_VIDEO_GENERATION_API_DOC_AREA,
   MIROMIND_API_DOC_AREA,
+  AGNES_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
   OPENAI_IMAGES_API_DOC_AREA,
   DEERFLOW_API_DOC_AREA,
@@ -130,6 +132,7 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
     || area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
     || area === MIROMIND_API_DOC_AREA
+    || area === AGNES_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
     || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA

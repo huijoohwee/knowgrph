@@ -135,6 +135,14 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'miromindApi.model',
       'miromindApi.mcp_servers',
       'miromindApi.streaming.reasoning_steps',
+      'Agnes AI API',
+      'Open FloatingPanel Chat UI (Agnes)',
+      'agnesApi.provider',
+      'agnesApi.auth_mode',
+      'agnesApi.endpoint_url',
+      'agnesApi.model',
+      'agnesApi.streaming.json_chunks',
+      'agnesApi.output_contract',
       'BytePlus Video Generation API',
       'Open FloatingPanel BytePlus Video Widget',
       'BytePlus Image Generation API',
@@ -203,6 +211,7 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     }
 
     await clickButton('Open FloatingPanel Chat UI')
+    await clickButton('Open FloatingPanel Chat UI (Agnes)')
     await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Image Widget')
@@ -210,8 +219,8 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel BytePlus Image Widget')
 
-    if (floatingPanelEvents.filter(value => value === 'chat').length !== 1) {
-      throw new Error(`expected chat section link to open floating chat once, got ${JSON.stringify(floatingPanelEvents)}`)
+    if (floatingPanelEvents.filter(value => value === 'chat').length !== 2) {
+      throw new Error(`expected chat section links to open floating chat twice, got ${JSON.stringify(floatingPanelEvents)}`)
     }
     if (propsPanelEvents.length !== 6) {
       throw new Error(`expected text/openai-chat/openai-images/deerflow/video/image section links to open floating props panel six times, got ${JSON.stringify(propsPanelEvents)}`)

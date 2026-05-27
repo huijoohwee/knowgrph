@@ -9,9 +9,11 @@ import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
 import {
+  CHAT_AGNES_MODEL_OPTIONS,
   CHAT_DEERFLOW_MODEL_OPTIONS,
   CHAT_MIROMIND_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
+  CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_MIROMIND,
@@ -73,6 +75,11 @@ import {
   getMiroMindApiRowAnchorId,
 } from './miromindApiDocs'
 import {
+  AGNES_API_DOC_AREA,
+  AGNES_API_DOC_ENTRIES,
+  getAgnesApiRowAnchorId,
+} from './agnesApiDocs'
+import {
   STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
   getStripePaymentApiRowAnchorId,
 } from './stripePaymentApiDocs'
@@ -129,7 +136,7 @@ const getSettingsSearchHints = (key: string): string[] => {
     return ['chat ai assistant context scope selection workspace hybrid']
   }
   if (key === 'chatProvider' || key === 'chatAuthMode' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
-    return ['chat ai byteplus modelark miromind openai official provider endpoint api key byok server-managed auth mode model multi-modal multimodal run image video generation deep research reasoning']
+    return ['chat ai agnes byteplus modelark miromind openai official provider endpoint api key byok server-managed auth mode model multi-modal multimodal run image video generation deep research reasoning']
   }
   if (key === 'byteplusVideoModel') {
     return ['byteplus video generation api model byteplusVideoApi.model bytedance dreamina seedance video widget integrations default']
@@ -159,6 +166,7 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...GEMINI_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...MIROMIND_API_DOC_ENTRIES,
+  ...AGNES_API_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_IMAGES_API_REQUEST_DOC_ENTRIES,
   ...DEERFLOW_API_REQUEST_DOC_ENTRIES,
@@ -204,6 +212,12 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       read: () => CHAT_PROVIDER_MIROMIND,
     }
   }
+  if (String(entry.meta.key || '').trim() === 'agnesApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => CHAT_PROVIDER_AGNES,
+    }
+  }
   if (String(entry.meta.key || '').trim() === 'byteplusApi.model') {
     const mapped = SETTINGS_REGISTRY_BY_KEY.get('chatModel')
     if (mapped) return mapped
@@ -227,6 +241,12 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       return {
         ...mappedMeta,
         options: [...CHAT_MIROMIND_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'agnesApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_AGNES_MODEL_OPTIONS],
       }
     }
     if (rowKey === 'openaiApi.reasoning_effort' || rowKey === 'deerflowApi.reasoning_effort') {
@@ -957,6 +977,8 @@ export function useSettingsView({
             ? getPixVerseVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === MIROMIND_API_DOC_AREA
             ? getMiroMindApiRowAnchorId(entry.meta.key)
+          : area === AGNES_API_DOC_AREA
+            ? getAgnesApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
             : area === OPENAI_IMAGES_API_DOC_AREA
@@ -1108,6 +1130,11 @@ export function useSettingsView({
           title: MIROMIND_API_DOC_AREA,
           searchIndex: normalizeText('MiroMind API deep research chat completions reasoning steps mcp_servers floatingpanel chat markdown frontmatter'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === MIROMIND_API_DOC_AREA,
+        },
+        {
+          title: AGNES_API_DOC_AREA,
+          searchIndex: normalizeText('Agnes AI API agnes-2.0-flash shared chat completions sse json chunks floatingpanel chat markdown yaml frontmatter source files flow editor storyboard animatic'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === AGNES_API_DOC_AREA,
         },
         {
           title: OPENAI_CHAT_API_DOC_AREA,
