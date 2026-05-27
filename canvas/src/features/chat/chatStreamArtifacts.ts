@@ -1,6 +1,7 @@
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport/urlContent'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from './chatStorageConfig'
 import { extractKgcWorkspaceSessionId, formatKgcWorkspaceSessionId } from './chatHistoryWorkspace.paths'
 import { ensureWorkspaceFolderPathExists, writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 import {
@@ -185,7 +186,7 @@ export const resolveChatStreamArtifactBundle = (args: {
   defaultLocalRootPath: string
 }): ChatStreamArtifactBundle => {
   const sessionId = readSessionIdFromWorkspacePath(args.workspacePath) || formatChatStreamArtifactSessionId(args.timestampMs)
-  const rootPath = normalizeWorkspacePath(String(args.defaultLocalRootPath || '').trim() || '/sandbox/chat-log')
+  const rootPath = normalizeWorkspacePath(String(args.defaultLocalRootPath || '').trim() || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
   const folderPath = normalizeWorkspacePath(`${rootPath === '/' ? '' : rootPath}/${sessionId}`)
   return {
     sessionId,

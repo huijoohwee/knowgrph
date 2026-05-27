@@ -402,23 +402,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const sourceEditorTextRaw = typeof editorTextOverride === 'string' ? editorTextOverride : activeText
   const frontmatterWarningSourceText = !isJsonMarkdownEditing && isMarkdown ? String(editableMarkdownText || '') : String(sourceEditorTextRaw || '')
   const frontmatterWarnings = React.useMemo(() => {
+    if (props.suppressFrontmatterWarnings) return [] as string[]
     const text = String(frontmatterWarningSourceText || '')
     if (!text.startsWith('---')) return [] as string[]
     return parseMarkdownFrontmatter(splitMarkdownLines(text)).warnings || []
-  }, [frontmatterWarningSourceText])
+  }, [frontmatterWarningSourceText, props.suppressFrontmatterWarnings])
   const frontmatterWarningSummary = frontmatterWarnings[0] || ''
   const frontmatterWarningCount = frontmatterWarnings.length
-  const streamingNotice = props.streamingStatusLabel ? (
-    <div
-      className={`rounded border px-3 py-2 text-xs leading-5 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.status.warning}`}
-      role="status"
-      aria-live="polite"
-      aria-label="Streaming status"
-    >
-      <div className="font-medium">Streaming</div>
-      <div className="whitespace-pre-wrap break-words">{props.streamingStatusLabel}</div>
-    </div>
-  ) : null
   const frontmatterNotice = frontmatterWarningSummary ? (
     <div
       className={`rounded border px-3 py-2 text-xs leading-5 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.status.warning}`}
@@ -434,12 +424,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       ) : null}
     </div>
   ) : null
-  const documentNotice = streamingNotice || frontmatterNotice ? (
-    <div className="flex flex-col gap-2">
-      {streamingNotice}
-      {frontmatterNotice}
-    </div>
-  ) : null
+  const documentNotice = frontmatterNotice
   const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)
   const deferredEditableMarkdownText = React.useDeferredValue(editableMarkdownText)
   const jsonEditorText = React.useMemo(() => {

@@ -16,15 +16,17 @@ import {
 } from './workspaceFs'
 import { upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedProvider'
+import { ensureWorkspaceDocsMirrorFolder, upsertWorkspaceDocsMirrorText } from './workspaceSeedProvider'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
-import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
+import { lsBool, lsJson, lsRemove, lsSetBool } from '@/lib/persistence'
 import {
   createPersistedCollectionDb,
   type PersistedCollectionDb,
   type PersistedCollectionMap,
 } from '@/lib/storage/persistedCollectionStore'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT, normalizeChatLocalStorageRootPath } from '@/features/chat/chatStorageConfig'
 
 const DB_NAME = 'kg:workspace-fs'
 let lastDocsMirrorSyncSignature = ''
@@ -43,6 +45,22 @@ const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
   [GEOSPATIAL_WORKSPACE_SEED_PATH, GEOSPATIAL_WORKSPACE_SEED_BASENAME],
 ])
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
+const readChatLocalStorageRootPath = (): WorkspacePath => {
+  const value = lsJson<string>(
+    LS_KEYS.chatLocalStorageRootPath,
+    CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
+    input => (typeof input === 'string' ? input : null),
+  )
+  return normalizeWorkspacePath(normalizeChatLocalStorageRootPath(value))
+}
+
+const isWorkspaceUnderRoot = (path: WorkspacePath, rootPath: WorkspacePath): boolean => {
+  const normalizedPath = normalizeWorkspacePath(path)
+  const normalizedRootPath = normalizeWorkspacePath(rootPath)
+  if (!normalizedPath || !normalizedRootPath || normalizedRootPath === '/') return false
+  if (normalizedPath === normalizedRootPath) return true
+  return normalizedPath.startsWith(`${normalizedRootPath}/`)
+}
 const normalizeUpdatedAtMs = (value: unknown, fallback = Date.now()): number => {
   const n = Number(value)
   if (!Number.isFinite(n) || n < 0) return Math.max(0, Math.floor(fallback))
@@ -78,6 +96,18 @@ const normalizeDocsMirrorRelPath = (value: string): string => {
 const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
   const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
+}
+
+const isWorkspaceDocsMirrorPath = (path: WorkspacePath): boolean => {
+  return isWorkspaceUnderRoot(path, WORKSPACE_DOCS_MIRROR_ROOT_PATH)
+}
+
+const isWorkspaceChatMirrorPath = (path: WorkspacePath): boolean => {
+  return isWorkspaceUnderRoot(path, readChatLocalStorageRootPath())
+}
+
+const isWorkspacePersistedMirrorPath = (path: WorkspacePath): boolean => {
+  return isWorkspaceDocsMirrorPath(path) || isWorkspaceChatMirrorPath(path)
 }
 
 const buildDocsMirrorBasenameSet = (
@@ -416,6 +446,11 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
         basename: seedBasename,
         text: nextText,
       })
+    } else if (isWorkspacePersistedMirrorPath(p)) {
+      void upsertWorkspaceDocsMirrorText({
+        workspacePath: p,
+        text: nextText,
+      })
     }
     notifyWorkspaceFsChanged({ op: 'writeFileText', path: p })
   }
@@ -440,6 +475,9 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       name,
       updatedAtMs: Date.now(),
     })
+    if (isWorkspacePersistedMirrorPath(path)) {
+      void ensureWorkspaceDocsMirrorFolder({ workspacePath: path })
+    }
     notifyWorkspaceFsChanged({ op: 'createFolder', path })
     return path
   }
@@ -468,6 +506,15 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
+    if (isWorkspacePersistedMirrorPath(parent)) {
+      void ensureWorkspaceDocsMirrorFolder({ workspacePath: parent })
+    }
+    if (isWorkspacePersistedMirrorPath(path)) {
+      void upsertWorkspaceDocsMirrorText({
+        workspacePath: path,
+        text: String(args.text ?? ''),
+      })
+    }
     if (lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
     notifyWorkspaceFsChanged({ op: 'createFile', path })
     return path

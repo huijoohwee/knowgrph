@@ -644,7 +644,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L373; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L165; canvas/src/hooks/store/uiSliceChat.ts:L113"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L373; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L165; canvas/src/hooks/store/uiSliceChat.ts:L116"
   },
   "chatAuthMode": {
     "area": "Chat",
@@ -662,7 +662,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L383; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L173; canvas/src/hooks/store/uiSliceChat.ts:L101"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L383; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L173; canvas/src/hooks/store/uiSliceChat.ts:L104"
   },
   "chatEndpointUrl": {
     "area": "Chat",
@@ -680,7 +680,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L393; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L167; canvas/src/hooks/store/uiSliceChat.ts:L151"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L393; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L167; canvas/src/hooks/store/uiSliceChat.ts:L154"
   },
   "chatApiKey": {
     "area": "Chat",
@@ -698,7 +698,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L402; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L166; canvas/src/hooks/store/uiSliceChat.ts:L136"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L402; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L166; canvas/src/hooks/store/uiSliceChat.ts:L139"
   },
   "byteplusImageModel": {
     "area": "—",
@@ -1052,7 +1052,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L717; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L168; canvas/src/hooks/store/uiSliceChat.ts:L158"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L717; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L168; canvas/src/hooks/store/uiSliceChat.ts:L161"
   },
   "chatTemperature": {
     "area": "Chat",
@@ -1070,7 +1070,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L727; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L169; canvas/src/hooks/store/uiSliceChat.ts:L168"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L727; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L169; canvas/src/hooks/store/uiSliceChat.ts:L171"
   },
   "chatMaxCompletionTokens": {
     "area": "Chat",
@@ -1088,7 +1088,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L736; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L179; canvas/src/hooks/store/uiSliceChat.ts:L175"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L736; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L179; canvas/src/hooks/store/uiSliceChat.ts:L178"
   },
   "chatServiceTier": {
     "area": "—",
@@ -1106,7 +1106,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L745; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L181; canvas/src/hooks/store/uiSliceChat.ts:L183"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L745; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L181; canvas/src/hooks/store/uiSliceChat.ts:L186"
   },
   "chatStream": {
     "area": "—",
@@ -1124,7 +1124,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L755; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L183; canvas/src/hooks/store/uiSliceChat.ts:L187"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L755; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L183; canvas/src/hooks/store/uiSliceChat.ts:L190"
   },
   "chatMessagesJson": {
     "area": "—",
@@ -1142,7 +1142,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L764; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L185; canvas/src/hooks/store/uiSliceChat.ts:L191"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L764; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L185; canvas/src/hooks/store/uiSliceChat.ts:L194"
   },
   "chatReasoningEffort": {
     "area": "—",
@@ -1160,7 +1160,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L773; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L187; canvas/src/hooks/store/uiSliceChat.ts:L195"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L773; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L187; canvas/src/hooks/store/uiSliceChat.ts:L198"
   },
   "chatThinkingType": {
     "area": "—",
@@ -1178,7 +1178,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L783; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L189; canvas/src/hooks/store/uiSliceChat.ts:L199"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L783; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L189; canvas/src/hooks/store/uiSliceChat.ts:L202"
   },
   "chatThinkingJson": {
     "area": "—",
@@ -1196,7 +1196,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L793; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L191; canvas/src/hooks/store/uiSliceChat.ts:L203"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L793; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L191; canvas/src/hooks/store/uiSliceChat.ts:L206"
   },
   "chatFrequencyPenalty": {
     "area": "—",
@@ -1214,7 +1214,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L802; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L193; canvas/src/hooks/store/uiSliceChat.ts:L207"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L802; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L193; canvas/src/hooks/store/uiSliceChat.ts:L210"
   },
   "chatPresencePenalty": {
     "area": "—",
@@ -1232,7 +1232,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L811; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L195; canvas/src/hooks/store/uiSliceChat.ts:L211"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L811; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L195; canvas/src/hooks/store/uiSliceChat.ts:L214"
   },
   "chatTopP": {
     "area": "—",
@@ -1250,7 +1250,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L820; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L197; canvas/src/hooks/store/uiSliceChat.ts:L215"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L820; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L197; canvas/src/hooks/store/uiSliceChat.ts:L218"
   },
   "chatLogprobs": {
     "area": "—",
@@ -1268,7 +1268,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L829; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L199; canvas/src/hooks/store/uiSliceChat.ts:L219"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L829; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L199; canvas/src/hooks/store/uiSliceChat.ts:L222"
   },
   "chatTopLogprobs": {
     "area": "—",
@@ -1286,7 +1286,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L838; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L201; canvas/src/hooks/store/uiSliceChat.ts:L223"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L838; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L201; canvas/src/hooks/store/uiSliceChat.ts:L226"
   },
   "chatParallelToolCalls": {
     "area": "—",
@@ -1304,7 +1304,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L847; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L203; canvas/src/hooks/store/uiSliceChat.ts:L227"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L847; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L203; canvas/src/hooks/store/uiSliceChat.ts:L230"
   },
   "chatStopJson": {
     "area": "—",
@@ -1322,7 +1322,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L856; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L205; canvas/src/hooks/store/uiSliceChat.ts:L231"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L856; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L205; canvas/src/hooks/store/uiSliceChat.ts:L234"
   },
   "chatStreamOptionsJson": {
     "area": "—",
@@ -1340,7 +1340,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L865; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L207; canvas/src/hooks/store/uiSliceChat.ts:L235"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L865; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L207; canvas/src/hooks/store/uiSliceChat.ts:L238"
   },
   "chatResponseFormatJson": {
     "area": "—",
@@ -1358,7 +1358,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L874; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L209; canvas/src/hooks/store/uiSliceChat.ts:L239"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L874; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L209; canvas/src/hooks/store/uiSliceChat.ts:L242"
   },
   "chatLogitBiasJson": {
     "area": "—",
@@ -1376,7 +1376,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L883; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L211; canvas/src/hooks/store/uiSliceChat.ts:L243"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L883; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L211; canvas/src/hooks/store/uiSliceChat.ts:L246"
   },
   "chatToolsJson": {
     "area": "—",
@@ -1394,7 +1394,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L892; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L213; canvas/src/hooks/store/uiSliceChat.ts:L247"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L892; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L213; canvas/src/hooks/store/uiSliceChat.ts:L250"
   },
   "chatToolChoiceJson": {
     "area": "—",
@@ -1412,7 +1412,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L901; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L215; canvas/src/hooks/store/uiSliceChat.ts:L251"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L901; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L215; canvas/src/hooks/store/uiSliceChat.ts:L254"
   },
   "chatGraphSummaryMaxTokens": {
     "area": "Chat",
@@ -1430,7 +1430,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L910; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L217; canvas/src/hooks/store/uiSliceChat.ts:L255"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L910; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L217; canvas/src/hooks/store/uiSliceChat.ts:L258"
   },
   "chatGuidelineDigestMaxTokens": {
     "area": "Chat",
@@ -1448,7 +1448,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L919; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L219; canvas/src/hooks/store/uiSliceChat.ts:L263"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L919; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L219; canvas/src/hooks/store/uiSliceChat.ts:L266"
   },
   "chatSystemPrompt": {
     "area": "Chat",
@@ -1466,7 +1466,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L928; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L170; canvas/src/hooks/store/uiSliceChat.ts:L271"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L928; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L170; canvas/src/hooks/store/uiSliceChat.ts:L274"
   },
   "chatStorageTarget": {
     "area": "—",
@@ -1484,7 +1484,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L937; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L222; canvas/src/hooks/store/uiSliceChat.ts:L278"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L937; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L222; canvas/src/hooks/store/uiSliceChat.ts:L281"
   },
   "chatLocalStorageRootPath": {
     "area": "—",
@@ -1502,7 +1502,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L947; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L224; canvas/src/hooks/store/uiSliceChat.ts:L285"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L947; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L224; canvas/src/hooks/store/uiSliceChat.ts:L288"
   },
   "chatKnowgrphStorageMode": {
     "area": "—",
@@ -1520,7 +1520,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L956; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L226; canvas/src/hooks/store/uiSliceChat.ts:L311"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L956; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L226; canvas/src/hooks/store/uiSliceChat.ts:L314"
   },
   "chatKnowgrphWorkspacePath": {
     "area": "—",
@@ -1538,7 +1538,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L966; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L228; canvas/src/hooks/store/uiSliceChat.ts:L318"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L966; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L228; canvas/src/hooks/store/uiSliceChat.ts:L321"
   },
   "chatKnowgrphCloudUrl": {
     "area": "—",
@@ -1556,7 +1556,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L975; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L230; canvas/src/hooks/store/uiSliceChat.ts:L329"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L975; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L233; canvas/src/hooks/store/uiSliceChat.ts:L348"
   },
   "chatHistoryStorageMode": {
     "area": "—",
@@ -1574,7 +1574,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L984; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L234; canvas/src/hooks/store/uiSliceChat.ts:L343"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L984; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L237; canvas/src/hooks/store/uiSliceChat.ts:L362"
   },
   "chatHistoryWorkspacePath": {
     "area": "—",
@@ -1592,7 +1592,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L994; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L232; canvas/src/hooks/store/uiSliceChat.ts:L336"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L994; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L235; canvas/src/hooks/store/uiSliceChat.ts:L355"
   },
   "chatHistoryCloudUrl": {
     "area": "—",
@@ -1610,7 +1610,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L1003; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L236; canvas/src/hooks/store/uiSliceChat.ts:L350"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L1003; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L239; canvas/src/hooks/store/uiSliceChat.ts:L369"
   },
   "chatContextScope": {
     "area": "Chat",
@@ -1628,7 +1628,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L1012; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L237; canvas/src/hooks/store/uiSliceChat.ts:L357"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L1012; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L240; canvas/src/hooks/store/uiSliceChat.ts:L376"
   },
   "integrationConfigsJson": {
     "area": "Integrations",
@@ -1646,7 +1646,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L1029; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L171; canvas/src/hooks/store/uiSliceChat.ts:L364"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L1029; canvas/src/hooks/store/store-types/graph-state-panels-markdown.ts:L171; canvas/src/hooks/store/uiSliceChat.ts:L383"
   },
   "canvasSnapEnabled": {
     "area": "Canvas Grid",
@@ -5357,7 +5357,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L242; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L97"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L245; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L97"
   },
   "youtubeTranscriptOutputFormat": {
     "area": "—",
@@ -5375,7 +5375,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L245; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L100"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L248; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L100"
   },
   "webpageImportIncludeImages": {
     "area": "—",
@@ -5393,7 +5393,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L248; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L103"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L251; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L103"
   },
   "webpageImportView": {
     "area": "—",
@@ -5411,7 +5411,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L251; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L106"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L254; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L106"
   },
   "webpageViewerScriptPolicy": {
     "area": "—",
@@ -5429,7 +5429,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L254; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L257; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L109"
   },
   "webpageArtifactFidelityMaxLevel": {
     "area": "—",
@@ -5447,7 +5447,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L257; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L112"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L260; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L112"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -5465,7 +5465,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L260; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L118"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L263; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L118"
   },
   "websiteImportGenerateWebpageArtifactDocs": {
     "area": "—",
@@ -5483,7 +5483,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L263; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L121"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L266; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L121"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -5501,7 +5501,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L265; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L124"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L268; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L124"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -5519,7 +5519,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L267; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L130"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L270; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L130"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -5537,7 +5537,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L269; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L136"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L272; canvas/src/hooks/store/uiSettingsSliceDataTable.ts:L136"
   },
   "viewport.fitFillRatio": {
     "area": "—",
@@ -5554,7 +5554,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L172"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L200; canvas/src/hooks/store/uiSliceInitialState.ts:L173"
   },
   "viewport.fitReferenceWidth": {
     "area": "—",
@@ -5571,7 +5571,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L180"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L201; canvas/src/hooks/store/uiSliceInitialState.ts:L181"
   },
   "viewport.fitReferenceHeight": {
     "area": "—",
@@ -5588,7 +5588,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L188"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L202; canvas/src/hooks/store/uiSliceInitialState.ts:L189"
   },
   "flow.frontmatter.initialFitFillRatio": {
     "area": "—",
@@ -5605,7 +5605,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L198"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L203; canvas/src/hooks/store/uiSliceInitialState.ts:L199"
   },
   "flow.frontmatter.overlayFitProxyScale.phone": {
     "area": "—",
@@ -5622,7 +5622,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L204; canvas/src/hooks/store/uiSliceInitialState.ts:L208"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L204; canvas/src/hooks/store/uiSliceInitialState.ts:L209"
   },
   "flow.frontmatter.overlayFitProxyScale.tablet": {
     "area": "—",
@@ -5639,7 +5639,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L205; canvas/src/hooks/store/uiSliceInitialState.ts:L218"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L205; canvas/src/hooks/store/uiSliceInitialState.ts:L219"
   },
   "flow.frontmatter.overlayFitProxyScale.laptop": {
     "area": "—",
@@ -5656,7 +5656,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L206; canvas/src/hooks/store/uiSliceInitialState.ts:L228"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L206; canvas/src/hooks/store/uiSliceInitialState.ts:L229"
   },
   "flow.frontmatter.overlayFitProxyScale.desktop": {
     "area": "—",
@@ -5673,7 +5673,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L207; canvas/src/hooks/store/uiSliceInitialState.ts:L238"
+    "lineRange": "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L207; canvas/src/hooks/store/uiSliceInitialState.ts:L239"
   },
   "schema.layout.forces.physics2dChargeScale": {
     "area": "Graph Physics 2D",
@@ -9749,7 +9749,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L88; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L134"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L88; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L168; canvas/src/hooks/store/uiSliceInitialState.ts:L135"
   },
   "payments.stripe.checkoutUrl": {
     "area": "—",
@@ -9767,7 +9767,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-payments.ts:L99; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L147"
+    "lineRange": "canvas/src/features/settings/registry-payments.ts:L99; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L170; canvas/src/hooks/store/uiSliceInitialState.ts:L148"
   },
   "payments.stripe.mcp.serverKey": {
     "area": "—",

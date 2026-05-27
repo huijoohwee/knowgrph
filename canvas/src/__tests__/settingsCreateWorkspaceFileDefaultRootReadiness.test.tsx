@@ -25,7 +25,7 @@ type RegisteredSettingsActions = {
   reset: () => void
 }
 
-const KNOWGRPH_CREATED_PATH = `${CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT}/kgc_20260523143000.md`
+const KNOWGRPH_CREATED_PATH = `${CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT}/20260523T143000Z/kgc_20260523T143000Z.md`
 const HISTORY_CREATED_PATH = `${CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT}/chh_20260523143000.md`
 
 const findButtonByLabel = (container: HTMLElement, label: string): HTMLButtonElement => {
@@ -115,7 +115,7 @@ export async function testSettingsCreateFilesBlankRootFallsBackToDefaultLocalRoo
   try {
     resetBrowserLocalSurfaceSnapshotsForTests()
     resetWorkspaceFsForTests()
-    Date.now = () => new Date(2026, 4, 23, 14, 30, 0, 0).getTime()
+    Date.now = () => Date.UTC(2026, 4, 23, 14, 30, 0, 0)
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 

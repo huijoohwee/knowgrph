@@ -98,6 +98,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["markdown.workspace.effectiveContent.prefersMatchingLiveStreamingDraft","@/__tests__/markdownWorkspaceEffectiveContentSync.test.tsx","testMarkdownWorkspaceEffectiveContentPrefersMatchingLiveStreamingDraft"],
   ["markdown.workspace.selection.hydratesStableActivePathAfterRefresh","@/__tests__/emptyWorkspaceDocumentSwitch.test.ts","testWorkspaceSelectionHydratesStableActivePathAfterRefresh"],
   ["markdown.workspace.selection.hydrationYieldsToUnsavedDraft","@/__tests__/emptyWorkspaceDocumentSwitch.test.ts","testWorkspaceSelectionHydrationYieldsToUnsavedUserDraft"],
+  ["markdown.workspace.apply.suppressesTransientStreamingTraceFrontmatterWarnings","@/__tests__/markdownWorkspaceApplyStreamingWarnings.test.ts","testMarkdownApplySuppressesTransientStreamingTraceFrontmatterWarnings"],
+  ["markdown.workspace.apply.preservesFrontmatterWarningsOutsideStreamingTrace","@/__tests__/markdownWorkspaceApplyStreamingWarnings.test.ts","testMarkdownApplyPreservesFrontmatterWarningsOutsideActiveStreamingTrace"],
   ["docs.guidelines.forbidAbsoluteRepoPathHardcodes","@/__tests__/docsFrontmatterE2EContract.test.ts","testHuijoohweeDocsAndGuidelinesForbidAbsoluteRepoPathHardcodes"],
   ["docs.e2eVideoFixtures.useTypedFrontmatterWrappers","@/__tests__/docsFrontmatterE2EContract.test.ts","testE2EVideoFixturesUseTypedFrontmatterValueWrappers"],
   ["docs.storyboardDemo.usesTypedFrontmatterWrappers","@/__tests__/docsFrontmatterE2EContract.test.ts","testStoryboardDemoUsesTypedFrontmatterValueWrappers"],

@@ -208,3 +208,43 @@ export async function testMarkdownWorkspaceMainShowsFrontmatterWarningsInActiveD
     restore()
   }
 }
+
+export async function testMarkdownWorkspaceMainSuppressesTransientFrontmatterWarningsDuringStreamingTrace() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(React.createElement(MarkdownWorkspaceMain, buildWorkspaceProps({
+        layoutMode: 'editor',
+        suppressFrontmatterWarnings: true,
+        activeText: [
+          '---',
+          'title: "Broken',
+          'flow: [a b]',
+          '---',
+          '',
+          '# Streaming',
+        ].join('\n'),
+      })))
+      await tick(4)
+    })
+
+    if (doc.querySelector('[aria-label="Frontmatter warning"]')) {
+      throw new Error('expected transient streaming trace frontmatter parse failures to stay hidden while the draft is still streaming')
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+        await tick(2)
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}

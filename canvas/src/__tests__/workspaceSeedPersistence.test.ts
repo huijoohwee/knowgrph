@@ -50,7 +50,9 @@ import {
 import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import {
+  ensureWorkspaceDocsMirrorFolder,
   readWorkspaceInitializationDocsMirrorEntries,
+  upsertWorkspaceDocsMirrorText,
   readWorkspaceInitializationSeedText,
   upsertWorkspaceInitializationSeedText,
 } from '@/features/workspace-fs/workspaceSeedProvider'
@@ -59,6 +61,7 @@ import { shouldTrustEmptyWorkspaceSelectionCache } from '@/lib/markdown-workspac
 const normalizeFsPath = (value: string): string => String(value || '').replace(/\\/g, '/')
 const KG_GITHUB_ROOT = normalizeFsPath(path.resolve(process.cwd(), '..', '..'))
 const KG_HUIJOOHWEE_DOCS_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/docs`
+const KG_HUIJOOHWEE_CHAT_LOG_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/chat-log`
 const KG_KNOWGRPH_DOCS_ROOT = `${KG_GITHUB_ROOT}/knowgrph/docs`
 const KG_HUIJOOHWEE_DOCS_FS_PREFIX = `/@fs${KG_HUIJOOHWEE_DOCS_ROOT}`
 
@@ -866,6 +869,122 @@ export async function testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy()
     }
     if (!writeCall.body.includes(`${KG_HUIJOOHWEE_DOCS_ROOT}/knowgrph-video-demo.md`)) {
       throw new Error('expected workspace seed provider write payload to target configured docs absolute path')
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+    if (previousWindow) {
+      ;(globalThis as unknown as { window: Window }).window = previousWindow
+    } else {
+      delete (globalThis as unknown as { window?: Window }).window
+    }
+  }
+}
+
+export async function testWorkspaceSeedProviderBrowserUpsertDocsMirrorWritesViaKgFsProxy() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  const calls: Array<{ url: string; body: string }> = []
+  const previousFetch = globalThis.fetch
+  const previousWindow = globalThis.window
+  ;(globalThis as unknown as { window: Window }).window = {
+    setTimeout: ((handler: TimerHandler) => {
+      if (typeof handler === 'function') handler()
+      return 0 as unknown as number
+    }) as Window['setTimeout'],
+    clearTimeout: (() => void 0) as Window['clearTimeout'],
+  } as unknown as Window
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({
+      url: String(typeof input === 'string' ? input : (input as URL).toString()),
+      body: String(init?.body || ''),
+    })
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    const folderOk = await ensureWorkspaceDocsMirrorFolder({
+      workspacePath: '/docs/20260527T123654Z',
+    })
+    const fileOk = await upsertWorkspaceDocsMirrorText({
+      workspacePath: '/docs/20260527T123654Z/kgc-trace_20260527T123654Z.md',
+      text: '# streamed',
+    })
+    if (!folderOk || !fileOk) {
+      throw new Error('expected browser docs mirror writes to succeed through /__kg_fs_write proxy')
+    }
+    const folderCall = calls.find(call => call.body.includes('"mkdirOnly":true'))
+    if (!folderCall || !folderCall.body.includes(`${KG_HUIJOOHWEE_DOCS_ROOT}/20260527T123654Z`)) {
+      throw new Error('expected docs mirror folder creation payload to target configured docs absolute path')
+    }
+    const fileCall = calls.find(call => call.body.includes('kgc-trace_20260527T123654Z.md'))
+    if (!fileCall || !fileCall.body.includes(`${KG_HUIJOOHWEE_DOCS_ROOT}/20260527T123654Z/kgc-trace_20260527T123654Z.md`)) {
+      throw new Error('expected docs mirror file write payload to target configured docs absolute path')
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+    if (previousWindow) {
+      ;(globalThis as unknown as { window: Window }).window = previousWindow
+    } else {
+      delete (globalThis as unknown as { window?: Window }).window
+    }
+  }
+}
+
+export async function testWorkspaceSeedProviderBrowserUpsertChatLogMirrorWritesViaKgFsProxy() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  const calls: Array<{ url: string; body: string }> = []
+  const previousFetch = globalThis.fetch
+  const previousWindow = globalThis.window
+  ;(globalThis as unknown as { window: Window }).window = {
+    setTimeout: ((handler: TimerHandler) => {
+      if (typeof handler === 'function') handler()
+      return 0 as unknown as number
+    }) as Window['setTimeout'],
+    clearTimeout: (() => void 0) as Window['clearTimeout'],
+  } as unknown as Window
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({
+      url: String(typeof input === 'string' ? input : (input as URL).toString()),
+      body: String(init?.body || ''),
+    })
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    const folderOk = await ensureWorkspaceDocsMirrorFolder({
+      workspacePath: '/chat-log/20260527T123654Z',
+    })
+    const fileOk = await upsertWorkspaceDocsMirrorText({
+      workspacePath: '/chat-log/20260527T123654Z/kgc-trace_20260527T123654Z.md',
+      text: '# streamed',
+    })
+    if (!folderOk || !fileOk) {
+      throw new Error('expected browser chat-log mirror writes to succeed through /__kg_fs_write proxy')
+    }
+    const folderCall = calls.find(call => call.body.includes('"mkdirOnly":true'))
+    if (!folderCall || !folderCall.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/20260527T123654Z`)) {
+      throw new Error('expected chat-log mirror folder creation payload to target sibling chat-log absolute path')
+    }
+    const fileCall = calls.find(call => call.body.includes('kgc-trace_20260527T123654Z.md'))
+    if (!fileCall || !fileCall.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/20260527T123654Z/kgc-trace_20260527T123654Z.md`)) {
+      throw new Error('expected chat-log mirror file write payload to target sibling chat-log absolute path')
     }
   } finally {
     if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot

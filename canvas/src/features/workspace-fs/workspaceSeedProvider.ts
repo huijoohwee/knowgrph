@@ -37,8 +37,22 @@ const normalizeAbsRoot = (value: string): string => {
     .replace(/\/+$/, '')
 }
 
+const splitSafeMirrorSegments = (value: string): string[] => {
+  const parts = normalizeRelPath(value).split('/').filter(Boolean)
+  if (parts.some(part => part === '.' || part === '..')) return []
+  return parts
+}
+
 const readWorkspaceInitializationDocsAbsRoot = (): string => {
   return normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', ''))
+}
+
+const readWorkspaceMirrorBaseAbsRoot = (): string => {
+  const docsRoot = readWorkspaceInitializationDocsAbsRoot()
+  if (!docsRoot) return ''
+  const parts = docsRoot.split('/').filter(Boolean)
+  if (parts.length <= 1) return ''
+  return `/${parts.slice(0, -1).join('/')}`
 }
 
 const readWorkspaceInitializationKnowgrphStorageBaseUrl = (): string => {
@@ -817,6 +831,54 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
   }
 }
 
+const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolean> => {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return false
+  try {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => {
+      try {
+        controller.abort()
+      } catch {
+        void 0
+      }
+    }, 5000)
+    try {
+      const response = await fetch(KG_FS_WRITE_PATH, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: absolutePath,
+          mkdirOnly: true,
+        }),
+        signal: controller.signal,
+      })
+      return response.ok
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+  } catch {
+    return false
+  }
+}
+
+const resolveWorkspaceDocsMirrorAbsolutePath = (workspacePath: string): string | null => {
+  const parts = splitSafeMirrorSegments(String(workspacePath || '').trim())
+  if (parts.length === 0) return null
+  const rootSegment = String(parts[0] || '').trim()
+  if (!rootSegment) return null
+  const docsRoot = readWorkspaceInitializationDocsAbsRoot()
+  const baseRoot = readWorkspaceMirrorBaseAbsRoot()
+  const root = rootSegment.toLowerCase() === 'docs'
+    ? docsRoot
+    : baseRoot
+      ? `${baseRoot}/${rootSegment}`
+      : ''
+  if (!root) return null
+  const relPath = normalizeMirrorRelPath(parts.slice(1).join('/'))
+  if (!relPath) return root
+  return `${root}/${relPath}`
+}
+
 export async function readWorkspaceInitializationSeedText(args: {
   basename: string
   relPathCandidates: ReadonlyArray<string>
@@ -1159,6 +1221,43 @@ export async function upsertWorkspaceInitializationSeedText(args: {
     basename: args.basename,
     relPathCandidates: [],
   })[0] || null
+  if (!absolutePath) return false
+  if (typeof window !== 'undefined') {
+    return writeTextViaLocalFsProxy(absolutePath, args.text)
+  }
+  try {
+    const fs = await importNodeFsPromises()
+    const path = await importNodePath()
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true })
+    await fs.writeFile(absolutePath, String(args.text ?? ''), 'utf8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function ensureWorkspaceDocsMirrorFolder(args: {
+  workspacePath: string
+}): Promise<boolean> {
+  const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
+  if (!absolutePath) return false
+  if (typeof window !== 'undefined') {
+    return ensureFolderViaLocalFsProxy(absolutePath)
+  }
+  try {
+    const fs = await importNodeFsPromises()
+    await fs.mkdir(absolutePath, { recursive: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function upsertWorkspaceDocsMirrorText(args: {
+  workspacePath: string
+  text: string
+}): Promise<boolean> {
+  const absolutePath = resolveWorkspaceDocsMirrorAbsolutePath(args.workspacePath)
   if (!absolutePath) return false
   if (typeof window !== 'undefined') {
     return writeTextViaLocalFsProxy(absolutePath, args.text)

@@ -15,7 +15,10 @@ import {
   getChatModelOptions,
   getDefaultChatModelForProvider,
 } from '@/lib/chatEndpoint'
-import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
+import {
+  CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
+  normalizeChatLocalStorageRootPath,
+} from '@/features/chat/chatStorageConfig'
 import {
   CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
   CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
@@ -33,7 +36,7 @@ export const isCanonicalKgcWorkspacePath = (value: unknown): boolean => {
   if (!raw) return false
   const normalized = raw.replace(/\\/g, '/')
   const fileName = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
-  return /^kgc_\d{14}\.md$/i.test(fileName)
+  return /^kgc_(?:\d{8}T\d{6}Z|\d{14})\.md$/i.test(fileName)
 }
 
 const clampChatPenalty = (value: unknown): number => {
@@ -284,7 +287,7 @@ export const createUiChatActions = (set: SetGraph)=> ({
       }),
     setChatLocalStorageRootPath: (path: string | null) =>
       set(state => {
-        const nextRoot = String(path || '').trim() || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
+        const nextRoot = normalizeChatLocalStorageRootPath(path)
         const normalizedRoot = nextRoot.replace(/\\/g, '/').replace(/\/+$/, '')
         const isUnderRoot = (candidate: string | null | undefined): boolean => {
           const raw = String(candidate || '').trim()

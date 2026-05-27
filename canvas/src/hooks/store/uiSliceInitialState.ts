@@ -40,6 +40,7 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from './uiSliceChat'
+import { normalizeChatLocalStorageRootPath } from '@/features/chat/chatStorageConfig'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { createPdfImportInitialState } from './uiSlicePdfImportInitialState'
 
@@ -444,11 +445,7 @@ export const createUiInitialState = (
     chatLocalStorageRootPath: lsJson<string>(
       LS_KEYS.chatLocalStorageRootPath,
       CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
-      value => {
-        const raw = typeof value === 'string' ? value.trim() : ''
-        if (raw === '/chats' || raw === 'chats') return CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
-        return raw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
-      },
+      value => normalizeChatLocalStorageRootPath(typeof value === 'string' ? value : null),
     ),
     chatKnowgrphStorageMode: lsJson<'local' | 'cloud'>(
       LS_KEYS.chatKnowgrphStorageMode,

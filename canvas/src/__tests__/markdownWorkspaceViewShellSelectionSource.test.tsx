@@ -248,3 +248,65 @@ export async function testMarkdownWorkspaceViewShellShowsFrontmatterWarningBadge
     harness.restore()
   }
 }
+
+export async function testMarkdownWorkspaceViewShellSuppressesYamlBadgeForLiveStreamingTraceRow() {
+  const harness = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const entry: WorkspaceEntry = {
+      path: '/docs/20260527T123654Z/kgc-trace_20260527T123654Z.md',
+      parentPath: '/docs/20260527T123654Z',
+      kind: 'file',
+      name: 'kgc-trace_20260527T123654Z.md',
+      updatedAtMs: 1,
+      text: ['---', 'title: "Broken', 'flow: [a b]', '---', '', '# Streaming'].join('\n'),
+    }
+
+    const container = harness.dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    function TestHarness() {
+      const viewShell = useMarkdownWorkspaceViewShell({
+        entries: [entry],
+        sourcesByPath: {},
+        folderModeContract: 'sitemap',
+        setFolderModeContract: () => {},
+        selectionPath: entry.path,
+        selectionEntryKind: 'file',
+        setActivePathSafe: () => {},
+        setSelectionPathSafe: () => {},
+        setSelectionSource: () => {},
+        setExpandedPaths: () => {},
+        resolveFolderContractDocPath: folderPath => folderPath,
+        pickFolderContractTargetPath: () => null,
+        revealLineInEditor: () => {},
+        setStatusWithAutoClear: () => {},
+        streamingWorkspacePath: entry.path,
+      })
+
+      return <section>{viewShell.renderSourceFileRight({ entry, isActive: true })}</section>
+    }
+
+    root = createRoot(container as unknown as HTMLElement)
+    await act(async () => {
+      root.render(<TestHarness />)
+      await tick()
+    })
+
+    const badge = container.querySelector('[aria-label="Frontmatter warning in kgc-trace_20260527T123654Z.md"]') as HTMLElement | null
+    if (badge) {
+      throw new Error('expected live streaming trace row to suppress transient YAML warning badges')
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+        await tick()
+      })
+    } catch {
+      void 0
+    }
+    harness.restore()
+  }
+}

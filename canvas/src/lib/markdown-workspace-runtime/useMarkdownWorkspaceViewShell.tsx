@@ -28,6 +28,7 @@ export function useMarkdownWorkspaceViewShell(args: {
   pickFolderContractTargetPath: (folderPath: WorkspacePath, preferredMode: FolderModeContract) => WorkspacePath | null
   revealLineInEditor: (line: number) => void
   setStatusWithAutoClear: (label: string, ttlMs?: number) => void
+  streamingWorkspacePath?: WorkspacePath | null
 }) {
   const {
     entries,
@@ -44,6 +45,7 @@ export function useMarkdownWorkspaceViewShell(args: {
     pickFolderContractTargetPath,
     revealLineInEditor,
     setStatusWithAutoClear,
+    streamingWorkspacePath,
   } = args
 
   const applyShellStatus = React.useCallback(
@@ -92,6 +94,10 @@ export function useMarkdownWorkspaceViewShell(args: {
     (renderArgs: { entry: WorkspaceEntry; isActive: boolean }) => {
       if (renderArgs.entry.kind === 'file') {
         const text = String(renderArgs.entry.text || '')
+        const normalizedStreamingPath = normalizeWorkspacePath(String(streamingWorkspacePath || '').trim())
+        if (normalizedStreamingPath && normalizedStreamingPath === normalizeWorkspacePath(renderArgs.entry.path)) {
+          return null
+        }
         const warnings = text.startsWith('---') ? (parseMarkdownFrontmatter(splitMarkdownLines(text)).warnings || []) : []
         const summary = warnings[0] || ''
         if (summary) {
@@ -141,6 +147,7 @@ export function useMarkdownWorkspaceViewShell(args: {
       setActivePathSafe,
       setFolderModeContract,
       setSelectionSource,
+      streamingWorkspacePath,
     ],
   )
 

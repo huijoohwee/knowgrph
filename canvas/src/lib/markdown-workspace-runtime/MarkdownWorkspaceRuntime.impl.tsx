@@ -189,6 +189,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     (label: string, ttlMs: number = UI_TOAST_TTL_MS.statusAutoClose) => status.setStatusInfo(label, { ttlMs }),
     [status],
   )
+  const streamingWorkspaceToastActiveRef = React.useRef(false)
 
   const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   React.useEffect(() => {
@@ -453,6 +454,24 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const fileName = streamingPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc-trace.md'
     return `Streaming to ${fileName}`
   }, [activePath, chatWorkspaceStreamingPath])
+  React.useEffect(() => {
+    const label = String(workspaceStreamingStatusLabel || '').trim()
+    if (label) {
+      status.setStatusInfo(label, { ttlMs: null, dismissible: false })
+      streamingWorkspaceToastActiveRef.current = true
+      return
+    }
+    if (!streamingWorkspaceToastActiveRef.current) return
+    status.clearStatus()
+    streamingWorkspaceToastActiveRef.current = false
+  }, [status, workspaceStreamingStatusLabel])
+  React.useEffect(() => {
+    return () => {
+      if (!streamingWorkspaceToastActiveRef.current) return
+      status.clearStatus()
+      streamingWorkspaceToastActiveRef.current = false
+    }
+  }, [status])
   const shellState = useMarkdownWorkspaceShell({
     active,
     refreshWorkspace: explorerState.refresh,
@@ -497,6 +516,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     pickFolderContractTargetPath: explorerState.pickFolderContractTargetPath,
     revealLineInEditor: interactionState.revealLineInEditor,
     setStatusWithAutoClear,
+    streamingWorkspacePath: chatWorkspaceStreamingPath,
   })
   const saveEnabled = effectiveContent.saveEnabled
   const saveActiveFileNow = saveState.saveActiveFileNow
@@ -592,7 +612,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         webpageHtmlOverride={null}
         viewerTextOverride={effectiveContent.combinedViewerTextOverride}
         disableViewerMutations={effectiveContent.disableViewerMutations}
-        streamingStatusLabel={workspaceStreamingStatusLabel}
+        suppressFrontmatterWarnings={!!workspaceStreamingStatusLabel}
         activeDocumentKey={selectionState.activeDocumentKey}
         highlightedLineRange={highlightedLineRange}
         revealLineInEditor={interactionState.revealLineInEditor}

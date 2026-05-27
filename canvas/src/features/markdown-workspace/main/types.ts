@@ -113,7 +113,7 @@ export type MarkdownWorkspaceMainProps = {
   disableEditorMutations?: boolean
   viewerTextOverride?: string | null
   disableViewerMutations?: boolean
-  streamingStatusLabel?: string | null
+  suppressFrontmatterWarnings?: boolean
   activeDocumentKey: string
   highlightedLineRange: HighlightedLineRange
   revealLineInEditor: (line: number, endLine?: number) => void

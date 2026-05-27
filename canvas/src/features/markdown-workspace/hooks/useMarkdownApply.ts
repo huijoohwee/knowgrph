@@ -7,6 +7,24 @@ import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { composeGraphFromSourceLayers, resolveSourceLayerKeyChange } from '@/lib/graph/sourceLayers'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+
+const FRONTMATTER_PARSE_WARNING_PREFIX = 'Markdown frontmatter YAML parse failed and frontmatter was ignored:'
+
+export function filterTransientStreamingTraceFrontmatterWarnings(args: {
+  warnings: string[]
+  activeDocumentPath: string
+  streamingWorkspacePath: string | null
+}): string[] {
+  const activePath = normalizeWorkspacePath(String(args.activeDocumentPath || '').trim())
+  const streamingPath = normalizeWorkspacePath(String(args.streamingWorkspacePath || '').trim())
+  if (!activePath || !streamingPath || activePath !== streamingPath) return Array.isArray(args.warnings) ? args.warnings : []
+  const fileName = streamingPath.split('/').filter(Boolean).slice(-1)[0] || ''
+  if (!/^kgc-trace_(?:\d{8}T\d{6}Z|\d{14})\.md$/i.test(fileName)) return Array.isArray(args.warnings) ? args.warnings : []
+  return (Array.isArray(args.warnings) ? args.warnings : []).filter(
+    warning => !String(warning || '').startsWith(FRONTMATTER_PARSE_WARNING_PREFIX),
+  )
+}
 
 type UseMarkdownApplyProps = {
   markdownText: string
@@ -30,6 +48,7 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
   const updateSourceFile = useGraphStore(s => s.updateSourceFile)
   const setGraphData = useGraphStore(s => s.setGraphData)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
+  const chatWorkspaceStreamingPath = useGraphStore(s => s.chatWorkspaceStreamingPath || null)
 
   const [applyStatus, setApplyStatus] = React.useState<{
     ok: boolean | null
@@ -105,7 +124,11 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
           setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
           return
         }
-        const warnings = res.warnings || []
+        const warnings = filterTransientStreamingTraceFrontmatterWarnings({
+          warnings: res.warnings || [],
+          activeDocumentPath: targetDocumentPath,
+          streamingWorkspacePath: chatWorkspaceStreamingPath,
+        })
         const counts = res.counts
         const nodeCount = counts ? Number(counts.n || 0) : 0
         const edgeCount = counts ? Number(counts.e || 0) : 0
@@ -176,7 +199,11 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
         setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
         return
       }
-      const warnings = res.warnings || []
+      const warnings = filterTransientStreamingTraceFrontmatterWarnings({
+        warnings: res.warnings || [],
+        activeDocumentPath: targetDocumentPath,
+        streamingWorkspacePath: chatWorkspaceStreamingPath,
+      })
       const counts = res.counts
       const nodeCount = counts ? Number(counts.n || 0) : 0
       const edgeCount = counts ? Number(counts.e || 0) : 0
@@ -250,7 +277,7 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
     } catch {
       setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
     }
-  }, [markdownText, selectionDocumentPath, markdownDocumentName, hasSelection, isJsonBacked, activeDocumentPath])
+  }, [markdownText, selectionDocumentPath, markdownDocumentName, hasSelection, isJsonBacked, activeDocumentPath, chatWorkspaceStreamingPath])
 
   return { applyStatus, handleApplyMarkdown }
 }
