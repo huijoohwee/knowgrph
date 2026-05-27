@@ -12,6 +12,7 @@ import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './Flo
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
+import { ensureChatStreamArtifactBundleInitialized } from '@/features/chat/chatStreamArtifacts'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
@@ -327,6 +328,11 @@ export default function FloatingPanelChat() {
     try {
       const nextPath = await createNewChatHistoryWorkspaceFilePath(timestampMs, {
         storageType: 'chatKnowgrph',
+        defaultLocalRootPath: chatLocalStorageRootPath,
+      })
+      await ensureChatStreamArtifactBundleInitialized({
+        workspacePath: nextPath,
+        timestampMs,
         defaultLocalRootPath: chatLocalStorageRootPath,
       })
       setChatKnowgrphWorkspacePath(nextPath)

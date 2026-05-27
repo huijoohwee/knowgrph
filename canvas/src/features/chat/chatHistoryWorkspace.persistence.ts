@@ -13,6 +13,7 @@ import {
   toKgcTraceWorkspacePath,
 } from './chatHistoryWorkspace.paths'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
+import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 
 const inFlightByPath = new Map<string, Promise<void>>()
 
@@ -122,29 +123,6 @@ const appendChatHistoryEntryText = (existingRaw: string, title: string, entry: s
   const header = trimmed ? '' : buildChatHistoryHeader(title)
   const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
   return [existing, header, entry].filter(Boolean).join(joiner)
-}
-
-const writeWorkspaceFileTextEnsuringFile = async (args: {
-  fs: Awaited<ReturnType<typeof getWorkspaceFs>>
-  path: string
-  text: string
-}): Promise<void> => {
-  const normalized = normalizeWorkspacePath(args.path)
-  const existing = await args.fs.readFileText(normalized)
-  if (existing === null) {
-    const idx = normalized.lastIndexOf('/')
-    const parentPath = normalizeWorkspacePath(idx > 0 ? normalized.slice(0, idx) : '/')
-    const name = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
-    if (name) {
-      try {
-        await args.fs.createFile({ parentPath, name, text: args.text })
-        return
-      } catch {
-        void 0
-      }
-    }
-  }
-  await args.fs.writeFileText(normalized, args.text)
 }
 
 export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceAppendArgs): Promise<string> => {

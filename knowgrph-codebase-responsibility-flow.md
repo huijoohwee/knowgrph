@@ -1,21 +1,4 @@
----
-title: "Knowgrph Codebase Responsibility Flow"
-doc_type: "Generated Registry Surface"
-status: "generated"
-lang: "en-US"
-frontmatter_contract: "required"
-generator_owner: "repo ownership map generator"
----
-
 # Knowgrph Codebase Responsibility Flow
-
-## Generated Registry Contract
-
-- The opening YAML frontmatter block remains the first-block machine SSOT for this responsibility map's generated status and generator ownership.
-- This file is a generated registry/index surface, not the canonical authored source for behavior ownership decisions.
-- Canonical ownership rules live in the maintained docs and source modules that produce this map; update the upstream owner or generator inputs there instead of hand-authoring registry rows here.
-- Table rows must remain generator-owned output, not a parallel authoring surface or validation fixture.
-- Runtime or documentation decisions must never be inferred from stale generated rows when canonical authored docs or source owners disagree; fix upstream and regenerate.
 
 | Area | Responsibility | Modules | Classes/Objects | Functions/Methods | Key | Imports | Notes | Line Range |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

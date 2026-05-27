@@ -30,6 +30,7 @@ Chat uses the provider proxy and sends:
 - Optional bounded subgraph context and workspace-wide context
 - Conversation history
 - A thin submit shell delegates the async lifecycle to `floatingPanelChatSubmitCoordinator.ts`, which composes request-build, transport, streaming, and KGC retry helpers instead of re-owning that logic inside the hook
+- Raw SSE JSON chunks remain owned by the shared streaming helper; provider extensions must not add a second streaming client stack
 
 When `chatStorageTarget=chatKnowgrph`, the assistant must output:
 - A standalone parseable KGC markdown document aligned to `kgc-ai-pipeline-chat-response-base-template.md`
@@ -76,7 +77,9 @@ If attempts are exhausted, Chat persists the best canonical recovered KGC candid
 - Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.
 - KGC trace outputs follow the canonical run chain: `kgc-trace_<ts>.md` (trace) -> `kgc_<ts>.md` (canonical run document) -> `kgc-output_<ts>.md` (run output artifact).
 - Live draft persistence writes the trace companion path first, then finalize persists the canonical workspace document and applies it through `setActiveMarkdownDocument()`; raw assistant text must not patch graph state directly.
+- Streaming also persists one timestamped workspace session folder with `chat-stream-log_*`, `chat-stream-report*`, and additive dereferenced share/report markdown artifacts on the same workspace/source-files path.
 - Recovery and normalization may salvage wrapped model output upstream, but the saved canonical document remains one frontmatter-first KGC document with no duplicate grouping channels beside `flow.subgraphs`.
+- Dereferenced share/report URLs must reuse the shared workspace URL-content import pipeline and remain additive artifacts, never a second graph-apply runtime.
 - If any chain document grows large, keep the original filename as a sub-600 canonical index and move detailed sections into companion markdown files linked by explicit Continuation notes.
 - Workspace Widget exports (Image/Video) must stay in one widget-bundle SSOT so JSON and Markdown projections list both `registry` and `graph` entities from the same bundle source.
 - Reusable pitchdeck templates forked from `huijoohwee.github.io/template/pitchdeck-prd-tad-template*.md` must stay on the same frontmatter-first contract: `widget_bundle`, `runner`, `pipeline`, `mermaid`, `flow`, typed envelopes, and Rich Media Panel canonical output surface remain in sync.

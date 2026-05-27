@@ -13,6 +13,7 @@ import {
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
 import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
+import { persistChatStreamArtifacts } from '@/features/chat/chatStreamArtifacts'
 
 export const useFinalizeAssistantSuccess = (args: {
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'
@@ -47,6 +48,10 @@ export const useFinalizeAssistantSuccess = (args: {
       knownKnowgrphPath?: string | null
       status?: 'ok' | 'error'
       finalAssistantOverride?: string | null
+      streamUsageSummary?: string | null
+      streamFinishReason?: string | null
+      streamReasoningSteps?: string[]
+      rawSseEvents?: string[]
     },
   ) => {
     const { assistantMessageId, requestText, modelId, rawAssistantText, timestampMs, knownKnowgrphPath } = payload
@@ -61,6 +66,12 @@ export const useFinalizeAssistantSuccess = (args: {
     ].join(' ')
 
     const validatedKgc = typeof payload.validatedKgc === 'string' ? payload.validatedKgc.trim() : ''
+    const streamReasoningSteps = Array.isArray(payload.streamReasoningSteps)
+      ? payload.streamReasoningSteps.filter(step => typeof step === 'string').map(step => String(step).trim()).filter(Boolean)
+      : []
+    const rawSseEvents = Array.isArray(payload.rawSseEvents)
+      ? payload.rawSseEvents.filter(step => typeof step === 'string').map(step => String(step))
+      : []
     const assistantTextForKgc = status === 'error'
       ? pickBestErrorFallbackSource({
         rawAssistantText,
@@ -83,6 +94,22 @@ export const useFinalizeAssistantSuccess = (args: {
       providerSummary: args.chatProviderSummary,
       userText: requestText,
       assistantText: assistantTextForKgc,
+    })
+
+    await persistChatStreamArtifacts({
+      workspacePath: resolvedKnowgrphPath,
+      timestampMs,
+      defaultLocalRootPath: args.chatLocalStorageRootPath,
+      traceId,
+      providerSummary: args.chatProviderSummary,
+      modelId,
+      requestText,
+      rawAssistantText,
+      usageSummary: payload.streamUsageSummary || null,
+      finishReason: payload.streamFinishReason || null,
+      reasoningSteps: streamReasoningSteps,
+      rawSseEvents,
+      status,
     })
 
     if (args.chatStorageTarget === 'chatHistory') {

@@ -84,6 +84,10 @@ export type FloatingPanelChatSubmitArgs = {
     knownKnowgrphPath?: string | null
     status?: 'ok' | 'error'
     finalAssistantOverride?: string | null
+    streamUsageSummary?: string | null
+    streamFinishReason?: string | null
+    streamReasoningSteps?: string[]
+    rawSseEvents?: string[]
   }) => Promise<void>
   pushChatExchangeLog: (payload: {
     request: string

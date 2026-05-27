@@ -291,6 +291,10 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       knownKnowgrphPath: liveKgcPath,
       status: finalStatus,
       finalAssistantOverride: finalOverride,
+      streamUsageSummary: assistantStream.usageSummary,
+      streamFinishReason: assistantStream.finishReason,
+      streamReasoningSteps: assistantStream.reasoningSteps,
+      rawSseEvents: assistantStream.rawSseEvents,
     })
     args.submitArgs.setConnectivity('ok')
     args.submitArgs.setConnectivityDetail(null)

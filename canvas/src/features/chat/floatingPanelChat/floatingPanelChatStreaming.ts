@@ -10,6 +10,8 @@ import {
 export type StreamingDraftStateRef = { current: { path: string; text: string } | null }
 export type AssistantResponseStreamState = {
   assistantText: string
+  rawSseEvents: string[]
+  reasoningSteps: string[]
   reasoningPreview: string | null
   reasoningStepCount: number
   usageSummary: string | null
@@ -75,12 +77,15 @@ export const readAssistantResponseText = async (args: {
   const onProgress = args.onProgress
   const buildState = (current: {
     assistantText: string
+    rawSseEvents: string[]
     reasoningSteps: string[]
     usageSummary: string | null
     finishReason: string | null
     modelId: string | null
   }): AssistantResponseStreamState => ({
     assistantText: current.assistantText,
+    rawSseEvents: [...current.rawSseEvents],
+    reasoningSteps: [...current.reasoningSteps],
     reasoningPreview:
       current.reasoningSteps.length > 0
         ? `Reasoning ${current.reasoningSteps.length}: ${current.reasoningSteps.slice(-2).join(' | ')}`
@@ -97,6 +102,7 @@ export const readAssistantResponseText = async (args: {
     const streamDelta = extractAssistantStreamDelta(data)
     const state = buildState({
       assistantText,
+      rawSseEvents: [],
       reasoningSteps: streamDelta.reasoningStepSummaries,
       usageSummary: formatChatStreamUsageSummary(streamDelta.usage),
       finishReason: streamDelta.finishReason,
@@ -111,6 +117,7 @@ export const readAssistantResponseText = async (args: {
   const nowMs = args.nowMs || Date.now
   let state = {
     assistantText: '',
+    rawSseEvents: [] as string[],
     reasoningSteps: [] as string[],
     usageSummary: null as string | null,
     finishReason: null as string | null,
@@ -146,6 +153,7 @@ export const readAssistantResponseText = async (args: {
         break
       }
       try {
+        state = { ...state, rawSseEvents: [...state.rawSseEvents, raw] }
         const next = extractAssistantStreamDelta(JSON.parse(raw) as unknown)
         let changed = false
         if (next.modelId && next.modelId !== state.modelId) {

@@ -3,10 +3,10 @@ title: Knowgrph LLM Prompt Contract PRD-TAD (Implementation-Aligned E2E)
 id: knowgrph-llm-prompt-contract-prd-tad-proposed
 schema: kgc-computing-flow/v1
 doc_type: prd-tad
-version: 0.3.1
+version: 0.3.2
 status: Proposed
 created: 2026-05-21
-updated: 2026-05-22
+updated: 2026-05-27
 author: "@airvio"
 repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
 repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
@@ -44,11 +44,14 @@ changelog:
   - version: 0.3.1
     date: 2026-05-22
     summary: Realigns the submit-flow documentation with the current thin-hook plus helper architecture. Documents preflight, coordinator, request-build, transport, streaming, and KGC retry/validation ownership explicitly so the PRD-TAD matches the in-repo runtime.
+  - version: 0.3.2
+    date: 2026-05-27
+    summary: Promotes the original file to the sub-600 canonical index, moves TAD and validation detail into a companion, and aligns streaming docs with raw SSE chunk capture, workspace stream artifacts, and share/report URL dereference on the shared pipeline.
 ---
 
 # Knowgrph - LLM Prompt Contract PRD-TAD (Implementation-Aligned E2E)
 
-> Scope: MainPanel integrations -> FloatingPanel chat UI -> LLM output -> Markdown YAML frontmatter output -> canvas nodes / subgraphs / groups / clusters / edges.
+> Scope: MainPanel integrations -> FloatingPanel chat UI -> raw SSE JSON chunks -> workspace stream artifacts -> Markdown YAML frontmatter output -> canvas nodes / subgraphs / groups / clusters / edges.
 >
 > This revision is implementation-accurate first, enhancement-oriented second. It forbids speculative or conflicting architecture that does not exist in-repo.
 
@@ -62,11 +65,12 @@ The current repo already has a working upstream path for chat-generated structur
 2. FloatingPanel mounts `FloatingPanelChat` when `floatingPanelView === 'chat'`.
 3. `useFloatingPanelChatSubmit` is a thin submit shell: it resolves the request URL, initializes optimistic UI state, and delegates the async runtime to `executeFloatingPanelChatSubmitCoordinator()`.
 4. `floatingPanelChatSubmitCoordinator.ts` owns the async submit lifecycle by composing dedicated helpers for draft bootstrap, request assembly, provider transport fallback, streaming draft writes, and KGC retry/validation.
-5. `useFinalizeAssistantSuccess` writes the canonical workspace KGC document and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
-6. `applyChatKgcWorkspaceDocumentToCanvas()` loads the saved Markdown into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
-7. The Markdown parser prefers `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
-8. Frontmatter-flow metadata becomes `GraphData` with `context: 'frontmatter-flow'`.
-9. `flow.subgraphs` are normalized into `kg:subgraphs`, then `readSubgraphs()` and `deriveGraphGroups()` project them into rendered groups and cluster underlays.
+5. The streaming helpers capture raw SSE JSON chunks, write the live `kgc-trace_*.md` draft, and persist timestamped `chat-stream-log_*`, `chat-stream-report*`, and dereferenced share/report markdown artifacts in the same workspace session folder.
+6. `useFinalizeAssistantSuccess` writes the canonical workspace KGC document and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
+7. `applyChatKgcWorkspaceDocumentToCanvas()` loads the saved Markdown into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
+8. The Markdown parser prefers `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
+9. Frontmatter-flow metadata becomes `GraphData` with `context: 'frontmatter-flow'`.
+10. `flow.subgraphs` are normalized into `kg:subgraphs`, then `readSubgraphs()` and `deriveGraphGroups()` project them into rendered groups and cluster underlays.
 
 This document enhances that existing path. It does not invent a second one.
 
@@ -86,7 +90,7 @@ This document enhances that existing path. It does not invent a second one.
 | Submit preflight | Preflight helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitPreflight.ts` | Owns endpoint/model guards, optimistic message setup, cache updates, and trace-draft bootstrap. |
 | Submit coordinator | Submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | Owns the async submit lifecycle and composes request-build, transport, streaming, KGC retry/validation, and terminal state helpers. |
 | Request build and transport | Submit request and transport helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport.ts` | Builds packed context and payload messages, resolves token-limit strategy, retries transport safely, and falls back models upstream. |
-| Streaming and KGC retry | Streaming, recovery, and validation helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts`, `canvas/src/features/chat/chatMarkdownValidation.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts` | Streams assistant text into live drafts, recovers canonical KGC candidates, validates them, and drives correction-prompt retries without downstream reinterpretation. |
+| Streaming and KGC retry | Streaming, recovery, validation, and stream artifacts | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts`, `canvas/src/features/chat/chatMarkdownValidation.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.recovery.ts`, `canvas/src/features/chat/chatStreamArtifacts.ts` | Parses raw SSE chunks into live drafts, canonical KGC candidates, session stream artifacts, and correction-prompt retries without downstream reinterpretation. |
 | Final persistence and apply | Finalize success runtime | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | Writes the canonical KGC workspace file and applies it to canvas through the workspace-document path. |
 | Workspace KGC apply | Chat KGC canvas bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | Applies saved Markdown by reusing `setActiveMarkdownDocument`, not by local graph patching. |
 | Markdown parse priority | Default parser pipeline | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` runs before generic Markdown/JSON-LD parsing. |
@@ -321,6 +325,11 @@ when the workspace document is eligible for graph application,
 then the apply path MUST reuse `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })` and MUST NOT patch graph state directly from raw assistant text.
 
 **PRD-E3-AC4**  
+Given the provider emits raw SSE JSON chunks or cited share/report URLs,  
+when the shared streaming and finalize lifecycle runs,  
+then it MUST persist session-folder stream artifacts and dereferenced markdown artifacts on the same workspace path without adding a second fetch or graph-apply runtime.
+
+**PRD-E3-AC5**  
 Given the first returned KGC Markdown fails structural validation,  
 when retry budget remains,  
 then `floatingPanelChatSubmitCoordinator.ts` with `floatingPanelChatKgcAttempt.ts` MUST build a correction prompt from the first validation error and retry the same upstream contract instead of switching to a parallel fallback architecture.
@@ -329,6 +338,7 @@ then `floatingPanelChatSubmitCoordinator.ts` with `floatingPanelChatKgcAttempt.t
 
 - One canonical saved KGC document per chat turn.
 - One trace companion path per KGC session timestamp.
+- One timestamped workspace session folder for stream logs, stream reports, and dereferenced share/report artifacts.
 - No direct raw-text-to-graph patch path exists outside workspace-document apply.
 
 ---
@@ -482,253 +492,18 @@ Therefore the prompt contract MUST be authored so that validator failure drives 
 
 ---
 
-## 7. TAD
-
-### 7.1 Technical Decision Summary
-
-| Decision | Status | Rationale |
-|---|---|---|
-| Reuse `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` as the sole chatKnowgrph contract owner | Accepted | Avoids prompt duplication and keeps fixes upstream. |
-| Reuse workspace-document apply path for chat-generated KGC Markdown | Accepted | Keeps persistence, replay, and graph application deterministic. |
-| Keep `tryParseMarkdownFrontmatterFlowGraph()` as the first Markdown graph parser | Accepted | Prevents duplicate or lossy parser forks. |
-| Keep `flow.subgraphs -> kg:subgraphs -> deriveGraphGroups()` as the grouping pipeline | Accepted | Prevents duplicate cluster/group owners. |
-| Reuse `buildScopedGraphSemanticKey()` everywhere graph identity is needed | Accepted | Prevents recomputation churn and signature drift. |
-| Delete stale competing paths instead of aliasing them | Accepted | Aligns with root-fix and no-backcompat-shim rules. |
-
-### 7.2 Component Specification
-
-#### TAD-C01 - MainPanel Chat Configuration
-
-- Owner: `SettingsView` and `useSettingsChatAssist`.
-- Responsibility: provider presets, endpoint resolution, model discovery, context-scope selection, and integration enablement.
-- Constraint: configuration is upstream-only; chat rendering and request submission must not define competing config sources.
-
-#### TAD-C02 - FloatingPanel Chat Mount
-
-- Owner: `ToolbarToolMenu.impl.tsx` with `FloatingPanelChatLazy`.
-- Responsibility: mount the chat UI when the floating panel is in chat mode.
-- Constraint: no second chat entrypoint inside MainPanel.
-
-#### TAD-C03 - FloatingPanelChat Runtime
-
-- Owner: `FloatingPanelChat.tsx`.
-- Responsibility: read graph data, current node, markdown text, workspace context cache key, and chat settings from the store.
-- Constraint: graph context and workspace context must reuse shared cache and signature helpers.
-
-#### TAD-C04 - Submit Shell / Coordinator / Helpers
-
-- Owners:
-  - `useFloatingPanelChatSubmit.ts`
-  - `floatingPanelChatSubmitPreflight.ts`
-  - `floatingPanelChatSubmitCoordinator.ts`
-  - `floatingPanelChatSubmitRequest.ts`
-  - `floatingPanelChatSubmitTransport.ts`
-  - `floatingPanelChatStreaming.ts`
-  - `floatingPanelChatKgcAttempt.ts`
-- Responsibility:
-  - keep `useFloatingPanelChatSubmit.ts` as a thin shell for request-url guards and optimistic submit setup
-  - choose KGC or generic contract by `chatStorageTarget` during request-build
-  - resolve endpoint and provider request options through dedicated request and transport helpers
-  - stream SSE deltas and persist live drafts through the streaming helper
-  - validate KGC Markdown and retry with correction prompts through the KGC attempt helper plus validator/recovery modules
-  - keep async lifecycle ownership centralized in `floatingPanelChatSubmitCoordinator.ts`
-- Constraint: submit-flow enhancements must land in the existing shell-plus-helper stack, not in a second orchestrator and not by re-monolithizing the hook.
-
-#### TAD-C05 - Finalize / Persist / Apply
-
-- Owner: `useFinalizeAssistantSuccess.ts` plus `chatKgcCanvasApply.ts`.
-- Responsibility:
-  - append canonical workspace document
-  - normalize canonical KGC path
-  - follow workspace path
-  - call `applyChatKgcWorkspaceDocumentToCanvas()`
-- Constraint: canvas application must reuse `setActiveMarkdownDocument()`.
-
-#### TAD-C06 - KGC Workspace Path Contract
-
-- Owner: `chatHistoryWorkspace.paths.ts`.
-- Responsibility: canonical `kgc_YYYYMMDDHHMMSS.md`, trace companion `kgc-trace_YYYYMMDDHHMMSS.md`, and output companion `kgc-output_YYYYMMDDHHMMSS.*` path derivation.
-- Constraint: path identity is part of the runtime contract; ad hoc filename schemes are forbidden.
-
-#### TAD-C07 - Markdown Graph Parse Priority
-
-- Owner: `features/parsers/default.ts`.
-- Responsibility: prefer frontmatter-flow parsing before generic Markdown parse.
-- Constraint: no Mermaid-only side parser may supersede this entry order for chat-generated Markdown.
-
-#### TAD-C08 - Frontmatter-Flow Graph Parser
-
-- Owner: `markdownFrontmatterFlowGraph.core.ts` and its parser modules.
-- Responsibility:
-  - parse YAML-frontmatter and body `flow:` variants
-  - normalize nodes, edges, connections, socket types, clusters, and subgraphs
-  - emit `GraphData` with `context: 'frontmatter-flow'`
-- Constraint: grouping and graph semantics are normalized here once.
-
-#### TAD-C09 - Import Mode Application
-
-- Owner: `applyGraphDataCanonicalBootstrap.ts`, `frontmatterFlowImportMode.ts`, and `applyWorkspaceImportToCanvas.ts`.
-- Responsibility: apply graph data, frontmatter-flow import modes, and canvas presets without leaking interactive view mutations into passive paths.
-- Constraint: active import and passive source switching must remain separate.
-
-#### TAD-C10 - Group And Cluster Rendering
-
-- Owner: `subgraphs.ts` and `graphGroups.ts`.
-- Responsibility: read normalized `kg:subgraphs` metadata and project it into rendered group underlays and nested group structures.
-- Constraint: rendered groups are a projection, not an independent authoring model.
-
-#### TAD-C11 - Shared Graph Semantic Identity
-
-- Owner: `semanticKey.ts` and `lookupCache.ts`.
-- Responsibility: stable graph-structure signatures and scope-aware semantic keys for reuse across graph-aware UI surfaces.
-- Constraint: no local substitute helper may fork semantic identity behavior.
-
-### 7.3 Data Contracts
-
-#### DC-01 - Chat Storage Target
-
-- `chatKnowgrph` -> KGC structured Markdown contract.
-- `chatHistory` -> generic chat response contract.
-- The PRD enhancement MUST NOT blur these two output modes.
-
-#### DC-02 - KGC Workspace File Identity
-
-- Canonical file: `kgc_<timestamp>.md`
-- Trace file: `kgc-trace_<timestamp>.md`
-- Output companion: `kgc-output_<timestamp>.<ext>`
-
-The runtime MUST persist and normalize to these forms instead of inventing alternate file identity patterns.
-
-#### DC-03 - Frontmatter Graph Identity
-
-- Graph context: `frontmatter-flow`
-- Group metadata key: `kg:subgraphs`
-- Group render ID: `subgraph:<id>`
-
-#### DC-04 - Prompt And Validator Coupling
-
-- Prompt contract emits structured KGC Markdown.
-- Validator checks structural and syntactic rules.
-- Correction prompt reuses the same output contract.
-- Finalize persists the validated or best-available KGC document.
-
-### 7.4 Failure Handling
-
-| Failure point | Current owner | Required behavior |
-|---|---|---|
-| Missing endpoint or model | `floatingPanelChatSubmitPreflight.ts` via `useFloatingPanelChatSubmit` | Abort early with UI error; do not create alternate request path. |
-| Provider request 400/429/model mismatch | `floatingPanelChatSubmitTransport.ts` via `floatingPanelChatSubmitCoordinator.ts` | Retry token parameter fallback or model fallback in the same runtime. |
-| Empty assistant response | `floatingPanelChatStreaming.ts` plus `floatingPanelChatSubmitCoordinator.ts` | Surface explicit error and do not persist partial final content as success. |
-| Invalid KGC structure | `validateChatMarkdown` + `buildCorrectionPrompt` | Retry upstream contract before finalize. |
-| Persist/apply mismatch | `useFinalizeAssistantSuccess` / `chatKgcCanvasApply.ts` | Persist canonical file first, then apply through workspace-document import. |
-| Parse failure | parser stack | Fall back inside the existing parser chain only; do not spawn a parallel parser owner. |
-| Group rendering mismatch | `subgraphs.ts` / `graphGroups.ts` | Fix normalization or projection at the root; do not duplicate group metadata. |
-
-### 7.5 Performance And Stability Constraints
-
-- Draft writes should remain throttled during SSE streaming; no per-character synchronous graph apply.
-- Final graph application occurs after canonical workspace persistence, not on every stream chunk.
-- Passive source-file parsing must remain passive.
-- Group derivation must read normalized metadata and avoid recomputing alternative group registries.
-- Graph cache identity must reuse the shared semantic-key helper.
-
----
-
-## 8. Validation And Traceability
-
-### 8.1 Current Validation Surfaces
-
-| Surface | Existing test / code guard | What it proves |
-|---|---|---|
-| Prompt snippets and contract wording | `canvas/src/__tests__/chatResponseContractPrompt.test.ts` | KGC and generic prompt contracts include required structural guidance. |
-| Structured KGC compatibility | `chatResponseContractPrompt.test.ts` | Base template and deterministic fallback are parseable by frontmatter-flow parser and validation rules. |
-| Submit helper ownership | `chatResponseContractPrompt.test.ts` | Thin hook delegation, request-build, transport fallback, preflight, coordinator, and KGC retry helpers stay decomposed and behaviorally aligned. |
-| Finalize-to-canvas apply path | `chatResponseContractPrompt.test.ts` | Finalize uses `applyChatKgcWorkspaceDocumentToCanvas()` and the workspace-document apply flags. |
-| Frontmatter-flow parse behavior | `frontmatterFlowNodeNormalize.test.ts` | Frontmatter-flow node and subgraph normalization stays valid. |
-| Passive import-mode guard | `frontmatterFlowImportModeSeepageRegression.test.ts` | Passive flows do not replay interactive import modes. |
-| Source-file apply guard | `sourceFilesIngestStaleGuard.test.ts` | Workspace import and composed graph apply stay on the canonical graph-owning path. |
-| Shared semantic-key reuse | `sourceFilesIngestStaleGuard.test.ts` and other regressions | Graph identity remains rooted in `buildScopedGraphSemanticKey()`. |
-
-### 8.2 Required PRD-To-TAD Traceability
-
-| PRD epic | TAD owner(s) | Validation owner |
-|---|---|---|
-| PRD-E1 | TAD-C01, TAD-C02, TAD-C03, TAD-C11 | settings assist behavior + graph semantic-key reuse tests |
-| PRD-E2 | TAD-C04, TAD-C08 | `chatResponseContractPrompt.test.ts`, validator behavior |
-| PRD-E3 | TAD-C04, TAD-C05, TAD-C06 | finalize/apply test plus workspace path helpers |
-| PRD-E4 | TAD-C07, TAD-C08, TAD-C09, TAD-C10 | parser and import-mode regression tests |
-| PRD-E5 | TAD-C09, TAD-C10, TAD-C11 | stale-guard and semantic-key reuse tests |
-
-### 8.3 Definition Of Done
-
-This scope is done only when all of the following are true:
-
-1. The docs describe only real in-repo runtime owners for the current chat-to-canvas path.
-2. The enhanced prompt contract is specified as an upstream change to `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT`.
-3. Group and cluster semantics are documented as one normalized pipeline, not parallel concepts.
-4. Stale or speculative components are removed from the canonical doc rather than kept as competing proposed owners.
-5. Focused validation remains tied to existing tests and parser/import guards.
-
----
-
-## 9. Implementation Guidance For The Next Code Pass
-
-This document update does not itself change runtime code, but it sets the exact direction for the next implementation pass.
-
-### 9.1 Safe Enhancement Targets
-
-1. `chatResponseBaseContract.ts`
-   - tighten anti-duplicate and anti-stale wording
-   - reinforce `flow.subgraphs` as the grouping SSOT
-   - reinforce request-shaped section behavior
-2. `chatMarkdownValidation`
-   - reject any newly discovered duplicate grouping or stale heading patterns
-3. `chatHistoryWorkspace.kgc.build`
-   - preserve request-shaped normalization and continue stripping stale canned labels
-4. `chatResponseContractPrompt.test.ts`
-   - add focused assertions for any newly tightened prompt requirements
-
-### 9.2 Unsafe Changes To Avoid
-
-1. Adding a new chat orchestrator hook for the same request path.
-2. Adding a direct assistant-text-to-graph mutation helper.
-3. Adding a second grouping metadata format next to `kg:subgraphs`.
-4. Introducing compatibility remaps for stale prompt shapes instead of fixing the prompt and validator upstream.
-5. Replacing shared semantic-key helpers with local hash logic.
-
----
-
-## 10. Open Questions
-
-| ID | Question | Why it matters | Current direction |
-|---|---|---|---|
-| OQ-01 | Should the enhanced KGC contract explicitly require classic canvas preset keys in addition to the existing `canvas:` block? | The import layer accepts presets, but the canonical chat contract is already richer. | Prefer the richer KGC contract as SSOT; add classic keys only if there is a concrete import benefit without duplication. |
-| OQ-02 | Which new validator rules belong in `validateChatMarkdown()` versus prompt-only wording? | Over-validating can cause churn; under-validating can allow drift. | Add only rules that prevent deterministic structural regressions. |
-| OQ-03 | Should prompt tests assert `flow.subgraphs` wording more strongly? | Group semantics are central to this pipeline. | Yes, if implemented as a focused prompt regression. |
-| OQ-04 | Should canonical KGC persistence expose a stronger UI signal when the validator had to retry? | Better debugging for malformed model output. | Safe follow-up if it does not create a second state channel. |
-| OQ-05 | Are there any remaining stale docs that still mention the removed speculative bridge/orchestrator/parser owners? | Canonical docs must not compete. | Audit adjacent docs after this rewrite. |
-
----
-
-## 11. Final Decision
-
-Knowgrph already owns a coherent chat-to-canvas pipeline. The correct strategy is to strengthen and document that existing upstream path, not to add new layers.
-
-Therefore the architecture decision is final for this scope:
-
-- MainPanel config stays upstream.
-- FloatingPanel chat stays the chat UI owner.
-- `useFloatingPanelChatSubmit` stays a thin submit shell.
-- `floatingPanelChatSubmitCoordinator.ts` plus the existing submit helpers stay the async submit / stream / validate owner.
-- `useFinalizeAssistantSuccess` plus `applyChatKgcWorkspaceDocumentToCanvas()` stays the persistence / apply owner.
-- `tryParseMarkdownFrontmatterFlowGraph()` stays the first Markdown graph parser.
-- `flow.subgraphs -> kg:subgraphs -> deriveGraphGroups()` stays the grouping pipeline.
-- `buildScopedGraphSemanticKey()` stays the semantic identity helper.
-
-Everything stale, speculative, duplicate, conflicting, or downstream-patched is forbidden.
+### Continuation
+
+See continuation in `knowgrph-llm-prompt-contract-prd-tad-proposed.companion.md` for:
+
+- TAD component specifications
+- data contracts
+- validation and traceability
+- implementation guidance
+- open questions and final decision
 
 ---
 
 *Document ID: `knowgrph-llm-prompt-contract-prd-tad-proposed`*  
-*Version: `0.3.1`*  
-*Updated: `2026-05-22`*
+*Version: `0.3.2`*  
+*Updated: `2026-05-27`*
