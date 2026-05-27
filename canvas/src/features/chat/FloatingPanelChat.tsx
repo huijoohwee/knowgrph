@@ -10,7 +10,6 @@ import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/asy
 import type { ChatMessage, StreamingAssistantState } from './FloatingPanelChatSections'
 import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './FloatingPanelChatSections'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
-import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
 import { ensureChatStreamArtifactBundleInitialized } from '@/features/chat/chatStreamArtifacts'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -37,6 +36,7 @@ import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/u
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
+import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { coerceHttpUrl } from '@/lib/url'
@@ -92,6 +92,7 @@ export default function FloatingPanelChat() {
   const chatKnowgrphWorkspacePath = useGraphStore(s => s.chatKnowgrphWorkspacePath || null)
   const chatKnowgrphCloudUrl = useGraphStore(s => s.chatKnowgrphCloudUrl || null)
   const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
+  const setChatWorkspaceStreamingState = useGraphStore(s => s.setChatWorkspaceStreamingState)
   const chatHistoryWorkspacePath = useGraphStore(s => s.chatHistoryWorkspacePath || null)
   const chatHistoryCloudUrl = useGraphStore(s => s.chatHistoryCloudUrl || null)
   const setChatHistoryWorkspacePath = useGraphStore(s => s.setChatHistoryWorkspacePath)
@@ -124,6 +125,11 @@ export default function FloatingPanelChat() {
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
   const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
   const streamDraftTextRef = React.useRef<{ path: string; text: string } | null>(null)
+
+  React.useEffect(() => {
+    if (isLoading) return
+    setChatWorkspaceStreamingState(null)
+  }, [isLoading, setChatWorkspaceStreamingState])
   const streamRevealSeqRef = React.useRef(0)
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
@@ -285,7 +291,7 @@ export default function FloatingPanelChat() {
   }, [historyKey])
 
   const openWorkspaceMarkdownPath = React.useCallback((path: string) => {
-    const normalized = toCanonicalKgcWorkspacePath(path)
+    const normalized = normalizeMarkdownWorkspaceSelectionPath(path as never) || path
     openMarkdownWorkspaceEditorPane(useGraphStore.getState())
     useMarkdownExplorerStore.getState().setActivePath(normalized)
     lsSetJson<'split' | 'editor' | 'viewer'>(LS_KEYS.markdownLayoutMode, 'editor')
@@ -293,7 +299,7 @@ export default function FloatingPanelChat() {
   }, [])
 
   const followWorkspaceMarkdownPath = React.useCallback((path: string) => {
-    const normalized = toCanonicalKgcWorkspacePath(path)
+    const normalized = normalizeMarkdownWorkspaceSelectionPath(path as never) || path
     const nowMs = Date.now()
     const prevFollow = streamFollowRef.current
     const samePath = !!prevFollow && prevFollow.path === normalized
@@ -322,6 +328,7 @@ export default function FloatingPanelChat() {
     setStreamingAssistant(null)
     setStreamingInsights(null)
     setStreamingWorkspacePath(null)
+    setChatWorkspaceStreamingState(null)
     streamFollowRef.current = null
     streamDraftTextRef.current = null
     const timestampMs = Date.now()
@@ -520,6 +527,7 @@ export default function FloatingPanelChat() {
     chatHistoryWorkspacePath,
     chatLocalStorageRootPath,
     setChatKnowgrphWorkspacePath,
+    setChatWorkspaceStreamingState,
     setChatHistoryWorkspacePath,
     followWorkspaceMarkdownPath,
     pushChatExchangeLog,
@@ -570,6 +578,7 @@ export default function FloatingPanelChat() {
     chatLocalStorageRootPath,
     chatKnowgrphWorkspacePath,
     setChatKnowgrphWorkspacePath,
+    setChatWorkspaceStreamingState,
     chatProviderSummary,
     setChatModel,
     messages,
@@ -650,7 +659,6 @@ export default function FloatingPanelChat() {
           messages={messages}
           isLoading={isLoading}
           historyKey={historyKey}
-          streamingAssistant={streamingAssistant}
           uiPanelTextFontClass={uiPanelTextFontClass}
           uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
           uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}

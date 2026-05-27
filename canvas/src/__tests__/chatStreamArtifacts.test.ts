@@ -12,7 +12,7 @@ const MIROMIND_REPORT_SHARE_URL = ['https://', 'dr.miromind.ai', '/report/share/
 
 export function testChatStreamArtifactBundleReusesKgcTimestampSessionFolder() {
   const bundle = resolveChatStreamArtifactBundle({
-    workspacePath: '/sandbox/chat-log/kgc_20260523174000.md',
+    workspacePath: '/sandbox/chat-log/20260523T174000Z/kgc_20260523T174000Z.md',
     timestampMs: Date.UTC(2026, 4, 23, 18, 0, 0),
     defaultLocalRootPath: '/sandbox/chat-log',
   })
@@ -37,7 +37,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
   try {
     resetWorkspaceFsForTests()
     await persistChatStreamArtifacts({
-      workspacePath: '/sandbox/chat-log/kgc_20260523174000.md',
+      workspacePath: '/sandbox/chat-log/20260523T174000Z/kgc_20260523T174000Z.md',
       timestampMs: Date.UTC(2026, 4, 23, 17, 40, 0),
       defaultLocalRootPath: '/sandbox/chat-log',
       traceId: 'trace-stream-1',

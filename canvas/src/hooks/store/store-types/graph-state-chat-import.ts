@@ -226,6 +226,9 @@ export interface GraphStateChatImport {
   setChatKnowgrphStorageMode: (mode: 'local' | 'cloud') => void;
   chatKnowgrphWorkspacePath: string | null;
   setChatKnowgrphWorkspacePath: (path: string | null) => void;
+  chatWorkspaceStreamingPath: string | null;
+  chatWorkspaceStreamingText: string | null;
+  setChatWorkspaceStreamingState: (value: { path?: string | null; text?: string | null } | null) => void;
   chatKnowgrphCloudUrl: string | null;
   setChatKnowgrphCloudUrl: (url: string | null) => void;
   chatHistoryWorkspacePath: string | null;

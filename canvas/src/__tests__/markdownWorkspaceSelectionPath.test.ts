@@ -7,10 +7,12 @@ const ABSOLUTE_DOCS_VIDEO_DEMO_PATH = normalizeFsPath(
   path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-video-demo.md'),
 )
 
-export function testMarkdownWorkspaceSelectionPathCentralizesNormalizationAndCanonicalization() {
-  const canonicalKgc = normalizeMarkdownWorkspaceSelectionPath('sandbox/chat-log/kgc-trace_20260419180222.md' as never)
-  if (canonicalKgc !== '/sandbox/chat-log/kgc_20260419180222.md') {
-    throw new Error(`expected shared selection path helper to normalize and canonicalize KGC trace paths, got ${String(canonicalKgc)}`)
+export function testMarkdownWorkspaceSelectionPathKeepsLiveTraceSelectionStable() {
+  const normalizedKgc = normalizeMarkdownWorkspaceSelectionPath(
+    'sandbox/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md' as never,
+  )
+  if (normalizedKgc !== '/sandbox/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md') {
+    throw new Error(`expected shared selection path helper to normalize without canonicalizing live KGC trace paths, got ${String(normalizedKgc)}`)
   }
 
   const unchanged = normalizeMarkdownWorkspaceSelectionPath('/docs/note.md' as never)

@@ -33,6 +33,7 @@ export const createChatKnowgrphDraftWriter = (args: {
   streamDraftTextRef: StreamingDraftStateRef
   followWorkspaceMarkdownPath: (path: string) => void
   setChatKnowgrphWorkspacePath: (path: string) => void
+  setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   persistDraft?: typeof upsertChatHistoryWorkspaceDraft
 }) => {
   return async (text: string, force: boolean): Promise<void> => {
@@ -49,6 +50,7 @@ export const createChatKnowgrphDraftWriter = (args: {
     }
     args.followWorkspaceMarkdownPath(liveTracePath)
     args.streamDraftTextRef.current = { path: liveTracePath, text }
+    args.setChatWorkspaceStreamingState?.({ path: liveTracePath, text })
     const persistDraft = args.persistDraft || upsertChatHistoryWorkspaceDraft
     try {
       await persistDraft({

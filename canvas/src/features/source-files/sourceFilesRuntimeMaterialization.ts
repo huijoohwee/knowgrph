@@ -115,6 +115,18 @@ const readActiveWorkspaceEntryInlineText = (args: {
   return typeof activeEntry?.text === 'string' ? activeEntry.text : ''
 }
 
+export function shouldCommitResolvedActiveMarkdownText(args: {
+  activePath: WorkspacePath | null
+  resolvedText: string
+  activeWorkspaceEntriesSnapshot?: WorkspaceEntry[]
+}): boolean {
+  if (String(args.resolvedText || '').trim()) return true
+  const activePath = normalizeWorkspacePath(args.activePath)
+  if (!activePath) return false
+  const entries = Array.isArray(args.activeWorkspaceEntriesSnapshot) ? args.activeWorkspaceEntriesSnapshot : []
+  return entries.some(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath)
+}
+
 export async function reapplyClosedPaneActiveMarkdownDocument(args?: {
   activePathOverride?: WorkspacePath | null
   fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
@@ -144,7 +156,13 @@ export async function reapplyClosedPaneActiveMarkdownDocument(args?: {
     currentText,
     fs: args?.fs,
   })
-  if (!nextText.trim()) return false
+  if (!shouldCommitResolvedActiveMarkdownText({
+    activePath,
+    resolvedText: nextText,
+    activeWorkspaceEntriesSnapshot: args?.activeWorkspaceEntriesSnapshot,
+  })) {
+    return false
+  }
   const latestActivePath = resolveMaterializedWorkspaceActivePath({
     explorerActivePath: useMarkdownExplorerStore.getState().activePath,
   })
@@ -356,6 +374,16 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     activeWorkspaceEntriesSnapshot: args?.activeWorkspaceEntriesSnapshot,
   })
   if (!shouldApplyToGraph) {
+    const runtimeSnapshot = buildActiveWorkspaceRuntimeSourceFilesSnapshot({
+      activePath,
+      existingSourceFiles: existing,
+      workspaceEntries,
+      sourcesByPath: resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath),
+      workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+    })
+    if (runtimeSnapshot.runtimeSourceFiles !== existing) {
+      store.setSourceFiles(runtimeSnapshot.runtimeSourceFiles)
+    }
     await reapplyClosedPaneActiveMarkdownDocument({
       activePathOverride: activePath,
       fs,

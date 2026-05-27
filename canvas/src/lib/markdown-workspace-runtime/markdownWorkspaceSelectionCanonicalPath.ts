@@ -1,5 +1,4 @@
 import type { WorkspacePath } from '@/features/workspace-fs/types'
-import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { hasWorkspaceFileEntry, type WorkspaceEntriesIndex } from './workspaceEntriesIndex'
 
 function resolveDocsMirrorCanonicalPath(
@@ -24,9 +23,7 @@ export function resolveMarkdownWorkspaceCanonicalSelection(args: {
   const path = String(args.activePath || '').trim()
   if (!path) return null
 
-  const canonicalPath =
-    resolveDocsMirrorCanonicalPath(path as WorkspacePath, args.entriesIndex)
-    || toCanonicalKgcWorkspacePath(path as WorkspacePath)
+  const canonicalPath = resolveDocsMirrorCanonicalPath(path as WorkspacePath, args.entriesIndex)
   if (!canonicalPath || canonicalPath === path) return null
   if (!hasWorkspaceFileEntry(args.entriesIndex, canonicalPath)) return null
 

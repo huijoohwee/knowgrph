@@ -24,6 +24,7 @@ import {
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 type SubmitRequestContext = Awaited<ReturnType<typeof buildChatSubmitRequestContext>>
+type AssistantStreamState = Awaited<ReturnType<typeof readAssistantResponseText>>
 
 const CHAT_SUBMIT_PREPARATION_TIMEOUT_MS = 12_000
 export const CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR = 'CHAT_SUBMIT_PREPARATION_TIMEOUT'
@@ -133,6 +134,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
     let finalValidatedKgc: string | null = null
     let finalStatus: 'ok' | 'error' = 'ok'
     const finalOverride: string | null = null
+    let finalAssistantStream: AssistantStreamState | null = null
 
     publishLocalChatPipelineKgcValidationSnapshot({
       stage: 'idle',
@@ -231,6 +233,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         streamDraftTextRef: args.submitArgs.streamDraftTextRef,
         followWorkspaceMarkdownPath: args.submitArgs.followWorkspaceMarkdownPath,
         setChatKnowgrphWorkspacePath: args.submitArgs.setChatKnowgrphWorkspacePath,
+        setChatWorkspaceStreamingState: args.submitArgs.setChatWorkspaceStreamingState,
         persistDraft: upsertChatHistoryWorkspaceDraft,
       })
       const assistantStream = await readAssistantResponse({
@@ -257,6 +260,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
         },
       })
       const assistantText = assistantStream.assistantText
+      finalAssistantStream = assistantStream
 
       if (!assistantText) {
         handleIssueExit({
@@ -321,10 +325,10 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       knownKnowgrphPath: liveKgcPath,
       status: finalStatus,
       finalAssistantOverride: finalOverride,
-      streamUsageSummary: assistantStream.usageSummary,
-      streamFinishReason: assistantStream.finishReason,
-      streamReasoningSteps: assistantStream.reasoningSteps,
-      rawSseEvents: assistantStream.rawSseEvents,
+      streamUsageSummary: finalAssistantStream?.usageSummary || null,
+      streamFinishReason: finalAssistantStream?.finishReason || null,
+      streamReasoningSteps: finalAssistantStream?.reasoningSteps || [],
+      rawSseEvents: finalAssistantStream?.rawSseEvents || [],
     })
     args.submitArgs.setConnectivity('ok')
     args.submitArgs.setConnectivityDetail(null)

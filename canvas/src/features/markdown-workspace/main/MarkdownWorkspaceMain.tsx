@@ -408,7 +408,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   }, [frontmatterWarningSourceText])
   const frontmatterWarningSummary = frontmatterWarnings[0] || ''
   const frontmatterWarningCount = frontmatterWarnings.length
-  const documentNotice = frontmatterWarningSummary ? (
+  const streamingNotice = props.streamingStatusLabel ? (
+    <div
+      className={`rounded border px-3 py-2 text-xs leading-5 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.status.warning}`}
+      role="status"
+      aria-live="polite"
+      aria-label="Streaming status"
+    >
+      <div className="font-medium">Streaming</div>
+      <div className="whitespace-pre-wrap break-words">{props.streamingStatusLabel}</div>
+    </div>
+  ) : null
+  const frontmatterNotice = frontmatterWarningSummary ? (
     <div
       className={`rounded border px-3 py-2 text-xs leading-5 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.status.warning}`}
       role="status"
@@ -421,6 +432,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           {`${frontmatterWarningCount - 1} more warning${frontmatterWarningCount - 1 === 1 ? '' : 's'}`}
         </div>
       ) : null}
+    </div>
+  ) : null
+  const documentNotice = streamingNotice || frontmatterNotice ? (
+    <div className="flex flex-col gap-2">
+      {streamingNotice}
+      {frontmatterNotice}
     </div>
   ) : null
   const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)

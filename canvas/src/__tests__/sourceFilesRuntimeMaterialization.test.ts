@@ -1,4 +1,8 @@
-import { shouldProactivelyReapplyClosedPaneActiveMarkdownDocument } from '@/features/source-files/sourceFilesRuntimeMaterialization'
+import {
+  buildActiveWorkspaceRuntimeSourceFilesSnapshot,
+  shouldProactivelyReapplyClosedPaneActiveMarkdownDocument,
+} from '@/features/source-files/sourceFilesRuntimeMaterialization'
+import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 
 export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentWhenCanvasOwnsClosedPane() {
   const shouldReapply = shouldProactivelyReapplyClosedPaneActiveMarkdownDocument({
@@ -36,5 +40,38 @@ export function testShouldNotProactivelyReapplyClosedPaneActiveMarkdownDocumentW
   })
   if (shouldReapply !== false) {
     throw new Error(`expected matching active markdown document to suppress closed-pane reapply, got ${String(shouldReapply)}`)
+  }
+}
+
+export function testBuildActiveWorkspaceRuntimeSourceFilesSnapshotIncludesFreshEmptyActiveWorkspaceFile() {
+  const activePath = '/sandbox/chat-log/kgc_20260527193000.md'
+  const snapshot = buildActiveWorkspaceRuntimeSourceFilesSnapshot({
+    activePath: activePath as never,
+    existingSourceFiles: [{
+      id: 'old-doc',
+      name: 'knowgrph-animatic-demo.md',
+      text: '# old',
+      enabled: true,
+      source: { kind: 'local', path: resolveWorkspaceSourcePathKey('/docs/knowgrph-animatic-demo.md') },
+      status: 'idle',
+    }],
+    workspaceEntries: [{
+      path: activePath as never,
+      parentPath: '/sandbox/chat-log' as never,
+      kind: 'file',
+      name: 'kgc_20260527193000.md',
+      text: '',
+      updatedAtMs: 1,
+    }],
+    sourcesByPath: {},
+    workspaceDocsOnly: false,
+  })
+  const activeSourcePath = resolveWorkspaceSourcePathKey(activePath)
+  const activeFile = snapshot.runtimeSourceFiles.find(file => String(file?.source?.path || '') === activeSourcePath) || null
+  if (!activeFile) {
+    throw new Error('expected runtime source-file snapshot to include a fresh empty active workspace file')
+  }
+  if (activeFile.enabled !== true) {
+    throw new Error(`expected fresh empty active workspace file to be enabled, got ${String(activeFile.enabled)}`)
   }
 }

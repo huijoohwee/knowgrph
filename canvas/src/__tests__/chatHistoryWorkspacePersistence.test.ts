@@ -17,7 +17,7 @@ export async function testChatHistoryWorkspaceDraftWritesOnlyKgcTraceDuringStrea
     resetWorkspaceFsForTests()
     globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
 
-    const canonicalPath = '/sandbox/chat-log/kgc_20260430120000.md'
+    const canonicalPath = '/sandbox/chat-log/20260430T120000Z/kgc_20260430T120000Z.md'
     await upsertChatHistoryWorkspaceDraft({
       requestedPath: canonicalPath,
       timestampMs: 1_746_000_000_000,

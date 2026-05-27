@@ -377,7 +377,7 @@ export async function testBootstrapKnowgrphSubmitDraftSeedsTraceWorkspaceAndEmpt
   const persistedAssistantTexts: string[] = []
   const submitArgs = buildSubmitArgsFixture({
     chatStorageTarget: 'chatKnowgrph',
-    chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522170000.md',
+    chatKnowgrphWorkspacePath: '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md',
     setChatKnowgrphWorkspacePath: path => { resolvedPaths.push(path) },
     setStreamingWorkspacePath: value => { streamingWorkspaceWrites.push(typeof value === 'function' ? null : value) },
     followWorkspaceMarkdownPath: path => { followed.push(path) },
@@ -387,12 +387,12 @@ export async function testBootstrapKnowgrphSubmitDraftSeedsTraceWorkspaceAndEmpt
     requestTimestampMs: Date.UTC(2026, 4, 22, 17, 0, 0),
     trimmedInput: 'Generate KGC',
     traceId: 'trace-preflight',
-    ensureWorkspacePath: async () => '/workspace/chat/kgc_20260522170000.md',
+    ensureWorkspacePath: async () => '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md',
     persistDraft: async payload => {
       persistedAssistantTexts.push(String(payload.assistantText || ''))
     },
   })
-  if (liveKgcPath !== '/workspace/chat/kgc_20260522170000.md') {
+  if (liveKgcPath !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md') {
     throw new Error(`Expected preflight bootstrap to resolve the Knowgrph workspace path, got: ${liveKgcPath}`)
   }
   if (streamingWorkspaceWrites.length !== 1 || !String(streamingWorkspaceWrites[0] || '').includes('kgc-trace_')) {
@@ -444,7 +444,16 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFinalizesSimp
       detail: null,
     }),
     createDraftWriter: () => async () => {},
-    readAssistantResponse: async () => 'assistant response',
+    readAssistantResponse: async () => ({
+      assistantText: 'assistant response',
+      rawSseEvents: [],
+      reasoningSteps: [],
+      reasoningPreview: null,
+      reasoningStepCount: 0,
+      usageSummary: null,
+      finishReason: null,
+      modelId: 'model-a',
+    }),
     finalizeTerminal: () => { terminalResets.push('done') },
   })
   if (finalized.length !== 1 || finalized[0]?.rawAssistantText !== 'assistant response') {
@@ -487,17 +496,17 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
       chatProviderHint: null,
       chatContextScope: 'workspace',
       chatStorageTarget: 'chatKnowgrph',
-      chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+      chatKnowgrphWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
       chatHistoryWorkspacePath: null,
       workspaceViewMode: 'workspace',
       editorWorkspacePane: 'markdown',
       markdownDocumentName: null,
       selectedNodeId: null,
       streamingAssistant: { id: 'assistant-pending', text: 'Streaming...' },
-      streamingWorkspacePath: '/workspace/chat/kgc-trace_20260522190000.md',
-      streamFollowPath: '/workspace/chat/kgc-trace_20260522190000.md',
+      streamingWorkspacePath: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md',
+      streamFollowPath: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md',
       streamDraft: {
-        path: '/workspace/chat/kgc-trace_20260522190000.md',
+        path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md',
         text: '_Streaming..._',
       },
     })
@@ -514,7 +523,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
       const callback = useFinalizeAssistantSuccess({
         chatStorageTarget: 'chatKnowgrph',
         chatProviderSummary: 'openai:gpt-4.1-mini',
-        chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+        chatKnowgrphWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
         chatHistoryWorkspacePath: null,
         chatLocalStorageRootPath: '/workspace/chat',
         setChatKnowgrphWorkspacePath: path => { resolvedKnowgrphPaths.push(path) },
@@ -530,8 +539,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
         },
         setMessages,
         setStreamingAssistant,
-        streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
-        streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', text: '_Streaming..._' } },
+        streamFollowRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
+        streamDraftTextRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', text: '_Streaming..._' } },
       })
       React.useEffect(() => {
         finalizeAssistantSuccess = callback
@@ -554,15 +563,15 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
     const submitArgs = buildSubmitArgsFixture({
       chatStorageTarget: 'chatKnowgrph',
       chatLocalStorageRootPath: '/workspace/chat',
-      chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+      chatKnowgrphWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
       setChatKnowgrphWorkspacePath: path => { resolvedKnowgrphPaths.push(path) },
       followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
       finalizeAssistantSuccess,
       setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
       setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
       abortRef: { current: null },
-      streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', text: '_Streaming..._' } },
-      streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522190000.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
+      streamDraftTextRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', text: '_Streaming..._' } },
+      streamFollowRef: { current: { path: '/workspace/chat/20260522T190000Z/kgc-trace_20260522T190000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 0, 0) } },
     })
 
     await executeFloatingPanelChatSubmitCoordinator({
@@ -573,7 +582,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
       nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
       requestTimestampMs: Date.UTC(2026, 4, 22, 19, 0, 0),
       traceId: 'trace-webmcp-ready',
-      bootstrapDraft: async () => '/workspace/chat/kgc_20260522190000.md',
+      bootstrapDraft: async () => '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
       buildRequestContext: async () => ({
         packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
         systemMessages: [{ role: 'system', content: 'base-system' }],
@@ -587,7 +596,16 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
         detail: null,
       }),
       createDraftWriter: () => async () => {},
-      readAssistantResponse: async () => canonical,
+      readAssistantResponse: async () => ({
+        assistantText: canonical,
+        rawSseEvents: [],
+        reasoningSteps: [],
+        reasoningPreview: null,
+        reasoningStepCount: 0,
+        usageSummary: null,
+        finishReason: 'stop',
+        modelId: 'model-a',
+      }),
     })
 
     const chatPipelineSnapshot = readLocalChatPipelineSurfaceSnapshot()
@@ -600,20 +618,20 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesVali
     if (inspectedPipeline.kgcValidation.stage !== 'validated' || inspectedPipeline.kgcValidation.hasYamlFrontmatter !== true) {
       throw new Error(`Expected chat pipeline inspection to expose validated YAML-frontmatter KGC state, got: ${JSON.stringify(inspectedPipeline.kgcValidation)}`)
     }
-    if (inspectedPipeline.finalize.stage !== 'applied' || inspectedPipeline.finalize.persistedKnowgrphPath !== '/workspace/chat/kgc_20260522190000.md') {
+    if (inspectedPipeline.finalize.stage !== 'applied' || inspectedPipeline.finalize.persistedKnowgrphPath !== '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md') {
       throw new Error(`Expected chat pipeline inspection to expose applied canonical KGC finalize state, got: ${JSON.stringify(inspectedPipeline.finalize)}`)
     }
-    if (!followedPaths.includes('/workspace/chat/kgc_20260522190000.md')) {
+    if (!followedPaths.includes('/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md')) {
       throw new Error(`Expected finalize flow to follow the canonical Knowgrph workspace path, got: ${JSON.stringify(followedPaths)}`)
     }
-    if (!resolvedKnowgrphPaths.includes('/workspace/chat/kgc_20260522190000.md')) {
+    if (!resolvedKnowgrphPaths.includes('/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md')) {
       throw new Error(`Expected finalize flow to resolve the canonical Knowgrph workspace path, got: ${JSON.stringify(resolvedKnowgrphPaths)}`)
     }
-    if (!exchangeLog[0]?.response.includes('/workspace/chat/kgc_20260522190000.md')) {
+    if (!exchangeLog[0]?.response.includes('/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md')) {
       throw new Error(`Expected finalize flow to log the canonical workspace link in the assistant response, got: ${JSON.stringify(exchangeLog)}`)
     }
     if (
-      !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522190000.md') ||
+      !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522T190000Z.md') ||
       !String(graphState.markdownDocumentText || '').startsWith('---\n')
     ) {
       throw new Error(`Expected finalize flow to apply the canonical KGC workspace document to the active canvas state, got: ${JSON.stringify({ markdownDocumentName: graphState.markdownDocumentName, markdownDocumentText: graphState.markdownDocumentText?.slice(0, 40) || '' })}`)
@@ -905,7 +923,7 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
 
   const normalized = normalizeKgcFrontmatterIdentityToFileName({
     markdown: mutated,
-    workspacePath: '/sandbox/chat-log/kgc_20260419180222.md',
+    workspacePath: '/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md',
     timestampMs: Date.UTC(2026, 3, 19, 18, 2, 22),
   })
 
@@ -924,7 +942,7 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
   if (!normalized.includes('en-US')) {
     throw new Error('Expected normalized KGC lang to preserve the authored language')
   }
-  if (!normalized.includes('kgc_20260419180222.md')) {
+  if (!normalized.includes('kgc_20260419T180222Z.md')) {
     throw new Error('Expected normalized KGC self_ref to match workspace filename')
   }
   if (!normalized.includes('# Knowledge Graph Canvas · AI Pipeline')) {
@@ -936,22 +954,22 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
 }
 
 export function testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonical() {
-  const tracePath = '/sandbox/chat-log/kgc-trace_20260419180222.md'
-  const outputPath = '/sandbox/chat-log/kgc-output_20260419180222.svg'
+  const tracePath = '/sandbox/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md'
+  const outputPath = '/sandbox/chat-log/20260419T180222Z/kgc-output_20260419T180222Z.svg'
 
-  if (toCanonicalKgcWorkspacePath(tracePath) !== '/sandbox/chat-log/kgc_20260419180222.md') {
+  if (toCanonicalKgcWorkspacePath(tracePath) !== '/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') {
     throw new Error('Expected trace path to canonicalize to the runnable KGC markdown path')
   }
-  if (toCanonicalKgcWorkspacePath(outputPath) !== '/sandbox/chat-log/kgc_20260419180222.md') {
+  if (toCanonicalKgcWorkspacePath(outputPath) !== '/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') {
     throw new Error('Expected output companion path to canonicalize back to the runnable KGC markdown path')
   }
-  if (toKgcTraceWorkspacePath('/sandbox/chat-log/kgc_20260419180222.md') !== tracePath) {
+  if (toKgcTraceWorkspacePath('/sandbox/chat-log/20260419T180222Z/kgc_20260419T180222Z.md') !== tracePath) {
     throw new Error('Expected canonical KGC path to derive a matching trace companion path')
   }
-  if (toKgcOutputWorkspacePath(tracePath, 'png') !== '/sandbox/chat-log/kgc-output_20260419180222.png') {
+  if (toKgcOutputWorkspacePath(tracePath, 'png') !== '/sandbox/chat-log/20260419T180222Z/kgc-output_20260419T180222Z.png') {
     throw new Error('Expected trace path to derive a matching output companion path')
   }
-  if (toKgcOutputWorkspacePath(tracePath, 'html', { variant: 'viewer' }) !== '/sandbox/chat-log/kgc-output_20260419180222-viewer.html') {
+  if (toKgcOutputWorkspacePath(tracePath, 'html', { variant: 'viewer' }) !== '/sandbox/chat-log/20260419T180222Z/kgc-output_20260419T180222Z-viewer.html') {
     throw new Error('Expected trace path to derive a stable variant output companion path')
   }
 
@@ -960,7 +978,7 @@ export function testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonica
     workspacePath: tracePath,
     timestampMs: Date.UTC(2026, 3, 19, 18, 2, 22),
   })
-  if (!normalized.includes('kgc_20260419180222.md')) {
+  if (!normalized.includes('kgc_20260419T180222Z.md')) {
     throw new Error('Expected identity normalization to use the canonical KGC filename even when the workspace path points at a trace file')
   }
 }
@@ -969,7 +987,7 @@ export function testKgcFallbackWithNonEmptyQueryIsNotByteEqualToCanonicalTemplat
   const canonicalTemplate = readBaseTemplateSample().replace(/\r\n/g, '\n').trimEnd()
   const generated = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 20, 14, 10),
-    workspacePath: '/sandbox/chat-log/kgc_20260419201410.md',
+    workspacePath: '/sandbox/chat-log/20260419T201410Z/kgc_20260419T201410Z.md',
     requestText: 'Solo founder bootstrap growth with Swipe checkout and RxDB MapLibre stack',
     assistantText: 'invalid fallback trigger',
   }).replace(/\r\n/g, '\n').trimEnd()
@@ -984,7 +1002,7 @@ export function testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence() {
   const requestText = 'Solo founder bootstrap growth with Swipe checkout, RxDB, MapLibre, MCP marketplace'
   const generated = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 21, 1, 10),
-    workspacePath: '/sandbox/chat-log/kgc_20260419210110.md',
+    workspacePath: '/sandbox/chat-log/20260419T210110Z/kgc_20260419T210110Z.md',
     requestText,
     assistantText: canonicalTemplate,
   })
@@ -1014,7 +1032,7 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
   ].join('\n')
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 20, 10, 54, 32),
-    workspacePath: '/sandbox/chat-log/kgc_20260420105432.md',
+    workspacePath: '/sandbox/chat-log/20260420T105432Z/kgc_20260420T105432Z.md',
     requestText,
     assistantText,
   })
@@ -1071,7 +1089,7 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
     'unlocks the paid entitlement or action',
     '### Request Snapshot',
     'Canonical output path',
-    'kgc-output_20260420105432.md',
+    'kgc-output_20260420T105432Z.md',
   ]
   requiredSnippets.forEach(snippet => {
     if (!md.includes(snippet)) {
@@ -1108,7 +1126,7 @@ export function testKgcDeterministicFallbackShapesCreativeScriptQueryWithoutTrad
   const requestText = 'generate video script inspired by prometheus + jurassic park (FORBID mention/infringe trademark) `video-script-promessic.md`'
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 20, 19, 20, 54),
-    workspacePath: '/sandbox/chat-log/kgc_20260420192054.md',
+    workspacePath: '/sandbox/chat-log/20260420T192054Z/kgc_20260420T192054Z.md',
     requestText,
     assistantText: 'Need a cinematic script draft with awe and danger.',
   })
@@ -1150,7 +1168,7 @@ export function testKgcDeterministicFallbackStaysNeutralForGenericRequest() {
   const requestText = 'Draft a concise implementation memo for improving offline sync conflict visibility in a local-first workspace'
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 20, 21, 46, 8),
-    workspacePath: '/sandbox/chat-log/kgc_20260420214608.md',
+    workspacePath: '/sandbox/chat-log/20260420T214608Z/kgc_20260420T214608Z.md',
     requestText,
     assistantText: 'Need a short memo with implementation direction and constraints.',
   })
@@ -1276,7 +1294,7 @@ export function testNormalizeKgcAssistantBodyForStorageSalvagesWrappedStructured
   ].join('\n')
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 4, 22, 16, 10, 0),
-    workspacePath: '/sandbox/chat-log/kgc_20260522161000.md',
+    workspacePath: '/sandbox/chat-log/20260522T161000Z/kgc_20260522T161000Z.md',
     requestText: '',
     assistantText: wrapped,
   })
@@ -1312,7 +1330,7 @@ export function testNormalizeKgcAssistantBodyForStorageRemovesLegacyGroupingAlia
   )
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 4, 22, 16, 12, 0),
-    workspacePath: '/sandbox/chat-log/kgc_20260522161200.md',
+    workspacePath: '/sandbox/chat-log/20260522T161200Z/kgc_20260522T161200Z.md',
     requestText: '',
     assistantText: aliased,
   })
@@ -1660,7 +1678,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFailsOnPrepar
     chatProvider: 'agnes-ai',
     chatStorageTarget: 'chatKnowgrph',
     chatLocalStorageRootPath: '/workspace/chat',
-    chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+    chatKnowgrphWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
     setErrorText: value => { errors.push(typeof value === 'function' ? null : value) },
     setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
     setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },

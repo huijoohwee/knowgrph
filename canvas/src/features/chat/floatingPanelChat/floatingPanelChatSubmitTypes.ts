@@ -46,6 +46,7 @@ export type FloatingPanelChatSubmitArgs = {
   chatLocalStorageRootPath: string
   chatKnowgrphWorkspacePath: string | null
   setChatKnowgrphWorkspacePath: (path: string) => void
+  setChatWorkspaceStreamingState?: (value: { path?: string | null; text?: string | null } | null) => void
   chatProviderSummary: string
   setChatModel: (modelId: string) => void
 

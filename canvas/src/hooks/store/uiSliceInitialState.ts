@@ -464,6 +464,8 @@ export const createUiInitialState = (
         return isCanonicalKgcWorkspacePath(raw) ? raw : null
       },
     ),
+    chatWorkspaceStreamingPath: null,
+    chatWorkspaceStreamingText: null,
     chatKnowgrphCloudUrl: lsJson<string | null>(
       LS_KEYS.chatKnowgrphCloudUrl,
       null,

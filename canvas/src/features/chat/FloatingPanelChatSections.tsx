@@ -95,7 +95,6 @@ type MessagesSectionProps = {
   messages: ChatMessage[]
   isLoading: boolean
   historyKey: string
-  streamingAssistant?: StreamingAssistantState | null
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMicroLabelTextSizeClass: string
@@ -107,7 +106,6 @@ export function FloatingPanelChatMessagesSection({
   messages,
   isLoading,
   historyKey,
-  streamingAssistant,
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   uiPanelMicroLabelTextSizeClass,
@@ -146,10 +144,7 @@ export function FloatingPanelChatMessagesSection({
       )}
 
       {messages.map(m => {
-        const rawOverrideText = streamingAssistant && streamingAssistant.id === m.id ? streamingAssistant.text : null
-        const overrideText = typeof rawOverrideText === 'string' && rawOverrideText.trim() ? rawOverrideText : null
-        const resolvedText = typeof overrideText === 'string' ? overrideText : m.content
-        const hidePendingAssistant = m.role === 'assistant' && !String(resolvedText || '').trim()
+        const hidePendingAssistant = m.role === 'assistant' && !String(m.content || '').trim()
         if (hidePendingAssistant) return null
         return (
           <ChatMessageRow
@@ -157,7 +152,6 @@ export function FloatingPanelChatMessagesSection({
             message={m}
             uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
-            overrideText={overrideText}
             onOpenWorkspacePath={onOpenWorkspacePath}
           />
         )

@@ -140,9 +140,10 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 
 #### DC-02 - KGC Workspace File Identity
 
-- Canonical file: `kgc_<timestamp>.md`
-- Trace file: `kgc-trace_<timestamp>.md`
-- Output companion: `kgc-output_<timestamp>.<ext>`
+- Session folder: `YYYYMMDDTHHmmssZ`
+- Canonical KGC file: `kgc_<session>.md`
+- Trace companion: `kgc-trace_<session>.md`
+- Output companion: `kgc-output_<session>.<ext>`
 
 The runtime MUST persist and normalize to these forms instead of inventing alternate file identity patterns.
 

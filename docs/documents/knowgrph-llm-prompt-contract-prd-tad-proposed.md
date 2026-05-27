@@ -65,8 +65,8 @@ The current repo already has a working upstream path for chat-generated structur
 2. FloatingPanel mounts `FloatingPanelChat` when `floatingPanelView === 'chat'`.
 3. `useFloatingPanelChatSubmit` is a thin submit shell: it resolves the request URL, initializes optimistic UI state, and delegates the async runtime to `executeFloatingPanelChatSubmitCoordinator()`.
 4. `floatingPanelChatSubmitCoordinator.ts` owns the async submit lifecycle by composing dedicated helpers for draft bootstrap, request assembly, provider transport fallback, streaming draft writes, and KGC retry/validation.
-5. The streaming helpers capture raw SSE JSON chunks, write the live `kgc-trace_*.md` draft, and persist timestamped `chat-stream-log_*`, `chat-stream-report*`, and dereferenced share/report markdown artifacts in the same workspace session folder.
-6. `useFinalizeAssistantSuccess` writes the canonical workspace KGC document and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
+5. The streaming helpers capture raw SSE JSON chunks, keep the editor on the live `kgc-trace_<session>.md` draft, and persist timestamped `chat-stream-log_*`, `chat-stream-report*`, and dereferenced share/report markdown artifacts in the same workspace session folder.
+6. `useFinalizeAssistantSuccess` writes the canonical `kgc_<session>.md` workspace document from that folder and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
 7. `applyChatKgcWorkspaceDocumentToCanvas()` loads the saved Markdown into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
 8. The Markdown parser prefers `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
 9. Frontmatter-flow metadata becomes `GraphData` with `context: 'frontmatter-flow'`.

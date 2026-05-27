@@ -63,6 +63,7 @@ export function useMarkdownWorkspaceBootstrapState(args: {
         entries: prev,
         path,
         text,
+        createIfMissing: true,
       }),
     )
   }, [])

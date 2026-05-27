@@ -66,7 +66,7 @@ const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> 
   chatContextScope: 'workspace',
   chatStorageTarget: 'chatKnowgrph',
   chatLocalStorageRootPath: '/workspace/chat',
-  chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522193000.md',
+  chatKnowgrphWorkspacePath: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
   setChatKnowgrphWorkspacePath: () => {},
   chatProviderSummary: 'openai:gpt-4.1-mini',
   setChatModel: () => {},
@@ -102,17 +102,17 @@ const seedChatPipelineSnapshot = () => {
     chatProviderHint: null,
     chatContextScope: 'workspace',
     chatStorageTarget: 'chatKnowgrph',
-    chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522193000.md',
+    chatKnowgrphWorkspacePath: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
     chatHistoryWorkspacePath: null,
     workspaceViewMode: 'workspace',
     editorWorkspacePane: 'markdown',
     markdownDocumentName: null,
     selectedNodeId: null,
     streamingAssistant: { id: 'assistant-pending', text: 'Streaming...' },
-    streamingWorkspacePath: '/workspace/chat/kgc-trace_20260522193000.md',
-    streamFollowPath: '/workspace/chat/kgc-trace_20260522193000.md',
+    streamingWorkspacePath: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md',
+    streamFollowPath: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md',
     streamDraft: {
-      path: '/workspace/chat/kgc-trace_20260522193000.md',
+      path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md',
       text: '_Streaming..._',
     },
   })
@@ -150,7 +150,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
       const callback = useFinalizeAssistantSuccess({
         chatStorageTarget: 'chatKnowgrph',
         chatProviderSummary: 'openai:gpt-4.1-mini',
-        chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522193000.md',
+        chatKnowgrphWorkspacePath: '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
         chatHistoryWorkspacePath: null,
         chatLocalStorageRootPath: '/workspace/chat',
         setChatKnowgrphWorkspacePath: () => {},
@@ -159,8 +159,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
         pushChatExchangeLog: () => {},
         setMessages,
         setStreamingAssistant,
-        streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
-        streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', text: '_Streaming..._' } },
+        streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
+        streamDraftTextRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', text: '_Streaming..._' } },
       })
       React.useEffect(() => {
         finalizeAssistantSuccess = callback
@@ -184,8 +184,8 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
       setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
       followWorkspaceMarkdownPath: path => { followedPaths.push(path) },
       abortRef: { current: null },
-      streamDraftTextRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', text: '_Streaming..._' } },
-      streamFollowRef: { current: { path: '/workspace/chat/kgc-trace_20260522193000.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
+      streamDraftTextRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', text: '_Streaming..._' } },
+      streamFollowRef: { current: { path: '/workspace/chat/20260522T193000Z/kgc-trace_20260522T193000Z.md', atMs: Date.UTC(2026, 4, 22, 19, 30, 0) } },
     })
 
     await executeFloatingPanelChatSubmitCoordinator({
@@ -196,7 +196,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
       nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
       requestTimestampMs: Date.UTC(2026, 4, 22, 19, 30, 0),
       traceId: 'trace-webmcp-retry-ready',
-      bootstrapDraft: async () => '/workspace/chat/kgc_20260522193000.md',
+      bootstrapDraft: async () => '/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md',
       buildRequestContext: async () => ({
         packedContext: { selected_node: null, connected_edges: [], frontmatter: null, graph_summary: '', guideline_digest: '' },
         systemMessages: [{ role: 'system', content: 'base-system' }],
@@ -216,7 +216,16 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
         }
       },
       createDraftWriter: () => async () => {},
-      readAssistantResponse: async () => (transportCallCount === 1 ? 'This answer is missing canonical KGC markdown.' : canonical),
+      readAssistantResponse: async () => ({
+        assistantText: transportCallCount === 1 ? 'This answer is missing canonical KGC markdown.' : canonical,
+        rawSseEvents: [],
+        reasoningSteps: [],
+        reasoningPreview: null,
+        reasoningStepCount: 0,
+        usageSummary: null,
+        finishReason: transportCallCount === 1 ? null : 'stop',
+        modelId: 'model-a',
+      }),
     })
 
     const finalInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
@@ -240,11 +249,11 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorPublishesRetr
     if (connectivity[0] !== 'ok' || connectivityDetail[0] !== null) {
       throw new Error(`Expected coordinator helper to mark connectivity ok after retry recovery, got ${JSON.stringify({ connectivity, connectivityDetail })}`)
     }
-    if (!followedPaths.includes('/workspace/chat/kgc_20260522193000.md')) {
+    if (!followedPaths.includes('/workspace/chat/20260522T193000Z/kgc_20260522T193000Z.md')) {
       throw new Error(`Expected retry recovery finalize flow to follow the canonical Knowgrph workspace path, got ${JSON.stringify(followedPaths)}`)
     }
     if (
-      !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522193000.md') ||
+      !String(graphState.markdownDocumentName || '').endsWith('kgc_20260522T193000Z.md') ||
       !String(graphState.markdownDocumentText || '').startsWith('---\n')
     ) {
       throw new Error(`Expected retry recovery finalize flow to apply the canonical KGC document to the active canvas state, got ${JSON.stringify({ markdownDocumentName: graphState.markdownDocumentName, markdownDocumentText: graphState.markdownDocumentText?.slice(0, 40) || '' })}`)

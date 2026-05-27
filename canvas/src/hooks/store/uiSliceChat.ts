@@ -326,6 +326,22 @@ export const createUiChatActions = (set: SetGraph)=> ({
           })(),
         ),
       }),
+    setChatWorkspaceStreamingState: (value: { path?: string | null; text?: string | null } | null) =>
+      set(state => {
+        const nextPath = String(value?.path || '').trim() || null
+        const nextText = String(value?.text || '')
+        const normalizedText = nextPath ? nextText : ''
+        if (
+          state.chatWorkspaceStreamingPath === nextPath &&
+          state.chatWorkspaceStreamingText === normalizedText
+        ) {
+          return {}
+        }
+        return {
+          chatWorkspaceStreamingPath: nextPath,
+          chatWorkspaceStreamingText: normalizedText,
+        }
+      }),
     setChatKnowgrphCloudUrl: (url: string | null) =>
       set({
         chatKnowgrphCloudUrl: lsSetJson(

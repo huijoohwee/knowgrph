@@ -77,12 +77,12 @@ If attempts are exhausted, Chat persists the best canonical recovered KGC candid
 
 ## Persistence Contract
 - The Workspace `kgc_*.md` file is the standalone canonical KGC document.
-- `chatKnowgrph` creates canonical files in the `kgc_yyyymmddhhmmss.md` pattern.
-- On write, canonical KGC identity is kept base-template compliant; only `links.self_ref` is normalized from the `kgc_*.md` filename.
+- `chatKnowgrph` creates one timestamped session folder and persists `kgc_<session>.md` there.
+- On write, canonical KGC identity is kept base-template compliant; only `links.self_ref` is normalized from the session-scoped `kgc_*.md` filename.
 - Structural acceptance requires frontmatter↔body linkage: every body `{{key}}` reference must be declared in YAML frontmatter (base-template allows dotted `runtime.*` refs).
 - Base-template Tier B sentinel keys (`product/domain/subject/objective/artifact/owner/version/status`) are allowed as unresolved placeholders when declared in frontmatter.
 - Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.
-- KGC trace outputs follow the canonical run chain: `kgc-trace_<ts>.md` (trace) -> `kgc_<ts>.md` (canonical run document) -> `kgc-output_<ts>.md` (run output artifact).
+- KGC trace outputs follow the canonical run chain inside one session folder: `kgc-trace_<session>.md` (trace) -> `kgc_<session>.md` (canonical run document) -> `kgc-output_<session>.<ext>` (run output artifact).
 - Live draft persistence writes the trace companion path first, then finalize persists the canonical workspace document and applies it through `setActiveMarkdownDocument()`; raw assistant text must not patch graph state directly.
 - Streaming also persists one timestamped workspace session folder with `chat-stream-log_*`, `chat-stream-report*`, and additive dereferenced share/report markdown artifacts on the same workspace/source-files path.
 - Recovery and normalization may salvage wrapped model output upstream, but the saved canonical document remains one frontmatter-first KGC document with no duplicate grouping channels beside `flow.subgraphs`.

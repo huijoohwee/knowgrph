@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
@@ -59,6 +60,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const setActiveMarkdownDocument = useGraphStore(s => s.setActiveMarkdownDocument)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
+  const chatWorkspaceStreamingPath = useGraphStore(s => s.chatWorkspaceStreamingPath || null)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
@@ -444,6 +446,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     webpageWorkspaceViewerTextOverride: derivedViews.webpageWorkspaceViewerTextOverride,
     userEditedActiveTextRef,
   })
+  const workspaceStreamingStatusLabel = React.useMemo(() => {
+    const activeWorkspacePath = normalizeWorkspacePath(String(activePath || '').trim())
+    const streamingPath = normalizeWorkspacePath(String(chatWorkspaceStreamingPath || '').trim())
+    if (!activeWorkspacePath || !streamingPath || activeWorkspacePath !== streamingPath) return null
+    const fileName = streamingPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc-trace.md'
+    return `Streaming to ${fileName}`
+  }, [activePath, chatWorkspaceStreamingPath])
   const shellState = useMarkdownWorkspaceShell({
     active,
     refreshWorkspace: explorerState.refresh,
@@ -583,6 +592,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         webpageHtmlOverride={null}
         viewerTextOverride={effectiveContent.combinedViewerTextOverride}
         disableViewerMutations={effectiveContent.disableViewerMutations}
+        streamingStatusLabel={workspaceStreamingStatusLabel}
         activeDocumentKey={selectionState.activeDocumentKey}
         highlightedLineRange={highlightedLineRange}
         revealLineInEditor={interactionState.revealLineInEditor}

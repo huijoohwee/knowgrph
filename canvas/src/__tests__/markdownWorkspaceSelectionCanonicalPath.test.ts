@@ -11,35 +11,16 @@ const buildFileEntry = (path: string): WorkspaceEntry => ({
   updatedAtMs: 1,
 })
 
-export function testMarkdownWorkspaceSelectionCanonicalPathCentralizesLegacyPathUpgrade() {
-  const tracePath = '/sandbox/chat-log/kgc-trace_20260419180222.md'
-  const canonicalPath = '/sandbox/chat-log/kgc_20260419180222.md'
+export function testMarkdownWorkspaceSelectionCanonicalPathKeepsLiveKgcTraceSelectionStable() {
+  const tracePath = '/sandbox/chat-log/20260419T180222Z/kgc-trace_20260419T180222Z.md'
 
   const mirrored = resolveMarkdownWorkspaceCanonicalSelection({
     activePath: tracePath as never,
     selectionPath: tracePath as never,
-    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry(canonicalPath)]),
+    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry(tracePath)]),
   })
-  if (!mirrored || mirrored.activePath !== canonicalPath || mirrored.selectionPath !== canonicalPath) {
-    throw new Error(`expected legacy trace path to upgrade active and mirrored selection paths, got ${JSON.stringify(mirrored)}`)
-  }
-
-  const activeOnly = resolveMarkdownWorkspaceCanonicalSelection({
-    activePath: tracePath as never,
-    selectionPath: '/docs/other.md' as never,
-    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry(canonicalPath), buildFileEntry('/docs/other.md')]),
-  })
-  if (!activeOnly || activeOnly.activePath !== canonicalPath || activeOnly.selectionPath !== null) {
-    throw new Error(`expected canonical upgrade without unrelated selection mirroring, got ${JSON.stringify(activeOnly)}`)
-  }
-
-  const missingCanonical = resolveMarkdownWorkspaceCanonicalSelection({
-    activePath: tracePath as never,
-    selectionPath: tracePath as never,
-    entriesIndex: buildWorkspaceEntriesIndex([buildFileEntry('/docs/other.md')]),
-  })
-  if (missingCanonical !== null) {
-    throw new Error(`expected no canonical upgrade when target file is absent, got ${JSON.stringify(missingCanonical)}`)
+  if (mirrored !== null) {
+    throw new Error(`expected live KGC trace path to remain selected during streaming, got ${JSON.stringify(mirrored)}`)
   }
 }
 

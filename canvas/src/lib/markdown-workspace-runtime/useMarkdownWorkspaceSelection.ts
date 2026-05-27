@@ -72,6 +72,45 @@ function buildWorkspaceDocumentSwitchSignature(args: {
   ])
 }
 
+export function shouldAcceptWorkspaceDocumentSelectionText(args: {
+  activePath: WorkspacePath | null
+  activeEntryKind: string
+  activeDocumentKey?: string | null
+  text: string
+}): boolean {
+  const activePath = String(args.activePath || '').trim()
+  if (!activePath) return false
+  if (args.activeEntryKind === 'folder') return false
+  if (String(args.text || '').trim()) return true
+  const activeDocumentKey = String(args.activeDocumentKey || '').trim()
+  if (!activeDocumentKey) return false
+  return !String(args.activeEntryKind || '').trim() || args.activeEntryKind === 'file'
+}
+
+export function shouldHydrateStableWorkspaceSelectionText(args: {
+  activePath: WorkspacePath | null
+  activeEntryKind: string
+  activeDocumentKey?: string | null
+  currentText: string
+  nextText: string
+  lastLoadedPath?: WorkspacePath | null
+  userEditedActiveText: boolean
+}): boolean {
+  if (args.userEditedActiveText === true) return false
+  if (!shouldAcceptWorkspaceDocumentSelectionText({
+    activePath: args.activePath,
+    activeEntryKind: args.activeEntryKind,
+    activeDocumentKey: args.activeDocumentKey,
+    text: args.nextText,
+  })) {
+    return false
+  }
+  const activePath = String(args.activePath || '').trim()
+  if (!activePath) return false
+  if (String(args.lastLoadedPath || '').trim() !== activePath) return true
+  return String(args.currentText || '') !== String(args.nextText || '')
+}
+
 export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
   const storageFallbackByPathRef = React.useRef<Map<string, string>>(new Map())
   const setActivePathSafe = React.useCallback(
@@ -180,7 +219,14 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
           storageFallbackByPath: storageFallbackByPathRef.current,
         })
       }
-      if (!nextText.trim()) return
+      if (!shouldAcceptWorkspaceDocumentSelectionText({
+        activePath: nextPath,
+        activeEntryKind,
+        activeDocumentKey,
+        text: nextText,
+      })) {
+        return
+      }
       if (cancelled || switchedActivePathRef.current?.next !== nextPath || args.activePath !== nextPath) return
       const currentText = String(args.activeTextRef.current || '')
       if (currentText !== nextText) {
@@ -196,6 +242,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   }, [
     activeEntryKind,
     activeEntryText,
+    activeDocumentKey,
     args.activePath,
     args.activeTextRef,
     args.getFs,
@@ -232,7 +279,14 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
           storageFallbackByPath: storageFallbackByPathRef.current,
         })
       }
-      if (!nextText.trim()) return
+      if (!shouldAcceptWorkspaceDocumentSelectionText({
+        activePath: switched.next,
+        activeEntryKind,
+        activeDocumentKey,
+        text: nextText,
+      })) {
+        return
+      }
       if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
 
       const nextSig = buildWorkspaceDocumentSwitchSignature({
@@ -290,6 +344,55 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     args.lastLoadedRef,
     args.patchWorkspaceEntryInlineText,
     args.setActiveMarkdownDocument,
+  ])
+
+  React.useEffect(() => {
+    const path = args.activePath
+    if (!path || activeEntryKind === 'folder') return
+    let cancelled = false
+    const run = async () => {
+      let nextText = typeof activeEntryText === 'string' ? activeEntryText : ''
+      if (!nextText.trim()) {
+        const fs = await args.getFs()
+        if (cancelled || args.activePath !== path) return
+        nextText = await readWorkspaceActiveDocumentResolvedText({
+          activePath: path,
+          currentText: nextText,
+          fs,
+          storageFallbackByPath: storageFallbackByPathRef.current,
+        })
+      }
+      if (!shouldHydrateStableWorkspaceSelectionText({
+        activePath: path,
+        activeEntryKind,
+        activeDocumentKey,
+        currentText: String(args.activeTextRef.current || ''),
+        nextText,
+        lastLoadedPath: args.lastLoadedRef.current?.path || null,
+        userEditedActiveText: args.userEditedActiveTextRef.current === true,
+      })) {
+        return
+      }
+      if (cancelled || args.activePath !== path) return
+      args.setActiveTextProgrammatic(nextText)
+      args.lastLoadedRef.current = { path, text: nextText }
+      args.patchWorkspaceEntryInlineText(path, nextText)
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeEntryKind,
+    activeEntryText,
+    activeDocumentKey,
+    args.activePath,
+    args.activeTextRef,
+    args.getFs,
+    args.lastLoadedRef,
+    args.patchWorkspaceEntryInlineText,
+    args.setActiveTextProgrammatic,
+    args.userEditedActiveTextRef,
   ])
 
   useMarkdownEditorSsotSync({

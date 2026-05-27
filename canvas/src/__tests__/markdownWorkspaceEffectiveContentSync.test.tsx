@@ -1,7 +1,11 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { useMarkdownWorkspaceEffectiveContent } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceEffectiveContent'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  resolveLiveWorkspaceStreamingText,
+  useMarkdownWorkspaceEffectiveContent,
+} from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceEffectiveContent'
 
 const tick = async (n = 1): Promise<void> => {
   for (let i = 0; i < n; i += 1) {
@@ -164,5 +168,35 @@ export async function testMarkdownWorkspaceEffectiveContentPreservesUnsavedEdito
       void 0
     }
     restore()
+  }
+}
+
+export function testMarkdownWorkspaceEffectiveContentPrefersMatchingLiveStreamingDraft() {
+  useGraphStore.getState().setChatWorkspaceStreamingState({
+    path: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md',
+    text: '# streaming draft',
+  })
+  try {
+    const state = useGraphStore.getState()
+    const resolved = resolveLiveWorkspaceStreamingText({
+      activePath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+      streamingPath: state.chatWorkspaceStreamingPath,
+      streamingText: state.chatWorkspaceStreamingText,
+      userEditedActiveText: false,
+    })
+    if (resolved !== '# streaming draft') {
+      throw new Error(`expected matching live workspace stream draft to override empty editor content, got ${JSON.stringify({ resolved })}`)
+    }
+    const hiddenByUserDraft = resolveLiveWorkspaceStreamingText({
+      activePath: '/sandbox/chat-log/20260527T193000Z/kgc-trace_20260527T193000Z.md' as never,
+      streamingPath: state.chatWorkspaceStreamingPath,
+      streamingText: state.chatWorkspaceStreamingText,
+      userEditedActiveText: true,
+    })
+    if (hiddenByUserDraft) {
+      throw new Error(`expected live workspace stream override to yield to an unsaved user draft, got ${JSON.stringify({ hiddenByUserDraft })}`)
+    }
+  } finally {
+    useGraphStore.getState().setChatWorkspaceStreamingState(null)
   }
 }

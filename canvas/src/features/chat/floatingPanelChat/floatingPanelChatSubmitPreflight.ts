@@ -123,6 +123,10 @@ export const bootstrapKnowgrphSubmitDraft = async (args: {
   })
   const liveTracePath = toKgcTraceWorkspacePath(liveKgcPath) || liveKgcPath
   args.submitArgs.setStreamingWorkspacePath(liveTracePath)
+  args.submitArgs.setChatWorkspaceStreamingState?.({
+    path: liveTracePath,
+    text: '_Streaming..._',
+  })
   args.submitArgs.followWorkspaceMarkdownPath(liveTracePath)
   await persistDraft({
     requestedPath: liveKgcPath,

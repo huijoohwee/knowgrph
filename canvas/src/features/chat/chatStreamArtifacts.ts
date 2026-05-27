@@ -1,13 +1,13 @@
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport/urlContent'
+import { extractKgcWorkspaceSessionId, formatKgcWorkspaceSessionId } from './chatHistoryWorkspace.paths'
 import { ensureWorkspaceFolderPathExists, writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 import {
   persistDereferencedChatStreamArtifacts,
   type DereferencedChatStreamArtifact,
 } from './chatStreamArtifactDereference'
 
-const KGC_TIMESTAMP_RX = /\/kgc(?:-trace|-output)?_(\d{14})(?:-[a-z0-9-]+)?\.[a-z0-9]+$/i
 const REPORT_SHARE_HINT_RX = /\/(?:report\/)?share\//i
 
 const pad2 = (value: number): string => String(value).padStart(2, '0')
@@ -55,30 +55,13 @@ const formatReadableUtc = (timestampMs: number): string => {
 }
 
 export const formatChatStreamArtifactSessionId = (timestampMs: number): string => {
-  const date = new Date(Number.isFinite(timestampMs) ? timestampMs : Date.now())
-  return [
-    date.getUTCFullYear(),
-    pad2(date.getUTCMonth() + 1),
-    pad2(date.getUTCDate()),
-    'T',
-    pad2(date.getUTCHours()),
-    pad2(date.getUTCMinutes()),
-    pad2(date.getUTCSeconds()),
-    'Z',
-  ].join('')
-}
-
-const formatSessionIdFromCompactTimestamp = (compactTimestamp: string): string => {
-  const normalized = String(compactTimestamp || '').trim()
-  if (!/^\d{14}$/.test(normalized)) return formatChatStreamArtifactSessionId(Date.now())
-  return `${normalized.slice(0, 8)}T${normalized.slice(8, 14)}Z`
+  return formatKgcWorkspaceSessionId(timestampMs)
 }
 
 const readSessionIdFromWorkspacePath = (workspacePath: string | null | undefined): string | null => {
   const raw = String(workspacePath || '').trim()
   if (!raw) return null
-  const match = KGC_TIMESTAMP_RX.exec(normalizeWorkspacePath(raw))
-  return match?.[1] ? formatSessionIdFromCompactTimestamp(String(match[1])) : null
+  return extractKgcWorkspaceSessionId(normalizeWorkspacePath(raw))
 }
 
 const extractUniqueUrls = (values: readonly string[]): string[] => {
