@@ -4,7 +4,9 @@ import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 export function isMarkdownWorkspaceDocumentSwitchPending(args: {
   activePath: WorkspacePath | null | undefined
   markdownDocumentName: string | null | undefined
+  ownerActive?: boolean | null | undefined
 }): boolean {
+  if (args.ownerActive === false) return false
   const activePath = String(args.activePath || '').trim()
   if (!activePath) return false
   const markdownDocumentName = String(args.markdownDocumentName || '').trim()

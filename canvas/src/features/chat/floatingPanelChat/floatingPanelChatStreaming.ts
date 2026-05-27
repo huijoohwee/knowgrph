@@ -7,6 +7,9 @@ import {
   parseSseEvents,
 } from '../FloatingPanelChat.helpers'
 
+const CHAT_STREAM_FIRST_CHUNK_TIMEOUT_MS = 12_000
+const CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR = 'CHAT_STREAM_FIRST_CHUNK_TIMEOUT'
+
 export type StreamingDraftStateRef = { current: { path: string; text: string } | null }
 export type AssistantResponseStreamState = {
   assistantText: string
@@ -72,6 +75,7 @@ export const readAssistantResponseText = async (args: {
   flushDraft: (text: string, force: boolean) => Promise<unknown> | unknown
   onProgress?: (state: AssistantResponseStreamState) => void
   nowMs?: () => number
+  firstChunkTimeoutMs?: number
 }): Promise<AssistantResponseStreamState> => {
   const flushDraft = args.flushDraft
   const onProgress = args.onProgress
@@ -115,6 +119,7 @@ export const readAssistantResponseText = async (args: {
   const reader = args.response.body.getReader()
   const decoder = new TextDecoder()
   const nowMs = args.nowMs || Date.now
+  const firstChunkTimeoutMs = Math.max(0, Number(args.firstChunkTimeoutMs ?? CHAT_STREAM_FIRST_CHUNK_TIMEOUT_MS) || 0)
   let state = {
     assistantText: '',
     rawSseEvents: [] as string[],
@@ -125,6 +130,7 @@ export const readAssistantResponseText = async (args: {
   }
   let buffer = ''
   let done = false
+  let receivedAnyChunk = false
   let lastDraftFlushMs = 0
   let lastProgressFlushMs = 0
   let pendingDraftWrite: Promise<unknown> | null = null
@@ -142,8 +148,20 @@ export const readAssistantResponseText = async (args: {
   }
 
   while (!done) {
-    const chunk = await reader.read()
+    const chunk = receivedAnyChunk || firstChunkTimeoutMs <= 0
+      ? await reader.read()
+      : await (() => {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null
+        const chunkPromise = reader.read()
+        const timeoutPromise = new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR)), firstChunkTimeoutMs)
+        })
+        return Promise.race([chunkPromise, timeoutPromise]).finally(() => {
+          if (timeoutId) clearTimeout(timeoutId)
+        })
+      })()
     if (chunk.done) break
+    receivedAnyChunk = true
     buffer += decoder.decode(chunk.value, { stream: true })
     const parsed = parseSseEvents(buffer)
     buffer = parsed.rest
@@ -197,3 +215,5 @@ export const readAssistantResponseText = async (args: {
   onProgress?.(finalState)
   return finalState
 }
+
+export { CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR }

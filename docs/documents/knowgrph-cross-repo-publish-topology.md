@@ -55,6 +55,7 @@ Public route ownership remains `airvio.co/api/storage/*`, but server-side reads 
 | Check | Command | Purpose |
 | --- | --- | --- |
 | Static mirror drift | `npm run pages:check-sync` | Confirms `canvas/dist`, `huijoohwee/content/knowgrph`, managed `huijoohwee/knowgrph` files, and generated root `_headers` / `_redirects` agree while excluding mirrored nested control files. |
+| Agnes readiness gate | `npm run agnes:readiness:check` | Chains focused Agnes canvas checks, publish sync drift validation, and the production Pages `__chat_proxy` smoke into one reusable readiness command. |
 | Static build + sync | `npm run pages:build-sync` | Rebuilds with `VITE_BASE_PATH=/knowgrph/` and syncs the Prod mirror. |
 | Static + Worker deploy | `npm run pages:build-sync-cloudflare` | Runs static build/sync and then `storage:deploy` for remote D1 migrations plus Worker deploy. |
 | Conflict gate | `npm run conflict:check` | Runs changed-file hygiene, static build, chunk budgets, conflict compliance, and publish sync drift checks. |

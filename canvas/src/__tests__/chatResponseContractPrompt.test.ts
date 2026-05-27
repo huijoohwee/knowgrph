@@ -40,10 +40,14 @@ import {
   initializeChatSubmitOptimisticState,
   resolveChatSubmitRequestUrlOrSetError,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitPreflight'
-import { executeFloatingPanelChatSubmitCoordinator } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
+import {
+  CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR,
+  executeFloatingPanelChatSubmitCoordinator,
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import {
   createChatKnowgrphDraftWriter,
+  CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR,
   readAssistantResponseText,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatStreaming'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
@@ -212,6 +216,8 @@ export function testResolveChatSubmitRequestUrlOrSetErrorRejectsMissingModel() {
     chatModel: null,
     chatEndpointUrl: 'https://chat.example.test/v1/chat/completions',
     chatProvider: 'openai',
+    chatAuthMode: 'serverManaged',
+    chatApiKey: null,
     setErrorText: value => { errors.push(typeof value === 'function' ? null : value) },
     setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
     setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
@@ -221,6 +227,31 @@ export function testResolveChatSubmitRequestUrlOrSetErrorRejectsMissingModel() {
   }
   if (!errors[0] || connectivity[0] !== 'unknown' || connectivityDetail[0] !== null) {
     throw new Error(`Expected missing-model preflight to write unknown connectivity and error text, got: ${JSON.stringify({ errors, connectivity, connectivityDetail })}`)
+  }
+}
+
+export function testResolveChatSubmitRequestUrlOrSetErrorRejectsMissingAgnesByokKey() {
+  const errors: Array<string | null> = []
+  const connectivity: Array<'unknown' | 'ok' | 'error'> = []
+  const connectivityDetail: Array<string | null> = []
+  const requestUrl = resolveChatSubmitRequestUrlOrSetError({
+    chatModel: 'agnes-2.0-flash',
+    chatEndpointUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    chatProvider: 'agnes-ai',
+    chatAuthMode: 'byok',
+    chatApiKey: '',
+    setErrorText: value => { errors.push(typeof value === 'function' ? null : value) },
+    setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
+    setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
+  })
+  if (requestUrl !== null) {
+    throw new Error(`Expected Agnes BYOK preflight to reject missing API key, got: ${requestUrl}`)
+  }
+  if (errors[0] !== 'Agnes AI API BYOK requires an API key in Settings.') {
+    throw new Error(`Expected Agnes BYOK preflight error text, got: ${JSON.stringify(errors)}`)
+  }
+  if (connectivity[0] !== 'error' || connectivityDetail[0] !== errors[0]) {
+    throw new Error(`Expected Agnes BYOK preflight to set error connectivity, got: ${JSON.stringify({ connectivity, connectivityDetail })}`)
   }
 }
 
@@ -1495,7 +1526,7 @@ export async function testReadAssistantResponseTextCollectsSseChunksAndFlushesDr
   )
   const flushed: Array<{ text: string; force: boolean }> = []
   let nowTick = 200
-  const assistantText = await readAssistantResponseText({
+  const assistantStream = await readAssistantResponseText({
     response,
     isEventStream: true,
     flushDraft: (text, force) => { flushed.push({ text, force }) },
@@ -1505,8 +1536,8 @@ export async function testReadAssistantResponseTextCollectsSseChunksAndFlushesDr
       return current
     },
   })
-  if (assistantText !== 'Hello world') {
-    throw new Error(`Expected SSE helper to accumulate assistant text, got: ${assistantText}`)
+  if (assistantStream.assistantText !== 'Hello world') {
+    throw new Error(`Expected SSE helper to accumulate assistant text, got: ${assistantStream.assistantText}`)
   }
   if (flushed.length < 2) {
     throw new Error(`Expected SSE helper to flush draft during stream and at completion, got ${flushed.length} flushes`)
@@ -1514,6 +1545,31 @@ export async function testReadAssistantResponseTextCollectsSseChunksAndFlushesDr
   const last = flushed[flushed.length - 1]
   if (last.text !== 'Hello world' || last.force !== true) {
     throw new Error(`Expected final SSE draft flush to be forced with full text, got: ${JSON.stringify(last)}`)
+  }
+}
+
+export async function testReadAssistantResponseTextFailsOnMissingFirstChunk() {
+  const response = new Response(
+    new ReadableStream<Uint8Array>({
+      start() {
+        return
+      },
+    }),
+    { headers: { 'content-type': 'text/event-stream' } },
+  )
+  let failed = false
+  try {
+    await readAssistantResponseText({
+      response,
+      isEventStream: true,
+      flushDraft: async () => {},
+      firstChunkTimeoutMs: 10,
+    })
+  } catch (error) {
+    failed = String(error instanceof Error ? error.message : error).includes(CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR)
+  }
+  if (!failed) {
+    throw new Error('Expected event-stream reader to fail when the first chunk never arrives')
   }
 }
 
@@ -1576,6 +1632,67 @@ export function testResolveSubmitRuntimeFriendlyMessageUsesEndpointSpecificNetwo
   })
   if (!friendly.includes('https://chat.example.test/v1')) {
     throw new Error(`Expected network-friendly submit message to include the endpoint URL, got: ${friendly}`)
+  }
+}
+
+export function testResolveSubmitRuntimeFriendlyMessageUsesPreparationTimeoutCopy() {
+  const friendly = resolveSubmitRuntimeFriendlyMessage({
+    raw: `${CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR}:draft-bootstrap`,
+    endpointUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    chatProvider: 'agnes-ai',
+  })
+  if (!friendly.includes('Agnes') || !friendly.includes('preparing the chat request')) {
+    throw new Error(`Expected preparation-timeout submit message to use provider-friendly copy, got: ${friendly}`)
+  }
+}
+
+export async function testExecuteFloatingPanelChatSubmitCoordinatorFailsOnPreparationTimeout() {
+  const errors: Array<string | null> = []
+  const connectivity: Array<'unknown' | 'ok' | 'error'> = []
+  const connectivityDetail: Array<string | null> = []
+  const loadingWrites: boolean[] = []
+  const workspaceWrites: Array<string | null> = []
+  const streamingAssistantWrites: Array<{ id: string; text: string } | null> = []
+  let messages: Array<{ id: string; role: string; content: string }> = [
+    { id: 'assistant-pending', role: 'assistant', content: '' },
+  ]
+  const submitArgs = buildSubmitArgsFixture({
+    chatProvider: 'agnes-ai',
+    chatStorageTarget: 'chatKnowgrph',
+    chatLocalStorageRootPath: '/workspace/chat',
+    chatKnowgrphWorkspacePath: '/workspace/chat/kgc_20260522190000.md',
+    setErrorText: value => { errors.push(typeof value === 'function' ? null : value) },
+    setConnectivity: value => { connectivity.push(typeof value === 'function' ? 'unknown' : value) },
+    setConnectivityDetail: value => { connectivityDetail.push(typeof value === 'function' ? null : value) },
+    setIsLoading: value => { loadingWrites.push(typeof value === 'function' ? false : value) },
+    setStreamingWorkspacePath: value => { workspaceWrites.push(typeof value === 'function' ? null : value) },
+    setStreamingAssistant: value => { streamingAssistantWrites.push(typeof value === 'function' ? null : value) },
+    setMessages: updater => { messages = typeof updater === 'function' ? updater(messages) : updater },
+  })
+
+  await executeFloatingPanelChatSubmitCoordinator({
+    submitArgs,
+    requestUrl: 'https://chat.example.test/v1/chat/completions',
+    trimmedInput: 'Generate KGC',
+    assistantMessageId: 'assistant-pending',
+    nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
+    requestTimestampMs: Date.UTC(2026, 4, 22, 19, 0, 0),
+    traceId: 'trace-prep-timeout',
+    preparationTimeoutMs: 5,
+    bootstrapDraft: () => new Promise<string | null>(() => {}),
+  })
+
+  if (!String(errors[0] || '').includes('preparing the chat request')) {
+    throw new Error(`Expected coordinator to surface a preparation-timeout error, got: ${JSON.stringify(errors)}`)
+  }
+  if (connectivity[0] !== 'error' || connectivityDetail[0] !== errors[0]) {
+    throw new Error(`Expected coordinator to mark connectivity error on preparation timeout, got: ${JSON.stringify({ connectivity, connectivityDetail, errors })}`)
+  }
+  if (loadingWrites[0] !== false || workspaceWrites[0] !== null || streamingAssistantWrites[0] !== null) {
+    throw new Error(`Expected coordinator timeout exit to clear loading and streaming state, got: ${JSON.stringify({ loadingWrites, workspaceWrites, streamingAssistantWrites })}`)
+  }
+  if (messages.some(message => message.id === 'assistant-pending')) {
+    throw new Error('Expected coordinator timeout exit to dismiss the pending assistant placeholder')
   }
 }
 

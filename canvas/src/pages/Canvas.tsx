@@ -135,6 +135,7 @@ export default function CanvasPage() {
   const workspaceDocumentSwitchPending = isMarkdownWorkspaceDocumentSwitchPending({
     activePath,
     markdownDocumentName,
+    ownerActive: workspaceEditorOverlayOpen,
   })
   const switchingDocumentLabel = React.useMemo(() => {
     if (!activePath) return 'Switching document...'

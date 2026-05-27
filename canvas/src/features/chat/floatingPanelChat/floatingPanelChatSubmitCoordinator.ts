@@ -25,6 +25,27 @@ import {
 
 type SubmitRequestContext = Awaited<ReturnType<typeof buildChatSubmitRequestContext>>
 
+const CHAT_SUBMIT_PREPARATION_TIMEOUT_MS = 12_000
+export const CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR = 'CHAT_SUBMIT_PREPARATION_TIMEOUT'
+
+const withPreparationTimeout = async <T>(args: {
+  label: 'draft-bootstrap' | 'request-context'
+  promise: Promise<T>
+  timeoutMs?: number
+}): Promise<T> => {
+  const timeoutMs = Number.isFinite(args.timeoutMs) ? Math.max(0, Number(args.timeoutMs)) : CHAT_SUBMIT_PREPARATION_TIMEOUT_MS
+  if (timeoutMs <= 0) return await args.promise
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR}:${args.label}`))
+    }, timeoutMs)
+  })
+  return await Promise.race([args.promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  })
+}
+
 export const executeFloatingPanelChatSubmitCoordinator = async (args: {
   submitArgs: FloatingPanelChatSubmitArgs
   requestUrl: string
@@ -48,6 +69,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
   handleIssueExit?: typeof handleSubmitIssueExit
   resolveRuntimeFriendly?: typeof resolveSubmitRuntimeFriendlyMessage
   finalizeTerminal?: typeof finalizeSubmitTerminalState
+  preparationTimeoutMs?: number
 }): Promise<void> => {
   const bootstrapDraft = args.bootstrapDraft || bootstrapKnowgrphSubmitDraft
   const buildRequestContext = args.buildRequestContext || buildChatSubmitRequestContext
@@ -62,22 +84,30 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
   const finalizeTerminal = args.finalizeTerminal || finalizeSubmitTerminalState
 
   try {
-    const liveKgcPath = await bootstrapDraft({
-      submitArgs: args.submitArgs,
-      requestTimestampMs: args.requestTimestampMs,
-      trimmedInput: args.trimmedInput,
-      traceId: args.traceId,
-      persistDraft: upsertChatHistoryWorkspaceDraft,
+    const liveKgcPath = await withPreparationTimeout({
+      label: 'draft-bootstrap',
+      timeoutMs: args.preparationTimeoutMs,
+      promise: bootstrapDraft({
+        submitArgs: args.submitArgs,
+        requestTimestampMs: args.requestTimestampMs,
+        trimmedInput: args.trimmedInput,
+        traceId: args.traceId,
+        persistDraft: upsertChatHistoryWorkspaceDraft,
+      }),
     })
 
     const {
       packedContext,
       systemMessages,
       conversationMessages,
-    } = await buildRequestContext({
-      submitArgs: args.submitArgs,
-      nextMessages: args.nextMessages,
-      assistantMessageId: args.assistantMessageId,
+    } = await withPreparationTimeout({
+      label: 'request-context',
+      timeoutMs: args.preparationTimeoutMs,
+      promise: buildRequestContext({
+        submitArgs: args.submitArgs,
+        nextMessages: args.nextMessages,
+        assistantMessageId: args.assistantMessageId,
+      }),
     })
 
     const controller = new AbortController()
@@ -334,6 +364,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
     const friendly = resolveRuntimeFriendly({
       raw,
       endpointUrl: args.submitArgs.chatEndpointUrl,
+      chatProvider: args.submitArgs.chatProvider,
     })
     handleIssueExit({
       assistantMessageId: args.assistantMessageId,

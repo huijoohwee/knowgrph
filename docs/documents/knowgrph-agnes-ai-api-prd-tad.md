@@ -34,6 +34,7 @@ The implemented path is:
 - MainPanel Integrations exposes an Agnes AI API virtual-doc section on the existing Settings surface.
 - FloatingPanel Chat provider quick-preset can switch to Agnes.
 - Dev/preview chat proxy accepts Agnes as an allowed upstream host and supports Bearer auth through BYOK or server-managed env keys.
+- Production Cloudflare Pages shared `__chat_proxy` now also recognizes Agnes and MiroMind at the publish-repo owner boundary, so deployed `/knowgrph` requests no longer depend on an OpenAI/BytePlus-only proxy contract.
 - Shared chat request assembly, shared SSE parsing, shared KGC markdown validation, shared workspace persistence, and shared canvas apply are reused unchanged.
 
 ### Explicitly not implemented yet
@@ -207,14 +208,20 @@ flowchart LR
 
 ### Proxy Contract
 
-The dev or preview proxy must:
+The development/runtime proxy surface has two owners that must stay behaviorally aligned:
+
+- Dev/preview owner: `knowgrph/canvas/vite.config.ts`
+- Production Cloudflare Pages owner: `huijoohwee/functions/__chat_proxy/[[path]].js` plus `huijoohwee/functions/api/_integrationHub.js`
+
+Both proxy owners must:
 
 - allow upstream host `apihub.agnes-ai.com`,
 - resolve Agnes upstream to `https://apihub.agnes-ai.com`,
 - accept `KNOWGRPH_CHAT_PROXY_AGNES_API_KEY` or `AGNES_API_KEY` for server-managed auth,
 - prefer `X-KG-Chat-Api-Key` when BYOK is supplied,
 - forward `Authorization: Bearer <key>` for Agnes requests,
-- keep the same request path rewrite conventions as other OpenAI-compatible chat-completions providers.
+- keep the same request path rewrite conventions as other OpenAI-compatible chat-completions providers,
+- preserve provider parity with MiroMind and other shared chat-completions providers instead of letting the published Pages Function lag behind the Knowgrph Dev proxy.
 
 ### Submit Contract
 
@@ -295,6 +302,10 @@ It must also remain compatible with the existing downstream demo documents used 
 | `FloatingPanelChat.helpers.ts` | shared provider option shaping and SSE delta extraction | no Agnes fork |
 | `useFinalizeAssistantSuccess.ts` | shared markdown persist and canvas apply | downstream SSOT |
 | `graphDataDocumentActions.ts` | shared markdown and frontmatter graph apply | renderer-neutral downstream |
+| `huijoohwee/functions/__chat_proxy/[[path]].js` | production Cloudflare Pages chat proxy owner | publish-repo shared Functions only |
+| `huijoohwee/functions/api/_integrationHub.js` | shared production host allowlist and proxy helpers | publish-repo shared Functions only |
+| `huijoohwee/scripts/smoke-test-integrations.mjs` | focused production proxy smoke for provider parity | publish validation only |
+| `scripts/check-agnes-readiness.mjs` | reusable Agnes readiness gate across Dev and publish validation | canonical operator entrypoint |
 
 ## Anti-Churn Guards
 
@@ -311,10 +322,12 @@ The Agnes integration must continue to enforce the following constraints:
 
 ### Required tests
 
+- one-command readiness gate: `npm run agnes:readiness:check`
 - provider header and endpoint normalization tests for Agnes
 - shared provider options shaping tests for Agnes chat-completions
 - MainPanel Integrations surface test for Agnes virtual-doc entries and open-chat CTA
 - focused diagnostics on edited shared chat and settings files
+- focused publish-repo smoke for the production Cloudflare Pages `__chat_proxy` owner
 
 ### Runtime checks
 
@@ -322,6 +335,12 @@ The Agnes integration must continue to enforce the following constraints:
 - server-managed Agnes request resolves env key without localStorage persistence
 - streaming Agnes response produces one finalized markdown artifact in Workspace
 - finalized markdown applies through shared frontmatter parser into provider-neutral renderer surfaces
+
+### Current validation status
+
+- Shared provider/runtime tests in `knowgrph/canvas` are passing for Agnes provider normalization, shared chat-completions option shaping, and MainPanel Integrations readiness.
+- Publish-repo smoke in `huijoohwee/scripts/smoke-test-integrations.mjs` is passing and confirms the production `__chat_proxy` owner recognizes Agnes and MiroMind with provider-specific missing-key `401` responses.
+- A real deployed Agnes BYOK smoke remains pending only because no `AGNES_API_KEY` or `KNOWGRPH_CHAT_PROXY_AGNES_API_KEY` is available in the current execution environment.
 
 ## Traceability
 
@@ -334,6 +353,8 @@ The Agnes integration must continue to enforce the following constraints:
 | shared transport and prompt assembly | `canvas/src/features/chat/floatingPanelChat/*` |
 | shared workspace and canvas apply | `canvas/src/features/chat/chatKgcCanvasApply.ts`, `canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts` |
 | dev and preview proxy auth plus host allowlist | `canvas/vite.config.ts` |
+| production Pages proxy auth plus host allowlist | `huijoohwee/functions/__chat_proxy/[[path]].js`, `huijoohwee/functions/api/_integrationHub.js` |
+| production proxy parity smoke | `huijoohwee/scripts/smoke-test-integrations.mjs` |
 
 ## Archived Upstream Reference
 

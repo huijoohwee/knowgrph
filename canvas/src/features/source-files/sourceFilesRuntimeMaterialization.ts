@@ -1,5 +1,8 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { SourceFile } from '@/hooks/store/types'
@@ -10,12 +13,14 @@ import {
 import { mergeWorkspaceEntriesIntoSourceFiles, resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   isInitializationWorkspacePath,
 } from '@/features/workspace-fs/workspaceFs'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import {
   readActiveWorkspaceSourceFileFallbackText,
+  readWorkspaceActiveDocumentResolvedText,
   resolveActiveWorkspaceEntriesSnapshot,
 } from '@/features/source-files/sourceFilesRuntimeActive'
 
@@ -73,6 +78,93 @@ function canSkipActiveWorkspaceSourceFilesRematerialization(args: {
     return file.enabled === true && String(file.text || '').trim().length > 0
   }
   return false
+}
+
+export function shouldProactivelyReapplyClosedPaneActiveMarkdownDocument(args: {
+  activePath: WorkspacePath | null
+  markdownDocumentName: string | null | undefined
+  markdownDocumentText: string | null | undefined
+  workspaceViewMode: 'canvas' | 'editor'
+  workspaceCanvasPaneOpen: boolean
+}): boolean {
+  const activePath = normalizeWorkspacePath(args.activePath)
+  if (!activePath || !isMarkdownLikeFileName(activePath)) return false
+  if (isWorkspaceEditorOverlayOpen({
+    workspaceViewMode: args.workspaceViewMode,
+    workspaceCanvasPaneOpen: args.workspaceCanvasPaneOpen,
+  })) {
+    return false
+  }
+  if (
+    matchesMarkdownDocumentPath(activePath, args.markdownDocumentName) &&
+    String(args.markdownDocumentText || '').trim()
+  ) {
+    return false
+  }
+  return true
+}
+
+const readActiveWorkspaceEntryInlineText = (args: {
+  activePath: WorkspacePath
+  activeWorkspaceEntriesSnapshot?: WorkspaceEntry[]
+}): string => {
+  const activePath = normalizeWorkspacePath(args.activePath)
+  if (!activePath) return ''
+  const entries = Array.isArray(args.activeWorkspaceEntriesSnapshot) ? args.activeWorkspaceEntriesSnapshot : []
+  const activeEntry = entries.find(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath) || null
+  return typeof activeEntry?.text === 'string' ? activeEntry.text : ''
+}
+
+export async function reapplyClosedPaneActiveMarkdownDocument(args?: {
+  activePathOverride?: WorkspacePath | null
+  fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
+  activeWorkspaceEntriesSnapshot?: WorkspaceEntry[]
+}): Promise<boolean> {
+  const activePath = resolveMaterializedWorkspaceActivePath({
+    activePathOverride: args?.activePathOverride ?? null,
+    explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+  })
+  const store = useGraphStore.getState()
+  if (!shouldProactivelyReapplyClosedPaneActiveMarkdownDocument({
+    activePath,
+    markdownDocumentName: store.markdownDocumentName,
+    markdownDocumentText: store.markdownDocumentText,
+    workspaceViewMode: store.workspaceViewMode,
+    workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
+  })) {
+    return false
+  }
+  if (!activePath) return false
+  const currentText = readActiveWorkspaceEntryInlineText({
+    activePath,
+    activeWorkspaceEntriesSnapshot: args?.activeWorkspaceEntriesSnapshot,
+  })
+  const nextText = await readWorkspaceActiveDocumentResolvedText({
+    activePath,
+    currentText,
+    fs: args?.fs,
+  })
+  if (!nextText.trim()) return false
+  const latestActivePath = resolveMaterializedWorkspaceActivePath({
+    explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+  })
+  if (normalizeWorkspacePath(latestActivePath) !== activePath) return false
+  if (
+    matchesMarkdownDocumentPath(activePath, store.markdownDocumentName) &&
+    String(store.markdownDocumentText || '') === nextText
+  ) {
+    return false
+  }
+  return !!(await applyActiveMarkdownDocumentPayload({
+    setActiveMarkdownDocument: store.setActiveMarkdownDocument,
+    name: activePath,
+    text: nextText,
+    autoEnableFrontmatter: true,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+    normalizeWebpageFrontmatterToMarkdown: false,
+  }))
 }
 
 export function resolveMaterializedWorkspaceActivePath(args?: {
@@ -248,6 +340,11 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
           activeSourcePath,
         }))
       }
+      await reapplyClosedPaneActiveMarkdownDocument({
+        activePathOverride: activePath,
+        fs: args?.fs,
+        activeWorkspaceEntriesSnapshot: args?.activeWorkspaceEntriesSnapshot,
+      })
       return
     }
   }
@@ -258,7 +355,14 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     workspaceEntries: args?.workspaceEntries,
     activeWorkspaceEntriesSnapshot: args?.activeWorkspaceEntriesSnapshot,
   })
-  if (!shouldApplyToGraph) return
+  if (!shouldApplyToGraph) {
+    await reapplyClosedPaneActiveMarkdownDocument({
+      activePathOverride: activePath,
+      fs,
+      activeWorkspaceEntriesSnapshot: workspaceEntries,
+    })
+    return
+  }
   await materializeGraphOwningActiveWorkspaceSourceFiles({
     activePath,
     fs,
@@ -266,5 +370,10 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     workspaceEntries,
     sourcesByPath: resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath),
     premergedSourceFiles,
+  })
+  await reapplyClosedPaneActiveMarkdownDocument({
+    activePathOverride: activePath,
+    fs,
+    activeWorkspaceEntriesSnapshot: workspaceEntries,
   })
 }

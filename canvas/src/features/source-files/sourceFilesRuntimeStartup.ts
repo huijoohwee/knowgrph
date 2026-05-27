@@ -10,6 +10,8 @@ import {
 } from '@/features/workspace-fs/workspaceFs'
 import { readWorkspaceActiveEntrySnapshot } from '@/features/source-files/sourceFilesRuntimeActive'
 import { resolveMaterializedWorkspaceActivePath } from '@/features/source-files/sourceFilesRuntimeMaterialization'
+import { resolveMarkdownWorkspaceCanonicalSelection } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionCanonicalPath'
+import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
 export function buildInitialWorkspaceStartupSnapshot(args: {
   currentActivePath: WorkspacePath | null
@@ -35,6 +37,20 @@ export function buildInitialWorkspaceStartupSnapshot(args: {
   }
 }
 
+export function resolveWorkspaceStartupCanonicalPath(args: {
+  activePath: WorkspacePath | null
+  workspaceEntries: WorkspaceEntry[]
+}): WorkspacePath | null {
+  const activePath = args.activePath
+  if (!activePath) return null
+  const canonicalSelection = resolveMarkdownWorkspaceCanonicalSelection({
+    activePath,
+    selectionPath: null,
+    entriesIndex: buildWorkspaceEntriesIndex(Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []),
+  })
+  return canonicalSelection?.activePath || activePath
+}
+
 export async function resolveInitialWorkspaceStartupState(): Promise<{
   activePath: WorkspacePath | null
   workspaceEntries: WorkspaceEntry[]
@@ -45,17 +61,30 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
-  const currentActivePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath })
+  const startupWorkspaceEntries = await fs.listEntries()
+  const currentActivePath = resolveWorkspaceStartupCanonicalPath({
+    activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
+    workspaceEntries: startupWorkspaceEntries,
+  })
   let desiredActivePath = preferCustomValidationSeed
     ? TEST_VALIDATION_WORKSPACE_SEED_PATH
     : currentActivePath
+  desiredActivePath = resolveWorkspaceStartupCanonicalPath({
+    activePath: desiredActivePath,
+    workspaceEntries: startupWorkspaceEntries,
+  })
   let workspaceEntries = desiredActivePath
-    ? await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath })
+    ? await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
     : []
   const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && String(entry.text || '').trim())
   if (!hasDesiredActiveText && !preferCustomValidationSeed) {
-    desiredActivePath = WORKSPACE_README_SEED_PATH
-    workspaceEntries = await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath })
+    desiredActivePath = resolveWorkspaceStartupCanonicalPath({
+      activePath: WORKSPACE_README_SEED_PATH,
+      workspaceEntries: startupWorkspaceEntries,
+    })
+    workspaceEntries = desiredActivePath
+      ? await readWorkspaceActiveEntrySnapshot({ fs, activePath: desiredActivePath, workspaceEntries: startupWorkspaceEntries })
+      : []
   }
   const snapshot = buildInitialWorkspaceStartupSnapshot({
     currentActivePath,

@@ -7,6 +7,7 @@ import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
+import { resolveWorkspaceStartupCanonicalPath } from '@/features/source-files/sourceFilesRuntimeStartup'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   buildInitialWorkspaceStartupSnapshot,
@@ -640,6 +641,24 @@ export function testWorkspaceRefreshSnapshotHelpersCentralizeFallbackState() {
   })
   if (fallback.sourcesByPath !== cached) {
     throw new Error('expected shared workspace refresh snapshot helper to reuse the canonical cached source index when no snapshot is provided')
+  }
+}
+
+export function testWorkspaceStartupCanonicalPathPromotesRootDocsAliasToDocsMirrorPath() {
+  const docsReadmePath = '/docs/knowgrph-maps-readme.md' as never
+  const canonical = resolveWorkspaceStartupCanonicalPath({
+    activePath: WORKSPACE_README_SEED_PATH,
+    workspaceEntries: [{
+      path: docsReadmePath,
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'knowgrph-maps-readme.md',
+      text: '# Maps Readme',
+      updatedAtMs: 1,
+    }],
+  })
+  if (canonical !== docsReadmePath) {
+    throw new Error(`expected startup canonical path helper to promote README root alias to docs mirror path, got ${String(canonical)}`)
   }
 }
 

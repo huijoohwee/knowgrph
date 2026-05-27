@@ -118,6 +118,15 @@ const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_GEMINI]: 'Google Gemini',
 }
 
+export const chatProviderRequiresApiKey = (provider: unknown): boolean => {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  return normalizedProvider === CHAT_PROVIDER_OPENAI
+    || normalizedProvider === CHAT_PROVIDER_MIROMIND
+    || normalizedProvider === CHAT_PROVIDER_AGNES
+    || normalizedProvider === CHAT_PROVIDER_BYTEPLUS
+    || normalizedProvider === CHAT_PROVIDER_GEMINI
+}
+
 const toCleanInput = (value: unknown): string => {
   if (typeof value !== 'string') return ''
   return value.trim()

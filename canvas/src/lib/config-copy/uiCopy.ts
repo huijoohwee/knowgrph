@@ -156,9 +156,14 @@ export const UI_COPY = {
   workflowShareFailedGeneric: 'Share failed',
   requestFailedStatus: (status: number) => `Request failed: ${status}`,
   chatMissingEndpointAndModelError: 'Chat endpoint and model must be configured in Settings.',
+  chatMissingByokApiKeyError: (providerLabel: string) => `${providerLabel} BYOK requires an API key in Settings.`,
   chatRequestFailedStatus: (status: number) => `Chat request failed with status ${status}.`,
   chatRequestFailedGenericError: 'Chat request failed.',
   chatResponseMissingContentError: 'Chat response did not include content.',
+  chatSubmitPreparationTimeoutError: (providerLabel: string) =>
+    `${providerLabel} got stuck while preparing the chat request. Start a fresh chat session or retry after workspace activity settles.`,
+  chatStreamFirstChunkTimeoutError: (providerLabel: string) =>
+    `${providerLabel} did not produce any stream output. Check the API key, endpoint, or provider-specific request options and try again.`,
   chatEndpointOkStatus: 'Chat endpoint responded successfully.',
   chatEndpointUnreachableStatus:
     'Chat endpoint appears unreachable. Check the selected official provider endpoint, proxy routing, or local gateway.',

@@ -223,15 +223,7 @@ export function testAgnesProviderOptionsReuseSharedChatCompletionsShape() {
   })
   const expected = {
     temperature: 0.35,
-    service_tier: 'default',
-    frequency_penalty: 0.2,
-    presence_penalty: 0.1,
     top_p: 0.9,
-    parallel_tool_calls: true,
-    stop: ['DONE'],
-    stream_options: { include_usage: true },
-    response_format: { type: 'json_object' },
-    logprobs: false,
   }
   const serialized = stableStringify(options)
   const serializedExpected = stableStringify(expected)

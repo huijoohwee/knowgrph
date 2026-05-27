@@ -150,13 +150,22 @@ export const buildProviderChatRequestOptions = (args: {
     }
   }
 
-  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND && provider !== CHAT_PROVIDER_AGNES) return base
+  if (provider === CHAT_PROVIDER_AGNES) {
+    const tools = parseOptionalJsonConfig(args.chatToolsJson, 'tools', 'Agnes AI')
+    const toolChoice = parseOptionalJsonConfig(args.chatToolChoiceJson, 'tool_choice', 'Agnes AI')
+    return {
+      ...base,
+      top_p: clampBytePlusTopP(args.chatTopP),
+      ...(typeof tools !== 'undefined' ? { tools } : {}),
+      ...(typeof toolChoice !== 'undefined' ? { tool_choice: toolChoice } : {}),
+    }
+  }
+
+  if (provider !== CHAT_PROVIDER_OPENAI && provider !== CHAT_PROVIDER_MIROMIND) return base
 
   const providerLabel = provider === CHAT_PROVIDER_MIROMIND
     ? 'MiroMind'
-    : provider === CHAT_PROVIDER_AGNES
-      ? 'Agnes AI'
-      : 'OpenAI'
+    : 'OpenAI'
   const logprobs = coerceBooleanFlag(args.chatLogprobs, false)
   const topLogprobs = clampBytePlusTopLogprobs(args.chatTopLogprobs)
   const stop = parseOptionalJsonConfig(args.chatStopJson, 'stop', providerLabel)

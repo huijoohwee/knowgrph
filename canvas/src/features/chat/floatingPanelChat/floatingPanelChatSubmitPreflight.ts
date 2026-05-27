@@ -2,6 +2,8 @@ import type React from 'react'
 import { UI_COPY } from '@/lib/config'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
+  chatProviderRequiresApiKey,
+  getChatProviderLabel,
   normalizeChatEndpointUrlInput,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
@@ -18,6 +20,8 @@ export const resolveChatSubmitRequestUrlOrSetError = (args: {
   chatModel: string | null
   chatEndpointUrl: string | null
   chatProvider: string
+  chatAuthMode: 'byok' | 'serverManaged'
+  chatApiKey: string | null
   setErrorText: React.Dispatch<React.SetStateAction<string | null>>
   setConnectivity: React.Dispatch<React.SetStateAction<'unknown' | 'ok' | 'error'>>
   setConnectivityDetail: React.Dispatch<React.SetStateAction<string | null>>
@@ -26,6 +30,17 @@ export const resolveChatSubmitRequestUrlOrSetError = (args: {
     args.setErrorText(UI_COPY.chatMissingEndpointAndModelError)
     args.setConnectivity('unknown')
     args.setConnectivityDetail(null)
+    return null
+  }
+  if (
+    args.chatAuthMode === 'byok'
+    && chatProviderRequiresApiKey(args.chatProvider)
+    && !String(args.chatApiKey || '').trim()
+  ) {
+    const detail = UI_COPY.chatMissingByokApiKeyError(getChatProviderLabel(args.chatProvider))
+    args.setErrorText(detail)
+    args.setConnectivity('error')
+    args.setConnectivityDetail(detail)
     return null
   }
   const requestUrl = resolveChatEndpointForRequest(
