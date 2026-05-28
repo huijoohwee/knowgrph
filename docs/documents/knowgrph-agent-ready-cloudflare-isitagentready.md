@@ -54,6 +54,17 @@ Skill: https://isitagentready.com/.well-known/agent-skills/link-headers/SKILL.md
 Docs: https://www.rfc-editor.org/rfc/rfc8288, https://www.rfc-editor.org/rfc/rfc9727#section-3
 ```
 
+#### DNS for AI Discovery (DNS-AID)
+Goal: Publish DNS for AI Discovery (DNS-AID) records for DNS-based agent discovery
+
+Issue: DNS for AI Discovery (DNS-AID) well-known entrypoint records not found
+
+Fix: Publish DNS for AI Discovery (DNS-AID) records under your domain, for example _index._agents.example.com or _a2a._agents.example.com, using ServiceMode SVCB/HTTPS records with alpn and endpoint parameters. Sign the public discovery zone with DNSSEC so validating resolvers return authenticated data.
+
+Skill: https://isitagentready.com/.well-known/agent-skills/dns-aid/SKILL.md
+
+Docs: https://datatracker.ietf.org/doc/draft-mozleywilliams-dnsop-dnsaid/, https://www.rfc-editor.org/rfc/rfc9460
+
 ---
 
 ## Content
@@ -193,9 +204,20 @@ Skill: https://isitagentready.com/.well-known/agent-skills/agent-skills/SKILL.md
 Docs: https://github.com/cloudflare/agent-skills-discovery-rfc, https://agentskills.io/
 ```
 
+### Auth.md agent registration
+
+Goal: Publish Auth.md metadata for agent registration
+
+Issue: auth.md returned HTML instead of Markdown
+
+Fix: Serve /auth.md at the site root with agent registration instructions, publish /.well-known/oauth-protected-resource, and include an agent_auth block in /.well-known/oauth-authorization-server with register_uri, supported identity types, credential types, and claim/revocation URLs where applicable.
+
+Skill: https://isitagentready.com/.well-known/agent-skills/auth-md/SKILL.md
+
+Docs: https://workos.com/auth-md, https://github.com/workos/auth.md
+
 ### WebMCP
 
-```
 Goal: Support WebMCP to expose site tools to AI agents via the browser
 
 Issue: Could not check WebMCP: Execution context was destroyed, most likely because of a navigation.
@@ -205,7 +227,6 @@ Fix: Implement the WebMCP API by calling navigator.modelContext.provideContext()
 Skill: https://isitagentready.com/.well-known/agent-skills/webmcp/SKILL.md
 
 Docs: https://webmachinelearning.github.io/webmcp/, https://developer.chrome.com/blog/webmcp-epp
-```
 
 ---
 

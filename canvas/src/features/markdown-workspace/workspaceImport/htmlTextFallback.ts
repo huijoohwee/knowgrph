@@ -1,4 +1,5 @@
 import { postprocessWebpageMarkdownSsot } from '@/lib/markdown/webpageMarkdownPostprocess'
+import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 
 function decodeHtmlEntitiesBasic(text: string): string {
   const src = String(text || '')
@@ -64,8 +65,8 @@ export function htmlFallbackToMarkdownAllText(html: string): string {
 
 export function normalizeWebpageCardAndListBlocks(markdown: string): string {
   try {
-    return postprocessWebpageMarkdownSsot(String(markdown || ''))
+    return restoreWebpageMarkdownSyntaxFidelity(postprocessWebpageMarkdownSsot(String(markdown || '')))
   } catch {
-    return String(markdown || '')
+    return restoreWebpageMarkdownSyntaxFidelity(String(markdown || ''))
   }
 }

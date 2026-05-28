@@ -14,7 +14,9 @@ import {
   chooseWebpageMarkdownByContentCoverage,
 } from '@/features/markdown-workspace/workspaceImport/webpageMarkdownFidelity'
 import { pruneWebpageChromeText } from '@/lib/websites/webpageShellHeuristics'
+import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
+import { persistImportedShareUrlArtifacts } from '@/features/markdown-workspace/workspaceImport/shareUrlExport'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import {
@@ -884,8 +886,6 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
     '1. Analyze recent oil market reports from major institutions like Goldman Sachs and UBS',
     '2. Identify a shared logical blind spot',
     '3. Based on this flaw, re-simulate the global oil price trajectory for the next six months',
-    '',
-    'Conclusion: By ignoring midstream hysteresis and the new $85 floor, both institutions underestimate prices by $20-40/bbl.',
   ].join('\n')
   const recoveredHtml = [
     '<!doctype html>',
@@ -901,6 +901,21 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
     '</body>',
     '</html>',
   ].join('')
+  const recoveredThinkingHtml = [
+    '<div class="wk-main-content">',
+    '<blockquote><p>The user wants me to compare the current report against the Goldman Sachs and UBS baselines.</p></blockquote>',
+    '<ol>',
+    '<li>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS</li>',
+    '<li>Identify a shared logical blind spot</li>',
+    '<li>Re-simulate the global oil price trajectory for the next six months</li>',
+    '</ol>',
+    '<p>Key link: <a href="https://www.reuters.com/example">Reuters</a></p>',
+    '<p><img alt="oil chart" src="https://example.com/oil-chart.png" /></p>',
+    '<table><thead><tr><th>Institution</th><th>Price</th></tr></thead><tbody><tr><td>Goldman</td><td>$85/bbl</td></tr></tbody></table>',
+    '<pre><code class="language-python">print("Brent", 85)</code></pre>',
+    '<p>Inline math $x+y$ stays visible.</p>',
+    '</div>',
+  ].join('')
   const proxyCalls: string[] = []
   const domCalls: Array<{ mode: string; clickTextHints: string[]; textCaptureTarget: string }> = []
   const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]), proxyCalls)
@@ -910,6 +925,9 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
       clickTextHints: Array.isArray(args.clickTextHints) ? args.clickTextHints.map(value => String(value || '')) : [],
       textCaptureTarget: String(args.textCaptureTarget || ''),
     })
+    if (args.mode === 'html' && args.textCaptureTarget === 'clicked-next-sibling') {
+      return { text: recoveredThinkingHtml, title: 'Shared Chat - MiroThinker', clipped: false }
+    }
     if (args.mode === 'html') return { text: recoveredHtml, title: 'Shared Chat - MiroThinker', clipped: false }
     if (args.textCaptureTarget === 'clicked-next-sibling') {
       return { text: renderedThinkingText, title: 'Shared Chat - MiroThinker', clipped: false }
@@ -918,14 +936,39 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
   })
   try {
     const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
-    if (!res.thinkingText || res.thinkingText !== renderedThinkingText) {
-      throw new Error(`expected share import to preserve distinct thinking trajectory text, got:\n${String(res.thinkingText || '')}`)
+    if (!res.thinkingText || !res.thinkingText.includes('> The user wants me to compare the current report against the Goldman Sachs and UBS baselines.')) {
+      throw new Error(`expected share import to preserve structured blockquote thinking content, got:\n${String(res.thinkingText || '')}`)
     }
-    if (!res.text.includes('## 1. Shared logical blind spot in recent Goldman Sachs and UBS oil reports')) {
+    if (!res.thinkingText.includes('1. Analyze recent oil market reports from major institutions like Goldman Sachs and UBS')) {
+      throw new Error(`expected share import to preserve ordered-list thinking content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.thinkingText.includes('[Reuters](https://www.reuters.com/example)')) {
+      throw new Error(`expected share import to preserve markdown links in thinking content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.thinkingText.includes('![oil chart](https://example.com/oil-chart.png)')) {
+      throw new Error(`expected share import to preserve markdown images in thinking content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.thinkingText.includes('| Institution | Price |') || !res.thinkingText.includes('| Goldman | $85/bbl |')) {
+      throw new Error(`expected share import to preserve markdown tables in thinking content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.thinkingText.includes('```python') || !res.thinkingText.includes('print("Brent", 85)')) {
+      throw new Error(`expected share import to preserve fenced code blocks in thinking content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.thinkingText.includes('Inline math $x+y$ stays visible.')) {
+      throw new Error(`expected share import to preserve inline math markers in thinking content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (res.thinkingText.includes('The user wants me to:\n1. Analyze recent oil market reports')) {
+      throw new Error(`expected share import to avoid collapsing structured thinking content to plain rendered text, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.text.includes('### Summary') || !res.text.includes('1. Shared logical blind spot in recent Goldman Sachs and UBS oil reports.')) {
       throw new Error(`expected share import markdown body to remain the structured summary export, got:\n${res.text}`)
     }
     if (res.thinkingText === res.text) {
       throw new Error('expected thinking trajectory export to remain distinct from the markdown summary body')
+    }
+    const thinkingHtmlCall = domCalls.find(call => call.mode === 'html' && call.textCaptureTarget === 'clicked-next-sibling') || null
+    if (!thinkingHtmlCall) {
+      throw new Error(`expected share thinking recovery to request clicked sibling html capture, got ${JSON.stringify(domCalls)}`)
     }
     const thinkingCall = domCalls.find(call => call.textCaptureTarget === 'clicked-next-sibling') || null
     if (!thinkingCall) {
@@ -941,6 +984,161 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
     setWorkspaceWebpageDomExportForTests(null)
     restore()
     resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWholeDocumentHtmlFallback(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
+  const shellHtml = [
+    '<!doctype html>',
+    '<html><body>',
+    '<main>',
+    '<p>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.</p>',
+    '<h2>Show thinking trajectory</h2>',
+    '<div>The user wants me to:</div>',
+    '<h2>Summary</h2>',
+    '<h3>1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports</h3>',
+    '</main>',
+    '</body></html>',
+  ].join('')
+  const recoveredHtml = [
+    '<div class="report-container">',
+    '<h2>Summary</h2>',
+    '<h3>1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports</h3>',
+    '<p>This belongs to the main report, not the thinking trajectory.</p>',
+    '</div>',
+  ].join('')
+  const renderedThinkingText = [
+    'The user wants me to:',
+    '1. Analyze recent oil market reports from major institutions like Goldman Sachs and UBS',
+    '2. Identify a shared logical blind spot',
+    '3. Re-simulate the global oil price trajectory for the next six months',
+  ].join('\n')
+  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]))
+  setWorkspaceWebpageDomExportForTests(async args => {
+    if (args.mode === 'html' && args.textCaptureTarget === 'clicked-next-sibling') {
+      return { text: recoveredHtml, title: 'Shared Chat - MiroThinker', clipped: false }
+    }
+    if (args.mode === 'html') return { text: recoveredHtml, title: 'Shared Chat - MiroThinker', clipped: false }
+    if (args.textCaptureTarget === 'clicked-next-sibling') {
+      return { text: renderedThinkingText, title: 'Shared Chat - MiroThinker', clipped: false }
+    }
+    return { text: shellHtml, title: 'Shared Chat - MiroThinker', clipped: false }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.thinkingText?.includes('The user wants me to:')) {
+      throw new Error(`expected share thinking recovery to preserve clicked-sibling rendered text when scoped html falls back to report content, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (res.thinkingText.includes('## Summary') || res.thinkingText.includes('Shared logical blind spot in recent Goldman Sachs & UBS oil reports')) {
+      throw new Error(`expected share thinking recovery to reject whole-document/report html fallback, got:\n${String(res.thinkingText || '')}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(): Promise<void> {
+  const restored = restoreWebpageMarkdownSyntaxFidelity([
+    '\\> quoted line',
+    '\\- bullet line',
+    '\\[1]\\[2] citation refs',
+    'approx. \\~$85/bbl and \\$x+y\\$',
+    '| left \\| right | value \\| more |',
+    'inline \\`code\\` and \\*emphasis\\*',
+    '<div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Found 9 results</span></div></div>',
+    '- <div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Run Code</span></div></div>',
+    '```python',
+    '- import numpy as np',
+    'print("ok")',
+    '```',
+  ].join('\n'))
+
+  if (!restored.includes('> quoted line')) throw new Error(`expected blockquote marker to be restored, got:\n${restored}`)
+  if (!restored.includes('- bullet line')) throw new Error(`expected bullet marker to be restored, got:\n${restored}`)
+  if (!restored.includes('[1][2] citation refs')) throw new Error(`expected citation brackets to be restored, got:\n${restored}`)
+  if (!restored.includes('approx. ~$85/bbl and $x+y$')) throw new Error(`expected tilde and dollar tokens to be restored, got:\n${restored}`)
+  if (!restored.includes('| left | right | value | more |')) throw new Error(`expected table pipes to be restored, got:\n${restored}`)
+  if (!restored.includes('inline `code` and *emphasis*')) throw new Error(`expected inline markdown tokens to be restored, got:\n${restored}`)
+  if (!restored.includes('Found 9 results') || restored.includes('<div class=')) {
+    throw new Error(`expected generic html wrappers to collapse to visible text, got:\n${restored}`)
+  }
+  if (!restored.includes('- Run Code')) throw new Error(`expected list-prefixed html wrappers to preserve the list marker, got:\n${restored}`)
+  if (!restored.includes('```python\nimport numpy as np\nprint("ok")\n```')) {
+    throw new Error(`expected recovered fenced code blocks to keep code lines instead of list markers, got:\n${restored}`)
+  }
+}
+
+export async function testWorkspaceImportUrlShareArtifactPersistNormalizesThinkingMarkdown(): Promise<void> {
+  const fs = createMemoryWorkspaceFs()
+  const rootFolderPath = await mkdtemp(path.join(tmpdir(), 'kg-share-thinking-export-'))
+  try {
+    const persisted = await persistImportedShareUrlArtifacts({
+      fs,
+      url: 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943',
+      importedName: 'c753877f-7480-4e76-bf75-89fe18358943.md',
+      importedText: '# Summary\n',
+      importedThinkingText: [
+        '<div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Found 6 results</span></div></div>',
+        '- <div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Run Code</span></div></div>',
+        '```python',
+        '- import numpy as np',
+        '```',
+      ].join('\n'),
+      importedWorkspacePath: '/docs_/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md',
+      rootFolderPath,
+    })
+    if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')
+    const thinkingText = String(await fs.readFileText(persisted.exportThinkingPath) || '')
+    if (thinkingText.includes('<div class=')) {
+      throw new Error(`expected persisted thinking markdown to drop raw html wrappers, got:\n${thinkingText}`)
+    }
+    if (!thinkingText.includes('Found 6 results')) {
+      throw new Error(`expected persisted thinking markdown to preserve visible wrapper text, got:\n${thinkingText}`)
+    }
+    if (!thinkingText.includes('- Run Code')) {
+      throw new Error(`expected persisted thinking markdown to preserve list markers around wrapper text, got:\n${thinkingText}`)
+    }
+    if (!thinkingText.includes('```python\nimport numpy as np\n```')) {
+      throw new Error(`expected persisted thinking markdown to normalize fenced code lines, got:\n${thinkingText}`)
+    }
+  } finally {
+    await rm(rootFolderPath, { recursive: true, force: true })
+  }
+}
+
+export async function testWorkspaceImportUrlShareArtifactDoesNotBackfillThinkingFromMainMarkdown(): Promise<void> {
+  const fs = createMemoryWorkspaceFs()
+  const rootFolderPath = await mkdtemp(path.join(tmpdir(), 'kg-share-thinking-no-backfill-'))
+  try {
+    const persisted = await persistImportedShareUrlArtifacts({
+      fs,
+      url: 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943',
+      importedName: 'c753877f-7480-4e76-bf75-89fe18358943.md',
+      importedText: [
+        '---',
+        'kgWebpageUrl: "https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943"',
+        'kgWebpageView: "markdown"',
+        '---',
+        '',
+        '# Summary',
+        '',
+        'This content belongs only in the main markdown artifact.',
+      ].join('\n'),
+      importedThinkingText: '',
+      importedWorkspacePath: '/docs_/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md',
+      rootFolderPath,
+    })
+    if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')
+    const thinkingText = String(await fs.readFileText(persisted.exportThinkingPath) || '')
+    if (thinkingText.trim()) {
+      throw new Error(`expected empty share thinking artifact when no thinking payload exists, got:\n${thinkingText}`)
+    }
+  } finally {
+    await rm(rootFolderPath, { recursive: true, force: true })
   }
 }
 

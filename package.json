@@ -15,6 +15,8 @@
     "pages:build-sync": "npm run pages:build && npm run pages:sync",
     "pages:build-sync-cloudflare": "npm run pages:build-sync && npm run workers:deploy",
     "agent-ready:check": "node ./scripts/check-agent-ready.mjs",
+    "dns-aid:check": "node ./scripts/check-dns-aid-cloudflare.mjs",
+    "dns-aid:publish": "node ./scripts/publish-dns-aid-cloudflare.mjs",
     "agnes:readiness:check": "node ./scripts/check-agnes-readiness.mjs",
     "storage:worker:dev": "npx --yes wrangler dev --config cloudflare/workers/knowgrph-storage/wrangler.toml",
     "storage:worker:deploy": "npx --yes wrangler deploy --config cloudflare/workers/knowgrph-storage/wrangler.toml",

@@ -433,6 +433,7 @@ export async function convertHtmlToMarkdownUnified(args: {
   includeImages?: boolean
   fidelityLevel?: 1 | 2 | 3 | 4
   includeHeadSection?: boolean
+  preferContentRoot?: boolean
   injectTitleHeading?: boolean
   onProgress?: (phase: HtmlToMarkdownProgressPhase, percentage: number) => void
 }): Promise<HtmlToMarkdownUnifiedResult> {
@@ -441,6 +442,7 @@ export async function convertHtmlToMarkdownUnified(args: {
     const baseUrl = typeof args.baseUrl === 'string' ? args.baseUrl.trim() : ''
     const includeImages = args.includeImages !== false
     const includeHeadSection = args.includeHeadSection === true
+    const preferContentRoot = args.preferContentRoot !== false
     const injectTitleHeading = args.injectTitleHeading === true
     const fidelityLevelRaw = args.fidelityLevel
     const fidelityLevel: 1 | 2 | 3 | 4 =
@@ -472,6 +474,7 @@ export async function convertHtmlToMarkdownUnified(args: {
       includeImages ? 'img:1' : 'img:0',
       `fid:${fidelityLevel}`,
       includeHeadSection ? 'head:1' : 'head:0',
+      preferContentRoot ? 'root:1' : 'root:0',
       injectTitleHeading ? 'title:1' : 'title:0',
       'post:webpage:3',
       String(html.length),
@@ -772,7 +775,7 @@ export async function convertHtmlToMarkdownUnified(args: {
                 return l
               })
             }
-            const bestRoot = pickBestContentRoot(tree as HastNode)
+            const bestRoot = preferContentRoot ? pickBestContentRoot(tree as HastNode) : null
             if (bestRoot && bestRoot !== (tree as HastNode)) {
               ;(tree as HastNode).children = [bestRoot] as unknown as HastNode[]
             }

@@ -15,6 +15,7 @@ import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport
 import { looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
+import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 import { createProgressSession } from '@/lib/progress/progressTicker'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
@@ -58,6 +59,9 @@ const SHARE_THINKING_CLICK_TEXT_HINTS = [
   'Show thinking trajectory',
   '\u663e\u793a\u601d\u8003\u8fc7\u7a0b',
 ]
+
+const normalizeRecoveredWebpageMarkdown = (markdown: string): string =>
+  restoreWebpageMarkdownSyntaxFidelity(normalizeWebpageCardAndListBlocks(markdown)).trim()
 
 const readWorkspaceWebpageDomExport = (): WorkspaceWebpageDomExportFn =>
   workspaceWebpageDomExportOverride || exportWebpageDomViaHiddenIframe
@@ -337,8 +341,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
               { timeoutMs: 1200 },
             )
             if (converted.ok === true && converted.markdown.trim()) {
-              const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
-              convertedDomMarkdown = processed.trim()
+              convertedDomMarkdown = normalizeRecoveredWebpageMarkdown(converted.markdown)
             }
           }
 
@@ -383,7 +386,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             return renderedTextMarkdown
           }
           if (textOnly.length >= 400) {
-            if (!looksLikeJsShellText(textOnly)) return plainTextToMarkdown(textOnly, title)
+            if (!looksLikeJsShellText(textOnly)) return restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown(textOnly, title))
           }
         } catch {
           void 0
@@ -395,6 +398,42 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         if (looksLikeSubstackUrl || !isShareUrlArtifactEligible(normalizedUrl)) return ''
         try {
           const exportDom = readWorkspaceWebpageDomExport()
+          let convertedThinkingMarkdown = ''
+          const htmlDom = await exportDom({
+            url: normalizedUrl,
+            mode: 'html',
+            timeoutMs: 45_000,
+            maxChars: 12_000_000,
+            scrollCrawl: true,
+            expandFaq: true,
+            minWaitAfterLoadMs: 650,
+            clickTextHints: SHARE_THINKING_CLICK_TEXT_HINTS,
+            textCaptureTarget: 'clicked-next-sibling',
+            signal: ctrl.signal,
+          })
+          const htmlDiag = String(htmlDom?.diag || '').trim()
+          if (!lastDomDiag && htmlDiag) lastDomDiag = htmlDiag
+          const htmlTitle = String(htmlDom?.title || '').trim()
+          if (!lastDomTitle && htmlTitle) lastDomTitle = htmlTitle
+          const htmlText = String(htmlDom?.text || '').trim()
+          if (htmlText) {
+            const converted = await runInIdle(
+              async () =>
+                await convertHtmlToMarkdownUnified({
+                  html: htmlText,
+                  baseUrl: normalizedUrl,
+                  maxInputChars: 12_000_000,
+                  includeImages: true,
+                  fidelityLevel: 4,
+                  includeHeadSection: false,
+                  preferContentRoot: false,
+                }),
+              { timeoutMs: 1200 },
+            )
+            if (converted.ok === true && converted.markdown.trim()) {
+              convertedThinkingMarkdown = normalizeRecoveredWebpageMarkdown(converted.markdown)
+            }
+          }
           const textDom = await exportDom({
             url: normalizedUrl,
             mode: 'text',
@@ -412,7 +451,19 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           const textTitle = String(textDom?.title || '').trim()
           if (!lastDomTitle && textTitle) lastDomTitle = textTitle
           const textOnly = String(textDom?.text || '').replace(/\r\n/g, '\n').trim()
-          if (textOnly.length >= 80 && !looksLikeJsShellText(textOnly)) return textOnly
+          const renderedThinkingMarkdown =
+            textOnly.length >= 80 && !looksLikeJsShellText(textOnly)
+              ? restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown(textOnly))
+              : ''
+          if (convertedThinkingMarkdown || renderedThinkingMarkdown) {
+            const selection = chooseDomRecoveredMarkdown({
+              mode: 'import',
+              convertedMarkdown: convertedThinkingMarkdown,
+              renderedTextMarkdown: renderedThinkingMarkdown,
+              preferStructuredMarkdown: true,
+            })
+            if (selection.markdown.trim()) return selection.markdown.trim()
+          }
         } catch {
           void 0
         }
@@ -434,7 +485,9 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         try {
           if (shouldConvertToMarkdown && mode === 'refresh') {
             const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
-            if (converted && converted.ok === true && typeof converted.markdown === 'string') return String(converted.markdown || '')
+            if (converted && converted.ok === true && typeof converted.markdown === 'string') {
+              return normalizeRecoveredWebpageMarkdown(String(converted.markdown || ''))
+            }
           }
         } catch {
           void 0
@@ -471,7 +524,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         opts?.onProgress?.(65)
 
         if (!tuned.shouldConvertToMarkdown) {
-          const recovered = normalizeWebpageCardAndListBlocks(htmlFallbackToMarkdownAllText(boundedHtml))
+          const recovered = normalizeRecoveredWebpageMarkdown(htmlFallbackToMarkdownAllText(boundedHtml))
           return recovered.trim()
         }
 
@@ -481,7 +534,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           if (forceConvertToMarkdown && shouldSkipUnifiedMarkdownConversion(boundedHtml)) {
             try {
               const clipped = boundedHtml.length > 1_500_000 ? boundedHtml.slice(0, 1_500_000) : boundedHtml
-              fallbackMarkdown = htmlFallbackToMarkdownAllText(clipped)
+              fallbackMarkdown = normalizeRecoveredWebpageMarkdown(htmlFallbackToMarkdownAllText(clipped))
             } catch {
               fallbackMarkdown = ''
             }
@@ -500,14 +553,14 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
                 { timeoutMs: 1200 },
               )
               if (converted.ok === true && converted.markdown.trim()) {
-                convertedMarkdown = normalizeWebpageCardAndListBlocks(converted.markdown)
+                convertedMarkdown = normalizeRecoveredWebpageMarkdown(converted.markdown)
               }
             } catch {
               void 0
             }
             if (mode === 'import') {
               try {
-                fallbackMarkdown = await runInIdle(async () => htmlFallbackToMarkdownAllText(boundedHtml), { timeoutMs: 900 })
+                fallbackMarkdown = await runInIdle(async () => normalizeRecoveredWebpageMarkdown(htmlFallbackToMarkdownAllText(boundedHtml)), { timeoutMs: 900 })
               } catch {
                 fallbackMarkdown = ''
               }
@@ -539,7 +592,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
         if (!tuned.shouldFallbackToPlainText) return ''
 
-        const fallbackMarkdown = await runInIdle(async () => htmlFallbackToMarkdownAllText(boundedHtml), { timeoutMs: 900 })
+        const fallbackMarkdown = await runInIdle(async () => normalizeRecoveredWebpageMarkdown(htmlFallbackToMarkdownAllText(boundedHtml)), { timeoutMs: 900 })
         if (fallbackMarkdown.trim()) preserveUpstreamBodyFidelity = true
         return fallbackMarkdown
       })()
@@ -578,7 +631,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       if (minimal.trim() && !isFrontmatterOnlyDoc(minimal)) return await finalizeWebpageContent(minimal)
     } catch {
       if (mode === 'refresh') {
-        const recoveredBody = lastFetchedHtml && shouldFallbackToPlainText ? htmlFallbackToMarkdownAllText(lastFetchedHtml) : ''
+        const recoveredBody = lastFetchedHtml && shouldFallbackToPlainText ? normalizeRecoveredWebpageMarkdown(htmlFallbackToMarkdownAllText(lastFetchedHtml)) : ''
         const recovered = buildWebpageWorkspaceEntryStubText({
           url: normalizedUrl,
           view: defaultView,

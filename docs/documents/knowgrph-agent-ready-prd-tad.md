@@ -1,13 +1,13 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-proposed
-version: 1.26.0
+version: 1.27.0
 status: implemented
 created: 2026-05-21
-updated: 2026-05-23
+updated: 2026-05-28
 author: airvio / joohwee
 domain: knowgrph
-tags: [agent-ready, cloudflare, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, chat, kgc, canvas, prd, tad]
+tags: [agent-ready, cloudflare, dns-aid, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, chat, kgc, canvas, prd, tad]
 source_audit: isitagentready.com / Cloudflare Is Your Site Agent-Ready? + in-repo implementation audit
 constraints:
   - solo-dev
@@ -47,6 +47,8 @@ The active work is therefore not "add the first agent-ready surface." The active
 - keep `/knowgrph/` as the canonical service homepage for agent discovery
 - preserve the shipped read-only Pages MCP and browser WebMCP contracts as the truthful
   implementation baseline
+- publish DNS-AID service-binding records under `_agents.airvio.co` so agent discovery can start
+  from DNS before falling through to HTTP `.well-known` artifacts
 - keep crawler-visible Markdown reads pinned to the published D1-backed Source Files and doc-view
   routes that derive from the Editor Workspace Markdown pane
 - document MainPanel `mcp` and `integrations` as thin shells over shared `SettingsView` ownership
@@ -109,6 +111,8 @@ Knowgrph must:
 
 - expose machine-readable discovery metadata without requiring HTML scraping
 - expose a valid A2A Agent Card at the standard well-known path
+- expose DNS-AID ServiceMode SVCB records for the Knowgrph index, MCP endpoint, and A2A descriptor
+  under the Cloudflare-managed `airvio.co` zone
 - keep HTML as the default human response on `/knowgrph/`
 - return Markdown for agent requests on `/knowgrph/` when `Accept: text/markdown`
 - expose read-only WebMCP and HTTP MCP tools that resolve to real storage-backed documents
@@ -131,6 +135,8 @@ Knowgrph does not currently aim to:
 - move full Knowgrph route ownership or app identity onto the apex homepage `https://airvio.co/`
 - introduce a second agent-ready implementation path outside `knowgrph`
 - preserve legacy or conflicting architecture descriptions through compatibility aliases
+- emulate DNS-AID through TXT records, HTTP-only aliases, or app-local code in place of real DNS
+  records
 
 ## Current Implementation Status
 
@@ -138,6 +144,7 @@ Knowgrph does not currently aim to:
 |---|---|---|---|
 | Link headers on service homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Headers exist on `/knowgrph/`; apex `/` remains intentionally excluded |
 | Link headers on root homepage | Implemented | `scripts/sync-pages-knowgrph.mjs` + `huijoohwee/_headers` | Root `/` advertises Knowgrph discovery without moving route ownership out of `knowgrph` |
+| DNS-AID records | Pending Cloudflare zone publish | `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | DNSSEC is active for `airvio.co`, but `_index._agents`, `_mcp._agents`, and `_a2a._agents` SVCB records must be upserted in Cloudflare DNS |
 | Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
 | Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
@@ -214,6 +221,7 @@ Knowgrph does not currently aim to:
 | Publish sync | `scripts/sync-pages-knowgrph.mjs` | Mirrors app build and generates root control surfaces |
 | Shared Pages headers | `huijoohwee/_headers` | Final deploy header surface |
 | Shared Pages redirects | `huijoohwee/_redirects` | Final deploy redirect surface |
+| DNS-AID publisher and validator | `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | Upserts Cloudflare SVCB records and validates DNSSEC-authenticated type 64 responses |
 
 ### Forbidden architecture
 
@@ -245,6 +253,8 @@ The following are explicitly non-authoritative and must not be used to justify n
   the existing workspace, storage, chat, and parser helpers
 - timestamp-only or ad hoc cache keys for future agent pipeline signatures when shared semantic-key
   helpers already exist upstream
+- TXT-only DNS-AID fallbacks, AliasMode-only records, or unsigned public discovery records as the
+  canonical agent-discovery path
 
 ## Corrected Requirements
 
@@ -270,6 +280,17 @@ card without scraping HTML.
 - keep root-level `.well-known` static artifacts discoverable without introducing a second route
   owner
 - keep homepage Link headers, API catalog, OpenAPI, and health docs contract-equal
+
+### R1a: DNS-AID Service Binding Discoverability
+As an agent resolver, I want DNSSEC-authenticated DNS-AID under `_agents.airvio.co` so I can
+discover the Knowgrph homepage, MCP transport, A2A descriptor, and Agent Skills index before HTTP
+discovery. Publish ServiceMode SVCB records for `_index._agents`, `_mcp._agents`, and `_a2a._agents`
+with priority `1`, target `airvio.co.`, `port=443`, `mandatory=alpn,port`, and ALPN values `h2`,
+`mcp,h2`, and `a2a,h2`; use private-use `key65400..key65402` for the existing A2A card, endpoint
+path, and Agent Skills index until DNS-AID custom keys are registered.
+Acceptance: `npm run dns-aid:publish` upserts the Cloudflare DNS records with `proxied: false` and
+active DNSSEC; `npm run dns-aid:check` validates public DoH type 64 responses with authenticated
+data. As of 2026-05-28, the signed public zone denies the records because they are still absent.
 
 ### R1b: A2A Agent Card
 
@@ -813,6 +834,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | Publish | Mirror and root control generation | `scripts/sync-pages-knowgrph.mjs` | Implemented |
 | Publish | Root homepage discovery headers | `scripts/sync-pages-knowgrph.mjs` -> `huijoohwee/_headers` | Implemented |
 | Validation | Live smoke | `scripts/check-agent-ready.mjs` | Implemented |
+| Validation | DNS-AID DoH check | `scripts/check-dns-aid-cloudflare.mjs` | Implemented |
 
 ## Guardrails
 
@@ -822,7 +844,6 @@ runtime agent surface must converge on the same document identity and pipeline m
 - no mutation tools in browser WebMCP
 - no discovery metadata advertising tools that are not executable
 - no root-level discovery drift that conflicts with `/knowgrph/` as the service homepage
-
 ### Workspace and Markdown guardrails
 
 - no alternate agent-only Markdown export path
@@ -841,6 +862,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 
 - [x] `https://airvio.co/knowgrph/` emits discovery `Link` headers
 - [x] `https://airvio.co/` emits discovery `Link` headers for scanners that probe the root homepage
+- [ ] `_index._agents`, `_mcp._agents`, and `_a2a._agents.airvio.co` return DNSSEC-authenticated SVCB DNS-AID records
 - [x] `https://airvio.co/` returns Markdown on `Accept: text/markdown`
 - [x] `https://airvio.co/knowgrph/health` returns `application/health+json`
 - [x] the homepage `Link` header includes a `status` relation
@@ -871,34 +893,12 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] publish sync excludes nested `_headers` and `_redirects` from the mirrored app payload
 - [x] `canvas/index.html` uses `%BASE_URL%manifest.webmanifest`
 - [x] regression coverage protects the manifest base-path invariant
-
 ## Deployment Sequence
-
-1. Build and sync Pages artifacts: `npm run pages:build-sync`
-2. Drift-check the mirror and generated Pages control files: `npm run pages:check-sync`
-3. Smoke-check the agent-ready surface: `npm run agent-ready:check`
+1. Publish and validate DNS-AID records: `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... npm run dns-aid:publish && npm run dns-aid:check`
+2. Build, sync, and drift-check Pages artifacts: `npm run pages:build-sync && npm run pages:check-sync`
+3. Smoke-check the HTTP agent-ready surface: `npm run agent-ready:check`
 4. Deploy the shared Pages repo:
    `cd /Users/huijoohwee/Documents/GitHub/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`
 5. Re-run live checks against `https://airvio.co/knowgrph/`
 
-## Next Enhancements
-
-The current implementation is shipped. The safe next steps are:
-
-1. Keep the Pages-to-storage server-side fetch origin pinned to the storage worker `workers.dev`
-   surface unless a stronger service-binding or direct-binding upstream path replaces it.
-2. Keep browser WebMCP lifecycle ownership contract-equal between `webMcpRuntime.ts`, the HTML
-   fallback in `knowgrph-agent-ready.mjs`, and the smoke contract in `scripts/check-agent-ready.mjs`
-   so future changes do not drift across transports.
-3. If Knowgrph exposes more browser-local or remote tools, add them as thin adapters over the
-   existing MainPanel -> FloatingPanel Chat -> KGC -> Canvas helper stack instead of creating a
-   second pipeline.
-4. Prefer read-only inspection tools first, such as storage-backed document reads or browser-local
-   canvas/workspace inspection that reuses existing parser and graph owners.
-5. Keep the OpenAPI document and Pages discovery artifacts expanding only from the existing route
-   owner instead of introducing parallel spec files.
-6. Keep the larger remote MCP platform, auth, monetization, and mutation roadmap explicitly scoped
-   to the separate proposed MCP service PRD/TAD until the repo gains those implementation owners.
-7. Harden Accept parsing only if a real caller requires broader Markdown negotiation semantics.
-
-*Document version: 1.26.0 - Markdown negotiation clarified around the published Editor Workspace -> Source Files -> D1 doc-view crawler path and stale repo-local docs crawl narratives removed - 2026-05-23*
+*Document version: 1.27.0 - DNS-AID publisher, DNS-over-HTTPS validation, and Cloudflare zone publish acceptance added while preserving the existing MainPanel -> FloatingPanel Chat -> KGC -> Canvas and Pages MCP ownership contracts - 2026-05-28*

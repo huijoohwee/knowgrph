@@ -4,14 +4,7 @@ import { ensureChatWorkspaceMirrorFolder, mirrorChatWorkspaceFileToHost } from '
 import { resolveShareUrlArtifactPaths, isShareUrlArtifactEligible } from '@/features/chat/shareUrlArtifacts'
 import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
-
-const stripLeadingFrontmatter = (value: string): string => {
-  const text = String(value || '').replace(/\r\n/g, '\n').trim()
-  if (!text.startsWith('---\n')) return text
-  const closingIndex = text.indexOf('\n---\n', 4)
-  if (closingIndex < 0) return text
-  return text.slice(closingIndex + 5).trim()
-}
+import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 
 export const persistImportedShareUrlArtifacts = async (args: {
   fs: WorkspaceFs
@@ -41,8 +34,10 @@ export const persistImportedShareUrlArtifacts = async (args: {
     importedName: args.importedName,
   })
   const importedText = String(args.importedText || '').trimEnd() + '\n'
-  const importedThinkingText = String(args.importedThinkingText || '').replace(/\r\n/g, '\n').trim()
-  const thinkingBody = importedThinkingText || stripLeadingFrontmatter(importedText).trimEnd()
+  const importedThinkingText = restoreWebpageMarkdownSyntaxFidelity(
+    String(args.importedThinkingText || '').replace(/\r\n/g, '\n'),
+  ).trim()
+  const thinkingBody = importedThinkingText
   const thinkingText = thinkingBody ? `${thinkingBody}\n` : ''
   const importedWorkspacePath = normalizeWorkspacePath(args.importedWorkspacePath)
   if (importedWorkspacePath !== exportMarkdownPath) {

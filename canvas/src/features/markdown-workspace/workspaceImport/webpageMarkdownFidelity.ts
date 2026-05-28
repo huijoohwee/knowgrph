@@ -86,6 +86,23 @@ function looksStructuredMarkdown(markdown: string): boolean {
   return /^(?:#{1,6}\s|[-*+]\s|\d+\.\s|> |\|.*\|)/m.test(String(markdown || ''))
 }
 
+function measureMarkdownStructureRichness(markdown: string): number {
+  const text = String(markdown || '')
+  if (!text.trim()) return 0
+  let richness = 0
+  if (/^#{1,6}\s/m.test(text)) richness += 1
+  if (/^>\s/m.test(text)) richness += 1
+  if (/^\s*\d+\.\s/m.test(text)) richness += 1
+  if (/^\s*[-*+]\s/m.test(text)) richness += 1
+  if (/!\[[^\]]*\]\([^)]+\)/.test(text)) richness += 1
+  if (/\[[^\]]+\]\([^)]+\)/.test(text)) richness += 1
+  if (/```|~~~/.test(text)) richness += 1
+  if (/(^|[^`])`[^`\n]+`(?!`)/.test(text)) richness += 1
+  if (/^\s*\|.*\|\s*$/m.test(text)) richness += 1
+  if (/(^|[^\\])\$[^$\n]+\$(?!\$)/.test(text)) richness += 1
+  return richness
+}
+
 function repairLeadingRenderedLineBoundaryMerges(convertedMarkdown: string, renderedTextMarkdown: string): string {
   let repaired = String(convertedMarkdown || '')
   if (!repaired) return repaired
@@ -146,6 +163,7 @@ export function chooseDomRecoveredMarkdown(args: {
   mode: WebpageMarkdownCoverageMode
   convertedMarkdown: string
   renderedTextMarkdown: string
+  preferStructuredMarkdown?: boolean
 }): {
   markdown: string
   source: 'converted' | 'rendered'
@@ -170,10 +188,26 @@ export function chooseDomRecoveredMarkdown(args: {
   const repairedConvertedMarkdown = structuredConverted
     ? repairLeadingRenderedLineBoundaryMerges(convertedMarkdown, renderedTextMarkdown)
     : convertedMarkdown
+  const convertedRichness = measureMarkdownStructureRichness(repairedConvertedMarkdown)
+  const renderedRichness = measureMarkdownStructureRichness(renderedTextMarkdown)
   const keepsEnoughRenderedText =
     renderedCoverageRatio >= 0.72
     || (renderedCoverageRatio >= 0.6 && convertedScore >= Math.max(240, renderedScore * 0.7))
+  const preferStructuredMarkdown = args.preferStructuredMarkdown === true
+  const preservesEnoughStructuredContent =
+    convertedScore >= Math.max(160, Math.floor(renderedScore * 0.25))
+  const meaningfullyRicherStructuredMarkdown =
+    structuredConverted
+    && convertedRichness >= Math.max(3, renderedRichness + 2)
   if (structuredConverted && keepsEnoughRenderedText) {
+    return { markdown: repairedConvertedMarkdown, source: 'converted', convertedScore, renderedScore, renderedCoverageRatio }
+  }
+  if (
+    preferStructuredMarkdown
+    && meaningfullyRicherStructuredMarkdown
+    && preservesEnoughStructuredContent
+    && (renderedCoverageRatio >= 0.2 || convertedScore >= 320)
+  ) {
     return { markdown: repairedConvertedMarkdown, source: 'converted', convertedScore, renderedScore, renderedCoverageRatio }
   }
   if (args.mode === 'import' && renderedTextMarkdown) {
