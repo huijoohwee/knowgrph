@@ -2,6 +2,8 @@ const WEBPAGE_SHELL_PATTERN_SOURCES = [
   'failed\\s+to\\s+load\\s+posts',
   'enable[-\\s]*javascript\\.com',
   'requires\\s+java\\s*script',
+  "can't\\s+reach\\s+[a-z0-9._-]+",
+  'check\\s+your\\s+connection',
   '\\bloading\\s+(shared|report|document|page|workspace|content|article|post|chat|thread|conversation)\\b',
   '\\b(open|get|download|install)\\s+app\\b',
   '\\bplease\\s+wait\\b',
@@ -59,7 +61,7 @@ export function looksLikeWebpageShellText(text: string): boolean {
   const hasWaitCue = /\bplease\s+wait\b/i.test(normalized)
   const hasNarrativeDensity = sentenceCount >= 10 || substantiveLineCount >= 6
 
-  if (/failed\s+to\s+load\s+posts|enable[-\s]*javascript\.com|requires\s+java\s*script/i.test(normalized)) {
+  if (/failed\s+to\s+load\s+posts|enable[-\s]*javascript\.com|requires\s+java\s*script|can't\s+reach\s+[a-z0-9._-]+|check\s+your\s+connection/i.test(normalized)) {
     return true
   }
   if ((hasLoadingCue || hasWaitCue || hasSharedSurfaceCue) && chromeCueCount >= 2) return true

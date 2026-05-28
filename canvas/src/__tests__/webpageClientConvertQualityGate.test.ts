@@ -74,3 +74,20 @@ export function testWebpageClientConvertQualityGateDetectsHtmlHeavyLoadingChrome
     throw new Error('expected html-heavy loading chrome to be rejected by the quality gate')
   }
 }
+
+export function testWebpageClientConvertQualityGateDetectsConnectionErrorShellMarkdown() {
+  const shell = [
+    '# Claude',
+    '',
+    "[source](https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7)",
+    '',
+    '## Can\'t reach Claude',
+    '',
+    '### Check your connection.',
+    '',
+    'Try again',
+  ].join('\n')
+  if (!looksLowFidelityWebpageMarkdown(shell)) {
+    throw new Error('expected connection-error shell markdown to be rejected by the quality gate')
+  }
+}

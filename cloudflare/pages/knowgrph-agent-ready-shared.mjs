@@ -25,6 +25,7 @@ Knowgrph is an agent-readable knowledge graph workspace served at ${APP_URL}.
 - Crawl policy: ${APP_URL}robots.txt
 - Sitemap: ${APP_URL}sitemap.xml
 - API catalog: ${APP_URL}.well-known/api-catalog
+- Auth.md registration instructions: ${ROOT_URL}auth.md
 - Health: ${HEALTH_URL}
 - MCP server card: ${APP_URL}.well-known/mcp/server-card.json
 - A2A Agent Card: ${A2A_AGENT_CARD_URL}

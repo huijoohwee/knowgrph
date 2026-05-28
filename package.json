@@ -15,6 +15,7 @@
     "pages:build-sync": "npm run pages:build && npm run pages:sync",
     "pages:build-sync-cloudflare": "npm run pages:build-sync && npm run workers:deploy",
     "agent-ready:check": "node ./scripts/check-agent-ready.mjs",
+    "auth-md:check": "node ./scripts/check-auth-md.mjs",
     "dns-aid:check": "node ./scripts/check-dns-aid-cloudflare.mjs",
     "dns-aid:publish": "node ./scripts/publish-dns-aid-cloudflare.mjs",
     "agnes:readiness:check": "node ./scripts/check-agnes-readiness.mjs",

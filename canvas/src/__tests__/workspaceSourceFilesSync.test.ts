@@ -326,6 +326,43 @@ export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsCanonicalChat
   if (nonCanonical) throw new Error('expected non-canonical workspace entry to remain excluded in canonical-root mode')
 }
 
+export async function testWorkspaceSourceFilesSyncDocsOnlyModeKeepsConfiguredShareExportRootFilesVisible() {
+  const shareExportPath = '/docs_/MiroThinker-global-oil-price-trajectory-simulation-20260407/MiroThinker-global-oil-price-trajectory-simulation-20260407.md'
+  const chatRootPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: shareExportPath,
+        parentPath: '/docs_/MiroThinker-global-oil-price-trajectory-simulation-20260407',
+        name: 'MiroThinker-global-oil-price-trajectory-simulation-20260407.md',
+        text: '# imported share export',
+        updatedAtMs: 1,
+      },
+      {
+        kind: 'file',
+        path: chatRootPath,
+        parentPath: '/chat-log/20260527T150000Z',
+        name: 'chat-stream-log_20260527T150000Z.md',
+        text: '# chat stream log',
+        updatedAtMs: 1,
+      },
+    ],
+    sourcesByPath: {
+      [shareExportPath]: { kind: 'local', originalName: 'MiroThinker-global-oil-price-trajectory-simulation-20260407.md' },
+      [chatRootPath]: { kind: 'local', originalName: 'chat-stream-log_20260527T150000Z.md' },
+    },
+    workspaceDocsOnly: true,
+    workspaceSourceRootPaths: ['/docs_', '/docs', '/chat-log'],
+  })
+
+  const shareExport = next.find(f => f.source?.path === `workspace:${shareExportPath}`)
+  if (!shareExport) throw new Error('expected configured /docs_ share export workspace file to remain visible in Source Files')
+  const chatLog = next.find(f => f.source?.path === `workspace:${chatRootPath}`)
+  if (!chatLog) throw new Error('expected canonical chat workspace source file to remain visible alongside configured /docs_ root')
+}
+
 export async function testWorkspaceSourceFilesSyncPreservesExistingCanonicalChatRootFilesAcrossActiveOnlyRefresh() {
   const activePath = '/chat-log/20260527T150000Z/kgc_20260527T150000Z.md'
   const existingSidecarPath = '/chat-log/20260527T150000Z/chat-stream-log_20260527T150000Z.md'

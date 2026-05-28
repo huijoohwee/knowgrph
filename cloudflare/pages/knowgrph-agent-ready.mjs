@@ -7,7 +7,6 @@ import {
   createAgentSurfaceInspectionExecutor,
 } from "../../canvas/src/features/agent-ready/agentSurfaceInspection.mjs";
 import { createPublishedAgentReadyToolExecutors } from "../../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
-import { createWebMcpLifecycleController } from "../../canvas/src/features/agent-ready/webMcpLifecycle.mjs";
 import { inspectSharedDocumentStructure } from "../../canvas/src/features/agent-ready/sharedDocumentStructureInspection.mjs";
 import {
   AGENT_READY_AGENT_SKILL_DEFINITIONS,
@@ -50,7 +49,6 @@ import {
 const AGENT_READY_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
 });
-
 const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
   const normalizedCanonicalPath = String(canonicalPath || "").trim();
   const normalizedWorkspaceId = String(workspaceId || "").trim();
@@ -59,11 +57,11 @@ const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
     : buildKnowgrphStorageDefaultDocPath(normalizedCanonicalPath);
 };
 const normalizeToolString = (value) => String(value || "").trim();
-
 export const agentReadyHomepageLinkHeaderValue = [
   `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
   `<${APP_BASE_PATH}/.well-known/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"`,
   `<${APP_BASE_PATH}/llms.txt>; rel="service-doc"; type="text/plain"`,
+  `</auth.md>; rel="service-doc"; type="text/markdown"`,
   `<${HEALTH_PATH}>; rel="status"; type="application/health+json"`,
   `<${APP_BASE_PATH}/.well-known/mcp/server-card.json>; rel="mcp-server-card"; type="application/json"`,
   `<${A2A_AGENT_CARD_PATH}>; rel="describedby"; type="application/json"`,
@@ -78,7 +76,6 @@ const jsonResponse = (body, contentType = "application/json; charset=utf-8") =>
       "access-control-allow-origin": "*",
     },
   });
-
 const jsonStatusResponse = (status, body) =>
   new Response(JSON.stringify(body, null, 2), {
     status,
@@ -88,7 +85,6 @@ const jsonStatusResponse = (status, body) =>
       "access-control-allow-origin": "*",
     },
   });
-
 const textResponse = (body, contentType) =>
   new Response(body, {
     status: 200,
@@ -98,7 +94,6 @@ const textResponse = (body, contentType) =>
       "access-control-allow-origin": "*",
     },
   });
-
 const healthResponse = (body) =>
   new Response(JSON.stringify(body, null, 2), {
     status: 200,
@@ -108,7 +103,6 @@ const healthResponse = (body) =>
       "access-control-allow-origin": "*",
     },
   });
-
 const buildRobotsTxt = (sitemapUrl) => `User-agent: *
 Allow: /knowgrph/
 Disallow: /api/payments/
@@ -132,7 +126,6 @@ Disallow: /api/payments/
 Content-Signal: ai-train=no, search=yes, ai-input=yes
 Sitemap: ${sitemapUrl}
 `;
-
 const buildSitemapXml = (baseUrl) => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -152,7 +145,6 @@ const buildSitemapXml = (baseUrl) => `<?xml version="1.0" encoding="UTF-8"?>
 
 const robotsTxt = buildRobotsTxt(`${APP_URL}sitemap.xml`);
 const sitemapXml = buildSitemapXml(APP_URL);
-
 const apiCatalog = {
   linkset: [
     {
@@ -213,7 +205,7 @@ const oauthProtectedResource = {
   bearer_methods_supported: ["header"],
   resource_documentation: `${APP_URL}llms.txt`,
 };
-
+const agentAuthMetadata = { skill: `${SITE_ORIGIN}/auth.md`, register_uri: `${APP_URL}agent/auth`, claim_uri: `${APP_URL}agent/auth/claim`, revocation_uri: `${APP_URL}agent/auth/revoke`, identity_types_supported: ["anonymous", "identity_assertion"], anonymous: { credential_types_supported: ["api_key"] }, identity_assertion: { assertion_types_supported: ["urn:ietf:params:oauth:token-type:id-jag", "verified_email"], credential_types_supported: ["access_token", "api_key"] }, events_supported: ["https://schemas.workos.com/events/agent/auth/identity/assertion/revoked"], registration_status: "metadata_published_runtime_user_mediated" };
 const oauthAuthorizationServer = {
   issuer: `${SITE_ORIGIN}/cdn-cgi/access`,
   authorization_endpoint: `${SITE_ORIGIN}/cdn-cgi/access/login`,
@@ -223,7 +215,9 @@ const oauthAuthorizationServer = {
   grant_types_supported: ["authorization_code", "client_credentials"],
   token_endpoint_auth_methods_supported: ["client_secret_basic", "private_key_jwt"],
   scopes_supported: oauthProtectedResource.scopes_supported,
+  agent_auth: agentAuthMetadata,
 };
+const authMd = `# Knowgrph auth.md\n\nKnowgrph publishes agent registration metadata for the read-only agent surface at ${APP_URL}. Agents should first fetch ${SITE_ORIGIN}/.well-known/oauth-protected-resource, then ${SITE_ORIGIN}/.well-known/oauth-authorization-server, and read the agent_auth block.\n\n## Registration\n\n- Register: ${agentAuthMetadata.register_uri}\n- Claim: ${agentAuthMetadata.claim_uri}\n- Revoke: ${agentAuthMetadata.revocation_uri}\n- Supported identity types: ${agentAuthMetadata.identity_types_supported.join(", ")}\n- Credential types: api_key, access_token\n- Current runtime policy: user-mediated access through the existing Cloudflare Access/OAuth boundary; no separate MCP-only auth stack.\n- Pipeline rule: agents must not bypass MainPanel -> FloatingPanel Chat -> KGC -> Canvas for user-mediated graph work; published HTTP MCP tools remain read-only until mutation auth and conflict semantics are implemented.`;
 
 const a2aAgentCard = {
   name: "Knowgrph Agent",
@@ -627,56 +621,55 @@ export const webMcpScript = `(() => {
     };
   };
   const createWebMcpLifecycleController = (args = {}) => {
-    const root = args.root;
-    const lifecycleState = args.state;
-    const tools = Array.isArray(args.tools) ? args.tools : [];
-    const toolNames = Array.isArray(args.toolNames) ? args.toolNames : [];
-    const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500);
-    const lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20);
-    const markRuntimeState = typeof args.markRuntimeState === "function" ? args.markRuntimeState : () => {};
-    if (!root || !lifecycleState || typeof lifecycleState !== "object") {
-      throw new Error("root and state are required");
-    }
-    const normalizeString = (value) => String(value || "").trim();
+    const root = args.root, lifecycleState = args.state, tools = Array.isArray(args.tools) ? args.tools : [], toolNames = Array.isArray(args.toolNames) ? args.toolNames : [];
+    const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500), lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20), markRuntimeState = typeof args.markRuntimeState === "function" ? args.markRuntimeState : () => {};
+    if (!root || !lifecycleState || typeof lifecycleState !== "object") throw new Error("root and state are required");
     const readGlobalNavigator = () => {
       const windowNavigator = root.window && root.window.navigator;
       if (windowNavigator && root.navigator !== windowNavigator) {
-        try {
-          Object.defineProperty(root, "navigator", {
-            configurable: true,
-            value: windowNavigator,
-          });
-        } catch {
-          root.navigator = windowNavigator;
-        }
+        try { Object.defineProperty(root, "navigator", { configurable: true, value: windowNavigator }); } catch { root.navigator = windowNavigator; }
         return windowNavigator;
       }
       if (root.navigator) return root.navigator;
       const navigatorObject = {};
-      try {
-        Object.defineProperty(root, "navigator", {
-          configurable: true,
-          value: navigatorObject,
-        });
-      } catch {
-        root.navigator = navigatorObject;
-      }
+      try { Object.defineProperty(root, "navigator", { configurable: true, value: navigatorObject }); } catch { root.navigator = navigatorObject; }
       return navigatorObject;
     };
     const getRegistrationState = (context) => {
       const existing = lifecycleState.registrations.get(context);
       if (existing) return existing;
-      const created = {
-        registeredToolNames: new Set(),
-        abortControllers: new Map(),
-      };
+      const created = { registeredToolNames: new Set(), abortControllers: new Map() };
       lifecycleState.registrations.set(context, created);
       return created;
     };
-    const isDuplicateToolRegistrationError = (error) => {
-      if (!error || typeof error !== "object") return false;
-      return normalizeString(error.name) === "InvalidStateError";
+    const createFallbackModelContext = () => {
+      const context = { tools: [] }, upsertTool = (tool) => {
+        if (!tool || !tool.name) return;
+        const existingIndex = context.tools.findIndex((entry) => entry && entry.name === tool.name);
+        if (existingIndex >= 0) context.tools.splice(existingIndex, 1, tool); else context.tools.push(tool);
+      };
+      context.provideContext = (provided = {}) => {
+        context.tools.splice(0, context.tools.length);
+        for (const tool of Array.isArray(provided.tools) ? provided.tools : []) upsertTool(tool);
+      };
+      context.registerTool = (tool, options = {}) => {
+        if (!tool || !tool.name) throw new Error("tool name is required");
+        if (context.tools.some((entry) => entry && entry.name === tool.name)) {
+          const error = new Error("tool already registered: " + tool.name);
+          error.name = "InvalidStateError";
+          throw error;
+        }
+        if (options.signal && options.signal.aborted) return;
+        context.tools.push(tool);
+        if (options.signal && typeof options.signal.addEventListener === "function") options.signal.addEventListener("abort", () => {
+          const index = context.tools.findIndex((entry) => entry && entry.name === tool.name);
+          if (index >= 0) context.tools.splice(index, 1);
+        }, { once: true });
+      };
+      context.provideContext({ tools });
+      return context;
     };
+    const isDuplicateToolRegistrationError = (error) => !!error && typeof error === "object" && String(error.name || "").trim() === "InvalidStateError";
     const releasePreviousRegisteredContext = (nextContext) => {
       const active = lifecycleState.activeRegisteredContext;
       if (!active || active === nextContext) {
@@ -684,11 +677,9 @@ export const webMcpScript = `(() => {
         return;
       }
       const registrationState = lifecycleState.registrations.get(active);
-      if (registrationState) {
-        registrationState.abortControllers.forEach((controller) => {
-          if (controller && typeof controller.abort === "function") controller.abort();
-        });
-      }
+      if (registrationState) registrationState.abortControllers.forEach((controller) => {
+        if (controller && typeof controller.abort === "function") controller.abort();
+      });
       lifecycleState.activeRegisteredContext = nextContext;
     };
     const clearLateBindingRetry = () => {
@@ -700,33 +691,22 @@ export const webMcpScript = `(() => {
       const registrationState = getRegistrationState(context);
       let providedContext = false;
       if (typeof context.provideContext === "function") {
+        try { context.provideContext({ tools }); providedContext = true; } catch { void 0; }
+      }
+      if (typeof context.registerTool === "function") for (const tool of tools) {
+        if (registrationState.registeredToolNames.has(tool.name)) continue;
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
         try {
-          context.provideContext({ tools });
-          providedContext = true;
-        } catch {
-          void 0;
+          context.registerTool(tool, controller ? { signal: controller.signal } : {});
+          registrationState.registeredToolNames.add(tool.name);
+          registrationState.abortControllers.set(tool.name, controller);
+        } catch (error) {
+          if (!isDuplicateToolRegistrationError(error)) continue;
+          registrationState.registeredToolNames.add(tool.name);
+          registrationState.abortControllers.set(tool.name, null);
         }
       }
-      if (typeof context.registerTool === "function") {
-        for (const tool of tools) {
-          if (registrationState.registeredToolNames.has(tool.name)) continue;
-          const controller = typeof AbortController === "function" ? new AbortController() : null;
-          try {
-            context.registerTool(tool, controller ? { signal: controller.signal } : {});
-            registrationState.registeredToolNames.add(tool.name);
-            registrationState.abortControllers.set(tool.name, controller);
-          } catch (error) {
-            if (!isDuplicateToolRegistrationError(error)) continue;
-            registrationState.registeredToolNames.add(tool.name);
-            registrationState.abortControllers.set(tool.name, null);
-          }
-        }
-      }
-      if (Array.isArray(context.tools)) {
-        for (const tool of tools) {
-          if (!context.tools.some((entry) => entry && entry.name === tool.name)) context.tools.push(tool);
-        }
-      }
+      if (Array.isArray(context.tools)) for (const tool of tools) if (!context.tools.some((entry) => entry && entry.name === tool.name)) context.tools.push(tool);
       const allToolsRegistered = tools.every((tool) => registrationState.registeredToolNames.has(tool.name) || (Array.isArray(context.tools) && context.tools.some((entry) => entry && entry.name === tool.name)));
       if (allToolsRegistered) {
         releasePreviousRegisteredContext(context);
@@ -737,17 +717,13 @@ export const webMcpScript = `(() => {
     const tryInstallLateBoundModelContext = (nav) => {
       const context = nav.modelContext;
       if (!context || context === lifecycleState.fallbackContext) return false;
-      const installed = installToolsIntoModelContext(context);
-      if (installed) {
-        clearLateBindingRetry();
-        markRuntimeState("installed");
-        return true;
-      }
-      return false;
+      if (!installToolsIntoModelContext(context)) return false;
+      clearLateBindingRetry();
+      markRuntimeState("installed");
+      return true;
     };
     const scheduleLateBindingRetry = (nav) => {
-      if (!root.window || typeof root.window.setTimeout !== "function") return;
-      if (lifecycleState.lateBindingRetryId !== null) return;
+      if (!root.window || typeof root.window.setTimeout !== "function" || lifecycleState.lateBindingRetryId !== null) return;
       if (lifecycleState.lateBindingAttemptCount >= lateBindingMaxAttempts) {
         markRuntimeState("retry-exhausted");
         return;
@@ -760,45 +736,30 @@ export const webMcpScript = `(() => {
     };
     const defineFallbackModelContext = (nav, context) => {
       lifecycleState.fallbackContext = context;
-      let currentContext = nav.modelContext && nav.modelContext !== context ? nav.modelContext : context;
-      try {
-        Object.defineProperty(nav, "modelContext", {
-          configurable: true,
-          enumerable: false,
-          get: () => currentContext,
-          set: (value) => {
-            currentContext = value || context;
-            if (currentContext !== context) void tryInstallLateBoundModelContext(nav);
-          },
-        });
-      } catch {
-        nav.modelContext = context;
-      }
+      const doc = root.document;
+      let currentContext = (doc && doc.modelContext && doc.modelContext !== context) ? doc.modelContext : nav.modelContext && nav.modelContext !== context ? nav.modelContext : context;
+      const descriptor = { configurable: true, enumerable: false, get: () => currentContext, set: (value) => {
+        currentContext = value || context;
+        if (currentContext !== context) void tryInstallLateBoundModelContext(nav);
+      } };
+      try { Object.defineProperty(nav, "modelContext", descriptor); } catch { nav.modelContext = context; }
+      if (doc && !doc.modelContext) try { Object.defineProperty(doc, "modelContext", descriptor); } catch { void 0; }
     };
     const install = () => {
-      const nav = readGlobalNavigator();
+      const nav = readGlobalNavigator(), docContext = root.document && root.document.modelContext;
       markRuntimeState("installing");
-      if (nav.modelContext && installToolsIntoModelContext(nav.modelContext)) {
-        markRuntimeState("installed");
-        return;
-      }
-      if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...tools] });
-      markRuntimeState(
-        toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName))
-          ? "fallback-readable"
-          : "awaiting-model-context",
-      );
+      if (docContext && !nav.modelContext) try {
+        Object.defineProperty(nav, "modelContext", { configurable: true, enumerable: false, get: () => root.document && root.document.modelContext, set: (value) => {
+          if (value && value !== docContext) void installToolsIntoModelContext(value);
+        } });
+      } catch { nav.modelContext = docContext; }
+      if (docContext && installToolsIntoModelContext(docContext)) return markRuntimeState("installed");
+      if (nav.modelContext && installToolsIntoModelContext(nav.modelContext)) return markRuntimeState("installed");
+      if (!nav.modelContext) defineFallbackModelContext(nav, createFallbackModelContext());
+      markRuntimeState(toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName)) ? "fallback-readable" : "awaiting-model-context");
       scheduleLateBindingRetry(nav);
     };
-    return {
-      install,
-      clearLateBindingRetry,
-      installToolsIntoModelContext,
-      tryInstallLateBoundModelContext,
-      scheduleLateBindingRetry,
-      defineFallbackModelContext,
-      readGlobalNavigator,
-    };
+    return { install, clearLateBindingRetry, installToolsIntoModelContext, tryInstallLateBoundModelContext, scheduleLateBindingRetry, defineFallbackModelContext, readGlobalNavigator };
   };
   const toolExecutors = createPublishedAgentReadyToolExecutors({
     toolNames: {
@@ -1117,6 +1078,7 @@ const handleMcpTransport = async (request) => {
 };
 
 export const buildAgentReadyStaticFiles = async () => ({
+  "auth.md": { contentType: "text/markdown; charset=utf-8", body: authMd },
   "robots.txt": {
     contentType: "text/plain; charset=utf-8",
     body: buildRobotsTxt(`${ROOT_URL}sitemap.xml`),
@@ -1187,6 +1149,7 @@ const resolveAgentReadyRouteTag = (request) => {
   if (pathname === `${APP_BASE_PATH}/mcp`) return "mcp";
   if (pathname === `${APP_BASE_PATH}/robots.txt`) return "robots";
   if (pathname === `${APP_BASE_PATH}/sitemap.xml`) return "sitemap";
+  if (pathname === `${APP_BASE_PATH}/auth.md` || pathname === "/auth.md") return "auth-md";
   if (pathname.startsWith(`${APP_BASE_PATH}/.well-known/`)) return "well-known";
   if (publishedDocIdentity) {
     return wantsMarkdown(request) ? "shared-doc-markdown" : "shared-doc-html";
@@ -1224,6 +1187,9 @@ const routeResponse = async (request) => {
       return textResponse(robotsTxt, "text/plain; charset=utf-8");
     case `${APP_BASE_PATH}/sitemap.xml`:
       return textResponse(sitemapXml, "application/xml; charset=utf-8");
+    case `${APP_BASE_PATH}/auth.md`:
+    case "/auth.md":
+      return textResponse(authMd, "text/markdown; charset=utf-8");
     case `${APP_BASE_PATH}/.well-known/api-catalog`:
       return jsonResponse(apiCatalog, "application/linkset+json; charset=utf-8");
     case `${APP_BASE_PATH}/.well-known/openapi.json`:

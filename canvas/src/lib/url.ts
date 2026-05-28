@@ -131,6 +131,17 @@ export function buildWebpageAssetPathProxyUrl(absUrl: string): string {
   }
 }
 
+export type WebpageProxyScriptPolicy = 'allow' | 'strip'
+
+export function buildWebpageProxyUrl(rawUrl: string, scriptPolicy?: WebpageProxyScriptPolicy | null): string {
+  const raw = String(rawUrl || '').trim()
+  if (!raw) return '/__webpage_proxy'
+  if (raw.startsWith('/__webpage_proxy?')) return raw
+  const params = new URLSearchParams({ url: raw })
+  if (scriptPolicy === 'allow' || scriptPolicy === 'strip') params.set('kg_script_policy', scriptPolicy)
+  return `/__webpage_proxy?${params.toString()}`
+}
+
 export function applyImageLikeProxySrc(src: string): string {
   const raw = String(src || '').trim()
   if (!raw) return ''

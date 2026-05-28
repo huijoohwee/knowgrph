@@ -10,12 +10,14 @@ export type WebpageDomProbeResult =
 import { looksLikeNetworkSecurityBlockText } from 'grph-shared/rich-media/webpagePreview'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { buildWebpageProxyUrl } from '@/lib/url'
 import { isNoiseProneWebpagePreviewHost } from '@/lib/websites/webpageSnapshotShared'
 
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
 const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
 const KG_WEBPAGE_DOM_KIND = 'kg-webpage-dom'
 const HTML_MULTI_SNAPSHOT_SUBSTANTIAL_TEXT_LEN = 250_000
+const TEXT_SCROLL_CRAWL_SUBSTANTIAL_TEXT_LEN = 1_600
 
 const normalizeRenderedPageTextForExport = (value: unknown): string => {
   return String(value || '')
@@ -46,6 +48,18 @@ async function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
+const shouldSkipNetworkIdleWaitForExport = (args: {
+  mode: WebpageDomExportMode
+  scrollCrawl?: boolean
+  textCaptureTarget?: WebpageDomTextCaptureTarget
+}): boolean => {
+  if (args.mode === 'layout') return false
+  if (args.mode === 'html' && !!args.scrollCrawl) return true
+  if (args.mode === 'text' && !!args.scrollCrawl) return true
+  if (args.mode === 'text' && args.textCaptureTarget === 'clicked-next-sibling') return true
+  return false
+}
+
 type InflightEntry = {
   promise: Promise<WebpageDomProbeResult>
   refs: number
@@ -66,6 +80,7 @@ const stableKey = (args: {
   maxElements: number
   scrollCrawl: boolean
   expandFaq: boolean
+  preferScriptDisabled: boolean
   clickTextHints: string[]
   textCaptureTarget: WebpageDomTextCaptureTarget
   viewportW: number
@@ -74,7 +89,8 @@ const stableKey = (args: {
   const graphSemanticKey = hashSignatureParts([
     args.mode, args.url, args.timeoutMs, args.maxChars, args.waitForNetworkIdle, args.networkIdleMs,
     args.minWaitAfterLoadMs, args.domQuietMs, args.maxElements, args.viewportW, args.viewportH,
-    args.scrollCrawl, args.expandFaq, args.textCaptureTarget, args.clickTextHints.map(value => value.toLowerCase()).join('|'),
+    args.scrollCrawl, args.expandFaq, args.preferScriptDisabled, args.textCaptureTarget,
+    args.clickTextHints.map(value => value.toLowerCase()).join('|'),
   ])
   return buildScopedGraphSemanticKey('webpage-dom-export', { graphSemanticKey }) || graphSemanticKey
 }
@@ -87,6 +103,7 @@ export async function exportWebpageDomViaHiddenIframe(args: {
   maxElements?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  preferScriptDisabled?: boolean
   clickTextHints?: string[]
   textCaptureTarget?: WebpageDomTextCaptureTarget
   waitForNetworkIdle?: boolean
@@ -109,6 +126,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   maxElements?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  preferScriptDisabled?: boolean
   clickTextHints?: string[]
   textCaptureTarget?: WebpageDomTextCaptureTarget
   waitForNetworkIdle?: boolean
@@ -137,6 +155,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   const maxElements = typeof args.maxElements === 'number' && Number.isFinite(args.maxElements) ? Math.floor(args.maxElements) : 0
   const scrollCrawl = !!args.scrollCrawl
   const expandFaq = args.expandFaq !== false
+  const preferScriptDisabled = args.preferScriptDisabled === true
   const clickTextHints = Array.isArray(args.clickTextHints)
     ? args.clickTextHints.map(value => String(value || '').trim()).filter(Boolean).slice(0, 8)
     : []
@@ -167,6 +186,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     maxElements,
     scrollCrawl,
     expandFaq,
+    preferScriptDisabled,
     clickTextHints,
     textCaptureTarget,
     viewportW,
@@ -217,6 +237,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     maxElements: maxElements || undefined,
     scrollCrawl,
     expandFaq,
+    preferScriptDisabled,
     clickTextHints,
     textCaptureTarget,
     waitForNetworkIdle,
@@ -265,6 +286,7 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   maxElements?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  preferScriptDisabled?: boolean
   clickTextHints?: string[]
   textCaptureTarget?: WebpageDomTextCaptureTarget
   waitForNetworkIdle?: boolean
@@ -283,6 +305,7 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   const waitForNetworkIdle = args.waitForNetworkIdle !== false
   const networkIdleMs = Math.max(150, Math.min(2500, Math.floor(args.networkIdleMs ?? 600)))
   const minWaitAfterLoadMs = Math.max(0, Math.min(5000, Math.floor(args.minWaitAfterLoadMs ?? 350)))
+  const preferScriptDisabled = args.preferScriptDisabled === true
   const domQuietMs = (() => {
     const raw = (args as unknown as { domQuietMs?: unknown }).domQuietMs
     const parsed = typeof raw === 'number' ? raw : Number(raw)
@@ -301,7 +324,13 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
     if (Number.isFinite(parsed)) return Math.max(280, Math.min(1600, Math.floor(parsed)))
     return 800
   })()
-  const shouldWaitForNetworkIdleSnapshots = waitForNetworkIdle && !(args.mode === 'html' && !!args.scrollCrawl)
+  const shouldWaitForNetworkIdleSnapshots =
+    waitForNetworkIdle
+    && !shouldSkipNetworkIdleWaitForExport({
+      mode: args.mode,
+      scrollCrawl: args.scrollCrawl,
+      textCaptureTarget: args.textCaptureTarget,
+    })
   const signal = args.signal
   if (signal?.aborted) return { ok: false, stage: 'abort', error: 'Aborted' }
 
@@ -315,8 +344,8 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   iframe.style.opacity = '0'
   iframe.style.pointerEvents = 'none'
 
-  const iframePathBase = `/__webpage_proxy?url=${encodeURIComponent(url)}`
-  const iframePathStrip = `${iframePathBase}&kg_script_policy=strip`
+  const iframePathBase = buildWebpageProxyUrl(url)
+  const iframePathStrip = buildWebpageProxyUrl(url, 'strip')
   const candidates = (() => {
     const out: { src: string; sandbox: string }[] = []
     const seen = new Set<string>()
@@ -326,8 +355,9 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
       seen.add(key)
       out.push({ src, sandbox })
     }
-    const basePaths =
-      args.mode === 'layout' || args.mode === 'text'
+    const basePaths = preferScriptDisabled
+      ? [iframePathStrip, iframePathBase]
+      : args.mode === 'layout' || args.mode === 'text'
         ? [iframePathBase, iframePathStrip]
         : [iframePathBase]
     for (let i = 0; i < basePaths.length; i += 1) {
@@ -891,6 +921,13 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
       && !!args.scrollCrawl
       && first.text.length >= HTML_MULTI_SNAPSHOT_SUBSTANTIAL_TEXT_LEN
     if (shouldSkipAdditionalHtmlSnapshots) return { ok: true, result: first }
+    const shouldSkipAdditionalTextSnapshots =
+      args.mode === 'text'
+      && (
+        args.textCaptureTarget === 'clicked-next-sibling'
+        || (!!args.scrollCrawl && first.text.length >= TEXT_SCROLL_CRAWL_SUBSTANTIAL_TEXT_LEN)
+      )
+    if (shouldSkipAdditionalTextSnapshots) return { ok: true, result: first }
     const enableMultiSnapshot = args.mode === 'text' || args.mode === 'layout' || (args.mode === 'html' && !!args.scrollCrawl)
     if (!enableMultiSnapshot) return { ok: true, result: first }
 

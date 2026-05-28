@@ -1,4 +1,4 @@
-import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '@/lib/url'
+import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '../url'
 import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 
 export type WebpageSandboxScriptPolicy = 'strip' | 'allow'
@@ -71,25 +71,27 @@ const escapeHtml = (raw: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
-const stripCspMeta = (html: string): string => {
+export const stripWebpageCspMeta = (html: string): string => {
   const raw = String(html || '')
   if (!/content-security-policy/i.test(raw)) return raw
   return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?content-security-policy\1?[^>]*>/gi, '')
 }
 
-const stripRefreshMeta = (html: string): string => {
+export const stripWebpageRefreshMeta = (html: string): string => {
   const raw = String(html || '')
   if (!/http-equiv/i.test(raw)) return raw
   return raw.replace(/<meta\s+[^>]*http-equiv\s*=\s*("|')?refresh\1?[^>]*>/gi, '')
 }
 
-const stripScriptTags = (html: string): string => {
+export const stripWebpageScriptTags = (html: string): string => {
   const raw = String(html || '')
   if (!/<script\b/i.test(raw)) return raw
-  return raw.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+  return raw
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<script\b[^>]*\/\s*>/gi, '')
 }
 
-const stripInlineEventHandlers = (html: string): string => {
+export const stripWebpageInlineEventHandlers = (html: string): string => {
   const raw = String(html || '')
   if (!/\son[a-z]+\s*=/.test(raw)) return raw
   return raw.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
@@ -458,7 +460,7 @@ function chooseSandboxBaseHref(args: { rawHtml: string; baseHref: string }): str
   return baseHref
 }
 
-function buildSandboxCsp(scriptPolicy: WebpageSandboxScriptPolicy): string {
+export function buildWebpageSandboxCsp(scriptPolicy: WebpageSandboxScriptPolicy): string {
   return scriptPolicy === 'allow'
     ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
     : "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
@@ -491,10 +493,10 @@ async function buildSandboxHtmlAsync(args: {
 
     if (scriptPolicy === 'allow') {
       await stepYield('Sanitizing CSP')
-      current = stripCspMeta(current)
+      current = stripWebpageCspMeta(current)
 
       await stepYield('Sanitizing Refresh')
-      current = stripRefreshMeta(current)
+      current = stripWebpageRefreshMeta(current)
 
       await stepYield('Unhiding WeChat')
       current = injectWeChatUnhideStyle(current, args.baseHref)
@@ -503,10 +505,10 @@ async function buildSandboxHtmlAsync(args: {
       current = proxyHotlinkProtectedImages(promoteLazyLoadedImages(current))
     } else {
       await stepYield('Sanitizing CSP')
-      current = stripCspMeta(current)
+      current = stripWebpageCspMeta(current)
 
       await stepYield('Sanitizing Refresh')
-      current = stripRefreshMeta(current)
+      current = stripWebpageRefreshMeta(current)
 
       await stepYield('Unhiding WeChat')
       current = injectWeChatUnhideStyle(current, args.baseHref)
@@ -515,10 +517,10 @@ async function buildSandboxHtmlAsync(args: {
       current = proxyHotlinkProtectedImages(promoteLazyLoadedImages(current))
 
       await stepYield('Stripping Scripts')
-      current = stripScriptTags(current)
+      current = stripWebpageScriptTags(current)
 
       await stepYield('Stripping Handlers')
-      current = stripInlineEventHandlers(current)
+      current = stripWebpageInlineEventHandlers(current)
     }
 
     if (current.length > 1_500_000) {
@@ -541,7 +543,7 @@ async function buildSandboxHtmlAsync(args: {
     const withBase = upsertBaseTag(current, chosenBaseHref)
 
     await stepYield('Injecting CSP')
-    const withCsp = upsertSandboxCspMeta(withBase, buildSandboxCsp(scriptPolicy))
+    const withCsp = upsertSandboxCspMeta(withBase, buildWebpageSandboxCsp(scriptPolicy))
 
     await stepYield('Injecting Viewport CSS')
     const withViewport = injectViewportCss(withCsp)
@@ -587,13 +589,13 @@ export function buildWebpageHtmlSrcdoc(args: { html: string; baseHref: string; s
   let current = rawHtml
   if (scriptPolicy === 'allow') {
     current = proxyHotlinkProtectedImages(
-      proxyAllRemoteImages(promoteLazyLoadedImages(injectWeChatUnhideStyle(stripRefreshMeta(stripCspMeta(current)), args.baseHref))),
+      proxyAllRemoteImages(promoteLazyLoadedImages(injectWeChatUnhideStyle(stripWebpageRefreshMeta(stripWebpageCspMeta(current)), args.baseHref))),
     )
   } else {
     current = proxyHotlinkProtectedImages(
       proxyAllRemoteImages(promoteLazyLoadedImages(
         injectWeChatUnhideStyle(
-          stripInlineEventHandlers(stripScriptTags(stripRefreshMeta(stripCspMeta(current)))),
+          stripWebpageInlineEventHandlers(stripWebpageScriptTags(stripWebpageRefreshMeta(stripWebpageCspMeta(current)))),
           args.baseHref,
         )
       )),
@@ -611,7 +613,7 @@ export function buildWebpageHtmlSrcdoc(args: { html: string; baseHref: string; s
 
   const chosenBaseHref = chooseSandboxBaseHref({ rawHtml: current, baseHref })
   const withBase = upsertBaseTag(current, chosenBaseHref)
-  const withCsp = upsertSandboxCspMeta(withBase, buildSandboxCsp(scriptPolicy))
+  const withCsp = upsertSandboxCspMeta(withBase, buildWebpageSandboxCsp(scriptPolicy))
   const withViewport = injectViewportCss(withCsp)
   return injectScrollSync(withViewport)
 }

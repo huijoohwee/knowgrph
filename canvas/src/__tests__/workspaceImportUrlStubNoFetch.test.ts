@@ -24,6 +24,7 @@ import {
   readWorkspaceImportShareExportRootPathSetting,
   writeWorkspaceImportShareExportRootPathSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 
@@ -353,6 +354,63 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
   }
 }
 
+export async function testWorkspaceImportUrlExportsClaudeChatArtifactsIntoDocsRoot(): Promise<void> {
+  const chatUrl = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const exportToken = '6706219f-f8d2-418a-90a9-aae18de752a7'
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-claude-chat-'))
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = `${tempRoot}/docs`
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const importedThinkingText = [
+      'First, I need to examine the recent oil market reports.',
+      '',
+      '## Shared blind spot',
+      '',
+      'The models anchor on a symmetric recovery timeline.',
+      '',
+    ].join('\n')
+    const result = await importWorkspaceUrl({
+      fs,
+      urlRaw: chatUrl,
+      parentPath: '/docs_',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: `${exportToken}.md`,
+        text: [
+          '# Oil market blind spot analysis and price forecast',
+          '',
+          '## The shared blind spot: symmetric recovery fallacy + resolution anchoring',
+          '',
+          'The deepest flaw is not being wrong about prices.',
+          '',
+        ].join('\n'),
+        thinkingText: importedThinkingText,
+      }),
+    })
+    if (result.createdPaths.length !== 1 || result.createdPaths[0] !== `/docs_/${exportToken}/${exportToken}.md`) {
+      throw new Error(`expected Claude chat import to land under /docs_ export root, got ${JSON.stringify(result.createdPaths)}`)
+    }
+    const exported = await fs.readFileText(`/docs_/${exportToken}/${exportToken}.md`)
+    const thinking = await fs.readFileText(`/docs_/${exportToken}/${exportToken}-thinking.md`)
+    if (!exported?.includes('# Oil market blind spot analysis and price forecast')) {
+      throw new Error('expected Claude chat markdown export to persist the imported body')
+    }
+    if (thinking !== importedThinkingText) {
+      throw new Error(`expected Claude chat thinking export to preserve the imported thinking trajectory\nEXPECTED:\n${importedThinkingText}\n\nACTUAL:\n${thinking}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+}
+
 export function testWorkspaceImportShareExportRootSettingNormalizesSiblingAbsolutePath(): void {
   const { restore } = initJsdomHarness()
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
@@ -363,6 +421,28 @@ export function testWorkspaceImportShareExportRootSettingNormalizesSiblingAbsolu
     const normalized = readWorkspaceImportShareExportRootPathSetting()
     if (normalized !== '/docs_') {
       throw new Error(`expected sibling absolute docs_ path to normalize to workspace root /docs_, got ${normalized}`)
+    }
+  } finally {
+    writeWorkspaceImportShareExportRootPathSetting(previousValue)
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    restore()
+  }
+}
+
+export function testWorkspaceSourceRootPathsIncludeConfiguredShareExportRoot(): void {
+  const { restore } = initJsdomHarness()
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousValue = readWorkspaceImportShareExportRootPathSetting()
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+    writeWorkspaceImportShareExportRootPathSetting('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs_')
+    const roots = resolveWorkspaceSourceRootPaths()
+    if (!roots.includes('/docs_')) {
+      throw new Error(`expected configured share export root /docs_ to participate in workspace source roots, got ${roots.join(', ')}`)
+    }
+    if (!roots.includes('/docs')) {
+      throw new Error(`expected canonical docs root /docs to remain visible alongside share export root, got ${roots.join(', ')}`)
     }
   } finally {
     writeWorkspaceImportShareExportRootPathSetting(previousValue)
@@ -788,6 +868,425 @@ export async function testWorkspaceImportUrlImportRecoversLongLoadingShellViaDom
   }
 }
 
+export async function testWorkspaceImportUrlImportRecoversProxyFetchFailureViaDomExportFallback(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const proxyCalls: string[] = []
+  const domModes: string[] = []
+  const htmlPreferScriptDisabledFlags: boolean[] = []
+  const substantiveParagraphs = Array.from({ length: 6 }, (_, index) =>
+    `Detailed section ${index + 1} preserves the Claude-visible reasoning about recovery asymmetry, refinery lag, inventory draw timing, sanctions elasticity, and how forward curves can anchor analysts to the wrong base case.`,
+  )
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    proxyCalls.push(requestUrl)
+    if (requestUrl.startsWith('/__webpage_proxy?')) {
+      throw new Error('Timeout')
+    }
+    return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async args => {
+    domModes.push(String(args.mode || ''))
+    if (args.mode === 'html') htmlPreferScriptDisabledFlags.push(args.preferScriptDisabled === true)
+    if (args.mode === 'html') {
+      return {
+        text: [
+          '<!doctype html>',
+          '<html>',
+          '<head><title>Claude Chat Export</title></head>',
+          '<body>',
+          '<main>',
+          '<h1>Oil market blind spot analysis and price forecast</h1>',
+          '<h2>The shared blind spot: symmetric recovery fallacy + resolution anchoring</h2>',
+          '<p>The deepest flaw is not being wrong about prices.</p>',
+          ...substantiveParagraphs.map(paragraph => `<p>${paragraph}</p>`),
+          '</main>',
+          '</body>',
+          '</html>',
+        ].join(''),
+        title: 'Claude Chat Export',
+        clipped: false,
+      }
+    }
+    return {
+      text: [
+        'Oil market blind spot analysis and price forecast',
+        '',
+        'The shared blind spot: symmetric recovery fallacy + resolution anchoring',
+        '',
+        'The deepest flaw is not being wrong about prices.',
+        '',
+        ...substantiveParagraphs,
+      ].join('\n'),
+      title: 'Claude Chat Export',
+      clipped: false,
+    }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected proxy fetch failure import to recover the Claude body through DOM export, got:\n${res.text}`)
+    }
+    if (res.text.includes(`[](${url})`)) {
+      throw new Error('expected proxy fetch failure recovery to avoid falling back to a synthetic source-link stub')
+    }
+    if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
+      throw new Error('expected proxy fetch failure recovery to attempt the shared webpage proxy first')
+    }
+    if (!domModes.includes('html')) {
+      throw new Error(`expected proxy fetch failure recovery to escalate into DOM export html mode, got ${JSON.stringify(domModes)}`)
+    }
+    if (!htmlPreferScriptDisabledFlags.includes(true)) {
+      throw new Error(`expected proxy fetch failure recovery to prefer script-disabled html export, got ${JSON.stringify(htmlPreferScriptDisabledFlags)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportDoesNotReuseCachedConnectionShellMarkdown(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  let currentHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head><title>Claude</title></head>',
+    '<body>',
+    '<main>',
+    '<h1>Can&apos;t reach Claude</h1>',
+    '<p>Check your connection.</p>',
+    '<button>Try again</button>',
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const proxyCalls: string[] = []
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    proxyCalls.push(requestUrl)
+    if (!requestUrl.startsWith('/__webpage_proxy?')) {
+      return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+    }
+    return new Response(currentHtml, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async () => null)
+  try {
+    const first = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!first.text.includes("Can't reach Claude")) {
+      throw new Error(`expected first import fetch to expose the low-fidelity connection shell, got:\n${first.text}`)
+    }
+
+    currentHtml = [
+      '<!doctype html>',
+      '<html>',
+      '<head><title>Claude Chat Export</title></head>',
+      '<body>',
+      '<main>',
+      '<h1>Oil market blind spot analysis and price forecast</h1>',
+      '<p>The shared blind spot is a symmetric recovery assumption applied to an asymmetric supply chain.</p>',
+      '<p>Fresh proxy content should replace any previously cached connection shell for the same URL.</p>',
+      '</main>',
+      '</body>',
+      '</html>',
+    ].join('')
+
+    const second = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!second.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected second import fetch to bypass stale cached shell content, got:\n${second.text}`)
+    }
+    if (second.text.includes("Can't reach Claude") || second.text.includes('Check your connection.')) {
+      throw new Error(`expected second import fetch to discard stale cached connection shell content, got:\n${second.text}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportUsesApiNativeBrowserSessionMarkdownWhenProxyAndDomStayLowFidelity(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const fetchCalls: string[] = []
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown, init?: RequestInit) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    fetchCalls.push(requestUrl)
+    if (requestUrl.startsWith('/__webpage_proxy?')) {
+      return new Response([
+        '<!doctype html>',
+        '<html>',
+        '<head><title>Claude</title></head>',
+        '<body>',
+        '<main>',
+        '<h1>Can&apos;t reach Claude</h1>',
+        '<p>Check your connection.</p>',
+        '<button>Try again</button>',
+        '</main>',
+        '</body>',
+        '</html>',
+      ].join(''), { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+    }
+    if (requestUrl === 'http://localhost:6969/v1/sessions') {
+      return new Response(JSON.stringify({
+        sessions: [
+          {
+            id: 'claude-session-1',
+            url,
+            domain: 'claude.ai',
+            title: 'Oil market blind spot analysis and price forecast - Claude',
+          },
+        ],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    if (requestUrl === 'http://localhost:6969/v1/browser/markdown') {
+      const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+      if (body.session_id !== 'claude-session-1' || body.url !== url) {
+        throw new Error(`expected browser markdown fallback to target the matching claude session, got ${JSON.stringify(body)}`)
+      }
+      return new Response(JSON.stringify({
+        markdown: [
+          '# Oil market blind spot analysis and price forecast',
+          '',
+          '## The shared blind spot: symmetric recovery fallacy + resolution anchoring',
+          '',
+          'Every major institution shares the same structural flaw wired into its model.',
+          '',
+          'The re-simulated trajectory shows why the symmetric recovery assumption breaks once supply chokepoints and demand destruction interact.',
+        ].join('\n'),
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async () => ({
+    text: "Can't reach Claude\n\nCheck your connection.\n\nTry again",
+    title: 'Claude',
+    clipped: false,
+  }))
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected browser-session markdown fallback to recover the Claude body, got:\n${res.text}`)
+    }
+    if (res.text.includes("Can't reach Claude") || res.text.includes('Check your connection.')) {
+      throw new Error(`expected browser-session markdown fallback to replace the Claude connection shell, got:\n${res.text}`)
+    }
+    if (!fetchCalls.includes('http://localhost:6969/v1/sessions')) {
+      throw new Error(`expected browser-session markdown fallback to enumerate local sessions, got ${JSON.stringify(fetchCalls)}`)
+    }
+    if (!fetchCalls.includes('http://localhost:6969/v1/browser/markdown')) {
+      throw new Error(`expected browser-session markdown fallback to request markdown from the local browser runtime, got ${JSON.stringify(fetchCalls)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportPrefersScriptDisabledTextProbeWhenHtmlRecoveryIsInsufficient(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const textPreferScriptDisabledFlags: boolean[] = []
+  const substantiveParagraphs = Array.from({ length: 6 }, (_, index) =>
+    `Detailed section ${index + 1} preserves the Claude-visible reasoning about refinery lag, sanctions elasticity, forward-curve anchoring, and inventory draw timing.`,
+  )
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    if (requestUrl.startsWith('/__webpage_proxy?')) throw new Error('Timeout')
+    return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async args => {
+    if (args.mode === 'text') textPreferScriptDisabledFlags.push(args.preferScriptDisabled === true)
+    if (args.mode === 'html') {
+      return {
+        text: [
+          '<!doctype html>',
+          '<html>',
+          '<head><title>Claude Chat Export</title></head>',
+          '<body>',
+          '<main><h1>Claude Chat Export</h1></main>',
+          '</body>',
+          '</html>',
+        ].join(''),
+        title: 'Claude Chat Export',
+        clipped: false,
+      }
+    }
+    return {
+      text: [
+        'Oil market blind spot analysis and price forecast',
+        '',
+        'The shared blind spot: symmetric recovery fallacy + resolution anchoring',
+        '',
+        'The deepest flaw is not being wrong about prices.',
+        '',
+        ...substantiveParagraphs,
+      ].join('\n'),
+      title: 'Claude Chat Export',
+      clipped: false,
+    }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected text DOM recovery to preserve the Claude body when html recovery is insufficient, got:\n${res.text}`)
+    }
+    if (!textPreferScriptDisabledFlags.includes(true)) {
+      throw new Error(`expected text DOM recovery to prefer script-disabled export, got ${JSON.stringify(textPreferScriptDisabledFlags)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeWhenScriptDisabledHtmlIsHydrationShell(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const htmlPreferScriptDisabledFlags: boolean[] = []
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    if (requestUrl.startsWith('/__webpage_proxy?')) throw new Error('Timeout')
+    return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async args => {
+    if (args.mode === 'text') {
+      throw new Error('expected script-enabled html retry to satisfy recovery before the text probe')
+    }
+    htmlPreferScriptDisabledFlags.push(args.preferScriptDisabled === true)
+    if (args.preferScriptDisabled) {
+      return {
+        text: [
+          '<!doctype html>',
+          '<html>',
+          '<head><title>Claude Chat Export</title></head>',
+          '<body><div id="root"></div></body>',
+          '</html>',
+        ].join(''),
+        title: 'Claude Chat Export',
+        clipped: false,
+      }
+    }
+    return {
+      text: [
+        '<!doctype html>',
+        '<html>',
+        '<head><title>Claude Chat Export</title></head>',
+        '<body>',
+        '<main>',
+        '<h1>Oil market blind spot analysis and price forecast</h1>',
+        '<p>The shared blind spot is a symmetric recovery assumption applied to an asymmetric supply chain.</p>',
+        '<p>Rendered script-enabled fallback preserves the Claude-visible body when the stripped page is only a hydration shell.</p>',
+        '</main>',
+        '</body>',
+        '</html>',
+      ].join(''),
+      title: 'Claude Chat Export',
+      clipped: false,
+    }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected script-enabled html retry to recover rendered body content, got:\n${res.text}`)
+    }
+    if (htmlPreferScriptDisabledFlags.length < 2 || htmlPreferScriptDisabledFlags[0] !== true || !htmlPreferScriptDisabledFlags.includes(false)) {
+      throw new Error(`expected html DOM recovery to retry without script-disabled mode after a hydration shell, got ${JSON.stringify(htmlPreferScriptDisabledFlags)}`)
+    }
+    if (res.text.includes(`[](${url})`)) {
+      throw new Error('expected html retry recovery to avoid falling back to a synthetic source-link stub')
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeWhenScriptDisabledHtmlIsConnectionShell(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const htmlPreferScriptDisabledFlags: boolean[] = []
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    if (requestUrl.startsWith('/__webpage_proxy?')) throw new Error('Timeout')
+    return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async args => {
+    if (args.mode === 'text') {
+      throw new Error('expected script-enabled html retry to recover the Claude body before the text probe')
+    }
+    htmlPreferScriptDisabledFlags.push(args.preferScriptDisabled === true)
+    if (args.preferScriptDisabled) {
+      return {
+        text: [
+          '<!doctype html>',
+          '<html>',
+          '<head><title>Claude</title></head>',
+          '<body>',
+          '<main>',
+          '<h1>Can&apos;t reach Claude</h1>',
+          '<p>Check your connection.</p>',
+          '<button>Try again</button>',
+          '</main>',
+          '</body>',
+          '</html>',
+        ].join(''),
+        title: 'Claude',
+        clipped: false,
+      }
+    }
+    return {
+      text: [
+        '<!doctype html>',
+        '<html>',
+        '<head><title>Claude Chat Export</title></head>',
+        '<body>',
+        '<main>',
+        '<h1>Oil market blind spot analysis and price forecast</h1>',
+        '<p>The shared blind spot is a symmetric recovery assumption applied to an asymmetric supply chain.</p>',
+        '<p>Rendered script-enabled fallback preserves the Claude-visible body when the stripped page only shows the short connection error shell.</p>',
+        '</main>',
+        '</body>',
+        '</html>',
+      ].join(''),
+      title: 'Claude Chat Export',
+      clipped: false,
+    }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected script-enabled html retry to recover rendered body content after a connection shell, got:\n${res.text}`)
+    }
+    if (res.text.includes("Can't reach Claude") || res.text.includes('Check your connection.')) {
+      throw new Error(`expected connection shell recovery to exclude Claude error chrome, got:\n${res.text}`)
+    }
+    if (htmlPreferScriptDisabledFlags.length < 2 || htmlPreferScriptDisabledFlags[0] !== true || !htmlPreferScriptDisabledFlags.includes(false)) {
+      throw new Error(`expected html DOM recovery to retry without script-disabled mode after a connection shell, got ${JSON.stringify(htmlPreferScriptDisabledFlags)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
 export async function testWorkspaceImportUrlImportPrefersStructuredDomMarkdownWhenItPreservesRenderedContent(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://example.com/rendered-share'
@@ -858,6 +1357,57 @@ export async function testWorkspaceImportUrlImportPrefersStructuredDomMarkdownWh
   } finally {
     setWorkspaceWebpageDomExportForTests(null)
     restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportSkipsTextDomProbeWhenStructuredHtmlRecoveryIsAlreadySufficient(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
+  const substantiveParagraphs = Array.from({ length: 6 }, (_, index) =>
+    `Detailed section ${index + 1} preserves the Claude-visible reasoning about recovery asymmetry, refinery lag, inventory draw timing, sanctions elasticity, and how forward curves can anchor analysts to the wrong base case.`,
+  )
+  const g = globalThis as GlobalWithFetch
+  const previousFetch = g.fetch
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = input instanceof URL ? input.toString() : String(input || '')
+    if (requestUrl.startsWith('/__webpage_proxy?')) throw new Error('Timeout')
+    return new Response('not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+  }) as unknown as typeof fetch
+  setWorkspaceWebpageDomExportForTests(async args => {
+    if (args.mode === 'text') {
+      throw new Error('expected structured html recovery to skip the secondary text DOM probe')
+    }
+    return {
+      text: [
+        '<!doctype html>',
+        '<html>',
+        '<head><title>Claude Chat Export</title></head>',
+        '<body>',
+        '<main>',
+        '<h1>Oil market blind spot analysis and price forecast</h1>',
+        '<h2>The shared blind spot: symmetric recovery fallacy + resolution anchoring</h2>',
+        '<p>The deepest flaw is not being wrong about prices.</p>',
+        ...substantiveParagraphs.map(paragraph => `<p>${paragraph}</p>`),
+        '</main>',
+        '</body>',
+        '</html>',
+      ].join(''),
+      title: 'Claude Chat Export',
+      clipped: false,
+    }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('Oil market blind spot analysis and price forecast')) {
+      throw new Error(`expected structured html recovery to succeed without the text DOM probe, got:\n${res.text}`)
+    }
+    if (res.text.includes(`[](${url})`)) {
+      throw new Error('expected structured html recovery to avoid falling back to a synthetic source-link stub')
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    g.fetch = previousFetch
     resetWorkspaceUrlContentCacheForTests()
   }
 }
@@ -1054,7 +1604,10 @@ export async function testPlainTextToMarkdownPreservesThinkingTranscriptMarkdown
     '| Goldman | $85/bbl |',
     '```python',
     'print("Brent", 85)',
-    '```',
+    '  ```',
+    '    ````',
+    'raw',
+    '  ````',
     'Inline math $x+y$ stays visible.',
   ].join('\n')))
   if (!markdown.includes('- The user wants me to:\n1. Analyze recent oil market reports\n2. Identify a shared logical blind spot\n3. Re-simulate the global oil price trajectory for the next six months')) {
@@ -1075,7 +1628,24 @@ export async function testPlainTextToMarkdownPreservesThinkingTranscriptMarkdown
   if (!markdown.includes('```python\nprint("Brent", 85)\n```')) {
     throw new Error(`expected fenced code block to be preserved, got:\n${markdown}`)
   }
+  if (!markdown.includes('````\nraw\n````')) {
+    throw new Error(`expected plain-text markdown conversion to normalize indented fence delimiters, got:\n${markdown}`)
+  }
   if (!markdown.includes('Inline math $x+y$ stays visible.')) throw new Error(`expected inline math markers to be preserved, got:\n${markdown}`)
+}
+
+export async function testPlainTextToMarkdownSplitsThinkingNarrativeTailsFromInlineListLines(): Promise<void> {
+  const markdown = restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown([
+    '1. Analyze recent oil market reports 2. Identify a shared logical blind spot 3. Re-simulate the global oil price trajectory for the next six months First, I need to search for recent oil market reports.',
+    '- Baseline scenario assumes 21 days low flows then recovery UBS:',
+    '- Focuses on supply-demand balance',
+  ].join('\n')))
+  if (!markdown.includes('3. Re-simulate the global oil price trajectory for the next six months\nFirst, I need to search for recent oil market reports.')) {
+    throw new Error(`expected trailing transcript narrative to split away from the final ordered-list item, got:\n${markdown}`)
+  }
+  if (!markdown.includes('- Baseline scenario assumes 21 days low flows then recovery\nUBS:\n- Focuses on supply-demand balance')) {
+    throw new Error(`expected inline section labels after bullet items to split into standalone lines, got:\n${markdown}`)
+  }
 }
 
 export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(): Promise<void> {
@@ -1093,7 +1663,10 @@ export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(
     '```python',
     '- import numpy as np',
     'print("ok")',
-    '```',
+    '  ```',
+    '    ````',
+    'value',
+    '  ````',
   ].join('\n'))
 
   if (!restored.includes('> quoted line')) throw new Error(`expected blockquote marker to be restored, got:\n${restored}`)
@@ -1114,6 +1687,9 @@ export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(
   if (!restored.includes('- Run Code')) throw new Error(`expected list-prefixed html wrappers to preserve the list marker, got:\n${restored}`)
   if (!restored.includes('```python\nimport numpy as np\nprint("ok")\n```')) {
     throw new Error(`expected recovered fenced code blocks to keep code lines instead of list markers, got:\n${restored}`)
+  }
+  if (!restored.includes('````\nvalue\n````')) {
+    throw new Error(`expected indented fence delimiters to be normalized without indent, got:\n${restored}`)
   }
 }
 

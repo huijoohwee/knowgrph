@@ -4,6 +4,11 @@ import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { deriveFilenameFromUrl } from '@/lib/url'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
+import { LS_KEYS } from '@/lib/config.ls.keys'
+import { API_NATIVE_BROWSER_DEFAULT_RUNTIME_URL } from 'grph-shared/browser/apiNativeBrowserMcpSsot'
+import { looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
+import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
+import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 
 export type ApiNativeMarkdownResult = {
   normalizedUrl: string
@@ -17,6 +22,13 @@ type TryFetchApiNativeMarkdownArgs = {
   mode?: 'import' | 'refresh'
   viewHint?: 'markdown' | 'json' | 'html' | ''
   onProgress?: (percentage: number) => void
+}
+
+type ApiNativeBrowserSession = {
+  id: string
+  url?: string
+  title?: string
+  domain?: string
 }
 
 type RedditListing = {
@@ -130,6 +142,237 @@ function extractTitleFromHtml(html: string): string {
   const m = h.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i)
   const title = m && m[1] ? String(m[1]).replace(/\s+/g, ' ').trim() : ''
   return title
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = String(hostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '')
+  if (!normalized) return false
+  if (normalized === 'localhost' || normalized.endsWith('.localhost')) return true
+  if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return true
+  return /^127(?:\.\d{1,3}){3}$/.test(normalized)
+}
+
+function readApiNativeBrowserRuntimeUrl(): string {
+  const fallback = API_NATIVE_BROWSER_DEFAULT_RUNTIME_URL
+  try {
+    const storage = typeof window !== 'undefined' ? window.localStorage : null
+    const configured = storage?.getItem(LS_KEYS.apiNativeBrowserMcpRuntimeUrl) || ''
+    return String(configured || fallback).trim() || fallback
+  } catch {
+    return fallback
+  }
+}
+
+function normalizeApiNativeBrowserRuntimeUrl(rawUrl: string): string | null {
+  const candidate = String(rawUrl || '').trim()
+  if (!candidate) return null
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    if (!isLoopbackHostname(parsed.hostname)) return null
+    parsed.hash = ''
+    return parsed.toString().replace(/\/+$/, '')
+  } catch {
+    return null
+  }
+}
+
+function joinApiNativeBrowserRuntimePath(runtimeUrl: string, apiPath: string): string {
+  const base = new URL(runtimeUrl)
+  const basePath = base.pathname.replace(/\/+$/, '')
+  const nextPath = String(apiPath || '').replace(/^\/+/, '')
+  base.pathname = `${basePath}/${nextPath}`.replace(/\/{2,}/g, '/')
+  return base.toString()
+}
+
+function extractApiNativeBrowserString(value: unknown, maxDepth = 4): string {
+  if (typeof value === 'string') return value.trim()
+  if (!value || typeof value !== 'object' || maxDepth <= 0) return ''
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = extractApiNativeBrowserString(item, maxDepth - 1)
+      if (nested) return nested
+    }
+    return ''
+  }
+  const record = value as Record<string, unknown>
+  for (const key of ['markdown', 'text', 'content', 'body', 'value']) {
+    const nested = extractApiNativeBrowserString(record[key], maxDepth - 1)
+    if (nested) return nested
+  }
+  for (const key of ['result', 'data', 'response', 'payload']) {
+    const nested = extractApiNativeBrowserString(record[key], maxDepth - 1)
+    if (nested) return nested
+  }
+  return ''
+}
+
+function readApiNativeBrowserResponseText(rawText: string): string {
+  const text = String(rawText || '').trim()
+  if (!text) return ''
+  try {
+    const parsed = JSON.parse(text) as unknown
+    return extractApiNativeBrowserString(parsed) || text
+  } catch {
+    return text
+  }
+}
+
+function readApiNativeBrowserSessions(rawText: string): ApiNativeBrowserSession[] {
+  try {
+    const parsed = JSON.parse(String(rawText || '')) as unknown
+    const list = (() => {
+      if (Array.isArray(parsed)) return parsed
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        if (Array.isArray(record.sessions)) return record.sessions
+        if (Array.isArray(record.data)) return record.data
+        if (record.data && typeof record.data === 'object' && Array.isArray((record.data as Record<string, unknown>).sessions)) {
+          return (record.data as Record<string, unknown>).sessions as unknown[]
+        }
+      }
+      return []
+    })()
+    return list
+      .map((entry): ApiNativeBrowserSession | null => {
+        if (!entry || typeof entry !== 'object') return null
+        const record = entry as Record<string, unknown>
+        const id = [record.id, record.session_id, record.sessionId].find(value => typeof value === 'string' && String(value).trim()) || ''
+        if (!id) return null
+        const domain = [record.domain, record.host, record.hostname].find(value => typeof value === 'string' && String(value).trim()) || ''
+        const url = [record.url, record.href, record.current_url, record.currentUrl].find(value => typeof value === 'string' && String(value).trim()) || ''
+        const title = [record.title, record.name].find(value => typeof value === 'string' && String(value).trim()) || ''
+        return {
+          id: String(id).trim(),
+          domain: String(domain || '').trim(),
+          url: String(url || '').trim(),
+          title: String(title || '').trim(),
+        }
+      })
+      .filter((value): value is ApiNativeBrowserSession => Boolean(value))
+  } catch {
+    return []
+  }
+}
+
+function pickApiNativeBrowserSessionIds(url: string, sessions: ApiNativeBrowserSession[]): string[] {
+  let hostname = ''
+  try {
+    hostname = new URL(url).hostname.toLowerCase()
+  } catch {
+    return []
+  }
+  const scoreSession = (session: ApiNativeBrowserSession): number => {
+    const domain = String(session.domain || '').trim().toLowerCase()
+    const currentUrl = String(session.url || '').trim().toLowerCase()
+    if (currentUrl === String(url || '').trim().toLowerCase()) return 5
+    if (currentUrl && hostname && currentUrl.includes(hostname)) return 4
+    if (domain && hostname && (domain === hostname || hostname.endsWith(`.${domain}`) || domain.endsWith(`.${hostname}`))) return 3
+    return 0
+  }
+  return sessions
+    .map(session => ({ id: session.id, score: scoreSession(session) }))
+    .filter(item => item.score > 0 && item.id)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.id)
+}
+
+async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMarkdownArgs): Promise<ApiNativeMarkdownResult | null> {
+  const normalizedRuntimeUrl = normalizeApiNativeBrowserRuntimeUrl(readApiNativeBrowserRuntimeUrl())
+  if (!normalizedRuntimeUrl) return null
+  const fetchFn = (globalThis as { fetch?: typeof fetch }).fetch
+  if (typeof fetchFn !== 'function') return null
+  const ctrl = new AbortController()
+  const timeoutId = setTimeout(() => {
+    try {
+      ctrl.abort()
+    } catch {
+      void 0
+    }
+  }, 4000)
+  try {
+    const sessionsRes = await fetchFn(joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/sessions'), {
+      method: 'GET',
+      headers: { Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8' },
+      signal: ctrl.signal,
+    })
+    if (!sessionsRes.ok) return null
+    const sessionsText = await sessionsRes.text()
+    const sessionIds = pickApiNativeBrowserSessionIds(args.url, readApiNativeBrowserSessions(sessionsText))
+    if (sessionIds.length === 0) return null
+
+    for (const sessionId of sessionIds) {
+      const markdownRes = await fetchFn(joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/browser/markdown'), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json,text/markdown,text/plain;q=0.9,*/*;q=0.8',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: args.url,
+          session_id: sessionId,
+          dry_run: true,
+          confirm_unsafe: false,
+          confirm_third_party_terms: false,
+          confirm_cookie_import: false,
+        }),
+        signal: ctrl.signal,
+      })
+      if (!markdownRes.ok) continue
+      const markdownText = readApiNativeBrowserResponseText(await markdownRes.text())
+      if (markdownText && !looksLowFidelityWebpageMarkdown(markdownText)) {
+        return {
+          normalizedUrl: args.url,
+          name: deriveFilenameFromUrl(args.url, 'webpage.md'),
+          upstreamMarkdown: restoreWebpageMarkdownSyntaxFidelity(markdownText),
+          diagnostics: `api-native-browser-session:${sessionId}`,
+        }
+      }
+
+      const textRes = await fetchFn(joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/browser/text'), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: args.url,
+          session_id: sessionId,
+          dry_run: true,
+          confirm_unsafe: false,
+          confirm_third_party_terms: false,
+          confirm_cookie_import: false,
+        }),
+        signal: ctrl.signal,
+      })
+      if (!textRes.ok) continue
+      const textBody = readApiNativeBrowserResponseText(await textRes.text())
+      if (!textBody || textBody.length < 220) continue
+      const plainMarkdown = restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown(textBody))
+      if (!looksLowFidelityWebpageMarkdown(plainMarkdown)) {
+        return {
+          normalizedUrl: args.url,
+          name: deriveFilenameFromUrl(args.url, 'webpage.md'),
+          upstreamMarkdown: plainMarkdown,
+          diagnostics: `api-native-browser-session:${sessionId}:text`,
+        }
+      }
+    }
+  } catch {
+    return null
+  } finally {
+    try {
+      clearTimeout(timeoutId)
+    } catch {
+      void 0
+    }
+    try {
+      ctrl.abort()
+    } catch {
+      void 0
+    }
+  }
+  return null
 }
 
 export function extractJsonLdFromHtmlText(html: string, opts?: { maxScripts?: number; maxCharsPerScript?: number }): JSONValue[] {
@@ -311,6 +554,11 @@ export async function tryFetchApiNativeMarkdown(args: TryFetchApiNativeMarkdownA
 
   const mode: 'import' | 'refresh' = args.mode === 'refresh' ? 'refresh' : 'import'
   const viewHint = args.viewHint === 'json' ? 'json' : args.viewHint === 'markdown' ? 'markdown' : args.viewHint === 'html' ? 'html' : ''
+
+  if (mode === 'import' && viewHint === 'markdown') {
+    const browserSessionMarkdown = await tryFetchApiNativeBrowserSessionMarkdown(args)
+    if (browserSessionMarkdown) return browserSessionMarkdown
+  }
 
   const reddit = buildRedditJsonUrl(url)
   if (reddit) {

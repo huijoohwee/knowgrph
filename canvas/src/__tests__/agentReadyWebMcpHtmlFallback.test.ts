@@ -138,6 +138,7 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     }
     const navigatorObject = window.navigator as Navigator & {
       modelContext?: {
+        provideContext?: (context: { tools: RegisteredTool[] }) => void
         registerTool?: (tool: RegisteredTool, options?: { signal?: AbortSignal }) => void
       }
     }
@@ -159,6 +160,12 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
       throw new Error(
         `expected fallback-readable HTML script state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )
+    }
+    if (typeof navigatorObject.modelContext?.provideContext !== 'function' || typeof navigatorObject.modelContext?.registerTool !== 'function') {
+      throw new Error('expected injected WebMCP fallback to expose provideContext and registerTool for scanner-visible API parity')
+    }
+    if ((document as Document & { modelContext?: unknown }).modelContext !== navigatorObject.modelContext) {
+      throw new Error('expected injected WebMCP fallback to expose the same modelContext on document and navigator')
     }
 
     navigatorObject.modelContext = {

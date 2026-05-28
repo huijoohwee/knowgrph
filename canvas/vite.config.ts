@@ -23,6 +23,13 @@ import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/s
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
+import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
+import {
+  buildWebpageSandboxCsp,
+  stripWebpageInlineEventHandlers,
+  stripWebpageRefreshMeta,
+  stripWebpageScriptTags,
+} from './src/lib/websites/webpageSandboxDoc'
 import { WEBPAGE_SHELL_PATTERN_REGEX_SOURCES } from './src/lib/websites/webpageShellHeuristics'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -2816,15 +2823,6 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
     return `<!doctype html><html><head>${styleTag}</head><body>${cleaned}</body></html>`
   }
 
-  const stripScriptTags = (html: string): string => {
-    const raw = String(html || '')
-    if (!/<script\b/i.test(raw)) return raw
-    let next = raw
-    next = next.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
-    next = next.replace(/<script\b[^>]*\/\s*>/gi, '')
-    return next
-  }
-
   const rewriteWeChatAssetHostsToAssetPathProxy = (html: string): string => {
     const raw = String(html || '')
     if (!/(mmbiz\.qpic\.cn|mmbiz\.qlogo\.cn|wx\.qlogo\.cn)/i.test(raw)) return raw
@@ -2904,7 +2902,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
   }
 
   const originalUrl = String(opts.originalUrl || '').trim()
-  const scriptPolicy = String(opts.scriptPolicy || '').trim().toLowerCase()
+  const runtimePlan = buildWebpageProxyRuntimePlan(opts.scriptPolicy)
   const rawInput = stripWebpageSecurityMetasAndBase(String(opts.html || ''))
   const isWeChat = /mp\.weixin\.qq\.com/i.test(originalUrl) || /mp\.weixin\.qq\.com/i.test(rawInput)
   const html = (() => {
@@ -2913,16 +2911,22 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
     out = injectWeChatUnhideStyle(out, originalUrl)
     out = promoteLazyLoadedImages(out)
     out = promoteLazyLoadedIframes(out)
-    if (scriptPolicy === 'strip' || isWeChat) out = stripScriptTags(out)
+    if (runtimePlan.effectiveScriptPolicy === 'strip' || isWeChat) {
+      out = stripWebpageRefreshMeta(out)
+      out = stripWebpageInlineEventHandlers(stripWebpageScriptTags(out))
+    }
     return out
   })()
   if (!html) return html
 
   const injection = [
     `<base href="/">`,
-    scriptPolicy === 'allow' || scriptPolicy === 'strip'
+    runtimePlan.effectiveScriptPolicy === 'allow' || runtimePlan.effectiveScriptPolicy === 'strip'
       ? '<meta name="referrer" content="strict-origin-when-cross-origin">'
       : '<meta name="referrer" content="no-referrer">',
+    runtimePlan.injectStripCsp
+      ? `<meta http-equiv="Content-Security-Policy" content="${buildWebpageSandboxCsp('strip').replace(/"/g, '&quot;')}">`
+      : '',
     '<script>',
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
@@ -3244,7 +3248,20 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
     '    }',
     '    try { return new URL(String(u || ""), KG_ORIGINAL_URL).toString(); } catch { return ""; }',
     '  };',
-    '  const toProxy = (abs) => abs ? (KG_PROXY_PREFIX + encodeURIComponent(abs)) : "";',
+    `  const KG_SCRIPT_POLICY = ${JSON.stringify(runtimePlan.effectiveScriptPolicy)};`,
+    `  const KG_ENABLE_NETWORK_INTERCEPTION = ${JSON.stringify(runtimePlan.enableNetworkInterception)};`,
+    `  const KG_ENABLE_DYNAMIC_RESOURCE_REWRITE = ${JSON.stringify(runtimePlan.enableDynamicResourceRewrite)};`,
+    '  const toProxy = (abs) => {',
+    '    try {',
+    '      const s = String(abs || "").trim();',
+    '      if (!s) return "";',
+    '      const qs = new URLSearchParams({ url: s });',
+    '      if (KG_SCRIPT_POLICY === "allow" || KG_SCRIPT_POLICY === "strip") qs.set("kg_script_policy", KG_SCRIPT_POLICY);',
+    '      return `/__webpage_proxy?${qs.toString()}`;',
+    '    } catch {',
+    '      return "";',
+    '    }',
+    '  };',
       '  const toAssetProxy = (abs) => {',
       '    try {',
       '      const s = String(abs || "").trim();',
@@ -3357,9 +3374,11 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
     '    history && history.replaceState && history.replaceState(null, "", next || "/");',
     '  } catch { void 0; }',
     '  window.addEventListener("click", handleAnchorClick, true);',
-      '  patchFetch();',
-      '  patchXhr();',
     '  try { kgPostNet(); } catch { void 0; }',
+      '  if (KG_ENABLE_NETWORK_INTERCEPTION) {',
+      '    patchFetch();',
+      '    patchXhr();',
+      '  }',
       '  const rewriteAttrUrl = (el, attr) => {',
       '    try {',
       '      if (!el || typeof el.getAttribute !== "function" || typeof el.setAttribute !== "function") return;',
@@ -3559,10 +3578,12 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
       '      void 0;',
       '    }',
       '  };',
-      '  rewriteExisting();',
-      '  patchSetAttribute();',
-      '  patchInsertions();',
-      '  observeAdds();',
+      '  if (KG_ENABLE_DYNAMIC_RESOURCE_REWRITE) {',
+      '    rewriteExisting();',
+      '    patchSetAttribute();',
+      '    patchInsertions();',
+      '    observeAdds();',
+      '  }',
     '  const clamp01 = (n) => (n <= 0 ? 0 : n >= 1 ? 1 : n);',
     '  const getScrollEl = () => document.scrollingElement || document.documentElement || document.body;',
     '  const getRatio = () => {',

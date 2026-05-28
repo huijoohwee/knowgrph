@@ -1,4 +1,4 @@
-import { pruneWebpageChromeText } from '@/lib/websites/webpageShellHeuristics'
+import { looksLikeWebpageShellText, pruneWebpageChromeText } from '@/lib/websites/webpageShellHeuristics'
 
 export const WORKSPACE_WEBPAGE_MARKDOWN_REFRESH_MAX_CHARS = 220_000
 export const WORKSPACE_WEBPAGE_MARKDOWN_IMPORT_MAX_CHARS = 1_500_000
@@ -214,6 +214,36 @@ export function chooseDomRecoveredMarkdown(args: {
     return { markdown: renderedTextMarkdown, source: 'rendered', convertedScore, renderedScore, renderedCoverageRatio }
   }
   return { markdown: repairedConvertedMarkdown, source: 'converted', convertedScore, renderedScore, renderedCoverageRatio }
+}
+
+export function shouldAcceptConvertedDomRecoveredMarkdown(args: {
+  markdown: string
+  title?: string
+}): boolean {
+  const markdown = String(args.markdown || '').trim()
+  if (!markdown) return false
+  if (looksStructuredMarkdown(markdown) && !looksLikeMostlyTitleOnlyMarkdown(markdown, args.title)) {
+    return !isLikelyLowFidelityConvertedMarkdown(markdown)
+  }
+  if (markdown.length < 220) return false
+  if (looksLikeMostlyTitleOnlyMarkdown(markdown, args.title)) return false
+  return !isLikelyLowFidelityConvertedMarkdown(markdown)
+}
+
+function looksLikeMostlyTitleOnlyMarkdown(markdown: string, title?: string): boolean {
+  const normalizedMarkdown = String(markdown || '').replace(/\s+/g, ' ').trim()
+  const normalizedTitle = String(title || '').replace(/\s+/g, ' ').trim()
+  if (!normalizedMarkdown || !normalizedTitle) return false
+  if (normalizedMarkdown.length > 120) return false
+  return normalizedMarkdown === normalizedTitle
+}
+
+function isLikelyLowFidelityConvertedMarkdown(markdown: string): boolean {
+  const normalized = String(markdown || '').trim()
+  if (!normalized) return true
+  if (looksLikeWebpageShellText(normalized)) return true
+  if (normalized.length >= 400) return false
+  return normalized.length < 220
 }
 
 export function clipLargeWebpageMarkdown(text: string, maxChars: number): { text: string; clipped: boolean } {

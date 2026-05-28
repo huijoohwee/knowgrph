@@ -50,6 +50,39 @@ export const createWebMcpLifecycleController = (args = {}) => {
     return created
   }
 
+  const createFallbackModelContext = () => {
+    const context = { tools: [] }
+    const upsertTool = (tool) => {
+      if (!tool || !tool.name) return
+      const existingIndex = context.tools.findIndex((entry) => entry && entry.name === tool.name)
+      if (existingIndex >= 0) context.tools.splice(existingIndex, 1, tool)
+      else context.tools.push(tool)
+    }
+    context.provideContext = (provided = {}) => {
+      context.tools.splice(0, context.tools.length)
+      const providedTools = Array.isArray(provided.tools) ? provided.tools : []
+      for (const tool of providedTools) upsertTool(tool)
+    }
+    context.registerTool = (tool, options = {}) => {
+      if (!tool || !tool.name) throw new Error('tool name is required')
+      if (context.tools.some((entry) => entry && entry.name === tool.name)) {
+        const error = new Error(`tool already registered: ${tool.name}`)
+        error.name = 'InvalidStateError'
+        throw error
+      }
+      if (options.signal?.aborted) return
+      context.tools.push(tool)
+      if (options.signal && typeof options.signal.addEventListener === 'function') {
+        options.signal.addEventListener('abort', () => {
+          const index = context.tools.findIndex((entry) => entry && entry.name === tool.name)
+          if (index >= 0) context.tools.splice(index, 1)
+        }, { once: true })
+      }
+    }
+    context.provideContext({ tools })
+    return context
+  }
+
   const isDuplicateToolRegistrationError = (error) => {
     if (!error || typeof error !== 'object') return false
     return normalizeString(error.name) === 'InvalidStateError'
@@ -146,30 +179,60 @@ export const createWebMcpLifecycleController = (args = {}) => {
 
   const defineFallbackModelContext = (nav, context) => {
     lifecycleState.fallbackContext = context
-    let currentContext = nav.modelContext && nav.modelContext !== context ? nav.modelContext : context
+    const doc = root.document
+    let currentContext = (doc && doc.modelContext && doc.modelContext !== context)
+      ? doc.modelContext
+      : nav.modelContext && nav.modelContext !== context ? nav.modelContext : context
+    const descriptor = {
+      configurable: true,
+      enumerable: false,
+      get: () => currentContext,
+      set: (value) => {
+        currentContext = value || context
+        if (currentContext !== context) void tryInstallLateBoundModelContext(nav)
+      },
+    }
     try {
-      Object.defineProperty(nav, 'modelContext', {
-        configurable: true,
-        enumerable: false,
-        get: () => currentContext,
-        set: (value) => {
-          currentContext = value || context
-          if (currentContext !== context) void tryInstallLateBoundModelContext(nav)
-        },
-      })
+      Object.defineProperty(nav, 'modelContext', descriptor)
     } catch {
       nav.modelContext = context
+    }
+    if (doc && !doc.modelContext) {
+      try {
+        Object.defineProperty(doc, 'modelContext', descriptor)
+      } catch {
+        void 0
+      }
     }
   }
 
   const install = () => {
     const nav = readGlobalNavigator()
     markRuntimeState('installing')
+    const docContext = root.document && root.document.modelContext
+    if (docContext && !nav.modelContext) {
+      try {
+        Object.defineProperty(nav, 'modelContext', {
+          configurable: true,
+          enumerable: false,
+          get: () => root.document && root.document.modelContext,
+          set: (value) => {
+            if (value && value !== docContext) void installToolsIntoModelContext(value)
+          },
+        })
+      } catch {
+        nav.modelContext = docContext
+      }
+    }
+    if (docContext && installToolsIntoModelContext(docContext)) {
+      markRuntimeState('installed')
+      return
+    }
     if (nav.modelContext && installToolsIntoModelContext(nav.modelContext)) {
       markRuntimeState('installed')
       return
     }
-    if (!nav.modelContext) defineFallbackModelContext(nav, { tools: [...tools] })
+    if (!nav.modelContext) defineFallbackModelContext(nav, createFallbackModelContext())
     markRuntimeState(
       toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName))
         ? 'fallback-readable'

@@ -495,6 +495,19 @@ export function SourceFilesPersistenceBootstrap() {
     return runtimeMerged
   }, [readCallerOwnedSourceFilesSnapshot, readReusableWorkspaceFs, readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
 
+  const isWorkspaceSourceRootMutationPath = React.useCallback((path: string): boolean => {
+    if (!path) return false
+    const roots = resolveWorkspaceSourceRootPaths({
+      chatLocalStorageRootPath: useGraphStore.getState().chatLocalStorageRootPath,
+    })
+    for (let i = 0; i < roots.length; i += 1) {
+      const root = String(roots[i] || '').trim()
+      if (!root || root === '/') continue
+      if (path === root || path.startsWith(`${root}/`)) return true
+    }
+    return false
+  }, [])
+
   const runWorkspaceRematerializeRequest = React.useCallback(async (request: WorkspaceRematerializeRequest) => {
     return rematerializeWorkspaceBackedSourceFilesOnce({
       sourceFilesSnapshot: request.sourceFilesSnapshot,
@@ -687,8 +700,8 @@ export function SourceFilesPersistenceBootstrap() {
     }
     if (workspaceSourceFilesDocsOnly) {
       const hasPath = !!request.changedPath
-      const isDocsPath = hasPath && request.changedPath.startsWith('/docs/')
-      if (hasPath && !isDocsPath) return
+      const isSourceRootPath = hasPath && isWorkspaceSourceRootMutationPath(request.changedPath)
+      if (hasPath && !isSourceRootPath) return
     }
     const sourcesByPathSnapshot = readReusableWorkspaceSourceIndexSnapshot()
     if (request.op === 'ensureSeed') {
@@ -705,7 +718,7 @@ export function SourceFilesPersistenceBootstrap() {
     }
     markWorkspaceSeedSyncDebug(`workspace-fs:${request.op}`)
     scheduleWorkspaceRematerializeRef.current?.({ sourceFilesSnapshot: request.sourceFilesSnapshot })
-  }, [readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
+  }, [isWorkspaceSourceRootMutationPath, readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
 
   const prepareEnsureSeedMutationRequest = React.useCallback((args?: {
     sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']

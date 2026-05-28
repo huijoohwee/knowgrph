@@ -2,7 +2,28 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { ensureMarkdownFileName } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 
 const REPORT_SHARE_HINT_RX = /\/report\/share\//i
-const SHARE_HINT_RX = /\/share\//i
+
+const readUrlPathSegments = (value: string): string[] => {
+  try {
+    return new URL(String(value || '').trim())
+      .pathname
+      .split('/')
+      .map(part => String(part || '').trim().toLowerCase())
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+const hasExportableArtifactPath = (value: string): boolean => {
+  const segments = readUrlPathSegments(value)
+  if (segments.length === 0) return false
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const segment = segments[i]
+    if ((segment === 'share' || segment === 'chat') && !!segments[i + 1]) return true
+  }
+  return false
+}
 
 export const sanitizeShareUrlArtifactToken = (value: unknown, fallback: string): string => {
   const text = String(value || '')
@@ -16,12 +37,7 @@ export const sanitizeShareUrlArtifactToken = (value: unknown, fallback: string):
 export type ShareUrlArtifactKind = 'reportShare' | 'share'
 
 export const isShareUrlArtifactEligible = (value: string): boolean => {
-  try {
-    const url = new URL(String(value || '').trim())
-    return SHARE_HINT_RX.test(url.pathname)
-  } catch {
-    return false
-  }
+  return hasExportableArtifactPath(value)
 }
 
 export const readShareUrlArtifactKind = (value: string): ShareUrlArtifactKind => {

@@ -399,12 +399,14 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeDocumentKey,
     activeDocumentSourceUrl,
     activeText: args.activeText,
+    activeTextOwnedByActivePath: !!(args.activePath && args.lastLoadedRef.current?.path === args.activePath),
     setActiveMarkdownDocument: args.setActiveMarkdownDocument,
     paused: args.viewerInlineEditActive,
   })
 
   React.useEffect(() => {
     const writebackSync = resolveMarkdownWorkspaceSelectionWritebackSync({
+      activePath: args.activePath,
       activeDocumentKey,
       markdownDocumentName: args.markdownDocumentName,
       markdownDocumentText: args.markdownDocumentText,

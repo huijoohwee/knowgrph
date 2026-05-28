@@ -258,11 +258,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
 
     installKnowgrphWebMcpRuntime()
 
-    if (document.documentElement.dataset.kgWebmcpContext !== 'fallback-readable') {
-      throw new Error(
-        `expected fallback-readable runtime state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
-      )
-    }
+    if (document.documentElement.dataset.kgWebmcpContext !== 'fallback-readable') throw new Error(`expected fallback-readable runtime state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`)
+    const fallbackContext = navigatorObject.modelContext as { provideContext?: unknown; registerTool?: unknown } | undefined
+    if (typeof fallbackContext?.provideContext !== 'function' || typeof fallbackContext.registerTool !== 'function' || (document as Document & { modelContext?: unknown }).modelContext !== fallbackContext) throw new Error('expected WebMCP fallback to expose scanner-visible API parity on document and navigator')
 
     navigatorObject.modelContext = {
       registerTool(tool, options) {

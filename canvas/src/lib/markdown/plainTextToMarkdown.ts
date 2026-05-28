@@ -1,3 +1,5 @@
+import { expandInlineTranscriptMarkdownLines } from './transcriptMarkdownLines'
+
 function looksLikeMarkdownStructuralLine(line: string): boolean {
   const text = String(line || '').trim()
   if (!text) return false
@@ -13,22 +15,9 @@ function looksLikeMarkdownStructuralLine(line: string): boolean {
   )
 }
 
-function expandInlineTranscriptListMarkers(line: string): string[] {
-  let text = String(line || '').trim()
-  if (!text) return []
-  const containsMarkdownLinkOrImage = /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)/u.test(text)
-  const orderedMarkerCount = (text.match(/(?:^|[^\d])\d+\.\s/gu) || []).length
-  if (!containsMarkdownLinkOrImage && (orderedMarkerCount >= 2 || /:\s+\d+\.\s/u.test(text))) {
-    text = text.replace(/([^\n])\s+(?=\d+\.\s)/gu, '$1\n')
-  }
-  const bulletMarkerCount = (text.match(/\s-\s+/gu) || []).length
-  if (!containsMarkdownLinkOrImage && (bulletMarkerCount >= 2 || /:\s+-\s/u.test(text))) {
-    text = text.replace(/([^\n])\s+(?=-\s+)/gu, '$1\n')
-  }
-  return text
-    .split('\n')
-    .map(part => part.trim())
-    .filter(Boolean)
+function normalizeFenceDelimiterLine(line: string): string {
+  const text = String(line || '')
+  return /^\s*(`{3,}|~{3,})/u.test(text) ? text.trim() : text
 }
 
 function buildMarkdownBodyFromPlainText(text: string): string {
@@ -46,7 +35,7 @@ function buildMarkdownBodyFromPlainText(text: string): string {
     blocks.push('')
   }
   for (const rawLine of lines) {
-    const expandedLines = expandInlineTranscriptListMarkers(rawLine)
+    const expandedLines = expandInlineTranscriptMarkdownLines(rawLine)
     if (!expandedLines.length) {
       flushParagraph()
       pushBlankLine()
@@ -62,7 +51,7 @@ function buildMarkdownBodyFromPlainText(text: string): string {
       }
       if (/^\s*`{3,}|^\s*~{3,}/u.test(trimmed)) {
         flushParagraph()
-        blocks.push(trimmed)
+        blocks.push(normalizeFenceDelimiterLine(line))
         inFence = !inFence
         continue
       }

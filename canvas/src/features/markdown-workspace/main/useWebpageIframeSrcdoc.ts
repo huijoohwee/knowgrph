@@ -9,7 +9,7 @@ import {
   fetchWebpageHtmlAuto,
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
-import { buildCodebaseAssetPath, inferIframeScriptPolicyFromHtml, isHttpUrl, normalizeCodebaseRelPath } from '@/lib/url'
+import { buildCodebaseAssetPath, buildWebpageProxyUrl, inferIframeScriptPolicyFromHtml, isHttpUrl, normalizeCodebaseRelPath } from '@/lib/url'
 import { getOrCreateWebpageSandboxBlobUrl } from '@/lib/websites/webpageSandboxBlobUrlCache'
 
 function resolveLocalCodebaseAssetUrl(args: {
@@ -224,7 +224,7 @@ export function useWebpageIframeSrcdoc(args: {
       const override = typeof debouncedHtmlOverride === 'string' && debouncedHtmlOverride.trim() ? debouncedHtmlOverride : null
       if (args.view === 'html' && override == null && !args.websiteImportMeta && isHttpUrl(url)) {
         const scriptPolicy = resolveDirectHtmlProxyScriptPolicy({ url, explicitPolicy: args.scriptPolicy })
-        const nextSrc = `/__webpage_proxy?url=${encodeURIComponent(url)}&kg_script_policy=${encodeURIComponent(scriptPolicy)}`
+        const nextSrc = buildWebpageProxyUrl(url, scriptPolicy)
         return { kind: 'proxy' as const, src: nextSrc }
       }
 

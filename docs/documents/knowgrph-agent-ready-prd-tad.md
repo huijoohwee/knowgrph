@@ -7,7 +7,7 @@ created: 2026-05-21
 updated: 2026-05-28
 author: airvio / joohwee
 domain: knowgrph
-tags: [agent-ready, cloudflare, dns-aid, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, chat, kgc, canvas, prd, tad]
+tags: [agent-ready, auth-md, cloudflare, dns-aid, mcp, webmcp, a2a, markdown, share-url, source-files, workspace, chat, kgc, canvas, prd, tad]
 source_audit: isitagentready.com / Cloudflare Is Your Site Agent-Ready? + in-repo implementation audit
 constraints:
   - solo-dev
@@ -139,18 +139,18 @@ Knowgrph does not currently aim to:
   records
 
 ## Current Implementation Status
-
 | Capability | Status | Canonical owner | Remaining gap |
 |---|---|---|---|
 | Link headers on service homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Headers exist on `/knowgrph/`; apex `/` remains intentionally excluded |
 | Link headers on root homepage | Implemented | `scripts/sync-pages-knowgrph.mjs` + `huijoohwee/_headers` | Root `/` advertises Knowgrph discovery without moving route ownership out of `knowgrph` |
+| Auth.md agent registration metadata | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `scripts/check-auth-md.mjs` | `/auth.md` is Markdown and OAuth authorization-server metadata includes `agent_auth`; registration remains user-mediated through the existing auth boundary |
 | DNS-AID records | Pending Cloudflare zone publish | `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | DNSSEC is active for `airvio.co`, but `_index._agents`, `_mcp._agents`, and `_a2a._agents` SVCB records must be upserted in Cloudflare DNS |
 | Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
 | Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
 | Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | App runtime installs twelve read-only tools, including browser-local workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors, and attempts `provideContext`, `registerTool(tool, { signal })`, then readable fallback storage |
-| Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Late-binding install, `AbortController` registration lifecycle, and current-origin/localhost-aware storage resolution are now shipped without changing the shared tool contract |
+| Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` + `canvas/src/features/agent-ready/webMcpRuntime.ts` | Runtime and fallback expose `provideContext`, `registerTool`, readable `tools`, and paired `document.modelContext`/`navigator.modelContext` late binding without changing the shared tool contract |
 | Browser-local workspace document inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/hooks/useGraphStore.ts` | Exposed only in the app-installed browser runtime; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local canvas topology inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localCanvasTopologyInspection.ts` | Reuses active-view derivation and graph-topology helpers in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local canvas snapshot inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localCanvasSnapshotInspection.ts` | Reuses the store-owned canvas SVG snapshot seam in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
@@ -158,7 +158,7 @@ Knowgrph does not currently aim to:
 | Browser-local 3d layout-position inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localThreeLayoutPositionsInspection.ts` | Reuses the store-owned 3d layout-position seam in the app runtime only, with a bounded sampled payload; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local 2d zoom/viewport inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/local2dZoomViewportInspection.ts` | Reuses the keyed 2d zoom-state seam in the app runtime only, with renderer-aware active-view key resolution; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local Source Files snapshot inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localSourceFilesSnapshotInspection.ts` | Reuses the in-memory Source Files runtime snapshot, active workspace path, and existing composition/storage signatures in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
-| HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Injection must stay contract-equal with the shared published tool contract, excluding browser-local app-only tools |
+| HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Inline fallback stays contract-equal with the shared published tool contract and exposes imperative WebMCP API parity for scanners before native `modelContext` arrives |
 | HTTP MCP transport | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Tool surface is read-only only, by design |
 | Shared tool-schema contract | Implemented | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Future published tools must extend this shared upstream contract; browser-only tools may opt in explicitly without leaking into Pages MCP |
 | MainPanel Integrations hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/IntegrationsHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | Integrations is a thin `SettingsView` specialization, not a second routing owner |
@@ -224,7 +224,6 @@ Knowgrph does not currently aim to:
 | DNS-AID publisher and validator | `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | Upserts Cloudflare SVCB records and validates DNSSEC-authenticated type 64 responses |
 
 ### Forbidden architecture
-
 The following are explicitly non-authoritative and must not be used to justify new code or docs:
 
 - any claim that Link headers, Markdown negotiation, or WebMCP are still missing on
@@ -365,16 +364,14 @@ Knowgrph supports Markdown for Agents on the service homepage and published docu
 
 #### Requirement
 
-As a browser-based agent, I want a WebMCP surface exposed through `navigator.modelContext` so I
-can discover real Knowgrph read-only tools inside the browser context.
+As a browser-based agent, I want a WebMCP surface exposed through `document.modelContext` and `navigator.modelContext` so I can discover real Knowgrph read-only tools inside the browser context.
 
 #### Implemented acceptance
 
 - app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
 - the app runtime registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, `knowgrph.inspect_local_source_files_snapshot`, and `knowgrph.inspect_agent_surface`
 - the Pages HTML fallback registers the shared published tool set only: `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
-- registration attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then a
-  readable fallback `modelContext.tools` store
+- registration attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then a readable fallback `modelContext.tools` store with imperative fallback API parity
 - tool names are canonical and deduplicated by name through
   `knowgrphAgentReadyToolContract.mjs`
 - `read_source_file` requires `canonicalPath` and defaults `workspaceId` to
@@ -383,7 +380,7 @@ can discover real Knowgrph read-only tools inside the browser context.
   `data-kg-webmcp-context`
 - Knowgrph WebMCP is installed by app bootstrap and also available through HTML fallback injection
 - browser WebMCP and HTTP MCP share the same upstream tool name and input-schema owner
-- late `navigator.modelContext` arrival is supported through bounded retry and setter-driven install
+- late `document.modelContext` or `navigator.modelContext` arrival is supported through bounded retry, alias bridging, and setter-driven install
 - duplicate registration is treated as duplicate-state handling, not implicit success for all errors
 - localhost browser reads keep same-origin `/api/storage/*` paths while preview/prod resolve from
   current origin with canonical fallback
@@ -397,8 +394,7 @@ already contains both:
 - HTML injection fallback in `cloudflare/pages/knowgrph-agent-ready.mjs`
 
 The current shipped runtime is therefore not "missing WebMCP". It already exposes the read-only
-browser tools and now ships the bounded late-binding, `AbortController` registration lifecycle, and
-same-origin/current-origin storage-resolution hardening needed for preview, localhost, and prod.
+browser tools and now ships bounded late-binding, `provideContext`/`registerTool` fallback parity, `AbortController` registration lifecycle, and same-origin/current-origin storage-resolution hardening needed for preview, localhost, and prod.
 
 #### Enhancement target
 
@@ -742,7 +738,6 @@ runtime agent surface must converge on the same document identity and pipeline m
   `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
 
 ## Route Contract
-
 | Route | Method | Response |
 |---|---:|---|
 | `/knowgrph/` | GET/HEAD | HTML app shell plus Knowgrph discovery `Link` headers |
@@ -757,6 +752,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | `/knowgrph/.well-known/agent-card.json` | GET | app-scoped A2A Agent Card JSON |
 | `/knowgrph/robots.txt` | GET | app-scoped crawl policy |
 | `/knowgrph/sitemap.xml` | GET | app-scoped sitemap |
+| `/auth.md` and `/knowgrph/auth.md` | GET | Auth.md Markdown for agent registration metadata |
 | `/knowgrph/.well-known/api-catalog` | GET | RFC 9727 linkset |
 | `/knowgrph/.well-known/openapi.json` | GET | OpenAPI 3.1 JSON |
 | `/knowgrph/.well-known/oauth-protected-resource` | GET | OAuth protected-resource metadata |
@@ -863,6 +859,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] `https://airvio.co/knowgrph/` emits discovery `Link` headers
 - [x] `https://airvio.co/` emits discovery `Link` headers for scanners that probe the root homepage
 - [ ] `_index._agents`, `_mcp._agents`, and `_a2a._agents.airvio.co` return DNSSEC-authenticated SVCB DNS-AID records
+- [x] `https://airvio.co/auth.md` returns Auth.md Markdown instead of HTML
 - [x] `https://airvio.co/` returns Markdown on `Accept: text/markdown`
 - [x] `https://airvio.co/knowgrph/health` returns `application/health+json`
 - [x] the homepage `Link` header includes a `status` relation
@@ -874,7 +871,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
 - [x] browser runtime exposes `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, `knowgrph.inspect_local_source_files_snapshot`, and `knowgrph.inspect_agent_surface`
-- [x] HTML fallback exposes WebMCP markers on the app document
+- [x] HTML fallback exposes WebMCP markers plus scanner-visible `provideContext` and `registerTool`
 - [x] JSON-RPC MCP `initialize` returns a valid result
 - [x] JSON-RPC MCP `tools/list` returns the shared read-only published tool set
 - [x] JSON-RPC MCP `tools/call` executes live storage lookups
@@ -895,7 +892,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] regression coverage protects the manifest base-path invariant
 ## Deployment Sequence
 1. Publish and validate DNS-AID records: `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... npm run dns-aid:publish && npm run dns-aid:check`
-2. Build, sync, and drift-check Pages artifacts: `npm run pages:build-sync && npm run pages:check-sync`
+2. Build, sync, and drift-check Pages artifacts: `npm run pages:build-sync && npm run pages:check-sync && npm run auth-md:check`
 3. Smoke-check the HTTP agent-ready surface: `npm run agent-ready:check`
 4. Deploy the shared Pages repo:
    `cd /Users/huijoohwee/Documents/GitHub/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`

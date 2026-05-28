@@ -1,4 +1,4 @@
-import { buildCodebaseFilePath, isHttpUrl } from '@/lib/url'
+import { buildCodebaseFilePath, buildWebpageProxyUrl, isHttpUrl } from '@/lib/url'
 import { clearWebpageSandboxDocCaches } from './webpageSandboxDoc'
 import { clearWebpageSandboxBlobUrlCache } from './webpageSandboxBlobUrlCache'
 
@@ -246,8 +246,7 @@ export async function fetchWebpageHtmlViaProxy(args: {
     key,
     async (signal) => {
       const fetchFn = typeof args.fetchImpl === 'function' ? args.fetchImpl : fetch
-      const qs = new URLSearchParams({ url: u, kg_script_policy: 'strip' })
-      const res = await fetchFn(`/__webpage_proxy?${qs.toString()}`, { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
+      const res = await fetchFn(buildWebpageProxyUrl(u, 'strip'), { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await fetchBoundedText(res, 5_000_000, args.onProgress)
     },

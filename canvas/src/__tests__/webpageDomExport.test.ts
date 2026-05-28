@@ -249,6 +249,54 @@ export async function testWebpageDomExportHtmlScrollCrawlSkipsInitialNetworkIdle
   }
 }
 
+export async function testWebpageDomExportTextScrollCrawlSkipsInitialNetworkIdleWait() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: WEBPAGE_TEST_URL,
+      mode: 'text',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+      scrollCrawl: true,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 300) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected text scroll-crawl export request without waiting for network idle')
+
+    const capturedText = 'Rendered share content\n\nSection 1\n\nSection 2\n'
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'text', title: 'T', clipped: false, text: capturedText }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected result')
+    if (res.text !== capturedText) throw new Error('expected returned text snapshot')
+  } finally {
+    restore()
+  }
+}
+
 export async function testWebpageDomExportLayoutPrefersScriptEnabledProbeBeforeStripFallback() {
   const { restore } = initJsdomHarness()
   try {
@@ -301,6 +349,113 @@ export async function testWebpageDomExportLayoutPrefersScriptEnabledProbeBeforeS
     const res = await p
     if (!res) throw new Error('expected layout snapshot result')
     if (!res.text.includes('"kind":"layout"')) throw new Error('expected returned layout payload')
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageDomExportTextCanPreferScriptDisabledProbeFirst() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: WEBPAGE_TEST_URL,
+      mode: 'text',
+      timeoutMs: 4000,
+      waitForNetworkIdle: false,
+      minWaitAfterLoadMs: 0,
+      preferScriptDisabled: true,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const initialSrc = String(iframe.getAttribute('src') || iframe.src || '')
+    if (!initialSrc.includes('/__webpage_proxy?url=')) {
+      throw new Error(`expected text probe to use webpage proxy source, got ${initialSrc}`)
+    }
+    if (!initialSrc.includes('kg_script_policy=strip')) {
+      throw new Error(`expected text probe to prefer stripped source when requested, got ${initialSrc}`)
+    }
+
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 600) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected text export request')
+
+    const capturedText = 'Rendered Claude-safe text export'
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'text', title: 'T', clipped: false, text: capturedText }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected text snapshot result')
+    if (res.text !== capturedText) throw new Error('expected returned text payload')
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageDomExportHtmlCanPreferScriptDisabledProbeFirst() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: WEBPAGE_TEST_URL,
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: false,
+      minWaitAfterLoadMs: 0,
+      preferScriptDisabled: true,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const initialSrc = String(iframe.getAttribute('src') || iframe.src || '')
+    if (!initialSrc.includes('/__webpage_proxy?url=')) {
+      throw new Error(`expected html probe to use webpage proxy source, got ${initialSrc}`)
+    }
+    if (!initialSrc.includes('kg_script_policy=strip')) {
+      throw new Error(`expected html probe to prefer stripped source when requested, got ${initialSrc}`)
+    }
+
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 600) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected html export request')
+
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'html', title: 'T', clipped: false, text: '<html>OK</html>' }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected html snapshot result')
+    if (res.text !== '<html>OK</html>') throw new Error('expected returned html payload')
   } finally {
     restore()
   }

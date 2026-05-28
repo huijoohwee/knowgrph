@@ -8,10 +8,36 @@ import {
 } from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
+export function shouldScheduleMarkdownEditorSsotSync(args: {
+  activeDocumentKey: string
+  activeTextOwnedByActivePath: boolean
+  paused?: boolean
+}): boolean {
+  const key = String(args.activeDocumentKey || '').trim()
+  if (!key) return false
+  if (args.paused) return false
+  if (args.activeTextOwnedByActivePath !== true) return false
+  return true
+}
+
+export function shouldCommitMarkdownEditorSsotSync(args: {
+  scheduledDocumentKey: string
+  activeDocumentKey: string
+  activeText: string
+  activeTextOwnedByActivePath: boolean
+}): boolean {
+  const scheduledKey = String(args.scheduledDocumentKey || '').trim()
+  const currentKey = String(args.activeDocumentKey || '').trim()
+  if (!scheduledKey || currentKey !== scheduledKey) return false
+  if (args.activeTextOwnedByActivePath !== true) return false
+  return !!String(args.activeText || '').trim()
+}
+
 export function useMarkdownEditorSsotSync(args: {
   activeDocumentKey: string
   activeDocumentSourceUrl: string | null
   activeText: string
+  activeTextOwnedByActivePath: boolean
   setActiveMarkdownDocument: GraphState['setActiveMarkdownDocument']
   paused?: boolean
 }): void {
@@ -19,6 +45,7 @@ export function useMarkdownEditorSsotSync(args: {
     activeDocumentKey,
     activeDocumentSourceUrl,
     activeText,
+    activeTextOwnedByActivePath,
     setActiveMarkdownDocument,
     paused,
   } = args
@@ -43,8 +70,11 @@ export function useMarkdownEditorSsotSync(args: {
 
     const key = String(activeDocumentKey || '').trim()
     const textRaw = String(activeText || '')
-    if (!key) return
-    if (paused) return
+    if (!shouldScheduleMarkdownEditorSsotSync({
+      activeDocumentKey: key,
+      activeTextOwnedByActivePath,
+      paused,
+    })) return
     const scheduleTaskKey = `${WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT}:${key}`
     scheduleTaskKeyRef.current = scheduleTaskKey
     const textHash = hashStringToHexCached(`markdown-editor-ssot:${key}`, textRaw)
@@ -59,10 +89,13 @@ export function useMarkdownEditorSsotSync(args: {
     lastSeenRef.current = { key, signature }
 
     const commit = () => {
-      const currentKey = String(activeDocumentKey || '').trim()
-      if (currentKey !== key) return
       const rawNow = String(activeText || '')
-      if (!rawNow.trim()) return
+      if (!shouldCommitMarkdownEditorSsotSync({
+        scheduledDocumentKey: key,
+        activeDocumentKey,
+        activeText: rawNow,
+        activeTextOwnedByActivePath,
+      })) return
 
       const normalized = normalizeWebpageFrontmatterView(rawNow, 'markdown')
       const normalizedHash = hashStringToHexCached(`markdown-editor-ssot-normalized:${key}`, normalized)
@@ -117,5 +150,5 @@ export function useMarkdownEditorSsotSync(args: {
         idleRef.current = null
       }
     }
-  }, [activeDocumentKey, activeDocumentSourceUrl, activeText, paused, setActiveMarkdownDocument])
+  }, [activeDocumentKey, activeDocumentSourceUrl, activeText, activeTextOwnedByActivePath, paused, setActiveMarkdownDocument])
 }
