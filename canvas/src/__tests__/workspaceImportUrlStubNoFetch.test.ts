@@ -296,7 +296,13 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
           '',
           '# MiroMind Share',
           '',
+          'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months. Show thinking trajectory Summary',
+          '',
+          '## Shared logical blind spot',
+          '',
           'Goldman Sachs and UBS stay visible in the imported report body.',
+          '',
+          '[1] Goldman Sachs raises 2026 Brent average price forecast by $8 to $85 a barrel. https://www.reuters.com/business/energy/goldman-sachs-raises-2026-brent-crude-average-price-forecast/',
           '',
         ].join('\n'),
       }),
@@ -311,8 +317,25 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
     if (!exported?.includes(`kgWebpageUrl: "${shareUrl}"`)) {
       throw new Error('expected share markdown export to preserve the imported share URL')
     }
-    if (!thinking?.includes('## Thinking Trajectory') || !thinking?.includes('Now I can write the final answer.')) {
-      throw new Error('expected import-side share thinking export to include the required trace sections')
+    if (
+      !thinking?.includes('## Prompt')
+      || !thinking?.includes('## Query Relevance')
+      || !thinking?.includes('## Thinking Trajectory')
+      || !thinking?.includes('## Thinking Process')
+      || !thinking?.includes('## Searching For')
+      || !thinking?.includes('## Run Code')
+      || !thinking?.includes('## Workspace Output Snapshot')
+      || !thinking?.includes('## Stream-Aligned Output')
+      || !thinking?.includes('Execution trace summary derived from the imported share prompt, recovered report content, and canonical Import URL artifact export.')
+      || !thinking?.includes('Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.')
+      || !thinking?.includes('fetch_url:')
+      || !thinking?.includes('search: Analyze recent oil market reports')
+      || !thinking?.includes('tool_call: writeWorkspaceFileTextEnsuringFile')
+      || !thinking?.includes('Heading: Shared logical blind spot')
+      || !thinking?.includes('Now I can write the final answer.')
+      || thinking.includes('Goldman Sachs, UBS, and six-month oil price trajectory')
+    ) {
+      throw new Error('expected import-side share thinking export to match the high-fidelity shared thinking document structure')
     }
     if (duplicateRootMarkdown !== null || duplicateRootThinking !== null) {
       throw new Error('expected share import to avoid duplicate root-level markdown or thinking artifacts')
