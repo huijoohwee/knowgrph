@@ -66,6 +66,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["webpageDomExport.htmlPrefersScriptDisabledProbe","@/__tests__/webpageDomExport.test","testWebpageDomExportHtmlCanPreferScriptDisabledProbeFirst"],
   ["webpageDomExport.abortsAndRemovesIframe","@/__tests__/webpageDomExport.test","testWebpageDomExportAbortsAndRemovesIframe"],
   ["webpageDomExport.sharedSemanticKey","@/__tests__/webpageDomExport.test","testWebpageDomExportUsesSharedSemanticKeyForInflightDedupe"],
+  ["webpageDomExport.injectedCaptureScopesThinkingPanels","@/__tests__/webpageDomExport.test","testWebpageDomExportInjectedCaptureScopesThinkingPanels"],
   ["webpage.clientConvert.qualityGate.syntheticDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsSyntheticArtifactMarkers"],
   ["webpage.clientConvert.qualityGate.normalNotFlagged","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDoesNotFlagNormalMarkdown"],
   ["webpage.clientConvert.qualityGate.loadingShellDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsLoadingShellMarkdown"],

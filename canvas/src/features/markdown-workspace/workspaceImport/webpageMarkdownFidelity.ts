@@ -103,6 +103,18 @@ function measureMarkdownStructureRichness(markdown: string): number {
   return richness
 }
 
+function unwrapSingleFenceMarkdown(markdown: string): string {
+  const lines = String(markdown || '').trim().split('\n')
+  if (lines.length < 3) return ''
+  const first = String(lines[0] || '').trim()
+  const m = first.match(/^(`{3,}|~{3,})/)
+  if (!m) return ''
+  const fence = m[1] || ''
+  const last = String(lines[lines.length - 1] || '').trim()
+  if (!last.startsWith(fence)) return ''
+  return lines.slice(1, -1).join('\n').trim()
+}
+
 function repairLeadingRenderedLineBoundaryMerges(convertedMarkdown: string, renderedTextMarkdown: string): string {
   let repaired = String(convertedMarkdown || '')
   if (!repaired) return repaired
@@ -199,6 +211,15 @@ export function chooseDomRecoveredMarkdown(args: {
   const meaningfullyRicherStructuredMarkdown =
     structuredConverted
     && convertedRichness >= Math.max(3, renderedRichness + 2)
+  const convertedSingleFenceBody = unwrapSingleFenceMarkdown(repairedConvertedMarkdown)
+  if (
+    preferStructuredMarkdown
+    && renderedRichness >= 4
+    && convertedSingleFenceBody
+    && convertedSingleFenceBody === renderedTextMarkdown
+  ) {
+    return { markdown: renderedTextMarkdown, source: 'rendered', convertedScore, renderedScore, renderedCoverageRatio }
+  }
   if (structuredConverted && keepsEnoughRenderedText) {
     return { markdown: repairedConvertedMarkdown, source: 'converted', convertedScore, renderedScore, renderedCoverageRatio }
   }

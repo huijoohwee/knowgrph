@@ -33,6 +33,19 @@ export function testWebpageDomExportUsesSharedSemanticKeyForInflightDedupe() {
   }
 }
 
+export function testWebpageDomExportInjectedCaptureScopesThinkingPanels() {
+  const text = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8')
+  if (!text.includes('readControlledInteractionScope')) {
+    throw new Error('expected injected DOM export script to inspect aria-controlled thinking panels')
+  }
+  if (!text.includes('readNextSiblingInteractionScope')) {
+    throw new Error('expected injected DOM export script to inspect ancestor next-sibling scopes')
+  }
+  if (!text.includes('isReportBoundaryText')) {
+    throw new Error('expected injected DOM export script to stop scoped thinking capture before report sections')
+  }
+}
+
 export async function testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot() {
   const { restore } = initJsdomHarness()
   try {

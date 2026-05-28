@@ -55,10 +55,7 @@ type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
 
 let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
 
-const SHARE_THINKING_CLICK_TEXT_HINTS = [
-  'Show thinking trajectory',
-  '\u663e\u793a\u601d\u8003\u8fc7\u7a0b',
-]
+const SHARE_THINKING_CLICK_TEXT_HINTS = ['Show thinking trajectory', 'Show thinking', 'Show reasoning', 'Show thought process', 'View thinking', 'View reasoning', 'Thinking', 'Reasoning', '\u663e\u793a\u601d\u8003\u8fc7\u7a0b']
 
 const normalizeRecoveredWebpageMarkdown = (markdown: string): string =>
   restoreWebpageMarkdownSyntaxFidelity(normalizeWebpageCardAndListBlocks(markdown)).trim()
