@@ -55,6 +55,178 @@ function buildCanvasPresetLines(preset: CanvasWorkspaceFrontmatterPreset | null 
   return lines
 }
 
+const decodeLooseHtmlEntities = (text: string): string => {
+  let next = String(text || '')
+  if (!next.includes('&')) return next
+  const decodeCodePoint = (value: number): string => {
+    if (!Number.isFinite(value) || value <= 0 || value > 0x10ffff) return ''
+    try {
+      return String.fromCodePoint(value)
+    } catch {
+      return ''
+    }
+  }
+  next = next.replace(/&#x\s*([0-9a-f]{1,6})\s*;?/gi, (_m, hex: string) => {
+    const decoded = decodeCodePoint(Number.parseInt(String(hex || ''), 16))
+    return decoded || _m
+  })
+  next = next.replace(/&#\s*([0-9]{1,7})\s*;?/g, (_m, dec: string) => {
+    const decoded = decodeCodePoint(Number.parseInt(String(dec || ''), 10))
+    return decoded || _m
+  })
+  next = next
+    .replace(/&nbsp\s*;?/gi, ' ')
+    .replace(/&amp\s*;?/gi, '&')
+    .replace(/&lt\s*;?/gi, '<')
+    .replace(/&gt\s*;?/gi, '>')
+    .replace(/&quot\s*;?/gi, '"')
+    .replace(/&apos\s*;?/gi, "'")
+  return next
+}
+
+const normalizeLocalProxyUrlsInMarkdown = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+  next = next.replace(/\\&/g, '&')
+  next = next.replace(
+    /https?:\/\/[^\s)\]]+(\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^\s)\]]*)/gi,
+    '$1',
+  )
+  return next
+}
+
+const labelForHttpUrl = (rawUrl: string): string => {
+  const uRaw = String(rawUrl || '').trim()
+  if (!uRaw) return 'link'
+  try {
+    const u = new URL(uRaw)
+    const host = u.hostname.toLowerCase()
+    if (host === 'mp.weixin.qq.com' || host.endsWith('.mp.weixin.qq.com')) return 'WeChat'
+    const compact = uRaw.length <= 72 ? uRaw : u.hostname
+    return compact || 'link'
+  } catch {
+    return uRaw.length <= 72 ? uRaw : 'link'
+  }
+}
+
+const normalizeUrlishTextForComparison = (text: string): string => {
+  return decodeLooseHtmlEntities(String(text || ''))
+    .replace(/\\([()[\]{}_])/g, '$1')
+    .replace(/\s+/g, '')
+    .trim()
+}
+
+const shouldCanonicalizeProxyLinkLabel = (label: string, href: string, upstreamUrl: string): boolean => {
+  const normalizedLabel = normalizeLocalProxyUrlsInMarkdown(String(label || '').trim())
+  if (!normalizedLabel) return true
+  if (normalizedLabel === href) return true
+  if (/^\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)\b/i.test(normalizedLabel)) return true
+
+  const canonicalUpstream = String(upstreamUrl || '').trim()
+  if (!canonicalUpstream) return false
+
+  const labelComparable = normalizeUrlishTextForComparison(normalizedLabel)
+  const upstreamComparable = normalizeUrlishTextForComparison(canonicalUpstream)
+  if (!labelComparable || !upstreamComparable) return false
+  if (labelComparable === upstreamComparable) return true
+
+  const labelLooksUrlish =
+    /^https?:\/\//i.test(labelComparable)
+    || /^www\./i.test(labelComparable)
+    || /^[a-z0-9.-]+\.[a-z]{2,}\//i.test(labelComparable)
+  if (!labelLooksUrlish) return false
+
+  try {
+    const upstreamHost = new URL(canonicalUpstream).hostname.toLowerCase()
+    const labelHost = /^https?:\/\//i.test(labelComparable)
+      ? new URL(labelComparable).hostname.toLowerCase()
+      : /^www\./i.test(labelComparable)
+        ? new URL(`https://${labelComparable}`).hostname.toLowerCase()
+        : new URL(`https://${labelComparable}`).hostname.toLowerCase()
+    return !!upstreamHost && upstreamHost === labelHost
+  } catch {
+    return false
+  }
+}
+
+const extractUpstreamUrlFromProxyHref = (rawHref: string): string => {
+  const href = normalizeLocalProxyUrlsInMarkdown(String(rawHref || '').trim())
+  if (!href) return ''
+  const decodeSafe = (value: string): string => {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+  const assetPath = href.match(/^\/__webpage_asset_path\/(.+)$/i)
+  if (assetPath) {
+    const decoded = decodeSafe(String(assetPath[1] || '').trim())
+    return /^https?:\/\//i.test(decoded) ? decoded : ''
+  }
+  const fetchRemote = href.match(/^\/__fetch_remote\?(.*)$/i)
+  if (fetchRemote) {
+    const params = new URLSearchParams(String(fetchRemote[1] || ''))
+    const decoded = decodeSafe(String(params.get('url') || '').trim())
+    return /^https?:\/\//i.test(decoded) ? decoded : ''
+  }
+  const webpageProxy = href.match(/^\/__webpage_proxy\?(.*)$/i)
+  if (webpageProxy) {
+    const params = new URLSearchParams(String(webpageProxy[1] || ''))
+    const decoded = decodeSafe(String(params.get('url') || '').trim())
+    return /^https?:\/\//i.test(decoded) ? decoded : ''
+  }
+  return ''
+}
+
+const normalizeAutolinksToCardsInMarkdown = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+  next = next.replace(
+    /(^|[\s(])!\s*<\s*((?:https?:\/\/[^\s>]+)?\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^>\s]*)\s*>(?=$|[\s)])/gi,
+    '$1![]($2)',
+  )
+  next = next.replace(
+    /(^|[\s(])!\s*((?:https?:\/\/[^\s)]+)?\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^\s)]*)(?=$|[\s)])/gi,
+    '$1![]($2)',
+  )
+  next = next.replace(/(^|[\s(])!\s*<\s*(https?:\/\/[^>\s]+)\s*>(?=$|[\s)])/g, '$1![]($2)')
+  next = next.replace(/(^|[\s(])!\s*(https?:\/\/[^\s)]+)(?=$|[\s)])/g, '$1![]($2)')
+  next = next.replace(/<\s*(https?:\/\/[^>\s]+)\s*>/gi, (_m, u: string) => `[${labelForHttpUrl(u)}](${u})`)
+  next = next.replace(/\*\*\s*\[\]\((https?:\/\/[^)\s]+)\)/g, (_m, u: string) => `[${labelForHttpUrl(u)}](${u})`)
+  next = next.replace(/\[\]\((https?:\/\/[^)\s]+)\)/g, (_m, u: string) => `[${labelForHttpUrl(u)}](${u})`)
+  return next
+}
+
+const normalizeProxyMarkdownLinks = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+  next = next.replace(/\[((?:https?:\/\/[^\s)\]]+)?\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^)\]\s]*)\)/gi, (_m, rawHref: string) => {
+    const href = normalizeLocalProxyUrlsInMarkdown(String(rawHref || '').trim())
+    const upstreamUrl = extractUpstreamUrlFromProxyHref(href)
+    return `[${String(upstreamUrl || href).trim()}](${href})`
+  })
+  next = next.replace(/(!?)\[([^\]]*)\]\((\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^)]+)\)/gi, (_m, bang: string, rawLabel: string, rawHref: string) => {
+    const href = normalizeLocalProxyUrlsInMarkdown(String(rawHref || '').trim())
+    const upstreamUrl = extractUpstreamUrlFromProxyHref(href)
+    const label = decodeLooseHtmlEntities(String(rawLabel || '').trim())
+    const shouldReplaceLabel = shouldCanonicalizeProxyLinkLabel(label, href, upstreamUrl)
+    const nextLabel = shouldReplaceLabel
+      ? String(upstreamUrl || label || href).trim()
+      : label
+    return `${bang || ''}[${nextLabel}](${href})`
+  })
+  return next
+}
+
+const normalizeWorkspaceWebpageEntryBodyText = (text: string): string => {
+  const decoded = decodeLooseHtmlEntities(String(text || ''))
+  const proxyNormalized = normalizeLocalProxyUrlsInMarkdown(decoded)
+  const autolinkNormalized = normalizeAutolinksToCardsInMarkdown(proxyNormalized)
+  const proxyLinksNormalized = normalizeProxyMarkdownLinks(autolinkNormalized)
+  return normalizeLocalProxyUrlsInMarkdown(proxyLinksNormalized)
+}
+
 export function buildWebpageWorkspaceEntryStubText(args: {
   url: string
   view: 'markdown' | 'json' | 'html'
@@ -156,43 +328,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
       : [sourceLinkLine, '', bodyText].join('\n').trim()
     : bodyText
 
-  const normalizeLocalProxyUrls = (text: string): string => {
-    let next = String(text || '')
-    if (!next) return next
-    next = next.replace(/\\&/g, '&')
-    next = next.replace(
-      /https?:\/\/[^\s)]+(\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^\s)]*)/gi,
-      '$1',
-    )
-    return next
-  }
-
-  const normalizeAutolinksToCards = (text: string): string => {
-    let next = String(text || '')
-    if (!next) return next
-    const labelForUrl = (rawUrl: string): string => {
-      const uRaw = String(rawUrl || '').trim()
-      if (!uRaw) return 'link'
-      try {
-        const u = new URL(uRaw)
-        const host = u.hostname.toLowerCase()
-        if (host === 'mp.weixin.qq.com' || host.endsWith('.mp.weixin.qq.com')) return 'WeChat'
-        const compact = uRaw.length <= 72 ? uRaw : u.hostname
-        return compact || 'link'
-      } catch {
-        return uRaw.length <= 72 ? uRaw : 'link'
-      }
-    }
-
-    next = next.replace(/(^|[\s(])!\s*<\s*(https?:\/\/[^>\s]+)\s*>(?=$|[\s)])/g, '$1![]($2)')
-    next = next.replace(/(^|[\s(])!\s*(https?:\/\/[^\s)]+)(?=$|[\s)])/g, '$1![]($2)')
-    next = next.replace(/<\s*(https?:\/\/[^>\s]+)\s*>/gi, (_m, u: string) => `[${labelForUrl(u)}](${u})`)
-    next = next.replace(/\*\*\s*\[\]\((https?:\/\/[^)\s]+)\)/g, (_m, u: string) => `[${labelForUrl(u)}](${u})`)
-    next = next.replace(/\[\]\((https?:\/\/[^)\s]+)\)/g, (_m, u: string) => `[${labelForUrl(u)}](${u})`)
-    return next
-  }
-
-  const finalBody = normalizeLocalProxyUrls(normalizeAutolinksToCards(bodyWithSourceLink))
+  const finalBody = normalizeWorkspaceWebpageEntryBodyText(bodyWithSourceLink)
   if (diag && bodyWithSourceLink && bodyWithSourceLink.length <= 140 && (!title || bodyWithSourceLink.replace(/\s+/g, ' ').trim() === title)) {
     fmLines.push(...yamlBlockScalar('kgWebpageDiagnostics', diag))
   }
@@ -234,5 +370,6 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
   const normalizedBody = normalizeWebpageCardAndListBlocks(body)
-  return [...fmLines, String(normalizedBody || '').trim()].join('\n').trimEnd() + '\n'
+  const finalBody = normalizeWorkspaceWebpageEntryBodyText(String(normalizedBody || '').trim())
+  return [...fmLines, finalBody].join('\n').trimEnd() + '\n'
 }

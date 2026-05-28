@@ -54,3 +54,23 @@ export function testWebpageClientConvertQualityGateDetectsLoadingShellMarkdown()
     throw new Error('expected loading-shell markdown to be rejected by the quality gate')
   }
 }
+
+export function testWebpageClientConvertQualityGateDetectsHtmlHeavyLoadingChrome() {
+  const shortcutChrome = Array.from(
+    { length: 18 },
+    (_, index) => `<a href="/shortcut-${index + 1}">Open App Shortcut ${index + 1}</a>`,
+  ).join('')
+  const shell = [
+    '<main>',
+    '<header><a href="/app">Get App</a><a href="/open">Open App</a><a href="/website">Visit Website</a><a href="/signin">Sign in</a><a href="/install">Install App</a></header>',
+    '<section>',
+    '<h1>Shared Conversation</h1>',
+    '<p>Loading shared chat...</p>',
+    `<nav>${shortcutChrome}</nav>`,
+    '</section>',
+    '</main>',
+  ].join('\n')
+  if (!looksLowFidelityWebpageMarkdown(shell)) {
+    throw new Error('expected html-heavy loading chrome to be rejected by the quality gate')
+  }
+}

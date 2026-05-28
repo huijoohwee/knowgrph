@@ -284,31 +284,20 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         if (looksLikeSubstackUrl) return ''
         try {
           const exportDom = readWorkspaceWebpageDomExport()
-          const [textDom, htmlDom] = await Promise.all([
-            exportDom({
-              url: normalizedUrl,
-              mode: 'text',
-              timeoutMs: 45_000,
-              maxChars: 12_000_000,
-              scrollCrawl: true,
-              expandFaq: true,
-              minWaitAfterLoadMs: 650,
-              signal: ctrl.signal,
-            }),
-            exportDom({
-              url: normalizedUrl,
-              mode: 'html',
-              timeoutMs: 45_000,
-              maxChars: 12_000_000,
-              scrollCrawl: true,
-              expandFaq: true,
-              minWaitAfterLoadMs: 650,
-              signal: ctrl.signal,
-            }),
-          ])
-          const domDiag = String(htmlDom?.diag || textDom?.diag || '').trim()
+          const htmlDom = await exportDom({
+            url: normalizedUrl,
+            mode: 'html',
+            timeoutMs: 45_000,
+            maxChars: 12_000_000,
+            scrollCrawl: true,
+            expandFaq: true,
+            minWaitAfterLoadMs: 650,
+            signal: ctrl.signal,
+          })
+          let textDom: Awaited<ReturnType<WorkspaceWebpageDomExportFn>> | null = null
+          const domDiag = String(htmlDom?.diag || '').trim()
           if (domDiag) lastDomDiag = domDiag
-          const domTitle = String(htmlDom?.title || textDom?.title || '').trim()
+          const domTitle = String(htmlDom?.title || '').trim()
           if (domTitle) lastDomTitle = domTitle
 
           const htmlText = String(htmlDom?.text || '')
@@ -342,7 +331,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             if (converted.ok === true && converted.markdown.trim()) {
               const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
               const trimmed = processed.trim()
-              const title = String(htmlDom?.title || textDom?.title || '').trim()
+              const title = String(htmlDom?.title || '').trim()
               if (trimmed.length >= 400 && !looksLowFidelityWebpageMarkdown(trimmed)) return trimmed
               if (title && trimmed && trimmed.length <= 120 && trimmed.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
                 void 0
@@ -352,6 +341,20 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             }
           }
 
+          textDom = await exportDom({
+            url: normalizedUrl,
+            mode: 'text',
+            timeoutMs: 45_000,
+            maxChars: 12_000_000,
+            scrollCrawl: true,
+            expandFaq: true,
+            minWaitAfterLoadMs: 650,
+            signal: ctrl.signal,
+          })
+          const textDiag = String(textDom?.diag || '').trim()
+          if (!lastDomDiag && textDiag) lastDomDiag = textDiag
+          const textTitle = String(textDom?.title || '').trim()
+          if (!lastDomTitle && textTitle) lastDomTitle = textTitle
           const textOnly = String(textDom?.text || '').trim()
           const title = String(htmlDom?.title || textDom?.title || '').trim() || undefined
           if (textOnly.length >= 400) {

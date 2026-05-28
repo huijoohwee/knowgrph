@@ -147,6 +147,108 @@ export async function testWebpageDomExportDedupesInflightRequests() {
   }
 }
 
+export async function testWebpageDomExportStopsAfterFirstLargeHtmlSnapshot() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: WEBPAGE_TEST_URL,
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+      scrollCrawl: true,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+
+    const requestedIds: string[] = []
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedIds.push(id)
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    await waitMs(0)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 0 }, win))
+    await waitMs(240)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 0 }, win))
+
+    const startedAt = Date.now()
+    while (requestedIds.length === 0 && Date.now() - startedAt < 1200) {
+      await waitMs(15)
+    }
+    if (requestedIds.length !== 1) throw new Error(`expected exactly one export request, got ${requestedIds.length}`)
+
+    const firstId = requestedIds[0]
+    const largeHtml = `<html><body>${'A'.repeat(260_000)}</body></html>`
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: firstId, mode: 'html', title: 'Large', clipped: false, text: largeHtml }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected result')
+    if (res.text !== largeHtml) throw new Error('expected first large html snapshot to be returned')
+    if (requestedIds.length !== 1) throw new Error(`expected no follow-up export requests after large html snapshot, got ${requestedIds.length}`)
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageDomExportHtmlScrollCrawlSkipsInitialNetworkIdleWait() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: WEBPAGE_TEST_URL,
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+      scrollCrawl: true,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 300) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected html scroll-crawl export request without waiting for network idle')
+
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'html', title: 'T', clipped: false, text: '<html>OK</html>' }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected result')
+    if (res.text !== '<html>OK</html>') throw new Error('expected returned html snapshot')
+  } finally {
+    restore()
+  }
+}
+
 export async function testWebpageDomExportAbortsAndRemovesIframe() {
   const { restore } = initJsdomHarness()
   try {

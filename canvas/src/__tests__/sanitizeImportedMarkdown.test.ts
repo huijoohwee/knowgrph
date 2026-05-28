@@ -158,3 +158,44 @@ export const testSanitizeImportedMarkdownConvertsStandaloneHtmlHeadingToAtx = ()
   if (!out.text.includes('## **Macro Memo**')) throw new Error(`expected h2 to become markdown heading, got: ${out.text}`)
   if (!out.text.includes('### The Consequences')) throw new Error(`expected h3 to become markdown heading, got: ${out.text}`)
 }
+
+export const testSanitizeImportedMarkdownConvertsStandaloneHtmlTableToMarkdownTable = () => {
+  const input = [
+    '<table node="[object Object]" class="w-full">',
+    '  <thead>',
+    '    <tr><th node="[object Object]">Name</th><th>Value</th></tr>',
+    '  </thead>',
+    '  <tbody>',
+    '    <tr><td>Alpha</td><td>One</td></tr>',
+    '    <tr><td>Beta</td><td>Two</td></tr>',
+    '  </tbody>',
+    '</table>',
+    '',
+  ].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com' })
+  if (!out.changed) throw new Error('expected changed')
+  if (/<table\b/i.test(out.text)) throw new Error(`expected raw table html removed, got: ${out.text}`)
+  if (/\[object Object\]/.test(out.text)) throw new Error(`expected leaked object attrs removed, got: ${out.text}`)
+  if (!out.text.includes('| Name | Value |')) throw new Error(`expected markdown table header, got: ${out.text}`)
+  if (!out.text.includes('| Alpha | One |')) throw new Error(`expected first markdown table row, got: ${out.text}`)
+  if (!out.text.includes('| Beta | Two |')) throw new Error(`expected second markdown table row, got: ${out.text}`)
+}
+
+export const testSanitizeImportedMarkdownConvertsInteractiveHtmlDivBlockToPlainText = () => {
+  const input = [
+    '<div role="button" tabindex="0" aria-disabled="false" class="mx-auto mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-secondary-button px-4 py-3 transition-colors cursor-pointer hover:bg-active" style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">',
+    '  <div class="flex flex-col" style="display:flex;flex-direction:column">',
+    '    <div class="text-sm font-medium text-secondary">Web report</div>',
+    '    <div class="text-xs text-secondary">View / share web report</div>',
+    '  </div>',
+    '  <div class="flex items-center gap-2 text-xs text-secondary" style="display:flex;flex-direction:row;align-items:center;gap:8px">Click to view</div>',
+    '</div>',
+    '',
+  ].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com' })
+  if (!out.changed) throw new Error('expected changed')
+  if (/<div\b/i.test(out.text)) throw new Error(`expected raw div html removed, got: ${out.text}`)
+  if (!out.text.includes('Web report')) throw new Error(`expected title text preserved, got: ${out.text}`)
+  if (!out.text.includes('View / share web report')) throw new Error(`expected detail text preserved, got: ${out.text}`)
+  if (!out.text.includes('Click to view')) throw new Error(`expected CTA text preserved, got: ${out.text}`)
+}

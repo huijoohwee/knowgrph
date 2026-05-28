@@ -73,3 +73,29 @@ export const testWebsiteImportWorkspaceWritesSourceFaithfulDoc = () => {
   if (!actual.includes('Section 3: Deep Learning')) throw new Error('missing Section 3 heading')
   if (!actual.includes('Optional: Mathematics for Machine Learning')) throw new Error('missing upstream optional line')
 }
+
+export const testWebsiteImportWorkspaceDocNormalizesProxyLinksAndLooseEntities = () => {
+  const proxyHref = '/__webpage_asset_path/https%3A%2F%2Fexample.com%2Fartifact%3Fq%3D1%26v%3D2'
+  const upstream = [
+    '# Reference Notes',
+    '',
+    `- Artifact: [${proxyHref}](${proxyHref.replace(/&/g, '\\&')})`,
+    '',
+    'A &#38; B and C &#x 26; D.',
+    '',
+  ].join('\n')
+
+  const actual = buildWebsiteImportWebpageDocFromUpstreamMarkdown({
+    upstreamMarkdown: upstream,
+    url: 'https://example.com/source',
+    view: 'markdown',
+    websiteImportMeta: { importId: 'import-2', nodeId: 'node-2', outputDirRel: '.tmp' },
+  })
+
+  if (!actual.includes(`[https://example.com/artifact?q=1&v=2](${proxyHref})`)) {
+    throw new Error(`expected proxied artifact link label normalized to upstream URL, got: ${actual}`)
+  }
+  if (!actual.includes('A & B and C & D.')) {
+    throw new Error(`expected loose html entities decoded, got: ${actual}`)
+  }
+}

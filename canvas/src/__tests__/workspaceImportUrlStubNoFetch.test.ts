@@ -460,8 +460,8 @@ export async function testWorkspaceImportUrlImportRecoversJsRenderedContentViaDo
     if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
       throw new Error('expected shared webpage proxy fetch before DOM export fallback')
     }
-    if (!domModes.includes('text') || !domModes.includes('html')) {
-      throw new Error(`expected DOM export fallback to probe both text and html modes, got ${JSON.stringify(domModes)}`)
+    if (!domModes.includes('html')) {
+      throw new Error(`expected DOM export fallback to probe the hydrated html mode, got ${JSON.stringify(domModes)}`)
     }
   } finally {
     setWorkspaceWebpageDomExportForTests(null)
@@ -535,8 +535,8 @@ export async function testWorkspaceImportUrlImportRecoversLongLoadingShellViaDom
     if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
       throw new Error('expected long loading-shell import to probe the shared webpage proxy first')
     }
-    if (!domModes.includes('text') || !domModes.includes('html')) {
-      throw new Error(`expected long loading-shell fallback to probe both text and html modes, got ${JSON.stringify(domModes)}`)
+    if (!domModes.includes('html')) {
+      throw new Error(`expected long loading-shell fallback to probe the hydrated html mode, got ${JSON.stringify(domModes)}`)
     }
   } finally {
     setWorkspaceWebpageDomExportForTests(null)

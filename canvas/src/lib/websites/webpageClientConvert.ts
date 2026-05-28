@@ -21,6 +21,22 @@ export const looksSyntheticWebpageArtifactMarkdown = (markdown: string): boolean
 export const looksLowFidelityWebpageMarkdown = (markdown: string): boolean =>
   looksSyntheticWebpageArtifactMarkdown(markdown) || looksLikeWebpageShellText(markdown)
 
+type WebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
+
+let webpageClientConvertDomExportOverride: WebpageDomExportFn | null = null
+let webpageClientConvertJsdomLikeOverride: boolean | null = null
+
+const readWebpageClientConvertDomExport = (): WebpageDomExportFn =>
+  webpageClientConvertDomExportOverride || exportWebpageDomViaHiddenIframe
+
+export function setWebpageClientConvertDomExportForTests(fn: WebpageDomExportFn | null): void {
+  webpageClientConvertDomExportOverride = fn
+}
+
+export function setWebpageClientConvertJsdomLikeForTests(value: boolean | null): void {
+  webpageClientConvertJsdomLikeOverride = typeof value === 'boolean' ? value : null
+}
+
 const decodeHtmlEntitiesBasic = (text: string): string => {
   const src = String(text || '')
   if (!src.includes('&')) return src
@@ -54,6 +70,7 @@ const htmlFallbackToMarkdownAllText = (html: string): string => {
 }
 
 const isJsdomLike = (): boolean => {
+  if (typeof webpageClientConvertJsdomLikeOverride === 'boolean') return webpageClientConvertJsdomLikeOverride
   try {
     const p = (globalThis as unknown as { process?: unknown }).process as { versions?: { node?: unknown } } | undefined
     if (p && p.versions && p.versions.node) return true
@@ -129,65 +146,66 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
       return fast
     }
 
-    const [textRes, htmlRes] = await Promise.all([
-      exportWebpageDomViaHiddenIframe({
-        url,
-        mode: 'text',
-        scrollCrawl: true,
-        expandFaq: true,
-        timeoutMs: 35_000,
-        maxChars: 12_000_000,
-        minWaitAfterLoadMs: 650,
-      }),
-      exportWebpageDomViaHiddenIframe({
-        url,
-        mode: 'html',
-        scrollCrawl: true,
-        expandFaq: true,
-        timeoutMs: 35_000,
-        maxChars: 12_000_000,
-        minWaitAfterLoadMs: 650,
-      }),
-    ])
-
-    const title = String(htmlRes?.title || textRes?.title || '').trim()
-    const text = String(textRes?.text || '').trim()
+    const exportDom = readWebpageClientConvertDomExport()
+    const htmlRes = await exportDom({
+      url,
+      mode: 'html',
+      scrollCrawl: true,
+      expandFaq: true,
+      timeoutMs: 35_000,
+      maxChars: 12_000_000,
+      minWaitAfterLoadMs: 650,
+    })
+    const title = String(htmlRes?.title || '').trim()
     const html = htmlRes && !htmlRes.clipped ? String(htmlRes.text || '').trim() : ''
 
+    if (html) {
+      const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
+      const auto = (() => {
+        const h = bounded
+        const isSubstackLike = /substackcdn\.com/i.test(h) || /\bdata-page\s*=\s*["'][^"']+/i.test(h)
+        const includeImages = isSubstackLike ? true : h.length <= 6_000_000
+        const fidelityLevel: 1 | 2 | 3 | 4 = isSubstackLike ? 4 : h.length > 5_000_000 ? 2 : 4
+        return { includeImages, fidelityLevel }
+      })()
+      try {
+        const converted = await convertHtmlToMarkdownUnified({
+          html: bounded,
+          baseUrl: url,
+          maxInputChars: 8_000_000,
+          includeImages: auto.includeImages,
+          fidelityLevel: auto.fidelityLevel,
+          includeHeadSection: false,
+        })
+        if (converted.ok === true && converted.markdown.trim()) {
+          const processed = postprocessWebpageMarkdownSsot(converted.markdown)
+          if (processed.trim() && !looksLowFidelityWebpageMarkdown(processed)) return { ok: true, markdown: processed.trim(), title }
+        }
+      } catch {
+        void 0
+      }
+      const fallbackMd = htmlFallbackToMarkdownAllText(bounded)
+      if (fallbackMd.trim() && !looksLowFidelityWebpageMarkdown(fallbackMd)) return { ok: true, markdown: fallbackMd.trim(), title }
+    }
+
+    const textRes = await exportDom({
+      url,
+      mode: 'text',
+      scrollCrawl: true,
+      expandFaq: true,
+      timeoutMs: 35_000,
+      maxChars: 12_000_000,
+      minWaitAfterLoadMs: 650,
+    })
+    const textTitle = String(textRes?.title || '').trim()
+    const text = String(textRes?.text || '').trim()
+    const resolvedTitle = String(title || textTitle || '').trim()
     if (!html && !text) {
       const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
       if (fallback.ok === true && !looksLowFidelityWebpageMarkdown(fallback.markdown)) return fallback
       return { ok: false, error: 'No DOM content extracted' }
     }
-
-    if (!html && text && !looksLikeWebpageShellText(text)) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
-    const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-    const auto = (() => {
-      const h = bounded
-      const isSubstackLike = /substackcdn\.com/i.test(h) || /\bdata-page\s*=\s*["'][^"']+/i.test(h)
-      const includeImages = isSubstackLike ? true : h.length <= 6_000_000
-      const fidelityLevel: 1 | 2 | 3 | 4 = isSubstackLike ? 4 : h.length > 5_000_000 ? 2 : 4
-      return { includeImages, fidelityLevel }
-    })()
-    try {
-      const converted = await convertHtmlToMarkdownUnified({
-        html: bounded,
-        baseUrl: url,
-        maxInputChars: 8_000_000,
-        includeImages: auto.includeImages,
-        fidelityLevel: auto.fidelityLevel,
-        includeHeadSection: false,
-      })
-      if (converted.ok === true && converted.markdown.trim()) {
-        const processed = postprocessWebpageMarkdownSsot(converted.markdown)
-        if (processed.trim() && !looksLowFidelityWebpageMarkdown(processed)) return { ok: true, markdown: processed.trim(), title }
-      }
-    } catch {
-      void 0
-    }
-    if (text && !looksLikeWebpageShellText(text)) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
-    const fallbackMd = htmlFallbackToMarkdownAllText(bounded)
-    if (fallbackMd.trim() && !looksLowFidelityWebpageMarkdown(fallbackMd)) return { ok: true, markdown: fallbackMd.trim(), title }
+    if (text && !looksLikeWebpageShellText(text)) return { ok: true, markdown: plainTextToMarkdown(text, resolvedTitle || undefined), title: resolvedTitle }
     const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
     if (fallback.ok === true && !looksLowFidelityWebpageMarkdown(fallback.markdown)) return fallback
     return { ok: false, error: 'No DOM content extracted' }

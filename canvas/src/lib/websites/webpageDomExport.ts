@@ -14,6 +14,7 @@ import { isNoiseProneWebpagePreviewHost } from '@/lib/websites/webpageSnapshotSh
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
 const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
 const KG_WEBPAGE_DOM_KIND = 'kg-webpage-dom'
+const HTML_MULTI_SNAPSHOT_SUBSTANTIAL_TEXT_LEN = 250_000
 
 async function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
   await new Promise<void>(resolve => {
@@ -272,6 +273,7 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
     if (Number.isFinite(parsed)) return Math.max(280, Math.min(1600, Math.floor(parsed)))
     return 800
   })()
+  const shouldWaitForNetworkIdleSnapshots = waitForNetworkIdle && !(args.mode === 'html' && !!args.scrollCrawl)
   const signal = args.signal
   if (signal?.aborted) return { ok: false, stage: 'abort', error: 'Aborted' }
 
@@ -681,7 +683,7 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
     }
 
     const waitNetIdle = async (): Promise<void> => {
-      if (!waitForNetworkIdle) return
+      if (!shouldWaitForNetworkIdleSnapshots) return
       let sawStatus = false
       let idleSince = 0
       await new Promise<void>((resolve) => {
@@ -845,6 +847,11 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
         attempts: loadedCandidate ? [loadedCandidate] : candidates,
       }
     }
+    const shouldSkipAdditionalHtmlSnapshots =
+      args.mode === 'html'
+      && !!args.scrollCrawl
+      && first.text.length >= HTML_MULTI_SNAPSHOT_SUBSTANTIAL_TEXT_LEN
+    if (shouldSkipAdditionalHtmlSnapshots) return { ok: true, result: first }
     const enableMultiSnapshot = args.mode === 'text' || args.mode === 'layout' || (args.mode === 'html' && !!args.scrollCrawl)
     if (!enableMultiSnapshot) return { ok: true, result: first }
 
