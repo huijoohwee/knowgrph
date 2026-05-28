@@ -527,7 +527,6 @@ export default function FloatingPanelChat() {
     chatHistoryWorkspacePath,
     chatLocalStorageRootPath,
     setChatKnowgrphWorkspacePath,
-    setChatWorkspaceStreamingState,
     setChatHistoryWorkspacePath,
     followWorkspaceMarkdownPath,
     pushChatExchangeLog,

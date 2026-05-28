@@ -1,3 +1,5 @@
+import { looksLikeWebpageShellText } from '@/lib/websites/webpageShellHeuristics'
+
 export type WebpageViewMode = 'markdown' | 'json' | 'html'
 export type FetchMode = 'import' | 'refresh'
 
@@ -20,15 +22,7 @@ export function shouldTreatAsSubstackUrl(url: string): boolean {
     return false
   }
 }
-export function looksLikeJsShellText(text: string): boolean {
-  const t = String(text || '')
-  if (!t.trim()) return false
-  if (/failed\s+to\s+load\s+posts/i.test(t)) return true
-  if (/enable-javascript\.com/i.test(t)) return true
-  if (/requires\s+java\s*script/i.test(t)) return true
-  if (/page not foundlatesttopdiscussions/i.test(t.replace(/\s+/g, ''))) return true
-  return false
-}
+export const looksLikeJsShellText = looksLikeWebpageShellText
 
 export function shouldSkipUnifiedMarkdownConversion(html: string): boolean {
   const h = String(html || '')

@@ -67,7 +67,54 @@ export async function testRenderChatStreamArtifactsBuildsGenericQueryRelevantMet
     usageSummary: 'Usage: prompt 100 · completion 50 · total 150',
     finishReason: 'stop',
     reasoningSteps: [],
-    rawSseEvents: ['{"choices":[{"delta":{"content":"Describe user flow, data flow, MapLibre integration, and pricing options."}}]}'],
+    rawSseEvents: [
+      JSON.stringify({
+        choices: [
+          {
+            delta: {
+              reasoning_steps: [
+                {
+                  type: 'web_search',
+                  web_search: {
+                    search_keywords: ['geospatial MCP assistant MapLibre RxDB pricing'],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+      JSON.stringify({
+        choices: [
+          {
+            delta: {
+              content: [
+                '### Data Flow',
+                'RxDB sync streams map edits into the local-first workspace before MCP tools enrich the result.',
+                `Source: ${MIROMIND_SHARE_URL}`,
+              ].join('\n'),
+            },
+          },
+        ],
+      }),
+      JSON.stringify({
+        choices: [
+          {
+            delta: {
+              reasoning_steps: [
+                {
+                  type: 'fetch_url_content',
+                  fetch_url_content: {
+                    title: 'Geospatial assistant source',
+                    url: MIROMIND_SHARE_URL,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ],
     status: 'ok',
   })
 
@@ -98,6 +145,18 @@ export async function testRenderChatStreamArtifactsBuildsGenericQueryRelevantMet
   }
   if (!rendered.logText.includes('## Stream Signals') || !rendered.logText.includes('Selected Signals:')) {
     throw new Error('expected rendered stream log to summarize stream signals instead of dumping every raw chunk')
+  }
+  if (!rendered.logText.includes('## SSE Markdown Projection') || !rendered.logText.includes('### Content Chunks')) {
+    throw new Error('expected rendered stream log to project streamed JSON chunks into markdown sections')
+  }
+  if (!rendered.logText.includes('RxDB sync streams map edits into the local-first workspace before MCP tools enrich the result.')) {
+    throw new Error('expected markdown projection to preserve query-relevant streamed content chunks')
+  }
+  if (!rendered.logText.includes('web_search: geospatial MCP assistant MapLibre RxDB pricing') || !rendered.logText.includes('fetch_url: Geospatial assistant source')) {
+    throw new Error('expected markdown projection to summarize streamed reasoning/search/fetch JSON chunks')
+  }
+  if (!rendered.logText.includes('### Source Links') || !rendered.logText.includes(MIROMIND_SHARE_URL)) {
+    throw new Error('expected markdown projection to preserve source URLs extracted from JSON chunks')
   }
   if (rendered.logText.includes('## Final Assistant Text') || rendered.logText.includes('## SSE JSON Chunks')) {
     throw new Error('expected rendered stream log to avoid the old raw-dump sections')
@@ -173,8 +232,35 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
       finishReason: 'stop',
       reasoningSteps: ['web_search: graph observability', 'fetch_url: report artifact'],
       rawSseEvents: [
-        '{"choices":[{"delta":{"reasoning_steps":[{"type":"web_search","web_search":{"search_keywords":["graph observability"]}}]}}]}',
-        `{"choices":[{"delta":{"content":"${MIROMIND_REPORT_SHARE_URL}"}}]}`,
+        JSON.stringify({
+          choices: [
+            {
+              delta: {
+                reasoning_steps: [
+                  {
+                    type: 'web_search',
+                    web_search: {
+                      search_keywords: ['MCP payment stream Swipe checkout MapLibre observability'],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        JSON.stringify({
+          choices: [
+            {
+              delta: {
+                content: [
+                  '### Monetization Surface',
+                  'Swipe checkout is the query-relevant payment handoff for the MCP stream.',
+                  `Report source: ${MIROMIND_REPORT_SHARE_URL}`,
+                ].join('\n'),
+              },
+            },
+          ],
+        }),
       ],
       status: 'ok',
       fetchUrlContent: async url => ({
@@ -233,6 +319,12 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     }
     if (!logText.includes('## Stream Signals') || !logText.includes('Selected Signals:')) {
       throw new Error('expected stream log to summarize selected stream signals rather than every raw SSE chunk')
+    }
+    if (!logText.includes('## SSE Markdown Projection') || !logText.includes('Swipe checkout is the query-relevant payment handoff for the MCP stream.')) {
+      throw new Error('expected stream log to render query-relevant SSE JSON content as markdown')
+    }
+    if (!logText.includes('web_search: MCP payment stream Swipe checkout MapLibre observability') || !logText.includes(MIROMIND_REPORT_SHARE_URL)) {
+      throw new Error('expected stream log markdown projection to summarize streamed reasoning and source links')
     }
     if (logText.includes('## Final Assistant Text') || logText.includes('## SSE JSON Chunks')) {
       throw new Error('expected stream log to stop rendering the old raw assistant text and full chunk dump sections')

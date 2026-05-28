@@ -52,6 +52,7 @@ import {
 } from '@/features/chat/floatingPanelChat/floatingPanelChatStreaming'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import {
+  ensureChatHistoryWorkspaceFilePath,
   toCanonicalKgcWorkspacePath,
   toKgcOutputWorkspacePath,
   toKgcTraceWorkspacePath,
@@ -985,6 +986,19 @@ export function testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonica
   })
   if (!normalized.includes('kgc_20260419T180222Z.md')) {
     throw new Error('Expected identity normalization to use the canonical KGC filename even when the workspace path points at a trace file')
+  }
+}
+
+export async function testChatKnowgrphRejectsLegacyDocsWorkspacePath() {
+  resetWorkspaceFsForTests()
+  const resolved = await ensureChatHistoryWorkspaceFilePath({
+    requestedPath: '/docs/20260527T131514Z/kgc_20260527T131514Z.md',
+    timestampMs: Date.UTC(2026, 4, 27, 13, 15, 14),
+    storageType: 'chatKnowgrph',
+    defaultLocalRootPath: '/chat-log',
+  })
+  if (resolved !== '/chat-log/20260527T131514Z/kgc_20260527T131514Z.md') {
+    throw new Error(`expected stale docs KGC path to be ignored in favor of chat-log session path, got ${resolved}`)
   }
 }
 

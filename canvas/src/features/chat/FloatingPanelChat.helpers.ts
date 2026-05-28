@@ -281,7 +281,7 @@ const toNullableNumber = (value: unknown): number | null => {
   return Number.isFinite(next) ? next : null
 }
 
-const formatReasoningStepSummary = (step: unknown): string => {
+export const formatReasoningStepSummary = (step: unknown): string => {
   if (!step || typeof step !== 'object') return ''
   const record = step as Record<string, unknown>
   const type = typeof record.type === 'string' ? record.type.trim() : ''

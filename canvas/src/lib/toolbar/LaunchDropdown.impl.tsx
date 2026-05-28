@@ -24,7 +24,7 @@ import {
   parseImportUrlRendererSelection,
   type ImportUrlRendererSelection,
 } from './ImportUrlRendererSelect'
-import { buildAutoWebsiteImportOptions, shouldAutoImportUrlAsWebsite } from './importUrlWebsiteMode'
+import { buildAutoWebsiteImportOptions } from './importUrlWebsiteMode'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
@@ -165,9 +165,7 @@ export function LaunchDropdown({
       const launchBridge = getMarkdownWorkspaceActionBridge()
       const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
       if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
-      if (!opts && typeof launchBridge.importWebsite === 'function' && shouldAutoImportUrlAsWebsite(nextUrl)) {
-        launchBridge.importWebsite(nextUrl, buildAutoWebsiteImportOptions())
-      } else if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
+      if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
       else void importUrlFallback(nextUrl, opts)
       setUrlInputOpen(false)
     },
@@ -456,7 +454,7 @@ export function LaunchDropdown({
                             if (!next) return
                             onClose()
                             const launchBridge = getMarkdownWorkspaceActionBridge()
-                            launchBridge.importWebsite?.(next)
+                            launchBridge.importWebsite?.(next, buildAutoWebsiteImportOptions())
                             setUrlInputOpen(false)
                           }}
                         >

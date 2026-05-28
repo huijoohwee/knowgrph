@@ -470,6 +470,81 @@ export async function testWorkspaceImportUrlImportRecoversJsRenderedContentViaDo
   }
 }
 
+export async function testWorkspaceImportUrlImportRecoversLongLoadingShellViaDomExportFallback(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://example.com/shared-conversation'
+  const shellLinks = Array.from(
+    { length: 60 },
+    (_, index) => `<a href="/shortcut-${index + 1}">Open App Shortcut ${index + 1}</a>`,
+  ).join('')
+  const shellHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<title>Shared Conversation</title>',
+    '</head>',
+    '<body>',
+    '<header><a href="/app">Get App</a><a href="/sign-in">Sign in</a><a href="/install">Install App</a></header>',
+    '<main>',
+    '<h1>Shared Conversation</h1>',
+    '<p>Loading shared chat...</p>',
+    `<nav>${shellLinks}</nav>`,
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const recoveredText = [
+    'Shared Conversation Analysis',
+    '',
+    'This imported body preserves the substantive discussion after the live share finishes hydrating.',
+    '',
+    'It includes the longer paragraphs that should replace the loading shell and shortcut chrome.',
+    '',
+    ...Array.from({ length: 6 }, (_, index) => `Detailed section ${index + 1} captures the underlying report body with concrete evidence and reasoning.`),
+  ].join('\n')
+  const recoveredHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head><title>Shared Conversation Analysis</title></head>',
+    '<body>',
+    '<main>',
+    '<h1>Shared Conversation Analysis</h1>',
+    '<p>This imported body preserves the substantive discussion after the live share finishes hydrating.</p>',
+    '<p>It includes the longer paragraphs that should replace the loading shell and shortcut chrome.</p>',
+    ...Array.from({ length: 6 }, (_, index) => `<p>Detailed section ${index + 1} captures the underlying report body with concrete evidence and reasoning.</p>`),
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const proxyCalls: string[] = []
+  const domModes: string[] = []
+  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]), proxyCalls)
+  setWorkspaceWebpageDomExportForTests(async args => {
+    domModes.push(String(args.mode || ''))
+    if (args.mode === 'html') return { text: recoveredHtml, title: 'Shared Conversation Analysis', clipped: false }
+    return { text: recoveredText, title: 'Shared Conversation Analysis', clipped: false }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import' })
+    if (!res.text.includes('substantive discussion after the live share finishes hydrating')) {
+      throw new Error('expected long loading-shell imports to recover the hydrated report body')
+    }
+    if (res.text.includes('Loading shared chat')) {
+      throw new Error('expected long loading-shell imports to replace the loading placeholder text')
+    }
+    if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
+      throw new Error('expected long loading-shell import to probe the shared webpage proxy first')
+    }
+    if (!domModes.includes('text') || !domModes.includes('html')) {
+      throw new Error(`expected long loading-shell fallback to probe both text and html modes, got ${JSON.stringify(domModes)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
 export async function testWorkspaceImportUrlAcceptsAbsoluteFsPathViaViteFsFetch(): Promise<void> {
   const g = globalThis as GlobalWithFetch
   const prev = g.fetch

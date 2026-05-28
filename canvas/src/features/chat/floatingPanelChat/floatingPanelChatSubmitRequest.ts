@@ -48,7 +48,7 @@ export const resolveInitialChatSubmitModel = (args: {
   const effectiveModel = providerModelOptions.includes(normalizedProviderModel)
     ? normalizedProviderModel
     : getDefaultChatModelForProvider(args.chatProvider)
-  return { providerModelOptions, effectiveModel }
+  return { providerModelOptions: [...providerModelOptions], effectiveModel }
 }
 
 export const buildSubmitConversationMessages = (

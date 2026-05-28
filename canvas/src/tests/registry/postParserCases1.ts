@@ -376,6 +376,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["chat.responseContract.storage.kgcRejectsPseudoStructuredMarkdown","@/__tests__/chatResponseContractPrompt.test","testIsKgcStructuredMarkdownRejectsSnippetOnlyPseudoKgc"],
   ["chat.responseContract.storage.kgcNormalizesInvalidAssistantMarkdown","@/__tests__/chatResponseContractPrompt.test","testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicTurn"],
   ["chat.responseContract.storage.kgcCanonicalizesTraceAndOutputPaths","@/__tests__/chatResponseContractPrompt.test","testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonical"],
+  ["chat.responseContract.storage.kgcRejectsLegacyDocsWorkspacePath","@/__tests__/chatResponseContractPrompt.test","testChatKnowgrphRejectsLegacyDocsWorkspacePath"],
   ["chat.responseContract.storage.kgcFinalizeAppliesCanvasGraph","@/__tests__/chatResponseContractPrompt.test","testChatKgcFinalizeAppliesSavedWorkspaceDocumentToCanvas"],
   ["chat.responseContract.validation.rejectsWrappedKgcPreamble","@/__tests__/chatResponseContractPrompt.test","testValidateChatMarkdownRejectsWrappedKgcPreamble"],
   ["chat.responseContract.validation.rejectsCanvasPresetOnlyFallback","@/__tests__/chatResponseContractPrompt.test","testValidateChatMarkdownRejectsCanvasPresetOnlyFallback"],

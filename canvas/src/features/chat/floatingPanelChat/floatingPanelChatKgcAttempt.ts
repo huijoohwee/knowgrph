@@ -2,6 +2,7 @@ import { buildResolvableVarKeySet, validateChatMarkdown } from '../chatMarkdownV
 import { isKgcStructuredMarkdown } from '../chatHistoryWorkspace'
 import { extractKgcBlockFromAssistantText } from '../FloatingPanelChat.helpers'
 import { buildCorrectionPrompt } from './floatingPanelChatCorrectionPrompt'
+import type { JSONValue } from '@/lib/graph/types'
 
 export type ChatKnowgrphAttemptValidationState = {
   stage: 'retrying' | 'validated' | 'failed'
@@ -67,7 +68,7 @@ export const resolveKgcCorrectionInvalidMarkdown = (args: {
 
 export const resolveChatKnowgrphAttempt = (args: {
   assistantText: string
-  packedFrontmatter: string | null | undefined
+  packedFrontmatter: Record<string, JSONValue> | null | undefined
   attempt: number
   maxValidationAttempts: number
 }): ChatKnowgrphAttemptResolution => {

@@ -1,5 +1,5 @@
 import { __testkit } from '@/lib/websites/server/websiteImportCore'
-import { buildAutoWebsiteImportOptions, shouldAutoImportUrlAsWebsite } from '@/lib/toolbar/importUrlWebsiteMode'
+import { buildAutoWebsiteImportOptions } from '@/lib/toolbar/importUrlWebsiteMode'
 import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
 import { buildWebsiteSemanticSnapshotFromHtml } from '@/lib/websites/websiteSemanticSnapshot'
@@ -54,16 +54,11 @@ export const testWebsiteImportExtractsSpaRouteLinksWithinWebsiteScope = () => {
   if (links.some(link => link.endsWith('/bundle.js'))) throw new Error('expected asset filtering')
 }
 
-export const testLaunchImportUrlAutoWebsiteModeForWebpages = () => {
-  if (!shouldAutoImportUrlAsWebsite('https://example.invalid/collection/root')) {
-    throw new Error('expected webpage URL to auto-route to website import')
-  }
-  if (shouldAutoImportUrlAsWebsite('https://example.com/model.glb')) throw new Error('expected model assets to stay single-resource imports')
-  if (shouldAutoImportUrlAsWebsite('https://github.com/example/repo')) throw new Error('expected GitHub URLs to stay repo imports')
+export const testLaunchWebsiteImportButtonUsesEnhancedOptions = () => {
   const opts = buildAutoWebsiteImportOptions()
-  if (opts.generateArtifactDocs !== true) throw new Error('expected toolbar website import to materialize content docs')
-  if (opts.browserEnhance !== true) throw new Error('expected toolbar website import to prefer browser-enhanced webpage fidelity')
-  if (!opts.minPages || opts.minPages < 100) throw new Error('expected toolbar website import to cover multi-page websites')
+  if (opts.generateArtifactDocs !== true) throw new Error('expected explicit website import to materialize content docs')
+  if (opts.browserEnhance !== true) throw new Error('expected explicit website import to prefer browser-enhanced webpage fidelity')
+  if (!opts.minPages || opts.minPages < 100) throw new Error('expected explicit website import to cover multi-page websites')
 }
 
 export const testWebsiteSemanticSnapshotIndexesQueryablePageData = () => {

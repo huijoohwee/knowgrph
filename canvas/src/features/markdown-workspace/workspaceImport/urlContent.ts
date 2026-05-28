@@ -12,7 +12,7 @@ import { convertPdfUrlToMarkdown, fetchWebpageMarkdown, fetchYouTubeTranscriptMa
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
-import { looksSyntheticWebpageArtifactMarkdown } from '@/lib/websites/webpageClientConvert'
+import { looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { createProgressSession } from '@/lib/progress/progressTicker'
@@ -343,10 +343,10 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
               const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
               const trimmed = processed.trim()
               const title = String(htmlDom?.title || textDom?.title || '').trim()
-              if (trimmed.length >= 400) return trimmed
+              if (trimmed.length >= 400 && !looksLowFidelityWebpageMarkdown(trimmed)) return trimmed
               if (title && trimmed && trimmed.length <= 120 && trimmed.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
                 void 0
-              } else if (trimmed.length >= 220) {
+              } else if (trimmed.length >= 220 && !looksLowFidelityWebpageMarkdown(trimmed)) {
                 return trimmed
               }
             }
@@ -458,7 +458,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           && (
             !markdownSelectionText
             || markdownSelectionText.length < 1400
-            || looksSyntheticWebpageArtifactMarkdown(markdownSelectionText)
+            || looksLowFidelityWebpageMarkdown(markdownSelectionText)
           )
         if (shouldRecoverImportFromDom) {
           const recoveredFromDom = await tryRecoverMarkdownFromDomExport(90)

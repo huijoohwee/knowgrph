@@ -169,10 +169,17 @@ export const toKgcOutputWorkspacePath = (
 
 const shouldUseRequestedPath = (
   requestedPath: string,
-  storageType?: ChatHistoryStorageType,
+  args?: {
+    storageType?: ChatHistoryStorageType
+    defaultLocalRootPath?: string | null
+  },
 ): boolean => {
-  if (storageType !== 'chatKnowgrph') return true
-  return isKgcWorkspaceCompanionPath(requestedPath)
+  if (args?.storageType !== 'chatKnowgrph') return true
+  if (!isKgcWorkspaceCompanionPath(requestedPath)) return false
+  const requestedRoot = normalizeWorkspacePath(requestedPath).split('/').filter(Boolean)[0] || ''
+  const rootRaw = String(args?.defaultLocalRootPath || '').trim()
+  const activeRoot = normalizeWorkspacePath(rootRaw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT).split('/').filter(Boolean)[0] || ''
+  return Boolean(requestedRoot && activeRoot && requestedRoot === activeRoot)
 }
 
 const createTimestampedWorkspaceFile = async (args: {
@@ -256,7 +263,7 @@ export const ensureHistoryFilePath = async (
 ): Promise<WorkspacePath> => {
   const scopeKey = resolveSessionScopeKey(args)
   const raw = typeof requestedPath === 'string' ? requestedPath.trim() : ''
-  if (raw && shouldUseRequestedPath(raw, args?.storageType)) {
+  if (raw && shouldUseRequestedPath(raw, args)) {
     const resolvedRequestedPath = args?.storageType === 'chatKnowgrph'
       ? toCanonicalKgcWorkspacePath(raw)
       : normalizeWorkspacePath(raw)

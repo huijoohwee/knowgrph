@@ -1,4 +1,4 @@
-import { looksSyntheticWebpageArtifactMarkdown } from '@/lib/websites/webpageClientConvert'
+import { looksLowFidelityWebpageMarkdown, looksSyntheticWebpageArtifactMarkdown } from '@/lib/websites/webpageClientConvert'
 
 export function testWebpageClientConvertQualityGateDetectsSyntheticArtifactMarkers() {
   const synthetic = [
@@ -34,5 +34,23 @@ export function testWebpageClientConvertQualityGateDoesNotFlagNormalMarkdown() {
   if (looksSyntheticWebpageArtifactMarkdown(normal)) {
     throw new Error('expected normal markdown not to be flagged as synthetic')
   }
+  if (looksLowFidelityWebpageMarkdown(normal)) {
+    throw new Error('expected normal markdown not to be flagged as low fidelity')
+  }
 }
 
+export function testWebpageClientConvertQualityGateDetectsLoadingShellMarkdown() {
+  const shell = [
+    '# Shared Chat - Example',
+    '',
+    '[Get App](https://example.com/app) [Open App](https://example.com/open)',
+    '',
+    'Loading shared chat...',
+    '',
+    '[Sign in](https://example.com/sign-in) [Install App](https://example.com/install)',
+    '',
+  ].join('\n')
+  if (!looksLowFidelityWebpageMarkdown(shell)) {
+    throw new Error('expected loading-shell markdown to be rejected by the quality gate')
+  }
+}

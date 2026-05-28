@@ -8,7 +8,7 @@ import { mapLimit } from '@/lib/async/mapLimit'
 import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
 import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
-import { convertWebpageUrlToMarkdownViaBrowser, looksSyntheticWebpageArtifactMarkdown } from '@/lib/websites/webpageClientConvert'
+import { convertWebpageUrlToMarkdownViaBrowser, looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '../workspaceImport'
@@ -202,7 +202,7 @@ function shouldEnhanceWebsiteMarkdownViaBrowser(settings: WebsiteImportSettings,
   if (!settings.browserEnhance) return false
   if (!/^https?:\/\//i.test(String(url || '').trim())) return false
   const text = String(markdown || '').trim()
-  return !text || text.length < 1400 || looksSyntheticWebpageArtifactMarkdown(text)
+  return !text || text.length < 1400 || looksLowFidelityWebpageMarkdown(text)
 }
 
 async function getBrowserEnhancedWebsiteMarkdown(url: string): Promise<{ markdown: string; title: string } | null> {

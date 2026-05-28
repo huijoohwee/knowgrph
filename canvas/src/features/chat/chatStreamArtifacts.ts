@@ -12,6 +12,7 @@ import {
   normalizeChatLocalStorageRootPath,
 } from './chatStorageConfig'
 import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
+import { formatReasoningStepSummary } from './FloatingPanelChat.helpers'
 import { extractKgcWorkspaceSessionId, formatKgcWorkspaceSessionId } from './chatHistoryWorkspace.paths'
 import { ensureChatWorkspaceMirrorFolder, mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
 import { ensureWorkspaceFolderPathExists, writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
@@ -122,6 +123,10 @@ type StreamSignalSnapshot = {
   contentChunkCount: number
   reasoningChunkCount: number
   selectedSignals: string[]
+  markdownProjectionLines: string[]
+  reasoningHighlights: string[]
+  toolSignals: string[]
+  sourceUrls: string[]
 }
 
 const GENERIC_ARTIFACT_LABELS = new Set(['chat response', 'response', 'report', 'analysis'])
@@ -262,8 +267,8 @@ const shouldSkipPreviewLine = (line: string): boolean => {
 }
 
 const extractKeywordTokens = (value: string): string[] => {
-  const matches = String(value || '').match(/\b[A-Za-z0-9]{2,}\b/g) || []
-  return uniqueText(matches.filter(token => {
+  const matches: string[] = String(value || '').match(/\b[A-Za-z0-9]{2,}\b/g) || []
+  return uniqueText(matches.filter((token: string) => {
     const lowered = token.toLowerCase()
     if (REQUEST_KEYWORD_STOPWORDS.has(lowered)) return false
     if (/^[0-9]+$/.test(token)) return false
@@ -327,21 +332,77 @@ const safeParseJson = (value: string): unknown => {
   }
 }
 
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
+}
+
+const readStringField = (record: Record<string, unknown> | null, key: string): string => {
+  const value = record?.[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+const pushUniqueLimited = (target: string[], value: unknown, maxCount = 16, maxLength = 220) => {
+  if (target.length >= maxCount) return
+  const text = clampText(value, maxLength)
+  if (!text) return
+  const key = text.toLowerCase()
+  if (target.some(item => item.toLowerCase() === key)) return
+  target.push(text)
+}
+
+const collectStepToolSignal = (step: unknown): string => {
+  const record = asRecord(step)
+  if (!record) return ''
+  const summary = formatReasoningStepSummary(step)
+  if (summary) return summary
+  const type = readStringField(record, 'type')
+  return type
+}
+
+const collectToolCallSignals = (delta: Record<string, unknown>): string[] => {
+  const out: string[] = []
+  const calls = Array.isArray(delta.tool_calls) ? delta.tool_calls : []
+  calls.forEach(call => {
+    const record = asRecord(call)
+    const fn = asRecord(record?.function)
+    const name = readStringField(fn, 'name') || readStringField(record, 'name') || readStringField(record, 'type')
+    if (name) pushUniqueLimited(out, `tool_call: ${name}`, 8, 120)
+  })
+  return out
+}
+
+const extractReasoningTexts = (delta: Record<string, unknown>): string[] => {
+  return uniqueText([
+    readStringField(delta, 'reasoning_content'),
+    readStringField(delta, 'reasoning'),
+    readStringField(delta, 'thought'),
+    readStringField(delta, 'analysis'),
+  ]).filter(Boolean)
+}
+
 const buildStreamSignalSnapshot = (args: {
   requestText: string
   rawSseEvents: string[]
 }): StreamSignalSnapshot => {
   const selectedSignals: string[] = []
+  const contentParts: string[] = []
+  const reasoningParts: string[] = []
+  const reasoningHighlights: string[] = []
+  const toolSignals: string[] = []
+  const sourceUrlCandidates: string[] = []
   let contentChunkCount = 0
   let reasoningChunkCount = 0
   for (const event of args.rawSseEvents) {
-    const parsed = safeParseJson(event) as { choices?: Array<{ delta?: { content?: unknown; reasoning_steps?: unknown[] } }> } | null
-    const deltas = Array.isArray(parsed?.choices) ? parsed?.choices : []
+    const parsed = safeParseJson(event)
+    const parsedRecord = asRecord(parsed)
+    const deltas = Array.isArray(parsedRecord?.choices) ? parsedRecord?.choices : []
     let eventSummary = ''
     for (const choice of deltas) {
-      const delta = choice?.delta || {}
-      const content = typeof delta.content === 'string' ? delta.content : ''
+      const choiceRecord = asRecord(choice)
+      const delta = asRecord(choiceRecord?.delta) || asRecord(choiceRecord?.message) || {}
+      const content = readStringField(delta, 'content')
       if (content.replace(/\s+/g, '').trim()) contentChunkCount += 1
+      if (content) contentParts.push(content)
       const previewLines = extractRelevantMarkdownPreviewLines({
         value: content,
         requestText: args.requestText,
@@ -354,8 +415,30 @@ const buildStreamSignalSnapshot = (args: {
       const reasoningSteps = Array.isArray(delta.reasoning_steps) ? delta.reasoning_steps : []
       if (reasoningSteps.length > 0) {
         reasoningChunkCount += 1
+        reasoningSteps.forEach(step => {
+          const signal = collectStepToolSignal(step)
+          pushUniqueLimited(toolSignals, signal, 12, 180)
+          pushUniqueLimited(reasoningHighlights, signal, 12, 180)
+          sourceUrlCandidates.push(...extractUniqueUrls([JSON.stringify(step)]))
+        })
         eventSummary = `reasoning: ${reasoningSteps.length} step${reasoningSteps.length === 1 ? '' : 's'}`
       }
+      const reasoningTexts = extractReasoningTexts(delta)
+      if (reasoningTexts.length > 0) {
+        reasoningChunkCount += 1
+        reasoningParts.push(...reasoningTexts)
+        reasoningTexts.forEach(text => {
+          const relevantLines = extractRelevantMarkdownPreviewLines({
+            value: text,
+            requestText: args.requestText,
+            maxCount: 2,
+          })
+          relevantLines.forEach(line => pushUniqueLimited(reasoningHighlights, line, 12, 180))
+        })
+        if (!eventSummary) eventSummary = `reasoning: ${clampText(reasoningTexts[0], 120)}`
+      }
+      collectToolCallSignals(delta).forEach(signal => pushUniqueLimited(toolSignals, signal, 12, 180))
+      sourceUrlCandidates.push(...extractUniqueUrls([event, content, ...reasoningTexts]))
     }
     if (!eventSummary) {
       const urls = extractUniqueUrls([event])
@@ -364,10 +447,26 @@ const buildStreamSignalSnapshot = (args: {
     if (!eventSummary) continue
     selectedSignals.push(eventSummary)
   }
+  const streamMarkdown = contentParts.join('')
+  const markdownProjectionLines = extractRelevantMarkdownPreviewLines({
+    value: streamMarkdown,
+    requestText: args.requestText,
+    maxCount: 8,
+  })
+  const reasoningProjectionLines = extractRelevantMarkdownPreviewLines({
+    value: reasoningParts.join('\n'),
+    requestText: args.requestText,
+    maxCount: 4,
+  })
+  reasoningProjectionLines.forEach(line => pushUniqueLimited(reasoningHighlights, line, 12, 180))
   return {
     contentChunkCount,
     reasoningChunkCount,
     selectedSignals: uniqueText(selectedSignals).slice(0, 8),
+    markdownProjectionLines,
+    reasoningHighlights: uniqueText(reasoningHighlights).slice(0, 8),
+    toolSignals: uniqueText(toolSignals).slice(0, 8),
+    sourceUrls: extractUniqueUrls(sourceUrlCandidates).slice(0, 8),
   }
 }
 
@@ -758,6 +857,29 @@ const buildStreamLogDocument = (args: {
           ...streamSignalSnapshot.selectedSignals.map(signal => `  - ${signal}`),
         ]
       : ['- Selected Signals: none extracted']),
+    '',
+    '## SSE Markdown Projection',
+    '',
+    '### Content Chunks',
+    '',
+    ...(streamSignalSnapshot.markdownProjectionLines.length > 0
+      ? streamSignalSnapshot.markdownProjectionLines.map(line => `- ${line}`)
+      : [`- No query-specific content lines extracted from JSON chunks for ${queryRelevance.focus}.`]),
+    '',
+    '### Reasoning and Tool Trace',
+    '',
+    ...(streamSignalSnapshot.reasoningHighlights.length > 0 || streamSignalSnapshot.toolSignals.length > 0
+      ? uniqueText([
+          ...streamSignalSnapshot.reasoningHighlights,
+          ...streamSignalSnapshot.toolSignals,
+        ]).slice(0, 10).map(line => `- ${line}`)
+      : ['- No reasoning/tool signals extracted from streamed JSON chunks.']),
+    '',
+    '### Source Links',
+    '',
+    ...(streamSignalSnapshot.sourceUrls.length > 0
+      ? streamSignalSnapshot.sourceUrls.map(url => `- ${url}`)
+      : ['- No source URLs extracted from streamed JSON chunks.']),
     '',
     '## Dereferenced Workspace Artifacts',
     '',

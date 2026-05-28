@@ -1,4 +1,5 @@
 import { exportWebpageDomViaHiddenIframe } from './webpageDomExport'
+import { looksLikeWebpageShellText } from './webpageShellHeuristics'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { postprocessWebpageMarkdownSsot } from '@/lib/markdown/webpageMarkdownPostprocess'
@@ -16,6 +17,9 @@ export const looksSyntheticWebpageArtifactMarkdown = (markdown: string): boolean
   if (/\bFidelity Level:\s*100% Source-Faithful\b/i.test(s)) return true
   return false
 }
+
+export const looksLowFidelityWebpageMarkdown = (markdown: string): boolean =>
+  looksSyntheticWebpageArtifactMarkdown(markdown) || looksLikeWebpageShellText(markdown)
 
 const decodeHtmlEntitiesBasic = (text: string): string => {
   const src = String(text || '')
@@ -121,7 +125,7 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
   }
   try {
     const fast = await convertWebpageUrlToMarkdownViaProxyFetch(url)
-    if (fast.ok === true && String(fast.markdown || '').trim().length >= 1400 && !looksSyntheticWebpageArtifactMarkdown(fast.markdown)) {
+    if (fast.ok === true && String(fast.markdown || '').trim().length >= 1400 && !looksLowFidelityWebpageMarkdown(fast.markdown)) {
       return fast
     }
 
@@ -152,11 +156,11 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
 
     if (!html && !text) {
       const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
-      if (fallback.ok === true) return fallback
+      if (fallback.ok === true && !looksLowFidelityWebpageMarkdown(fallback.markdown)) return fallback
       return { ok: false, error: 'No DOM content extracted' }
     }
 
-    if (!html && text) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
+    if (!html && text && !looksLikeWebpageShellText(text)) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
     const auto = (() => {
       const h = bounded
@@ -176,22 +180,22 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
       })
       if (converted.ok === true && converted.markdown.trim()) {
         const processed = postprocessWebpageMarkdownSsot(converted.markdown)
-        if (processed.trim()) return { ok: true, markdown: processed.trim(), title }
+        if (processed.trim() && !looksLowFidelityWebpageMarkdown(processed)) return { ok: true, markdown: processed.trim(), title }
       }
     } catch {
       void 0
     }
-    if (text) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
+    if (text && !looksLikeWebpageShellText(text)) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
     const fallbackMd = htmlFallbackToMarkdownAllText(bounded)
-    if (fallbackMd.trim()) return { ok: true, markdown: fallbackMd.trim(), title }
+    if (fallbackMd.trim() && !looksLowFidelityWebpageMarkdown(fallbackMd)) return { ok: true, markdown: fallbackMd.trim(), title }
     const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
-    if (fallback.ok === true) return fallback
+    if (fallback.ok === true && !looksLowFidelityWebpageMarkdown(fallback.markdown)) return fallback
     return { ok: false, error: 'No DOM content extracted' }
   } catch (e) {
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
     if (msg) {
       const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
-      if (fallback.ok === true) return fallback
+      if (fallback.ok === true && !looksLowFidelityWebpageMarkdown(fallback.markdown)) return fallback
     }
     return { ok: false, error: msg || 'Browser conversion failed' }
   }
