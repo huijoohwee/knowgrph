@@ -14,6 +14,7 @@ import {
   chooseWebpageMarkdownByContentCoverage,
 } from '@/features/markdown-workspace/workspaceImport/webpageMarkdownFidelity'
 import { pruneWebpageChromeText } from '@/lib/websites/webpageShellHeuristics'
+import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
 import { persistImportedShareUrlArtifacts } from '@/features/markdown-workspace/workspaceImport/shareUrlExport'
@@ -1041,6 +1042,42 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWho
   }
 }
 
+export async function testPlainTextToMarkdownPreservesThinkingTranscriptMarkdownStructure(): Promise<void> {
+  const markdown = restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown([
+    '- The user wants me to: 1. Analyze recent oil market reports 2. Identify a shared logical blind spot 3. Re-simulate the global oil price trajectory for the next six months',
+    'Goldman Sachs: - Focuses on Strait of Hormuz disruption - Assumes supply disruptions are temporary',
+    'Shared blind spot: 1. It is circular reasoning 2. It ignores transition feedback loops',
+    '> Existing quote stays quoted.',
+    '[Reuters](https://www.reuters.com/example)',
+    '![oil chart](https://example.com/oil-chart.png)',
+    '| Institution | Price |',
+    '| Goldman | $85/bbl |',
+    '```python',
+    'print("Brent", 85)',
+    '```',
+    'Inline math $x+y$ stays visible.',
+  ].join('\n')))
+  if (!markdown.includes('- The user wants me to:\n1. Analyze recent oil market reports\n2. Identify a shared logical blind spot\n3. Re-simulate the global oil price trajectory for the next six months')) {
+    throw new Error(`expected transcript prose plus ordered markers to expand into markdown list lines, got:\n${markdown}`)
+  }
+  if (!markdown.includes('Goldman Sachs:\n- Focuses on Strait of Hormuz disruption\n- Assumes supply disruptions are temporary')) {
+    throw new Error(`expected inline bullet markers to expand into markdown bullet lines, got:\n${markdown}`)
+  }
+  if (!markdown.includes('Shared blind spot:\n1. It is circular reasoning\n2. It ignores transition feedback loops')) {
+    throw new Error(`expected inline ordered markers to expand into markdown ordered lines, got:\n${markdown}`)
+  }
+  if (!markdown.includes('> Existing quote stays quoted.')) throw new Error(`expected blockquote marker to be preserved, got:\n${markdown}`)
+  if (!markdown.includes('[Reuters](https://www.reuters.com/example)')) throw new Error(`expected markdown link to be preserved, got:\n${markdown}`)
+  if (!markdown.includes('![oil chart](https://example.com/oil-chart.png)')) throw new Error(`expected markdown image to be preserved, got:\n${markdown}`)
+  if (!markdown.includes('| Institution | Price |') || !markdown.includes('| Goldman | $85/bbl |')) {
+    throw new Error(`expected markdown table lines to be preserved, got:\n${markdown}`)
+  }
+  if (!markdown.includes('```python\nprint("Brent", 85)\n```')) {
+    throw new Error(`expected fenced code block to be preserved, got:\n${markdown}`)
+  }
+  if (!markdown.includes('Inline math $x+y$ stays visible.')) throw new Error(`expected inline math markers to be preserved, got:\n${markdown}`)
+}
+
 export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(): Promise<void> {
   const restored = restoreWebpageMarkdownSyntaxFidelity([
     '\\> quoted line',
@@ -1049,6 +1086,8 @@ export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(
     'approx. \\~$85/bbl and \\$x+y\\$',
     '| left \\| right | value \\| more |',
     'inline \\`code\\` and \\*emphasis\\*',
+    '- The user wants me to: 1. Analyze reports 2. Identify a blind spot 3. Re-simulate prices',
+    'Goldman Sachs: - Focuses on supply shocks - Assumes demand stays resilient',
     '<div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Found 9 results</span></div></div>',
     '- <div class="flex items-center gap-2"><div></div><div><span class="text-p text-secondary">Run Code</span></div></div>',
     '```python',
@@ -1063,6 +1102,12 @@ export async function testWorkspaceImportUrlRestoresVisibleMarkdownSyntaxTokens(
   if (!restored.includes('approx. ~$85/bbl and $x+y$')) throw new Error(`expected tilde and dollar tokens to be restored, got:\n${restored}`)
   if (!restored.includes('| left | right | value | more |')) throw new Error(`expected table pipes to be restored, got:\n${restored}`)
   if (!restored.includes('inline `code` and *emphasis*')) throw new Error(`expected inline markdown tokens to be restored, got:\n${restored}`)
+  if (!restored.includes('- The user wants me to:\n1. Analyze reports\n2. Identify a blind spot\n3. Re-simulate prices')) {
+    throw new Error(`expected inline ordered transcript markers to expand into markdown list lines, got:\n${restored}`)
+  }
+  if (!restored.includes('Goldman Sachs:\n- Focuses on supply shocks\n- Assumes demand stays resilient')) {
+    throw new Error(`expected inline bullet transcript markers to expand into markdown bullet lines, got:\n${restored}`)
+  }
   if (!restored.includes('Found 9 results') || restored.includes('<div class=')) {
     throw new Error(`expected generic html wrappers to collapse to visible text, got:\n${restored}`)
   }

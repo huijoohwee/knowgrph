@@ -150,6 +150,24 @@ function normalizeRecoveredFenceCodeLine(line: string): string {
   return looksLikeRecoveredCodeLine(stripped) ? stripped : raw
 }
 
+function expandInlineTranscriptListMarkers(line: string): string[] {
+  let text = String(line || '').trim()
+  if (!text) return []
+  const containsMarkdownLinkOrImage = /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)/u.test(text)
+  const orderedMarkerCount = (text.match(/(?:^|[^\d])\d+\.\s/gu) || []).length
+  if (!containsMarkdownLinkOrImage && (orderedMarkerCount >= 2 || /:\s+\d+\.\s/u.test(text))) {
+    text = text.replace(/([^\n])\s+(?=\d+\.\s)/gu, '$1\n')
+  }
+  const bulletMarkerCount = (text.match(/\s-\s+/gu) || []).length
+  if (!containsMarkdownLinkOrImage && (bulletMarkerCount >= 2 || /:\s+-\s/u.test(text))) {
+    text = text.replace(/([^\n])\s+(?=-\s+)/gu, '$1\n')
+  }
+  return text
+    .split('\n')
+    .map(part => part.trim())
+    .filter(Boolean)
+}
+
 function restoreInlineSyntax(line: string): string {
   const isTableLine = /^\s*\|.*\|\s*$/u.test(line) || countUnescapedPipes(line) >= 2
   let out = ''
@@ -203,7 +221,12 @@ export function restoreWebpageMarkdownSyntaxFidelity(markdown: string): string {
     }
     const withPrefixes = restoreLinePrefixes(rawLine)
     const withSimplifiedHtmlWrappers = normalizeSimpleHtmlWrapperLine(withPrefixes)
-    out.push(restoreInlineSyntax(withSimplifiedHtmlWrappers))
+    const expandedLines = expandInlineTranscriptListMarkers(withSimplifiedHtmlWrappers)
+    if (!expandedLines.length) {
+      out.push(restoreInlineSyntax(withSimplifiedHtmlWrappers))
+      continue
+    }
+    for (const expandedLine of expandedLines) out.push(restoreInlineSyntax(expandedLine))
   }
   return out.join('\n')
 }
