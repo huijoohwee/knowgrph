@@ -2594,6 +2594,53 @@ function stripWebpageSecurityMetasAndBase(rawHtml: string): string {
   return noXfoMeta
 }
 
+function rewriteProxiedWebpageJavascriptForOriginalLocation(opts: {
+  rawJs: string
+  upstreamUrl?: string
+}): string {
+  const js = String(opts.rawJs || '')
+  const upstreamUrl = String(opts.upstreamUrl || '').trim()
+  if (!js) return js
+  if (!/(location\.(host|hostname|origin)|document\.(baseURI|URL|documentURI)|currentScript)/i.test(js)) return js
+
+  const rewriteLocationMemberAccess = (source: string, key: 'host' | 'hostname' | 'origin'): string => {
+    const helper = `window.__KG_GET_ORIGINAL_LOCATION_PROP__("${key}", `
+    let next = source
+    next = next.replace(
+      new RegExp(String.raw`\b(window|self|globalThis)\.location\.${key}\b`, 'g'),
+      match => `${helper}${match})`,
+    )
+    next = next.replace(
+      new RegExp(String.raw`\b([A-Za-z_$][\w$]*)\.location\.${key}\b`, 'g'),
+      (match, ident: string) => {
+        if (ident === 'window' || ident === 'self' || ident === 'globalThis') return match
+        return `${helper}${match})`
+      },
+    )
+    next = next.replace(
+      new RegExp(String.raw`(^|[^.\w$])location\.${key}\b`, 'g'),
+      (_match, prefix: string) => `${prefix}${helper}location.${key})`,
+    )
+    return next
+  }
+
+  let next = js
+  next = rewriteLocationMemberAccess(next, 'origin')
+  next = rewriteLocationMemberAccess(next, 'host')
+  next = rewriteLocationMemberAccess(next, 'hostname')
+  next = next.replace(/\bdocument\.baseURI\b/g, 'window.__KG_GET_ORIGINAL_DOCUMENT_URL__(document.baseURI)')
+  next = next.replace(/\bdocument\.documentURI\b/g, 'window.__KG_GET_ORIGINAL_DOCUMENT_URL__(document.documentURI)')
+  next = next.replace(/\bdocument\.URL\b/g, 'window.__KG_GET_ORIGINAL_DOCUMENT_URL__(document.URL)')
+  if (upstreamUrl) {
+    const currentScriptSentinel = '__KG_CURRENT_SCRIPT_SENTINEL__'
+    const currentScriptExpr = `window.__KG_GET_CURRENT_SCRIPT__((typeof document === "object" ? document.currentScript : null), ${JSON.stringify(upstreamUrl)})`
+    next = next.replace(/\bdocument\?\.\s*currentScript\b/g, currentScriptSentinel)
+    next = next.replace(/\bdocument\.currentScript\b/g, currentScriptSentinel)
+    next = next.replace(new RegExp(currentScriptSentinel, 'g'), currentScriptExpr)
+  }
+  return next
+}
+
 function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: string }): string {
   const html = String(opts.html || '')
   const originalUrl = String(opts.originalUrl || '').trim()
@@ -2879,6 +2926,67 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
     '<script>',
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
+    '  const KG_ORIGINAL_LOCATION = (() => {',
+    '    try {',
+    '      const u = new URL(KG_ORIGINAL_URL);',
+    '      return {',
+    '        href: u.href,',
+    '        origin: u.origin,',
+    '        host: u.host,',
+    '        hostname: u.hostname,',
+    '        pathname: u.pathname,',
+    '        search: u.search,',
+    '        hash: u.hash,',
+    '      };',
+    '    } catch {',
+    '      return { href: KG_ORIGINAL_URL, origin: "", host: "", hostname: "", pathname: "", search: "", hash: "" };',
+    '    }',
+    '  })();',
+    '  try { window.__KG_ORIGINAL_LOCATION = KG_ORIGINAL_LOCATION; } catch { void 0; }',
+    '  try { window.__KG_GET_ORIGINAL_LOCATION_PROP__ = (key, actual) => {',
+    '    try {',
+    '      const value = KG_ORIGINAL_LOCATION && typeof KG_ORIGINAL_LOCATION === "object" ? KG_ORIGINAL_LOCATION[key] : "";',
+    '      return value || actual;',
+    '    } catch {',
+    '      return actual;',
+    '    }',
+    '  }; } catch { void 0; }',
+    '  try { window.__KG_GET_ORIGINAL_DOCUMENT_URL__ = (actual) => KG_ORIGINAL_LOCATION.href || actual; } catch { void 0; }',
+    '  try {',
+    '    if (!(window.__KG_CURRENT_SCRIPT_CACHE__ instanceof Map)) {',
+    '      window.__KG_CURRENT_SCRIPT_CACHE__ = new Map();',
+    '    }',
+    '    window.__KG_GET_CURRENT_SCRIPT__ = (actual, fallbackSrc) => {',
+    '      try {',
+    '        const src = String(fallbackSrc || "");',
+    '        if (actual instanceof HTMLScriptElement) {',
+    '          const actualSrc = String(actual.getAttribute("src") || actual.src || "");',
+    '          if (!src || actualSrc === src) return actual;',
+    '        }',
+    '        if (!src) return actual || null;',
+    '        const cache = window.__KG_CURRENT_SCRIPT_CACHE__;',
+    '        if (cache && typeof cache.get === "function") {',
+    '          const cached = cache.get(src);',
+    '          if (cached instanceof HTMLScriptElement) return cached;',
+    '        }',
+    '        const synthetic = document.createElement("script");',
+    '        try { synthetic.setAttribute("src", src); } catch { void 0; }',
+    '        try { synthetic.src = src; } catch { void 0; }',
+    '        if (actual instanceof HTMLScriptElement) {',
+    '          try { if (actual.nonce) synthetic.nonce = actual.nonce; } catch { void 0; }',
+    '          try { if (actual.crossOrigin) synthetic.crossOrigin = actual.crossOrigin; } catch { void 0; }',
+    '          try { if (actual.referrerPolicy) synthetic.referrerPolicy = actual.referrerPolicy; } catch { void 0; }',
+    '          try { synthetic.async = actual.async; } catch { void 0; }',
+    '          try { synthetic.defer = actual.defer; } catch { void 0; }',
+    '          try { if (actual.type) synthetic.type = actual.type; } catch { void 0; }',
+    '        }',
+    '        if (cache && typeof cache.set === "function") cache.set(src, synthetic);',
+    '        return synthetic;',
+    '      } catch {',
+    '        return actual || null;',
+    '      }',
+    '    };',
+    '  } catch { void 0; }',
     '  const patchLocationIdentity = () => {',
     '    try {',
     '      const original = new URL(KG_ORIGINAL_URL);',
@@ -4974,6 +5082,13 @@ function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunc
         }
         buf = Buffer.concat(chunks)
       }
+      const shouldRewriteJavascript =
+        /(?:^|\/)[^/?]+\.(?:m?js)(?:$|\?)/i.test(upstreamPath)
+        || /(?:javascript|ecmascript)/i.test(String(contentType || ''))
+      if (shouldRewriteJavascript) {
+        const rewritten = rewriteProxiedWebpageJavascriptForOriginalLocation({ rawJs: buf.toString('utf8'), upstreamUrl })
+        buf = Buffer.from(rewritten, 'utf8')
+      }
       finished = true
       res.end(buf)
     } catch (error) {
@@ -5217,6 +5332,13 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
           chunks.push(Buffer.from(value))
         }
         buf = Buffer.concat(chunks)
+      }
+      const shouldRewriteJavascript =
+        /(?:^|\/)[^/?]+\.(?:m?js)(?:$|\?)/i.test(upstreamPath)
+        || /(?:javascript|ecmascript)/i.test(String(contentType || ''))
+      if (shouldRewriteJavascript) {
+        const rewritten = rewriteProxiedWebpageJavascriptForOriginalLocation({ rawJs: buf.toString('utf8'), upstreamUrl })
+        buf = Buffer.from(rewritten, 'utf8')
       }
       finished = true
       res.end(buf)
