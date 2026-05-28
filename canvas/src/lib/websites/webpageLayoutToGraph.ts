@@ -4,6 +4,7 @@ import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '@/lib/url'
 
 import type { WebpageLayoutSnapshot, WebpageLayoutElement } from './webpageLayoutExport'
+import { looksLikeWebpageShellText } from './webpageShellHeuristics'
 
 export type WebpageLayoutToGraphOptions = {
   maxNodes?: number
@@ -402,6 +403,47 @@ const isHeadingTag = (tag: string): boolean => {
   return t === 'H1' || t === 'H2' || t === 'H3' || t === 'H4' || t === 'H5' || t === 'H6'
 }
 
+const WEBPAGE_LAYOUT_CHROME_CONTROL_TEXT_RE =
+  /^(?:get|open|download|install|launch|continue)\s+app$|^(?:sign\s*in|sign\s*up|log\s*in|log\s*on|visit\s+website|visit\s+site|new\s+chat|copy)$/i
+
+const WEBPAGE_LAYOUT_CHROME_CONTROL_CUE_RE =
+  /\b(?:get|open|download|install|launch|continue)\s+app\b|\b(?:sign\s*in|sign\s*up|log\s*in|log\s*on|visit\s+website|visit\s+site|new\s+chat|copy)\b/gi
+
+const WEBPAGE_LAYOUT_CHROME_CLASS_RE =
+  /(nav|menu|header|footer|toolbar|tabbar|sidebar|drawer|modal|dialog|auth|login|signin|signup|appbar|topbar|bottombar|controls?|actions?)/i
+
+const WEBPAGE_LAYOUT_LOW_VALUE_SECTION_TITLE_RE =
+  /\b(?:what'?s new|other improvements?|improvements?|release notes?|changelog|product updates?|login(?:\s*&\s*account)?|account|pricing|plans|security|settings|integrations?|extensions?|announcements?)\b/i
+
+const isChromeLandmarkRole = (role: string): boolean => {
+  const r = String(role || '').trim().toLowerCase()
+  return r === 'banner' || r === 'navigation' || r === 'contentinfo' || r === 'complementary' || r === 'search'
+}
+
+const isChromeLandmarkTag = (tag: string): boolean => {
+  const t = String(tag || '').trim().toUpperCase()
+  return t === 'HEADER' || t === 'NAV' || t === 'FOOTER' || t === 'ASIDE'
+}
+
+const buildChromeProbeText = (el: WebpageLayoutElement): string =>
+  [
+    normText(safeStr(el.text)),
+    safeStr(el.attrs?.ariaLabel),
+    safeStr(el.attrs?.placeholder),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+
+const looksLikeChromeCueElement = (el: WebpageLayoutElement): boolean => {
+  const probe = buildChromeProbeText(el)
+  if (!probe) return false
+  if (looksLikeWebpageShellText(probe)) return true
+  if (WEBPAGE_LAYOUT_CHROME_CONTROL_TEXT_RE.test(probe)) return true
+  const cueCount = (probe.match(WEBPAGE_LAYOUT_CHROME_CONTROL_CUE_RE) || []).length
+  return cueCount >= 2
+}
+
 const scoreElementForKeep = (el: WebpageLayoutElement, minAreaPx: number): number => {
   const tag = safeStr(el.tag).toUpperCase()
   const r = el.rect
@@ -660,6 +702,219 @@ const pruneSmallNoisyLeaves = (
   }
 
   return Array.from(byId.values())
+}
+
+const pruneShellChromeElements = (
+  kept: WebpageLayoutElement[],
+  params: { vpArea: number },
+): WebpageLayoutElement[] => {
+  const byId = new Map<string, WebpageLayoutElement>()
+  for (let i = 0; i < kept.length; i += 1) {
+    const el = kept[i]
+    const id = safeStr(el.id)
+    if (!id) continue
+    byId.set(id, el)
+  }
+
+  const rebuildChildren = () => {
+    const childrenById = new Map<string, string[]>()
+    for (const el of byId.values()) {
+      const pid = safeStr(el.pid)
+      const id = safeStr(el.id)
+      if (!pid || !id) continue
+      const list = childrenById.get(pid)
+      if (list) list.push(id)
+      else childrenById.set(pid, [id])
+    }
+    return childrenById
+  }
+
+  const shouldPrune = (el: WebpageLayoutElement, childrenById: Map<string, string[]>): boolean => {
+    const id = safeStr(el.id)
+    if (!id) return false
+    const tag = safeStr(el.tag).toUpperCase()
+    const role = safeStr(el.attrs?.role)
+    const cls = safeStr(el.attrs?.class)
+    const domId = safeStr(el.attrs?.id)
+    const probe = buildChromeProbeText(el)
+    const cue = looksLikeChromeCueElement(el)
+    const chromeSemantic =
+      isChromeLandmarkTag(tag) || isChromeLandmarkRole(role) || WEBPAGE_LAYOUT_CHROME_CLASS_RE.test(cls) || WEBPAGE_LAYOUT_CHROME_CLASS_RE.test(domId)
+    if (!(cue || chromeSemantic)) return false
+
+    const kids = childrenById.get(id) || []
+    const area = rectArea(el.rect)
+    const probeLen = probe.length
+    const sentenceCount = (probe.match(/[.!?](?:\s|$)/g) || []).length
+    const narrativeLike = probeLen >= 180 || sentenceCount >= 3
+
+    if (isInteractiveTag(tag)) {
+      if (!cue) return false
+      if (narrativeLike) return false
+      return true
+    }
+    if (!(cue && chromeSemantic)) return false
+    if (narrativeLike) return false
+    if (kids.length > 12 && area >= Math.max(80_000, params.vpArea * 0.12)) return false
+    return true
+  }
+
+  let pass = 0
+  while (pass < 4) {
+    pass += 1
+    let changed = false
+    const childrenById = rebuildChildren()
+    const ids = Array.from(byId.keys())
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i] || ''
+      const el = byId.get(id)
+      if (!el) continue
+      if (!shouldPrune(el, childrenById)) continue
+      const pid = safeStr(el.pid)
+      const kids = childrenById.get(id) || []
+      byId.delete(id)
+      for (let j = 0; j < kids.length; j += 1) {
+        const childId = kids[j] || ''
+        const child = byId.get(childId)
+        if (!child) continue
+        if (safeStr(child.pid) === pid) continue
+        byId.set(childId, { ...child, pid })
+      }
+      changed = true
+      break
+    }
+    if (!changed) break
+  }
+
+  return Array.from(byId.values())
+}
+
+const pruneCompetingLowValueSections = (
+  kept: WebpageLayoutElement[],
+  params: { vpArea: number },
+): WebpageLayoutElement[] => {
+  const byId = new Map<string, WebpageLayoutElement>()
+  for (let i = 0; i < kept.length; i += 1) {
+    const el = kept[i]
+    const id = safeStr(el.id)
+    if (!id) continue
+    byId.set(id, el)
+  }
+
+  const childrenByPid = new Map<string, string[]>()
+  for (const el of byId.values()) {
+    const id = safeStr(el.id)
+    const pid = safeStr(el.pid)
+    if (!id) continue
+    const list = childrenByPid.get(pid)
+    if (list) list.push(id)
+    else childrenByPid.set(pid, [id])
+  }
+
+  const collectDescendants = (rootId: string): WebpageLayoutElement[] => {
+    const out: WebpageLayoutElement[] = []
+    const queue = (childrenByPid.get(rootId) || []).slice()
+    const seen = new Set<string>()
+    while (queue.length > 0) {
+      const id = queue.shift() || ''
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      const el = byId.get(id)
+      if (!el) continue
+      out.push(el)
+      const kids = childrenByPid.get(id) || []
+      for (let i = 0; i < kids.length; i += 1) queue.push(kids[i] || '')
+    }
+    return out
+  }
+
+  const summarizeNarrativeContainer = (el: WebpageLayoutElement) => {
+    const descendants = collectDescendants(safeStr(el.id))
+    const title = normText(safeStr(el.attrs?.ariaLabel) || safeStr(el.text))
+    let longTextChars = 0
+    let paragraphChars = 0
+    let citationCount = 0
+    let tableCount = 0
+    let blockquoteCount = 0
+    let listItemCount = 0
+    let shortListItemCount = 0
+    let interactiveCount = 0
+    let chromeCueCount = looksLikeChromeCueElement(el) ? 1 : 0
+    for (let i = 0; i < descendants.length; i += 1) {
+      const child = descendants[i]!
+      const tag = safeStr(child.tag).toUpperCase()
+      const text = normText(safeStr(child.text))
+      if (looksLikeChromeCueElement(child)) chromeCueCount += 1
+      if (isInteractiveTag(tag)) interactiveCount += 1
+      if (tag === 'TABLE') tableCount += 1
+      if (tag === 'BLOCKQUOTE') blockquoteCount += 1
+      if (tag === 'LI') {
+        listItemCount += 1
+        if (text && text.length < 72) shortListItemCount += 1
+      }
+      if (text) {
+        if (text.length >= 80) longTextChars += text.length
+        if (tag === 'P' || tag === 'BLOCKQUOTE' || tag === 'TD' || (tag === 'LI' && text.length >= 80)) {
+          paragraphChars += text.length
+        }
+        citationCount += (text.match(/\[[0-9]+\]|https?:\/\//g) || []).length
+      }
+    }
+    const narrativeScore =
+      longTextChars + paragraphChars * 1.2 + citationCount * 36 + tableCount * 220 + blockquoteCount * 120
+    const titleCue = WEBPAGE_LAYOUT_LOW_VALUE_SECTION_TITLE_RE.test(title) || looksLikeWebpageShellText(title)
+    const listHeavy = listItemCount >= 6 && shortListItemCount >= Math.max(5, Math.ceil(listItemCount * 0.75))
+    const chromeHeavy = chromeCueCount >= 2 || interactiveCount >= 4
+    return {
+      id: safeStr(el.id),
+      title,
+      descendants,
+      narrativeScore,
+      titleCue,
+      listHeavy,
+      chromeHeavy,
+      citationCount,
+      tableCount,
+      longTextChars,
+      paragraphChars,
+      area: rectArea(el.rect),
+    }
+  }
+
+  const narrativeContainers = Array.from(byId.values())
+    .filter((el) => {
+      const tag = safeStr(el.tag).toUpperCase()
+      return tag === 'MAIN' || tag === 'ARTICLE' || tag === 'SECTION'
+    })
+    .map(summarizeNarrativeContainer)
+
+  let bestNarrativeScore = 0
+  for (let i = 0; i < narrativeContainers.length; i += 1) {
+    bestNarrativeScore = Math.max(bestNarrativeScore, narrativeContainers[i]!.narrativeScore)
+  }
+  if (!(bestNarrativeScore >= 900)) return kept
+
+  const idsToDrop = new Set<string>()
+  for (let i = 0; i < narrativeContainers.length; i += 1) {
+    const summary = narrativeContainers[i]!
+    const el = byId.get(summary.id)
+    if (!el) continue
+    const tag = safeStr(el.tag).toUpperCase()
+    const cls = safeStr(el.attrs?.class)
+    if (tag !== 'SECTION' || !/\bkg-synth-section\b/i.test(cls)) continue
+    const lowNarrative = summary.narrativeScore <= Math.max(260, bestNarrativeScore * 0.28)
+    const weakContent = summary.paragraphChars < 220 && summary.longTextChars < 320
+    const productLike = summary.titleCue || (summary.listHeavy && summary.chromeHeavy)
+    const keepForEvidence = summary.citationCount > 0 || summary.tableCount > 0
+    if (!lowNarrative || !weakContent || !productLike || keepForEvidence) continue
+    idsToDrop.add(summary.id)
+    for (let j = 0; j < summary.descendants.length; j += 1) {
+      idsToDrop.add(safeStr(summary.descendants[j]!.id))
+    }
+  }
+
+  if (idsToDrop.size === 0) return kept
+  return kept.filter(el => !idsToDrop.has(safeStr(el.id)))
 }
 
 const pruneWrapperElements = (
@@ -950,7 +1205,7 @@ const shouldKeepElement = (el: WebpageLayoutElement, minAreaPx: number): boolean
   }
 
   if (isMediaTag(tag)) return true
-  if (isInteractiveTag(tag)) return true
+  if (isInteractiveTag(tag)) return !looksLikeChromeCueElement(el)
   if (isContainerTag(tag) && area >= Math.max(3500, minAreaPx * 0.28) && minDim >= 30) return true
 
   const role = String(el.attrs?.role || '').trim()
@@ -1378,11 +1633,16 @@ export function convertWebpageLayoutToGraphData(
     }
   }
 
-  let pruned = enforceGeometricNesting(pruneSmallNoisyLeaves(pruneOverlappedSiblings(pruneWrapperElements(kept, pruneParams)), pruneParams))
+  let pruned = enforceGeometricNesting(
+    pruneSmallNoisyLeaves(
+      pruneShellChromeElements(pruneOverlappedSiblings(pruneWrapperElements(kept, pruneParams)), pruneParams),
+      pruneParams,
+    ),
+  )
   if (pruned.length === 0 && kept.length > 0) {
     pruned = enforceGeometricNesting(kept.slice(0, Math.max(100, Math.min(maxNodes, 1200))))
   }
-  pruned = synthesizeLayoutSections(pruned, pruneParams)
+  pruned = pruneCompetingLowValueSections(synthesizeLayoutSections(pruned, pruneParams), pruneParams)
 
   let minX = Infinity
   let minY = Infinity

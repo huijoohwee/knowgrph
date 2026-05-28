@@ -78,6 +78,7 @@ export async function importWorkspaceUrl(args: {
     url: fetched.normalizedUrl || rawUrl,
     importedName: fetched.name,
     importedText: fetched.text,
+    importedThinkingText: fetched.thinkingText,
     importedWorkspacePath: normalized,
   })
   const applyToGraph = shouldApplyImportedCanvasDocumentToGraph({

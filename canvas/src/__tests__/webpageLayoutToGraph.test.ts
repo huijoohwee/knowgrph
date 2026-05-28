@@ -2803,3 +2803,112 @@ export function testWebpageLayoutToGraphAddsTextPreviewAndNormalizesText() {
   const preview = props['dom:textPreview']
   if (typeof preview !== 'string' || !preview.endsWith('…')) throw new Error('expected dom:textPreview truncated with ellipsis')
 }
+
+export function testWebpageLayoutToGraphPrunesShareChromeAndKeepsNarrativeContent() {
+  const styleBase = {
+    display: 'block',
+    position: 'static',
+    zIndex: 'auto',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    color: '',
+    borderRadius: '0px',
+    borderColor: 'rgba(0, 0, 0, 0)',
+    borderWidth: '0px',
+    padding: '0px',
+    margin: '0px',
+    gap: '0px',
+    justifyContent: 'normal',
+    alignItems: 'normal',
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    fontSize: '',
+    fontWeight: '',
+    fontFamily: '',
+    lineHeight: '',
+    letterSpacing: '',
+    textTransform: '',
+    textAlign: '',
+    boxShadow: 'none',
+    opacity: '1',
+  } as const
+
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'Share', href: 'https://example.invalid/share/demo', viewport: { w: 1200, h: 900 }, scroll: { x: 0, y: 0, height: 2400 }, ts: 1 },
+    elements: [
+      { id: 'header', pid: '', tag: 'HEADER', rect: { x: 0, y: 0, w: 1200, h: 72 }, text: 'Get App Sign In', attrs: { id: 'app-header', class: 'topbar controls', role: 'banner', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: styleBase },
+      { id: 'get-app', pid: 'header', tag: 'BUTTON', rect: { x: 24, y: 16, w: 120, h: 40 }, text: 'Get App', attrs: { id: '', class: 'cta', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...styleBase, display: 'inline-block', fontSize: '14px', fontWeight: '600' } },
+      { id: 'sign-in', pid: 'header', tag: 'BUTTON', rect: { x: 160, y: 16, w: 120, h: 40 }, text: 'Sign In', attrs: { id: '', class: 'auth', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...styleBase, display: 'inline-block', fontSize: '14px', fontWeight: '600' } },
+      { id: 'main', pid: '', tag: 'MAIN', rect: { x: 80, y: 120, w: 1040, h: 1600 }, text: '', attrs: { id: '', class: 'report-container', role: 'main', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: styleBase },
+      { id: 'h1', pid: 'main', tag: 'H1', rect: { x: 120, y: 160, w: 900, h: 44 }, text: 'Shared logical blind spot in recent Goldman Sachs and UBS oil reports', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...styleBase, fontSize: '34px', fontWeight: '700' } },
+      { id: 'p1', pid: 'main', tag: 'P', rect: { x: 120, y: 230, w: 900, h: 120 }, text: 'Both Goldman Sachs and UBS assume the Hormuz-driven shock is a large but reversible disturbance in an otherwise stationary oil market, which underweights the structural hysteresis that now raises the price floor.', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...styleBase, fontSize: '18px', lineHeight: '26px' } },
+      { id: 'footer', pid: '', tag: 'FOOTER', rect: { x: 0, y: 1760, w: 1200, h: 120 }, text: 'Visit Website Copy New chat', attrs: { id: '', class: 'footer toolbar', role: 'contentinfo', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: styleBase },
+      { id: 'visit-site', pid: 'footer', tag: 'A', rect: { x: 24, y: 1790, w: 160, h: 32 }, text: 'Visit Website', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: 'https://example.invalid', src: '', alt: '' }, style: { ...styleBase, display: 'inline-block', fontSize: '14px', fontWeight: '600' } },
+      { id: 'copy', pid: 'footer', tag: 'BUTTON', rect: { x: 200, y: 1790, w: 100, h: 32 }, text: 'Copy', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...styleBase, display: 'inline-block', fontSize: '14px', fontWeight: '600' } },
+    ],
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1200, minAreaPx: 9000, fidelityLevel: 3 })
+  const ids = new Set((graph.nodes || []).map(n => String(n.id)))
+  if (!ids.has('main') || !ids.has('h1') || !ids.has('p1')) throw new Error('expected narrative report content to remain')
+  if (ids.has('header') || ids.has('footer')) throw new Error('expected share chrome containers to be pruned')
+  if (ids.has('get-app') || ids.has('sign-in') || ids.has('visit-site') || ids.has('copy')) {
+    throw new Error('expected share chrome controls to be pruned')
+  }
+}
+
+export function testWebpageLayoutToGraphPrunesCompetingLowValueUpdateSectionWhenNarrativeWins() {
+  const baseStyle = {
+    display: 'block',
+    position: 'static',
+    zIndex: 'auto',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    color: '',
+    borderRadius: '0px',
+    borderColor: 'rgba(0, 0, 0, 0)',
+    borderWidth: '0px',
+    padding: '0px',
+    margin: '0px',
+    gap: '0px',
+    justifyContent: 'normal',
+    alignItems: 'normal',
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    fontSize: '',
+    fontWeight: '',
+    fontFamily: '',
+    lineHeight: '',
+    letterSpacing: '',
+    textTransform: '',
+    textAlign: '',
+    boxShadow: 'none',
+    opacity: '1',
+  } as const
+
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'Mixed share page', href: 'https://example.invalid/share/demo', viewport: { w: 1280, h: 900 }, scroll: { x: 0, y: 0, height: 2600 }, ts: 1 },
+    elements: [
+      { id: 'main', pid: '', tag: 'MAIN', rect: { x: 60, y: 80, w: 1160, h: 2100 }, text: '', attrs: { id: '', class: 'report-container', role: 'main', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: baseStyle },
+      { id: 'article', pid: 'main', tag: 'ARTICLE', rect: { x: 80, y: 120, w: 980, h: 980 }, text: '', attrs: { id: '', class: 'prose', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: baseStyle },
+      { id: 'article-h1', pid: 'article', tag: 'H1', rect: { x: 100, y: 150, w: 900, h: 44 }, text: 'Shared logical blind spot in recent Goldman Sachs and UBS oil reports', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '34px', fontWeight: '700' } },
+      { id: 'article-p1', pid: 'article', tag: 'P', rect: { x: 100, y: 220, w: 900, h: 110 }, text: 'Both Goldman Sachs and UBS assume that the current Hormuz-driven shock is a large but ultimately reversible disturbance in an otherwise stationary oil market, which causes them to underestimate the new structural floor created by midstream hysteresis, strategic reserve policy, and transition-era demand substitution.', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '18px', lineHeight: '28px' } },
+      { id: 'article-p2', pid: 'article', tag: 'P', rect: { x: 100, y: 350, w: 900, h: 160 }, text: 'Working from the observed market data, the more internally consistent six-month path is a crisis plateau near triple digits, followed by a slower transition and a new equilibrium around an eighty-five to ninety dollar floor rather than a fast glide back to the low sixties. That conclusion follows from the same published reports once the regime-shift assumption is corrected.', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '18px', lineHeight: '28px' } },
+      { id: 'updates-section', pid: 'main', tag: 'SECTION', rect: { x: 80, y: 1180, w: 980, h: 560 }, text: '', attrs: { id: '', class: 'kg-synth-section', role: 'region', ariaLabel: "What's New", placeholder: '', href: '', src: '', alt: '' }, style: baseStyle },
+      { id: 'updates-h2', pid: 'updates-section', tag: 'H2', rect: { x: 100, y: 1210, w: 480, h: 34 }, text: "What's New", attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '28px', fontWeight: '700' } },
+      { id: 'update-1', pid: 'updates-section', tag: 'LI', rect: { x: 110, y: 1270, w: 820, h: 28 }, text: 'Heavy Mode - deeper research experience', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+      { id: 'update-2', pid: 'updates-section', tag: 'LI', rect: { x: 110, y: 1310, w: 820, h: 28 }, text: 'MiroThinker 1.7 series refresh', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+      { id: 'update-3', pid: 'updates-section', tag: 'LI', rect: { x: 110, y: 1350, w: 820, h: 28 }, text: 'Login and account updates', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+      { id: 'update-4', pid: 'updates-section', tag: 'LI', rect: { x: 110, y: 1390, w: 820, h: 28 }, text: 'Other improvements and polish', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+      { id: 'update-5', pid: 'updates-section', tag: 'LI', rect: { x: 110, y: 1430, w: 820, h: 28 }, text: 'Visit Website shortcut', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+      { id: 'update-6', pid: 'updates-section', tag: 'LI', rect: { x: 110, y: 1470, w: 820, h: 28 }, text: 'Copy and New chat controls', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+    ],
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1200, minAreaPx: 9000, fidelityLevel: 3 })
+  const ids = new Set((graph.nodes || []).map(n => String(n.id)))
+  if (!ids.has('main') || !ids.has('article') || !ids.has('article-h1') || !ids.has('article-p1') || !ids.has('article-p2')) {
+    throw new Error('expected dominant narrative article subtree to remain')
+  }
+  if (ids.has('updates-section') || ids.has('updates-h2') || ids.has('update-1') || ids.has('update-6')) {
+    throw new Error('expected low-value competing update section subtree to be pruned')
+  }
+}

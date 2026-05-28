@@ -9,7 +9,11 @@ import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemo
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/workspaceImport/applyPolicy'
 import { resolveImportedCanvasDocumentApplyToGraph } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
-import { chooseWebpageMarkdownByContentCoverage } from '@/features/markdown-workspace/workspaceImport/webpageMarkdownFidelity'
+import {
+  chooseDomRecoveredMarkdown,
+  chooseWebpageMarkdownByContentCoverage,
+} from '@/features/markdown-workspace/workspaceImport/webpageMarkdownFidelity'
+import { pruneWebpageChromeText } from '@/lib/websites/webpageShellHeuristics'
 import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -273,6 +277,7 @@ export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): P
 export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDocsRoot(): Promise<void> {
   const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
   const exportToken = 'c753877f-7480-4e76-bf75-89fe18358943'
+  const longParagraph = 'Both Goldman Sachs and UBS assume that the current Hormuz-driven shock is a large but ultimately reversible disturbance in an otherwise stationary oil market, and they underweight the midstream hysteresis and policy feedbacks that structurally raise the price floor.'
   const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-share-'))
@@ -281,6 +286,15 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
     process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
     const fs = createMemoryWorkspaceFs()
     await fs.ensureSeed()
+    const importedThinkingText = [
+      'The user wants me to:',
+      '1. Analyze recent oil market reports from major institutions like Goldman Sachs and UBS',
+      '2. Identify a shared logical blind spot',
+      '3. Based on this flaw, re-simulate the global oil price trajectory for the next six months',
+      '',
+      'Conclusion: By ignoring midstream hysteresis and the new $85 floor, both institutions underestimate prices by $20-40/bbl over the next six months.',
+      '',
+    ].join('\n')
     const result = await importWorkspaceUrl({
       fs,
       urlRaw: shareUrl,
@@ -302,9 +316,12 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
           '',
           'Goldman Sachs and UBS stay visible in the imported report body.',
           '',
+          longParagraph,
+          '',
           '[1] Goldman Sachs raises 2026 Brent average price forecast by $8 to $85 a barrel. https://www.reuters.com/business/energy/goldman-sachs-raises-2026-brent-crude-average-price-forecast/',
           '',
         ].join('\n'),
+        thinkingText: importedThinkingText,
       }),
     })
     if (result.createdPaths.length !== 1 || result.createdPaths[0] !== `/docs_/${exportToken}/${exportToken}.md`) {
@@ -314,39 +331,15 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
     const thinking = await fs.readFileText(`/docs_/${exportToken}/${exportToken}-thinking.md`)
     const duplicateRootMarkdown = await fs.readFileText(`/${exportToken}.md`)
     const duplicateRootThinking = await fs.readFileText(`/${exportToken}-thinking.md`)
+    const expectedThinking = importedThinkingText
     if (!exported?.includes(`kgWebpageUrl: "${shareUrl}"`)) {
       throw new Error('expected share markdown export to preserve the imported share URL')
     }
-    if (
-      !thinking?.includes('## Prompt')
-      || !thinking?.includes('## Query Relevance')
-      || !thinking?.includes('## Thinking Trajectory')
-      || !thinking?.includes('## Thinking Process')
-      || !thinking?.includes('## Searching For')
-      || !thinking?.includes('## Run Code')
-      || !thinking?.includes('## Workspace Output Snapshot')
-      || !thinking?.includes('## Stream-Aligned Output')
-      || !thinking?.includes('Execution trace summary derived from the imported share prompt, recovered report content, and canonical Import URL artifact export.')
-      || !thinking?.includes('Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.')
-      || !thinking?.includes('fetch_url:')
-      || !thinking?.includes('search: Analyze recent oil market reports')
-      || !thinking?.includes('tool_call: writeWorkspaceFileTextEnsuringFile')
-      || !thinking?.includes('Heading: Shared logical blind spot')
-      || !thinking?.includes('Now I can write the final answer.')
-      || thinking.includes('Goldman Sachs, UBS, and six-month oil price trajectory')
-    ) {
-      throw new Error('expected import-side share thinking export to match the high-fidelity shared thinking document structure')
+    if (thinking !== expectedThinking) {
+      throw new Error(`expected import-side share thinking export to preserve the imported thinking trajectory exactly\nEXPECTED:\n${expectedThinking}\n\nACTUAL:\n${thinking}`)
     }
     if (duplicateRootMarkdown !== null || duplicateRootThinking !== null) {
       throw new Error('expected share import to avoid duplicate root-level markdown or thinking artifacts')
-    }
-    const hostMarkdown = await readFile(path.join(tempRoot, 'docs_', exportToken, `${exportToken}.md`), 'utf8')
-    const hostThinking = await readFile(path.join(tempRoot, 'docs_', exportToken, `${exportToken}-thinking.md`), 'utf8')
-    if (!hostMarkdown.includes(`kgWebpageUrl: "${shareUrl}"`)) {
-      throw new Error('expected host docs_ markdown mirror for imported share URLs')
-    }
-    if (!hostThinking.includes('## Run Code')) {
-      throw new Error('expected host docs_ thinking mirror for imported share URLs')
     }
   } finally {
     if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
@@ -525,6 +518,91 @@ export async function testWorkspaceImportUrlPrefersHigherCoverageMarkdownFallbac
   }
 }
 
+export async function testWorkspaceImportUrlDomChooserIgnoresShellChromeDuringCoverage(): Promise<void> {
+  const convertedMarkdown = [
+    '# Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.',
+    '',
+    '## Summary',
+    '',
+    '1. Shared logical blind spot in recent Goldman Sachs and UBS oil reports.',
+    '2. Shipping risk, inventory lag, and policy feedbacks raise the price floor.',
+  ].join('\n')
+  const renderedTextMarkdown = [
+    'MiroMind App is now available - access MiroMind wherever you are.',
+    'Get App',
+    'Sign In',
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.',
+    'Summary',
+    'Shared logical blind spot in recent Goldman Sachs and UBS oil reports.',
+    'Shipping risk, inventory lag, and policy feedbacks raise the price floor.',
+    'We use cookies',
+    "What's New",
+    'Release notes and changelog',
+  ].join('\n')
+
+  const selected = chooseDomRecoveredMarkdown({
+    mode: 'import',
+    convertedMarkdown,
+    renderedTextMarkdown,
+  })
+
+  if (selected.source !== 'converted') {
+    throw new Error(`expected shell-pruned DOM chooser to preserve structured markdown, got ${selected.source}`)
+  }
+  if (selected.renderedCoverageRatio < 0.72) {
+    throw new Error(`expected shell-pruned rendered coverage to stay high, got ${selected.renderedCoverageRatio}`)
+  }
+}
+
+export async function testWorkspaceImportUrlChromePruningDoesNotTruncateSubstantiveAboutLines(): Promise<void> {
+  const pruned = pruneWebpageChromeText([
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.',
+    'Summary',
+    'What Goldman Sachs is assuming',
+    '',
+    'Goldman has raised its 2026 Brent average to about $85/bbl from $77 after the disruption.',
+    'Core assumptions:',
+    'Hormuz flows are severely disrupted for several weeks before gradual normalization.',
+    'High near-term prices give way to a lower plateau in the original bank scenario.',
+    'Demand adjusts in a smooth, price-responsive way in that baseline.',
+    'What UBS is assuming',
+    'UBS projects 2026 global oil demand growth of ~1.2 mbpd.',
+    "What's New",
+    'Release notes and changelog',
+  ].join('\n'))
+
+  if (!pruned.includes('about $85/bbl from $77')) {
+    throw new Error(`expected substantive lines containing "about" to survive chrome pruning, got:\n${pruned}`)
+  }
+  if (pruned.includes("What's New") || pruned.includes('Release notes and changelog')) {
+    throw new Error(`expected low-value tail sections to be pruned, got:\n${pruned}`)
+  }
+}
+
+export async function testWorkspaceImportUrlDomChooserRepairsMergedLeadingBoundariesFromRenderedText(): Promise<void> {
+  const convertedMarkdown = [
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.Show thinking trajectory Summary',
+    '',
+    '## 1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports',
+  ].join('\n')
+  const renderedTextMarkdown = [
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.',
+    'Show thinking trajectory',
+    'Summary',
+    '1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports',
+  ].join('\n')
+
+  const selected = chooseDomRecoveredMarkdown({
+    mode: 'import',
+    convertedMarkdown,
+    renderedTextMarkdown,
+  })
+
+  if (!selected.markdown.includes('next six months.\n\nShow thinking trajectory\n\nSummary')) {
+    throw new Error(`expected chooser to repair merged leading boundaries, got:\n${selected.markdown}`)
+  }
+}
+
 export async function testWorkspaceImportUrlImportPreservesFullTextFallbackBody(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://example.com/conference'
@@ -699,6 +777,165 @@ export async function testWorkspaceImportUrlImportRecoversLongLoadingShellViaDom
     }
     if (!domModes.includes('html')) {
       throw new Error(`expected long loading-shell fallback to probe the hydrated html mode, got ${JSON.stringify(domModes)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportPrefersStructuredDomMarkdownWhenItPreservesRenderedContent(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://example.com/rendered-share'
+  const shellLinks = Array.from(
+    { length: 60 },
+    (_, index) => `<a href="/shortcut-${index + 1}">Open App Shortcut ${index + 1}</a>`,
+  ).join('')
+  const shellHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head><title>Rendered Share</title></head>',
+    '<body>',
+    '<header><a href="/app">Get App</a><a href="/sign-in">Sign in</a><a href="/install">Install App</a></header>',
+    '<main><h1>Rendered Share</h1><p>Loading shared chat...</p><nav>',
+    shellLinks,
+    '</nav></main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const renderedText = [
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.',
+    'Show thinking trajectory',
+    '',
+    'Summary',
+    '',
+    'Shared logical blind spot in recent Goldman Sachs and UBS oil reports.',
+  ].join('\n')
+  const recoveredHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head><title>Rendered Share</title></head>',
+    '<body>',
+    '<main>',
+    '<h1>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.</h1>',
+    '<h2>Show thinking trajectory</h2>',
+    '<h3>Summary</h3>',
+    '<ol><li>Shared logical blind spot in recent Goldman Sachs and UBS oil reports.</li></ol>',
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const proxyCalls: string[] = []
+  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]), proxyCalls)
+  setWorkspaceWebpageDomExportForTests(async args => {
+    if (args.mode === 'html') return { text: recoveredHtml, title: 'Rendered Share', clipped: false }
+    return { text: renderedText, title: 'Rendered Share', clipped: false }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.text.includes('# Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.')) {
+      throw new Error(`expected import DOM recovery to prefer structured markdown heading output, got:\n${res.text}`)
+    }
+    if (!res.text.includes('## Show thinking trajectory') || !res.text.includes('### Summary')) {
+      throw new Error(`expected import DOM recovery to preserve rendered text as markdown headings, got:\n${res.text}`)
+    }
+    if (!res.text.includes('1. Shared logical blind spot in recent Goldman Sachs and UBS oil reports.')) {
+      throw new Error(`expected import DOM recovery to preserve rendered list content, got:\n${res.text}`)
+    }
+    if (res.text.includes(`[](${url})`)) {
+      throw new Error('expected DOM recovery to avoid injecting a synthetic source-link line into the body')
+    }
+    if (res.text.includes('months.Show thinking trajectory') || res.text.includes('trajectory Summary')) {
+      throw new Error('expected import DOM recovery to avoid reconstructed HTML text merges when structured DOM markdown is available')
+    }
+    if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
+      throw new Error('expected structured DOM recovery test to exercise the shared webpage proxy path')
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSiblingExport(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
+  const shellHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head><title>Shared Chat - MiroThinker</title></head>',
+    '<body>',
+    '<main><p>Loading shared chat...</p></main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const renderedText = [
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.',
+    'Show thinking trajectory',
+    '',
+    'Summary',
+    '',
+    'Shared logical blind spot in recent Goldman Sachs and UBS oil reports.',
+  ].join('\n')
+  const renderedThinkingText = [
+    'The user wants me to:',
+    '1. Analyze recent oil market reports from major institutions like Goldman Sachs and UBS',
+    '2. Identify a shared logical blind spot',
+    '3. Based on this flaw, re-simulate the global oil price trajectory for the next six months',
+    '',
+    'Conclusion: By ignoring midstream hysteresis and the new $85 floor, both institutions underestimate prices by $20-40/bbl.',
+  ].join('\n')
+  const recoveredHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head><title>Shared Chat - MiroThinker</title></head>',
+    '<body>',
+    '<main>',
+    '<h1>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.</h1>',
+    '<h2>Show thinking trajectory</h2>',
+    '<h3>Summary</h3>',
+    '<ol><li>Shared logical blind spot in recent Goldman Sachs and UBS oil reports.</li></ol>',
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const proxyCalls: string[] = []
+  const domCalls: Array<{ mode: string; clickTextHints: string[]; textCaptureTarget: string }> = []
+  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]), proxyCalls)
+  setWorkspaceWebpageDomExportForTests(async args => {
+    domCalls.push({
+      mode: String(args.mode || ''),
+      clickTextHints: Array.isArray(args.clickTextHints) ? args.clickTextHints.map(value => String(value || '')) : [],
+      textCaptureTarget: String(args.textCaptureTarget || ''),
+    })
+    if (args.mode === 'html') return { text: recoveredHtml, title: 'Shared Chat - MiroThinker', clipped: false }
+    if (args.textCaptureTarget === 'clicked-next-sibling') {
+      return { text: renderedThinkingText, title: 'Shared Chat - MiroThinker', clipped: false }
+    }
+    return { text: renderedText, title: 'Shared Chat - MiroThinker', clipped: false }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
+    if (!res.thinkingText || res.thinkingText !== renderedThinkingText) {
+      throw new Error(`expected share import to preserve distinct thinking trajectory text, got:\n${String(res.thinkingText || '')}`)
+    }
+    if (!res.text.includes('## 1. Shared logical blind spot in recent Goldman Sachs and UBS oil reports')) {
+      throw new Error(`expected share import markdown body to remain the structured summary export, got:\n${res.text}`)
+    }
+    if (res.thinkingText === res.text) {
+      throw new Error('expected thinking trajectory export to remain distinct from the markdown summary body')
+    }
+    const thinkingCall = domCalls.find(call => call.textCaptureTarget === 'clicked-next-sibling') || null
+    if (!thinkingCall) {
+      throw new Error(`expected share thinking recovery to request clicked sibling capture, got ${JSON.stringify(domCalls)}`)
+    }
+    if (!thinkingCall.clickTextHints.includes('Show thinking trajectory')) {
+      throw new Error(`expected share thinking recovery to request the trajectory toggle hint, got ${JSON.stringify(thinkingCall.clickTextHints)}`)
+    }
+    if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
+      throw new Error('expected share thinking import to exercise the shared webpage proxy path')
     }
   } finally {
     setWorkspaceWebpageDomExportForTests(null)

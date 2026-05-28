@@ -13,6 +13,7 @@ export type WorkspaceUrlContent = {
   normalizedUrl: string
   name: string
   text: string
+  thinkingText?: string
 }
 
 export type WorkspaceImportProgress = {

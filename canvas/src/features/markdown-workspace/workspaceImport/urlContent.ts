@@ -28,7 +28,8 @@ import type { WorkspaceUrlContent } from './types'
 import { clearInflightWorkspaceUrlContent, getCachedWorkspaceUrlContent, getInflightWorkspaceUrlContent, setCachedWorkspaceUrlContent, setInflightWorkspaceUrlContent } from './urlContentCache'
 import { buildWorkspaceUrlContentCacheKey } from './urlContentKey'
 import { resolveBinaryDownloadProxyUrl } from '@/lib/chatEndpoint'
-import { WORKSPACE_WEBPAGE_MARKDOWN_IMPORT_MAX_CHARS, WORKSPACE_WEBPAGE_MARKDOWN_REFRESH_MAX_CHARS, chooseWebpageMarkdownByContentCoverage, clipLargeWebpageMarkdown } from './webpageMarkdownFidelity'
+import { WORKSPACE_WEBPAGE_MARKDOWN_IMPORT_MAX_CHARS, WORKSPACE_WEBPAGE_MARKDOWN_REFRESH_MAX_CHARS, chooseDomRecoveredMarkdown, chooseWebpageMarkdownByContentCoverage, clipLargeWebpageMarkdown } from './webpageMarkdownFidelity'
+import { isShareUrlArtifactEligible } from '@/features/chat/shareUrlArtifacts'
 import {
   GLB_ASSET_MIME_TYPE,
   GLTF_ASSET_MIME_TYPE,
@@ -52,6 +53,11 @@ type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage
 type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
 
 let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
+
+const SHARE_THINKING_CLICK_TEXT_HINTS = [
+  'Show thinking trajectory',
+  '\u663e\u793a\u601d\u8003\u8fc7\u7a0b',
+]
 
 const readWorkspaceWebpageDomExport = (): WorkspaceWebpageDomExportFn =>
   workspaceWebpageDomExportOverride || exportWebpageDomViaHiddenIframe
@@ -247,6 +253,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     let shouldConvertToMarkdown = false
     let shouldFallbackToPlainText = false
     let preserveUpstreamBodyFidelity = false
+    let importedThinkingTextPromise: Promise<string> | null = null
     try {
       progressSession?.start()
 
@@ -299,6 +306,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           if (domDiag) lastDomDiag = domDiag
           const domTitle = String(htmlDom?.title || '').trim()
           if (domTitle) lastDomTitle = domTitle
+          let convertedDomMarkdown = ''
 
           const htmlText = String(htmlDom?.text || '')
           if (htmlText.trim()) {
@@ -330,14 +338,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             )
             if (converted.ok === true && converted.markdown.trim()) {
               const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
-              const trimmed = processed.trim()
-              const title = String(htmlDom?.title || '').trim()
-              if (trimmed.length >= 400 && !looksLowFidelityWebpageMarkdown(trimmed)) return trimmed
-              if (title && trimmed && trimmed.length <= 120 && trimmed.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
-                void 0
-              } else if (trimmed.length >= 220 && !looksLowFidelityWebpageMarkdown(trimmed)) {
-                return trimmed
-              }
+              convertedDomMarkdown = processed.trim()
             }
           }
 
@@ -357,6 +358,30 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           if (!lastDomTitle && textTitle) lastDomTitle = textTitle
           const textOnly = String(textDom?.text || '').trim()
           const title = String(htmlDom?.title || textDom?.title || '').trim() || undefined
+          const renderedTextMarkdown = textOnly.length >= 120 && !looksLikeJsShellText(textOnly) ? textOnly : ''
+          if (convertedDomMarkdown || renderedTextMarkdown) {
+            const domSelection = chooseDomRecoveredMarkdown({
+              mode,
+              convertedMarkdown: convertedDomMarkdown,
+              renderedTextMarkdown,
+            })
+            if (domSelection.source === 'rendered' && domSelection.markdown.trim()) preserveUpstreamBodyFidelity = true
+            if (domSelection.source === 'converted' && domSelection.markdown.trim()) {
+              if (domSelection.markdown.length >= 400 && !looksLowFidelityWebpageMarkdown(domSelection.markdown)) return domSelection.markdown
+              if (title && domSelection.markdown.length <= 120 && domSelection.markdown.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
+                void 0
+              } else if (domSelection.markdown.length >= 220 && !looksLowFidelityWebpageMarkdown(domSelection.markdown)) {
+                return domSelection.markdown
+              }
+            }
+            if (domSelection.source === 'rendered' && domSelection.markdown.length >= 220) {
+              return domSelection.markdown
+            }
+          }
+          if (renderedTextMarkdown.length >= 400) {
+            preserveUpstreamBodyFidelity = true
+            return renderedTextMarkdown
+          }
           if (textOnly.length >= 400) {
             if (!looksLikeJsShellText(textOnly)) return plainTextToMarkdown(textOnly, title)
           }
@@ -364,6 +389,45 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           void 0
         }
         return ''
+      }
+
+      const tryRecoverShareThinkingTextFromDomExport = async (): Promise<string> => {
+        if (looksLikeSubstackUrl || !isShareUrlArtifactEligible(normalizedUrl)) return ''
+        try {
+          const exportDom = readWorkspaceWebpageDomExport()
+          const textDom = await exportDom({
+            url: normalizedUrl,
+            mode: 'text',
+            timeoutMs: 45_000,
+            maxChars: 12_000_000,
+            scrollCrawl: true,
+            expandFaq: true,
+            minWaitAfterLoadMs: 650,
+            clickTextHints: SHARE_THINKING_CLICK_TEXT_HINTS,
+            textCaptureTarget: 'clicked-next-sibling',
+            signal: ctrl.signal,
+          })
+          const textDiag = String(textDom?.diag || '').trim()
+          if (!lastDomDiag && textDiag) lastDomDiag = textDiag
+          const textTitle = String(textDom?.title || '').trim()
+          if (!lastDomTitle && textTitle) lastDomTitle = textTitle
+          const textOnly = String(textDom?.text || '').replace(/\r\n/g, '\n').trim()
+          if (textOnly.length >= 80 && !looksLikeJsShellText(textOnly)) return textOnly
+        } catch {
+          void 0
+        }
+        return ''
+      }
+
+      const readImportedThinkingText = async (): Promise<string> => {
+        if (mode !== 'import' || !isShareUrlArtifactEligible(normalizedUrl)) return ''
+        if (!importedThinkingTextPromise) importedThinkingTextPromise = tryRecoverShareThinkingTextFromDomExport()
+        return await importedThinkingTextPromise
+      }
+
+      const finalizeWebpageContent = async (text: string): Promise<WorkspaceUrlContent> => {
+        const thinkingText = await readImportedThinkingText()
+        return thinkingText ? { normalizedUrl, name, text, thinkingText } : { normalizedUrl, name, text }
       }
 
       const upstreamMarkdown = await (async () => {
@@ -501,7 +565,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         { timeoutMs: 120 },
       )
       opts?.onProgress?.(100)
-      if (text && text.trim() && !isFrontmatterOnlyDoc(text)) return { normalizedUrl, name, text }
+      if (text && text.trim() && !isFrontmatterOnlyDoc(text)) return await finalizeWebpageContent(text)
 
       const minimal = buildWebpageWorkspaceEntryStubText({
         url: normalizedUrl,
@@ -511,7 +575,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         fidelityLevel: canvasPreset ? 4 : undefined,
         includeImages: canvasPreset ? true : undefined,
       })
-      if (minimal.trim() && !isFrontmatterOnlyDoc(minimal)) return { normalizedUrl, name, text: minimal }
+      if (minimal.trim() && !isFrontmatterOnlyDoc(minimal)) return await finalizeWebpageContent(minimal)
     } catch {
       if (mode === 'refresh') {
         const recoveredBody = lastFetchedHtml && shouldFallbackToPlainText ? htmlFallbackToMarkdownAllText(lastFetchedHtml) : ''

@@ -539,6 +539,7 @@ export type BuildShareThinkingArtifactArgs = {
   preferredThinkingProcessLines?: string[]
   preferredSearchLines?: string[]
   preferredRunCodeLines?: string[]
+  preferredWorkspaceOutputDocument?: string | null
   preferredWorkspaceOutputLines?: string[]
   preferredStreamAlignedOutputLines?: string[]
   preferredSourceLinks?: string[]
@@ -624,6 +625,7 @@ export const buildShareThinkingArtifactDocument = (args: BuildShareThinkingArtif
     ...args.observedUrls.filter(url => url === args.artifact.url || isReportShareUrl(url)),
     ...streamSignalSnapshot.sourceUrls,
   ]).slice(0, 12)
+  const workspaceOutputDocument = String(args.preferredWorkspaceOutputDocument || '').trim()
   const workspaceOutputLines =
     Array.isArray(args.preferredWorkspaceOutputLines) && args.preferredWorkspaceOutputLines.length > 0
       ? uniqueText(args.preferredWorkspaceOutputLines).slice(0, 10)
@@ -726,7 +728,11 @@ export const buildShareThinkingArtifactDocument = (args: BuildShareThinkingArtif
     '',
     '## Workspace Output Snapshot',
     '',
-    ...(workspaceOutputLines.length > 0 ? workspaceOutputLines.map(line => `- ${line}`) : ['- Workspace output unavailable.']),
+    ...(workspaceOutputDocument
+      ? [wrapFence(workspaceOutputDocument, 'markdown')]
+      : workspaceOutputLines.length > 0
+        ? workspaceOutputLines.map(line => `- ${line}`)
+        : ['- Workspace output unavailable.']),
     '',
     '## Stream-Aligned Output',
     '',

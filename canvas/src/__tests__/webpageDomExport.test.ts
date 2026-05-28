@@ -249,6 +249,63 @@ export async function testWebpageDomExportHtmlScrollCrawlSkipsInitialNetworkIdle
   }
 }
 
+export async function testWebpageDomExportLayoutPrefersScriptEnabledProbeBeforeStripFallback() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: WEBPAGE_TEST_URL,
+      mode: 'layout',
+      timeoutMs: 4000,
+      waitForNetworkIdle: false,
+      minWaitAfterLoadMs: 0,
+      domQuietMs: 0,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const initialSrc = String(iframe.getAttribute('src') || iframe.src || '')
+    if (!initialSrc.includes('/__webpage_proxy?url=')) {
+      throw new Error(`expected layout probe to use webpage proxy source, got ${initialSrc}`)
+    }
+    if (initialSrc.includes('kg_script_policy=strip')) {
+      throw new Error(`expected layout probe to try script-enabled source before strip fallback, got ${initialSrc}`)
+    }
+
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 600) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected layout export request')
+
+    const snapshot = JSON.stringify({
+      meta: { kind: 'layout', title: 'T', href: WEBPAGE_TEST_URL, viewport: { w: 1200, h: 800 }, scroll: { x: 0, y: 0, height: 1600 }, ts: 1 },
+      elements: [{ id: 'e1', pid: '', tag: 'DIV', rect: { x: 0, y: 0, w: 200, h: 40 }, text: 'Loaded', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: null }],
+    })
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'layout', title: 'T', clipped: false, text: snapshot }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected layout snapshot result')
+    if (!res.text.includes('"kind":"layout"')) throw new Error('expected returned layout payload')
+  } finally {
+    restore()
+  }
+}
+
 export async function testWebpageDomExportAbortsAndRemovesIframe() {
   const { restore } = initJsdomHarness()
   try {

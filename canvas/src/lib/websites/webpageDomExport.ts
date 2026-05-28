@@ -1,4 +1,5 @@
 export type WebpageDomExportMode = 'text' | 'html' | 'layout'
+export type WebpageDomTextCaptureTarget = 'document' | 'clicked-next-sibling'
 
 export type WebpageDomExportResult = { text: string; title: string; clipped: boolean; diag?: string }
 
@@ -15,6 +16,16 @@ const KG_EXPORT_DOM_KIND = 'kg-export-dom'
 const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
 const KG_WEBPAGE_DOM_KIND = 'kg-webpage-dom'
 const HTML_MULTI_SNAPSHOT_SUBSTANTIAL_TEXT_LEN = 250_000
+
+const normalizeRenderedPageTextForExport = (value: unknown): string => {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
 
 async function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
   await new Promise<void>(resolve => {
@@ -55,13 +66,15 @@ const stableKey = (args: {
   maxElements: number
   scrollCrawl: boolean
   expandFaq: boolean
+  clickTextHints: string[]
+  textCaptureTarget: WebpageDomTextCaptureTarget
   viewportW: number
   viewportH: number
 }): string => {
   const graphSemanticKey = hashSignatureParts([
     args.mode, args.url, args.timeoutMs, args.maxChars, args.waitForNetworkIdle, args.networkIdleMs,
     args.minWaitAfterLoadMs, args.domQuietMs, args.maxElements, args.viewportW, args.viewportH,
-    args.scrollCrawl, args.expandFaq,
+    args.scrollCrawl, args.expandFaq, args.textCaptureTarget, args.clickTextHints.map(value => value.toLowerCase()).join('|'),
   ])
   return buildScopedGraphSemanticKey('webpage-dom-export', { graphSemanticKey }) || graphSemanticKey
 }
@@ -74,6 +87,8 @@ export async function exportWebpageDomViaHiddenIframe(args: {
   maxElements?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  clickTextHints?: string[]
+  textCaptureTarget?: WebpageDomTextCaptureTarget
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
@@ -94,6 +109,8 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   maxElements?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  clickTextHints?: string[]
+  textCaptureTarget?: WebpageDomTextCaptureTarget
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
@@ -120,6 +137,11 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   const maxElements = typeof args.maxElements === 'number' && Number.isFinite(args.maxElements) ? Math.floor(args.maxElements) : 0
   const scrollCrawl = !!args.scrollCrawl
   const expandFaq = args.expandFaq !== false
+  const clickTextHints = Array.isArray(args.clickTextHints)
+    ? args.clickTextHints.map(value => String(value || '').trim()).filter(Boolean).slice(0, 8)
+    : []
+  const textCaptureTarget: WebpageDomTextCaptureTarget =
+    args.textCaptureTarget === 'clicked-next-sibling' ? 'clicked-next-sibling' : 'document'
   const viewportW = (() => {
     const raw = (args as unknown as { viewportW?: unknown }).viewportW
     const parsed = typeof raw === 'number' ? raw : Number(raw)
@@ -145,6 +167,8 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     maxElements,
     scrollCrawl,
     expandFaq,
+    clickTextHints,
+    textCaptureTarget,
     viewportW,
     viewportH,
   })
@@ -193,6 +217,8 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     maxElements: maxElements || undefined,
     scrollCrawl,
     expandFaq,
+    clickTextHints,
+    textCaptureTarget,
     waitForNetworkIdle,
     networkIdleMs,
     minWaitAfterLoadMs,
@@ -239,6 +265,8 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   maxElements?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  clickTextHints?: string[]
+  textCaptureTarget?: WebpageDomTextCaptureTarget
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
@@ -287,11 +315,8 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   iframe.style.opacity = '0'
   iframe.style.pointerEvents = 'none'
 
-  const iframePath = (() => {
-    const base = `/__webpage_proxy?url=${encodeURIComponent(url)}`
-    if (args.mode === 'layout' || args.mode === 'text') return `${base}&kg_script_policy=strip`
-    return base
-  })()
+  const iframePathBase = `/__webpage_proxy?url=${encodeURIComponent(url)}`
+  const iframePathStrip = `${iframePathBase}&kg_script_policy=strip`
   const candidates = (() => {
     const out: { src: string; sandbox: string }[] = []
     const seen = new Set<string>()
@@ -301,19 +326,29 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
       seen.add(key)
       out.push({ src, sandbox })
     }
-    push(iframePath, 'allow-scripts allow-same-origin')
-    push(iframePath, 'allow-scripts')
+    const basePaths =
+      args.mode === 'layout' || args.mode === 'text'
+        ? [iframePathBase, iframePathStrip]
+        : [iframePathBase]
+    for (let i = 0; i < basePaths.length; i += 1) {
+      const src = basePaths[i]!
+      push(src, 'allow-scripts allow-same-origin')
+      push(src, 'allow-scripts')
+    }
     try {
       const loc = typeof window !== 'undefined' && window.location ? window.location : null
       const host = String(loc?.hostname || '')
       const port = String(loc?.port || '')
       const protocol = String(loc?.protocol || 'http:')
-      const abs = (h: string) => `${protocol}//${h}${port ? `:${port}` : ''}${iframePath}`
+      const abs = (h: string, path: string) => `${protocol}//${h}${port ? `:${port}` : ''}${path}`
       const hostLc = host.toLowerCase()
       const canTryLocalHostFallbacks = hostLc !== 'localhost' && hostLc !== '127.0.0.1'
       if (canTryLocalHostFallbacks) {
-        push(abs('127.0.0.1'), 'allow-scripts allow-same-origin')
-        push(abs('localhost'), 'allow-scripts allow-same-origin')
+        for (let i = 0; i < basePaths.length; i += 1) {
+          const src = basePaths[i]!
+          push(abs('127.0.0.1', src), 'allow-scripts allow-same-origin')
+          push(abs('localhost', src), 'allow-scripts allow-same-origin')
+        }
       }
     } catch {
       void 0
@@ -391,7 +426,7 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
         if (args.mode === 'text') {
           const body = doc.body
           const innerText = body && typeof body.innerText === 'string' ? body.innerText : ''
-          const visibleText = String(innerText || '').replace(/\s+/g, ' ').trim()
+          const visibleText = normalizeRenderedPageTextForExport(innerText)
           const cleanedText = (() => {
             try {
               if (!body) return ''
@@ -819,6 +854,10 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
               maxElements: typeof args.maxElements === 'number' && Number.isFinite(args.maxElements) ? Math.floor(args.maxElements) : undefined,
               expandFaq: args.expandFaq !== false,
               scrollCrawl: !!args.scrollCrawl,
+              clickTextHints: Array.isArray(args.clickTextHints)
+                ? args.clickTextHints.map(value => String(value || '').trim()).filter(Boolean).slice(0, 8)
+                : undefined,
+              textCaptureTarget: args.textCaptureTarget === 'clicked-next-sibling' ? 'clicked-next-sibling' : 'document',
             },
             '*',
           )

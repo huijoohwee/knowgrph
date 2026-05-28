@@ -321,15 +321,8 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   const title = String(args.title || '').replace(/\s+/g, ' ').trim()
   const diag = String(args.diag || '').trim()
   const bodyText = String(normalizedBody || '').trim()
-  const sourceLinkLine = url ? `[](${url})` : ''
-  const bodyWithSourceLink = sourceLinkLine
-    ? bodyText.includes(url)
-      ? bodyText
-      : [sourceLinkLine, '', bodyText].join('\n').trim()
-    : bodyText
-
-  const finalBody = normalizeWorkspaceWebpageEntryBodyText(bodyWithSourceLink)
-  if (diag && bodyWithSourceLink && bodyWithSourceLink.length <= 140 && (!title || bodyWithSourceLink.replace(/\s+/g, ' ').trim() === title)) {
+  const finalBody = normalizeWorkspaceWebpageEntryBodyText(bodyText)
+  if (diag && bodyText && bodyText.length <= 140 && (!title || bodyText.replace(/\s+/g, ' ').trim() === title)) {
     fmLines.push(...yamlBlockScalar('kgWebpageDiagnostics', diag))
   }
   fmLines.push('---', '')

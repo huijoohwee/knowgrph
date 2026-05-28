@@ -49,6 +49,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["webpage.layoutToGraph.keepsImportantHeadingUnderMaxNodesBudget","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphKeepsImportantHeadingUnderMaxNodesBudget"],
   ["webpage.layoutToGraph.preservesSemanticWrapperSingleChildNearEq","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphPreservesSemanticWrapperSingleChildNearEq"],
   ["webpage.layoutToGraph.textPreviewAndNormalization","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphAddsTextPreviewAndNormalizesText"],
+  ["webpage.layoutToGraph.prunesShareChromeKeepsNarrative","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphPrunesShareChromeAndKeepsNarrativeContent"],
+  ["webpage.layoutToGraph.prunesCompetingLowValueUpdateSection","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphPrunesCompetingLowValueUpdateSectionWhenNarrativeWins"],
   ["webpage.layoutCache.evictsOldest","@/__tests__/webpageLayoutCache.test","testWebpageLayoutCacheEvictsOldest"],
   ["viewportTransform.invertZoomPoint.matchesD3","@/__tests__/viewportTransformPoint.test","testViewportTransformInvertZoomPointMatchesD3Invert"],
   ["canvasEventCoords.readElementLocalPoint.usesBoundingRect","@/__tests__/viewportTransformPoint.test","testCanvasEventCoordsReadElementLocalPointUsesBoundingRect"],
