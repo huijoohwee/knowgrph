@@ -93,6 +93,11 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     responsibility: 'Default remote source URL for source-file bootstrap without using hidden local imports',
     notes: 'Local filesystem paths and Cloudflare dashboard D1 URLs normalize to the configured storage base URL.',
   },
+  'workspace.import.shareExportRootPath': {
+    area: 'Import / Export',
+    responsibility: 'Workspace mirror root used by Import URL share artifact exports',
+    notes: 'Accepts workspace-like roots such as /docs_ and also normalizes sibling absolute filesystem paths under the current workspace mirror base root.',
+  },
   'payments.stripe.mode': { area: 'Stripe Payment API', responsibility: 'Stripe mode label (test vs live)' },
   'payments.stripe.secretKey': { area: 'Stripe Payment API', responsibility: 'Stripe secret key (server-side)', notes: `Keep secret keys server-side only; configure ${STRIPE_PAYMENT_SERVER_SECRET_ENV_SUMMARY} on the payment server runtime.` },
   'payments.stripe.publishableKey': { area: 'Stripe Payment API', responsibility: 'Stripe publishable key (client-side)' },

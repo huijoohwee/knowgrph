@@ -1,4 +1,6 @@
 import path from 'node:path'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 
 import { fetchWorkspaceUrlContent, importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
@@ -10,6 +12,11 @@ import { resolveImportedCanvasDocumentApplyToGraph } from '@/features/markdown-w
 import { chooseWebpageMarkdownByContentCoverage } from '@/features/markdown-workspace/workspaceImport/webpageMarkdownFidelity'
 import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import {
+  readWorkspaceImportShareExportRootPathSetting,
+  writeWorkspaceImportShareExportRootPathSetting,
+} from '@/lib/workspace/workspaceStoreSyncSettings'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 
@@ -260,6 +267,138 @@ export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): P
   } finally {
     restore()
     resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDocsRoot(): Promise<void> {
+  const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
+  const exportToken = 'c753877f-7480-4e76-bf75-89fe18358943'
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-share-'))
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = `${tempRoot}/docs`
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const result = await importWorkspaceUrl({
+      fs,
+      urlRaw: shareUrl,
+      parentPath: '/',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: `${exportToken}.md`,
+        text: [
+          '---',
+          `kgWebpageUrl: "${url}"`,
+          'kgWebpageView: "markdown"',
+          '---',
+          '',
+          '# MiroMind Share',
+          '',
+          'Goldman Sachs and UBS stay visible in the imported report body.',
+          '',
+        ].join('\n'),
+      }),
+    })
+    if (result.createdPaths.length !== 1 || result.createdPaths[0] !== `/docs_/${exportToken}/${exportToken}.md`) {
+      throw new Error(`expected primary import path only, got ${JSON.stringify(result.createdPaths)}`)
+    }
+    const exported = await fs.readFileText(`/docs_/${exportToken}/${exportToken}.md`)
+    const thinking = await fs.readFileText(`/docs_/${exportToken}/${exportToken}-thinking.md`)
+    const duplicateRootMarkdown = await fs.readFileText(`/${exportToken}.md`)
+    const duplicateRootThinking = await fs.readFileText(`/${exportToken}-thinking.md`)
+    if (!exported?.includes(`kgWebpageUrl: "${shareUrl}"`)) {
+      throw new Error('expected share markdown export to preserve the imported share URL')
+    }
+    if (!thinking?.includes('## Thinking Trajectory') || !thinking?.includes('Now I can write the final answer.')) {
+      throw new Error('expected import-side share thinking export to include the required trace sections')
+    }
+    if (duplicateRootMarkdown !== null || duplicateRootThinking !== null) {
+      throw new Error('expected share import to avoid duplicate root-level markdown or thinking artifacts')
+    }
+    const hostMarkdown = await readFile(path.join(tempRoot, 'docs_', exportToken, `${exportToken}.md`), 'utf8')
+    const hostThinking = await readFile(path.join(tempRoot, 'docs_', exportToken, `${exportToken}-thinking.md`), 'utf8')
+    if (!hostMarkdown.includes(`kgWebpageUrl: "${shareUrl}"`)) {
+      throw new Error('expected host docs_ markdown mirror for imported share URLs')
+    }
+    if (!hostThinking.includes('## Run Code')) {
+      throw new Error('expected host docs_ thinking mirror for imported share URLs')
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+}
+
+export function testWorkspaceImportShareExportRootSettingNormalizesSiblingAbsolutePath(): void {
+  const { restore } = initJsdomHarness()
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousValue = readWorkspaceImportShareExportRootPathSetting()
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+    writeWorkspaceImportShareExportRootPathSetting('/Users/huijoohwee/Documents/GitHub/huijoohwee/docs_')
+    const normalized = readWorkspaceImportShareExportRootPathSetting()
+    if (normalized !== '/docs_') {
+      throw new Error(`expected sibling absolute docs_ path to normalize to workspace root /docs_, got ${normalized}`)
+    }
+  } finally {
+    writeWorkspaceImportShareExportRootPathSetting(previousValue)
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    restore()
+  }
+}
+
+export async function testWorkspaceImportUrlUsesConfiguredShareExportRootSetting(): Promise<void> {
+  const { restore } = initJsdomHarness()
+  const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
+  const exportToken = 'c753877f-7480-4e76-bf75-89fe18358943'
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousValue = readWorkspaceImportShareExportRootPathSetting()
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-share-custom-root-'))
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = `${tempRoot}/docs`
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
+    writeWorkspaceImportShareExportRootPathSetting('/import-share-artifacts')
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    await importWorkspaceUrl({
+      fs,
+      urlRaw: shareUrl,
+      parentPath: '/',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: 'miromind-share.md',
+        text: [
+          '---',
+          `kgWebpageUrl: "${url}"`,
+          'kgWebpageView: "markdown"',
+          '---',
+          '',
+          '# MiroMind Share',
+          '',
+          'Configured export root should win.',
+          '',
+        ].join('\n'),
+      }),
+    })
+    const exported = await fs.readFileText(`/import-share-artifacts/${exportToken}/${exportToken}.md`)
+    if (!exported?.includes('Configured export root should win.')) {
+      throw new Error('expected import share artifacts to honor the configured export root setting')
+    }
+  } finally {
+    writeWorkspaceImportShareExportRootPathSetting(previousValue)
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    await rm(tempRoot, { recursive: true, force: true })
+    restore()
   }
 }
 

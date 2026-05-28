@@ -1,4 +1,6 @@
 import path from 'node:path'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -7,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   buildStreamArtifactQueryRelevance,
   persistChatStreamArtifacts,
+  resetChatStreamArtifactBundleForTests,
   renderChatStreamArtifacts,
   resolveChatStreamArtifactBundle,
 } from '@/features/chat/chatStreamArtifacts'
@@ -293,7 +296,19 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     const expectedReport = `${expectedFolder}/chat-stream-report_20260523T174000Z.md`
     const expectedDereferencedShare = `${expectedFolder}/share-01-share-derived.md`
     const expectedDereferencedReport = `${expectedFolder}/report-share-02-report-derived.md`
-    for (const path of [expectedFolder, expectedLog, expectedReport, expectedDereferencedShare, expectedDereferencedReport]) {
+    const expectedShareExportFolder = '/chat-log/c753877f-7480-4e76-bf75-89fe18358943'
+    const expectedShareExportMarkdown = `${expectedShareExportFolder}/c753877f-7480-4e76-bf75-89fe18358943.md`
+    const expectedShareThinking = `${expectedShareExportFolder}/c753877f-7480-4e76-bf75-89fe18358943-thinking.md`
+    for (const path of [
+      expectedFolder,
+      expectedLog,
+      expectedReport,
+      expectedDereferencedShare,
+      expectedDereferencedReport,
+      expectedShareExportFolder,
+      expectedShareExportMarkdown,
+      expectedShareThinking,
+    ]) {
       if (!entryPaths.has(path)) {
         throw new Error(`expected workspace stream artifact path ${path}, got ${JSON.stringify([...entryPaths])}`)
       }
@@ -305,6 +320,8 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     const logText = await fs.readFileText(expectedLog)
     const reportText = await fs.readFileText(expectedReport)
     const dereferencedShareText = await fs.readFileText(expectedDereferencedShare)
+    const shareExportText = await fs.readFileText(expectedShareExportMarkdown)
+    const shareThinkingText = await fs.readFileText(expectedShareThinking)
     if (!logText || !logText.includes('kgCanvas2dRenderer: "storyboard"') || !logText.includes('edges:')) {
       throw new Error('expected stream log markdown artifact to keep storyboard frontmatter nodes and edges')
     }
@@ -353,6 +370,33 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     if (!dereferencedShareText || !dereferencedShareText.includes(`kgWebpageUrl: "${MIROMIND_SHARE_URL}"`)) {
       throw new Error('expected dereferenced share markdown artifact to reuse shared imported workspace content')
     }
+    if (!shareExportText || !shareExportText.includes(`kgWebpageUrl: "${MIROMIND_SHARE_URL}"`)) {
+      throw new Error('expected share export markdown alias to reuse shared imported workspace content')
+    }
+    if (!shareThinkingText || !shareThinkingText.includes('# c753877f-7480-4e76-bf75-89fe18358943 Thinking Trace')) {
+      throw new Error('expected per-share thinking trace markdown artifact')
+    }
+    if (
+      !shareThinkingText.includes('## Thinking Trajectory')
+      || !shareThinkingText.includes('## Thinking Process')
+      || !shareThinkingText.includes('## Searching For')
+      || !shareThinkingText.includes('## Run Code')
+      || !shareThinkingText.includes('## Finalization')
+    ) {
+      throw new Error('expected per-share thinking trace to preserve high-fidelity trajectory and execution trace sections')
+    }
+    if (!shareThinkingText.includes(expectedShareExportMarkdown) || !shareThinkingText.includes(MIROMIND_SHARE_URL)) {
+      throw new Error('expected per-share thinking trace to link canonical share markdown and source URL')
+    }
+    if (!shareThinkingText.includes('web_search: MCP payment stream Swipe checkout MapLibre observability')) {
+      throw new Error('expected per-share thinking trace to preserve explicit search trajectory lines')
+    }
+    if (!shareThinkingText.includes('No run-code, execute-command, execute-python, or tool-call execution signals were captured.')) {
+      throw new Error('expected per-share thinking trace to preserve an explicit run-code section even when no execution signal exists')
+    }
+    if (!shareThinkingText.includes('Now I can write the final answer.')) {
+      throw new Error('expected per-share thinking trace to preserve the finalization marker')
+    }
     const mirroredLogWrite = mirrorCalls.find(call => call.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/20260523T174000Z/chat-stream-log_20260523T174000Z.md`))
     if (!mirroredLogWrite) {
       throw new Error('expected stream log writes to mirror into the sibling host chat-log root')
@@ -364,6 +408,14 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     const mirroredDereferenceWrite = mirrorCalls.find(call => call.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/20260523T174000Z/report-share-02-report-derived.md`))
     if (!mirroredDereferenceWrite) {
       throw new Error('expected dereferenced share/report markdown artifacts to mirror into the sibling host chat-log root')
+    }
+    const mirroredShareExportWrite = mirrorCalls.find(call => call.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md`))
+    if (!mirroredShareExportWrite) {
+      throw new Error('expected canonical share export markdown to mirror into the sibling host chat-log root')
+    }
+    const mirroredShareThinkingWrite = mirrorCalls.find(call => call.body.includes(`${KG_HUIJOOHWEE_CHAT_LOG_ROOT}/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943-thinking.md`))
+    if (!mirroredShareThinkingWrite) {
+      throw new Error('expected per-share thinking trace markdown to mirror into the sibling host chat-log root')
     }
     const sourceFiles = useGraphStore.getState().sourceFiles
     const visibleLog = sourceFiles.find(file => String(file?.source?.path || '') === 'workspace:/chat-log/20260523T174000Z/chat-stream-log_20260523T174000Z.md')
@@ -378,6 +430,126 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     resetWorkspaceFsForTests()
     if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    if (previousFetch) globalThis.fetch = previousFetch
+    else delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testPersistChatStreamArtifactsDereferencesShareUrlFromRequestText() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'chat-stream-request-share-'))
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = `${tempRoot}/docs`
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
+    resetWorkspaceFsForTests()
+    resetChatStreamArtifactBundleForTests()
+
+    await persistChatStreamArtifacts({
+      workspacePath: '/chat-log/20260527T162848Z/kgc_20260527T162848Z.md',
+      timestampMs: Date.UTC(2026, 4, 27, 16, 31, 59),
+      defaultLocalRootPath: '/chat-log',
+      traceId: 'trace-request-share',
+      providerSummary: 'Agnes AI API · Global · agnes-2.0-flash',
+      modelId: 'agnes-2.0-flash',
+      requestText: `Analyze this share URL for fidelity export: ${MIROMIND_SHARE_URL}`,
+      rawAssistantText: '# No explicit share url in assistant text',
+      workspaceAssistantText: '# No explicit share url in workspace text',
+      usageSummary: 'Usage: total 1',
+      finishReason: 'stop',
+      reasoningSteps: [],
+      rawSseEvents: [],
+      status: 'ok',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: 'share-derived.md',
+        text: [
+          '---',
+          `kgWebpageUrl: "${url}"`,
+          'kgWebpageView: "markdown"',
+          '---',
+          '',
+          '# Imported Share',
+          '',
+        ].join('\n'),
+      }),
+    })
+
+    const fs = await getWorkspaceFs()
+    const exported = await fs.readFileText('/chat-log/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943.md')
+    const thinking = await fs.readFileText('/chat-log/c753877f-7480-4e76-bf75-89fe18358943/c753877f-7480-4e76-bf75-89fe18358943-thinking.md')
+    if (!exported?.includes(`kgWebpageUrl: "${MIROMIND_SHARE_URL}"`)) {
+      throw new Error('expected share markdown export to be created from requestText-only observed URL')
+    }
+    if (!thinking?.includes(MIROMIND_SHARE_URL)) {
+      throw new Error('expected share thinking export to be created from requestText-only observed URL')
+    }
+  } finally {
+    resetWorkspaceFsForTests()
+    resetChatStreamArtifactBundleForTests()
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    await rm(tempRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testPersistChatStreamArtifactsWaitsForHostMirrorWrites() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  let pendingMirrorWrites = 0
+  let resolvedMirrorWrites = 0
+  try {
+    resetWorkspaceFsForTests()
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = KG_HUIJOOHWEE_CHAT_LOG_ROOT
+    globalThis.fetch = (async () => {
+      pendingMirrorWrites += 1
+      await new Promise(resolve => setTimeout(resolve, 20))
+      resolvedMirrorWrites += 1
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    await persistChatStreamArtifacts({
+      workspacePath: '/chat-log/20260523T174000Z/kgc_20260523T174000Z.md',
+      timestampMs: Date.UTC(2026, 4, 23, 17, 40, 0),
+      defaultLocalRootPath: '/chat-log',
+      traceId: 'trace-await-mirror',
+      providerSummary: 'MiroMind · Global',
+      modelId: 'mirothinker-1-7-deepresearch',
+      requestText: `Summarize ${MIROMIND_SHARE_URL} and preserve its exported artifacts.`,
+      rawAssistantText: `- Share: ${MIROMIND_SHARE_URL}`,
+      workspaceAssistantText: '# Visible share export',
+      usageSummary: 'Usage: total 1',
+      finishReason: 'stop',
+      reasoningSteps: [],
+      rawSseEvents: [],
+      status: 'ok',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: 'share-derived.md',
+        text: ['---', `kgWebpageUrl: "${url}"`, 'kgWebpageView: "markdown"', '---', '', '# Imported Share', ''].join('\n'),
+      }),
+    })
+
+    if (pendingMirrorWrites === 0) {
+      throw new Error('expected at least one host mirror write')
+    }
+    if (resolvedMirrorWrites !== pendingMirrorWrites) {
+      throw new Error(`expected persistChatStreamArtifacts to await host mirror writes, got ${resolvedMirrorWrites}/${pendingMirrorWrites}`)
+    }
+  } finally {
+    resetWorkspaceFsForTests()
     if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
     if (previousFetch) globalThis.fetch = previousFetch

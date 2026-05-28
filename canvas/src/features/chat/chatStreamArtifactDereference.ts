@@ -4,19 +4,13 @@ import { ensureMarkdownFileName } from '@/features/workspace-fs/upsertWorkspaceT
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport/urlContent'
 import { ensureChatWorkspaceMirrorFolder, mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
-import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
-
-const REPORT_SHARE_HINT_RX = /\/report\/share\//i
-const SHARE_HINT_RX = /\/share\//i
-
-const sanitizePathToken = (value: unknown, fallback: string): string => {
-  const text = String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return text || fallback
-}
+import { ensureWorkspaceFolderPathExists, writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
+import {
+  isShareUrlArtifactEligible,
+  readShareUrlArtifactKind,
+  resolveShareUrlArtifactPaths,
+  sanitizeShareUrlArtifactToken,
+} from './shareUrlArtifacts'
 
 const uniqueUrls = (values: readonly string[]): string[] => {
   const out: string[] = []
@@ -32,23 +26,7 @@ const uniqueUrls = (values: readonly string[]): string[] => {
   return out
 }
 
-export const isDereferenceEligibleShareUrl = (value: string): boolean => {
-  try {
-    const url = new URL(String(value || '').trim())
-    return SHARE_HINT_RX.test(url.pathname)
-  } catch {
-    return false
-  }
-}
-
-const readShareKind = (value: string): 'reportShare' | 'share' => {
-  try {
-    const url = new URL(String(value || '').trim())
-    return REPORT_SHARE_HINT_RX.test(url.pathname) ? 'reportShare' : 'share'
-  } catch {
-    return 'share'
-  }
-}
+export const isDereferenceEligibleShareUrl = isShareUrlArtifactEligible
 
 export type DereferencedChatStreamArtifact = {
   url: string
@@ -56,6 +34,17 @@ export type DereferencedChatStreamArtifact = {
   fileName: string
   kind: 'reportShare' | 'share'
   semanticKey: string
+  exportToken: string
+  exportFolderPath: string
+  exportMarkdownPath: string
+}
+
+const readParentWorkspacePath = (value: string): string => {
+  const normalized = normalizeWorkspacePath(String(value || '').trim())
+  if (!normalized || normalized === '/') return '/'
+  const idx = normalized.lastIndexOf('/')
+  if (idx <= 0) return '/'
+  return normalizeWorkspacePath(normalized.slice(0, idx))
 }
 
 export const persistDereferencedChatStreamArtifacts = async (args: {
@@ -69,10 +58,11 @@ export const persistDereferencedChatStreamArtifacts = async (args: {
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   await ensureChatWorkspaceMirrorFolder(args.folderPath)
+  const rootFolderPath = readParentWorkspacePath(args.folderPath)
   const out: DereferencedChatStreamArtifact[] = []
   for (let i = 0; i < eligibleUrls.length; i += 1) {
     const url = eligibleUrls[i] || ''
-    const kind = readShareKind(url)
+    const kind = readShareUrlArtifactKind(url)
     const semanticKey =
       buildScopedGraphSemanticKey('chat-stream-artifact-dereference', {
         graphSemanticKey: `${kind}:${url}`,
@@ -92,17 +82,34 @@ export const persistDereferencedChatStreamArtifacts = async (args: {
       .replace(/\.md$/i, '')
     const ordinal = String(i + 1).padStart(2, '0')
     const fileName = ensureMarkdownFileName(
-      `${kind === 'reportShare' ? 'report-share' : 'share'}-${ordinal}-${sanitizePathToken(baseName, kind)}`,
+      `${kind === 'reportShare' ? 'report-share' : 'share'}-${ordinal}-${sanitizeShareUrlArtifactToken(baseName, kind)}`,
     )
     const workspacePath = normalizeWorkspacePath(`${args.folderPath === '/' ? '' : args.folderPath}/${fileName}`)
+    const { exportToken, exportFolderPath, exportMarkdownPath } = resolveShareUrlArtifactPaths({
+      rootFolderPath,
+      url,
+      importedName: imported.name,
+    })
+    const importedText = String(imported.text || '').trimEnd() + '\n'
     await writeWorkspaceFileTextEnsuringFile({
       fs,
       path: workspacePath,
-      text: String(imported.text || '').trimEnd() + '\n',
+      text: importedText,
     })
-    void mirrorChatWorkspaceFileToHost({
+    await ensureWorkspaceFolderPathExists(exportFolderPath)
+    await writeWorkspaceFileTextEnsuringFile({
+      fs,
+      path: exportMarkdownPath,
+      text: importedText,
+    })
+    await mirrorChatWorkspaceFileToHost({
       workspacePath,
-      text: String(imported.text || '').trimEnd() + '\n',
+      text: importedText,
+    })
+    await ensureChatWorkspaceMirrorFolder(exportFolderPath)
+    await mirrorChatWorkspaceFileToHost({
+      workspacePath: exportMarkdownPath,
+      text: importedText,
     })
     out.push({
       url,
@@ -110,6 +117,9 @@ export const persistDereferencedChatStreamArtifacts = async (args: {
       fileName,
       kind,
       semanticKey,
+      exportToken,
+      exportFolderPath,
+      exportMarkdownPath,
     })
   }
   return out

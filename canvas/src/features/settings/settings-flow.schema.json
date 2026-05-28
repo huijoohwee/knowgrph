@@ -4672,7 +4672,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L57"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L59"
   },
   "workspace.sync.seed.pollMs": {
     "area": "Workspace Storage Sync",
@@ -4686,7 +4686,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L67"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L69"
   },
   "workspace.sync.seed.idleMaxMs": {
     "area": "Workspace Storage Sync",
@@ -4700,7 +4700,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L77"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L79"
   },
   "workspace.sync.autoRefresh.enabled": {
     "area": "Workspace Storage Sync",
@@ -4714,7 +4714,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L87"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L89"
   },
   "workspace.sync.sourceFiles.docsOnly": {
     "area": "Source File Management",
@@ -4728,7 +4728,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L97"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L99"
   },
   "workspace.sync.sourceFiles.debounceMs": {
     "area": "Source File Management",
@@ -4742,7 +4742,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L107"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L109"
   },
   "workspace.import.defaultSourceUrl": {
     "area": "Source File Management",
@@ -4762,7 +4762,21 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L117; canvas/src/hooks/store/canvasSlice.ts:L627; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L119; canvas/src/hooks/store/canvasSlice.ts:L627; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
+  },
+  "workspace.import.shareExportRootPath": {
+    "area": "Import / Export",
+    "responsibility": "Workspace mirror root used by Import URL share artifact exports",
+    "notes": "Accepts workspace-like roots such as /docs_ and also normalizes sibling absolute filesystem paths under the current workspace mirror base root.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.workspace.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.workspace.ts:L133"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",

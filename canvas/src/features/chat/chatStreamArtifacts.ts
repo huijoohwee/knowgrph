@@ -497,12 +497,18 @@ type RenderedChatStreamReport = {
   reportUrl: string | null
 }
 
+type RenderedChatStreamExtraDocument = {
+  path: string
+  text: string
+}
+
 export type RenderedChatStreamArtifacts = {
   bundle: ChatStreamArtifactBundle
   observedUrls: string[]
   dereferencedArtifacts: DereferencedChatStreamArtifact[]
   logText: string
   reportDocuments: RenderedChatStreamReport[]
+  extraDocuments: RenderedChatStreamExtraDocument[]
 }
 
 const pushNodeYaml = (lines: string[], node: ArtifactNode) => {
@@ -587,6 +593,10 @@ export const resolveChatStreamArtifactBundle = (args: {
     streamLogPath: normalizeWorkspacePath(`${folderPath}/chat-stream-log_${sessionId}.md`),
     streamReportPath: normalizeWorkspacePath(`${folderPath}/chat-stream-report_${sessionId}.md`),
   }
+}
+
+export const resetChatStreamArtifactBundleForTests = (): void => {
+  // Bundle resolution is currently pure; tests still rely on a shared reset hook.
 }
 
 const buildPlaceholderArtifactText = (args: {
@@ -1062,6 +1072,185 @@ const buildStreamReportDocument = (args: {
   ].join('\n')
 }
 
+const buildDereferencedThinkingDocument = (args: {
+  artifact: DereferencedChatStreamArtifact
+  bundle: ChatStreamArtifactBundle
+  timestampMs: number
+  traceId: string
+  providerSummary: string
+  modelId: string | null
+  workspacePath?: string | null
+  requestText: string
+  rawAssistantText: string
+  workspaceAssistantText?: string | null
+  usageSummary: string | null
+  finishReason: string | null
+  reasoningSteps: string[]
+  rawSseEvents: string[]
+  status: 'ok' | 'error'
+  observedUrls: string[]
+  reportDocuments: RenderedChatStreamReport[]
+}): string => {
+  const documentId = `share-trace:${args.artifact.exportToken}:${toSlug(args.traceId) || 'trace'}`
+  const queryRelevance = buildStreamArtifactQueryRelevance(args.requestText)
+  const workspaceOutputSnapshot = buildWorkspaceOutputSnapshot({
+    requestText: args.requestText,
+    workspaceAssistantText: args.workspaceAssistantText,
+  })
+  const streamSignalSnapshot = buildStreamSignalSnapshot({
+    requestText: args.requestText,
+    rawSseEvents: args.rawSseEvents,
+  })
+  const traceHighlights = uniqueText([
+    ...args.reasoningSteps,
+    ...streamSignalSnapshot.reasoningHighlights,
+    ...streamSignalSnapshot.toolSignals,
+  ]).slice(0, 14)
+  const trajectoryLines = uniqueText([
+    `Prompt received for ${queryRelevance.focus}.`,
+    `Intent captured: ${queryRelevance.intent}`,
+    ...streamSignalSnapshot.selectedSignals,
+    ...(workspaceOutputSnapshot.headings.length > 0
+      ? [`Workspace headings: ${workspaceOutputSnapshot.headings.join(' | ')}`]
+      : []),
+  ]).slice(0, 14)
+  const searchLines = uniqueText([
+    ...args.reasoningSteps,
+    ...streamSignalSnapshot.toolSignals,
+    ...streamSignalSnapshot.selectedSignals,
+  ])
+    .filter(line => /\b(web_search|search|fetch_url)\b/i.test(line))
+    .slice(0, 14)
+  const runCodeLines = uniqueText([
+    ...args.reasoningSteps,
+    ...streamSignalSnapshot.toolSignals,
+    ...streamSignalSnapshot.selectedSignals,
+  ])
+    .filter(line => /\b(execute_python|execute_command|tool_call:|run[_\s-]?code|python|command)\b/i.test(line))
+    .slice(0, 14)
+  const rawProjectionLines = extractRelevantMarkdownPreviewLines({
+    value: String(args.rawAssistantText || '').trim(),
+    requestText: args.requestText,
+    maxCount: 10,
+  })
+  const relatedUrls = uniqueText([
+    args.artifact.url,
+    ...args.observedUrls.filter(url => url === args.artifact.url || isReportShareUrl(url)),
+    ...streamSignalSnapshot.sourceUrls,
+  ]).slice(0, 12)
+  const nodes: ArtifactNode[] = [
+    {
+      id: `${documentId}:share`,
+      type: 'panel',
+      label: `${args.artifact.exportToken} Share`,
+      stage: 'Reports',
+      summary: clampText(args.artifact.url, 180),
+      href: args.artifact.url,
+      order: 1,
+      references: [args.artifact.url, args.artifact.exportMarkdownPath],
+    },
+    {
+      id: `${documentId}:trace`,
+      type: 'beat',
+      label: 'Execution Trace',
+      stage: 'Observability',
+      summary: `${traceHighlights.length} summarized search/tool trace signals.`,
+      order: 2,
+    },
+  ]
+  const edges: ArtifactEdge[] = [
+    { id: `${documentId}:share-trace`, source: `${documentId}:share`, target: `${documentId}:trace`, label: 'observed-by' },
+  ]
+  return [
+    buildArtifactFrontmatter({
+      documentId,
+      documentTitle: `${args.artifact.exportToken} Thinking Trace`,
+      nodes,
+      edges,
+    }),
+    `# ${args.artifact.exportToken} Thinking Trace`,
+    '',
+    `- Share URL: ${args.artifact.url}`,
+    `- Canonical Markdown: [${args.artifact.exportToken}.md](${args.artifact.exportMarkdownPath})`,
+    `- Session: \`${args.bundle.sessionId}\``,
+    `- Trace: \`${args.traceId}\``,
+    `- Created: ${formatReadableUtc(args.timestampMs)}`,
+    `- Provider: ${args.providerSummary || 'unknown'}`,
+    `- Model: ${args.modelId || 'unknown'}`,
+    `- Status: ${args.status}`,
+    `- Finish: ${args.finishReason || 'pending'}`,
+    `- Usage: ${args.usageSummary || 'unavailable'}`,
+    '',
+    'Execution trace summary derived from streamed search/tool signals and workspace-aligned output.',
+    '',
+    '## Prompt',
+    '',
+    wrapFence(String(args.requestText || '').trim() || 'Prompt unavailable.', 'markdown'),
+    '',
+    '## Query Relevance',
+    '',
+    `- Intent: ${queryRelevance.intent}`,
+    `- Focus: ${queryRelevance.focus}`,
+    `- Requested Sections: ${queryRelevance.requestedSections.length > 0 ? queryRelevance.requestedSections.join(', ') : 'none explicitly requested'}`,
+    `- Named Terms: ${queryRelevance.namedTerms.length > 0 ? queryRelevance.namedTerms.join(', ') : 'none extracted'}`,
+    '',
+    '## Thinking Trajectory',
+    '',
+    ...(trajectoryLines.length > 0
+      ? trajectoryLines.map(line => `- ${line}`)
+      : ['- No trajectory milestones were extracted from the streamed JSON trace.']),
+    '',
+    '## Thinking Process',
+    '',
+    ...(traceHighlights.length > 0
+      ? traceHighlights.map(line => `- ${line}`)
+      : ['- No explicit reasoning, search, or tool trace lines were captured for this share artifact.']),
+    '',
+    '## Searching For',
+    '',
+    ...(searchLines.length > 0
+      ? searchLines.map(line => `- ${line}`)
+      : ['- No explicit search or fetch-url signals were captured.']),
+    '',
+    '## Run Code',
+    '',
+    ...(runCodeLines.length > 0
+      ? runCodeLines.map(line => `- ${line}`)
+      : ['- No run-code, execute-command, execute-python, or tool-call execution signals were captured.']),
+    '',
+    '## Workspace Output Snapshot',
+    '',
+    ...(String(args.workspaceAssistantText || '').trim()
+      ? extractRelevantMarkdownPreviewLines({
+          value: String(args.workspaceAssistantText || ''),
+          requestText: args.requestText,
+          maxCount: 10,
+        }).map(line => `- ${line}`)
+      : ['- Workspace output unavailable.']),
+    '',
+    '## Stream-Aligned Output',
+    '',
+    ...(rawProjectionLines.length > 0
+      ? rawProjectionLines.map(line => `- ${line}`)
+      : ['- No stream-aligned markdown projection lines were extracted.']),
+    '',
+    '## Source Links',
+    '',
+    ...(relatedUrls.length > 0 ? relatedUrls.map(url => `- ${url}`) : ['- No source URLs captured.']),
+    '',
+    '## Related Artifacts',
+    '',
+    `- Session Log: [chat-stream-log](${args.bundle.streamLogPath})`,
+    ...args.reportDocuments.map((report, index) => `- Session Report ${index + 1}: [${report.path.split('/').pop() || `report-${index + 1}`} ](${report.path})`.replace(' ]', ']')),
+    `- Session Dereferenced Markdown: [${args.artifact.fileName}](${args.artifact.workspacePath})`,
+    '',
+    '## Finalization',
+    '',
+    'Now I can write the final answer.',
+    '',
+  ].join('\n')
+}
+
 const toReportPath = (bundle: ChatStreamArtifactBundle, reportIndex: number, reportCount: number): string => {
   if (reportCount <= 1 || reportIndex === 0) return bundle.streamReportPath
   const ordinal = String(reportIndex + 1).padStart(2, '0')
@@ -1138,7 +1327,12 @@ export const renderChatStreamArtifacts = async (args: {
     timestampMs: args.timestampMs,
     defaultLocalRootPath: args.defaultLocalRootPath,
   })
-  const observedUrls = extractUniqueUrls([args.rawAssistantText, ...args.rawSseEvents])
+  const observedUrls = extractUniqueUrls([
+    args.requestText,
+    args.rawAssistantText,
+    String(args.workspaceAssistantText || ''),
+    ...args.rawSseEvents,
+  ])
   const reportUrls = observedUrls.filter(isReportShareUrl)
   const dereferencedArtifacts = await persistDereferencedChatStreamArtifacts({
     folderPath: bundle.folderPath,
@@ -1193,12 +1387,37 @@ export const renderChatStreamArtifacts = async (args: {
       reportUrl: reportUrls[i] || null,
     })
   }
+  const extraDocuments: RenderedChatStreamExtraDocument[] = dereferencedArtifacts
+    .filter(artifact => artifact.exportFolderPath && artifact.exportMarkdownPath && artifact.exportToken)
+    .map(artifact => ({
+      path: normalizeWorkspacePath(`${artifact.exportFolderPath}/${artifact.exportToken}-thinking.md`),
+      text: buildDereferencedThinkingDocument({
+        artifact,
+        bundle,
+        timestampMs: args.timestampMs,
+        traceId: args.traceId,
+        providerSummary: args.providerSummary,
+        modelId: args.modelId,
+        workspacePath: args.workspacePath,
+        requestText: args.requestText,
+        rawAssistantText: args.rawAssistantText,
+        workspaceAssistantText: args.workspaceAssistantText,
+        usageSummary: args.usageSummary,
+        finishReason: args.finishReason,
+        reasoningSteps: args.reasoningSteps,
+        rawSseEvents: args.rawSseEvents,
+        status: args.status,
+        observedUrls,
+        reportDocuments,
+      }),
+    }))
   return {
     bundle,
     observedUrls,
     dereferencedArtifacts,
     logText,
     reportDocuments,
+    extraDocuments,
   }
 }
 
@@ -1228,15 +1447,21 @@ export const persistChatStreamArtifacts = async (args: {
   await fs.ensureSeed()
   const rendered = await renderChatStreamArtifacts(args)
   await writeWorkspaceFileTextEnsuringFile({ fs, path: bundle.streamLogPath, text: rendered.logText })
-  void mirrorChatWorkspaceFileToHost({ workspacePath: bundle.streamLogPath, text: rendered.logText })
+  await mirrorChatWorkspaceFileToHost({ workspacePath: bundle.streamLogPath, text: rendered.logText })
   const createdArtifactPaths: WorkspacePath[] = [bundle.streamLogPath as WorkspacePath]
   for (const reportDocument of rendered.reportDocuments) {
     await writeWorkspaceFileTextEnsuringFile({ fs, path: reportDocument.path, text: reportDocument.text })
-    void mirrorChatWorkspaceFileToHost({ workspacePath: reportDocument.path, text: reportDocument.text })
+    await mirrorChatWorkspaceFileToHost({ workspacePath: reportDocument.path, text: reportDocument.text })
     createdArtifactPaths.push(reportDocument.path as WorkspacePath)
   }
   for (const artifact of rendered.dereferencedArtifacts) {
     createdArtifactPaths.push(artifact.workspacePath as WorkspacePath)
+    createdArtifactPaths.push(artifact.exportMarkdownPath as WorkspacePath)
+  }
+  for (const document of rendered.extraDocuments) {
+    await writeWorkspaceFileTextEnsuringFile({ fs, path: document.path, text: document.text })
+    await mirrorChatWorkspaceFileToHost({ workspacePath: document.path, text: document.text })
+    createdArtifactPaths.push(document.path as WorkspacePath)
   }
   await materializeChatStreamArtifactsIntoSourceFiles({
     createdPaths: createdArtifactPaths,

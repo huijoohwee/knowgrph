@@ -11,6 +11,7 @@ import {
   normalizeWorkspaceImportDefaultSourceUrlForSourceFiles,
   readWorkspaceAutoRefreshEnabledSetting,
   readWorkspaceImportDefaultSourceUrlSetting,
+  readWorkspaceImportShareExportRootPathSetting,
   readWorkspaceSeedSyncEnabledSetting,
   readWorkspaceSeedSyncIdleMaxMsSetting,
   readWorkspaceSeedSyncPollMsSetting,
@@ -18,6 +19,7 @@ import {
   readWorkspaceSourceFilesSyncDebounceMsSetting,
   writeWorkspaceAutoRefreshEnabledSetting,
   writeWorkspaceImportDefaultSourceUrlSetting,
+  writeWorkspaceImportShareExportRootPathSetting,
   writeWorkspaceSeedSyncEnabledSetting,
   writeWorkspaceSeedSyncIdleMaxMsSetting,
   writeWorkspaceSeedSyncPollMsSetting,
@@ -126,5 +128,15 @@ export const uiWorkspaceSettingsRegistry: SettingMeta[] = [
       }
     },
     default: () => '',
+  },
+  {
+    key: 'workspace.import.shareExportRootPath',
+    type: 'string',
+    source: 'localStorage',
+    read: () => readWorkspaceImportShareExportRootPathSetting(),
+    write: value => {
+      writeWorkspaceImportShareExportRootPathSetting(String(value ?? ''))
+    },
+    default: () => '/docs_',
   },
 ]

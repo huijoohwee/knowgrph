@@ -11,6 +11,7 @@ const SEED_SYNC_IDLE_MAX_MS_MAX = 300_000
 const SOURCE_FILES_SYNC_DEBOUNCE_MIN_MS = 100
 const SOURCE_FILES_SYNC_DEBOUNCE_MAX_MS = 10_000
 const WINDOWS_DRIVE_PREFIX_RE = /^[A-Za-z]:[\\/]/
+const WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT = '/docs_'
 
 const parseEnvBoolean = (name: string, fallback: boolean): boolean => {
   const raw = String(readEnvString(name, fallback ? 'true' : 'false') || '')
@@ -130,6 +131,34 @@ export const readWorkspaceImportDefaultSourceUrlSetting = (): string => {
 const readKnowgrphStorageBaseUrlSetting = (): string =>
   String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
 
+const normalizeWorkspaceLikeRootPath = (value: string, fallback: string): string => {
+  const raw = String(value || '').trim().replace(/\\/g, '/').replace(/\/+$/, '')
+  if (!raw) return fallback
+  return raw.startsWith('/') ? raw : `/${raw}`
+}
+
+const readWorkspaceMirrorBaseAbsRoot = (): string => {
+  const docsRoot = String(readEnvString('VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT', '') || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '')
+  if (!docsRoot) return ''
+  const parts = docsRoot.split('/').filter(Boolean)
+  if (parts.length <= 1) return ''
+  return `/${parts.slice(0, -1).join('/')}`
+}
+
+export const normalizeWorkspaceImportShareExportRootPathSetting = (next: string): string => {
+  const raw = String(next || '').trim().replace(/\\/g, '/').replace(/\/+$/, '')
+  if (!raw) return WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT
+  const baseRoot = readWorkspaceMirrorBaseAbsRoot()
+  if (baseRoot && raw === baseRoot) return '/'
+  if (baseRoot && raw.startsWith(`${baseRoot}/`)) {
+    return normalizeWorkspaceLikeRootPath(raw.slice(baseRoot.length), WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT)
+  }
+  return normalizeWorkspaceLikeRootPath(raw, WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT)
+}
+
 const isLocalFilesystemLikePath = (value: string): boolean => {
   const text = String(value || '').trim()
   if (!text) return false
@@ -171,6 +200,30 @@ export const writeWorkspaceImportDefaultSourceUrlSetting = (next: string): void 
     } else {
       storage.removeItem(LS_KEYS.workspaceImportDefaultSourceUrl)
     }
+    notifyWorkspaceStoreSyncSettingsChanged()
+  } catch {
+    void 0
+  }
+}
+
+export const readWorkspaceImportShareExportRootPathSetting = (): string => {
+  const storage = getLocalStorage()
+  if (!storage) return WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT
+  try {
+    return normalizeWorkspaceImportShareExportRootPathSetting(
+      String(storage.getItem(LS_KEYS.workspaceImportShareExportRootPath) || ''),
+    )
+  } catch {
+    return WORKSPACE_IMPORT_SHARE_EXPORT_ROOT_PATH_DEFAULT
+  }
+}
+
+export const writeWorkspaceImportShareExportRootPathSetting = (next: string): void => {
+  const storage = getLocalStorage()
+  if (!storage) return
+  try {
+    const value = normalizeWorkspaceImportShareExportRootPathSetting(next)
+    storage.setItem(LS_KEYS.workspaceImportShareExportRootPath, value)
     notifyWorkspaceStoreSyncSettingsChanged()
   } catch {
     void 0
