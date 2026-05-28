@@ -1,6 +1,8 @@
 import path from 'node:path'
 
 import { fetchWorkspaceUrlContent, importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
+import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
+import { setWorkspaceWebpageDomExportForTests } from '@/features/markdown-workspace/workspaceImport/urlContent'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/workspaceImport/applyPolicy'
@@ -386,6 +388,83 @@ export async function testWorkspaceImportUrlImportPreservesFullTextFallbackBody(
     if (!calls.some(call => call.startsWith('/__webpage_proxy?'))) throw new Error('expected shared webpage proxy ingestion')
     if (calls.some(call => call.startsWith('/__fetch_remote?'))) throw new Error('unexpected legacy fetch endpoint')
   } finally {
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
+
+export async function testWorkspaceImportUrlImportRecoversJsRenderedContentViaDomExportFallback(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const url = 'https://example.com/shared-report'
+  const shellHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<title>Shared Report</title>',
+    ...Array.from({ length: 24 }, (_, index) => `<script>window.__shell_${index}=true;</script>`),
+    '</head>',
+    '<body>',
+    '<div class="banner">Get App</div>',
+    '<div id="__next">Loading shared report...</div>',
+    '</body>',
+    '</html>',
+  ].join('')
+  const recoveredTitle = 'Shared Oil Report'
+  const recoveredParagraphs = Array.from({ length: 8 }, (_, index) =>
+    `Supporting section ${index + 1} expands the report with source-visible details about price floors, shipping risk, inventory lag, and transition feedback loops.`,
+  )
+  const recoveredText = [
+    recoveredTitle,
+    '',
+    'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.',
+    '',
+    'Identify a shared logical blind spot and re-simulate the next six-month trajectory.',
+    '',
+    ...recoveredParagraphs,
+  ].join('\n')
+  const recoveredHtml = [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    `<title>${recoveredTitle}</title>`,
+    '</head>',
+    '<body>',
+    `<main><h1>${recoveredTitle}</h1><p>Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.</p><p>Identify a shared logical blind spot and re-simulate the next six-month trajectory.</p>${recoveredParagraphs.map(paragraph => `<p>${paragraph}</p>`).join('')}</main>`,
+    '</body>',
+    '</html>',
+  ].join('')
+  const proxyCalls: string[] = []
+  const domModes: string[] = []
+  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]), proxyCalls)
+  setWorkspaceWebpageDomExportForTests(async args => {
+    domModes.push(String(args.mode || ''))
+    if (args.mode === 'html') {
+      return { text: recoveredHtml, title: recoveredTitle, clipped: false }
+    }
+    return { text: recoveredText, title: recoveredTitle, clipped: false }
+  })
+  try {
+    const res = await fetchWorkspaceUrlContent(url, { mode: 'import' })
+    if (isFrontmatterOnlyDoc(res.text)) {
+      throw new Error('expected import fallback to recover non-empty DOM-rendered content')
+    }
+    if (!res.text.includes('Goldman Sachs and UBS')) {
+      throw new Error('expected import fallback to preserve the DOM-rendered report body')
+    }
+    if (!res.text.includes('logical blind spot')) {
+      throw new Error('expected import fallback to preserve later DOM-rendered report sections')
+    }
+    if (res.text.includes('Loading shared report')) {
+      throw new Error('expected DOM export fallback to replace raw app-shell placeholder text')
+    }
+    if (!proxyCalls.some(call => call.startsWith('/__webpage_proxy?'))) {
+      throw new Error('expected shared webpage proxy fetch before DOM export fallback')
+    }
+    if (!domModes.includes('text') || !domModes.includes('html')) {
+      throw new Error(`expected DOM export fallback to probe both text and html modes, got ${JSON.stringify(domModes)}`)
+    }
+  } finally {
+    setWorkspaceWebpageDomExportForTests(null)
     restore()
     resetWorkspaceUrlContentCacheForTests()
   }

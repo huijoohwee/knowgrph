@@ -4065,7 +4065,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
     '          const finish = () => {',
     '            try { window.removeEventListener("message", onChild); } catch { void 0; }',
     '            const base = String(computeRaw() || "").trim();',
-    '            const combined = [base, ...childPieces].filter(Boolean).join("\n\n");',
+    '            const combined = [base, ...childPieces].filter(Boolean).join("\\n\\n");',
     '            const clipped = combined && combined.length > maxChars;',
     '            const text = clipped ? combined.slice(0, maxChars) : combined;',
     '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text, diag: kgDiagSnapshot() });',

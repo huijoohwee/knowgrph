@@ -128,6 +128,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["workspaceImport.urlImport.viewHintsSingleIngestionPass","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlViewHintsUseSingleIngestionPass"],
   ["workspaceImport.urlImport.prefersHigherCoverageFallback","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlPrefersHigherCoverageMarkdownFallback"],
   ["workspaceImport.urlImport.preservesFullTextFallbackBody","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlImportPreservesFullTextFallbackBody"],
+  ["workspaceImport.urlImport.recoversJsRenderedDomFallback","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlImportRecoversJsRenderedContentViaDomExportFallback"],
   ["workspaceImport.urlGlb.binaryManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGlbFetchesBinaryManifest"],
   ["workspaceImport.urlGltf.jsonManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGltfFetchesJsonManifest"],
   ["workspaceImport.urlImport.htmlRendererPresetsFetch","@/__tests__/workspaceImportUrlHtmlRendererPresets.test","testWorkspaceImportUrlHtmlRendererPresetsFetchAndSetCanvasPreset"],

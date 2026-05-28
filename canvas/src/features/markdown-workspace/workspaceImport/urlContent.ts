@@ -12,6 +12,7 @@ import { convertPdfUrlToMarkdown, fetchWebpageMarkdown, fetchYouTubeTranscriptMa
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
+import { looksSyntheticWebpageArtifactMarkdown } from '@/lib/websites/webpageClientConvert'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { createProgressSession } from '@/lib/progress/progressTicker'
@@ -47,6 +48,17 @@ import {
 } from './urlContentHeuristics'
 
 type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage: number) => void; viewHint?: WebpageViewMode; canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }
+
+type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
+
+let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
+
+const readWorkspaceWebpageDomExport = (): WorkspaceWebpageDomExportFn =>
+  workspaceWebpageDomExportOverride || exportWebpageDomViaHiddenIframe
+
+export function setWorkspaceWebpageDomExportForTests(fn: WorkspaceWebpageDomExportFn | null): void {
+  workspaceWebpageDomExportOverride = fn
+}
 
 async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspaceUrlContentOpts): Promise<WorkspaceUrlContent> {
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
@@ -268,6 +280,89 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       shouldConvertToMarkdown = forceConvertToMarkdown || mode !== 'refresh' || looksLikeSubstackUrl || isWeChat
       shouldFallbackToPlainText = forceConvertToMarkdown
 
+      const tryRecoverMarkdownFromDomExport = async (progressPercentage: number): Promise<string> => {
+        if (looksLikeSubstackUrl) return ''
+        try {
+          const exportDom = readWorkspaceWebpageDomExport()
+          const [textDom, htmlDom] = await Promise.all([
+            exportDom({
+              url: normalizedUrl,
+              mode: 'text',
+              timeoutMs: 45_000,
+              maxChars: 12_000_000,
+              scrollCrawl: true,
+              expandFaq: true,
+              minWaitAfterLoadMs: 650,
+              signal: ctrl.signal,
+            }),
+            exportDom({
+              url: normalizedUrl,
+              mode: 'html',
+              timeoutMs: 45_000,
+              maxChars: 12_000_000,
+              scrollCrawl: true,
+              expandFaq: true,
+              minWaitAfterLoadMs: 650,
+              signal: ctrl.signal,
+            }),
+          ])
+          const domDiag = String(htmlDom?.diag || textDom?.diag || '').trim()
+          if (domDiag) lastDomDiag = domDiag
+          const domTitle = String(htmlDom?.title || textDom?.title || '').trim()
+          if (domTitle) lastDomTitle = domTitle
+
+          const htmlText = String(htmlDom?.text || '')
+          if (htmlText.trim()) {
+            lastFetchedHtml = htmlText
+            const tuned = autoTuneFromHtml({
+              html: lastFetchedHtml,
+              includeImages,
+              fidelityLevel,
+              defaultView,
+              mode,
+              forceConvertToMarkdown,
+              isWeChat,
+            })
+            includeImages = tuned.includeImages
+            fidelityLevel = tuned.fidelityLevel
+            defaultView = tuned.defaultView
+            opts?.onProgress?.(progressPercentage)
+            const converted = await runInIdle(
+              async () =>
+                await convertHtmlToMarkdownUnified({
+                  html: htmlText,
+                  baseUrl: normalizedUrl,
+                  maxInputChars: 12_000_000,
+                  includeImages,
+                  fidelityLevel,
+                  includeHeadSection: false,
+                }),
+              { timeoutMs: 1200 },
+            )
+            if (converted.ok === true && converted.markdown.trim()) {
+              const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
+              const trimmed = processed.trim()
+              const title = String(htmlDom?.title || textDom?.title || '').trim()
+              if (trimmed.length >= 400) return trimmed
+              if (title && trimmed && trimmed.length <= 120 && trimmed.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
+                void 0
+              } else if (trimmed.length >= 220) {
+                return trimmed
+              }
+            }
+          }
+
+          const textOnly = String(textDom?.text || '').trim()
+          const title = String(htmlDom?.title || textDom?.title || '').trim() || undefined
+          if (textOnly.length >= 400) {
+            if (!looksLikeJsShellText(textOnly)) return plainTextToMarkdown(textOnly, title)
+          }
+        } catch {
+          void 0
+        }
+        return ''
+      }
+
       const upstreamMarkdown = await (async () => {
         try {
           if (shouldConvertToMarkdown && mode === 'refresh') {
@@ -278,84 +373,9 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           void 0
         }
 
-        if (mode === 'refresh' && !looksLikeSubstackUrl) {
-          try {
-            const [textDom, htmlDom] = await Promise.all([
-              exportWebpageDomViaHiddenIframe({
-                url: normalizedUrl,
-                mode: 'text',
-                timeoutMs: 45_000,
-                maxChars: 12_000_000,
-                scrollCrawl: true,
-                expandFaq: true,
-                minWaitAfterLoadMs: 650,
-                signal: ctrl.signal,
-              }),
-              exportWebpageDomViaHiddenIframe({
-                url: normalizedUrl,
-                mode: 'html',
-                timeoutMs: 45_000,
-                maxChars: 12_000_000,
-                scrollCrawl: true,
-                expandFaq: true,
-                minWaitAfterLoadMs: 650,
-                signal: ctrl.signal,
-              }),
-            ])
-            const domDiag = String(htmlDom?.diag || textDom?.diag || '').trim()
-            if (domDiag) lastDomDiag = domDiag
-            const domTitle = String(htmlDom?.title || textDom?.title || '').trim()
-            if (domTitle) lastDomTitle = domTitle
-
-            const htmlText = String(htmlDom?.text || '')
-            if (htmlText.trim()) {
-              lastFetchedHtml = htmlText
-              const tuned = autoTuneFromHtml({
-                html: lastFetchedHtml,
-                includeImages,
-                fidelityLevel,
-                defaultView,
-                mode,
-                forceConvertToMarkdown,
-                isWeChat,
-              })
-              includeImages = tuned.includeImages
-              fidelityLevel = tuned.fidelityLevel
-              defaultView = tuned.defaultView
-              opts?.onProgress?.(55)
-              const converted = await runInIdle(
-                async () =>
-                  await convertHtmlToMarkdownUnified({
-                    html: htmlText,
-                    baseUrl: normalizedUrl,
-                    maxInputChars: 12_000_000,
-                    includeImages,
-                    fidelityLevel,
-                    includeHeadSection: false,
-                  }),
-                { timeoutMs: 1200 },
-              )
-              if (converted.ok === true && converted.markdown.trim()) {
-                const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
-                const trimmed = processed.trim()
-                const title = String(htmlDom?.title || textDom?.title || '').trim()
-                if (trimmed.length >= 400) return trimmed
-                if (title && trimmed && trimmed.length <= 120 && trimmed.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
-                  void 0
-                } else if (trimmed.length >= 220) {
-                  return trimmed
-                }
-              }
-            }
-
-            const textOnly = String(textDom?.text || '').trim()
-            const title = String(htmlDom?.title || textDom?.title || '').trim() || undefined
-            if (textOnly.length >= 400) {
-              if (!looksLikeJsShellText(textOnly)) return plainTextToMarkdown(textOnly, title)
-            }
-          } catch {
-            void 0
-          }
+        if (mode === 'refresh') {
+          const recoveredFromDom = await tryRecoverMarkdownFromDomExport(55)
+          if (recoveredFromDom) return recoveredFromDom
         }
 
         const fetchImpl = (globalThis as unknown as { fetch?: unknown }).fetch
@@ -432,10 +452,22 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             fallbackMarkdown,
           })
         })()
+        const markdownSelectionText = markdownSelection.markdown.trim()
+        const shouldRecoverImportFromDom =
+          mode === 'import'
+          && (
+            !markdownSelectionText
+            || markdownSelectionText.length < 1400
+            || looksSyntheticWebpageArtifactMarkdown(markdownSelectionText)
+          )
+        if (shouldRecoverImportFromDom) {
+          const recoveredFromDom = await tryRecoverMarkdownFromDomExport(90)
+          if (recoveredFromDom.trim()) return recoveredFromDom.trim()
+        }
         opts?.onProgress?.(85)
-        if (markdownSelection.markdown.trim()) {
+        if (markdownSelectionText) {
           if (markdownSelection.source === 'fallback') preserveUpstreamBodyFidelity = true
-          return markdownSelection.markdown.trim()
+          return markdownSelectionText
         }
 
         if (!tuned.shouldFallbackToPlainText) return ''
