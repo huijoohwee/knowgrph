@@ -247,8 +247,17 @@ function computeOutputPortValue(args: {
   const path = args.outputPortPaths.get(args.portKey) || `properties.${args.portKey}`
   const computed = args.computedByNodeId.get(args.nodeId)?.[path]
   if (computed) return computed.value
+  const computedDataPath = `properties.data.${args.portKey}`
+  const computedData = args.outputPortPaths.has(args.portKey)
+    ? null
+    : args.computedByNodeId.get(args.nodeId)?.[computedDataPath]
+  if (computedData) return computedData.value
   const direct = getObjectPath(args.node, path)
   if (typeof direct !== 'undefined') return direct
+  if (!args.outputPortPaths.has(args.portKey)) {
+    const directData = getObjectPath(args.node, computedDataPath)
+    if (typeof directData !== 'undefined') return directData
+  }
   if (path === 'properties.outputSrcDoc') {
     const output = getObjectPath(args.node, 'properties.output')
     if (typeof output === 'string' && output.trim()) {
@@ -274,7 +283,7 @@ function buildConnectedValuesForNode(args: {
 
   for (const [targetPortKey, items] of Array.from(args.inbound.entries())) {
     if (!items || items.length === 0) continue
-    const schemaPath = args.inputPortPaths.get(targetPortKey)
+    const schemaPath = args.inputPortPaths.get(targetPortKey) || normalizeSchemaPath(`properties.${targetPortKey}`, targetPortKey)
     if (schemaPath) {
       const sources = items.map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
       const value = items.length === 1 ? items[0].value : items.map(it => it.value)

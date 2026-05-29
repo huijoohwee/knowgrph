@@ -348,6 +348,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["flow.dataflow.connectedValues.rgbTransforms","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesRgbTransforms"],
   ["flow.dataflow.demo.computingDataFlows.bundleParsesAndComputes","@/__tests__/flowDataflowConnectedValues.test","testComputingDataFlowsDemoBundleParsesAndComputes"],
   ["flow.dataflow.computeFunction.propagatesOutputPorts","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesFlowComputeFunction"],
+  ["flow.dataflow.computeFunction.unregisteredOutputPorts","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesFlowComputeFunctionPropagatesUnregisteredOutputPorts"],
   ["flow.overlay.topologyLayoutSignature.reusesSharedNodePropertiesReader","@/__tests__/overlayTopologyLayoutSignature.test","testOverlayTopologyLayoutSignatureReusesSharedNodePropertiesReader"],
   ["flow.overlay.topologyLayoutSignature.includesVisualLayoutProps","@/__tests__/overlayTopologyLayoutSignature.test","testOverlayTopologyLayoutSignatureIncludesVisualLayoutProps"],
   ["graph.fullStackRadar.reusesSharedPlainObjectGuard","@/__tests__/fullStackRadarGraph.test","testFullStackRadarGraphReusesSharedPlainObjectGuard"],

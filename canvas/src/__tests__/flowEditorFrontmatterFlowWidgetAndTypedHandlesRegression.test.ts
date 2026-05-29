@@ -788,8 +788,8 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('const portValueId = ids.registryField(`port-${p.direction}-${portKey}`)')) {
     throw new Error('expected widget registry port rows to derive a shared SSOT value id for label/input typography')
   }
-  if (!text.includes('<label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>')) {
-    throw new Error('expected widget registry port key column to reuse shared key label typography')
+  if (!text.includes('<label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>') || !text.includes('{portKey}')) {
+    throw new Error('expected widget registry port key column to show the concrete port key instead of repeating handles.source/target')
   }
   if (!text.includes('typeNode: <NodeOverlayEditorTypePill text={handleType} />')) {
     throw new Error('expected widget registry port type column to render in/out direction')

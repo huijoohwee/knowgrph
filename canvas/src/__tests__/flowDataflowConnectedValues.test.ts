@@ -655,6 +655,56 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
   if ((demos.value as Array<unknown>).length !== 2) throw new Error('expected sink demos length 2')
 }
 
+export const testFlowDataflowConnectedValuesFlowComputeFunctionPropagatesUnregisteredOutputPorts = () => {
+  const graphData = {
+    type: 'GraphData',
+    context: 'frontmatter-flow',
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: {
+        computed: true,
+      },
+    },
+    nodes: [
+      {
+        id: 'src',
+        type: 'input',
+        label: 'Source',
+        properties: { amount: 7 },
+      },
+      {
+        id: 'calculator',
+        type: 'calculator',
+        label: 'Calculator',
+        properties: {
+          'flow:compute': '(inputs) => ({ total: Number(inputs.amount || 0) + 5 })',
+        },
+      },
+      {
+        id: 'sink',
+        type: 'output',
+        label: 'Sink',
+        properties: {},
+      },
+    ],
+    edges: [
+      { id: 'e1', source: 'src', target: 'calculator', properties: { 'flow:sourcePortKey': 'amount', 'flow:targetPortKey': 'amount' } },
+      { id: 'e2', source: 'calculator', target: 'sink', properties: { 'flow:sourcePortKey': 'total', 'flow:targetPortKey': 'total' } },
+    ],
+  }
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry: [],
+    targetNodeIds: new Set(['sink']),
+  })
+  const sink = byNodeId.get('sink')
+  if (!sink) throw new Error('expected connected values for unregistered sink')
+  const total = sink['properties.total']
+  if (!total) throw new Error('expected unregistered computed output to propagate through the matching port key')
+  if (total.value !== 12) throw new Error(`expected computed total to be 12, got ${String(total.value)}`)
+}
+
 export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRuntimeCompute = () => {
   const graphData = {
     type: 'GraphData',
