@@ -266,6 +266,19 @@ export function collectDeclaredPortTypes(meta: Record<string, unknown>): {
   const rawNodes = Array.isArray(meta.nodes) ? (meta.nodes as unknown[]) : []
   const inputTypeByNodeId: Record<string, Record<string, string>> = {}
   const outputTypeByNodeId: Record<string, Record<string, string>> = {}
+  const addPortType = (
+    byNodeId: Record<string, Record<string, string>>,
+    nodeId: string,
+    port: string,
+    type: string,
+  ) => {
+    if (!port || !type) return
+    const byPort = byNodeId[nodeId] || {}
+    if (!Object.prototype.hasOwnProperty.call(byPort, port)) {
+      byPort[port] = type
+      byNodeId[nodeId] = byPort
+    }
+  }
   for (let i = 0; i < rawNodes.length; i += 1) {
     const node = rawNodes[i]
     if (!isRecord(node)) continue
@@ -278,11 +291,7 @@ export function collectDeclaredPortTypes(meta: Record<string, unknown>): {
       const port = asString(inp.port)
       const type = asString(inp.type)
       if (!port || !type) continue
-      const byPort = inputTypeByNodeId[nodeId] || {}
-      if (!Object.prototype.hasOwnProperty.call(byPort, port)) {
-        byPort[port] = type
-        inputTypeByNodeId[nodeId] = byPort
-      }
+      addPortType(inputTypeByNodeId, nodeId, port, type)
     }
     const outputs = Array.isArray(node.outputs) ? node.outputs : []
     for (let j = 0; j < outputs.length; j += 1) {
@@ -291,11 +300,21 @@ export function collectDeclaredPortTypes(meta: Record<string, unknown>): {
       const port = asString(out.port)
       const type = asString(out.type)
       if (!port || !type) continue
-      const byPort = outputTypeByNodeId[nodeId] || {}
-      if (!Object.prototype.hasOwnProperty.call(byPort, port)) {
-        byPort[port] = type
-        outputTypeByNodeId[nodeId] = byPort
-      }
+      addPortType(outputTypeByNodeId, nodeId, port, type)
+    }
+    const props = isRecord(node.properties) ? node.properties : {}
+    const flowPortTypes = isRecord(props[FLOW_PORT_TYPES_KEY]) ? props[FLOW_PORT_TYPES_KEY] as Record<string, unknown> : null
+    const inputPortTypes = flowPortTypes && isRecord(flowPortTypes.in) ? flowPortTypes.in as Record<string, unknown> : {}
+    for (const [portRaw, typeRaw] of Object.entries(inputPortTypes)) {
+      const port = asString(portRaw)
+      const type = asString(typeRaw)
+      addPortType(inputTypeByNodeId, nodeId, port, type)
+    }
+    const outputPortTypes = flowPortTypes && isRecord(flowPortTypes.out) ? flowPortTypes.out as Record<string, unknown> : {}
+    for (const [portRaw, typeRaw] of Object.entries(outputPortTypes)) {
+      const port = asString(portRaw)
+      const type = asString(typeRaw)
+      addPortType(outputTypeByNodeId, nodeId, port, type)
     }
   }
   return { inputTypeByNodeId, outputTypeByNodeId }
@@ -520,8 +539,10 @@ export function buildConnectionWarnings(args: {
   for (const uniq of inputs) {
     if (!declaredSet.has(uniq)) warnings.push(`Missing connection for node input: ${uniq}`)
   }
-  for (const uniq of declaredSet) {
-    if (!inputs.has(uniq)) warnings.push(`Connection not mirrored in node inputs: ${uniq}`)
+  if (!isRecord(args.meta.flow)) {
+    for (const uniq of declaredSet) {
+      if (!inputs.has(uniq)) warnings.push(`Connection not mirrored in node inputs: ${uniq}`)
+    }
   }
   return warnings
 }

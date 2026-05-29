@@ -44,6 +44,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["markdown.frontmatterFlowGraph.frontmatter.repairsColonQuote","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphRepairsMissingSpaceAfterColonQuote"],
   ["markdown.frontmatterFlowGraph.warnings.detectDivergentConnections","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphWarningsDetectDivergentConnections"],
   ["markdown.frontmatterFlowGraph.workflowBlock.parsesHandlesDataCompute","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphParsesWorkflowFlowBlockWithHandlesDataAndCompute"],
+  ["markdown.frontmatterFlowGraph.workflowBlock.usesDeclaredPortTypesForWarnings","@/__tests__/frontmatterFlowConnectionWarnings.test","testFrontmatterFlowConnectionWarningsUseFlowPortTypes"],
   ["markdown.frontmatterFlowGraph.workflowBlock.parsesWrappedNodeFieldEnvelopeAndEdgeHandles","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphParsesWrappedNodeFieldEnvelopeAndEdgeHandles"],
   ["markdown.frontmatterFlowGraph.workflowBlock.parsesAllWrappedNodeIdsIntoWidgetForms","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphParsesAllWrappedNodeIdsIntoWidgetForms"],
   ["markdown.frontmatterFlowGraph.workflowBlock.ignoresMermaidAndRendersOnlyFlowNodesForWidgets","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRendersOnlyFlowNodesForWidgets"],
