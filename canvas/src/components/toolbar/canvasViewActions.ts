@@ -155,8 +155,8 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     return
   }
   if (id === 'surface:3d') {
-    setCanvasRenderMode('3d')
     setCanvas3dMode('3d')
+    setCanvasRenderMode('3d')
     return
   }
   if (id === 'surface:xr') {
@@ -164,8 +164,8 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
       onOpenGeospatialMode()
       return
     }
-    setCanvasRenderMode('3d')
     setCanvas3dMode('xr')
+    setCanvasRenderMode('3d')
     return
   }
   if (id === 'animation:force' || id === 'animation:orbit') {

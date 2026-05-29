@@ -111,7 +111,7 @@ export default function FlowEditorCanvasSurface(props: {
           onInteractionFrame={props.hasOverlayEditors ? props.emitFlowEditorInteractionFrame : undefined}
           renderEdges={!props.overlayOnlyActive}
           renderGroups={!props.overlayOnlyActive && !props.geospatialWidgetPanelMode}
-          renderNodes={true}
+          renderNodes={!props.overlayOnlyActive}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import type { Subscription } from 'rxjs'
+import type { Unsubscribable } from 'rxjs'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
@@ -234,8 +234,8 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
 
   useEffect(() => {
     if (!active) return
-    let sub: Subscription | null = null
-    let rowSub: Subscription | null = null
+    let sub: Unsubscribable | null = null
+    let rowSub: Unsubscribable | null = null
     let colMap = new Map<string, GraphColumnDoc>()
     let cancelled = false
     let rowsRafId: number | null = null

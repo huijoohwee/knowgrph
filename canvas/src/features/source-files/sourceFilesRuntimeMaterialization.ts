@@ -62,6 +62,7 @@ export function shouldProactivelyReapplyClosedPaneActiveMarkdownDocument(args: {
   activePath: WorkspacePath | null
   markdownDocumentName: string | null | undefined
   markdownDocumentText: string | null | undefined
+  markdownDocumentApplyViewPreset?: boolean
   workspaceViewMode: 'canvas' | 'editor'
   workspaceCanvasPaneOpen: boolean
 }): boolean {
@@ -71,12 +72,6 @@ export function shouldProactivelyReapplyClosedPaneActiveMarkdownDocument(args: {
     workspaceViewMode: args.workspaceViewMode,
     workspaceCanvasPaneOpen: args.workspaceCanvasPaneOpen,
   })) {
-    return false
-  }
-  if (
-    matchesMarkdownDocumentPath(activePath, args.markdownDocumentName) &&
-    String(args.markdownDocumentText || '').trim()
-  ) {
     return false
   }
   return true
@@ -119,6 +114,7 @@ export async function reapplyClosedPaneActiveMarkdownDocument(args?: {
     activePath,
     markdownDocumentName: store.markdownDocumentName,
     markdownDocumentText: store.markdownDocumentText,
+    markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
     workspaceViewMode: store.workspaceViewMode,
     workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
   })) {
@@ -147,7 +143,8 @@ export async function reapplyClosedPaneActiveMarkdownDocument(args?: {
   if (normalizeWorkspacePath(latestActivePath) !== activePath) return false
   if (
     matchesMarkdownDocumentPath(activePath, store.markdownDocumentName) &&
-    String(store.markdownDocumentText || '') === nextText
+    String(store.markdownDocumentText || '') === nextText &&
+    store.markdownDocumentApplyViewPreset !== false
   ) {
     return false
   }

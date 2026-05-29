@@ -92,7 +92,7 @@ export type StatusHelpers = {
     total?: number | null,
     bytesCurrent?: number | null,
     bytesTotal?: number | null,
-    opts?: { ttlMs?: number | null },
+    opts?: { ttlMs?: number | null; busy?: boolean },
   ) => void
   clearStatus: () => void
   buildWebpageImportStageLabel: (pctRaw: number) => string

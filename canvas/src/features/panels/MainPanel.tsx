@@ -4,7 +4,6 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import { UI_ANCHORS, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Palette, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon, Server, Users } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
@@ -19,6 +18,7 @@ import {
   isMainPanelTabKey,
   type MainPanelTabKey,
 } from '@/features/panels/mainPanelTabs'
+import { MAIN_PANEL_TAB_TYPE_ICON_BY_KEY } from '@/features/panels/ui/mainPanelTypeIcons'
 import {
   clearLocalMainPanelSurfaceSnapshot,
   publishLocalMainPanelSurfaceSnapshot,
@@ -289,20 +289,7 @@ export default function MainPanel({
       onSearchChange={setSearch}
       tabs={MAIN_PANEL_TABS}
       tabVariant="icon"
-      tabIconByKey={{
-        collaboration: Users,
-        integrations: Plug,
-        mcp: Server,
-        maps: MapIcon,
-        payments: CreditCard,
-        design: Palette,
-        workflowManager: Table,
-        dashboard: BarChart3,
-        preview: MonitorPlay,
-        settings: Settings,
-        history: HistoryIcon,
-        help: HelpCircle,
-      }}
+      tabIconByKey={MAIN_PANEL_TAB_TYPE_ICON_BY_KEY}
       activeTab={tab}
       onTabChange={(key) => {
         if (!isMainPanelTabKey(key)) return

@@ -257,6 +257,45 @@ export async function testWorkspaceSourceFilesSyncSuppressesEmptyRootDocsAliasWh
   if (!docsStoryboard) throw new Error('expected docs mirrored storyboard markdown to remain as canonical Source Files entry')
 }
 
+export async function testWorkspaceSourceFilesSyncDeduplicatesLegacyAliasFamilyToSingleCanonicalSourcePath() {
+  const docsValidationAliasPath = `/${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}`
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        parentPath: '/',
+        name: 'knowgrph-video-demo.md',
+        text: '# root validation alias',
+        updatedAtMs: 1,
+      },
+      {
+        kind: 'file',
+        path: docsValidationAliasPath,
+        parentPath: '/docs',
+        name: 'knowgrph-video-demo.md',
+        text: '# docs validation alias',
+        updatedAtMs: 2,
+      },
+    ],
+    sourcesByPath: {
+      [docsValidationAliasPath]: { kind: 'local', originalName: 'knowgrph-video-demo.md' },
+    },
+  })
+
+  const validationAliases = next.filter(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
+  if (validationAliases.length !== 1) {
+    throw new Error(`expected legacy validation alias family to collapse to one canonical Source Files entry, got ${validationAliases.length}`)
+  }
+  if (validationAliases[0]?.text !== '# docs validation alias') {
+    throw new Error('expected canonical validation Source Files entry to prefer the docs mirror alias over the root seed alias')
+  }
+  if (next.some(f => f.source?.path === `workspace:${docsValidationAliasPath}`)) {
+    throw new Error('expected docs validation alias not to create a duplicate workspace:/docs source-file key')
+  }
+}
+
 export async function testWorkspaceSourceFilesSyncDocsOnlyModeExcludesNonDocsWorkspaceFiles() {
   const nonDocsPath = '/scratch/places-demo.md'
   const next = mergeWorkspaceEntriesIntoSourceFiles({
@@ -456,6 +495,16 @@ export async function testWorkspaceSeedSourceFilesResolveCurrentSeedsToCanonical
   }
   if (resolveWorkspaceSeedSourcePath('/notes/custom.md') !== null) {
     throw new Error('expected non-seed workspace paths to stay outside canonical seed source-file remapping')
+  }
+}
+
+export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath() {
+  const docsValidationAliasPath = `/${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}`
+  if (resolveWorkspaceSeedSourcePath(docsValidationAliasPath) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected bundled validation docs alias to resolve onto the canonical validation source-file path')
+  }
+  if (resolveWorkspaceSourcePathKey(docsValidationAliasPath) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected bundled validation docs alias source key to reuse the canonical validation source-file path')
   }
 }
 

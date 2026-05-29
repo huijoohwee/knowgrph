@@ -56,9 +56,12 @@ export async function importWorkspaceUrl(args: {
   } catch {
     void 0
   }
+  const sourceUrl = fetched.normalizedUrl || rawUrl
   const sharePrimaryPath = resolveImportedShareUrlPrimaryWorkspacePath({
-    url: fetched.normalizedUrl || rawUrl,
+    url: sourceUrl,
     importedName: fetched.name,
+    importedTitle: fetched.title,
+    importedText: fetched.text,
   })
   const createdPath = sharePrimaryPath
     ? (await writeWorkspaceFileTextEnsuringFile({
@@ -73,21 +76,32 @@ export async function importWorkspaceUrl(args: {
     void 0
   }
   const normalized = normalizeWorkspacePath(createdPath)
-  await persistImportedShareUrlArtifacts({
+  const persistedShareArtifacts = await persistImportedShareUrlArtifacts({
     fs: args.fs,
-    url: fetched.normalizedUrl || rawUrl,
+    url: sourceUrl,
     importedName: fetched.name,
+    importedTitle: fetched.title,
     importedText: fetched.text,
     importedThinkingText: fetched.thinkingText,
     importedWorkspacePath: normalized,
   })
+  const sources: WorkspaceImportResult['sources'] = [{ path: normalized, source: { kind: 'url', url: sourceUrl } }]
+  if (persistedShareArtifacts) {
+    const knownSourcePaths = new Set(sources.map(item => normalizeWorkspacePath(item.path)))
+    for (const path of [persistedShareArtifacts.exportMarkdownPath, persistedShareArtifacts.exportThinkingPath]) {
+      const artifactPath = normalizeWorkspacePath(path)
+      if (!artifactPath || knownSourcePaths.has(artifactPath)) continue
+      knownSourcePaths.add(artifactPath)
+      sources.push({ path: artifactPath, source: { kind: 'url', url: sourceUrl } })
+    }
+  }
   const applyToGraph = shouldApplyImportedCanvasDocumentToGraph({
     path: normalized || fetched.name,
     text: fetched.text,
   })
   return {
     createdPaths: [normalized],
-    sources: [{ path: normalized, source: { kind: 'url', url: fetched.normalizedUrl } }],
+    sources,
     skipped: [],
     failed: [],
     applyToGraph,

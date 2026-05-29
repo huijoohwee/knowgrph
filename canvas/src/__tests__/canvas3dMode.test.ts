@@ -1,6 +1,7 @@
 import { getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
@@ -53,6 +54,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
 
   let selectedRenderMode: '2d' | '3d' | null = null
   let canvas3dMode: string | null = null
+  const calls: string[] = []
 
   applyCanvasViewSelection({
     id: 'surface:xr',
@@ -70,8 +72,14 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
     renderMediaAsNodes: false,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => {},
-    setCanvasRenderMode: mode => { selectedRenderMode = mode },
-    setCanvas3dMode: mode => { canvas3dMode = mode },
+    setCanvasRenderMode: mode => {
+      calls.push(`render:${mode}`)
+      selectedRenderMode = mode
+    },
+    setCanvas3dMode: mode => {
+      calls.push(`3d:${mode}`)
+      canvas3dMode = mode
+    },
     setSchema: () => {},
     setRenderMediaAsNodes: () => {},
     setDocumentSemanticMode: () => {},
@@ -85,6 +93,9 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   if (canvas3dMode !== 'xr') {
     throw new Error(`Expected XR Mode selection to set canvas3dMode=xr, got ${String(canvas3dMode)}`)
   }
+  if (calls.join('|') !== '3d:xr|render:3d') {
+    throw new Error(`Expected XR Mode selection to preserve XR before activating the 3D render surface, got ${calls.join('|')}`)
+  }
 }
 
 export function testRenderSettings3dModeSelectPreservesXrMode() {
@@ -94,6 +105,20 @@ export function testRenderSettings3dModeSelectPreservesXrMode() {
   }
   if (!text.includes(`raw === 'xr' ? 'xr' : '3d'`)) {
     throw new Error('Expected Render Settings 3D Mode onChange to preserve XR instead of coercing it to 3D')
+  }
+}
+
+export function testXrSurfaceFrontmatterPresetActivatesXrCanvasMode() {
+  const store = useGraphStore.getState()
+  store.resetAll()
+  store.setCanvasRenderMode('2d')
+  store.setCanvas3dMode('3d')
+  const changed = applyCanvasFrontmatterPreset({
+    rawText: ['---', 'kgCanvasSurfaceMode: "xr"', '---', '', '# XR Demo'].join('\n'),
+  })
+  const next = useGraphStore.getState()
+  if (!changed || next.canvasRenderMode !== '3d' || next.canvas3dMode !== 'xr') {
+    throw new Error(`expected XR surface frontmatter to activate Canvas XR Mode, got ${JSON.stringify({ changed, canvasRenderMode: next.canvasRenderMode, canvas3dMode: next.canvas3dMode })}`)
   }
 }
 
@@ -119,6 +144,30 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
   }
   if (!glbModel.includes('kg_model_xr_orientation_ring') || !glbModel.includes('kg_model_xr_perimeter_markers')) {
     throw new Error('Expected XR Mode model rendering to include a neutral spatial inspection stage')
+  }
+}
+
+export function testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlobe() {
+  const scene = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
+  const stage = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
+  if (!scene.includes("{mode === 'xr' ? <XrGraphStage data={data} positions={positions} paused={paused} /> : null}")) {
+    throw new Error('Expected XR Mode graph scenes to mount a distinct XR spatial stage')
+  }
+  if (!scene.includes("mode === '3d' ? (\n          <GlobeEffects")) {
+    throw new Error('Expected plain 3D globe effects to stay out of XR Mode')
+  }
+  for (const marker of [
+    'kg_graph_xr_stage',
+    'kg_graph_xr_depth_grid',
+    'kg_graph_xr_boundary_frame',
+    'kg_graph_xr_orientation_ring',
+    'kg_graph_xr_focus_reticle',
+    'kg_graph_xr_controller_rays',
+    'kg_graph_xr_status_beacons',
+  ]) {
+    if (!stage.includes(marker)) {
+      throw new Error(`Expected XR graph stage to expose ${marker}`)
+    }
   }
 }
 

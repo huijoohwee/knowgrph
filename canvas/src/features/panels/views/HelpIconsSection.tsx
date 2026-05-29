@@ -1,5 +1,4 @@
 import React from 'react';
-import { Eraser } from 'lucide-react';
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
 import Tooltip from '@/features/panels/ui/Tooltip';
 import { HELP_STEP_COPY } from '@/features/panels/config';
@@ -12,9 +11,14 @@ import {
 } from '@/lib/config';
 import { FieldOriginIcon, KindPill, ScopeIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { getIconSizeClass, getPillClass } from '@/lib/ui';
+import { getIconSizeClass } from '@/lib/ui';
 import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
+import {
+  MAIN_PANEL_HELP_TYPE_ICON_KEYS,
+  MainPanelTypeIcon,
+  getMainPanelTypeIconMeta,
+} from '@/features/panels/ui/mainPanelTypeIcons';
 
 interface IconRow {
   category: string;
@@ -43,16 +47,27 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
 
   const iconRows = React.useMemo<IconRow[]>(
     () => {
-      const state = useGraphStore.getState();
-      const basePillClass = state.uiIconPillClass;
-      const legendTextSizeClass = state.uiIconPillLegendTextSizeClass;
-      const pillClass = getPillClass('legend', {
-        baseClass: `${basePillClass} inline-flex items-center gap-1`,
-        legendTextSizeClass,
-        textColorClass: UI_THEME_TOKENS.text.primary,
-      });
       const iconOnlyPillClass = 'inline-flex items-center justify-center';
+      const mainPanelTypeRows = MAIN_PANEL_HELP_TYPE_ICON_KEYS.map((iconKey): IconRow => {
+        const meta = getMainPanelTypeIconMeta(iconKey);
+        return {
+          category: meta.category,
+          icon: (
+            <span className={iconOnlyPillClass}>
+              <MainPanelTypeIcon
+                iconKey={iconKey}
+                className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
+                strokeWidth={uiIconStrokeWidth}
+              />
+            </span>
+          ),
+          name: meta.label,
+          agentic: meta.agentic,
+          usage: meta.usage,
+        };
+      });
       return [
+        ...mainPanelTypeRows,
         {
           category: 'Scope',
           icon: <ScopeIcon scope="node" className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={uiIconStrokeWidth} />,
@@ -285,17 +300,6 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
           name: 'JSON',
           agentic: 'Structured JSON payload',
           usage: 'Structured JSON objects used for nested metadata or model outputs.',
-        },
-        {
-          category: 'Actions',
-          icon: (
-            <span className={iconOnlyPillClass}>
-              <Eraser className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`} strokeWidth={uiIconStrokeWidth} />
-            </span>
-          ),
-          name: 'Clear / Reset',
-          agentic: 'Non-destructive erase',
-          usage: 'Clears selections, filters, or default values across panels without removing underlying graph data.',
         },
       ];
     },

@@ -13,6 +13,9 @@ type RegisteredTool = {
   execute: (input?: Record<string, unknown>) => Promise<unknown>
 }
 
+const readWebMcpContextState = (document: Document): string =>
+  String(document.documentElement.dataset.kgWebmcpContext || '')
+
 const MOCK_SHARED_DOCUMENT_MARKDOWN = `---
 flow:
   nodes:
@@ -156,7 +159,7 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
 
     new Function(webMcpScript)()
 
-    if (document.documentElement.dataset.kgWebmcpContext !== 'fallback-readable') {
+    if (readWebMcpContextState(document) !== 'fallback-readable') {
       throw new Error(
         `expected fallback-readable HTML script state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )
@@ -177,7 +180,7 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
       },
     }
 
-    if (document.documentElement.dataset.kgWebmcpContext !== 'installed') {
+    if (readWebMcpContextState(document) !== 'installed') {
       throw new Error(
         `expected installed HTML script state after late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )

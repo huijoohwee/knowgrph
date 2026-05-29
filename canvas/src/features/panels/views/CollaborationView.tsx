@@ -1,5 +1,4 @@
 import React from 'react'
-import { Users, Link2, ArrowRightLeft, LocateFixed, Radio, Copy, PlugZap, Plug, UserX } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import {
@@ -12,6 +11,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { useP2PCollaborationStore } from '@/features/collaboration/p2pCollaborationStore'
+import { MainPanelTypeIcon, type MainPanelTypeIconKey } from '@/features/panels/ui/mainPanelTypeIcons'
 
 type SectionId = 'session' | 'invite' | 'answer' | 'peer'
 
@@ -40,6 +40,7 @@ function buildCollapsedState(next: boolean): Record<SectionId, boolean> {
 export default function CollaborationView({ searchQuery, onRegisterActions }: CollaborationViewProps) {
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const displayName = useP2PCollaborationStore(s => s.displayName)
   const role = useP2PCollaborationStore(s => s.role)
   const phase = useP2PCollaborationStore(s => s.phase)
@@ -71,6 +72,9 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
 
   const normalizedQuery = React.useMemo(() => String(searchQuery || '').trim().toLowerCase(), [searchQuery])
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const renderTypeIcon = React.useCallback((iconKey: MainPanelTypeIconKey) => (
+    <MainPanelTypeIcon iconKey={iconKey} className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+  ), [iconSizeClass, uiIconStrokeWidth])
   const allCollapsed = React.useMemo(
     () => SECTION_ORDER.every(sectionId => collapsedBySection[sectionId]),
     [collapsedBySection],
@@ -162,7 +166,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="session-display-name"
         keyNode="Display Name"
-        typeNode={<Users className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.peer')}
         valueNode={(
           <RightAlignedTooltipInput
             tooltip="Name shown to the remote peer."
@@ -177,7 +181,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="session-state"
         keyNode="Session"
-        typeNode={<Radio className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.session')}
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
@@ -208,7 +212,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="session-peer-count"
         keyNode="Peer Count"
-        typeNode={<Users className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.peer')}
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
@@ -230,7 +234,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="session-status"
         keyNode="Runtime Status"
-        typeNode={<PlugZap className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.runtime')}
         valueNode={(
           <RightAlignedValueCell>
             <span className={errorText ? UI_THEME_TOKENS.status.error : noteClassName}>
@@ -244,7 +248,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="session-follow-mode"
         keyNode="Follow Mode"
-        typeNode={<LocateFixed className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.follow')}
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
@@ -277,7 +281,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="session-actions"
         keyNode="Host Session"
-        typeNode={<ArrowRightLeft className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.connection')}
         valueNode={(
           <RightAlignedValueCell>
             <div className={rowValueClassName}>
@@ -307,7 +311,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="invite-link"
         keyNode="Invite Link"
-        typeNode={<Link2 className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.link')}
         valueNode={(
           <RightAlignedValueCell>
             <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
@@ -327,7 +331,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                   void copyText(inviteUrl, 'Collaboration invite copied')
                 }}
               >
-                <Copy className={iconSizeClass} aria-hidden />
+                {renderTypeIcon('collaboration.copy')}
                 Copy
               </button>
             </div>
@@ -339,7 +343,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="invite-join"
         keyNode="Join Invite"
-        typeNode={<ArrowRightLeft className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.connection')}
         valueNode={(
           <RightAlignedValueCell>
             <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
@@ -369,7 +373,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="answer-token"
         keyNode="Guest Answer"
-        typeNode={<Copy className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.copy')}
         valueNode={(
           <RightAlignedValueCell>
             <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
@@ -389,7 +393,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                   void copyText(answerToken, 'Collaboration answer copied')
                 }}
               >
-                <Copy className={iconSizeClass} aria-hidden />
+                {renderTypeIcon('collaboration.copy')}
                 Copy
               </button>
             </div>
@@ -401,7 +405,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="answer-apply"
         keyNode="Apply Answer"
-        typeNode={<PlugZap className={iconSizeClass} aria-hidden />}
+        typeNode={renderTypeIcon('collaboration.runtime')}
         valueNode={(
           <RightAlignedValueCell>
             <div className="flex w-full min-w-0 flex-wrap items-center gap-1 sm:justify-end">
@@ -433,7 +437,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         <KeyTypeValueRow
           key={`peer-roster-${peer.peerId}`}
           keyNode={peer.displayName}
-          typeNode={<Users className={iconSizeClass} aria-hidden />}
+          typeNode={renderTypeIcon('collaboration.peer')}
           valueNode={(
             <RightAlignedValueCell>
               <div className={rowValueClassName}>
@@ -480,7 +484,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
                         className={buttonClassName}
                         onClick={() => queueRemovePeer(peer.peerId)}
                       >
-                        <UserX className={iconSizeClass} aria-hidden />
+                        {renderTypeIcon('collaboration.removePeer')}
                         Remove
                       </button>
                     ) : null}
@@ -495,7 +499,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
       <KeyTypeValueRow
         key="peer-transport"
         keyNode="Transport"
-        typeNode={phase === 'connected' ? <PlugZap className={iconSizeClass} aria-hidden /> : <Plug className={iconSizeClass} aria-hidden />}
+        typeNode={phase === 'connected' ? renderTypeIcon('collaboration.runtime') : renderTypeIcon('collaboration.transport')}
         valueNode={(
           <RightAlignedValueCell>
             <span className={noteClassName}>

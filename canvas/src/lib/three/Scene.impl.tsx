@@ -34,6 +34,7 @@ import { intersectRayWithZPlane } from '@/features/three/raycast'
 import { listVoxelLayers, resolveVoxelLayerKey } from '@/features/three/voxelLayers'
 import { VoxelDistricts, VoxelDistrictAmbientField } from '@/features/three/VoxelDistricts'
 import { VoxelBridgeTubes } from '@/features/three/VoxelBridgeTubes'
+import { XrGraphStage } from '@/features/three/XrGraphStage'
 import { buildSelectionAnchorIdSets } from '@/lib/selection/anchorIds'
 import { buildSelectedEdgeEndpointNodeIdSet } from '@/lib/graph/edgeEndpoints'
 
@@ -277,8 +278,6 @@ export function Scene({
     if (!groups.length || explicitGroupRectById.size === 0) return new Map<string, { x: number; y: number; width: number; height: number }>()
     return buildDeepestGroupRectByNodeId({ groups: groups as any, groupRectById: explicitGroupRectById as any })
   }, [explicitGroupRectById, groups])
-  
-  // Memoize resolved colors to depend on theme
   const {
     neutralEdgeColor,
     selectedEdgeColor,
@@ -814,6 +813,7 @@ export function Scene({
           paused={paused}
         />
       ) : null}
+      {mode === 'xr' ? <XrGraphStage data={data} positions={positions} paused={paused} /> : null}
       <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
         {mode === 'voxel' ? (
@@ -822,7 +822,7 @@ export function Scene({
             <VoxelDistrictAmbientField nodes={data.nodes} positions={positions} schema={schema} paused={paused || !voxelAnimationEnabled} />
           </>
         ) : null}
-        {mode !== 'voxel' ? (
+        {mode === '3d' ? (
           <GlobeEffects
             data={data}
             schema={schema}

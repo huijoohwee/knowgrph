@@ -227,12 +227,13 @@ export async function testSettingsCloudImportAsyncBridgeKeepsCommittedSurfaceTru
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
+    const settledImportedUrls = [...importedUrls]
     if (
-      importedUrls.length !== 2 ||
-      importedUrls[0] !== KNOWGRPH_IMPORTED_URL ||
-      importedUrls[1] !== HISTORY_IMPORTED_URL
+      settledImportedUrls.length !== 2 ||
+      settledImportedUrls[0] !== KNOWGRPH_IMPORTED_URL ||
+      settledImportedUrls[1] !== HISTORY_IMPORTED_URL
     ) {
-      throw new Error(`expected async workspace import bridge to eventually receive both cloud import URLs, got ${JSON.stringify(importedUrls)}`)
+      throw new Error(`expected async workspace import bridge to eventually receive both cloud import URLs, got ${JSON.stringify(settledImportedUrls)}`)
     }
 
     const postBridgeCompletionInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())

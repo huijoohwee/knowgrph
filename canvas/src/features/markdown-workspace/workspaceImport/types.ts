@@ -12,6 +12,7 @@ export type WorkspaceImportResult = {
 export type WorkspaceUrlContent = {
   normalizedUrl: string
   name: string
+  title?: string
   text: string
   thinkingText?: string
 }

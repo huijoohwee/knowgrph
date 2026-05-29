@@ -75,7 +75,7 @@ export function buildPendingLocalImportStub(args: {
       'kgAssetPendingLocalImport: true',
       pendingPath ? `kgAssetPendingLocalPath: "${pendingPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : '',
       bytes > 0 ? `kgAssetBytes: ${bytes}` : '',
-      'kgCanvasSurfaceMode: "3d"',
+      'kgCanvasSurfaceMode: "xr"',
       'kgCanvasRenderMode: "3d"',
       'kgCanvas3dMode: "xr"',
       '---',

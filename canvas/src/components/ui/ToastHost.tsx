@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { AlertCircle, CheckCircle, Info, X, AlertTriangle, Pin, PinOff } from 'lucide-react'
+import { AlertCircle, CheckCircle, Info, LoaderCircle, X, AlertTriangle, Pin, PinOff } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UiActionButtons } from '@/components/ui/UiActionButtons'
@@ -37,7 +37,7 @@ function ToastCard({
   onTogglePinned: (toast: UiToast) => void
 }) {
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const Icon = getKindIcon(toast.kind)
+  const Icon = toast.busy ? LoaderCircle : getKindIcon(toast.kind)
   const message = sanitizeMessageText(toast.message, { maxLines: 4 })
   const pinned = toast.expiresAtMs == null
   const PinIcon = pinned ? PinOff : Pin
@@ -54,7 +54,7 @@ function ToastCard({
       role={toast.kind === 'error' ? 'alert' : 'status'}
     >
       <div className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 py-2">
-        <Icon className="w-4 h-4 mt-0.5" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+        <Icon className={cn('w-4 h-4 mt-0.5', toast.busy ? 'animate-spin' : '')} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
         <div className="min-w-0">
           <div className="whitespace-pre-wrap break-words text-xs leading-5">{message}</div>
           <UiActionButtons actions={toast.actions} className="mt-2" />
@@ -123,6 +123,7 @@ export function ToastHost() {
         message: toast.message,
         ttlMs: pinned ? 10_000 : null,
         dismissible: toast.dismissible,
+        busy: toast.busy,
         log: false,
         actions: toast.actions,
       })

@@ -356,7 +356,7 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
 
 export async function testWorkspaceImportUrlExportsClaudeChatArtifactsIntoDocsRoot(): Promise<void> {
   const chatUrl = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
-  const exportToken = '6706219f-f8d2-418a-90a9-aae18de752a7'
+  const urlToken = '6706219f-f8d2-418a-90a9-aae18de752a7', exportToken = 'MiroThinker-global-oil-price-trajectory-simulation-20260407'
   const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-claude-chat-'))
@@ -379,7 +379,7 @@ export async function testWorkspaceImportUrlExportsClaudeChatArtifactsIntoDocsRo
       parentPath: '/docs_',
       fetchUrlContent: async url => ({
         normalizedUrl: url,
-        name: `${exportToken}.md`,
+        name: `${urlToken}.md`, title: 'MiroThinker global oil price trajectory simulation 20260407 - Claude',
         text: [
           '# Oil market blind spot analysis and price forecast',
           '',
@@ -1566,7 +1566,7 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWho
     '2. Identify a shared logical blind spot',
     '3. Re-simulate the global oil price trajectory for the next six months',
   ].join('\n')
-  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]))
+  const restore = installWebpageProxyFetch(new Map([[url, shellHtml]]), [])
   setWorkspaceWebpageDomExportForTests(async args => {
     if (args.mode === 'html' && args.textCaptureTarget === 'clicked-next-sibling') {
       return { text: recoveredHtml, title: 'Shared Chat - MiroThinker', clipped: false }

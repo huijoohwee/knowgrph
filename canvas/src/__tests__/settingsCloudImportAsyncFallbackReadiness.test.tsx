@@ -234,12 +234,13 @@ export async function testSettingsCloudImportAsyncFallbackKeepsCommittedSurfaceT
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
+    const settledFallbackCalls = [...fallbackCalls]
     if (
-      fallbackCalls.length !== 2 ||
-      fallbackCalls[0]?.urlRaw !== KNOWGRPH_IMPORTED_URL ||
-      fallbackCalls[1]?.urlRaw !== HISTORY_IMPORTED_URL
+      settledFallbackCalls.length !== 2 ||
+      settledFallbackCalls[0]?.urlRaw !== KNOWGRPH_IMPORTED_URL ||
+      settledFallbackCalls[1]?.urlRaw !== HISTORY_IMPORTED_URL
     ) {
-      throw new Error(`expected async fallback import path to eventually invoke fallback for both URLs, got ${JSON.stringify(fallbackCalls)}`)
+      throw new Error(`expected async fallback import path to eventually invoke fallback for both URLs, got ${JSON.stringify(settledFallbackCalls)}`)
     }
     const knowgrphToast = useGraphStore.getState().uiToasts.find(toast => toast.id === `launch:import:url:${KNOWGRPH_IMPORTED_URL}`)
     const historyToast = useGraphStore.getState().uiToasts.find(toast => toast.id === `launch:import:url:${HISTORY_IMPORTED_URL}`)

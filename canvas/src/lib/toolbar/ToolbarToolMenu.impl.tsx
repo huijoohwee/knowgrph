@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ChevronDown, GitBranch, Hand, LayoutGrid, Map, MessageCircle, MonitorPlay, Palette, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -16,12 +16,9 @@ import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { uiPrimaryPillActiveClassName, uiToolbarRowScrollClassName, uiToolbarRowScrollJustifyBetweenClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { cn } from '@/lib/utils'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
-import {
-  LS_KEYS,
-  UI_LABELS,
-  UI_SELECTORS,
-} from '@/lib/config'
+import { LS_KEYS, UI_LABELS, UI_SELECTORS } from '@/lib/config'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
+import { FLOATING_PANEL_TYPE_ICON_BY_VIEW } from '@/features/panels/ui/mainPanelTypeIcons'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelView'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
@@ -446,13 +443,13 @@ export function ToolbarToolMenu({
 
   const floatingPanelPrimaryViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
     () => [
-      { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: SlidersHorizontal },
-      { view: 'view', title: UI_LABELS.view, icon: LayoutGrid },
-      { view: 'interaction', title: 'Interaction', icon: Hand },
-      { view: 'design', title: 'Design', icon: Palette },
-      { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
-      { view: 'geo', title: UI_LABELS.geo, icon: Map },
-      { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
+      { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
+      { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
+      { view: 'interaction', title: 'Interaction', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.interaction },
+      { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
+      { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
+      { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
+      { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer },
     ],
     [],
   )
@@ -461,7 +458,7 @@ export function ToolbarToolMenu({
       {
         id: 'graphTraversal',
         title: UI_LABELS.graphTraversal,
-        icon: GitBranch,
+        icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.graphTraversal,
       },
     ],
     [],

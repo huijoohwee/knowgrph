@@ -100,6 +100,7 @@ export type UiToast = {
   createdAtMs: number
   expiresAtMs: number | null
   dismissible: boolean
+  busy?: boolean
   actions?: UiAction[]
 }
 
@@ -109,6 +110,7 @@ export type UiToastInput = {
   message: string
   ttlMs?: number | null
   dismissible?: boolean
+  busy?: boolean
   log?: boolean
   actions?: UiAction[]
 }

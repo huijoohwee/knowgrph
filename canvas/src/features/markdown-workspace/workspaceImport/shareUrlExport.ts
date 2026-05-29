@@ -10,6 +10,7 @@ export const persistImportedShareUrlArtifacts = async (args: {
   fs: WorkspaceFs
   url: string
   importedName: string
+  importedTitle?: string
   importedText: string
   importedThinkingText?: string
   importedWorkspacePath: string
@@ -32,6 +33,8 @@ export const persistImportedShareUrlArtifacts = async (args: {
     rootFolderPath,
     url,
     importedName: args.importedName,
+    importedTitle: args.importedTitle,
+    importedText: args.importedText,
   })
   const importedText = String(args.importedText || '').trimEnd() + '\n'
   const importedThinkingText = restoreWebpageMarkdownSyntaxFidelity(
@@ -72,6 +75,8 @@ export const persistImportedShareUrlArtifacts = async (args: {
 export const resolveImportedShareUrlPrimaryWorkspacePath = (args: {
   url: string
   importedName: string
+  importedTitle?: string
+  importedText?: string
   rootFolderPath?: string
 }): string | null => {
   const url = String(args.url || '').trim()
@@ -81,5 +86,7 @@ export const resolveImportedShareUrlPrimaryWorkspacePath = (args: {
     rootFolderPath,
     url,
     importedName: args.importedName,
+    importedTitle: args.importedTitle,
+    importedText: args.importedText,
   }).exportMarkdownPath
 }

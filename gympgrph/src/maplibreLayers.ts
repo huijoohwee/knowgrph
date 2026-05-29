@@ -42,6 +42,14 @@ const hasStyleAttached = (map: any): boolean => {
   } catch {
     void 0
   }
+  try {
+    const hasLayerApi = typeof map.getLayer === 'function' && typeof map.addLayer === 'function'
+    const hasSourceApi = typeof map.getSource === 'function' && typeof map.addSource === 'function'
+    if (hasLayerApi && hasSourceApi && typeof map.isStyleLoaded === 'function' && map.isStyleLoaded() === true) return true
+    if (hasLayerApi && hasSourceApi && typeof map.loaded === 'function' && map.loaded() === true) return true
+  } catch {
+    void 0
+  }
   return false
 }
 

@@ -1201,10 +1201,10 @@ export function readAnimaticTimelineScaleConfig(markdownText: string | null | un
   const timeline = readRecord(meta.timeline)
   const scaleRecord = readRecord(timeline.scale)
   return sanitizeAnimaticTimelineScaleConfig({
-    scale: scaleRecord.scale,
-    scaleSplitCount: scaleRecord.scale_split_count ?? scaleRecord.scaleSplitCount,
-    scaleWidth: scaleRecord.scale_width ?? scaleRecord.scaleWidth,
-    startLeft: scaleRecord.start_left ?? scaleRecord.startLeft,
+    scale: typeof scaleRecord.scale === 'number' ? scaleRecord.scale : undefined,
+    scaleSplitCount: typeof scaleRecord.scale_split_count === 'number' ? scaleRecord.scale_split_count : typeof scaleRecord.scaleSplitCount === 'number' ? scaleRecord.scaleSplitCount : undefined,
+    scaleWidth: typeof scaleRecord.scale_width === 'number' ? scaleRecord.scale_width : typeof scaleRecord.scaleWidth === 'number' ? scaleRecord.scaleWidth : undefined,
+    startLeft: typeof scaleRecord.start_left === 'number' ? scaleRecord.start_left : typeof scaleRecord.startLeft === 'number' ? scaleRecord.startLeft : undefined,
   })
 }
 

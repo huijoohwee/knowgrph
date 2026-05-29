@@ -61,23 +61,25 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
   }, [])
 
   const emitToast = React.useCallback(
-    (args: { kind: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => {
+    (args: { kind: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; busy?: boolean; log?: boolean }) => {
       const message = String(args.message || '').trim()
       if (!message) return
       const kind = args.kind
       const ttlMs = typeof args.ttlMs === 'undefined' ? UI_TOAST_TTL_MS.statusAutoClose : args.ttlMs
       const dismissible = typeof args.dismissible === 'boolean' ? args.dismissible : kind === 'error'
-      const sig = `${kind}|${ttlMs ?? 'null'}|${dismissible ? '1' : '0'}|${message}`
+      const busy = args.busy === true
+      const sig = `${kind}|${ttlMs ?? 'null'}|${dismissible ? '1' : '0'}|${busy ? '1' : '0'}|${message}`
       if (shouldSkipToast(toastId, sig)) return
       try {
         useGraphStore.getState().upsertUiToast({
           id: toastId,
           kind,
-          message,
-          ttlMs,
-          dismissible,
-          log: args.log === true,
-        })
+        message,
+        ttlMs,
+        dismissible,
+        busy,
+        log: args.log === true,
+      })
       } catch {
         void 0
       }
@@ -135,7 +137,7 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
       total?: number | null,
       bytesCurrent?: number | null,
       bytesTotal?: number | null,
-      statusOpts?: { ttlMs?: number | null },
+      statusOpts?: { ttlMs?: number | null; busy?: boolean },
     ) => {
       const msg = String(label || '').trim()
       if (!msg) return
@@ -152,6 +154,7 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
         message: formatMarkdownWorkspaceStatusLabel(status),
         ttlMs: typeof statusOpts?.ttlMs === 'undefined' ? null : statusOpts.ttlMs,
         dismissible: true,
+        busy: statusOpts?.busy === true,
       })
     },
     [emitToast],

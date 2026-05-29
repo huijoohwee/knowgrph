@@ -1665,7 +1665,7 @@ export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisab
     throw new Error('expected workspace active materialization runtime helper to delegate graph-apply ownership to the dedicated graph-owning helper')
   }
   const between = runtimeMaterializationText.slice(markerIndex, applyCallIndex)
-  if (!between.includes('if (!shouldApplyToGraph) return')) {
+  if (!between.includes('if (!shouldApplyToGraph) return') && !between.includes('if (!shouldApplyToGraph) {')) {
     throw new Error('expected workspace active materialization to skip import-to-canvas hot path when graph apply is disabled')
   }
   const graphHelperStart = runtimeMaterializationText.indexOf('async function materializeGraphOwningActiveWorkspaceSourceFiles(args:')

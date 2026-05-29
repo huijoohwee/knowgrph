@@ -167,7 +167,7 @@ export async function importUrlFallback(args: {
   const documentSemanticMode = canvas2dRenderer ? normalizeWorkspaceUrlImportDocumentMode(args.documentSemanticMode) : null
   const rendererLabel = canvas2dRenderer ? getWorkspaceUrlImportCanvasRendererLabel(canvas2dRenderer) : ''
   const toastId = 'launch:import:url'
-  args.pushUiToast({ id: toastId, kind: 'neutral', message: rendererLabel ? `Importing URL (${rendererLabel})…` : 'Importing URL…', ttlMs: null, dismissible: false })
+  args.pushUiToast({ id: toastId, kind: 'neutral', message: rendererLabel ? `Importing URL (${rendererLabel})…` : 'Importing URL…', ttlMs: null, dismissible: false, busy: true })
   try {
     const [
       { getWorkspaceFs },
@@ -201,7 +201,7 @@ export async function importUrlFallback(args: {
         viewHint: canvas2dRenderer ? 'html' : undefined,
         onProgress: p => {
           const label = String((p as { label?: unknown }).label || '').trim() || 'Importing URL…'
-          args.pushUiToast({ id: toastId, kind: 'neutral', message: label, ttlMs: null, dismissible: false })
+          args.pushUiToast({ id: toastId, kind: 'neutral', message: label, ttlMs: null, dismissible: false, busy: true })
         },
       }),
     ))

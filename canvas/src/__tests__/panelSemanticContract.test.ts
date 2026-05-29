@@ -483,8 +483,8 @@ export const testSettingsRowsUseEllipsisForLongMobileText = () => {
   if (!settingsEntryRow.includes('className="w-full min-w-0 max-w-full overflow-hidden"')) {
     throw new Error('Expected SettingsEntryRow tooltips to constrain long labels before ellipsis')
   }
-  if (!settingsEntryRow.includes('min-w-0 max-w-full flex-1 overflow-hidden')) {
-    throw new Error('Expected SettingsEntryRow values to stay within their responsive cell')
+  if (!settingsEntryRow.includes('RightAlignedValueCell') || !settingsEntryRow.includes('valueNode={<RightAlignedValueCell>')) {
+    throw new Error('Expected SettingsEntryRow values to reuse the shared responsive value cell')
   }
 
   const detailsTable = readUtf8(detailsTablePath)

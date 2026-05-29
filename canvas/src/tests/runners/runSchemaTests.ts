@@ -69,6 +69,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate()
   })
+  await execTest(results, 'canvas.xrMode.graphSpatialStage', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlobe()
+  })
   await execTest(results, 'canvas.xrMode.gltfAssetRenderGate', async () => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate()

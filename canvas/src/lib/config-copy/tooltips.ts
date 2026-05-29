@@ -708,7 +708,7 @@ export const PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION =
   'The canvas UI is organized into the toolbar, main panel, floating panel, and bottom surface so that data curation, schema design, and workflow exports stay in sync. The Graph Data Table is the spreadsheet-like view of nodes and edges used alongside Workflow Manager and the markdown workspace.';
 
 export const GRAPH_FIELDS_ICON_LEGEND_REUSE_TEXT =
-  'Node/edge tooltip field-type icons reuse this legend: hover badges in the canvas show the same type glyphs based on schema property types and follow the same UI Density: Icons setting.';
+  'MainPanel Collaboration Type rows, settings-derived Integrations/MCP/Maps/Payments/Settings rows, FloatingPanel view buttons, and node/edge tooltip field-type icons reuse this legend and follow the same UI Density: Icons setting.';
 
 export const GRAPH_FIELDS_HIDDEN_TOGGLE_TOOLTIP_TEXT =
   'Directive: Toggle · Subject: Graph Data Table visibility · Verb: controls · Object: whether this field appears as a column while remaining available to AgenticRAG pipelines.';

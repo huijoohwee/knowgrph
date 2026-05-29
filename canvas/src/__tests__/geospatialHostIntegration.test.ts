@@ -259,6 +259,9 @@ export const testGeospatialOverlayHostDoesNotOverlaySvgFallbackOnHealthyMapLibre
   if (!text.includes('if (!hasHardMapUnavailable) return false')) {
     throw new Error('Expected GeospatialOverlayHost to avoid SVG overlay on healthy MapLibre basemaps')
   }
+  if (text.includes('featureCount < 1')) {
+    throw new Error('Expected GeospatialOverlayHost SVG fallback basemap to render when MapLibre is unavailable even before geospatial features exist')
+  }
 }
 
 export const testGeospatialOverlayHostSvgFallbackRendersHighFidelitySvgBasemap = () => {
@@ -638,14 +641,23 @@ export const testGympgrphGeospatialRuntimeContainsNoRasterFallbackContract = () 
   }
 }
 
-export const testGympgrphMapLibreBasemapFallsBackFromUnsafeGlobeRuntimeErrors = () => {
+export const testGympgrphMapLibreBasemapFallsBackFromUnsafeRuntimeErrors = () => {
   const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const text = readUtf8(hookPath)
-  if (!text.includes('isKnownUnsafeGlobeRuntimeError')) {
-    throw new Error('Expected basemap hook to classify known unsafe globe runtime errors')
+  if (!text.includes('isKnownUnsafeMapLibreRuntimeError')) {
+    throw new Error('Expected basemap hook to classify known unsafe MapLibre runtime errors')
+  }
+  if (!text.includes("cannot access '_' before initialization")) {
+    throw new Error('Expected basemap hook to classify production MapLibre TDZ runtime failures')
   }
   if (!text.includes("setRuntimeProjectionMode('mercator')")) {
-    throw new Error('Expected basemap hook to fall back from globe to mercator on known unsafe runtime errors')
+    throw new Error('Expected basemap hook to fall back to mercator on known unsafe runtime errors')
+  }
+  if (!text.includes('fallbackUnsafeMapLibreRuntime') || !text.includes('map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)')) {
+    throw new Error('Expected basemap hook to fall back to the shared safe MapLibre style on known unsafe runtime errors')
+  }
+  if (!text.includes('isKnownUnsafeMapLibreRuntimeError(msg)')) {
+    throw new Error('Expected basemap hook to suppress known unsafe MapLibre construction failures into the fallback surface')
   }
 }
 

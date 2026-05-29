@@ -80,6 +80,7 @@ const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> 
   setConnectivity: () => {},
   setConnectivityDetail: () => {},
   setStreamingAssistant: () => {},
+  setStreamingInsights: () => {},
   setStreamingWorkspacePath: () => {},
   abortRef: { current: null },
   streamDraftTextRef: { current: null },

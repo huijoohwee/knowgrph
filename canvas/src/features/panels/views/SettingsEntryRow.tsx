@@ -1,6 +1,6 @@
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
-import { KindPill, resolveFieldTypeIconKind } from '@/features/graph-fields/ui/graphFieldIcons'
+import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import { MainPanelTypeIcon, resolveMainPanelSettingTypeIconKey } from '@/features/panels/ui/mainPanelTypeIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SettingsEntryDetailsTable } from './SettingsEntryDetailsTable'
 import { buildSettingsEntryInputNode } from './settingsEntryRow.input'
@@ -55,7 +55,7 @@ export function SettingsEntryRow({
   const resolvedValueKey = valueKey || setting.key
   const resolvedInputType = valueType || setting.type
   const resolvedInputOptions = valueOptions || setting.options
-  const settingTypeIconKind = resolveFieldTypeIconKind(resolvedTypeLabel)
+  const settingTypeIconKey = resolveMainPanelSettingTypeIconKey(resolvedTypeLabel)
   const renderTypeAsText = Boolean(typeLabel)
   const { keyTooltip, valueTooltip } = buildSettingsEntryTooltips({
     entry,
@@ -114,16 +114,20 @@ export function SettingsEntryRow({
               </span>
             )
             : (
-              <KindPill
-                kind={settingTypeIconKind}
-                label={resolvedTypeLabel}
+              <span
                 className="inline-flex items-center justify-center"
-                iconClassName={ui.settingsTypeIconSizeClass}
-                iconStrokeWidth={ui.uiIconStrokeWidth}
-              />
+                title={resolvedTypeLabel}
+                aria-label={resolvedTypeLabel}
+              >
+                <MainPanelTypeIcon
+                  iconKey={settingTypeIconKey}
+                  className={ui.settingsTypeIconSizeClass}
+                  strokeWidth={ui.uiIconStrokeWidth}
+                />
+              </span>
             )
         }
-        valueNode={<div className="min-w-0 max-w-full flex-1 overflow-hidden">{renderedValueNode}</div>}
+        valueNode={<RightAlignedValueCell>{renderedValueNode}</RightAlignedValueCell>}
         onClick={toggleActions.onToggleExpanded}
       />
       {isExpanded ? (

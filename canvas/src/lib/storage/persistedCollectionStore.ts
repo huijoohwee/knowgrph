@@ -37,6 +37,12 @@ const matchesSelector = <T extends PersistedRecord>(record: T, selector?: Select
   return true
 }
 
+const readMutableSnapshotCollection = <Collections extends PersistedRecordMap, CollectionName extends keyof Collections>(
+  snapshot: PersistedSnapshot<Collections>,
+  collectionName: CollectionName,
+): Record<string, Collections[CollectionName]> =>
+  snapshot[collectionName] as Record<string, Collections[CollectionName]>
+
 export type PersistedCollectionRow<T extends PersistedRecord> = {
   get<K extends keyof T>(key: K): T[K] | undefined
   toJSON(): T
@@ -128,7 +134,7 @@ export const createPersistedCollectionDb = <Collections extends PersistedRecordM
           if (!cloned || typeof cloned !== 'object') continue
           const recordKey = readRecordKey(collectionName, cloned, storageKey)
           if (!recordKey) continue
-          next[collectionName][recordKey] = cloned
+          readMutableSnapshotCollection(next, collectionName)[recordKey] = cloned
         }
       }
       return next
@@ -171,9 +177,10 @@ export const createPersistedCollectionDb = <Collections extends PersistedRecordM
     if (!safeRecord || typeof safeRecord !== 'object') return
     const recordKey = readRecordKey(collectionName, safeRecord)
     if (!recordKey) return
+    const collectionSnapshot = readMutableSnapshotCollection(snapshot, collectionName)
     const operation: PersistedCollectionChangeEvent<Collections[CollectionName]>['operation'] =
-      snapshot[collectionName][recordKey] ? 'UPDATE' : 'INSERT'
-    snapshot[collectionName][recordKey] = safeRecord
+      collectionSnapshot[recordKey] ? 'UPDATE' : 'INSERT'
+    collectionSnapshot[recordKey] = safeRecord
     flushSnapshot()
     emitChange(collectionName, {
       operation,

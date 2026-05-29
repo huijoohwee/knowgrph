@@ -56,7 +56,7 @@ export function testAnimaticTimelineModelUsesMarkdownFrontmatterTimingAndGraphBe
     ],
     edges: [
       {
-        id: 'edge:beat01',
+        id: 'edge:beat01', label: 'Beat 01',
         source: 'NODE_TIMELINE',
         target: 'NODE_CLIP_01',
         properties: {
@@ -64,7 +64,7 @@ export function testAnimaticTimelineModelUsesMarkdownFrontmatterTimingAndGraphBe
         },
       },
       {
-        id: 'edge:beat02',
+        id: 'edge:beat02', label: 'Beat 02',
         source: 'NODE_TIMELINE',
         target: 'NODE_AUDIO_02',
         properties: {

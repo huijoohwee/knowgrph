@@ -12,7 +12,7 @@ export type YamlFrontmatterBlock = {
 export type YamlFrontmatterHeaderBlock = Omit<YamlFrontmatterBlock, 'bodyText'>
 
 export type CanvasWorkspaceFrontmatterPreset = {
-  canvasSurfaceMode?: '2d' | '3d' | 'geospatial'
+  canvasSurfaceMode?: '2d' | '3d' | 'xr' | 'geospatial'
   canvasRenderMode?: '2d' | '3d'
   canvas3dMode?: Canvas3dModeId
   canvas2dRenderer?: Canvas2dRendererId
@@ -75,13 +75,14 @@ function normalizePresetToken(value: unknown): string {
     .replace(/[\s_-]+/g, '')
 }
 
-function readCanvasSurfaceModePreset(value: unknown): '2d' | '3d' | 'geospatial' | undefined {
+function readCanvasSurfaceModePreset(value: unknown): '2d' | '3d' | 'xr' | 'geospatial' | undefined {
   const raw = String(value || '').trim()
   if (!raw) return undefined
-  if (raw === '2d' || raw === '3d' || raw === 'geospatial') return raw
+  if (raw === '2d' || raw === '3d' || raw === 'xr' || raw === 'geospatial') return raw
   const normalized = normalizePresetToken(raw)
   if (normalized === '2d' || normalized === 'mode2d' || normalized === 'surface2d') return '2d'
   if (normalized === '3d' || normalized === 'mode3d' || normalized === 'surface3d') return '3d'
+  if (normalized === 'xr' || normalized === 'xrmode' || normalized === 'surfacexr') return 'xr'
   if (normalized === 'geospatial' || normalized === 'geomode' || normalized === 'geospatialmode' || normalized === 'surfacegeospatial') return 'geospatial'
   return undefined
 }
@@ -92,7 +93,7 @@ function readCanvasRenderModePreset(value: unknown): '2d' | '3d' | undefined {
   if (raw === '2d' || raw === '3d') return raw
   const normalized = normalizePresetToken(raw)
   if (normalized === '2d' || normalized === 'mode2d' || normalized === 'surface2d') return '2d'
-  if (normalized === '3d' || normalized === 'mode3d' || normalized === 'surface3d') return '3d'
+  if (normalized === '3d' || normalized === 'mode3d' || normalized === 'surface3d' || normalized === 'xr' || normalized === 'xrmode') return '3d'
   return undefined
 }
 
@@ -137,7 +138,9 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
 
   const canvasSurfaceMode = readCanvasSurfaceModePreset(meta.kgCanvasSurfaceMode)
   const canvasRenderMode = readCanvasRenderModePreset(meta.kgCanvasRenderMode)
+  const canvasRenderSurfaceAlias = readCanvasSurfaceModePreset(meta.kgCanvasRenderMode)
   const canvas3dMode = readCanvas3dModePreset(meta.kgCanvas3dMode)
+    ?? (canvasSurfaceMode === 'xr' || canvasRenderSurfaceAlias === 'xr' ? 'xr' : undefined)
   const canvas2dRenderer = readCanvas2dRendererPreset(meta.kgCanvas2dRenderer)
   const documentSemanticMode = readDocumentSemanticModePreset(meta.kgDocumentSemanticMode)
   const frontmatterModeEnabled = readBooleanPreset(meta.kgFrontmatterModeEnabled)

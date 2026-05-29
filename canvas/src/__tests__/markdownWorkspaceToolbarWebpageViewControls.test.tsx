@@ -237,7 +237,8 @@ export async function testMarkdownWorkspaceInitialPaneVisibilityPreservesViewerT
     }
 
     const buttonFor = (text: string): HTMLButtonElement => {
-      const button = Array.from(dom.window.document.querySelectorAll('button')).find(node => String(node.textContent || '').trim() === text)
+      const buttons = Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[]
+      const button = buttons.find(node => String(node.textContent || '').trim() === text)
       if (!(button instanceof dom.window.HTMLButtonElement)) {
         throw new Error(`expected ${text} button`)
       }

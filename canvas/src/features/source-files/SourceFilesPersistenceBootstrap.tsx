@@ -467,7 +467,6 @@ export function SourceFilesPersistenceBootstrap() {
     const existing = sourceFilesSnapshot
     const {
       runtimeSourceFiles,
-      canSkipActiveRematerialization,
     } = buildActiveWorkspaceRuntimeSourceFilesSnapshot({
       activePath,
       existingSourceFiles: existing,
@@ -482,16 +481,14 @@ export function SourceFilesPersistenceBootstrap() {
     if (runtimeMerged !== existing) {
       useGraphStore.getState().setSourceFiles(runtimeMerged)
     }
-    if (!canSkipActiveRematerialization) {
-      await materializeActiveWorkspaceEntryIntoSourceFiles({
-        activePathOverride: activePath,
-        fs,
-        activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries),
-        sourceFilesSnapshot: runtimeMerged,
-        sourcesByPath,
-        premergedSourceFiles: runtimeMerged,
-      })
-    }
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: activePath,
+      fs,
+      activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(hydratedWorkspaceEntries),
+      sourceFilesSnapshot: runtimeMerged,
+      sourcesByPath,
+      premergedSourceFiles: runtimeMerged,
+    })
     return runtimeMerged
   }, [readCallerOwnedSourceFilesSnapshot, readReusableWorkspaceFs, readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
 

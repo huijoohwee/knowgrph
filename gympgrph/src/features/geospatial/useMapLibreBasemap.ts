@@ -304,11 +304,12 @@ const isAbortLike = (err: unknown): boolean => {
   return lower.includes('err_aborted') || lower.includes('aborterror')
 }
 
-const isKnownUnsafeGlobeRuntimeError = (err: unknown): boolean => {
+const isKnownUnsafeMapLibreRuntimeError = (err: unknown): boolean => {
   const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : String(err || '')
   const lower = msg.toLowerCase()
   return (
     lower.includes("cannot set properties of undefined (setting '0')") ||
+    lower.includes("cannot access '_' before initialization") ||
     lower.includes('undefined is not an object') ||
     lower.includes('this.int16[')
   )
@@ -506,6 +507,7 @@ export function useMapLibreBasemap(args: {
     let abortNoiseCleanup: (() => void) | null = null
     let grabMapsFallbackApplied = false
     let grabMapsBootstrapPending = false
+    let unsafeRuntimeFallbackApplied = false
     let lastNavigationAtMs = 0
     let consecutiveIdleGrabMapsServiceErrors = 0
     let removePoiClickBinding: (() => void) | null = null
@@ -799,6 +801,28 @@ export function useMapLibreBasemap(args: {
               return false
             }
           }
+          const fallbackUnsafeMapLibreRuntime = () => {
+            if (unsafeRuntimeFallbackApplied) return false
+            unsafeRuntimeFallbackApplied = true
+            if (runtimeProjectionMode === 'globe' && !requestedOpenFreeMapLiberty) {
+              setRuntimeProjectionMode('mercator')
+              setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+              return true
+            }
+            if (typeof map?.setStyle !== 'function') {
+              setRuntimeProjectionMode('mercator')
+              setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+              return true
+            }
+            try {
+              setRuntimeProjectionMode('mercator')
+              map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
+              setState((prev: BasemapResult) => ({ ...prev, mapError: null, styleRevision: 0 }))
+              return true
+            } catch {
+              return false
+            }
+          }
           if (isGrabMapsServiceUnavailable(trimmed)) {
             if (requestedGrabMapsStyle) {
               const navigating = isMapActivelyNavigating(map, lastNavigationAtMs)
@@ -823,9 +847,7 @@ export function useMapLibreBasemap(args: {
           if (isGrabMapsProxyMissing(trimmed) && fallbackGrabMapsRuntime()) {
             return
           }
-          if (runtimeProjectionMode === 'globe' && isKnownUnsafeGlobeRuntimeError(trimmed)) {
-            setRuntimeProjectionMode('mercator')
-            setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+          if (isKnownUnsafeMapLibreRuntimeError(trimmed) && fallbackUnsafeMapLibreRuntime()) {
             return
           }
           setState((prev: BasemapResult) => ({ ...prev, mapError: trimmed }))
@@ -986,6 +1008,17 @@ export function useMapLibreBasemap(args: {
       } catch (err) {
         if (cancelled) return
         const msg = err instanceof Error ? err.message : String(err || '')
+        if (isKnownUnsafeMapLibreRuntimeError(msg)) {
+          try {
+            map?.remove?.()
+          } catch {
+            void 0
+          }
+          map = null
+          setRuntimeProjectionMode('mercator')
+          setState((prev: BasemapResult) => ({ ...prev, map: null, mapError: null, styleRevision: 0 }))
+          return
+        }
         setState((prev: BasemapResult) => ({ ...prev, map: null, mapError: msg || 'Map init failed' }))
       }
     }

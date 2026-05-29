@@ -40,6 +40,25 @@ type LaunchSpotlightStatusCardProps = {
   setMinimized: (next: boolean) => void
 }
 
+export function resolveLaunchSpotlightRendererLabel(args: {
+  canvasRenderMode: unknown
+  canvas2dRenderer?: unknown
+  canvas3dMode?: unknown
+}): string {
+  const canvasRenderMode = String(args.canvasRenderMode || '')
+  if (canvasRenderMode === '2d') {
+    const canvas2dRenderer = String(args.canvas2dRenderer || '').trim()
+    return `2d${canvas2dRenderer ? `/${canvas2dRenderer}` : ''}`
+  }
+  if (canvasRenderMode === '3d') {
+    const canvas3dMode = String(args.canvas3dMode || '').trim()
+    if (canvas3dMode === 'xr') return 'XR'
+    if (canvas3dMode === 'voxel') return 'Voxel'
+    return '3d'
+  }
+  return canvasRenderMode
+}
+
 export function LaunchSpotlightStatusCard({
   dismissed,
   ready,
@@ -55,6 +74,7 @@ export function LaunchSpotlightStatusCard({
   const selectedGroupIds = useGraphStore(s => s.selectedGroupIds ?? EMPTY_STRING_ARRAY)
   const zoomState = useGraphStore(s => s.zoomState)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const schema = useGraphStore(s => s.schema)
   const schemaImportLabel = useGraphStore(s => s.schemaImportLabel)
@@ -91,12 +111,7 @@ export function LaunchSpotlightStatusCard({
     + (Array.isArray(selectedEdgeIds) ? selectedEdgeIds.length : 0)
     + (Array.isArray(selectedGroupIds) ? selectedGroupIds.length : 0)
 
-  const rendererLabel =
-    canvasRenderMode === '2d'
-      ? `2d${canvas2dRenderer ? `/${canvas2dRenderer}` : ''}`
-      : canvasRenderMode === '3d'
-        ? '3d'
-        : String(canvasRenderMode)
+  const rendererLabel = resolveLaunchSpotlightRendererLabel({ canvasRenderMode, canvas2dRenderer, canvas3dMode })
 
   const graphValidationStatusText = React.useMemo(() => {
     const status = graphValidationStatus

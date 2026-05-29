@@ -357,7 +357,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["labels.presentation.ssotUsage","@/__tests__/labelPresentationSsotUsageRegression.test","testLabelPresentationSsotUsage"],
   ["labels.collision.d3.reuseFlowStyle","@/__tests__/d3LabelCollisionReusesFlowStyleRegression.test","testD3LabelCollisionReusesFlowStyle"],
 
-  ["layout.componentBboxCollide.separates","@/__tests__/componentBboxCollideForce.test","testComponentBboxCollideForceSeparatesComponents"],
+  ["layout.groupBboxCollide.separatesTopParentGroups","@/__tests__/groupOverlapForce.test","testGroupBboxCollideSeparatesTopParentGroups"],
   ["graphCanvas.edgeDisplay.keywordDirected","@/__tests__/d3EdgeDisplayShared.test","testEdgeDisplayKeywordArrowRespectsKeywordDirected"],
   ["graphCanvas.edgeDisplay.schemaArrow","@/__tests__/d3EdgeDisplayShared.test","testEdgeDisplaySchemaArrowOverridesKeyword"],
   ["graphCanvas.edgeDisplay.keywordLabelClean","@/__tests__/d3EdgeDisplayShared.test","testEdgeDisplayKeywordLabelCleansUnderscores"],

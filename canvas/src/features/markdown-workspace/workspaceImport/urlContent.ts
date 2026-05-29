@@ -28,6 +28,7 @@ import { tryFetchApiNativeMarkdown } from './apiNative'
 import type { WorkspaceUrlContent } from './types'
 import { clearInflightWorkspaceUrlContent, getCachedWorkspaceUrlContent, getInflightWorkspaceUrlContent, setCachedWorkspaceUrlContent, setInflightWorkspaceUrlContent } from './urlContentCache'
 import { buildWorkspaceUrlContentCacheKey } from './urlContentKey'
+import { WORKSPACE_IMPORT_SIDE_TASK_TIMEOUT_MS, startWorkspaceImportSideTask, waitForWorkspaceImportSideTask, type WorkspaceImportSideTask } from './importSideTask'
 import { resolveBinaryDownloadProxyUrl } from '@/lib/chatEndpoint'
 import { WORKSPACE_WEBPAGE_MARKDOWN_IMPORT_MAX_CHARS, WORKSPACE_WEBPAGE_MARKDOWN_REFRESH_MAX_CHARS, chooseDomRecoveredMarkdown, chooseWebpageMarkdownByContentCoverage, clipLargeWebpageMarkdown, shouldAcceptConvertedDomRecoveredMarkdown } from './webpageMarkdownFidelity'
 import { isShareUrlArtifactEligible } from '@/features/chat/shareUrlArtifacts'
@@ -52,7 +53,6 @@ import {
 type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage: number) => void; viewHint?: WebpageViewMode; canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }
 
 type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
-
 let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
 
 const SHARE_THINKING_CLICK_TEXT_HINTS = ['Show thinking trajectory', 'Show thinking', 'Show reasoning', 'Show thought process', 'View thinking', 'View reasoning', 'Thinking', 'Reasoning', '\u663e\u793a\u601d\u8003\u8fc7\u7a0b']
@@ -336,7 +336,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     let shouldConvertToMarkdown = false
     let shouldFallbackToPlainText = false
     let preserveUpstreamBodyFidelity = false
-    let importedThinkingTextPromise: Promise<string> | null = null
+    let importedThinkingTextTask: WorkspaceImportSideTask<string> | null = null
     try {
       progressSession?.start()
 
@@ -479,7 +479,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         return ''
       }
 
-      const tryRecoverShareThinkingTextFromDomExport = async (): Promise<string> => {
+      const tryRecoverShareThinkingTextFromDomExport = async (signal: AbortSignal): Promise<string> => {
         if (looksLikeSubstackUrl || !isShareUrlArtifactEligible(normalizedUrl)) return ''
         try {
           const exportDom = readWorkspaceWebpageDomExport()
@@ -494,7 +494,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             minWaitAfterLoadMs: 650,
             clickTextHints: SHARE_THINKING_CLICK_TEXT_HINTS,
             textCaptureTarget: 'clicked-next-sibling',
-            signal: ctrl.signal,
+            signal,
           })
           const htmlDiag = String(htmlDom?.diag || '').trim()
           if (!lastDomDiag && htmlDiag) lastDomDiag = htmlDiag
@@ -529,7 +529,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             minWaitAfterLoadMs: 650,
             clickTextHints: SHARE_THINKING_CLICK_TEXT_HINTS,
             textCaptureTarget: 'clicked-next-sibling',
-            signal: ctrl.signal,
+            signal,
           })
           const textDiag = String(textDom?.diag || '').trim()
           if (!lastDomDiag && textDiag) lastDomDiag = textDiag
@@ -557,15 +557,15 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
       const readImportedThinkingText = async (): Promise<string> => {
         if (mode !== 'import' || !isShareUrlArtifactEligible(normalizedUrl)) return ''
-        if (!importedThinkingTextPromise) importedThinkingTextPromise = tryRecoverShareThinkingTextFromDomExport()
-        return await importedThinkingTextPromise
+        if (!importedThinkingTextTask) importedThinkingTextTask = startWorkspaceImportSideTask({ parentSignal: ctrl.signal, run: tryRecoverShareThinkingTextFromDomExport })
+        return await waitForWorkspaceImportSideTask({ task: importedThinkingTextTask, fallback: '', timeoutMs: WORKSPACE_IMPORT_SIDE_TASK_TIMEOUT_MS })
       }
 
       const finalizeWebpageContent = async (text: string): Promise<WorkspaceUrlContent> => {
         const thinkingText = await readImportedThinkingText()
-        return thinkingText ? { normalizedUrl, name, text, thinkingText } : { normalizedUrl, name, text }
+        return { normalizedUrl, name, title: String(lastDomTitle || '').trim() || undefined, text, ...(thinkingText ? { thinkingText } : {}) }
       }
-
+      if (mode === 'import' && isShareUrlArtifactEligible(normalizedUrl)) importedThinkingTextTask = startWorkspaceImportSideTask({ parentSignal: ctrl.signal, run: tryRecoverShareThinkingTextFromDomExport })
       const upstreamMarkdown = await (async () => {
         try {
           if (shouldConvertToMarkdown && mode === 'refresh') {

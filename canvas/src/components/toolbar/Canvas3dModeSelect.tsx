@@ -186,12 +186,12 @@ export function Canvas3dModeSelect({
             onOpenGeospatialMode()
             return
           }
-          setCanvasRenderMode('3d')
           setCanvas3dMode('xr')
+          setCanvasRenderMode('3d')
           return
         }
-        setCanvasRenderMode('3d')
         setCanvas3dMode(id)
+        setCanvasRenderMode('3d')
       }}
       renderButtonContent={activeOption => (
         <div className="flex items-center gap-1">

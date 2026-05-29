@@ -90,7 +90,8 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const path = String(e.path || '').trim()
     if (!path) continue
     if (forceIncludeOnly && !forceInclude.has(path)) continue
-    if (workspaceDocsOnly && !isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths) && !forceInclude.has(path)) continue
+    const underWorkspaceSourceRoot = isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
+    if (workspaceDocsOnly && !underWorkspaceSourceRoot && !forceInclude.has(path)) continue
 
     const seedSourcePath = resolveWorkspaceSeedSourcePath(path)
     const basename = path.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || ''
@@ -111,7 +112,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (isLegacyRootSeedAliasCoveredByDocsMirror) continue
     const srcPath = resolveWorkspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
-    if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !seedSourcePath) continue
+    if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !seedSourcePath && !(workspaceDocsOnly && underWorkspaceSourceRoot)) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`
 
     const src = sourcesByPath[path]
@@ -148,7 +149,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const nextCandidate = prev && areSourceFileRecordsEqual(prev, candidate) ? prev : candidate
     const candidateRank =
       (forceInclude.has(path) ? 100 : 0)
-      + (isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths) ? 10 : 0)
+      + (underWorkspaceSourceRoot ? 10 : 0)
       + (typeof e.text === 'string' ? 1 : 0)
     const candidateSortKey = `${String(path).length}:${String(path)}`
     const previousRank = nextWorkspaceRankBySourcePath.get(srcPath)

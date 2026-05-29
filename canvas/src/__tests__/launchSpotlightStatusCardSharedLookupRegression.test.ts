@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { resolveLaunchSpotlightRendererLabel } from '@/features/spotlight/LaunchSpotlightStatusCard'
 
 export function testLaunchSpotlightStatusCardReusesSharedLookup() {
   const text = readFileSync(
@@ -45,5 +46,16 @@ export function testLaunchSpotlightStatusCardShowsWorkspaceSeedSyncDebug() {
     || !sourceBootstrapText.includes('__canvasStartupDebug.workspaceSeedLastSyncSource = String(source || \'\').trim()')
   ) {
     throw new Error('expected SourceFilesPersistenceBootstrap to update workspace seed sync debug timestamp/source upstream')
+  }
+}
+
+export function testLaunchSpotlightStatusCardLabelsXrRendererAsXr() {
+  const label = resolveLaunchSpotlightRendererLabel({
+    canvasRenderMode: '3d',
+    canvas3dMode: 'xr',
+    canvas2dRenderer: 'flowEditor',
+  })
+  if (label !== 'XR') {
+    throw new Error(`expected LaunchSpotlight renderer label to show XR instead of generic 3D, got ${label}`)
   }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Subscription } from 'rxjs'
+import type { Unsubscribable } from 'rxjs'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import {
@@ -139,8 +139,8 @@ export default function GraphTableSelectionInspector() {
       setRow(fallback)
     }
     let cancelled = false
-    let colSub: Subscription | null = null
-    let rowSub: Subscription | null = null
+    let colSub: Unsubscribable | null = null
+    let rowSub: Unsubscribable | null = null
     let colMap = new Map<string, GraphColumnDoc>()
     const { tableId, rowId } = selection
     const pk = `${tableId}:${rowId}`

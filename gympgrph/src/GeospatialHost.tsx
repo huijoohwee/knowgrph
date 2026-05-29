@@ -769,8 +769,10 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     (args: { basemapMap: any | null; styleRevision: number; viewMode: 'map2d' | 'map3d' }) => {
       const { basemapMap, styleRevision, viewMode } = args
       if (!basemapMap) return
-      const styleReady = styleRevision > 0 || isMapLibreStyleReady(basemapMap)
-      if (!styleReady) return
+      if (!isMapLibreStyleReady(basemapMap)) {
+        graphDataAppliedRef.current[viewMode] = ''
+        return
+      }
       const styleRevisionKey = styleRevision > 0 ? styleRevision : 1
       const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
       if (featureCount <= 0) {
@@ -995,12 +997,10 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     show2dMapLibre,
   ])
 
-  const shouldOverlaySvgFallbackPoints = React.useMemo(() => {
+  const shouldOverlaySvgFallbackBasemap = React.useMemo(() => {
     if (!active) return false
     if (!show2dMapLibre) return false
-    const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
-    if (featureCount < 1) return false
-    // Only overlay SVG points when MapLibre itself is unavailable/failed.
+    // Only overlay the SVG basemap when MapLibre itself is unavailable/failed.
     // Avoid masking a healthy basemap during transient layer sync windows.
     const hasHardMapUnavailable = !activeBasemap.map || !!String(activeBasemap.mapError || '').trim()
     if (!hasHardMapUnavailable) return false
@@ -1037,7 +1037,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     }
   }, [])
 
-  const svgFallbackClassName = shouldOverlaySvgFallbackPoints
+  const svgFallbackClassName = shouldOverlaySvgFallbackBasemap
     ? 'absolute inset-0 z-[5] pointer-events-none opacity-100'
     : show2dSvgFallback
       ? 'absolute inset-0 pointer-events-none opacity-100'
@@ -1266,8 +1266,8 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         featureCollection={graphFeatureCollection}
         selectedFeatureCollection={selectedFeatureCollection}
         className={svgFallbackClassName}
-        insetPadding={shouldOverlaySvgFallbackPoints ? { top: 12, right: Math.max(220, svgOverlayInsetRight), bottom: 12, left: 12 } : undefined}
-        style={shouldOverlaySvgFallbackPoints ? { transform: 'translateX(-220px)' } : undefined}
+        insetPadding={shouldOverlaySvgFallbackBasemap ? { top: 12, right: Math.max(220, svgOverlayInsetRight), bottom: 12, left: 12 } : undefined}
+        style={shouldOverlaySvgFallbackBasemap ? { transform: 'translateX(-220px)' } : undefined}
       />
       <div
         ref={map2dContainerRef}

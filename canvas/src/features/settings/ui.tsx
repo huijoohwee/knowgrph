@@ -7,6 +7,25 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 
+const normalizePanelValueInputClassName = (
+  className: string,
+  alignment: 'left' | 'right' = 'right',
+) => {
+  const alignmentClass = alignment === 'left' ? 'text-left' : 'text-right'
+  const tokens = className
+    .split(/\s+/)
+    .filter(token => token && token !== 'text-left' && token !== 'text-right')
+  const tokenSet = new Set(tokens)
+  for (const requiredToken of ['w-full', 'min-w-0', 'max-w-full']) {
+    if (!tokenSet.has(requiredToken)) {
+      tokens.push(requiredToken)
+      tokenSet.add(requiredToken)
+    }
+  }
+  tokens.push(alignmentClass)
+  return tokens.join(' ')
+}
+
 export const renderSettingInput = (
   key: string,
   type: string,
@@ -36,10 +55,11 @@ export const renderSettingInput = (
   const rawPanelInputClass = values['uiPanelKeyValueInputClass']
   const uiPanelKeyValueInputClass =
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
-      ? rawPanelInputClass
-      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+      ? normalizePanelValueInputClassName(rawPanelInputClass)
+      : `w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const uiPanelKeyValueInputLeftClass = normalizePanelValueInputClassName(uiPanelKeyValueInputClass, 'left')
   const uiPanelKeyValueTextareaClass = [
-    ...uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-right'),
+    ...uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-left' && token !== 'text-right'),
     'py-1',
     'text-left',
     'font-mono',
@@ -348,7 +368,7 @@ export const renderSettingInput = (
             return next
           })
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputClass}
       >
         <option value="serverManaged">Server-managed Key</option>
         <option value="byok">BYOK</option>
@@ -373,7 +393,7 @@ export const renderSettingInput = (
             return next
           })
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputClass}
       >
         <option value="byok">BYOK</option>
         <option value="serverManaged">Server-managed Key</option>
@@ -392,7 +412,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-left ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputLeftClass}
       />
     )
   }
@@ -408,7 +428,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: selected }))
         }}
-        className={`w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputClass}
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -427,7 +447,7 @@ export const renderSettingInput = (
           value=""
           readOnly
           placeholder="Server-managed Key"
-          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+          className={uiPanelKeyValueInputClass}
         />
       )
     }
@@ -443,7 +463,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputClass}
       />
     )
   }
@@ -455,7 +475,7 @@ export const renderSettingInput = (
           value=""
           readOnly
           placeholder="Server-managed Key"
-          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+          className={uiPanelKeyValueInputClass}
         />
       )
     }
@@ -471,7 +491,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+        className={uiPanelKeyValueInputClass}
       />
     )
   }
@@ -519,7 +539,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-left ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputLeftClass}
       />
     )
   }
@@ -535,7 +555,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
+        className={uiPanelKeyValueInputClass}
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -545,12 +565,6 @@ export const renderSettingInput = (
       </select>
     )
   }
-  const isClassLikeKey = key.toLowerCase().includes('class')
-  const baseInputClass =
-    type === 'number' || isClassLikeKey
-      ? uiPanelKeyValueInputClass
-      : `w-full min-w-0 max-w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
-  const finalInputClass = baseInputClass
   return (
     <PlainTextInputEditor
       inputType={type === 'number' ? 'number' : 'text'}
@@ -560,7 +574,7 @@ export const renderSettingInput = (
         dirtyRef.current.add(key)
         setValues(prev => ({ ...prev, [key]: val }))
       }}
-      className={finalInputClass}
+      className={uiPanelKeyValueInputClass}
     />
   )
 }

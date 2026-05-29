@@ -6,6 +6,18 @@ import {
 export type WidgetSeedBounds = { minX: number; minY: number; maxX: number; maxY: number }
 export type BalancedSpreadSeedCell = { left: number; top: number; row: number; col: number }
 
+const resolveCenteredShift = (args: {
+  preferredShift: number
+  minShift: number
+  maxShift: number
+}): number => {
+  const preferred = Number.isFinite(args.preferredShift) ? args.preferredShift : 0
+  const min = Number.isFinite(args.minShift) ? args.minShift : 0
+  const max = Number.isFinite(args.maxShift) ? args.maxShift : 0
+  if (min > max) return preferred
+  return Math.max(min, Math.min(max, preferred))
+}
+
 export function applyPreferredSeedLayoutCells(args: {
   cells: BalancedSpreadSeedCell[]
   cellH: number
@@ -210,8 +222,8 @@ export function placeWidgetsCenteredInGroupBounds(args: {
     const maxDx = Number.isFinite(maxRight) ? boundW - maxRight : 0
     const minDy = Number.isFinite(minTop) ? -minTop : 0
     const maxDy = Number.isFinite(maxBottom) ? boundH - maxBottom : 0
-    const shiftX = Math.max(minDx, Math.min(maxDx, preferredShiftX))
-    const shiftY = Math.max(minDy, Math.min(maxDy, preferredShiftY))
+    const shiftX = resolveCenteredShift({ preferredShift: preferredShiftX, minShift: minDx, maxShift: maxDx })
+    const shiftY = resolveCenteredShift({ preferredShift: preferredShiftY, minShift: minDy, maxShift: maxDy })
     if (Math.abs(shiftX) > 0.001 || Math.abs(shiftY) > 0.001) {
       layout = {
         ...layout,

@@ -56,6 +56,22 @@ kgCanvas2dRenderer: "Flow Editor"
   }
 }
 
+export const testMarkdownFrontmatterNormalizesXrSurfaceAlias = () => {
+  const preset = parseCanvasWorkspaceFrontmatterPreset(`---
+kgCanvasSurfaceMode: "XR Mode"
+---`)
+  if (!preset) throw new Error('expected XR surface alias preset to parse')
+  if (preset.canvasSurfaceMode !== 'xr') {
+    throw new Error(`expected XR surface alias to normalize to xr, got ${String(preset.canvasSurfaceMode)}`)
+  }
+  const renderPreset = parseCanvasWorkspaceFrontmatterPreset(`---
+kgCanvasRenderMode: "XR Mode"
+---`)
+  if (!renderPreset || renderPreset.canvasRenderMode !== '3d' || renderPreset.canvas3dMode !== 'xr') {
+    throw new Error(`expected XR render alias to resolve to 3d render surface plus xr mode, got ${JSON.stringify(renderPreset)}`)
+  }
+}
+
 export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxOwner = () => {
   const legacyTimelineRendererAlias = ['Timeline', 'Animation'].join(' ')
   if (resolveCanvas2dRendererId('Flow Editor') !== 'flowEditor') {

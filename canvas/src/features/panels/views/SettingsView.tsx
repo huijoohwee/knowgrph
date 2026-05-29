@@ -1,6 +1,6 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
-import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import {
   uiDangerButtonClassName,
@@ -381,7 +381,11 @@ export default function SettingsView({
             <KeyTypeValueRow
               keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
               typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
-              valueNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>}
+              valueNode={(
+                <RightAlignedValueCell>
+                  <span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>
+                </RightAlignedValueCell>
+              )}
               density="compact"
               className="h-9 py-0"
             />

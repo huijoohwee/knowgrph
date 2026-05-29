@@ -8,6 +8,7 @@ import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const rowTextCellClassName = 'flex min-w-0 max-w-full overflow-hidden'
 const rowLabelCellClassName = `${rowTextCellClassName} text-ellipsis whitespace-nowrap`
+const rowValueCellClassName = `${rowTextCellClassName} gap-2 justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`
 const keyIconSliderInputGridClassName = 'grid-cols-[minmax(0,0.9fr)_minmax(1rem,1rem)_minmax(0,0.55fr)_minmax(0,1.15fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,0.05fr)_minmax(0,0.55fr)_minmax(0,1.4fr)]'
 const keyIconValueGridClassName = 'grid-cols-[minmax(0,1fr)_minmax(1.25rem,1.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1.1fr)_minmax(1.25rem,1.75rem)_minmax(0,1.2fr)]'
 const keyValueGridClassName = 'grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
@@ -108,7 +109,7 @@ export function KeyTypeValueRow({
         <dd className={`${rowLabelCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
           {renderedTypeNode}
         </dd>
-        <dd className={`${rowTextCellClassName} items-stretch justify-start gap-2 sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
+        <dd className={`${rowValueCellClassName} items-stretch`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -137,7 +138,7 @@ export function KeyTypeValueRow({
         <dd className={`flex min-w-0 items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>
           {renderedTypeNode}
         </dd>
-        <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
+        <dd className={`${rowValueCellClassName} items-center`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -163,7 +164,7 @@ export function KeyTypeValueRow({
         <dt className={`${rowLabelCellClassName} items-center gap-1 ${UI_THEME_TOKENS.text.primary}`}>
           {renderedKeyNode}
         </dt>
-        <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
+        <dd className={`${rowValueCellClassName} items-center`}>
           {renderedValueNode}
         </dd>
       </dl>
@@ -195,7 +196,7 @@ export function KeyTypeValueRow({
       <dd className={`${rowLabelCellClassName} items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>
         {renderedTypeNode}
       </dd>
-      <dd className={`${rowTextCellClassName} items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`}>
+      <dd className={`${rowValueCellClassName} items-center`}>
         {renderedValueNode}
       </dd>
     </dl>
@@ -222,7 +223,7 @@ export function SimpleKeyValueRow({
 }
 
 export function RightAlignedValueCell({ children, className }: RightAlignedValueCellProps) {
-  const rootClassName = ['flex w-full min-w-0 max-w-full overflow-hidden justify-start sm:justify-end', className || '']
+  const rootClassName = ['flex w-full min-w-0 max-w-full items-center overflow-hidden justify-start sm:justify-end', className || '']
     .filter(Boolean)
     .join(' ')
   return (

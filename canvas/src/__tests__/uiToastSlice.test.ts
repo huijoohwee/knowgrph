@@ -61,6 +61,28 @@ export function testUiToastUpsertMovesToastToFront() {
   }
 }
 
+export function testUiToastBusyFlagResetsOnUpsert() {
+  let state: Pick<GraphState, 'uiToasts'> = { uiToasts: [] }
+  const set: (fn: (s: GraphState) => Partial<GraphState>) => void = fn => {
+    state = { ...state, ...(fn(state as unknown as GraphState) as Pick<GraphState, 'uiToasts'>) }
+  }
+  const slice = createUiToastSlice(set)
+
+  slice.upsertUiToast({ id: 't', message: 'Importing', kind: 'neutral', ttlMs: null, busy: true })
+  if (state.uiToasts[0]?.busy !== true) throw new Error('expected busy toast flag to be stored')
+
+  slice.upsertUiToast({ id: 't', message: 'Imported', kind: 'success', ttlMs: 1_000 })
+  if (state.uiToasts[0]?.busy === true) throw new Error('expected busy toast flag to clear on non-busy upsert')
+}
+
+export function testToastHostRendersBusySpinnerIcon() {
+  const p = resolve(process.cwd(), 'src', 'components', 'ui', 'ToastHost.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('LoaderCircle')) throw new Error('expected busy toasts to use a spinner icon')
+  if (!text.includes('toast.busy ? LoaderCircle')) throw new Error('expected toast busy flag to select the spinner')
+  if (!text.includes('animate-spin')) throw new Error('expected busy toast spinner to animate')
+}
+
 export function testToastHostSchedulesPruneFromNextExpiryInsteadOfPolling() {
   const p = resolve(process.cwd(), 'src', 'components', 'ui', 'ToastHost.tsx')
   const text = readFileSync(p, 'utf8')

@@ -254,7 +254,7 @@ export function useWorkspaceImportActions(args: {
         ? `Importing URL (${getWorkspaceUrlImportCanvasRendererLabel(selectedCanvas2dRenderer)})`
         : 'Importing URL'
       const jobId = (importJobRef.current += 1)
-      status.setStatusProgress(importKindLabel)
+      status.setStatusProgress(importKindLabel, null, null, null, null, { busy: true })
       useGraphStore.getState().pushUiLog({ kind: 'neutral', message: `Import URL started: ${url}`, source: 'workspace:importUrl' })
       try {
         const fs = await getFs()
@@ -281,28 +281,32 @@ export function useWorkspaceImportActions(args: {
                 useGraphStore.getState().pushUiLog({ kind: 'neutral', message: label, source: 'workspace:importUrl' })
               }
               if (p.phase === 'listing') {
-                status.setStatusProgress(p.label ? String(p.label) : 'Listing')
+                status.setStatusProgress(p.label ? String(p.label) : 'Listing', null, null, null, null, { busy: true })
                 return
               }
               if (p.phase === 'fetching' && p.total && p.total > 0) {
                 const pct = p.current && p.current > 0 ? (p.current / p.total) * 100 : 0
                 const stageLabel = status.buildWebpageImportStageLabel(pct)
                 const pctInt = Math.max(0, Math.min(100, Math.floor(pct)))
+                if (pctInt >= 90) {
+                  status.setStatusProgress(stageLabel, null, null, null, null, { busy: true })
+                  return
+                }
                 status.setStatusProgress(stageLabel, pctInt, 100)
                 return
               }
               if (p.phase === 'fetching') {
                 const stageLabel = status.buildWebpageImportStageLabel(0)
-                status.setStatusProgress(stageLabel)
+                status.setStatusProgress(stageLabel, null, null, null, null, { busy: true })
                 return
               }
               if (p.total && p.total > 0) {
                 const label = 'Writing'
                 if (p.current && p.current > 0) status.setStatusProgress(label, p.current, p.total)
-                else status.setStatusProgress(label)
+                else status.setStatusProgress(label, null, null, null, null, { busy: true })
                 return
               }
-              status.setStatusProgress('Writing')
+              status.setStatusProgress('Writing', null, null, null, null, { busy: true })
             },
           })
         }))

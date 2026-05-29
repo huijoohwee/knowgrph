@@ -19,8 +19,7 @@ import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphSto
 
 type RegisteredTool = {
   name: string
-  title?: string
-  description?: string
+  title?: string; description?: string
   inputSchema?: Record<string, unknown>
   annotations?: Record<string, unknown>
   execute: (input?: Record<string, unknown>) => Promise<unknown>
@@ -258,7 +257,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
 
     installKnowgrphWebMcpRuntime()
 
-    if (document.documentElement.dataset.kgWebmcpContext !== 'fallback-readable') throw new Error(`expected fallback-readable runtime state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`)
+    if (String(document.documentElement.dataset.kgWebmcpContext || '') !== 'fallback-readable') throw new Error(`expected fallback-readable runtime state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`)
     const fallbackContext = navigatorObject.modelContext as { provideContext?: unknown; registerTool?: unknown } | undefined
     if (typeof fallbackContext?.provideContext !== 'function' || typeof fallbackContext.registerTool !== 'function' || (document as Document & { modelContext?: unknown }).modelContext !== fallbackContext) throw new Error('expected WebMCP fallback to expose scanner-visible API parity on document and navigator')
 
@@ -271,7 +270,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       },
     }
 
-    if (document.documentElement.dataset.kgWebmcpContext !== 'installed') {
+    if (String(document.documentElement.dataset.kgWebmcpContext || '') !== 'installed') {
       throw new Error(
         `expected installed runtime state after late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )
@@ -423,6 +422,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       chatContextScope: 'workspace',
       integrationEnabled: true,
       integrationOpenTab: 'chat',
+      pixverseVideoEnabled: false, pixverseVideoStrategy: 'auto', pixverseVideoTransport: 'mcp-stdio',
       isRefreshingChatModels: false,
       chatModelsStatus: 'Discovered 3 models.',
       discoveredChatModelCount: 3,

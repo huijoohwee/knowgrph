@@ -43,7 +43,7 @@ function enableGeospatialForDocumentPreset(): void {
 
 function resolveCanvasSurfacePreset(args: {
   preset: CanvasWorkspaceFrontmatterPreset | null
-  defaultCanvasSurfaceMode?: '2d' | '3d' | 'geospatial'
+  defaultCanvasSurfaceMode?: '2d' | '3d' | 'xr' | 'geospatial'
   defaultCanvasRenderMode?: '2d' | '3d'
   defaultCanvas3dMode?: Canvas3dModeId
 }): {
@@ -64,6 +64,13 @@ function resolveCanvasSurfacePreset(args: {
       geospatialModeEnabled: false,
       canvasRenderMode: '3d',
       canvas3dMode: args.preset?.canvas3dMode ?? args.defaultCanvas3dMode ?? '3d',
+    }
+  }
+  if (canvasSurfaceMode === 'xr') {
+    return {
+      geospatialModeEnabled: false,
+      canvasRenderMode: '3d',
+      canvas3dMode: 'xr',
     }
   }
   if (canvasSurfaceMode === '2d') {
@@ -100,7 +107,7 @@ export function applyCanvasFrontmatterPreset(args: {
   preset?: CanvasWorkspaceFrontmatterPreset | null
   graphData?: GraphData | null
   rawText?: string | null
-  defaultCanvasSurfaceMode?: '2d' | '3d' | 'geospatial'
+  defaultCanvasSurfaceMode?: '2d' | '3d' | 'xr' | 'geospatial'
   defaultCanvasRenderMode?: '2d' | '3d'
   defaultCanvas3dMode?: Canvas3dModeId
   defaultCanvas2dRenderer?: Canvas2dRendererId
@@ -166,6 +173,11 @@ export function applyCanvasFrontmatterPreset(args: {
     disableGeospatialForDocumentPreset()
   }
   const canvasRenderMode = surfacePreset.canvasRenderMode
+  const canvas3dMode = surfacePreset.canvas3dMode
+  if (canvasRenderMode === '3d' && canvas3dMode && useGraphStore.getState().canvas3dMode !== canvas3dMode) {
+    store.setCanvas3dMode(canvas3dMode)
+    changed = true
+  }
   if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
     if (store.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
       store.setDocumentStructureBaselineLock(false)
@@ -173,7 +185,6 @@ export function applyCanvasFrontmatterPreset(args: {
     store.setCanvasRenderMode(canvasRenderMode)
     if (useGraphStore.getState().canvasRenderMode === canvasRenderMode) changed = true
   }
-  const canvas3dMode = surfacePreset.canvas3dMode
   if (canvas3dMode === '3d' && store.canvas3dMode !== '3d') {
     store.setCanvas3dMode('3d')
     changed = true

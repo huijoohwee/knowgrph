@@ -50,6 +50,7 @@ import {
   CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR,
   readAssistantResponseText,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatStreaming'
+import type { ChatMessage } from '@/features/chat/FloatingPanelChatSections'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import {
   ensureChatHistoryWorkspaceFilePath,
@@ -138,6 +139,7 @@ const buildSubmitArgsFixture = (overrides: Partial<FloatingPanelChatSubmitArgs> 
   setConnectivity: () => {},
   setConnectivityDetail: () => {},
   setStreamingAssistant: () => {},
+  setStreamingInsights: () => {},
   setStreamingWorkspacePath: () => {},
   abortRef: { current: null },
   streamDraftTextRef: { current: null },
@@ -303,13 +305,8 @@ export async function testBuildChatSubmitRequestContextBuildsSelectionScopedSyst
       id: 'node-1',
       label: 'Node 1',
       type: 'text',
-      position: { x: 0, y: 0 },
-      width: 120,
-      height: 60,
-      selected: false,
-      dragging: false,
-      resizing: false,
-      data: {},
+      x: 0,
+      y: 0,
       properties: {},
       metadata: {},
     },
@@ -391,9 +388,7 @@ export async function testBootstrapKnowgrphSubmitDraftSeedsTraceWorkspaceAndEmpt
     trimmedInput: 'Generate KGC',
     traceId: 'trace-preflight',
     ensureWorkspacePath: async () => '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md',
-    persistDraft: async payload => {
-      persistedAssistantTexts.push(String(payload.assistantText || ''))
-    },
+    persistDraft: async payload => { persistedAssistantTexts.push(String(payload.assistantText || '')); return '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md' },
   })
   if (liveKgcPath !== '/workspace/chat/20260522T170000Z/kgc_20260522T170000Z.md') {
     throw new Error(`Expected preflight bootstrap to resolve the Knowgrph workspace path, got: ${liveKgcPath}`)
@@ -936,7 +931,7 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
   if (!normalized.includes('Knowledge Graph Canvas · AI Pipeline — Chat Response')) {
     throw new Error('Expected normalized KGC title to preserve authored content')
   }
-  if (!normalized.includes('md:kgc-20260419180222-pipeline')) {
+  if (!normalized.includes('md:kgc-20260419t180222z-pipeline')) {
     throw new Error('Expected normalized KGC graphId to derive from the storage filename')
   }
   if (!normalized.includes('2026-04-19')) {
@@ -1529,7 +1524,7 @@ export async function testCreateChatKnowgrphDraftWriterSkipsDuplicateNonForceWri
     streamDraftTextRef,
     followWorkspaceMarkdownPath: path => { followed.push(path) },
     setChatKnowgrphWorkspacePath: () => {},
-    persistDraft: async payload => { persisted.push(String(payload.assistantText || '')) },
+    persistDraft: async payload => { persisted.push(String(payload.assistantText || '')); return '/workspace/chat/kgc.md' },
   })
   await flushDraft('alpha', false)
   await flushDraft('alpha', false)
@@ -1690,7 +1685,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFailsOnPrepar
   const loadingWrites: boolean[] = []
   const workspaceWrites: Array<string | null> = []
   const streamingAssistantWrites: Array<{ id: string; text: string } | null> = []
-  let messages: Array<{ id: string; role: string; content: string }> = [
+  let messages: ChatMessage[] = [
     { id: 'assistant-pending', role: 'assistant', content: '' },
   ]
   const submitArgs = buildSubmitArgsFixture({

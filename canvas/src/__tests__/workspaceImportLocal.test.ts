@@ -248,7 +248,7 @@ export async function testWorkspaceImportLocalFilesGlbCreatesModelManifest() {
     if (!text) throw new Error('expected GLB manifest text')
     if (!text.includes('kgAssetFormat: "glb"')) throw new Error('expected GLB asset format frontmatter')
     if (!text.includes('kgAssetValidGlbMagic: true')) throw new Error('expected GLB magic validation flag')
-    if (!text.includes('kgCanvasSurfaceMode: "3d"')) throw new Error('expected GLB manifest to request 3D surface mode')
+    if (!text.includes('kgCanvasSurfaceMode: "xr"')) throw new Error('expected GLB manifest to request XR surface mode')
     if (!text.includes('kgCanvasRenderMode: "3d"')) throw new Error('expected GLB manifest to request 3D canvas render mode')
     if (!text.includes('kgCanvas3dMode: "xr"')) throw new Error('expected GLB manifest to request XR 3D mode')
     if (!text.includes('kgAssetEncoding: "base64-body"')) {
@@ -323,7 +323,7 @@ export async function testWorkspaceImportLocalFilesGltfCreatesModelManifest() {
     if (!text) throw new Error('expected GLTF manifest text')
     if (!text.includes('kgAssetFormat: "gltf"')) throw new Error('expected GLTF asset format frontmatter')
     if (!text.includes('kgAssetValidGltfJson: true')) throw new Error('expected GLTF JSON validation flag')
-    if (!text.includes('kgCanvasSurfaceMode: "3d"')) throw new Error('expected GLTF manifest to request 3D surface mode')
+    if (!text.includes('kgCanvasSurfaceMode: "xr"')) throw new Error('expected GLTF manifest to request XR surface mode')
     if (!text.includes('kgCanvasRenderMode: "3d"')) throw new Error('expected GLTF manifest to request 3D canvas render mode')
     if (!text.includes('kgCanvas3dMode: "xr"')) throw new Error('expected GLTF manifest to request XR 3D mode')
     if (!text.includes('kgAssetEncoding: "json-body"')) {

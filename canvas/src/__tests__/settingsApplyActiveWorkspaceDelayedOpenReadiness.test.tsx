@@ -223,12 +223,13 @@ export async function testSettingsApplyActiveWorkspaceDelayedOpenKeepsCommittedS
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
+    const settledOpenCalls = [...openCalls]
     if (
-      openCalls.length !== 2 ||
-      openCalls[0] !== NEXT_KNOWGRPH_PATH ||
-      openCalls[1] !== NEXT_HISTORY_PATH
+      settledOpenCalls.length !== 2 ||
+      settledOpenCalls[0] !== NEXT_KNOWGRPH_PATH ||
+      settledOpenCalls[1] !== NEXT_HISTORY_PATH
     ) {
-      throw new Error(`expected delayed-open callback to eventually run for both active workspace paths, got ${JSON.stringify(openCalls)}`)
+      throw new Error(`expected delayed-open callback to eventually run for both active workspace paths, got ${JSON.stringify(settledOpenCalls)}`)
     }
 
     const postDelayInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
