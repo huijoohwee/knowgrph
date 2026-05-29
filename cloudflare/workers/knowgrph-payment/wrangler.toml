@@ -9,6 +9,14 @@ enabled = true
 pattern = "airvio.co/api/payments/*"
 zone_name = "airvio.co"
 
+[[routes]]
+pattern = "airvio.co/.well-known/acp-config"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/checkout/sessions*"
+zone_name = "airvio.co"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "knowgrph-storage"

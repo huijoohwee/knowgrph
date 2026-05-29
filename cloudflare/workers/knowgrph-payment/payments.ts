@@ -10,6 +10,7 @@ import {
   resolveStripeCheckoutServerConfig,
   type StripeCheckoutSessionCreatePayload,
 } from '../../../grph-shared/src/payments/stripePaymentSsot'
+import { settleAgenticCommerceSessionFromStripeSession } from './agenticCommerce'
 import { execute, normalizeNumber, normalizeString, queryFirst, type D1DatabaseLike } from '../shared/d1'
 
 type HeadersRecord = Record<string, string>
@@ -412,6 +413,7 @@ const handleStripeWebhook = async (
   if (session && eventType.startsWith('checkout.session.')) {
     const mapped = mapStripeSession(session, nowIso, checkoutSessionCompletedAt(eventType, nowIso))
     if (mapped) await writeStripeCheckoutSession(db, mapped)
+    if (mapped && mapped.completedAt) await settleAgenticCommerceSessionFromStripeSession(db, env, session)
   }
   return paymentJson(200, {
     ok: true,

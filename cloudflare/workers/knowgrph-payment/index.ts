@@ -1,3 +1,4 @@
+import { handleAgenticCommerceRoute, isAgenticCommerceRoute, isAgenticCommerceRouteDbBacked } from './agenticCommerce'
 import { handleStripePaymentRoute, isStripePaymentRoute } from './payments'
 import { readDb, type D1DatabaseLike } from '../shared/d1'
 
@@ -10,7 +11,7 @@ export type KnowgrphPaymentWorkerEnv = Record<string, unknown> & {
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,authorization,stripe-signature',
+  'access-control-allow-headers': 'content-type,authorization,stripe-signature,idempotency-key,api-version',
   'access-control-max-age': '86400',
 }
 
@@ -36,6 +37,8 @@ const handlePaymentRequest = async (
   env: KnowgrphPaymentWorkerEnv,
   db: D1DatabaseLike,
 ): Promise<Response> => {
+  const agenticCommerceResponse = await handleAgenticCommerceRoute(request, env, db, CORS_HEADERS)
+  if (agenticCommerceResponse) return agenticCommerceResponse
   const paymentResponse = await handleStripePaymentRoute(request, env, db, CORS_HEADERS)
   if (paymentResponse) return paymentResponse
   return paymentWorkerError(404, 'payment route not found')
@@ -45,8 +48,11 @@ export const createKnowgrphPaymentWorker = () => ({
   async fetch(request: Request, env: KnowgrphPaymentWorkerEnv): Promise<Response> {
     if (request.method === 'OPTIONS') return noContent()
     const url = new URL(request.url)
-    if (!isStripePaymentRoute(url.pathname)) {
+    if (!isAgenticCommerceRoute(url.pathname) && !isStripePaymentRoute(url.pathname)) {
       return paymentWorkerError(404, 'payment route not found')
+    }
+    if (isAgenticCommerceRoute(url.pathname) && !isAgenticCommerceRouteDbBacked(url.pathname)) {
+      return handleAgenticCommerceRoute(request, env, null, CORS_HEADERS) as Promise<Response>
     }
     const db = readDb(env)
     if (!db) return paymentWorkerError(500, 'missing Cloudflare D1 binding DB')

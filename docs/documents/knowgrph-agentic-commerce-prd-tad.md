@@ -625,18 +625,16 @@ flowchart TB
 
 | Layer | Component | File / Module | Status |
 |---|---|---|---|
-| Config | ACP config route | `src/routes/acp-config.ts` | Planned |
-| Checkout | Checkout Worker | `src/workers/checkout.ts` | Planned |
-| Web3 | Web3 Settle Worker | `src/workers/web3-settle.ts` | Planned |
-| Harness | Commerce Harness | `src/harness/commerce.ts` | Planned |
-| Schema | ACP session types | `src/types/acp.ts` | Planned |
-| Schema | Web3 extension types | `src/types/web3-extension.ts` | Planned |
-| Schema | Commerce proof types | `src/types/commerce-proof.ts` | Planned |
-| Test | ACP config test | `test/commerce/acp-config.test.ts` | Planned |
-| Test | Checkout lifecycle test | `test/commerce/checkout.test.ts` | Planned |
-| Test | Web3 checkout test | `test/commerce/web3-checkout.test.ts` | Planned |
-| Test | Governance test | `test/commerce/governance.test.ts` | Planned |
-| Config | Wrangler config | `wrangler.toml` | Planned |
+| Config | ACP config route | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
+| Checkout | Checkout Worker | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
+| Web3 | Web3 settlement path | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented as session completion + proof node |
+| Harness | Commerce Harness persistence | `cloudflare/workers/knowgrph-payment/agenticCommercePersistence.ts` | Implemented |
+| Schema | ACP/session/Web3/proof shared SSOT + semantic keys | `grph-shared/src/payments/agenticCommerceSsot.ts`, `grph-shared/src/hash/signature.ts` | Implemented |
+| Data | D1 session/proof/trace tables | `cloudflare/d1/migrations/0003_agentic_commerce.sql` | Implemented |
+| Test | ACP config, checkout, Web3 proof node, Stripe webhook settle, OpenBOX proof block | `canvas/src/__tests__/agenticCommerceWorker.test.ts` | Implemented |
+| Config | Wrangler config | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Implemented |
+
+**Implementation note (2026-05-29)**: The existing repo already owned payment APIs in `cloudflare/workers/knowgrph-payment`, so ACP reuses that Worker and its D1 binding instead of adding a parallel `src/routes` tree or separate KV worker. The Web3 MVP accepts `x-web3` sessions, returns a deterministic deposit address, and emits `@node:proof` payloads with `tx_hash` and `attestation_uid` during settlement; Base RPC polling and direct EAS SDK signing remain environment-secret-dependent follow-on integration points with no fake chain confirmation or hardcoded key material in repo.
 
 ---
 

@@ -35,6 +35,9 @@ export class FakeKnowgrphStorageD1Database {
   syncEvents = new Map<string, FakeRow>()
   stripeCheckoutSessions = new Map<string, FakeRow>()
   stripeWebhookEvents = new Map<string, FakeRow>()
+  agenticCommerceSessions = new Map<string, FakeRow>()
+  agenticCommerceProofs = new Map<string, FakeRow>()
+  agenticCommerceTraceEvents = new Map<string, FakeRow>()
 
   prepare(sql: string) {
     const db = this
@@ -218,6 +221,86 @@ export class FakeKnowgrphStorageD1Database {
       })
       return
     }
+    if (normalizedSql.includes('insert into agentic_commerce_sessions')) {
+      const [
+        id,
+        sellerId,
+        idempotencyKey,
+        payloadHash,
+        status,
+        paymentRail,
+        amountTotal,
+        currency,
+        payerDid,
+        depositAddress,
+        requestJson,
+        responseJson,
+        riskSignalsJson,
+        createdAt,
+        updatedAt,
+        completedAt,
+        cancelledAt,
+      ] = values
+      const existing = this.agenticCommerceSessions.get(String(id)) || {}
+      this.agenticCommerceSessions.set(String(id), {
+        ...existing,
+        id,
+        seller_id: sellerId,
+        idempotency_key: idempotencyKey,
+        payload_hash: payloadHash,
+        status,
+        payment_rail: paymentRail,
+        amount_total: amountTotal,
+        currency,
+        payer_did: payerDid,
+        deposit_address: depositAddress,
+        request_json: existing.request_json || requestJson,
+        response_json: responseJson,
+        risk_signals_json: riskSignalsJson,
+        created_at: existing.created_at || createdAt,
+        updated_at: updatedAt,
+        completed_at: completedAt || existing.completed_at || null,
+        cancelled_at: cancelledAt || existing.cancelled_at || null,
+      })
+      return
+    }
+    if (normalizedSql.includes('update agentic_commerce_sessions')) {
+      const [status, responseJson, riskSignalsJson, updatedAt, completedAt, cancelledAt, id] = values
+      const existing = this.agenticCommerceSessions.get(String(id))
+      if (existing) {
+        this.agenticCommerceSessions.set(String(id), {
+          ...existing,
+          status,
+          response_json: responseJson,
+          risk_signals_json: riskSignalsJson,
+          updated_at: updatedAt,
+          completed_at: completedAt || existing.completed_at || null,
+          cancelled_at: cancelledAt || existing.cancelled_at || null,
+        })
+      }
+      return
+    }
+    if (normalizedSql.includes('insert into agentic_commerce_proofs')) {
+      const [id, sessionId, proofJson, createdAt] = values
+      this.agenticCommerceProofs.set(String(id), {
+        id,
+        session_id: sessionId,
+        proof_json: proofJson,
+        created_at: createdAt,
+      })
+      return
+    }
+    if (normalizedSql.includes('insert into agentic_commerce_trace_events')) {
+      const [id, sessionId, eventType, payloadJson, createdAt] = values
+      this.agenticCommerceTraceEvents.set(String(id), {
+        id,
+        session_id: sessionId,
+        event_type: eventType,
+        payload_json: payloadJson,
+        created_at: createdAt,
+      })
+      return
+    }
     if (normalizedSql.includes('delete from graph_snapshots')) {
       this.graphSnapshots.delete(String(values[0]))
       return
@@ -313,6 +396,23 @@ export class FakeKnowgrphStorageD1Database {
     if (normalizedSql.includes('select * from stripe_checkout_sessions where id = ?')) {
       const row = this.stripeCheckoutSessions.get(String(values[0]))
       return row ? [row] : []
+    }
+    if (normalizedSql.includes('select * from agentic_commerce_sessions where id = ?')) {
+      const row = this.agenticCommerceSessions.get(String(values[0]))
+      return row ? [row] : []
+    }
+    if (normalizedSql.includes('select * from agentic_commerce_sessions where seller_id = ? and idempotency_key = ?')) {
+      const [sellerId, idempotencyKey] = values
+      return Array.from(this.agenticCommerceSessions.values())
+        .filter(row => row.seller_id === sellerId && row.idempotency_key === idempotencyKey)
+        .slice(0, 1)
+    }
+    if (normalizedSql.includes('select * from agentic_commerce_proofs where session_id = ?')) {
+      const [sessionId] = values
+      return Array.from(this.agenticCommerceProofs.values())
+        .filter(row => row.session_id === sessionId)
+        .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+        .slice(0, 1)
     }
     if (normalizedSql.includes('from documents where documents.workspace_id = ?')) {
       return this.filterByWorkspaceAndSince(this.documents, values)

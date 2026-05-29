@@ -104,6 +104,11 @@
       "import": "./dist/hash/stringHash.js",
       "default": "./dist/hash/stringHash.js"
     },
+    "./hash/signature": {
+      "types": "./dist/hash/signature.d.ts",
+      "import": "./dist/hash/signature.js",
+      "default": "./dist/hash/signature.js"
+    },
     "./net/fetchRemoteText": {
       "types": "./dist/net/fetchRemoteText.d.ts",
       "import": "./dist/net/fetchRemoteText.js",
@@ -203,6 +208,11 @@
       "types": "./dist/payments/stripePaymentSsot.d.ts",
       "import": "./dist/payments/stripePaymentSsot.js",
       "default": "./dist/payments/stripePaymentSsot.js"
+    },
+    "./payments/agenticCommerceSsot": {
+      "types": "./dist/payments/agenticCommerceSsot.d.ts",
+      "import": "./dist/payments/agenticCommerceSsot.js",
+      "default": "./dist/payments/agenticCommerceSsot.js"
     },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
