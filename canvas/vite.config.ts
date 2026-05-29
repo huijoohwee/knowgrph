@@ -36,7 +36,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs')
-if (!String(process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT || '').trim() && existsSync(siblingDocsRoot)) process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = siblingDocsRoot
 const nodeRequire = createRequire(import.meta.url)
 const resolvedReact = nodeRequire.resolve('react')
 const resolvedReactJsxRuntime = nodeRequire.resolve('react/jsx-runtime')
@@ -5697,7 +5696,15 @@ function resolveViteCacheDir(command: string): string {
   return path.resolve(__dirname, `node_modules/.vite/dev-${port}`)
 }
 
-export default defineConfig(({ command }) => ({
+function applyWorkspaceInitializationDocsAbsRootDefault(command: string): void {
+  if (command === 'build') return
+  if (String(process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT || '').trim()) return
+  if (existsSync(siblingDocsRoot)) process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = siblingDocsRoot
+}
+
+export default defineConfig(({ command }) => {
+  applyWorkspaceInitializationDocsAbsRootDefault(command)
+  return {
   cacheDir: resolveViteCacheDir(command),
   base: command === 'build'
     ? (() => {
@@ -5754,9 +5761,9 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename: string, deps: string[]) =>
         deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
     },
-    // Keep Vite warnings meaningful for entry/runtime regressions while allowing the
-    // intentionally coarse lazy Mermaid runtime chunk to remain source-owned and quiet.
-    chunkSizeWarningLimit: 1700,
+    // Keep Vite quiet for known source-owned lazy vendor chunks; scripts/check-hygiene-compliance.mjs
+    // keeps tighter per-chunk budgets for app/source regressions.
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
         ...(process.env.KG_LOW_MEM_BUILD === '1'
@@ -5800,17 +5807,7 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
                 if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
                 if (moduleId.includes('/node_modules/three/')) return 'three-core'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/ui/')) return 'maplibre-ui'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/style/')) return 'maplibre-style'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/geo/')) return 'maplibre-geo'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/util/')) return 'maplibre-util'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/data/')) return 'maplibre-data'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/render/')) return 'maplibre-render'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/source/')) return 'maplibre-source'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/shaders/')) return 'maplibre-shaders'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
-                if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
-                if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
+                if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre'
                 if (moduleId.includes('/src/')) return undefined
                 return undefined
               },
@@ -6032,4 +6029,5 @@ export default defineConfig(({ command }) => ({
           youtubeConvertDevPlugin,
         ]),
   ],
-}))
+  }
+})

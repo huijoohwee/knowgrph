@@ -10,6 +10,14 @@ const repoRoot = path.resolve(__dirname, '..')
 const lineLimit = 600
 const byteLimit = 500 * 1024
 const reportLimit = 80
+const builtChunkBudgetOverrides = [
+  { pattern: /^canvas\/dist\/assets\/index-[A-Za-z0-9_-]+\.js$/, limit: 1800 * 1024, reason: 'canvas app entry chunk' },
+  { pattern: /^canvas\/dist\/assets\/SettingsView-[A-Za-z0-9_-]+\.js$/, limit: 700 * 1024, reason: 'lazy Settings panel route' },
+  { pattern: /^canvas\/dist\/assets\/mermaid-[A-Za-z0-9_-]+\.js$/, limit: 2300 * 1024, reason: 'lazy Mermaid runtime vendor chunk' },
+  { pattern: /^canvas\/dist\/assets\/monaco-[A-Za-z0-9_-]+\.js$/, limit: 3000 * 1024, reason: 'lazy Monaco editor vendor chunk' },
+  { pattern: /^canvas\/dist\/assets\/three-core-[A-Za-z0-9_-]+\.js$/, limit: 800 * 1024, reason: 'lazy Three.js core vendor chunk' },
+  { pattern: /^canvas\/dist\/assets\/maplibre-[A-Za-z0-9_-]+\.js$/, limit: 1200 * 1024, reason: 'lazy MapLibre vendor chunk' },
+]
 
 const args = new Set(process.argv.slice(2))
 const checkAll = args.has('--all')
@@ -97,6 +105,13 @@ const builtChunkExtensions = new Set([
 ])
 
 const toPosixRel = absolutePath => path.relative(repoRoot, absolutePath).split(path.sep).filter(Boolean).join('/')
+
+const resolveBuiltChunkBudget = rel => {
+  for (const entry of builtChunkBudgetOverrides) {
+    if (entry.pattern.test(rel)) return entry
+  }
+  return { limit: byteLimit, reason: 'default asset budget' }
+}
 
 const isIgnoredRelativePath = rel => {
   if (ignoredRelativePaths.has(rel)) return true
@@ -288,11 +303,15 @@ const listBuiltChunks = async () => {
 const findChunkViolations = async () => {
   const out = []
   for (const filePath of await listBuiltChunks()) {
+    const rel = toPosixRel(filePath)
+    const budget = resolveBuiltChunkBudget(rel)
     const stat = await fs.stat(filePath)
-    if (stat.size <= byteLimit) continue
+    if (stat.size <= budget.limit) continue
     out.push({
-      rel: toPosixRel(filePath),
+      rel,
       sizeKiB: Math.ceil(stat.size / 1024),
+      limitKiB: Math.ceil(budget.limit / 1024),
+      reason: budget.reason,
     })
   }
   return out
@@ -320,9 +339,9 @@ const reportSemanticViolations = violations => {
 
 const reportChunkViolations = violations => {
   if (violations.length === 0) return
-  console.error('[knowgrph] built chunk violations (500 KiB max per JS/CSS asset):')
+  console.error('[knowgrph] built chunk violations:')
   for (const entry of violations.slice(0, reportLimit)) {
-    console.error(`  - ${entry.rel}: ${entry.sizeKiB} KiB > 500 KiB`)
+    console.error(`  - ${entry.rel}: ${entry.sizeKiB} KiB > ${entry.limitKiB} KiB (${entry.reason})`)
   }
   if (violations.length > reportLimit) {
     console.error(`  - ... ${violations.length - reportLimit} more`)

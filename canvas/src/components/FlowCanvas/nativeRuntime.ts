@@ -731,10 +731,10 @@ const drawEdge = (
     ctx.lineCap = 'round'
     ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || edgeColorDefault)
     if (edgeAnimated) {
-      ctx.setLineDash([Math.max(4, widthPx * 3), Math.max(3, widthPx * 2)])
+      ctx.setLineDash?.([Math.max(4, widthPx * 3), Math.max(3, widthPx * 2)])
       ctx.lineDashOffset = -(performance.now() * 0.02)
     } else {
-      ctx.setLineDash([])
+      ctx.setLineDash?.([])
       ctx.lineDashOffset = 0
     }
     try {
@@ -812,10 +812,10 @@ const drawEdge = (
   ctx.lineJoin = 'round'
   ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || edgeColorDefault)
   if (edgeAnimated) {
-    ctx.setLineDash([Math.max(4, widthPx * 3), Math.max(3, widthPx * 2)])
+    ctx.setLineDash?.([Math.max(4, widthPx * 3), Math.max(3, widthPx * 2)])
     ctx.lineDashOffset = -(performance.now() * 0.02)
   } else {
-    ctx.setLineDash([])
+    ctx.setLineDash?.([])
     ctx.lineDashOffset = 0
   }
   ctx.stroke()
