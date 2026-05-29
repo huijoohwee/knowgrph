@@ -92,6 +92,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["markdown.sanitizeImported.autolinkImageToMarkdownImage","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownConvertsStandaloneImageAutolinkToMarkdownImage"],
   ["markdown.sanitizeImported.htmlHeadingToAtx","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownConvertsStandaloneHtmlHeadingToAtx"],
   ["markdown.sanitizeImported.htmlTableToMarkdown","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownConvertsStandaloneHtmlTableToMarkdownTable"],
+  ["markdown.sanitizeImported.articleLayoutSectionToMarkdown","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownConvertsArticleLayoutSectionToMarkdown"],
+  ["markdown.sanitizeImported.articleMarkdownStructure","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownFinetunesArticleMarkdownStructure"],
   ["markdown.sanitizeImported.interactiveHtmlDivToText","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownConvertsInteractiveHtmlDivBlockToPlainText"],
   ["markdown.sanitizeImported.emptyMediaAndJavascriptLinks","@/__tests__/sanitizeImportedMarkdown.test","testSanitizeImportedMarkdownDropsEmptyMediaAndJavascriptLinks"],
   ["markdown.workspace.webpageHtmlView.rendersIframe","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceWebpageHtmlViewRendersIframe"],

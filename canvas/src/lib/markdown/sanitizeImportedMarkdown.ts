@@ -1,4 +1,6 @@
 import { sanitizeImportedMarkdownUnsafeMediaLinks } from './sanitizeImportedMarkdownSafety'
+import { normalizeStandaloneHtmlLayoutBlocksToMarkdown } from './sanitizeImportedMarkdownHtmlLayout'
+import { normalizeLeadingStrongTitleToH1, normalizeMarkdownDecorationResidue, normalizeMarkdownImageProseAdjacency, normalizeVerticalCjkHeadingRuns } from './sanitizeImportedMarkdownStructure'
 
 export type SanitizeMarkdownResult = { text: string; changed: boolean }
 
@@ -856,12 +858,12 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
   const a2 = convertOrDropInlineSvgHtmlBlocks(a1b.text)
   const a3 = stripHeadingPermalinkArtifacts(a2.text, { sourceUrl })
   const a4 = normalizeStandaloneImageAutolinks(a3.text)
-  const a5 = normalizeStandaloneHtmlTablesToMarkdown(a4.text)
-  const a6 = normalizeStandaloneInteractiveHtmlBlocks(a5.text)
-  const a7 = normalizeStandaloneHtmlHeadingsToAtx(a6.text)
-  const a8 = normalizeAtxHeadingWhitespace(a7.text)
-  const b = stripEmbeddedBase64ImageSrc(a8.text)
-  const c = stripLargeBase64Fences(b.text)
+  const a4b = normalizeStandaloneHtmlLayoutBlocksToMarkdown(a4.text)
+  const a4c = normalizeMarkdownImageProseAdjacency(a4b.text), a4d = normalizeLeadingStrongTitleToH1(a4c.text)
+  const a4e = normalizeVerticalCjkHeadingRuns(a4d.text), a4f = normalizeMarkdownDecorationResidue(a4e.text)
+  const a5 = normalizeStandaloneHtmlTablesToMarkdown(a4f.text), a6 = normalizeStandaloneInteractiveHtmlBlocks(a5.text)
+  const a7 = normalizeStandaloneHtmlHeadingsToAtx(a6.text), a8 = normalizeAtxHeadingWhitespace(a7.text)
+  const b = stripEmbeddedBase64ImageSrc(a8.text), c = stripLargeBase64Fences(b.text)
   const d = (() => {
     const text = c.text
     if (!sourceUrl) return { text, changed: false }
@@ -902,8 +904,6 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
     return { text: out.join('\n'), changed }
   })()
   const e = normalizeHeadingsSingleH1(d.text)
-  const changed =
-    a0.changed || a1.changed || a1b.changed || a2.changed || a3.changed || a4.changed || a5.changed || a6.changed ||
-    a7.changed || a8.changed || b.changed || c.changed || d.changed || e.changed
+  const changed = a0.changed || a1.changed || a1b.changed || a2.changed || a3.changed || a4.changed || a4b.changed || a4c.changed || a4d.changed || a4e.changed || a4f.changed || a5.changed || a6.changed || a7.changed || a8.changed || b.changed || c.changed || d.changed || e.changed
   return { text: e.text, changed }
 }

@@ -191,6 +191,73 @@ export const testSanitizeImportedMarkdownConvertsStandaloneHtmlTableToMarkdownTa
   if (!out.text.includes('| Beta | Two |')) throw new Error(`expected second markdown table row, got: ${out.text}`)
 }
 
+export const testSanitizeImportedMarkdownConvertsArticleLayoutSectionToMarkdown = () => {
+  const mediaA = '/__webpage_asset_path/jYcEgFfQU8HKybU_Ss9Dbw/640?wx_fmt=png&from=appmsg'
+  const mediaB = '/__webpage_asset_path/jYcEgFfQU8HKybU_Ss9Dbw/640?wx_fmt=jpeg&from=appmsg'
+  const input = [
+    '<section style="text-align:center;justify-content:center;display:flex;flex-flow:row nowrap;" powered-by="xiumi.us"><section><section><img class="rich_pages wxw-img" data-src="' +
+      mediaA +
+      '" src="data:image/svg+xml,%3Csvg width=\'1px\' height=\'1px\' viewBox=\'0 0 1 1\'%3E%3C/svg%3E"/></section><section><p><strong>作品赏析</strong></p><p>赣州是客家先民中原南迁的第一站。</p></section><section><img alt="长卷局部" data-src="' +
+      mediaB +
+      '" src="' +
+      mediaB +
+      '"/></section></section></section>',
+    '',
+  ].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://mp.weixin.qq.com/s/jYcEgFfQU8HKybU_Ss9Dbw' })
+  if (!out.changed) throw new Error('expected changed')
+  if (/<section\b|<img\b/i.test(out.text)) throw new Error(`expected raw layout html removed, got: ${out.text}`)
+  if (out.text.split(/\r?\n/g).some(line => line.length > 1000)) throw new Error(`expected no long raw html lines, got: ${out.text}`)
+  if (!out.text.includes(`![](${mediaA})`)) throw new Error(`expected first layout image preserved as markdown, got: ${out.text}`)
+  if (!out.text.includes(`![长卷局部](${mediaB})`)) throw new Error(`expected second layout image preserved as markdown, got: ${out.text}`)
+  if (!out.text.includes('## 作品赏析')) throw new Error(`expected strong section caption promoted to heading, got: ${out.text}`)
+  if (!out.text.includes('赣州是客家先民中原南迁的第一站。')) throw new Error(`expected body text preserved, got: ${out.text}`)
+}
+
+export const testSanitizeImportedMarkdownFinetunesArticleMarkdownStructure = () => {
+  const input = [
+    '---',
+    'kgWebpageUrl: "https://example.com/article"',
+    '---',
+    '',
+    '![](https://example.com/lead.png)',
+    '',
+    '**一幅讴歌客家先民的**',
+    '',
+    '**壮丽画卷**',
+    '',
+    '正文段落。![](https://example.com/inline.png)',
+    '',
+    '****![音符](https://example.com/music.gif)****',
+    '',
+    '****※****',
+    '0;特别声明：文本****。****',
+    '****\\',
+    '****',
+    '[相关阅读](https://example.com/next)\\',
+    '',
+    '往',
+    '',
+    '期',
+    '',
+    '推',
+    '',
+    '荐',
+    '',
+  ].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com/article' })
+  if (!out.changed) throw new Error('expected changed')
+  if (!out.text.includes('# 一幅讴歌客家先民的 壮丽画卷')) throw new Error(`expected leading bold title as H1, got: ${out.text}`)
+  if (/正文段落。!\[\]/.test(out.text)) throw new Error(`expected inline image split from prose, got: ${out.text}`)
+  if (!out.text.includes('正文段落。\n\n![](https://example.com/inline.png)')) throw new Error(`expected prose before image, got: ${out.text}`)
+  if (/\*{2,}!\[音符\]/.test(out.text)) throw new Error(`expected bold shell removed from standalone image, got: ${out.text}`)
+  if (!out.text.includes('![音符](https://example.com/music.gif)')) throw new Error(`expected shell-wrapped image preserved, got: ${out.text}`)
+  if (/0;特别声明|\*{4,}|※/.test(out.text)) throw new Error(`expected decoration residue removed, got: ${out.text}`)
+  if (!out.text.includes('特别声明：文本。')) throw new Error(`expected declaration text preserved after cleanup, got: ${out.text}`)
+  if (!out.text.includes('[相关阅读](https://example.com/next)\n')) throw new Error(`expected trailing link break removed, got: ${out.text}`)
+  if (!out.text.includes('## 往期推荐')) throw new Error(`expected vertical heading run normalized, got: ${out.text}`)
+}
+
 export const testSanitizeImportedMarkdownConvertsInteractiveHtmlDivBlockToPlainText = () => {
   const input = [
     '<div role="button" tabindex="0" aria-disabled="false" class="mx-auto mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-secondary-button px-4 py-3 transition-colors cursor-pointer hover:bg-active" style="display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">',

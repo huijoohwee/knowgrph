@@ -102,7 +102,10 @@ export async function importWorkspaceUrl(args: {
     importedWorkspacePath: normalized,
   })
   const sources: WorkspaceImportResult['sources'] = [{ path: normalized, source: { kind: 'url', url: sourceUrl } }]
-  const removedPaths = persistedShareArtifacts?.removedPaths || []
+  const removedPaths = [
+    ...(webpageUrlArtifact?.removedPaths || []),
+    ...(persistedShareArtifacts?.removedPaths || []),
+  ]
   if (webpageUrlArtifactPath) {
     const legacyPath = normalizeWorkspacePath(joinWorkspacePath(parentPath, fetched.name))
     if (legacyPath && legacyPath !== webpageUrlArtifactPath) {

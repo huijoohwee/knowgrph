@@ -4,7 +4,9 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type {
   StrybldrBox,
+  StrybldrDetectionProvider,
   StrybldrElement,
+  StrybldrEvidenceKind,
   StrybldrVideoHandoff,
   StrybldrVideoHandoffCard,
   StrybldrSource,
@@ -236,6 +238,77 @@ const createEdge = (source: string, target: string, label: string): GraphEdge =>
   },
 })
 
+const readNumber = (value: unknown, fallback = 0): number => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+const readStrybldrBox = (value: unknown): StrybldrBox | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const xmin = readNumber(rec.xmin, NaN)
+  const ymin = readNumber(rec.ymin, NaN)
+  const xmax = readNumber(rec.xmax, NaN)
+  const ymax = readNumber(rec.ymax, NaN)
+  if (![xmin, ymin, xmax, ymax].every(Number.isFinite)) return null
+  return {
+    xmin,
+    ymin,
+    xmax,
+    ymax,
+    unit: rec.unit === 'pixel' ? 'pixel' : 'percentage',
+  }
+}
+
+const readStrybldrEvidenceKind = (value: unknown): StrybldrEvidenceKind => {
+  switch (cleanText(value)) {
+    case 'local-object-detection':
+      return 'local-object-detection'
+    case 'local-human-geometry':
+      return 'local-human-geometry'
+    case 'modelark-visual-grounding':
+      return 'modelark-visual-grounding'
+    case 'user-edit':
+      return 'user-edit'
+    default:
+      return 'source-metadata'
+  }
+}
+
+const readStrybldrProvider = (value: unknown): StrybldrDetectionProvider => {
+  switch (cleanText(value)) {
+    case 'transformers-detr':
+      return 'transformers-detr'
+    case 'human':
+      return 'human'
+    case 'byteplus-modelark':
+      return 'byteplus-modelark'
+    default:
+      return 'fallback'
+  }
+}
+
+const readStrybldrElementFromNode = (node: GraphNode, index: number): StrybldrElement | null => {
+  if (cleanText(node.type) !== 'StoryboardElement') return null
+  const props = node.properties || {}
+  const sourceUnitId = cleanText(props.strybldrSourceUnitId)
+  if (!sourceUnitId) return null
+  const label = cleanText(props.title || node.label) || `Element ${index + 1}`
+  return {
+    id: cleanText(props.strybldrElementId || node.id) || `strybldr-el-${shortHash(`${sourceUnitId}:${label}:${index}`)}`,
+    sourceUnitId,
+    label,
+    confidence: Math.max(0, Math.min(1, readNumber(props.confidence, 0))),
+    sourceBox: readStrybldrBox(props.sourceBox),
+    evidenceKind: readStrybldrEvidenceKind(props.evidenceKind),
+    provider: readStrybldrProvider(props.provider),
+    order: readNumber(props.order, index),
+    prompt: cleanText(props.prompt) || null,
+    action: cleanText(props.action) || null,
+    summary: cleanText(props.summary) || null,
+  }
+}
+
 export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphData => {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
@@ -357,10 +430,11 @@ export const mergeStrybldrElementsIntoGraphData = (args: {
   graphData: GraphData
   elements: readonly StrybldrElement[]
 }): GraphData => {
+  const graphNodes = Array.isArray(args.graphData.nodes) ? args.graphData.nodes : []
   const meta = args.graphData.metadata && typeof args.graphData.metadata === 'object'
     ? args.graphData.metadata as Record<string, unknown>
     : {}
-  const sources = (Array.isArray(args.graphData.nodes) ? args.graphData.nodes : [])
+  const sources = graphNodes
     .filter(node => String(node.type || '') === 'StrybldrImageSource')
     .map(node => {
       const props = node.properties || {}
@@ -377,12 +451,20 @@ export const mergeStrybldrElementsIntoGraphData = (args: {
       }
     })
     .filter(source => source.sourceUnitId)
+  const incomingElements = args.elements.slice()
+  const incomingSourceIds = new Set(incomingElements.map(element => cleanText(element.sourceUnitId)).filter(Boolean))
+  const existingElements = graphNodes
+    .map(readStrybldrElementFromNode)
+    .filter((element): element is StrybldrElement => !!element)
+  const preservedElements = incomingSourceIds.size > 0
+    ? existingElements.filter(element => !incomingSourceIds.has(element.sourceUnitId))
+    : existingElements
   const doc: StrybldrStoryboardDocument = {
     version: 1,
     runId: cleanText(meta.strybldrRunId) || buildStrybldrRunId(sources),
     createdAtMs: Date.now(),
     sources,
-    elements: args.elements.slice(),
+    elements: [...preservedElements, ...incomingElements],
   }
   return buildStrybldrGraphData(doc)
 }

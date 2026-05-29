@@ -17,6 +17,56 @@ const readParentPath = (path: string): WorkspacePath => {
   return idx > 0 ? normalizeWorkspacePath(normalized.slice(0, idx)) : '/'
 }
 
+const isMarkdownPath = (path: string): boolean => /\.(?:md|markdown|mdx|mmd)$/i.test(String(path || ''))
+
+const hasNumericCollisionSuffix = (path: string): boolean => /-\d+\.(?:md|markdown|mdx|mmd)$/i.test(String(path || '').split('/').pop() || '')
+
+const stripNumericCollisionSuffixFromMarkdownFileName = (name: string): string =>
+  String(name || '').replace(/-\d+(\.(?:md|markdown|mdx|mmd))$/i, '$1')
+
+const findExistingWebpageArtifactBySourceUrl = async (args: {
+  fs: WorkspaceFs
+  rootFolderPath: string
+  url: string
+}): Promise<string> => {
+  const root = normalizeWorkspacePath(args.rootFolderPath)
+  const entries = await args.fs.listEntries()
+  const candidates: string[] = []
+  for (const entry of entries) {
+    if (entry.kind !== 'file') continue
+    const path = normalizeWorkspacePath(entry.path)
+    if (!isMarkdownPath(path) || readParentPath(path) !== root) continue
+    const text = await args.fs.readFileText(path)
+    const existingSourceUrl = text === null ? '' : readWorkspaceImportMarkdownSourceUrl(text)
+    if (existingSourceUrl && workspaceImportSourceUrlsMatch(args.url, existingSourceUrl)) candidates.push(path)
+  }
+  candidates.sort((a, b) => Number(hasNumericCollisionSuffix(a)) - Number(hasNumericCollisionSuffix(b)) || a.localeCompare(b))
+  return candidates[0] || ''
+}
+
+const removeDuplicateWebpageArtifactsBySourceUrl = async (args: {
+  fs: WorkspaceFs
+  rootFolderPath: string
+  url: string
+  keepPath: string
+}): Promise<string[]> => {
+  const root = normalizeWorkspacePath(args.rootFolderPath)
+  const keepPath = normalizeWorkspacePath(args.keepPath)
+  const entries = await args.fs.listEntries()
+  const removed: string[] = []
+  for (const entry of entries) {
+    if (entry.kind !== 'file') continue
+    const path = normalizeWorkspacePath(entry.path)
+    if (!path || path === keepPath || readParentPath(path) !== root || !isMarkdownPath(path)) continue
+    const text = await args.fs.readFileText(path)
+    const existingSourceUrl = text === null ? '' : readWorkspaceImportMarkdownSourceUrl(text)
+    if (!existingSourceUrl || !workspaceImportSourceUrlsMatch(args.url, existingSourceUrl)) continue
+    await args.fs.deleteEntry(path)
+    removed.push(path)
+  }
+  return removed
+}
+
 export const isImportedWebpageUrlArtifactEligible = (args: {
   url: string
   importedName: string
@@ -33,7 +83,7 @@ export const persistImportedWebpageUrlArtifact = async (args: {
   importedName: string
   importedText: string
   rootFolderPath?: string
-}): Promise<null | { exportMarkdownPath: string }> => {
+}): Promise<null | { exportMarkdownPath: string; removedPaths?: string[] }> => {
   if (!isImportedWebpageUrlArtifactEligible(args)) return null
   const rootFolderPath = normalizeWorkspacePath(
     String(args.rootFolderPath || '').trim() || readWorkspaceImportShareExportRootPathSetting(),
@@ -42,7 +92,10 @@ export const persistImportedWebpageUrlArtifact = async (args: {
 
   const importedText = String(args.importedText || '').trimEnd() + '\n'
   const fileName = ensureMarkdownFileName(args.importedName)
-  const primaryPath = normalizeWorkspacePath(`${rootFolderPath}/${fileName}`)
+  const primaryFileName = stripNumericCollisionSuffixFromMarkdownFileName(fileName) || fileName
+  const sourceMatchedPath = await findExistingWebpageArtifactBySourceUrl({ fs: args.fs, rootFolderPath, url: args.url })
+  const canonicalPrimaryPath = normalizeWorkspacePath(`${rootFolderPath}/${primaryFileName}`)
+  const primaryPath = sourceMatchedPath && !hasNumericCollisionSuffix(sourceMatchedPath) ? sourceMatchedPath : canonicalPrimaryPath
   const existing = await args.fs.readFileText(primaryPath)
   let exportMarkdownPath = primaryPath
 
@@ -61,13 +114,20 @@ export const persistImportedWebpageUrlArtifact = async (args: {
   if (exportMarkdownPath === primaryPath) {
     await ensureWorkspaceFolderTreeIfMissing({ fs: args.fs, folderPath: readParentPath(exportMarkdownPath) })
     if (existing === null) {
-      exportMarkdownPath = await args.fs.createFile({ parentPath: rootFolderPath, name: fileName, text: importedText })
+      await args.fs.deleteEntry(primaryPath)
+      exportMarkdownPath = await args.fs.createFile({ parentPath: rootFolderPath, name: primaryFileName, text: importedText })
     } else {
       await args.fs.writeFileText(exportMarkdownPath, importedText)
     }
   }
 
+  const removedPaths = await removeDuplicateWebpageArtifactsBySourceUrl({
+    fs: args.fs,
+    rootFolderPath,
+    url: args.url,
+    keepPath: exportMarkdownPath,
+  })
   await ensureWorkspaceDocsMirrorFolder({ workspacePath: readParentPath(exportMarkdownPath) })
   await upsertWorkspaceDocsMirrorText({ workspacePath: exportMarkdownPath, text: importedText })
-  return { exportMarkdownPath: normalizeWorkspacePath(exportMarkdownPath) }
+  return { exportMarkdownPath: normalizeWorkspacePath(exportMarkdownPath), ...(removedPaths.length > 0 ? { removedPaths } : {}) }
 }

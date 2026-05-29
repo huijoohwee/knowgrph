@@ -12,6 +12,10 @@ type DetrDetection = {
   }
 }
 
+type DetrDetector = (input: string, options: { threshold: number; percentage: true }) => Promise<DetrDetection[]>
+
+let detrDetectorPromise: Promise<unknown> | null = null
+
 const shortHash = (value: unknown): string => hashText(String(value ?? '')).slice(0, 12)
 
 const clamp01 = (value: unknown): number => {
@@ -20,13 +24,31 @@ const clamp01 = (value: unknown): number => {
   return Math.max(0, Math.min(1, n))
 }
 
-const toImageInputUrl = (input: File | Blob | string): string => {
-  if (typeof input === 'string') return input
-  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return ''
+const getStrybldrDetrDetector = async (): Promise<DetrDetector> => {
+  if (!detrDetectorPromise) {
+    const mod = await import('@huggingface/transformers')
+    detrDetectorPromise = mod.pipeline('object-detection', 'Xenova/detr-resnet-50') as Promise<unknown>
+  }
+  return await detrDetectorPromise as DetrDetector
+}
+
+const toImageInputUrl = (input: File | Blob | string): { url: string; revoke: () => void } => {
+  if (typeof input === 'string') return { url: input, revoke: () => undefined }
+  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return { url: '', revoke: () => undefined }
   try {
-    return URL.createObjectURL(input)
+    const url = URL.createObjectURL(input)
+    return {
+      url,
+      revoke: () => {
+        try {
+          URL.revokeObjectURL(url)
+        } catch {
+          void 0
+        }
+      },
+    }
   } catch {
-    return ''
+    return { url: '', revoke: () => undefined }
   }
 }
 
@@ -35,38 +57,41 @@ export async function runStrybldrDetrObjectDetection(args: {
   sourceUnitId: string
   threshold?: number
 }): Promise<StrybldrElement[]> {
-  const imageUrl = toImageInputUrl(args.input)
-  if (!imageUrl) return []
-  const mod = await import('@huggingface/transformers')
-  const detector = await mod.pipeline('object-detection', 'Xenova/detr-resnet-50')
-  const output = await detector(imageUrl, { threshold: args.threshold ?? 0.5, percentage: true }) as DetrDetection[]
-  return (Array.isArray(output) ? output : [])
-    .map((item, index): StrybldrElement | null => {
-      const label = String(item.label || '').trim()
-      if (!label) return null
-      return {
-        id: `strybldr-el-${shortHash(`${args.sourceUnitId}:detr:${label}:${index}`)}`,
-        sourceUnitId: args.sourceUnitId,
-        label,
-        confidence: clamp01(item.score),
-        sourceBox: item.box
-          ? {
-              xmin: clamp01(item.box.xmin),
-              ymin: clamp01(item.box.ymin),
-              xmax: clamp01(item.box.xmax),
-              ymax: clamp01(item.box.ymax),
-              unit: 'percentage',
-            }
-          : null,
-        evidenceKind: 'local-object-detection',
-        provider: 'transformers-detr',
-        order: index + 1,
-        summary: `${label} detected locally with DETR.`,
-        action: `Treat ${label} as an editable storyboard element.`,
-        prompt: `Animate the detected ${label} while preserving its relative position in the source image.`,
-      }
-    })
-    .filter((item): item is StrybldrElement => !!item)
+  const imageInput = toImageInputUrl(args.input)
+  if (!imageInput.url) return []
+  try {
+    const detector = await getStrybldrDetrDetector()
+    const output = await detector(imageInput.url, { threshold: args.threshold ?? 0.5, percentage: true }) as DetrDetection[]
+    return (Array.isArray(output) ? output : [])
+      .map((item, index): StrybldrElement | null => {
+        const label = String(item.label || '').trim()
+        if (!label) return null
+        return {
+          id: `strybldr-el-${shortHash(`${args.sourceUnitId}:detr:${label}:${index}`)}`,
+          sourceUnitId: args.sourceUnitId,
+          label,
+          confidence: clamp01(item.score),
+          sourceBox: item.box
+            ? {
+                xmin: clamp01(item.box.xmin),
+                ymin: clamp01(item.box.ymin),
+                xmax: clamp01(item.box.xmax),
+                ymax: clamp01(item.box.ymax),
+                unit: 'percentage',
+              }
+            : null,
+          evidenceKind: 'local-object-detection',
+          provider: 'transformers-detr',
+          order: index + 1,
+          summary: `${label} detected locally with DETR.`,
+          action: `Treat ${label} as an editable storyboard element.`,
+          prompt: `Animate the detected ${label} while preserving its relative position in the source image.`,
+        }
+      })
+      .filter((item): item is StrybldrElement => !!item)
+  } finally {
+    imageInput.revoke()
+  }
 }
 
 export async function runStrybldrHumanGeometry(args: {
@@ -111,4 +136,3 @@ export async function runStrybldrHumanGeometry(args: {
   }
   return elements
 }
-

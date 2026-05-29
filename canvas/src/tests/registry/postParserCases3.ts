@@ -74,6 +74,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.importUrl.youtube.paneContentFormats","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlYouTubePreservesPaneContentFormats"],
   ["workspace.importUrl.transcript.noAutoParseWhenGraphApplyFalse","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportToCanvasRespectsApplyToGraphFalseForTranscripts"],
   ["workspace.importUrl.webpage.exportsIntoDocsRoot","@/__tests__/workspaceImportUrlWebpageDocsRoot.test","testWorkspaceImportUrlExportsWebpageMarkdownIntoDocsRoot"],
+  ["workspace.importUrl.webpage.replacesSameSourceDuplicate","@/__tests__/workspaceImportUrlWebpageDocsRoot.test","testWorkspaceImportUrlReplacesSameSourceWebpageArtifactWithoutSuffixDuplicate"],
   ["workspace.importUrl.claudeChat.exportsArtifactsIntoDocsRoot","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlExportsClaudeChatArtifactsIntoDocsRoot"],
   ["workspace.importUrl.proxyFailure.domFallback","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlImportRecoversProxyFetchFailureViaDomExportFallback"],
   ["workspace.importUrl.cache.skipsConnectionShellMarkdown","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlImportDoesNotReuseCachedConnectionShellMarkdown"],
