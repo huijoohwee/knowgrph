@@ -70,6 +70,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["webpage.clientConvert.qualityGate.syntheticDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsSyntheticArtifactMarkers"],
   ["webpage.clientConvert.qualityGate.normalNotFlagged","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDoesNotFlagNormalMarkdown"],
   ["webpage.clientConvert.qualityGate.loadingShellDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsLoadingShellMarkdown"],
+  ["webpage.clientConvert.qualityGate.bareLoadingIframeShellDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsBareLoadingIframeShell"],
   ["webpage.clientConvert.qualityGate.htmlHeavyLoadingChromeDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsHtmlHeavyLoadingChrome"],
   ["webpage.clientConvert.qualityGate.connectionErrorShellDetected","@/__tests__/webpageClientConvertQualityGate.test","testWebpageClientConvertQualityGateDetectsConnectionErrorShellMarkdown"],
   ["webpage.clientConvert.browserFallback.recoversLongLoadingShellDomExport","@/__tests__/webpageClientConvertBrowserFallback.test","testWebpageClientConvertBrowserRecoversLongLoadingShellViaDomExport"],

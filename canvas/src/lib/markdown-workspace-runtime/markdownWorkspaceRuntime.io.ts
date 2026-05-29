@@ -12,6 +12,8 @@ import { parseSchemaText } from '@/features/schema/io'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
+import { cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT } from '@/lib/async/workspaceSyncKeys'
 import {
   resolveWorkspaceSourceFileInlineText,
   upsertWorkspaceEntryInlineText,
@@ -29,6 +31,7 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   canvasWorkspacePreset?: CanvasWorkspaceFrontmatterPreset | null
   normalizeWebpageFrontmatterToMarkdown?: boolean
 }): void => {
+  cancelWorkspaceSyncTask(`${WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT}:${args.activeDocumentKey}`)
   void applyActiveMarkdownDocumentPayload({
     setActiveMarkdownDocument: args.setActiveMarkdownDocument,
     name: args.activeDocumentKey,

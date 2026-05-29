@@ -33,6 +33,8 @@ export type CanvasViewOption = {
   id: CanvasViewOptionId
   title: string
   label: string
+  description?: string
+  badges?: readonly string[]
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
   children?: readonly CanvasViewOption[]
   isActive?: boolean
@@ -47,6 +49,8 @@ export type CanvasViewRendererOption = {
   title: string
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
   label: string
+  description: string
+  badges: readonly string[]
 }
 
 export type CanvasViewModelState = {

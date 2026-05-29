@@ -9,6 +9,7 @@ import {
 } from '../workspaceImport'
 import type { WorkspaceImportResult } from '../workspaceImport/types'
 import { shouldApplyImportedCanvasDocumentToGraph } from '../workspaceImport/applyPolicy'
+import { normalizeCorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 
 export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportResult {
   const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
@@ -61,7 +62,15 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
         .filter((item): item is WorkspaceImportResult['failed'][number] => !!item)
     : []
   const applyToGraph = typeof rec.applyToGraph === 'boolean' ? rec.applyToGraph : undefined
-  return { createdPaths, sources, skipped, failed, ...(typeof applyToGraph === 'boolean' ? { applyToGraph } : {}) }
+  const corpusManifest = normalizeCorpusImportManifest(rec.corpusManifest)
+  return {
+    createdPaths,
+    sources,
+    skipped,
+    failed,
+    ...(typeof applyToGraph === 'boolean' ? { applyToGraph } : {}),
+    ...(corpusManifest ? { corpusManifest } : {}),
+  }
 }
 
 export async function resolveImportedCanvasDocumentApplyToGraph(args: {

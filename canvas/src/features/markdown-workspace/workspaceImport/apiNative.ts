@@ -9,11 +9,14 @@ import { API_NATIVE_BROWSER_DEFAULT_RUNTIME_URL } from 'grph-shared/browser/apiN
 import { looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
+import { readApiNativeBrowserMarkdownPayload, readApiNativeBrowserResponseText } from './apiNativeResponse'
 
 export type ApiNativeMarkdownResult = {
   normalizedUrl: string
   name: string
+  title?: string
   upstreamMarkdown: string
+  thinkingMarkdown?: string
   diagnostics?: string
 }
 
@@ -30,6 +33,9 @@ type ApiNativeBrowserSession = {
   title?: string
   domain?: string
 }
+
+const API_NATIVE_BROWSER_SESSION_TIMEOUT_MS = 3_500
+const API_NATIVE_BROWSER_CONTENT_TIMEOUT_MS = 12_000
 
 type RedditListing = {
   kind?: string
@@ -185,36 +191,19 @@ function joinApiNativeBrowserRuntimePath(runtimeUrl: string, apiPath: string): s
   return base.toString()
 }
 
-function extractApiNativeBrowserString(value: unknown, maxDepth = 4): string {
-  if (typeof value === 'string') return value.trim()
-  if (!value || typeof value !== 'object' || maxDepth <= 0) return ''
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const nested = extractApiNativeBrowserString(item, maxDepth - 1)
-      if (nested) return nested
+async function fetchApiNativeBrowserRuntime(fetchFn: typeof fetch, url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const ctrl = new AbortController()
+  const timeoutId = setTimeout(() => {
+    try {
+      ctrl.abort()
+    } catch {
+      void 0
     }
-    return ''
-  }
-  const record = value as Record<string, unknown>
-  for (const key of ['markdown', 'text', 'content', 'body', 'value']) {
-    const nested = extractApiNativeBrowserString(record[key], maxDepth - 1)
-    if (nested) return nested
-  }
-  for (const key of ['result', 'data', 'response', 'payload']) {
-    const nested = extractApiNativeBrowserString(record[key], maxDepth - 1)
-    if (nested) return nested
-  }
-  return ''
-}
-
-function readApiNativeBrowserResponseText(rawText: string): string {
-  const text = String(rawText || '').trim()
-  if (!text) return ''
+  }, timeoutMs)
   try {
-    const parsed = JSON.parse(text) as unknown
-    return extractApiNativeBrowserString(parsed) || text
-  } catch {
-    return text
+    return await fetchFn(url, { ...init, signal: ctrl.signal })
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
@@ -255,7 +244,7 @@ function readApiNativeBrowserSessions(rawText: string): ApiNativeBrowserSession[
   }
 }
 
-function pickApiNativeBrowserSessionIds(url: string, sessions: ApiNativeBrowserSession[]): string[] {
+function pickApiNativeBrowserSessions(url: string, sessions: ApiNativeBrowserSession[]): ApiNativeBrowserSession[] {
   let hostname = ''
   try {
     hostname = new URL(url).hostname.toLowerCase()
@@ -271,10 +260,10 @@ function pickApiNativeBrowserSessionIds(url: string, sessions: ApiNativeBrowserS
     return 0
   }
   return sessions
-    .map(session => ({ id: session.id, score: scoreSession(session) }))
-    .filter(item => item.score > 0 && item.id)
+    .map(session => ({ session, score: scoreSession(session) }))
+    .filter(item => item.score > 0 && item.session.id)
     .sort((a, b) => b.score - a.score)
-    .map(item => item.id)
+    .map(item => item.session)
 }
 
 async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMarkdownArgs): Promise<ApiNativeMarkdownResult | null> {
@@ -282,27 +271,19 @@ async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMa
   if (!normalizedRuntimeUrl) return null
   const fetchFn = (globalThis as { fetch?: typeof fetch }).fetch
   if (typeof fetchFn !== 'function') return null
-  const ctrl = new AbortController()
-  const timeoutId = setTimeout(() => {
-    try {
-      ctrl.abort()
-    } catch {
-      void 0
-    }
-  }, 4000)
   try {
-    const sessionsRes = await fetchFn(joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/sessions'), {
+    const sessionsRes = await fetchApiNativeBrowserRuntime(fetchFn, joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/sessions'), {
       method: 'GET',
       headers: { Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8' },
-      signal: ctrl.signal,
-    })
+    }, API_NATIVE_BROWSER_SESSION_TIMEOUT_MS)
     if (!sessionsRes.ok) return null
     const sessionsText = await sessionsRes.text()
-    const sessionIds = pickApiNativeBrowserSessionIds(args.url, readApiNativeBrowserSessions(sessionsText))
-    if (sessionIds.length === 0) return null
+    const sessions = pickApiNativeBrowserSessions(args.url, readApiNativeBrowserSessions(sessionsText))
+    if (sessions.length === 0) return null
 
-    for (const sessionId of sessionIds) {
-      const markdownRes = await fetchFn(joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/browser/markdown'), {
+    for (const session of sessions) {
+      const sessionId = session.id
+      const markdownRes = await fetchApiNativeBrowserRuntime(fetchFn, joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/browser/markdown'), {
         method: 'POST',
         headers: {
           Accept: 'application/json,text/markdown,text/plain;q=0.9,*/*;q=0.8',
@@ -316,20 +297,22 @@ async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMa
           confirm_third_party_terms: false,
           confirm_cookie_import: false,
         }),
-        signal: ctrl.signal,
-      })
+      }, API_NATIVE_BROWSER_CONTENT_TIMEOUT_MS)
       if (!markdownRes.ok) continue
-      const markdownText = readApiNativeBrowserResponseText(await markdownRes.text())
+      const markdownPayload = readApiNativeBrowserMarkdownPayload(await markdownRes.text())
+      const markdownText = markdownPayload.markdown
       if (markdownText && !looksLowFidelityWebpageMarkdown(markdownText)) {
         return {
           normalizedUrl: args.url,
           name: deriveFilenameFromUrl(args.url, 'webpage.md'),
+          ...(session.title ? { title: session.title } : {}),
           upstreamMarkdown: restoreWebpageMarkdownSyntaxFidelity(markdownText),
+          ...(markdownPayload.thinkingMarkdown ? { thinkingMarkdown: restoreWebpageMarkdownSyntaxFidelity(markdownPayload.thinkingMarkdown) } : {}),
           diagnostics: `api-native-browser-session:${sessionId}`,
         }
       }
 
-      const textRes = await fetchFn(joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/browser/text'), {
+      const textRes = await fetchApiNativeBrowserRuntime(fetchFn, joinApiNativeBrowserRuntimePath(normalizedRuntimeUrl, '/v1/browser/text'), {
         method: 'POST',
         headers: {
           Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
@@ -343,34 +326,17 @@ async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMa
           confirm_third_party_terms: false,
           confirm_cookie_import: false,
         }),
-        signal: ctrl.signal,
-      })
+      }, API_NATIVE_BROWSER_CONTENT_TIMEOUT_MS)
       if (!textRes.ok) continue
       const textBody = readApiNativeBrowserResponseText(await textRes.text())
       if (!textBody || textBody.length < 220) continue
       const plainMarkdown = restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown(textBody))
       if (!looksLowFidelityWebpageMarkdown(plainMarkdown)) {
-        return {
-          normalizedUrl: args.url,
-          name: deriveFilenameFromUrl(args.url, 'webpage.md'),
-          upstreamMarkdown: plainMarkdown,
-          diagnostics: `api-native-browser-session:${sessionId}:text`,
-        }
+        return { normalizedUrl: args.url, name: deriveFilenameFromUrl(args.url, 'webpage.md'), ...(session.title ? { title: session.title } : {}), upstreamMarkdown: plainMarkdown, diagnostics: `api-native-browser-session:${sessionId}:text` }
       }
     }
   } catch {
     return null
-  } finally {
-    try {
-      clearTimeout(timeoutId)
-    } catch {
-      void 0
-    }
-    try {
-      ctrl.abort()
-    } catch {
-      void 0
-    }
   }
   return null
 }

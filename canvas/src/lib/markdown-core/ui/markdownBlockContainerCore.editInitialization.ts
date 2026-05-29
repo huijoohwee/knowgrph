@@ -117,7 +117,7 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
                   `quote-block:${args.editSigilRenderMode}:${presentText}`,
                   () => {
                     const md = getMarkdownItFastHtml()
-                    return rewriteInlineSigilsForEditHtml(lines.map(line => `<p>${line ? md.renderInline(line) : '<br/>'}</p>`).join(''))
+                    return rewriteInlineSigilsForEditHtml(lines.map(line => `<p>${line ? md.renderInline(line) : '<br/>'}</p>`).join('\n'))
                   },
                 )
                 normalizeLiveEditHtmlRoot(el)

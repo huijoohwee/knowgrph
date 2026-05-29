@@ -10,6 +10,7 @@ import { getVoxelModeInapplicableReason, isVoxelModeApplicable } from '@/lib/can
 import type { CanvasViewOptionId, CanvasViewModelState } from '@/components/toolbar/canvasViewTypes'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions, getCanvasViewTriggerState } from '@/components/toolbar/canvasViewMenu'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type Canvas2dRendererSelectProps = {
   iconSizeClass: string
@@ -172,10 +173,32 @@ export function Canvas2dRendererSelect({
       renderOptionContent={option => (
         <>
           <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-          <span className="truncate">{option.title}</span>
+          <span className="kg-toolbar-dropdown-option-copy min-w-0 flex-1 text-left">
+            <span className={`block ${option.description || option.badges?.length ? 'break-words leading-4' : 'truncate'}`}>
+              {option.title}
+            </span>
+            {option.description || option.badges?.length ? (
+              <span className="mt-0.5 block min-w-0">
+                {option.description ? (
+                  <span className={`block text-[10px] leading-3 ${UI_THEME_TOKENS.text.tertiary}`}>
+                    {option.description}
+                  </span>
+                ) : null}
+                {option.badges?.length ? (
+                  <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+                    {option.badges.slice(0, 2).map(badge => (
+                      <span key={badge} className={`shrink-0 rounded border px-1 py-0 text-[9px] leading-3 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.badge.chip}`}>
+                        {badge}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </span>
         </>
       )}
-      menuWidthClass="w-64"
+      menuWidthClass="[--kg-toolbar-dropdown-width:24rem] max-w-[calc(100vw-2rem)]"
     />
   )
 }

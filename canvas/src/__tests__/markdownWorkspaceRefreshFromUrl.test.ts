@@ -75,7 +75,7 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
       const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
       for (const btn of buttons) {
         const label = String(btn.getAttribute('aria-label') || '')
-        if (label === 'Refresh url-refresh.md') return btn
+        if (label === 'Refresh') return btn
       }
       return null
     }

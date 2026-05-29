@@ -561,8 +561,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             onRefresh={() => void explorerState.refresh()}
             canRefreshActiveFromSource={viewShell.canRefreshActiveFromSource}
             onRefreshActiveFromSource={() => {
-              if (!selectionState.selectionPath || selectionState.selectionEntry?.kind !== 'file') return
-              void fileActions.refreshFileFromSource(selectionState.selectionPath)
+              const refreshPath = activePath || selectionState.selectionPath
+              if (refreshPath) void fileActions.refreshFileFromSource(refreshPath)
             }}
             onRevealInFinder={viewShell.revealInFinder}
             onClearFile={fileActions.onClearFile}

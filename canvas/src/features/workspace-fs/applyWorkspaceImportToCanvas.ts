@@ -24,6 +24,8 @@ import {
   scheduleApplyComposedGraphFromSourceFiles,
   scheduleApplyGraphOwnerComposedGraphFromSourceFiles,
 } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
+import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { resolveWorkspaceSourceFileInlineText } from './workspaceInlineText'
@@ -135,7 +137,11 @@ export async function applyWorkspaceImportToCanvas(args: {
     workspaceEntries,
     sourcesByPath: sourcesByPath || undefined,
     forceIncludePaths: createdPaths,
-    forceIncludeOnly: true,
+    preserveExistingWorkspaceEntries: true,
+    workspaceDocsOnly: readWorkspaceSourceFilesDocsOnlySetting(),
+    workspaceSourceRootPaths: resolveWorkspaceSourceRootPaths({
+      chatLocalStorageRootPath: store.chatLocalStorageRootPath,
+    }),
   })
 
   const indexByWorkspaceSourcePath = new Map<string, number>()

@@ -130,6 +130,85 @@ function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | 
   return out.length > 0 ? out : undefined
 }
 
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function normalizeCorpusLabel(value: unknown): string {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_$.-]+/g, '')
+}
+
+function readNodeLayerId(node: GraphNode): string {
+  return String(readRecord((node as { metadata?: unknown }).metadata).sourceLayerId || '').trim()
+}
+
+function readCorpusSourcePath(node: GraphNode): string {
+  const props = readRecord(node.properties)
+  const meta = readRecord((node as { metadata?: unknown }).metadata)
+  return String(props['corpus:sourcePath'] || meta.documentPath || '').trim()
+}
+
+function readCorpusLineStart(node: GraphNode): number {
+  const raw = readRecord(node.properties)['corpus:lineStart']
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1
+}
+
+function appendCorpusCrossSourceReferenceEdges(nodes: GraphNode[], edges: GraphEdge[]): void {
+  const tableByName = new Map<string, GraphNode[]>()
+  const referenceNodes: GraphNode[] = []
+  for (const node of nodes) {
+    const type = String(node.type || '').trim()
+    const label = normalizeCorpusLabel(node.label || node.id)
+    if (!label) continue
+    if (type === 'CorpusSqlTable') {
+      const list = tableByName.get(label) || []
+      list.push(node)
+      tableByName.set(label, list)
+      continue
+    }
+    if (type === 'CorpusSqlTableReference' || type === 'CorpusEntityReference' || type === 'CorpusDependency') {
+      referenceNodes.push(node)
+    }
+  }
+  if (tableByName.size < 1 || referenceNodes.length < 1) return
+  const existingEdgeIds = new Set(edges.map(edge => String(edge.id || '')).filter(Boolean))
+  for (const ref of referenceNodes) {
+    const label = normalizeCorpusLabel(ref.label || ref.id)
+    const targets = tableByName.get(label) || []
+    if (targets.length < 1) continue
+    for (const target of targets) {
+      if (String(ref.id || '') === String(target.id || '')) continue
+      const refLayer = readNodeLayerId(ref)
+      const targetLayer = readNodeLayerId(target)
+      if (refLayer && targetLayer && refLayer === targetLayer) continue
+      const edgeId = `corpus:cross:${hashStringToHexCached('corpus-cross-source-edge', `${ref.id}->${target.id}`)}`
+      if (existingEdgeIds.has(edgeId)) continue
+      existingEdgeIds.add(edgeId)
+      const lineStart = readCorpusLineStart(ref)
+      edges.push({
+        id: edgeId,
+        source: String(ref.id),
+        target: String(target.id),
+        label: 'referencesCorpusEntity',
+        properties: {
+          'evidence:kind': 'inferred' as unknown as JSONValue,
+          'evidence:confidence': 'medium' as unknown as JSONValue,
+          'evidence:sourcePath': readCorpusSourcePath(ref) as unknown as JSONValue,
+          'evidence:lineStart': lineStart as unknown as JSONValue,
+          'evidence:lineEnd': lineStart as unknown as JSONValue,
+          'corpus:parserId': 'source-layer-compose' as unknown as JSONValue,
+        },
+        metadata: {
+          sourceLayerId: refLayer as unknown as JSONValue,
+          sourceLayerLabel: String(readRecord((ref as { metadata?: unknown }).metadata).sourceLayerLabel || '') as unknown as JSONValue,
+          documentPath: readCorpusSourcePath(ref) as unknown as JSONValue,
+        },
+      })
+    }
+  }
+}
+
 export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: string; orderKey: string } {
   const normalized = (layers || []).map(l => ({
     id: String(l.id || '').trim(),
@@ -279,6 +358,7 @@ export function composeGraphFromSourceLayers(args: {
       })
     }
   }
+  appendCorpusCrossSourceReferenceEdges(nodes, edges)
 
   const nextMetadata: Record<string, JSONValue> = {
     ...baseMetadata,

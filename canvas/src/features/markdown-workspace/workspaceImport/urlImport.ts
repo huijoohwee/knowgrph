@@ -83,6 +83,7 @@ export async function importWorkspaceUrl(args: {
     importedTitle: fetched.title,
     importedText: fetched.text,
     importedThinkingText: fetched.thinkingText,
+    ...(fetched.thinkingTextTask ? { importedThinkingTextTask: fetched.thinkingTextTask } : {}),
     importedWorkspacePath: normalized,
   })
   const sources: WorkspaceImportResult['sources'] = [{ path: normalized, source: { kind: 'url', url: sourceUrl } }]

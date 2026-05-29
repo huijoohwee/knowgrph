@@ -77,7 +77,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       position: 'fixed',
       width: 'max-content',
       maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 1rem)',
-      maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 1rem)',
+      maxHeight: 'var(--kg-overlay-max-height, calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 1rem))',
       overflow: 'auto',
       overscrollBehavior: 'contain',
       WebkitOverflowScrolling: 'touch',

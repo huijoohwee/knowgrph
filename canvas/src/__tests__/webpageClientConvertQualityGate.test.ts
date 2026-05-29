@@ -55,6 +55,17 @@ export function testWebpageClientConvertQualityGateDetectsLoadingShellMarkdown()
   }
 }
 
+export function testWebpageClientConvertQualityGateDetectsBareLoadingIframeShell() {
+  const shell = [
+    'Loading...',
+    '',
+    '<iframe height="1" width="1" style="position:absolute;visibility:hidden"></iframe>',
+  ].join('\n')
+  if (!looksLowFidelityWebpageMarkdown(shell)) {
+    throw new Error('expected bare loading iframe shell markdown to be rejected by the quality gate')
+  }
+}
+
 export function testWebpageClientConvertQualityGateDetectsHtmlHeavyLoadingChrome() {
   const shortcutChrome = Array.from(
     { length: 18 },

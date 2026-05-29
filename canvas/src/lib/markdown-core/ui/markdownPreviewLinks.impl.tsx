@@ -49,7 +49,8 @@ export const isSafeMediaSrc = (href: string): boolean => {
   if (/^https?:\/\//i.test(raw) || raw.startsWith('//')) return true
   if (/^data:image\//i.test(raw)) return true
   if (/^blob:/i.test(raw)) return true
-  return false
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return false
+  return /^[^\s<>"']+$/u.test(raw)
 }
 
 const toCssPropName = (name: string): keyof React.CSSProperties | null => {
@@ -73,7 +74,7 @@ export const parseSafeInlineStyle = (raw: string): React.CSSProperties | undefin
     const idx = seg.indexOf(':')
     if (idx <= 0) continue
     const keyRaw = seg.slice(0, idx).trim()
-    const valueRaw = seg.slice(idx + 1).trim()
+    const valueRaw = seg.slice(idx + 1).trim().replace(/\s*!important\s*$/i, '').trim()
     const prop = toCssPropName(keyRaw)
     if (!prop) continue
     if (!valueRaw || valueRaw.length > 200) continue

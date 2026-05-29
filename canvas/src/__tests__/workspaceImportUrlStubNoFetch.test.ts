@@ -977,10 +977,8 @@ export async function testWorkspaceImportUrlImportDoesNotReuseCachedConnectionSh
   }) as unknown as typeof fetch
   setWorkspaceWebpageDomExportForTests(async () => null)
   try {
-    const first = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
-    if (!first.text.includes("Can't reach Claude")) {
-      throw new Error(`expected first import fetch to expose the low-fidelity connection shell, got:\n${first.text}`)
-    }
+    const rejectedConnectionShell = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' }).then(() => false, e => String((e as { message?: unknown })?.message || e).includes('Authenticated browser session required'))
+    if (!rejectedConnectionShell) throw new Error('expected first import fetch to reject the low-fidelity connection shell before persistence')
 
     currentHtml = [
       '<!doctype html>',
@@ -1078,6 +1076,7 @@ export async function testWorkspaceImportUrlImportUsesApiNativeBrowserSessionMar
     if (res.text.includes("Can't reach Claude") || res.text.includes('Check your connection.')) {
       throw new Error(`expected browser-session markdown fallback to replace the Claude connection shell, got:\n${res.text}`)
     }
+    if (res.title !== 'Oil market blind spot analysis and price forecast - Claude') throw new Error(`expected browser-session title to survive import content recovery, got ${JSON.stringify(res.title)}`)
     if (!fetchCalls.includes('http://localhost:6969/v1/sessions')) {
       throw new Error(`expected browser-session markdown fallback to enumerate local sessions, got ${JSON.stringify(fetchCalls)}`)
     }

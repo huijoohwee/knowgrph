@@ -251,7 +251,7 @@ export function shouldAcceptConvertedDomRecoveredMarkdown(args: {
   return !isLikelyLowFidelityConvertedMarkdown(markdown)
 }
 
-function looksLikeMostlyTitleOnlyMarkdown(markdown: string, title?: string): boolean {
+export function looksLikeMostlyTitleOnlyMarkdown(markdown: string, title?: string): boolean {
   const normalizedMarkdown = String(markdown || '').replace(/\s+/g, ' ').trim()
   const normalizedTitle = String(title || '').replace(/\s+/g, ' ').trim()
   if (!normalizedMarkdown || !normalizedTitle) return false

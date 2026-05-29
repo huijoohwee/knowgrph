@@ -7,10 +7,13 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const canvasViewportText = readFileSync(resolve(root, 'components', 'CanvasViewport.tsx'), 'utf8')
   const rendererSelectText = readFileSync(resolve(root, 'components', 'toolbar', 'Canvas2dRendererSelect.tsx'), 'utf8')
   const canvasViewMenuText = readFileSync(resolve(root, 'components', 'toolbar', 'canvasViewMenu.ts'), 'utf8')
+  const animaticTimelineModelText = readFileSync(resolve(root, 'components', 'AnimaticCanvas', 'useAnimaticTimelineModel.ts'), 'utf8')
+  const responsiveToolbarCssText = readFileSync(resolve(root, 'styles', 'responsive-toolbar.css'), 'utf8')
   const toolbarRendererViewText = readFileSync(resolve(root, 'features', 'toolbar', 'ToolbarToolMenuRendererView.tsx'), 'utf8')
   const threeControlsText = readFileSync(resolve(root, 'features', 'three', 'Controls.tsx'), 'utf8')
   const minimapText = readFileSync(resolve(root, 'features', 'minimap', 'Minimap.tsx'), 'utf8')
   const canvasSyncRuntimeText = readFileSync(resolve(root, 'features', 'canvas', 'CanvasSyncRuntime.tsx'), 'utf8')
+  const canvasPreviewSyncInboundText = readFileSync(resolve(root, 'features', 'canvas', 'canvasPreviewSyncInbound.ts'), 'utf8')
   const toolbarToolMenuText = readFileSync(resolve(root, 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8')
   const uiCopyText = readFileSync(resolve(root, 'lib', 'config-copy', 'uiCopy.ts'), 'utf8')
   const rendererRegistryText = readFileSync(resolve(root, 'lib', 'renderer', 'canvas2dRendererRegistry.ts'), 'utf8')
@@ -29,6 +32,9 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   }
   if (!renderConfigText.includes('export const getCanvas2dRendererMenuLabel')) {
     throw new Error('expected shared 2D renderer menu label helper in config.render')
+  }
+  if (!renderConfigText.includes('export const getCanvas2dRendererMenuDescription') || !renderConfigText.includes('export const getCanvas2dRendererMenuBadges')) {
+    throw new Error('expected shared 2D renderer menu UX metadata helpers in config.render')
   }
   if (!renderConfigText.includes('export const isFlowEditorCanvas2dRenderer')) {
     throw new Error('expected shared Flow Editor renderer helper in config.render')
@@ -54,6 +60,18 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!canvasViewMenuText.includes('getCanvas2dRendererMenuLabel(id)')) {
     throw new Error('expected Canvas view menu renderer options to derive menu labels from the shared renderer spec')
   }
+  if (!canvasViewMenuText.includes('getCanvas2dRendererMenuDescription(id)') || !canvasViewMenuText.includes('getCanvas2dRendererMenuBadges(id)')) {
+    throw new Error('expected Canvas view menu renderer options to derive UX metadata from the shared renderer spec')
+  }
+  if (!rendererSelectText.includes('option.description') || !rendererSelectText.includes('option.badges')) {
+    throw new Error('expected Canvas2dRendererSelect to render shared renderer UX metadata without local option aliases')
+  }
+  if (!rendererSelectText.includes('kg-toolbar-dropdown-option-copy') || !responsiveToolbarCssText.includes('--kg-toolbar-dropdown-width')) {
+    throw new Error('expected rich renderer menu metadata to use shared toolbar sizing and copy wrapping primitives')
+  }
+  if (!animaticTimelineModelText.includes('buildScopedGraphSemanticKey') || !animaticTimelineModelText.includes("'animatic-timeline-model'")) {
+    throw new Error('expected Animatic timeline model caching to reuse the shared graph semantic-key helper')
+  }
   if (!toolbarRendererViewText.includes('isD3Like2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected renderer settings panel to reuse the shared D3-like helper')
   }
@@ -63,11 +81,14 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!minimapText.includes('isFlowEditorCanvas2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected minimap overlay subset logic to reuse the shared Flow Editor helper')
   }
-  if (!canvasSyncRuntimeText.includes('isFlowEditorCanvas2dRenderer(store.canvas2dRenderer)')) {
-    throw new Error('expected preview-sync renderer lock to reuse the shared Flow Editor helper')
+  if (!canvasSyncRuntimeText.includes('applyCanvasPreviewSyncPayload')) {
+    throw new Error('expected CanvasSyncRuntime to delegate inbound preview-sync payload handling to the shared owner')
   }
-  if (!toolbarToolMenuText.includes('isFlowEditorCanvas2dRenderer(canvas2dRenderer)')) {
-    throw new Error('expected toolbar inspector slot routing to reuse the shared Flow Editor helper')
+  if (!canvasPreviewSyncInboundText.includes('isFlowEditorCanvas2dRenderer(store.canvas2dRenderer)')) {
+    throw new Error('expected preview-sync inbound renderer lock to reuse the shared Flow Editor helper')
+  }
+  if (toolbarToolMenuText.includes('isFlowEditorCanvas2dRenderer')) {
+    throw new Error('expected floating toolbar owner to avoid stale unused Flow Editor helper references')
   }
   if (!uiCopyText.includes('2D Renderer: Flow Canvas')) {
     throw new Error('expected Flow renderer to be labeled as 2D Renderer: Flow Canvas')

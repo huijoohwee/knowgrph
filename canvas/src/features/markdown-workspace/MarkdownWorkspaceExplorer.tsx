@@ -4,6 +4,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import { MarkdownExplorerSection } from './MarkdownExplorerSection'
 import { MarkdownFileTree } from './MarkdownFileTree'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceBacklink } from '@/features/workspace-fs/types'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -105,13 +106,20 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
   } = props
   const panelTypography = usePanelTypography()
 
+  const canRefreshActivePathFromSource = React.useCallback(() => {
+    const path = activePath
+    if (!path) return false
+    const source = sourcesByPath?.[path] || loadWorkspaceSourceIndex()[path]
+    return !!(source && source.kind === 'url' && String(source.url || '').trim())
+  }, [activePath, sourcesByPath])
+
   const handleRefresh = React.useCallback(() => {
-    if (canRefreshActiveFromSource) {
+    if (canRefreshActiveFromSource || canRefreshActivePathFromSource()) {
       onRefreshActiveFromSource()
       return
     }
     onRefresh()
-  }, [canRefreshActiveFromSource, onRefresh, onRefreshActiveFromSource])
+  }, [canRefreshActiveFromSource, canRefreshActivePathFromSource, onRefresh, onRefreshActiveFromSource])
   const sourceFileCount = React.useMemo(() => entries.reduce((count, e) => (e.kind === 'file' ? count + 1 : count), 0), [entries])
   const {
     activeItemId: activeTocId,

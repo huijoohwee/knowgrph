@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MarkdownWorkspace } from '@/lib/markdown-workspace-runtime'
@@ -33,7 +33,9 @@ export async function testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex() {
     state.setMarkdownDocument(null, null)
     state.setMarkdownDocumentSourceUrl(null)
 
-    root.render(React.createElement(MarkdownWorkspace))
+    await act(async () => {
+      root.render(React.createElement(MarkdownWorkspace))
+    })
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
     const tick = () =>
@@ -48,7 +50,9 @@ export async function testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex() {
 
     let nextUrl: string | null = null
     for (let i = 0; i < 24; i += 1) {
-      await tick()
+      await act(async () => {
+        await tick()
+      })
       nextUrl = useGraphStore.getState().markdownDocumentSourceUrl
       if (nextUrl === sourceUrl) break
     }
@@ -56,7 +60,10 @@ export async function testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex() {
       throw new Error(`Expected markdownDocumentSourceUrl to be ${sourceUrl}, got ${String(nextUrl)}`)
     }
 
-    root.unmount()
+    await act(async () => {
+      root.unmount()
+      await tick()
+    })
   } finally {
     restoreDom()
   }

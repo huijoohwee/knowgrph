@@ -31,13 +31,12 @@ import {
   stripWebpageScriptTags,
 } from './src/lib/websites/webpageSandboxDoc'
 import { WEBPAGE_SHELL_PATTERN_REGEX_SOURCES } from './src/lib/websites/webpageShellHeuristics'
+import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs')
-if (!String(process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT || '').trim() && existsSync(siblingDocsRoot)) {
-  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = siblingDocsRoot
-}
+if (!String(process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT || '').trim() && existsSync(siblingDocsRoot)) process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = siblingDocsRoot
 const nodeRequire = createRequire(import.meta.url)
 const resolvedReact = nodeRequire.resolve('react')
 const resolvedReactJsxRuntime = nodeRequire.resolve('react/jsx-runtime')
@@ -5868,6 +5867,7 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5173,
     strictPort: false,
+    watch: { ignored: [...DEFAULT_VITE_WATCH_IGNORED, createWorkspaceMirrorWatchPathIgnore(buildWorkspaceMirrorWatchIgnoredRoots({ repoRoot, canvasRoot: __dirname, workspaceRoot, docsRoot: process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT, chatLogRoot: process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT }))] },
     headers: {
       'Cache-Control': 'no-store',
     },

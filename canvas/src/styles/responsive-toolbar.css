@@ -1,7 +1,9 @@
 @layer utilities {
+  :root { --kg-overlay-max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 1rem); }
+
   .kg-collapsible-toolbar-overflow {
     max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
-    max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 4rem);
+    max-height: var(--kg-overlay-max-height);
     overflow: auto;
     overscroll-behavior: contain;
   }
@@ -153,6 +155,7 @@
   .kg-graph-table-menu-form {
     width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
     max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
+    max-height: var(--kg-overlay-max-height);
     overflow: auto;
     overscroll-behavior: contain;
   }
@@ -188,7 +191,7 @@
   }
 
   .kg-toolbar-dropdown-menu {
-    width: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+    width: min(var(--kg-toolbar-dropdown-width, 18rem), calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
   }
 
   .kg-click-expand-menu-children {
@@ -227,6 +230,8 @@
   .kg-data-view-action svg {
     flex: 0 0 auto;
   }
+
+  .kg-menu-row > .kg-toolbar-dropdown-option-copy { overflow: visible; text-overflow: clip; white-space: normal; }
 
   .kg-touch-menu-row {
     min-height: var(--kg-control-height, 28px);
@@ -331,6 +336,8 @@
   }
 
   @media (pointer: coarse), (max-width: 768px) {
+    :root { --kg-mobile-bottom-dock-clearance: calc(var(--kg-control-height, 28px) + 2.75rem); --kg-overlay-max-height: calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - var(--kg-mobile-bottom-dock-clearance)); }
+
     .kg-canvas-toolbar-dock {
       top: auto;
       bottom: calc(var(--kg-safe-bottom) + 0.5rem);
@@ -348,6 +355,8 @@
     .kg-markdown-workspace-shell {
       flex-direction: column;
     }
+
+    .kg-markdown-workspace-toolbar-row { order: 3; position: sticky; bottom: calc(var(--kg-safe-bottom) + var(--kg-mobile-bottom-dock-clearance, 0px)); z-index: 220; width: 100%; box-sizing: border-box; border-top: 1px solid var(--kg-border); background: var(--kg-panel-bg); }
 
     .kg-markdown-workspace-main {
       min-height: min(56dvh, calc(100dvh - var(--kg-safe-top) - var(--kg-safe-bottom) - 8rem));
@@ -482,14 +491,13 @@
     .kg-anchor-overlay,
     .kg-details-menu-portal {
       min-inline-size: min(18rem, calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem));
+      max-block-size: var(--kg-overlay-max-height);
     }
 
-    .kg-anchored-popover {
-      max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
-    }
+    .kg-anchored-popover { max-inline-size: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem); }
 
     [data-kg-floating-panel-root="true"]:not(.App-toolbar) {
-      --kg-floating-tool-menu-bottom-offset: calc(var(--kg-control-height, 28px) + 2.25rem);
+      --kg-floating-tool-menu-bottom-offset: var(--kg-mobile-bottom-dock-clearance);
       top: auto !important;
       left: calc(var(--kg-safe-left) + 0.5rem) !important;
       right: calc(var(--kg-safe-right) + 0.5rem);
@@ -584,10 +592,5 @@
     }
   }
 
-  .App-toolbar--touch-row-scroll {
-    width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
-    max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem);
-    justify-content: flex-start;
-    align-content: center;
-  }
+  .App-toolbar--touch-row-scroll { width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem); max-width: calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem); justify-content: flex-start; align-content: center; }
 }

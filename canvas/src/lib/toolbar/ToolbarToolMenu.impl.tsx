@@ -24,7 +24,6 @@ import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelVi
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun, setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'

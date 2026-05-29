@@ -11,6 +11,24 @@ import {
 
 type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
 
+const readInlineMenuSelectionRect = (args: {
+  root: HTMLElement
+  selection: Selection | null
+}): { range: Range; rect: DOMRect | null } | null => {
+  const expanded = readLiveSelectionSnapshot(args)
+  if (expanded) return expanded
+  const selection = args.selection
+  if (!selection || selection.rangeCount <= 0) return null
+  const range = selection.getRangeAt(0)
+  const container = range.commonAncestorContainer
+  const node = container.nodeType === 1 ? (container as Element) : container.parentElement
+  if (!node || !args.root.contains(node)) return null
+  return {
+    range,
+    rect: getRangeRectSafe(range),
+  }
+}
+
 export const useMarkdownBlockContainerEditorEvents = (args: {
   editorRef: React.RefObject<HTMLElement | null>
   forbidCopy: boolean
@@ -93,7 +111,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     args.emitParityProbe()
     if (args.editDisableRichUi) return
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    const snapshot = readLiveSelectionSnapshot({ root: el, selection: sel })
+    const snapshot = readInlineMenuSelectionRect({ root: el, selection: sel })
     args.liveSelectionSnapshotRef.current = snapshot
     const rect = snapshot?.rect || null
     if (!rect) return
@@ -147,6 +165,16 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       window.clearTimeout(args.blurCommitTimerRef.current)
       args.blurCommitTimerRef.current = 0
     }
+    const nextFocusForGuard = event.relatedTarget instanceof Node ? event.relatedTarget : null
+    const rootForGuard = args.editorRef.current
+    if (nextFocusForGuard && rootForGuard && !rootForGuard.contains(nextFocusForGuard)) {
+      const toolbarNode = args.toolbarRef.current
+      const variableNode = args.variableMenuRef.current
+      if (!(toolbarNode && toolbarNode.contains(nextFocusForGuard)) && !(variableNode && variableNode.contains(nextFocusForGuard))) {
+        args.toolbarInteractingRef.current = false
+        args.toolbarInteractionUntilRef.current = 0
+      }
+    }
     if (Date.now() < args.selectionSyncSuspendUntilRef.current) return scheduleBlurCommit(120)
     const root = args.editorRef.current
     if (Date.now() < args.selectionSyncSuspendUntilRef.current && root) {
@@ -176,7 +204,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       if (active && toolbarNode && toolbarNode.contains(active)) return
       if (active && variableNode && variableNode.contains(active)) return
       const selNow = typeof window !== 'undefined' ? window.getSelection() : null
-      if (hasExpandedSelectionInRoot({ root, selection: selNow })) return
+      if (!nextFocus && hasExpandedSelectionInRoot({ root, selection: selNow })) return
     }
     if (Date.now() < args.editOpenBlurGuardUntilRef.current) return scheduleBlurCommit(60)
     if (Date.now() - args.lastEditorPointerDownAtRef.current < 420 || Date.now() - args.lastEditorPointerUpAtRef.current < 260) {
@@ -197,17 +225,22 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   }, [args])
 
   React.useEffect(() => {
+    const doc = typeof document !== 'undefined' ? document : null
+    const NodeRef = doc?.defaultView?.Node || (typeof Node !== 'undefined' ? Node : null)
+    if (!doc || !NodeRef) return undefined
     const onDocumentFocusOutCapture = (event: FocusEvent) => {
       const root = args.editorRef.current
       if (!root) return
       const target = event.target
-      if (!(target instanceof Node)) return
+      if (!(target instanceof NodeRef)) return
       if (!root.contains(target)) return
       onBlur(event as unknown as React.FocusEvent<HTMLElement>)
     }
-    document.addEventListener('focusout', onDocumentFocusOutCapture, true)
+    doc.addEventListener('focusout', onDocumentFocusOutCapture, true)
+    doc.addEventListener('blur', onDocumentFocusOutCapture, true)
     return () => {
-      document.removeEventListener('focusout', onDocumentFocusOutCapture, true)
+      doc.removeEventListener('focusout', onDocumentFocusOutCapture, true)
+      doc.removeEventListener('blur', onDocumentFocusOutCapture, true)
     }
   }, [args.editorRef, onBlur])
 

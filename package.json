@@ -1,6 +1,11 @@
 {
   "name": "knowgrph",
   "private": true,
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  },
   "scripts": {
     "setup": "npm --prefix canvas install",
     "hooks:install": "node ./scripts/install-git-hooks.mjs",

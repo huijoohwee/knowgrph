@@ -1,7 +1,13 @@
 import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Glasses, Grid3x3, Hexagon, Image as ImageIcon, Map, MonitorPlay, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { CANVAS_2D_RENDERER_ORDER, getCanvas2dRendererMenuLabel, isD3Like2dRenderer } from '@/lib/config.render'
+import {
+  CANVAS_2D_RENDERER_ORDER,
+  getCanvas2dRendererMenuBadges,
+  getCanvas2dRendererMenuDescription,
+  getCanvas2dRendererMenuLabel,
+  isD3Like2dRenderer,
+} from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
@@ -47,6 +53,8 @@ export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] =>
     title: CANVAS_VIEW_RENDERER_OPTION_TITLE[id],
     Icon: CANVAS_VIEW_RENDERER_OPTION_ICON[id],
     label: getCanvas2dRendererMenuLabel(id),
+    description: getCanvas2dRendererMenuDescription(id),
+    badges: getCanvas2dRendererMenuBadges(id),
   }))
 
 export const buildCanvasViewOptions = (
@@ -81,6 +89,8 @@ export const buildCanvasViewOptions = (
       id: `renderer:${option.id}` as const,
       title: option.title,
       label: option.label,
+      description: option.description,
+      badges: option.badges,
       Icon: option.Icon,
       disabled: disabledOption,
       disabledReason: disabledForGeospatial

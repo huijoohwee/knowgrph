@@ -15,6 +15,8 @@ import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermai
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { isCorpusSourceUnitMarkdown } from '@/features/queryable-corpus/corpusGraph'
+import { queryableCorpusParsers } from '@/features/queryable-corpus/parserSpecs'
 import {
   buildMarkdownLargeDocumentGraph,
   readMarkdownLargeDocumentProfile,
@@ -85,6 +87,56 @@ function mergeGraphDataPreferOverlay(args: { base: GraphData; overlay: GraphData
   }
 }
 
+function pickMarkdownReferenceGraph(args: { base: GraphData; overlay: GraphData }): GraphData {
+  const overlayNodeIds = new Set(
+    (Array.isArray(args.overlay.nodes) ? args.overlay.nodes : [])
+      .map(node => String((node as { id?: unknown })?.id || '').trim())
+      .filter(Boolean),
+  )
+  const semanticReferenceTypes = new Set(['InternalLink', 'WikiDocument', 'Anchor'])
+  const nodes = (Array.isArray(args.base.nodes) ? args.base.nodes : []).filter(node => {
+    const type = String((node as { type?: unknown })?.type || '').trim()
+    return semanticReferenceTypes.has(type)
+  })
+  const referenceNodeIds = new Set(
+    nodes
+      .map(node => String((node as { id?: unknown })?.id || '').trim())
+      .filter(Boolean),
+  )
+  const edges = (Array.isArray(args.base.edges) ? args.base.edges : []).filter(edge => {
+    const source = String((edge as { source?: unknown })?.source || '').trim()
+    const target = String((edge as { target?: unknown })?.target || '').trim()
+    if (!source || !target) return false
+    return referenceNodeIds.has(source) && (referenceNodeIds.has(target) || overlayNodeIds.has(target))
+  })
+  const baseMeta = isRecord(args.base.metadata) ? (args.base.metadata as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
+  return {
+    type: 'Graph',
+    context: String(args.base.context || '').trim(),
+    nodes,
+    edges,
+    metadata: baseMeta,
+  }
+}
+
+function enrichFrontmatterFlowWithMarkdownReferences(args: {
+  name: string
+  text: string
+  frontmatterFlow: { graphData: GraphData; warnings: string[] }
+}): { graphData: GraphData; warnings: string[] } {
+  const markdownReferences = pickMarkdownReferenceGraph({
+    base: parseJsonLd(buildMarkdownJsonLd(args.name, args.text)),
+    overlay: args.frontmatterFlow.graphData,
+  })
+  return {
+    graphData: mergeGraphDataPreferOverlay({
+      base: markdownReferences,
+      overlay: args.frontmatterFlow.graphData,
+    }),
+    warnings: args.frontmatterFlow.warnings,
+  }
+}
+
 export { buildMarkdownJsonLd } from './markdownJsonLd'
 
 export const hasMarkdownStructure = (raw: string): boolean =>
@@ -114,6 +166,7 @@ export const shouldPreferMarkdownParserInput = (name: string, text: string): boo
   const lower = String(name || '').toLowerCase()
   const raw = String(text || '')
   if (!raw.trim()) return false
+  if (isCorpusSourceUnitMarkdown(raw)) return false
   if (containsFrontmatterMermaid(raw)) return true
   if (isMarkdownLikeFileName(lower)) {
     return !isLikelyPlainTextMarkdown(raw)
@@ -156,7 +209,7 @@ const markdownSpec: ParserSpec = {
     if (summaryOnlyLargeGraph) return summaryOnlyLargeGraph
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
     const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
-    if (frontmatterFlow) return frontmatterFlow
+    if (frontmatterFlow) return enrichFrontmatterFlowWithMarkdownReferences({ name, text, frontmatterFlow })
     if (largeProfile.reason && !panelFlow) return buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
     if (largeProfile.reason && panelFlow) return panelFlow
     const t0 = Date.now()
@@ -197,7 +250,7 @@ const markdownSpec: ParserSpec = {
     if (summaryOnlyLargeGraph) return summaryOnlyLargeGraph
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
     const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
-    if (frontmatterFlow) return frontmatterFlow
+    if (frontmatterFlow) return enrichFrontmatterFlowWithMarkdownReferences({ name, text, frontmatterFlow })
     if (largeProfile.reason && !panelFlow) return buildMarkdownLargeDocumentGraph({ name, rawText: raw, profile: largeProfile })
     if (largeProfile.reason && panelFlow) return panelFlow
 
@@ -341,6 +394,7 @@ const withParserTopology = (spec: ParserSpec): ParserSpec => ({
 })
 
 const rawBuiltInParsers: ParserSpec[] = [
+  ...queryableCorpusParsers,
   markdownSpec,
   graphragTextSpec,
   pythonSpec,

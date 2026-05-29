@@ -196,7 +196,16 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             const res = sanitizeImportedMarkdownText(rawNext)
             return res.changed ? res.text : null
           })()
-          const nextText = sanitized ?? rawNext
+          let nextText = sanitized ?? rawNext
+          const liveLoaded = args.lastLoadedRef.current
+          if (
+            liveLoaded &&
+            liveLoaded !== lastLoaded &&
+            liveLoaded.path === path &&
+            String(liveLoaded.text || '') !== nextText
+          ) {
+            nextText = String(liveLoaded.text || '')
+          }
           const textHash = buildSourceFileParseIdentityHash({
             cacheNamespace: `workspace-import:${path}`,
             name: workspaceDocumentKey(path),

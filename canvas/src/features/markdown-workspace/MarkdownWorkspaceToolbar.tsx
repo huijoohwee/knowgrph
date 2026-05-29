@@ -9,6 +9,7 @@ import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/w
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import type { MarkdownPresentationApi } from './markdownWorkspaceTypes'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './WorkspaceModeSelect'
@@ -121,6 +122,7 @@ export function MarkdownWorkspaceToolbar({
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setWorkspaceViewState = useGraphStore(s => s.setWorkspaceViewState)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const isTouchToolbarViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const canNavigateSlides = layoutMode === 'presentation'
   const effectiveSplitPanes = React.useMemo(
     () => splitPaneVisibility || DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY,
@@ -272,7 +274,7 @@ export function MarkdownWorkspaceToolbar({
   const paneToggleTextClassName = `kg-workspace-pane-toggle-label ${UI_TEXT_TRUNCATE}`
 
   return (
-      <WorkspaceHeaderRow className="kg-toolbar min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
+      <WorkspaceHeaderRow className="kg-markdown-workspace-toolbar-row kg-toolbar min-h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
         {webpageSignalsNode ? (
           <span className="flex min-w-0 max-w-full items-center overflow-hidden">
             <span className="sr-only">Workspace editor</span>
@@ -281,7 +283,7 @@ export function MarkdownWorkspaceToolbar({
         ) : (
           <span className="sr-only">Workspace editor</span>
         )}
-        <CollapsibleToolbar className={`kg-toolbar kg-workspace-toolbar-controls ${uiToolbarRowScrollJustifyEndClassName} gap-1`} ariaLabel="Markdown view controls">
+        <CollapsibleToolbar forceExpanded={isTouchToolbarViewport} className={`kg-toolbar kg-workspace-toolbar-controls ${uiToolbarRowScrollJustifyEndClassName} gap-1`} ariaLabel="Markdown view controls">
           {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
             <menu className={`${uiToolbarRowScrollListClassName} gap-1`} aria-label="Webpage">
             <li className="list-none">

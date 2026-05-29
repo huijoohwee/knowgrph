@@ -1,4 +1,5 @@
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
+import { ensureKgcBaseTemplateRequiredBodyScaffold } from './chatHistoryWorkspace.kgc.bodyScaffold'
 import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
 import { enforceKgcQueryResponsiveContent } from './chatHistoryWorkspace.kgc.normalize'
@@ -48,11 +49,11 @@ export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArg
     requestText: args.requestText,
     assistantText: args.assistantText,
   })
-  return enforceKgcQueryResponsiveContent({
+  return ensureKgcBaseTemplateRequiredBodyScaffold(enforceKgcQueryResponsiveContent({
     markdown: fallback,
     requestText: args.requestText,
     workspacePath: args.workspacePath,
-  })
+  }))
 }
 
 export const buildKgcWorkspaceDocument = (args: {

@@ -164,10 +164,11 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('captureSelectionForFloatingToolbar')) {
     throw new Error('expected floating selection toolbar to reuse shared interaction capture SSOT helper')
   }
-  if (!blockText.includes('title="Highlight"') || !blockText.includes('onPointerDown={preventDefaultPointerDown}')) {
+  const bubbleToolbarText = readUtf8(path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.bubbleToolbarOverlay.tsx'))
+  if (!bubbleToolbarText.includes("title: 'Highlight'") || !bubbleToolbarText.includes('preventDefaultPointerDown(event)')) {
     throw new Error('expected highlight menu summary to preserve editor focus/selection on pointer down')
   }
-  if (!blockText.includes('title="Text color"') || !blockText.includes('onPointerDown={preventDefaultPointerDown}')) {
+  if (!bubbleToolbarText.includes("title: 'Text color'") || !bubbleToolbarText.includes('preventDefaultPointerDown(event)')) {
     throw new Error('expected text color menu summary to preserve editor focus/selection on pointer down')
   }
   if (blockText.includes('<span style="color:')) {
@@ -208,13 +209,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!inlineText.includes('MARKDOWN_INLINE_CODE_VIEW_CLASS')) {
     throw new Error('expected read inline code to reuse centralized view/edit parity SSOT class')
   }
-  if (inlineText.includes('py-0.5') || inlineText.includes('text-sm')) {
+  const inlineCodeRenderText = inlineText.slice(Math.max(0, inlineText.indexOf('const inlineCodeClassName = MARKDOWN_INLINE_CODE_VIEW_CLASS')), Math.max(0, inlineText.indexOf("if (tt.type === 'math')")))
+  if (inlineCodeRenderText.includes('py-0.5') || inlineCodeRenderText.includes('text-sm')) {
     throw new Error('expected read inline code to avoid hardcoded spacing/size that would break parity')
   }
-  if (!inlineText.includes('parseMarkdownSigil')) {
-    throw new Error('expected inline code renderer to parse markdown sigil annotations before code rendering')
-  }
-  if (!inlineText.includes('backgroundColor: sigil.background')) {
+  const sigilText = readUtf8(path.resolve(root, 'src', 'lib', 'markdown', 'markdownSigil.ts'))
+  if (!inlineText.includes('parseMarkdownSigil') || !inlineText.includes('readMarkdownSigilInlineStyle(sigil)') || !sigilText.includes('backgroundColor: sigil.background')) {
     throw new Error('expected sigil rendering to map bg# annotations into read-surface background color')
   }
   const codeParityPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownInlineCodeParity.ts')

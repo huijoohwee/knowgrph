@@ -4,10 +4,10 @@ import path from 'node:path'
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 
 export const testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot = () => {
-  const entryPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceMain.tsx')
+  const entryPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const entryText = readUtf8(entryPath)
   const resolvedText = (() => {
-    const m = entryText.match(/from\s+['"](\.\/main\/MarkdownWorkspaceMain)['"]/)
+    const m = entryText.match(/from\s+['"](\.\/viewer\/MarkdownWorkspaceDerivedViewer)['"]/)
     if (!m || !m[1]) return entryText
     const targetPath = path.resolve(path.dirname(entryPath), String(m[1])) + '.tsx'
     if (!fs.existsSync(targetPath)) return entryText

@@ -44,13 +44,17 @@ export function useWorkspaceMutationActions(args: {
       },
     ) => {
       const normalized = normalizeWorkspacePath(path)
+      const normalizedDocumentKey = workspaceDocumentKey(normalized)
+      const synchronizeActiveDocument =
+        openedPath === normalized ||
+        (!!normalizedDocumentKey && normalizedDocumentKey === activeDocumentKey)
       await writeWorkspaceFileAndSync({
         path: normalized,
         text,
         getFs: options?.getFsOverride || getFs,
         lastLoadedRef,
         setEntries,
-        synchronizeActiveDocument: openedPath === normalized,
+        synchronizeActiveDocument,
         setActiveText,
         activeDocumentKey,
         activeDocumentSourceUrl: options?.activeDocumentSourceUrl ?? null,

@@ -36,7 +36,8 @@ export function createProgressTicker(args: {
 
   const start = () => {
     if (id != null) return
-    id = window.setInterval(tick, intervalMs)
+    const setIntervalFn = typeof window !== 'undefined' && typeof window.setInterval === 'function' ? window.setInterval.bind(window) : setInterval
+    id = setIntervalFn(tick, intervalMs) as unknown as number
   }
 
   const stop = (finalPercentage?: number) => {

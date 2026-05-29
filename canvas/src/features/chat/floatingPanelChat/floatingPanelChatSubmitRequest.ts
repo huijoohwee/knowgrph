@@ -18,6 +18,7 @@ import {
   buildMarkdownNodeSnippetPrompt,
   buildWorkspaceWideContextPrompt,
 } from '../chatPromptHelpers'
+import { buildCorpusQueryEvidencePack, buildCorpusQueryEvidencePrompt } from '@/features/queryable-corpus/queryEvidencePack'
 import { buildProviderChatRequestOptions, parseLine, toShortId } from '../FloatingPanelChat.helpers'
 import type { ChatMessage } from '../FloatingPanelChatSections'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
@@ -59,6 +60,16 @@ export const buildSubmitConversationMessages = (
     .filter(message => message.id !== assistantMessageId)
     .map(message => ({ role: message.role, content: message.content }))
 
+const readLastUserMessageContent = (messages: ChatMessage[], assistantMessageId: string): string => {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i]
+    if (!message || message.id === assistantMessageId || message.role !== 'user') continue
+    const content = String(message.content || '').trim()
+    if (content) return content
+  }
+  return ''
+}
+
 export const buildChatSubmitPayloadMessages = (args: {
   systemMessages: Array<{ role: 'system'; content: string }>
   conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }>
@@ -92,6 +103,7 @@ export const buildChatSubmitRequestContext = async (args: {
     args.submitArgs.chatContextScope === 'selection' || args.submitArgs.chatContextScope === 'hybrid'
   const includeWorkspaceContext =
     args.submitArgs.chatContextScope === 'workspace' || args.submitArgs.chatContextScope === 'hybrid'
+  const userQuery = readLastUserMessageContent(args.nextMessages, args.assistantMessageId)
 
   const systemMessages: Array<{ role: 'system'; content: string }> = [
     {
@@ -111,6 +123,19 @@ export const buildChatSubmitRequestContext = async (args: {
     systemMessages.push({
       role: 'system',
       content: buildBoundedGraphSystemPrompt(args.submitArgs.graphData, args.submitArgs.currentNode),
+    })
+  }
+  const corpusEvidencePrompt = buildCorpusQueryEvidencePrompt(buildCorpusQueryEvidencePack({
+    graphData: args.submitArgs.graphData,
+    query: userQuery,
+    selectedNodeId: args.submitArgs.currentNode?.id || null,
+    model: args.submitArgs.chatModel,
+    completionTokenBudget: toFiniteNumberOrUndefined(args.submitArgs.chatMaxCompletionTokens),
+  }))
+  if (corpusEvidencePrompt) {
+    systemMessages.push({
+      role: 'system',
+      content: corpusEvidencePrompt,
     })
   }
   if (args.submitArgs.chatSystemPrompt && typeof args.submitArgs.chatSystemPrompt === 'string' && args.submitArgs.chatSystemPrompt.trim()) {

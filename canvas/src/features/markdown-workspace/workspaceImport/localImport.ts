@@ -3,7 +3,6 @@ import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspac
 import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES, WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES } from '@/lib/config'
-import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
@@ -16,44 +15,40 @@ import {
 import {
   buildModelAssetMarkdownFromFile,
   deriveModelWorkspaceDocumentName,
-  inferModelAssetFormatFromName,
-  isGlbAssetName,
-  isGltfAssetName,
 } from './glbAsset'
-import type { WorkspaceModelAssetFormat } from './glbAsset'
-import { importTextFileOrWorkspaceJsonLd } from './workspaceFileJsonLd'
+import { importTextFileOrWorkspaceJsonLd, isWorkspaceJsonLdName } from './workspaceFileJsonLd'
 import type { WorkspaceImportResult } from './types'
+import {
+  buildCorpusMediaMetadataMarkdown,
+  buildCorpusMediaWorkspaceDocumentName,
+  type CorpusSourceUnit,
+} from '@/features/queryable-corpus/corpusGraph'
+import {
+  buildCorpusWorkspaceImportResult,
+  createCorpusSourceUnitRecorder,
+} from '@/features/queryable-corpus/sourceFilesCorpusManifest'
+import {
+  getModelAssetFormat,
+  isCorpusMediaImportFile,
+  isLocalTextWorkspaceImportName,
+  isPdfFile,
+  isSupportedWorkspaceImportFile,
+  toFileArray,
+} from './localImportFormats'
 
-function toFileArray(files: FileList | ReadonlyArray<File> | null): File[] {
-  if (!files) return []
-  try {
-    return Array.from(files as ArrayLike<File>)
-  } catch {
-    return []
-  }
-}
-
-function isPdfFile(file: File): boolean {
-  const lower = String(file.name || '').toLowerCase()
-  if (lower.endsWith('.pdf')) return true
-  return file.type === 'application/pdf'
-}
-
-function isGlbFile(file: File): boolean {
-  if (isGlbAssetName(file.name)) return true
-  return String(file.type || '').toLowerCase().split(';')[0] === 'model/gltf-binary'
-}
-
-function isGltfFile(file: File): boolean {
-  if (isGltfAssetName(file.name)) return true
-  const type = String(file.type || '').toLowerCase().split(';')[0]
-  return type === 'model/gltf+json' || type === 'application/json+gltf'
-}
-
-function getModelAssetFormat(file: File): WorkspaceModelAssetFormat | null {
-  if (isGltfFile(file)) return 'gltf'
-  if (isGlbFile(file)) return 'glb'
-  return null
+function recordCorpusSourceUnit(
+  recordSourceUnit: ReturnType<typeof createCorpusSourceUnitRecorder>,
+  args: { path: WorkspacePath; relativePath: string; originalName: string; text: string; file: File; status: CorpusSourceUnit['status'] },
+): void {
+  recordSourceUnit({
+    path: args.path,
+    relativePath: args.relativePath,
+    originalName: args.originalName,
+    text: args.text,
+    mimeHint: args.file.type,
+    byteSize: args.file.size,
+    status: args.status,
+  })
 }
 
 function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
@@ -113,30 +108,9 @@ async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: Wo
   return args.fs.createFile({ parentPath: args.parentPath, name, text })
 }
 
-const WORKSPACE_IMPORT_EXTS = (() => {
-  const exts = new Set<string>()
-  for (const ext of SOURCE_FILES_FORMATS.import) exts.add(String(ext || '').toLowerCase())
-  exts.add('.mdx')
-  return exts
-})()
-
-function isSupportedWorkspaceImportFile(file: File): boolean {
-  const name = String(file.name || '').trim()
-  if (!name) return false
-  const lower = name.toLowerCase()
-  const dot = lower.lastIndexOf('.')
-  const ext = dot > 0 ? lower.slice(dot) : ''
-  if (!ext || !ext.startsWith('.')) return false
-  return WORKSPACE_IMPORT_EXTS.has(ext)
-}
-
-function isWorkspaceJsonLdName(nameRaw: string): boolean {
-  const lower = String(nameRaw || '').trim().toLowerCase()
-  return lower.endsWith('.jsonld') || lower.endsWith('.json-ld')
-}
-
 function shouldDeferLargeLocalFileImport(file: File, nameRaw: string): boolean {
   if (isPdfFile(file)) return false
+  if (isCorpusMediaImportFile(file)) return false
   if (isWorkspaceJsonLdName(nameRaw)) return false
   const size = Math.max(0, Number(file?.size || 0))
   if (getModelAssetFormat(file)) return size >= WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES
@@ -181,6 +155,8 @@ export async function importWorkspaceLocalFiles(args: {
   const sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }> = []
   const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
   const failed: Array<{ name: string; error: string }> = []
+  const sourceUnits: CorpusSourceUnit[] = []
+  const recordSourceUnit = createCorpusSourceUnitRecorder({ sourceUnits, importMode: 'file' })
 
   const bytesTotal = files.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
   let bytesCurrent = 0
@@ -214,7 +190,10 @@ export async function importWorkspaceLocalFiles(args: {
     }
     try {
       const modelFormat = getModelAssetFormat(file)
-      const importName = modelFormat ? deriveModelWorkspaceDocumentName(nameRaw, modelFormat) : nameRaw
+      const mediaMetadata = isCorpusMediaImportFile(file)
+      const importName = mediaMetadata
+        ? buildCorpusMediaWorkspaceDocumentName(nameRaw)
+        : modelFormat ? deriveModelWorkspaceDocumentName(nameRaw, modelFormat) : nameRaw
       const desiredPath = normalizeWorkspacePath(`${parentPath}/${importName}`)
       const lowerName = nameRaw.toLowerCase()
       const looksLikeWorkspaceFile = lowerName.endsWith('.jsonld') || lowerName.endsWith('.json-ld')
@@ -224,6 +203,31 @@ export async function importWorkspaceLocalFiles(args: {
         && !isPdfFile(file)
       ) {
         const existingText = await args.fs.readFileText(desiredPath)
+        if (typeof existingText === 'string' && !isPendingLocalImportStubText(existingText)) {
+          const nextText = shouldDeferLargeLocalFileImport(file, nameRaw)
+            ? buildPendingLocalImportStub({
+                kind: modelFormat || 'text',
+                originalName: nameRaw,
+                source: 'file',
+                ...(modelFormat ? { pendingPath: desiredPath } : {}),
+                bytes: Math.max(0, Number(file?.size || 0)),
+              })
+            : mediaMetadata
+              ? buildCorpusMediaMetadataMarkdown({
+                  originalName: nameRaw,
+                  mimeHint: file.type,
+                  byteSize: file.size,
+                  importMode: 'file',
+                  relativePath: nameRaw,
+                })
+              : modelFormat ? await buildModelAssetMarkdownFromFile(file, modelFormat) : await file.text()
+          if (existingText === nextText) {
+            createdPaths.push(desiredPath)
+            sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+            recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: existingText, file, status: 'cached' })
+            continue
+          }
+        }
         if (typeof existingText === 'string' && isPendingLocalImportStubText(existingText)) {
           if (shouldDeferLargeLocalFileImport(file, nameRaw)) {
             const kind = modelFormat || 'text'
@@ -237,6 +241,22 @@ export async function importWorkspaceLocalFiles(args: {
             setPendingLocalImport(desiredPath, { kind, file, originalName: nameRaw })
             createdPaths.push(desiredPath)
             sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+            recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: await args.fs.readFileText(desiredPath) || '', file, status: 'pending' })
+            continue
+          }
+          if (mediaMetadata) {
+            const metadataText = buildCorpusMediaMetadataMarkdown({
+              originalName: nameRaw,
+              mimeHint: file.type,
+              byteSize: file.size,
+              importMode: 'file',
+              relativePath: nameRaw,
+            })
+            await args.fs.writeFileText(desiredPath, metadataText)
+            clearPendingLocalImport(desiredPath)
+            createdPaths.push(desiredPath)
+            sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+            recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: metadataText, file, status: 'unsupported' })
             continue
           }
           const rawText = modelFormat ? await buildModelAssetMarkdownFromFile(file, modelFormat) : await file.text()
@@ -244,55 +264,84 @@ export async function importWorkspaceLocalFiles(args: {
           clearPendingLocalImport(desiredPath)
           createdPaths.push(desiredPath)
           sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+          recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: rawText, file, status: 'parsed' })
           continue
         }
       }
 
+      let unitText = ''
+      let unitStatus: CorpusSourceUnit['status'] = 'parsed'
       const createdPath = shouldDeferLargeLocalFileImport(file, nameRaw)
         ? await (async () => {
+            const stubText = buildPendingLocalImportStub({
+              kind: modelFormat || 'text',
+              originalName: nameRaw,
+              source: 'file',
+              bytes: Math.max(0, Number(file?.size || 0)),
+            })
             const created = await args.fs.createFile({
               parentPath,
               name: importName,
-              text: buildPendingLocalImportStub({
-                kind: modelFormat || 'text',
-                originalName: nameRaw,
-                source: 'file',
-                bytes: Math.max(0, Number(file?.size || 0)),
-              }),
+              text: stubText,
             })
             setPendingLocalImport(created, { kind: modelFormat || 'text', file, originalName: nameRaw })
             if (modelFormat) {
-              await args.fs.writeFileText(created, buildPendingLocalImportStub({
+              unitText = buildPendingLocalImportStub({
                 kind: modelFormat,
                 originalName: nameRaw,
                 source: 'file',
                 pendingPath: created,
                 bytes: Math.max(0, Number(file?.size || 0)),
-              }))
+              })
+              await args.fs.writeFileText(created, unitText)
+            } else {
+              unitText = stubText
             }
+            unitStatus = 'pending'
             return created
           })()
+        : mediaMetadata
+          ? await args.fs.createFile({
+              parentPath,
+              name: importName,
+              text: (unitText = buildCorpusMediaMetadataMarkdown({
+                originalName: nameRaw,
+                mimeHint: file.type,
+                byteSize: file.size,
+                importMode: 'file',
+                relativePath: nameRaw,
+              })),
+            })
         : isPdfFile(file)
           ? await importPdfFile({ fs: args.fs, file, parentPath })
           : modelFormat
             ? await args.fs.createFile({
                 parentPath,
                 name: importName,
-                text: await buildModelAssetMarkdownFromFile(file, modelFormat),
+                text: (unitText = await buildModelAssetMarkdownFromFile(file, modelFormat)),
               })
           : await importTextFileOrWorkspaceJsonLd({
               file,
-              onText: async ({ name, text }) => await args.fs.createFile({ parentPath, name, text }),
+              onText: async ({ name, text }) => {
+                unitText = text
+                return await args.fs.createFile({ parentPath, name, text })
+              },
             })
       const normalized = normalizeWorkspacePath(createdPath)
+      if (mediaMetadata) unitStatus = 'unsupported'
+      if (isPdfFile(file) && !unitText) {
+        unitText = String((await args.fs.readFileText(normalized).catch(() => '')) || '')
+        unitStatus = 'pending'
+      }
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
+      recordCorpusSourceUnit(recordSourceUnit, { path: normalized, relativePath: nameRaw, originalName: nameRaw, text: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''), file, status: unitStatus })
     } catch (e) {
       failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
     }
   }
 
-  return { createdPaths, sources, skipped, failed }
+  return buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits })
 }
 
 export async function importWorkspaceLocalFolder(args: {
@@ -312,6 +361,8 @@ export async function importWorkspaceLocalFolder(args: {
   const sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }> = []
   const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
   const failed: Array<{ name: string; error: string }> = []
+  const sourceUnits: CorpusSourceUnit[] = []
+  const recordSourceUnit = createCorpusSourceUnitRecorder({ sourceUnits, importMode: 'folder' })
 
   const bytesTotal = files.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
   let bytesCurrent = 0
@@ -348,19 +399,70 @@ export async function importWorkspaceLocalFolder(args: {
       .replace(/^\/+/, '')
     const parts = relPath.split('/').filter(Boolean)
     const modelFormat = getModelAssetFormat(file)
+    const mediaMetadata = isCorpusMediaImportFile(file)
     const rawRelName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
-    const relName = modelFormat ? deriveModelWorkspaceDocumentName(rawRelName, modelFormat) : rawRelName
+    const relName = mediaMetadata
+      ? buildCorpusMediaWorkspaceDocumentName(rawRelName)
+      : modelFormat ? deriveModelWorkspaceDocumentName(rawRelName, modelFormat) : rawRelName
     const relDir = parts.length > 1 ? parts.slice(0, -1).join('/') : ''
 
     try {
       const parentPath = relDir ? await ensureFolderRel(args.fs, WORKSPACE_ROOT_PATH, relDir) : WORKSPACE_ROOT_PATH
-      const createdPath = isPdfFile(file)
+      const desiredPath = normalizeWorkspacePath(`${parentPath}/${relName}`)
+      let unitText = ''
+      let unitStatus: CorpusSourceUnit['status'] = 'pending'
+      const deferLocalImport = shouldDeferLargeLocalFileImport(file, rawRelName)
+      const importAsImmediateText = !mediaMetadata && !modelFormat && !isPdfFile(file) && !deferLocalImport && isLocalTextWorkspaceImportName(rawRelName)
+      if (mediaMetadata) {
+        unitText = buildCorpusMediaMetadataMarkdown({
+          originalName: rawRelName,
+          mimeHint: file.type,
+          byteSize: file.size,
+          importMode: 'folder',
+          relativePath: relPath || rawRelName,
+        })
+        unitStatus = 'unsupported'
+      } else if (importAsImmediateText) {
+        unitText = await file.text()
+        unitStatus = 'parsed'
+      } else if (!isPdfFile(file)) {
+        unitText = buildPendingLocalImportStub({
+          kind: modelFormat || 'text',
+          originalName: rawRelName,
+          source: 'folder',
+          ...(modelFormat ? { pendingPath: desiredPath } : {}),
+          bytes: Math.max(0, Number(file?.size || 0)),
+        })
+      }
+      if (unitText) {
+        const existingText = await args.fs.readFileText(desiredPath).catch(() => null)
+        if (existingText === unitText) {
+          createdPaths.push(desiredPath)
+          sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+          recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: relPath || rawRelName, originalName: rawRelName, text: existingText, file, status: 'cached' })
+          continue
+        }
+      }
+      const createdPath = mediaMetadata
+        ? await args.fs.createFile({
+            parentPath,
+            name: relName,
+            text: unitText,
+          })
+        : importAsImmediateText
+        ? await args.fs.createFile({
+            parentPath,
+            name: relName,
+            text: unitText,
+          })
+        : isPdfFile(file)
         ? await (async () => {
             const baseName = deriveMarkdownNameFromPdfFilename(relName)
+            unitText = buildPendingLocalImportStub({ kind: 'pdf', originalName: rawRelName, source: 'folder' })
             const created = await args.fs.createFile({
               parentPath,
               name: baseName,
-              text: buildPendingLocalImportStub({ kind: 'pdf', originalName: rawRelName, source: 'folder' }),
+              text: unitText,
             })
             setPendingLocalImport(created, { kind: 'pdf', file, originalName: rawRelName })
             return created
@@ -369,22 +471,18 @@ export async function importWorkspaceLocalFolder(args: {
             const created = await args.fs.createFile({
               parentPath,
               name: relName,
-              text: buildPendingLocalImportStub({
-                kind: modelFormat || 'text',
-                originalName: rawRelName,
-                source: 'folder',
-                bytes: Math.max(0, Number(file?.size || 0)),
-              }),
+              text: unitText,
             })
             setPendingLocalImport(created, { kind: modelFormat || 'text', file, originalName: rawRelName })
             if (modelFormat) {
-              await args.fs.writeFileText(created, buildPendingLocalImportStub({
+              unitText = buildPendingLocalImportStub({
                 kind: modelFormat,
                 originalName: rawRelName,
                 source: 'folder',
                 pendingPath: created,
                 bytes: Math.max(0, Number(file?.size || 0)),
-              }))
+              })
+              await args.fs.writeFileText(created, unitText)
             }
             return created
           })()
@@ -392,6 +490,7 @@ export async function importWorkspaceLocalFolder(args: {
       const normalized = normalizeWorkspacePath(createdPath)
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
+      recordCorpusSourceUnit(recordSourceUnit, { path: normalized, relativePath: relPath || rawRelName, originalName: rawRelName, text: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''), file, status: unitStatus })
     } catch (e) {
       failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
       try {
@@ -403,5 +502,5 @@ export async function importWorkspaceLocalFolder(args: {
     }
   }
 
-  return { createdPaths, sources, skipped, failed }
+  return buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits })
 }

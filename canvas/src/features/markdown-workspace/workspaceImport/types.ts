@@ -1,5 +1,6 @@
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import type { CorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 
 export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
@@ -7,6 +8,7 @@ export type WorkspaceImportResult = {
   skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }>
   failed: Array<{ name: string; error: string }>
   applyToGraph?: boolean
+  corpusManifest?: CorpusImportManifest
 }
 
 export type WorkspaceUrlContent = {
@@ -15,6 +17,7 @@ export type WorkspaceUrlContent = {
   title?: string
   text: string
   thinkingText?: string
+  thinkingTextTask?: Promise<string>
 }
 
 export type WorkspaceImportProgress = {

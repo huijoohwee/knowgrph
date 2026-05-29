@@ -127,14 +127,14 @@ export const IMPORT_EXPORT_STATUS_COPY = {
 } as const;
 
 export const SOURCE_FILES_FORMATS = {
-  import: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml', '.pdf', '.gltf', '.glb'] as const,
-  importLocalText: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml'] as const,
-  export: ['.md', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.svg', '.yaml', '.gltf', '.glb'] as const,
+  import: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonc', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml', '.toml', '.tf', '.tfvars', '.dockerfile', '.pdf', '.gltf', '.glb', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs', '.java', '.c', '.cc', '.cpp', '.cs', '.kt', '.rb', '.php', '.sql', '.r', '.R', '.sh', '.bash', '.zsh', '.ps1', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.mp4', '.mov', '.webm', '.m4v'] as const,
+  importLocalText: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonc', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml', '.toml', '.tf', '.tfvars', '.dockerfile', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs', '.java', '.c', '.cc', '.cpp', '.cs', '.kt', '.rb', '.php', '.sql', '.r', '.R', '.sh', '.bash', '.zsh', '.ps1'] as const,
+  export: ['.md', '.mmd', '.txt', '.geojson', '.json', '.jsonc', '.jsonld', '.csv', '.html', '.svg', '.yaml', '.toml', '.tf', '.gltf', '.glb'] as const,
 } as const
 
 export const SOURCE_FILES_COPY = {
   supports:
-    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonld .csv .html .htm .svg .yaml .yml .pdf .gltf .glb; URL sources: https://… (including YouTube and GLTF/GLB assets).',
+    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonc .jsonld .csv .html .htm .svg .yaml .yml .toml .tf .tfvars Dockerfile .pdf .gltf .glb code/schema/script/config files, and media metadata for images/videos; URL sources: https://… (including YouTube and GLTF/GLB assets).',
   importUrlPrompt: 'Enter a Source File URL (https://… YouTube, GLTF, or GLB).',
   urlPlaceholder: 'https://… (YouTube, .gltf, or .glb)',
   geoLayerEmbeddedGeojsonNotFound: 'Geo layer enable failed: no embedded GeoJSON FeatureCollection blocks found in the Markdown file',

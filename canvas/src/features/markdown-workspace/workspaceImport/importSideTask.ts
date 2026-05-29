@@ -1,4 +1,5 @@
 export const WORKSPACE_IMPORT_SIDE_TASK_TIMEOUT_MS = 12_000
+export const WORKSPACE_IMPORT_FINALIZE_SIDE_TASK_TIMEOUT_MS = 1_500
 
 export type WorkspaceImportSideTask<T> = {
   promise: Promise<T>
@@ -40,6 +41,7 @@ export const waitForWorkspaceImportSideTask = async <T>(args: {
   task: WorkspaceImportSideTask<T>
   fallback: T
   timeoutMs: number
+  abortOnTimeout?: boolean
 }): Promise<T> => {
   const timeoutMs = Number.isFinite(args.timeoutMs) ? Math.max(1, Math.floor(args.timeoutMs)) : 1
   let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -48,7 +50,7 @@ export const waitForWorkspaceImportSideTask = async <T>(args: {
       args.task.promise,
       new Promise<T>(resolve => {
         timeoutId = setTimeout(() => {
-          args.task.abort()
+          if (args.abortOnTimeout !== false) args.task.abort()
           resolve(args.fallback)
         }, timeoutMs)
       }),

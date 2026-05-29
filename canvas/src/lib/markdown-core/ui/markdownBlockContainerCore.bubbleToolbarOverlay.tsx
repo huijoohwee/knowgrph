@@ -116,6 +116,15 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
     action()
     props.onToolbarInteractionEnd()
   }
+  const runToolbarAction = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    action: () => void,
+  ) => {
+    event.preventDefault()
+    props.holdToolbarInteraction()
+    action()
+    props.onToolbarInteractionEnd()
+  }
   const renderToolbarMenu = (args: {
     key: string
     ariaLabel: string
@@ -230,14 +239,14 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             </menu>
           ),
         })}
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyDraftAction('bold')} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyDraftAction('italic')} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyDraftAction('strike')} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyDraftAction('inlineCode')} title="Inline Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyDraftAction('link')} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyTurnInto('bulletList')} title="Bulleted List"><List className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyTurnInto('numberedList')} title="Numbered List"><ListOrdered className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyTurnInto('blockquote')} title="Quote"><Quote className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('bold'))} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('italic'))} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('strike'))} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('inlineCode'))} title="Inline Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyDraftAction('link'))} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('bulletList'))} title="Bulleted List"><List className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('numberedList'))} title="Numbered List"><ListOrdered className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyTurnInto('blockquote'))} title="Quote"><Quote className="w-3 h-3" strokeWidth={1.8} /></button>
         {renderToolbarMenu({
           key: 'align',
           ariaLabel: 'Align',
@@ -250,10 +259,10 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             </menu>
           ),
         })}
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyWrap('<u>', '</u>')} title="Underline"><Underline className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyWrap('^', '^')} title="Superscript"><Superscript className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyWrap('~', '~')} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={() => props.applyWrap('$', '$')} title="Math"><span className="text-[10px] leading-none">∑</span></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('<u>', '</u>'))} title="Underline"><Underline className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('^', '^'))} title="Superscript"><Superscript className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('~', '~'))} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('$', '$'))} title="Math"><span className="text-[10px] leading-none">∑</span></button>
         {renderToolbarMenu({
           key: 'highlight',
           ariaLabel: 'Highlight',
@@ -283,14 +292,13 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             </menu>
           ),
         })}
-        <button type="button" className={props.floatingBubbleButtonClassName} onClick={props.applyClearFormatting} title="Clear formatting"><Eraser className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onClick={(event) => runToolbarAction(event, props.applyClearFormatting)} title="Clear formatting"><Eraser className="w-3 h-3" strokeWidth={1.8} /></button>
         <button
           type="button"
           className={props.floatingBubbleButtonClassName}
           onClick={(event) => {
-            event.preventDefault()
             event.stopPropagation()
-            props.applyComment()
+            runToolbarAction(event, props.applyComment)
           }}
           title="Comment"
         >

@@ -38,10 +38,10 @@ import {
   shouldIgnoreAnimaticTimelineHotkeys,
 } from '@/components/AnimaticCanvas/animaticKeyboard'
 import { resolveAnimaticTimelineLanePresentation } from '@/components/AnimaticCanvas/animaticLaneControls'
+import { useAnimaticTimelineModel } from '@/components/AnimaticCanvas/useAnimaticTimelineModel'
 import { getIconSizeClass } from '@/lib/ui'
 import {
   applyAnimaticTimelineBeatTimingOverrides,
-  buildAnimaticTimelineModel,
   cloneAnimaticTimelineFrontmatterMeta,
   deleteAnimaticTimelineBeatRecord,
   duplicateAnimaticTimelineBeatRecord,
@@ -320,16 +320,10 @@ export default function AnimaticCanvas({
   const graphData = useActiveGraphRenderData(active)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const updateGraphMetadata = useGraphStore(s => s.updateGraphMetadata)
   const updateNode = useGraphStore(s => s.updateNode)
-  const baseTimelineModel = React.useMemo(
-    () =>
-      buildAnimaticTimelineModel({
-        graphData,
-        markdownText,
-      }),
-    [graphData, markdownText],
-  )
+  const baseTimelineModel = useAnimaticTimelineModel({ graphData, graphDataRevision, markdownText })
   const [playbackPosition, setPlaybackPosition] = React.useState(0)
   const [playing, setPlaying] = React.useState(false)
   const [playbackRate, setPlaybackRate] = React.useState<(typeof PLAYBACK_RATES)[number]>(1)
@@ -1586,8 +1580,7 @@ export default function AnimaticCanvas({
           <div className="max-w-xl rounded-2xl border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
             <h2 className="text-lg font-semibold">2D Renderer: Animatic</h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Add beat-linked nodes like <code>NODE_CLIP_01</code> / <code>NODE_OVERLAY_01</code> or provide
-              <code> timeline.beats </code> in Markdown frontmatter to populate the native timeline surface.
+              Add beat-linked graph nodes or provide <code> timeline.beats </code> in Markdown frontmatter to populate the native timeline surface.
             </p>
             <p className="mt-3 text-sm leading-6 text-slate-400">
               This renderer reads the current workspace graph and Markdown document directly. It does not ship fixture-only demo rows.

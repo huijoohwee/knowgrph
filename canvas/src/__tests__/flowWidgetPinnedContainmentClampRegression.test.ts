@@ -2,14 +2,17 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowWidgetPinnedClampsToContainmentGroup() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
-  const text = readFileSync(p, 'utf8')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
+  const placementPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
+  const innerPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
+  const sharedText = readFileSync(sharedPath, 'utf8')
+  const placementText = readFileSync(placementPath, 'utf8')
+  const innerText = readFileSync(innerPath, 'utf8')
 
-  if (!text.includes('getLiveContainmentGroupAabbForNode')) {
+  if (!sharedText.includes('getLiveContainmentGroupAabbForNode') || !innerText.includes('getLiveContainmentGroupAabbForNode')) {
     throw new Error('expected NodeOverlayEditor to accept a containment group AABB getter')
   }
-  if (!text.includes('INSET_PX')) {
+  if (!placementText.includes('getLiveContainmentGroupAabbForNode?.(nodeId)') || !placementText.includes('const minLeft = left0 + 8')) {
     throw new Error('expected NodeOverlayEditor to clamp pinned overlays within a containment group rect')
   }
 }
-

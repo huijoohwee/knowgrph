@@ -21,6 +21,7 @@ import {
 } from '../workspaceImport'
 import type { WorkspaceImportResult } from '../workspaceImport/types'
 import type { WorkspaceImportActionsCtx } from './types'
+import { summarizeCorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 
 const loadWorkspaceImportRuntimeActions = (): Promise<typeof import('./importRuntimeActions')> => import('./importRuntimeActions')
 
@@ -129,12 +130,26 @@ export function useWorkspaceImportActions(args: {
     [hydratePendingImportedPaths, refresh, syncImportedExternalWrite],
   )
 
+  const resolveWorkspaceImportApplyToGraph = React.useCallback(
+    async (fs: WorkspaceFs, res: WorkspaceImportResult, importRuntime: typeof import('./importRuntimeActions')) => {
+      if (typeof res.applyToGraph === 'boolean') return res.applyToGraph
+      if ((res.corpusManifest?.sourceUnits || []).length > 0) return true
+      return await importRuntime.resolveImportedCanvasDocumentApplyToGraph({
+        fs,
+        createdPaths: res.createdPaths,
+      })
+    },
+    [],
+  )
+
   const formatWorkspaceImportSummary = React.useCallback(
     (prefix: string, result: WorkspaceImportResult) => {
       const imported = result.createdPaths.length
       const skipped = result.skipped.length
       const failed = result.failed.length
       const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
+      const corpusSummary = summarizeCorpusImportManifest(result.corpusManifest)
+      const corpusSuffix = corpusSummary ? `; corpus ${corpusSummary}` : ''
       const firstFailure = prefix === 'Imported URL'
         ? result.failed.find(f => String((f as { name?: unknown }).name || '').trim() === 'GitHub repo import') || result.failed[0]
         : result.failed[0]
@@ -148,7 +163,7 @@ export function useWorkspaceImportActions(args: {
         failed,
         suffix,
         failureSuffix,
-        message: `${prefix}${prefix.endsWith(': ') ? imported : imported > 1 && prefix === 'Imported URL' ? ` ${imported}` : ` ${imported}`}${suffix}${failureSuffix}`,
+        message: `${prefix}${prefix.endsWith(': ') ? imported : imported > 1 && prefix === 'Imported URL' ? ` ${imported}` : ` ${imported}`}${suffix}${failureSuffix}${corpusSuffix}`,
       }
     },
     [],
@@ -177,12 +192,7 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        const applyToGraph = typeof res.applyToGraph === 'boolean'
-          ? res.applyToGraph
-          : await importRuntime.resolveImportedCanvasDocumentApplyToGraph({
-              fs,
-              createdPaths: res.createdPaths,
-            })
+        const applyToGraph = await resolveWorkspaceImportApplyToGraph(fs, res, importRuntime)
         if (importJobRef.current !== jobId) return
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
@@ -199,7 +209,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, status],
+    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, resolveWorkspaceImportApplyToGraph, status],
   )
 
   const handleImportLocalFolder = React.useCallback(
@@ -219,12 +229,7 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        const applyToGraph = typeof res.applyToGraph === 'boolean'
-          ? res.applyToGraph
-          : await importRuntime.resolveImportedCanvasDocumentApplyToGraph({
-              fs,
-              createdPaths: res.createdPaths,
-            })
+        const applyToGraph = await resolveWorkspaceImportApplyToGraph(fs, res, importRuntime)
         if (importJobRef.current !== jobId) return
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
@@ -241,7 +246,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, status],
+    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, resolveWorkspaceImportApplyToGraph, status],
   )
 
   const handleImportUrl = React.useCallback(

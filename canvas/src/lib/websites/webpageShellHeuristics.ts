@@ -5,6 +5,7 @@ const WEBPAGE_SHELL_PATTERN_SOURCES = [
   "can't\\s+reach\\s+[a-z0-9._-]+",
   'check\\s+your\\s+connection',
   '\\bloading\\s+(shared|report|document|page|workspace|content|article|post|chat|thread|conversation)\\b',
+  '^loading\\s*(?:\\.\\.\\.)?(?:\\s|<|$)',
   '\\b(open|get|download|install)\\s+app\\b',
   '\\bplease\\s+wait\\b',
 ] as const
@@ -12,6 +13,7 @@ const WEBPAGE_SHELL_PATTERN_SOURCES = [
 export const WEBPAGE_SHELL_PATTERN_REGEX_SOURCES = [...WEBPAGE_SHELL_PATTERN_SOURCES]
 
 const WEBPAGE_SHELL_PATTERNS = WEBPAGE_SHELL_PATTERN_SOURCES.map(source => new RegExp(source, 'i'))
+const WEBPAGE_CONNECTION_FAILURE_PATTERN = /failed\s+to\s+load\s+posts|enable[-\s]*javascript\.com|requires\s+java\s*script|can't\s+reach\s+[a-z0-9._-]+|check\s+your\s+connection/i
 
 const WEBPAGE_SHELL_CHROME_CUE_REGEX =
   /\b(get|open|download|install|launch|continue)\s+app\b|\b(sign\s*in|sign\s*up|log\s*in|log\s*on|visit\s+website|visit\s+site|app\s+store|google\s+play)\b/gi
@@ -61,7 +63,7 @@ export function looksLikeWebpageShellText(text: string): boolean {
   const hasWaitCue = /\bplease\s+wait\b/i.test(normalized)
   const hasNarrativeDensity = sentenceCount >= 10 || substantiveLineCount >= 6
 
-  if (/failed\s+to\s+load\s+posts|enable[-\s]*javascript\.com|requires\s+java\s*script|can't\s+reach\s+[a-z0-9._-]+|check\s+your\s+connection/i.test(normalized)) {
+  if (WEBPAGE_CONNECTION_FAILURE_PATTERN.test(normalized)) {
     return true
   }
   if ((hasLoadingCue || hasWaitCue || hasSharedSurfaceCue) && chromeCueCount >= 2) return true
@@ -71,6 +73,9 @@ export function looksLikeWebpageShellText(text: string): boolean {
   if (/\bloading\b/i.test(normalized) && substantiveLineCount < 2) return true
   return false
 }
+
+export const looksLikeConnectionFailureWebpageShellText = (text: string): boolean =>
+  WEBPAGE_CONNECTION_FAILURE_PATTERN.test(normalizeWebpageShellProbeText(text))
 
 const normalizeWebpageChromeTextLine = (value: string): string =>
   String(value || '')

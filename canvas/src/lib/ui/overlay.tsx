@@ -208,7 +208,7 @@ export function AnchorOverlay({
       zIndex: Z_INDEX_ANCHOR_OVERLAY,
       width: 'max-content',
       maxWidth: 'calc(100vw - var(--kg-safe-left, 0px) - var(--kg-safe-right, 0px) - 0.5rem)',
-      maxHeight: 'calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 0.5rem)',
+      maxHeight: 'var(--kg-overlay-max-height, calc(100dvh - var(--kg-safe-top, 0px) - var(--kg-safe-bottom, 0px) - 0.5rem))',
       overflow: allowOverflowVisible ? 'visible' : 'auto',
       overscrollBehavior: allowOverflowVisible ? undefined : 'contain',
       WebkitOverflowScrolling: allowOverflowVisible ? undefined : 'touch',

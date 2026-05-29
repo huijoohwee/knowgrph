@@ -10,12 +10,13 @@ export type CollapsibleToolbarProps = {
   className?: string
   compactQuery?: string
   collapsedClassName?: string
+  forceExpanded?: boolean
   children: React.ReactNode
 }
 
 export const CollapsibleToolbar = React.memo(function CollapsibleToolbar(props: CollapsibleToolbarProps) {
   const isCompact = useMediaQuery(props.compactQuery || '(max-width: 640px)')
-  if (!isCompact) {
+  if (props.forceExpanded || !isCompact) {
     return (
       <nav className={props.className} aria-label={props.ariaLabel}>
         {props.children}

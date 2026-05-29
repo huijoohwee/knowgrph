@@ -6,6 +6,14 @@ import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspac
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
 
+const normalizeImportedShareThinkingText = (text: string | undefined): string =>
+  restoreWebpageMarkdownSyntaxFidelity(String(text || '').replace(/\r\n/g, '\n')).trim()
+
+const buildImportedShareThinkingFileText = (text: string | undefined): string => {
+  const body = normalizeImportedShareThinkingText(text)
+  return body ? `${body}\n` : ''
+}
+
 export const persistImportedShareUrlArtifacts = async (args: {
   fs: WorkspaceFs
   url: string
@@ -13,6 +21,7 @@ export const persistImportedShareUrlArtifacts = async (args: {
   importedTitle?: string
   importedText: string
   importedThinkingText?: string
+  importedThinkingTextTask?: Promise<string>
   importedWorkspacePath: string
   rootFolderPath?: string
 }): Promise<null | {
@@ -37,11 +46,7 @@ export const persistImportedShareUrlArtifacts = async (args: {
     importedText: args.importedText,
   })
   const importedText = String(args.importedText || '').trimEnd() + '\n'
-  const importedThinkingText = restoreWebpageMarkdownSyntaxFidelity(
-    String(args.importedThinkingText || '').replace(/\r\n/g, '\n'),
-  ).trim()
-  const thinkingBody = importedThinkingText
-  const thinkingText = thinkingBody ? `${thinkingBody}\n` : ''
+  const thinkingText = buildImportedShareThinkingFileText(args.importedThinkingText)
   const importedWorkspacePath = normalizeWorkspacePath(args.importedWorkspacePath)
   if (importedWorkspacePath !== exportMarkdownPath) {
     await writeWorkspaceFileTextEnsuringFile({
@@ -64,6 +69,14 @@ export const persistImportedShareUrlArtifacts = async (args: {
     workspacePath: exportThinkingPath,
     text: thinkingText,
   })
+  if (args.importedThinkingTextTask) {
+    void args.importedThinkingTextTask.then(async rawThinkingText => {
+      const nextThinkingText = buildImportedShareThinkingFileText(rawThinkingText)
+      if (!nextThinkingText || nextThinkingText === thinkingText) return
+      await writeWorkspaceFileTextEnsuringFile({ fs: args.fs, path: exportThinkingPath, text: nextThinkingText })
+      await mirrorChatWorkspaceFileToHost({ workspacePath: exportThinkingPath, text: nextThinkingText })
+    }).catch(() => void 0)
+  }
   return {
     exportToken,
     exportFolderPath,

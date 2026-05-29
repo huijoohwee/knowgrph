@@ -68,6 +68,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (!responsiveElementClassesText.includes('kg-touch-menu-row') || responsiveElementClassesText.includes('min-h-[var(--kg-touch-target)]')) {
     throw new Error('expected touch menu row height to be CSS-policy driven, not forced into every desktop dropdown row')
   }
+  if (!responsiveElementClassesText.includes('UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME') || !responsiveElementClassesText.includes('kg-launch-menu-item') || !responsiveElementClassesText.includes('kg-touch-menu-row')) {
+    throw new Error('expected Launch menu rows to reuse the shared mobile touch-row policy')
+  }
   if (!responsiveToolbarCssText.includes('.kg-touch-menu-row') || !responsiveToolbarCssText.includes('min-height: var(--kg-control-height, 28px);') || !responsiveToolbarCssText.includes('min-height: var(--kg-touch-target, 44px);')) {
     throw new Error('expected touch menu rows to use compact desktop height and mobile touch height from shared CSS')
   }
@@ -104,6 +107,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!collapsibleToolbarText.includes('kg-collapsible-toolbar-overflow')) {
     throw new Error('expected collapsed workspace toolbar menus to reuse the shared viewport-clamped overflow shell')
+  }
+  if (!collapsibleToolbarText.includes('forceExpanded') || !markdownWorkspaceToolbarText.includes('forceExpanded={isTouchToolbarViewport}')) {
+    throw new Error('expected Editor Workspace mobile controls to stay as a scrollable dock instead of collapsing behind overflow')
+  }
+  if (!markdownWorkspaceToolbarText.includes('kg-markdown-workspace-toolbar-row') || !responsiveToolbarCssText.includes('position: sticky') || !responsiveToolbarCssText.includes('var(--kg-mobile-bottom-dock-clearance')) {
+    throw new Error('expected Editor Workspace mobile toolbar to use a thumb-reachable sticky bottom row above the shared mobile dock without theme changes')
+  }
+  if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-toolbar-row') || !responsiveToolbarCssText.includes('background: var(--kg-panel-bg)') || !responsiveToolbarCssText.includes('border-top: 1px solid var(--kg-border)')) {
+    throw new Error('expected Editor Workspace mobile toolbar dock to reuse existing panel theme tokens instead of overlaying editor content')
   }
   if (!canvasText.includes('kg-workspace-overlay-canvas-toolbar')) {
     throw new Error('expected editor-mode canvas toolbar to use a dedicated responsive dock class')
@@ -182,6 +194,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!detailsMenuText.includes('maxHeight') || !detailsMenuText.includes('overscrollBehavior')) {
     throw new Error('expected shared details menus to cap height and scroll inside the mobile viewport')
+  }
+  if (!anchorOverlayText.includes('var(--kg-overlay-max-height') || !detailsMenuText.includes('var(--kg-overlay-max-height')) {
+    throw new Error('expected shared overlay portals to reuse the mobile bottom-dock-aware max-height token')
+  }
+  if (!responsiveToolbarCssText.includes('--kg-mobile-bottom-dock-clearance') || !responsiveToolbarCssText.includes('--kg-overlay-max-height')) {
+    throw new Error('expected mobile overlay sizing to reserve shared bottom dock clearance without local menu patches')
+  }
+  if (!responsiveToolbarCssText.includes('max-height: var(--kg-overlay-max-height)') || !responsiveToolbarCssText.includes('max-block-size: var(--kg-overlay-max-height)')) {
+    throw new Error('expected shared mobile menus to cap secondary panels with the overlay max-height token')
   }
   if (detailsMenuText.includes("translateX('-100%')") || detailsMenuText.includes("translateX(-100%)")) {
     throw new Error('expected shared details menus to avoid transform fallback placement that can escape mobile bounds')

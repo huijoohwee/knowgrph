@@ -12,6 +12,8 @@ type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
   registryLabel: string
   menuLabel: string
+  menuDescription: string
+  menuBadges: readonly string[]
   aliases: readonly string[]
   sharesFlowEditorFrontmatterSyntax: boolean
 }
@@ -21,6 +23,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'd3',
     registryLabel: 'D3',
     menuLabel: 'D3',
+    menuDescription: 'Node-link graph',
+    menuBadges: ['Layout', 'Shape'],
     aliases: ['d3graph'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
@@ -28,6 +32,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'd3',
     registryLabel: 'Flowchart',
     menuLabel: 'Bi',
+    menuDescription: 'Bipartite flow',
+    menuBadges: ['Block', 'Voxel'],
     aliases: ['d3flowchart'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
@@ -35,6 +41,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'flow',
     registryLabel: 'Flow Canvas',
     menuLabel: 'Canvas',
+    menuDescription: 'Canvas flow',
+    menuBadges: ['Overlay', 'Media'],
     aliases: ['flowcanvas'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
@@ -42,6 +50,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'animatic',
     registryLabel: 'Animatic',
     menuLabel: 'Animatic',
+    menuDescription: 'Timeline beats',
+    menuBadges: ['Timing', 'Lanes'],
     aliases: [],
     sharesFlowEditorFrontmatterSyntax: true,
   },
@@ -49,6 +59,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'storyboard',
     registryLabel: 'Storyboard',
     menuLabel: 'Story',
+    menuDescription: 'Storyboard lanes',
+    menuBadges: ['Cards', 'Stages'],
     aliases: ['story'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
@@ -56,6 +68,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'flowEditor',
     registryLabel: 'Edit',
     menuLabel: 'Edit',
+    menuDescription: 'Editable flow',
+    menuBadges: ['Widgets', 'Run'],
     aliases: ['edit'],
     sharesFlowEditorFrontmatterSyntax: true,
   },
@@ -63,6 +77,8 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     surfaceId: 'design',
     registryLabel: 'Design',
     menuLabel: 'Design',
+    menuDescription: 'DOM wireframe',
+    menuBadges: ['Inspect', 'Tokens'],
     aliases: [],
     sharesFlowEditorFrontmatterSyntax: false,
   },
@@ -106,6 +122,14 @@ export const getCanvas2dRendererLabel = (id: Canvas2dRendererId): string => {
 
 export const getCanvas2dRendererMenuLabel = (id: Canvas2dRendererId): string => {
   return CANVAS_2D_RENDERER_SPECS[id].menuLabel
+}
+
+export const getCanvas2dRendererMenuDescription = (id: Canvas2dRendererId): string => {
+  return CANVAS_2D_RENDERER_SPECS[id].menuDescription
+}
+
+export const getCanvas2dRendererMenuBadges = (id: Canvas2dRendererId): readonly string[] => {
+  return CANVAS_2D_RENDERER_SPECS[id].menuBadges
 }
 
 export const sharesFlowEditorFrontmatterSyntax = (id: Canvas2dRendererId | null | undefined): boolean => {

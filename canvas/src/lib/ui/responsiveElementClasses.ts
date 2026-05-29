@@ -8,7 +8,7 @@ export const UI_RESPONSIVE_MENU_ROW_CLASSNAME = `kg-menu-row w-full ${UI_RESPONS
 
 export const UI_RESPONSIVE_TOUCH_MENU_ROW_CLASSNAME = `${UI_RESPONSIVE_MENU_ROW_CLASSNAME} kg-touch-menu-row`
 
-export const UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME = `kg-launch-menu-item w-full ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME}`
+export const UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME = `kg-launch-menu-item w-full ${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} kg-touch-menu-row`
 
 export const UI_RESPONSIVE_ACTION_ROW_CLASSNAME = `kg-data-view-action ${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME}`
 

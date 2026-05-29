@@ -1246,36 +1246,30 @@ export async function testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPre
   const root = createRoot(container as unknown as HTMLElement)
 
   try {
+    const Harness = () => {
+      const [activeText, setActiveText] = React.useState('Viewer edit line one')
+      return React.createElement(MarkdownWorkspaceMain, {
+        themeMode: 'light', uiPanelTextFontClass: 'font-sans', uiPanelMonospaceTextClass: 'font-mono',
+        explorerOpen: false, setExplorerOpen: () => void 0, layoutMode: 'viewer', setLayoutMode: () => void 0,
+        markdownWordWrap: true, setMarkdownWordWrap: () => void 0, markdownTextHighlight: false, setMarkdownTextHighlight: () => void 0,
+        onToggleFullscreen: () => void 0,
+        presentationApiRef: { current: null },
+        isMarkdown: true,
+        activeText,
+        setActiveText,
+        activeDocumentKey: '/viewer-edit-underline-commit-test.md',
+        highlightedLineRange: null,
+        revealLineInEditor: () => void 0,
+        showInViewer: () => void 0,
+        showInPresentation: () => void 0,
+        showInSlidesGallery: () => void 0,
+        editorUri: 'file:///viewer-edit-underline-commit-test.md',
+        editorLanguage: 'markdown',
+        editorRef: { current: null },
+      })
+    }
     await act(async () => {
-      root.render(
-        React.createElement(MarkdownWorkspaceMain, {
-          themeMode: 'light',
-          uiPanelTextFontClass: 'font-sans',
-          uiPanelMonospaceTextClass: 'font-mono',
-          explorerOpen: false,
-          setExplorerOpen: () => void 0,
-          layoutMode: 'viewer',
-          setLayoutMode: () => void 0,
-          markdownWordWrap: true,
-          setMarkdownWordWrap: () => void 0,
-          markdownTextHighlight: false,
-          setMarkdownTextHighlight: () => void 0,
-          onToggleFullscreen: () => void 0,
-          presentationApiRef: { current: null },
-          isMarkdown: true,
-          activeText: 'Viewer edit line one',
-          setActiveText: () => void 0,
-          activeDocumentKey: '/viewer-edit-underline-commit-test.md',
-          highlightedLineRange: null,
-          revealLineInEditor: () => void 0,
-          showInViewer: () => void 0,
-          showInPresentation: () => void 0,
-          showInSlidesGallery: () => void 0,
-          editorUri: 'file:///viewer-edit-underline-commit-test.md',
-          editorLanguage: 'markdown',
-          editorRef: { current: null },
-        }),
-      )
+      root.render(React.createElement(Harness))
       await tick(6)
     })
 
@@ -1324,7 +1318,8 @@ export async function testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPre
     await act(async () => {
       outsideButton.focus()
       editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true, cancelable: true, relatedTarget: outsideButton }))
-      await waitMs(160)
+      editor.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true, cancelable: true, relatedTarget: outsideButton }))
+      await waitMs(260)
       await tick(8)
     })
 
@@ -1452,15 +1447,15 @@ async function runViewerInlineCommitPreviewFormattingCase(args: {
     const toolbar = doc.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
     if (!toolbar) throw new Error('expected floating selection toolbar')
     if (args.actionMenuLabel) {
-      const summary = toolbar.querySelector(`summary[title="${args.actionTitle}"]`) as HTMLElement | null
-      if (!summary) throw new Error(`expected ${args.actionTitle} summary`)
+      const summary = toolbar.querySelector(`button[title="${args.actionTitle}"]`) as HTMLButtonElement | null
+      if (!summary) throw new Error(`expected ${args.actionTitle} menu trigger`)
       await act(async () => {
         summary.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
         summary.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
         summary.click()
         await tick(2)
       })
-      const menuButtons = Array.from(toolbar.querySelectorAll(`menu[aria-label="${args.actionMenuLabel}"] button`)) as HTMLButtonElement[]
+      const menuButtons = Array.from(doc.querySelectorAll(`menu[aria-label="${args.actionMenuLabel}"] button`)) as HTMLButtonElement[]
       const button = menuButtons.find(candidate => String(candidate.textContent || '').trim() === String(args.actionButtonText || '').trim()) || null
       if (!button) throw new Error(`expected ${args.actionButtonText} button`)
       await act(async () => {
@@ -1570,7 +1565,7 @@ export async function testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdo
 
   const workspaceMainPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const workspaceMainText = readFileSync(workspaceMainPath, 'utf8')
-  if (!workspaceMainText.includes('const editableMarkdownText = isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? \'\') : activeText')) {
+  if (!/const\s+editableMarkdownText\s*=/.test(workspaceMainText) || !workspaceMainText.includes('viewerInlineMarkdownDraftText ??') || !workspaceMainText.includes("isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : activeText")) {
     throw new Error('expected MarkdownWorkspaceMain to centralize json-backed markdown edits through the visible markdown draft SSOT')
   }
   if (!workspaceMainText.includes('const commitMarkdownEditText = React.useCallback(')) {
@@ -1579,7 +1574,7 @@ export async function testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdo
   if (!workspaceMainText.includes('commitMarkdownEditText(next)')) {
     throw new Error('expected MarkdownWorkspaceMain viewer handlers to reuse the shared markdown commit helper')
   }
-  if (!workspaceMainText.includes('markdownText: editableMarkdownText')) {
-    throw new Error('expected MarkdownWorkspaceMain line-range replacement to edit the visible markdown draft instead of raw active JSON text')
+  if (!workspaceMainText.includes('markdownText: persistedEditableMarkdownText')) {
+    throw new Error('expected MarkdownWorkspaceMain line-range replacement to edit the json-derived markdown draft instead of raw active JSON text')
   }
 }
