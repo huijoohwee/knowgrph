@@ -112,16 +112,17 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (isLegacyRootSeedAliasCoveredByDocsMirror) continue
     const srcPath = resolveWorkspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
-    if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !seedSourcePath && !(workspaceDocsOnly && underWorkspaceSourceRoot)) continue
+    const src = sourcesByPath[path]
+    if (!prev && !src && !forceInclude.has(path) && !seedSourcePath && !(workspaceDocsOnly && underWorkspaceSourceRoot)) continue
+    const inlineText = typeof e.text === 'string' ? e.text : null
+    if (inlineText !== null && !inlineText.trim() && (src?.kind === 'url' || prev?.source?.kind === 'url')) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`
 
-    const src = sourcesByPath[path]
     const source: NonNullable<SourceFile['source']> =
       src && src.kind === 'url'
         ? { kind: 'url', url: String(src.url || ''), path: srcPath }
         : { kind: 'local', path: srcPath }
 
-    const inlineText = typeof e.text === 'string' ? e.text : null
     const text = inlineText && inlineText.trim().length > 0
       ? inlineText
       : (prev?.text ?? '')
@@ -171,6 +172,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       if (nextWorkspaceBySourcePath.has(sourcePath)) continue
       const workspacePath = sourcePath.slice('workspace:'.length)
       if (!workspacePath) continue
+      if (!String(file.text || '').trim()) continue
       if (
         workspaceDocsOnly
         && !isWorkspacePathUnderSourceRoots(workspacePath, args.workspaceSourceRootPaths || workspaceSourceRootPaths)

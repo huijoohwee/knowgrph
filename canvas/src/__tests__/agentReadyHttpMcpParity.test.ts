@@ -2,6 +2,7 @@ import { buildKnowgrphAgentReadyToolContracts } from '@/features/agent-ready/kno
 import { buildAgentSurfaceInspectionPayload } from '@/features/agent-ready/agentSurfaceInspection.mjs'
 import { createPublishedAgentReadyToolExecutors } from '@/features/agent-ready/publishedToolExecutors.mjs'
 import { onRequest, buildAgentReadyStaticFiles } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
+import { buildKnowgrphCommerceDiscovery, buildKnowgrphX402PaymentRequiredResponse } from '../../../cloudflare/pages/knowgrph-agent-ready-commerce.mjs'
 
 const EXPECTED_PUBLISHED_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: 'kgws:canonical-docs',
@@ -104,6 +105,22 @@ export async function testPublishedToolExecutorsSharePublishedBehavior(): Promis
 export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly(): Promise<void> {
   const staticArtifacts = await buildAgentReadyStaticFiles()
   const serverCard = JSON.parse(staticArtifacts['.well-known/mcp/server-card.json'].body)
+  const acpDiscovery = JSON.parse(staticArtifacts['.well-known/acp.json'].body)
+  const ucpProfile = JSON.parse(staticArtifacts['.well-known/ucp'].body)
+  const mppOpenApi = JSON.parse(staticArtifacts['openapi.json'].body)
+  if (acpDiscovery.protocol?.name !== 'acp' || !acpDiscovery.protocol?.supported_versions?.includes(acpDiscovery.protocol.version) || !acpDiscovery.transports?.includes('rest') || !acpDiscovery.capabilities?.services?.includes('checkout')) {
+    throw new Error(`expected root ACP discovery static artifact, got ${JSON.stringify(acpDiscovery)}`)
+  }
+  if (!ucpProfile.ucp?.services || !ucpProfile.ucp.capabilities || !ucpProfile.ucp.payment_handlers || !ucpProfile.ucp.endpoints?.x402_payment_required || !Array.isArray(ucpProfile.services) || !ucpProfile.endpoints?.x402_payment_required) {
+    throw new Error(`expected root UCP profile static artifact, got ${JSON.stringify(ucpProfile)}`)
+  }
+  if (!Object.values(mppOpenApi.paths || {}).some((pathItem: unknown) => Object.values(pathItem as Record<string, Record<string, unknown>> || {}).some((operation) => operation['x-payment-info']))) {
+    throw new Error(`expected root MPP OpenAPI static artifact with x-payment-info, got ${JSON.stringify(mppOpenApi)}`)
+  }
+  const paymentRequired = await buildKnowgrphX402PaymentRequiredResponse(new Request('https://airvio.co/api/payments/commerce/x402'), {}).json() as { accepts?: unknown[] }
+  if (!Array.isArray(paymentRequired.accepts) || paymentRequired.accepts.length <= 0) {
+    throw new Error(`expected x402 payment-required response body, got ${JSON.stringify(paymentRequired)}`)
+  }
   const serverCardTools = Array.isArray(serverCard.capabilities?.tools)
     ? serverCard.capabilities.tools.map((tool: Record<string, unknown>) => ({
         name: tool?.name,
@@ -174,6 +191,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     mcpServerCard: await requestAgentReadyJson('/knowgrph/.well-known/mcp/server-card.json'),
     agentCard: await requestAgentReadyJson('/knowgrph/.well-known/agent-card.json'),
     agentSkills: await requestAgentReadyJson('/knowgrph/.well-known/agent-skills/index.json'),
+    commerce: buildKnowgrphCommerceDiscovery({ origin: 'https://airvio.co' }),
   })
   if (JSON.stringify(inspectPayload.result?.structuredContent) !== JSON.stringify(expectedInspection)) {
     throw new Error(`expected MCP inspect_agent_surface payload to match the shared inspection payload exactly, got ${JSON.stringify(inspectPayload.result?.structuredContent)}`)

@@ -32,6 +32,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 import { readStandaloneParagraphUrlToken } from './standaloneMediaBudget'
+import { normalizeMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
 
 const extractLinkText = (token: Token): string => {
   const p = token as unknown as TokensParagraph
@@ -207,15 +208,20 @@ const containsBlockHtml = (tokens: Token[] | undefined): boolean => {
 }
 
 const tryExtractProxiedInnerUrl = (href: string): string => {
-  const raw = String(href || '').trim()
+  const raw = normalizeMarkdownLocalProxyUrl(String(href || '').trim())
   if (!raw) return ''
-  if (!raw.startsWith('/__webpage_asset_proxy') && !raw.startsWith('/__fetch_remote')) return ''
+  if (!raw.startsWith('/__webpage_asset_proxy') && !raw.startsWith('/__webpage_asset_path') && !raw.startsWith('/__fetch_remote')) return ''
   try {
     const base =
       typeof window !== 'undefined' && window.location?.origin
         ? window.location.origin
         : 'https://example.invalid'
     const u = new URL(raw, base)
+    if (u.pathname.startsWith('/__webpage_asset_path/')) {
+      const rest = u.pathname.slice('/__webpage_asset_path/'.length)
+      const slash = rest.indexOf('/')
+      if (slash > 0) return `${decodeURIComponent(rest.slice(0, slash))}${rest.slice(slash)}${u.search || ''}`
+    }
     const inner = u.searchParams.get('url') || ''
     if (!inner) return ''
     const normalizedInner = inner
@@ -231,9 +237,8 @@ const tryExtractProxiedInnerUrl = (href: string): string => {
     return ''
   }
 }
-
 const looksLikeImageHref = (href: string): boolean => {
-  const raw = String(href || '').trim()
+  const raw = normalizeMarkdownLocalProxyUrl(String(href || '').trim())
   if (!raw) return false
   if (/^data:image\//i.test(raw)) return true
   if (/\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(raw)) return true
@@ -246,7 +251,7 @@ const looksLikeImageHref = (href: string): boolean => {
 
 const getStandaloneMediaImageHref = (
   tokens: Token[] | undefined,
-): { kind: 'image' | 'video' | 'audio' | 'iframe'; href: string } | null => {
+): { kind: 'image' | 'video' | 'audio' | 'iframe'; href: string; alt: string } | null => {
   const list = Array.isArray(tokens) ? tokens : []
   let image: TokensImage | null = null
   for (const t of list) {
@@ -268,20 +273,15 @@ const getStandaloneMediaImageHref = (
   if (!image) return null
   const href = String(image.href || '').trim()
   if (!href) return null
-  const altNorm = String(image.text || '').trim().toLowerCase()
+  const alt = String(image.text || '').trim(), altNorm = alt.toLowerCase()
   const looksImage = looksLikeImageHref(href)
-  const looksVideo =
-    isVideoUrl(href) || /\.(mov)(\?|#|$)/i.test(href)
-  const looksAudio =
-    /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(href)
-  const resolvedKind: { kind: 'image' | 'video' | 'audio' | 'iframe'; href: string } | null = (() => {
-    if (altNorm.startsWith('iframe')) return { kind: 'iframe', href }
-    if (altNorm.startsWith('image') || looksImage) return { kind: 'image', href }
-    if (altNorm.startsWith('audio') || looksAudio) return { kind: 'audio', href }
-    if (altNorm.startsWith('video') || looksVideo) return { kind: 'video', href }
-    return null
-  })()
-  return resolvedKind
+  const looksVideo = isVideoUrl(href) || /\.(mov)(\?|#|$)/i.test(href)
+  const looksAudio = /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(href)
+  if (altNorm.startsWith('iframe')) return { kind: 'iframe', href, alt }
+  if (altNorm.startsWith('image') || looksImage) return { kind: 'image', href, alt }
+  if (altNorm.startsWith('audio') || looksAudio) return { kind: 'audio', href, alt }
+  if (altNorm.startsWith('video') || looksVideo) return { kind: 'video', href, alt }
+  return null
 }
 
 const getStandaloneWebpageHrefFromImageToken = (tokens: Token[] | undefined): string | null => {
@@ -569,7 +569,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       )
     }
     if (standaloneMedia.kind === 'image') {
-      return renderStandaloneMedia('image', <MediaImage src={resolved} alt={standaloneMedia.href} />)
+      return renderStandaloneMedia('image', <MediaImage src={resolved} alt={standaloneMedia.alt || standaloneMedia.href} />)
     }
     if (standaloneMedia.kind === 'video') {
       const src = applyMediaProxySrc(resolved)

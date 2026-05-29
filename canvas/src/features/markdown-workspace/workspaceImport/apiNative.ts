@@ -9,7 +9,8 @@ import { API_NATIVE_BROWSER_DEFAULT_RUNTIME_URL } from 'grph-shared/browser/apiN
 import { looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { restoreWebpageMarkdownSyntaxFidelity } from '@/lib/markdown/webpageMarkdownSyntaxFidelity'
-import { readApiNativeBrowserMarkdownPayload, readApiNativeBrowserResponseText } from './apiNativeResponse'
+import { readApiNativeBrowserMarkdownPayload, readApiNativeBrowserResponseSourceUrl, readApiNativeBrowserResponseText } from './apiNativeResponse'
+import { shouldAcceptWorkspaceImportSourceContent } from './sourceUrlIdentity'
 
 export type ApiNativeMarkdownResult = {
   normalizedUrl: string
@@ -259,11 +260,7 @@ function pickApiNativeBrowserSessions(url: string, sessions: ApiNativeBrowserSes
     if (domain && hostname && (domain === hostname || hostname.endsWith(`.${domain}`) || domain.endsWith(`.${hostname}`))) return 3
     return 0
   }
-  return sessions
-    .map(session => ({ session, score: scoreSession(session) }))
-    .filter(item => item.score > 0 && item.session.id)
-    .sort((a, b) => b.score - a.score)
-    .map(item => item.session)
+  return sessions.map(session => ({ session, score: scoreSession(session) })).filter(item => item.score > 0 && item.session.id).sort((a, b) => b.score - a.score).map(item => item.session)
 }
 
 async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMarkdownArgs): Promise<ApiNativeMarkdownResult | null> {
@@ -300,12 +297,13 @@ async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMa
       }, API_NATIVE_BROWSER_CONTENT_TIMEOUT_MS)
       if (!markdownRes.ok) continue
       const markdownPayload = readApiNativeBrowserMarkdownPayload(await markdownRes.text())
+      if (!shouldAcceptWorkspaceImportSourceContent(args.url, markdownPayload.sourceUrl, session.url)) continue
       const markdownText = markdownPayload.markdown
       if (markdownText && !looksLowFidelityWebpageMarkdown(markdownText)) {
         return {
           normalizedUrl: args.url,
           name: deriveFilenameFromUrl(args.url, 'webpage.md'),
-          ...(session.title ? { title: session.title } : {}),
+          ...(markdownPayload.title || session.title ? { title: markdownPayload.title || session.title } : {}),
           upstreamMarkdown: restoreWebpageMarkdownSyntaxFidelity(markdownText),
           ...(markdownPayload.thinkingMarkdown ? { thinkingMarkdown: restoreWebpageMarkdownSyntaxFidelity(markdownPayload.thinkingMarkdown) } : {}),
           diagnostics: `api-native-browser-session:${sessionId}`,
@@ -328,7 +326,9 @@ async function tryFetchApiNativeBrowserSessionMarkdown(args: TryFetchApiNativeMa
         }),
       }, API_NATIVE_BROWSER_CONTENT_TIMEOUT_MS)
       if (!textRes.ok) continue
-      const textBody = readApiNativeBrowserResponseText(await textRes.text())
+      const textRaw = await textRes.text()
+      if (!shouldAcceptWorkspaceImportSourceContent(args.url, readApiNativeBrowserResponseSourceUrl(textRaw), session.url)) continue
+      const textBody = readApiNativeBrowserResponseText(textRaw)
       if (!textBody || textBody.length < 220) continue
       const plainMarkdown = restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown(textBody))
       if (!looksLowFidelityWebpageMarkdown(plainMarkdown)) {

@@ -15,6 +15,15 @@ export const STORAGE_DEFAULT_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc-defau
 export const STORAGE_WORKSPACE_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}`;
 export const KNOWGRPH_AGENT_READY_ROUTE_OWNER = "knowgrph-agent-ready-pages";
 export const ROOT_AGENT_READY_ROUTE_OWNER = "root-agent-ready-pages";
+export const agentReadyHomepageLinkHeaderValue = [
+  `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
+  `<${APP_BASE_PATH}/.well-known/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"`,
+  `<${APP_BASE_PATH}/llms.txt>; rel="service-doc"; type="text/plain"`,
+  `</auth.md>; rel="service-doc"; type="text/markdown"`,
+  `<${HEALTH_PATH}>; rel="status"; type="application/health+json"`,
+  `<${APP_BASE_PATH}/.well-known/mcp/server-card.json>; rel="mcp-server-card"; type="application/json"`,
+  `<${A2A_AGENT_CARD_PATH}>; rel="describedby"; type="application/json"`,
+].join(", ");
 
 export const agentReadyMarkdownBody = `# Knowgrph
 

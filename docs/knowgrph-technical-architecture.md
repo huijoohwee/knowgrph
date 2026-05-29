@@ -317,6 +317,7 @@ This root document exists as the auto-generated settings registry table surface 
 | `workspace.sync.sourceFiles.docsOnly` | boolean | localStorage |  |  |
 | `workspace.sync.sourceFiles.debounceMs` | number | localStorage |  |  |
 | `workspace.import.defaultSourceUrl` | string | localStorage |  |  |
+| `workspace.import.shareExportRootPath` | string | localStorage |  |  |
 | `pdfImportIncludeImages` | boolean | store | `kg:import:pdf:includeImages` | `import.pdf` |
 | `pdfImportMaxPages` | number | store | `kg:import:pdf:maxPages` | `import.pdf` |
 | `pdfImportMaxPdfBytes` | number | store | `kg:import:pdf:maxPdfBytes` | `import.pdf` |
@@ -597,5 +598,4 @@ This root document exists as the auto-generated settings registry table surface 
 | `payments.stripe.mcp.localArgs` | json | localStorage |  |  |
 | `payments.stripe.mcp.startupTimeoutMs` | number | localStorage |  |  |
 | `payments.stripe.mcp.requireConfirmation` | boolean | localStorage |  |  |
-
 <!-- SETTINGS_REGISTRY_TABLE_END -->

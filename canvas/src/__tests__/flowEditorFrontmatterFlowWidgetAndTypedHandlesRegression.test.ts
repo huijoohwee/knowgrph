@@ -377,13 +377,13 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!runtimeText.includes('[overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate]')) {
     throw new Error('expected Flow Editor overlay edge scheduling to resync on semantic topology/layout signature changes, not only overlay node id churn')
   }
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const overlaySurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'), 'utf8')
+  const overlayCoverageText = `${overlaySurfaceText}\n${readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlayCoverage.ts'), 'utf8')}`
   const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
   const selectionBookkeepingText = readFileSync(selectionBookkeepingPath, 'utf8')
   const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
-  if (!overlaySurfaceText.includes('frontmatterOverlayOnlyCoverageRef')) {
+  if (!overlayCoverageText.includes('frontmatterOverlayOnlyCoverageRef')) {
     throw new Error('expected frontmatter overlay-only mode to preserve the last stable full-coverage state across bounded workspace/indexing churn')
   }
   if (
@@ -400,10 +400,10 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   ) {
     throw new Error('expected Flow Editor selection bookkeeping to reuse the shared render-graph helper before deriving inner-id aliases')
   }
-  if (!overlaySurfaceText.includes("'frontmatter-overlay-only-coverage'")) {
+  if (!overlayCoverageText.includes("'frontmatter-overlay-only-coverage'")) {
     throw new Error('expected frontmatter overlay-only coverage preservation to use a semantic signature instead of raw array identity')
   }
-  if (!overlaySurfaceText.includes("hashScopedStringArraySignature('visible-flow-nodes', visibleFlowNodeIds)")) {
+  if (!overlayCoverageText.includes("hashScopedStringArraySignature('visible-flow-nodes', visibleFlowNodeIds)")) {
     throw new Error('expected frontmatter overlay-only coverage preservation to hash visible-node coverage through the shared semantic array helper')
   }
   if (!text.includes("scheduleTransientOverlayEdgeRetry(['empty-overlay-node-set'")) {

@@ -10,12 +10,14 @@ import {
 } from '@/features/agent-ready/webMcpRuntime'
 import {
   publishLocalChatPipelineSurfaceSnapshot,
+  publishLocalCommerceReadinessSurfaceSnapshot,
   publishLocalEditorWorkspaceSurfaceSnapshot,
   publishLocalMainPanelSurfaceSnapshot,
   publishLocalSettingsChatReadinessSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
+import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
 
 type RegisteredTool = {
   name: string
@@ -195,6 +197,11 @@ const buildExpectedMockAgentSurfaceInspection = (baseUrl: string) =>
       skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${baseUrl}/.well-known/agent-skills/index.json/skill.md`, sha256: 'sha' }],
       openapi: '3.1.0',
       paths: { '/knowgrph/health': { get: {} } },
+    },
+    commerce: {
+      acpDiscovery: { url: `${new URL(`${baseUrl}/`).origin}/.well-known/acp.json`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/.well-known/acp.json/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
+      ucpProfile: { url: `${new URL(`${baseUrl}/`).origin}/.well-known/ucp`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/.well-known/ucp/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
+      mppOpenApi: { url: `${new URL(`${baseUrl}/`).origin}/openapi.json`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/openapi.json/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
     },
   })
 
@@ -414,6 +421,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
         allCollapsed: false,
       },
     })
+    publishLocalCommerceReadinessSurfaceSnapshot(AGENTIC_COMMERCE_MAIN_PANEL_READINESS)
     publishLocalSettingsChatReadinessSurfaceSnapshot({
       normalizedChatProvider: 'openai',
       chatEndpointUrl: 'https://api.openai.com/v1/chat/completions',
@@ -554,14 +562,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localMainPanelState as { search?: { query?: unknown } }).search?.query !== 'browser api') {
       throw new Error(`expected inspect_local_mainpanel_state to report the current search query, got ${JSON.stringify(localMainPanelState)}`)
     }
-    if ((localEditorWorkspaceState as { layoutMode?: unknown }).layoutMode !== 'editor') {
-      throw new Error(`expected inspect_local_editor_workspace_state to report editor layout mode, got ${JSON.stringify(localEditorWorkspaceState)}`)
-    }
-    if ((localEditorWorkspaceState as { draftState?: { hasUncommittedDraft?: unknown } }).draftState?.hasUncommittedDraft !== true) {
-      throw new Error(`expected inspect_local_editor_workspace_state to report a live draft, got ${JSON.stringify(localEditorWorkspaceState)}`)
-    }
-    if ((localEditorWorkspaceState as { liveStructure?: { hasFrontmatter?: unknown } }).liveStructure?.hasFrontmatter !== true) {
-      throw new Error(`expected inspect_local_editor_workspace_state to inspect live frontmatter structure, got ${JSON.stringify(localEditorWorkspaceState)}`)
+    const localEditorInspection = localEditorWorkspaceState as { layoutMode?: unknown; draftState?: { hasUncommittedDraft?: unknown }; liveStructure?: { hasFrontmatter?: unknown } }
+    if (localEditorInspection.layoutMode !== 'editor' || localEditorInspection.draftState?.hasUncommittedDraft !== true || localEditorInspection.liveStructure?.hasFrontmatter !== true) {
+      throw new Error(`expected inspect_local_editor_workspace_state to report editor mode, live draft, and frontmatter structure, got ${JSON.stringify(localEditorWorkspaceState)}`)
     }
     if ((localChatPipelineState as { isLoading?: unknown }).isLoading !== true) {
       throw new Error(`expected inspect_local_chat_pipeline_state to report streaming/loading state, got ${JSON.stringify(localChatPipelineState)}`)
@@ -572,29 +575,13 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localChatPipelineState as { workspacePaths?: { streamingWorkspacePath?: unknown } }).workspacePaths?.streamingWorkspacePath !== '/chat/knowgrph/session.md') {
       throw new Error(`expected inspect_local_chat_pipeline_state to expose the streaming workspace path, got ${JSON.stringify(localChatPipelineState)}`)
     }
-    if ((localChatPipelineState as { kgcValidation?: { stage?: unknown } }).kgcValidation?.stage !== 'validated') {
-      throw new Error(`expected inspect_local_chat_pipeline_state to expose validation stage, got ${JSON.stringify(localChatPipelineState)}`)
+    const localChatInspection = localChatPipelineState as { kgcValidation?: { stage?: unknown; hasYamlFrontmatter?: unknown }; finalize?: { stage?: unknown; persistedKnowgrphPath?: unknown } }
+    if (localChatInspection.kgcValidation?.stage !== 'validated' || localChatInspection.kgcValidation?.hasYamlFrontmatter !== true || localChatInspection.finalize?.stage !== 'applied' || localChatInspection.finalize?.persistedKnowgrphPath !== '/chat/knowgrph/session.md') {
+      throw new Error(`expected inspect_local_chat_pipeline_state to expose validated frontmatter and applied finalize state, got ${JSON.stringify(localChatPipelineState)}`)
     }
-    if ((localChatPipelineState as { kgcValidation?: { hasYamlFrontmatter?: unknown } }).kgcValidation?.hasYamlFrontmatter !== true) {
-      throw new Error(`expected inspect_local_chat_pipeline_state to report YAML frontmatter readiness, got ${JSON.stringify(localChatPipelineState)}`)
-    }
-    if ((localChatPipelineState as { finalize?: { stage?: unknown } }).finalize?.stage !== 'applied') {
-      throw new Error(`expected inspect_local_chat_pipeline_state to expose finalize/apply stage, got ${JSON.stringify(localChatPipelineState)}`)
-    }
-    if ((localChatPipelineState as { finalize?: { persistedKnowgrphPath?: unknown } }).finalize?.persistedKnowgrphPath !== '/chat/knowgrph/session.md') {
-      throw new Error(`expected inspect_local_chat_pipeline_state to expose the persisted Knowgrph path, got ${JSON.stringify(localChatPipelineState)}`)
-    }
-    if ((localPipelineState as { pipelineReady?: unknown }).pipelineReady !== true) {
-      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report a ready E2E pipeline, got ${JSON.stringify(localPipelineState)}`)
-    }
-    if ((localPipelineState as { readiness?: { markdownFlowReady?: unknown } }).readiness?.markdownFlowReady !== true) {
-      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report markdown/frontmatter readiness, got ${JSON.stringify(localPipelineState)}`)
-    }
-    if ((localPipelineState as { counts?: { canvasNodeCount?: unknown } }).counts?.canvasNodeCount !== 2) {
-      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report active canvas node count, got ${JSON.stringify(localPipelineState)}`)
-    }
-    if (Array.isArray((localPipelineState as { issues?: unknown }).issues) && (localPipelineState as { issues?: Array<unknown> }).issues?.length !== 0) {
-      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to avoid readiness issues for the happy path fixture, got ${JSON.stringify(localPipelineState)}`)
+    const localPipelineInspection = localPipelineState as { pipelineReady?: unknown; readiness?: { markdownFlowReady?: unknown; commerceReady?: unknown }; entrySurfaces?: { commerce?: { semanticKey?: unknown } }; counts?: { canvasNodeCount?: unknown }; issues?: unknown }
+    if (localPipelineInspection.pipelineReady !== true || localPipelineInspection.readiness?.markdownFlowReady !== true || localPipelineInspection.readiness?.commerceReady !== true || localPipelineInspection.entrySurfaces?.commerce?.semanticKey !== AGENTIC_COMMERCE_MAIN_PANEL_READINESS.semanticKey || localPipelineInspection.counts?.canvasNodeCount !== 2 || (Array.isArray(localPipelineInspection.issues) && localPipelineInspection.issues.length !== 0)) {
+      throw new Error(`expected inspect_local_mainpanel_chat_canvas_pipeline to report ready E2E Commerce/frontmatter/canvas state without issues, got ${JSON.stringify(localPipelineState)}`)
     }
     if ((localCanvasTopology as { available?: unknown }).available !== true) {
       throw new Error(`expected inspect_local_canvas_topology to report an available local canvas, got ${JSON.stringify(localCanvasTopology)}`)

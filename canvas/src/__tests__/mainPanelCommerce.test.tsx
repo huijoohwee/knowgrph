@@ -10,6 +10,7 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  AGENTIC_COMMERCE_MAIN_PANEL_READINESS,
   AGENTIC_COMMERCE_API_VERSION,
   AGENTIC_COMMERCE_ROUTE_PATHS,
 } from 'grph-shared/payments/agenticCommerceSsot'
@@ -17,6 +18,10 @@ import {
   STRIPE_PAYMENT_ROUTE_PATHS,
   STRIPE_PROJECTS_URL,
 } from 'grph-shared/payments/stripePaymentSsot'
+import {
+  readLocalCommerceReadinessSurfaceSnapshot,
+  resetBrowserLocalSurfaceSnapshotsForTests,
+} from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 
 export function testMainPanelCommerceReplacesPaymentsTopLevelTab() {
   const keys = MAIN_PANEL_TABS.map(tab => tab.key)
@@ -47,6 +52,7 @@ export function testMainPanelCommercePrdTadUsesCanonicalCommerceOwner() {
     'canvas/src/__tests__/agenticCommerceWorker.test.ts',
     'Cloudflare Workers + D1',
     'worker.payments.agenticCommerce.sharedSemanticKey',
+    'buildAgenticCommerceMainPanelReadiness',
   ]
   requiredSnippets.forEach(snippet => {
     if (!docs.includes(snippet)) {
@@ -83,6 +89,7 @@ export async function testMainPanelCommerceRendersAgenticCommerceAndStripeSurfac
 
   try {
     installDeterministicRaf(dom.window)
+    resetBrowserLocalSurfaceSnapshotsForTests()
     useGraphStore.getState().resetAll()
 
     const doc = dom.window.document
@@ -98,12 +105,17 @@ export async function testMainPanelCommerceRendersAgenticCommerceAndStripeSurfac
     const expectedTokens = [
       'Commerce',
       'Overview',
+      'Discovery',
       'Sessions',
       'Web3',
       'Governance',
       'Proofs',
       AGENTIC_COMMERCE_API_VERSION,
+      AGENTIC_COMMERCE_ROUTE_PATHS.acpDiscovery,
       AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig,
+      AGENTIC_COMMERCE_ROUTE_PATHS.ucpProfile,
+      AGENTIC_COMMERCE_ROUTE_PATHS.mppOpenApi,
+      AGENTIC_COMMERCE_ROUTE_PATHS.x402PaymentRequired,
       AGENTIC_COMMERCE_ROUTE_PATHS.checkoutSessions,
       AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle,
       AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest,
@@ -130,6 +142,18 @@ export async function testMainPanelCommerceRendersAgenticCommerceAndStripeSurfac
         throw new Error(`expected commerce tab to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
+
+    const readinessEl = container.querySelector('[data-kg-commerce-readiness-key]') as HTMLElement | null
+    if (readinessEl?.dataset.kgCommerceReadinessKey !== AGENTIC_COMMERCE_MAIN_PANEL_READINESS.semanticKey) {
+      throw new Error(`expected Commerce hub to render shared readiness semantic key ${AGENTIC_COMMERCE_MAIN_PANEL_READINESS.semanticKey}, got ${JSON.stringify(readinessEl?.dataset.kgCommerceReadinessKey || null)}`)
+    }
+    const readinessSnapshot = readLocalCommerceReadinessSurfaceSnapshot()
+    if (readinessSnapshot?.semanticKey !== AGENTIC_COMMERCE_MAIN_PANEL_READINESS.semanticKey) {
+      throw new Error(`expected Commerce hub to publish shared agent-ready readiness snapshot, got ${JSON.stringify(readinessSnapshot)}`)
+    }
+    if (!readinessSnapshot || !readinessSnapshot.routePaths.includes(AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle)) {
+      throw new Error(`expected Commerce readiness snapshot to reuse shared route paths, got ${JSON.stringify(readinessSnapshot?.routePaths || null)}`)
+    }
   } finally {
     try {
       if (root) await unmountReactRoot(root, { window: dom.window })
@@ -138,5 +162,6 @@ export async function testMainPanelCommerceRendersAgenticCommerceAndStripeSurfac
     }
     restoreDom()
     restoreWindow()
+    resetBrowserLocalSurfaceSnapshotsForTests()
   }
 }

@@ -2,7 +2,7 @@
 title: "Knowgrph MainPanel Commerce - PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KGC-MP-COMMERCE-001"
-version: "1.0.0"
+version: "1.0.2"
 status: "Accepted and implemented"
 date: "2026-05-29"
 authors: ["airvio"]
@@ -69,6 +69,7 @@ As a Knowgrph operator, I want one Commerce tab in MainPanel so I can verify sel
 | MC-AC5 | Commerce links to live worker routes without hardcoded repo-local or project-specific URLs; route paths come from shared SSOT helpers. |
 | MC-AC6 | Commerce does not introduce backfill fixtures, fake chain confirmations, or duplicate artifact writers. |
 | MC-AC7 | Focused tests prove that `commerce` exists once and `payments` does not remain a top-level tab key. |
+| MC-AC8 | Browser-local WebMCP E2E inspection treats Commerce as a valid MainPanel entry surface alongside MCP and Integrations. |
 
 ## Information Architecture
 
@@ -89,6 +90,7 @@ As a Knowgrph operator, I want one Commerce tab in MainPanel so I can verify sel
 | View shell | `canvas/src/features/panels/MainPanel.tsx` | Reuse the existing lazy hub pattern. |
 | Commerce hub | `canvas/src/features/panels/views/CommerceHubView.tsx` | Reuses the existing settings pipeline while adding commerce readiness sections. |
 | Settings rows | `SettingsView` and settings registries | Reuse the shared settings pipeline; keep config keys semantically named. |
+| Route readiness | `grph-shared/src/payments/agenticCommerceSsot.ts` | `AGENTIC_COMMERCE_MAIN_PANEL_READINESS` is the single section/row/route contract rendered by Commerce and read by agent inspection. |
 | Icons | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Add Commerce through the shared icon SSOT only. |
 | Tests | MainPanel panel/icon/settings tests | Guard against duplicate payment-only and Commerce top-level tabs. |
 
@@ -104,7 +106,11 @@ Commerce consumes route metadata from shared owners:
 
 | Capability | Route / Signal | Source Owner |
 |---|---|---|
+| ACP discovery | `GET /.well-known/acp.json` with `protocol.name: "acp"`, REST transport, and `capabilities.services: ["checkout"]` | `AGENTIC_COMMERCE_ROUTE_PATHS.acpDiscovery` |
 | ACP config | `GET /.well-known/acp-config` | `AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig` |
+| UCP profile | `GET /.well-known/ucp` with required root `ucp` services, capabilities, payment handlers, and endpoints | `AGENTIC_COMMERCE_ROUTE_PATHS.ucpProfile` |
+| MPP OpenAPI | `GET /openapi.json` with `x-payment-info` | `AGENTIC_COMMERCE_ROUTE_PATHS.mppOpenApi` |
+| x402 API probes | `GET /api`, `GET /api/v1`, and `GET /api/payments/commerce/x402` return middleware-backed HTTP 402 | `AGENTIC_COMMERCE_X402_ROUTE_PATHS` |
 | Checkout sessions | `/checkout/sessions` and session item routes | `AGENTIC_COMMERCE_ROUTE_PATHS.checkoutSessions` |
 | Stripe webhook settlement | Stripe webhook route and ACP settlement path | `STRIPE_PAYMENT_ROUTE_PATHS.webhook`, `AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook` |
 | Web3 settlement | Web3 settlement route | `AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle` |
@@ -114,6 +120,11 @@ Commerce consumes route metadata from shared owners:
 
 Do not duplicate route strings locally in the UI if a shared route helper exists.
 
+For the MainPanel operator view, `buildAgenticCommerceMainPanelReadiness` derives
+`AGENTIC_COMMERCE_MAIN_PANEL_READINESS` from those route owners and the shared
+`buildAgenticCommerceSemanticKey` helper. Commerce UI rows use each shared row semantic key, and
+browser-local agent inspection reads the same readiness snapshot instead of rebuilding it.
+
 ## Implementation Record
 
 | Step | Implemented Owner | Evidence |
@@ -122,6 +133,8 @@ Do not duplicate route strings locally in the UI if a shared route helper exists
 | Render Commerce via existing MainPanel lazy hub | `canvas/src/features/panels/MainPanel.tsx` | `CommerceHubView` is loaded through the shared MainPanel view map. |
 | Keep Payments as a subsection | `canvas/src/features/panels/views/CommerceHubView.tsx` | The view renders route readiness first, then delegates payment rows to `SettingsView mode="payments"`. |
 | Reuse route SSOT helpers | `CommerceHubView.tsx`, shared payment packages | Commerce rows read `AGENTIC_COMMERCE_ROUTE_PATHS` and `STRIPE_PAYMENT_ROUTE_PATHS`. |
+| Publish agent-ready Commerce snapshot | `CommerceHubView.tsx`, `browserLocalSurfaceSnapshots.ts`, `localMainPanelChatCanvasPipelineInspection.ts` | WebMCP E2E inspection reports Commerce readiness with the shared semantic key and route count. |
+| Keep entry tabs explicit | `localMainPanelChatCanvasPipelineInspection.ts` | MCP, Integrations, and Commerce are accepted as first-class E2E entry tabs; stale Payments tab state is rejected instead of compatibility-remapped. |
 | Reuse shared icon metadata | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Commerce icon metadata is added through the MainPanel icon SSOT. |
 | Guard against duplicate tabs | `canvas/src/__tests__/mainPanelCommerce.test.tsx` | Tests assert Commerce renders and Payments is not a top-level tab. |
 | Keep Dev -> Prod -> Cloudflare deploy path intact | `scripts/build-pages-functions-worker.mjs`, Pages sync/deploy scripts | Pages functions worker is built before deploy so commerce UI and API routes stay published together. |
@@ -131,7 +144,9 @@ Do not duplicate route strings locally in the UI if a shared route helper exists
 | Gate | Command / Probe | Expected Result |
 |---|---|---|
 | MainPanel Commerce focused tests | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.commerce"` | Commerce tab exists, renders route readiness, and excludes top-level Payments. |
+| MainPanel entry-tab inspector | `npm --prefix canvas run test:ci:unit -- "agentReady.localMainPanelChatCanvasPipeline"` | MCP, Integrations, and Commerce all pass the same E2E readiness fixture; stale Payments is reported as an issue. |
 | MainPanel hub regression | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.commerceHub"` | Commerce hub keeps shared MainPanel controls stable. |
+| WebMCP E2E readiness | `npm --prefix canvas run test:ci:unit -- "agentReady.webMcpRuntime.lateBinding.sameOriginStoragePaths"` | Browser-local pipeline inspection exposes Commerce readiness with the shared semantic key. |
 | Type surface | `npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false` | MainPanel tab and view types compile without aliases. |
 | Repo hygiene | `npm run hygiene:check` | Changed files pass current hygiene rules. |
 | Pages publication | `npm run pages:functions:build && npm run pages:check-sync` | Functions worker and production mirror remain deploy-ready. |

@@ -16,7 +16,7 @@ import { UI_SELECTORS } from '@/lib/config'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
 
 import type { BindFlowCanvasNativeInteractionsArgs, FlowCanvasDrag } from '@/components/FlowCanvas/interactions/types'
-import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
+import type { FlowNativeInteractionsContext, FlowViewportInteractionSnapshot } from '@/components/FlowCanvas/interactions/context'
 import { createFlowNativeWheelAndGestureHandlers } from '@/components/FlowCanvas/interactions/wheelAndGesture'
 import { createFlowNativePointerDownHandler } from '@/components/FlowCanvas/interactions/pointerDown'
 import { createFlowNativePointerMoveHandler } from '@/components/FlowCanvas/interactions/pointerMove'
@@ -25,6 +25,51 @@ import { createFlowNativeContextMenuHandler } from '@/components/FlowCanvas/inte
 import { bindFlowNativeInteractionListeners } from '@/components/FlowCanvas/interactions/listeners'
 
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
+
+const readFlowViewportInteractionSnapshot = (st: ReturnType<typeof useGraphStore.getState>): FlowViewportInteractionSnapshot => ({
+  schema: st.schema,
+  viewportControlsPreset: st.viewportControlsPreset as FlowViewportInteractionSnapshot['viewportControlsPreset'],
+  canvasPointerMode2d: String(st.canvasPointerMode2d || ''),
+  canvas2dRenderer: String(st.canvas2dRenderer || ''),
+  frontmatterModeEnabled: st.frontmatterModeEnabled === true,
+  documentSemanticMode: String(st.documentSemanticMode || ''),
+  wheelZoomCtrlMetaBoostMultiplier: st.wheelZoomCtrlMetaBoostMultiplier,
+  canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
+  canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
+  flowWheelZoomSpeedMultiplier: st.flowWheelZoomSpeedMultiplier,
+  flowWheelZoomIncrementMultiplier: st.flowWheelZoomIncrementMultiplier,
+  flowWheelZoomSmoothMinDurationMs: st.flowWheelZoomSmoothMinDurationMs,
+  flowWheelZoomSmoothMaxDurationMs: st.flowWheelZoomSmoothMaxDurationMs,
+  viewPinned: st.viewPinned === true,
+  fitToScreenMode: st.fitToScreenMode === true,
+  zoomToSelectionMode: st.zoomToSelectionMode === true,
+  setFitToScreenMode: st.setFitToScreenMode,
+  setZoomToSelectionMode: st.setZoomToSelectionMode,
+})
+
+const areFlowViewportInteractionSnapshotsEqual = (
+  a: FlowViewportInteractionSnapshot,
+  b: FlowViewportInteractionSnapshot,
+): boolean => (
+  a.schema === b.schema &&
+  a.viewportControlsPreset === b.viewportControlsPreset &&
+  a.canvasPointerMode2d === b.canvasPointerMode2d &&
+  a.canvas2dRenderer === b.canvas2dRenderer &&
+  a.frontmatterModeEnabled === b.frontmatterModeEnabled &&
+  a.documentSemanticMode === b.documentSemanticMode &&
+  a.wheelZoomCtrlMetaBoostMultiplier === b.wheelZoomCtrlMetaBoostMultiplier &&
+  a.canvasPanSpeedMultiplier === b.canvasPanSpeedMultiplier &&
+  a.canvasInteractionSpeedMultiplier === b.canvasInteractionSpeedMultiplier &&
+  a.flowWheelZoomSpeedMultiplier === b.flowWheelZoomSpeedMultiplier &&
+  a.flowWheelZoomIncrementMultiplier === b.flowWheelZoomIncrementMultiplier &&
+  a.flowWheelZoomSmoothMinDurationMs === b.flowWheelZoomSmoothMinDurationMs &&
+  a.flowWheelZoomSmoothMaxDurationMs === b.flowWheelZoomSmoothMaxDurationMs &&
+  a.viewPinned === b.viewPinned &&
+  a.fitToScreenMode === b.fitToScreenMode &&
+  a.zoomToSelectionMode === b.zoomToSelectionMode &&
+  a.setFitToScreenMode === b.setFitToScreenMode &&
+  a.setZoomToSelectionMode === b.setZoomToSelectionMode
+)
 
 export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInteractionsArgs) {
   const canvasEl = args.canvasEl
@@ -40,10 +85,17 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     return base === 'lasso' ? 'lasso' : 'multi'
   }
 
-  const getPreset = () => {
-    const st = useGraphStore.getState()
-    return (st.viewportControlsPreset || args.viewportControlsPreset) as any
-  }
+  let viewportInteractionSnapshot = readFlowViewportInteractionSnapshot(useGraphStore.getState())
+  const unsubscribeViewportInteractionSnapshot = useGraphStore.subscribe(
+    readFlowViewportInteractionSnapshot,
+    next => {
+      viewportInteractionSnapshot = next
+    },
+    { equalityFn: areFlowViewportInteractionSnapshotsEqual },
+  )
+  const readViewportInteractionSnapshot = () => viewportInteractionSnapshot
+
+  const getPreset = () => (readViewportInteractionSnapshot().viewportControlsPreset || args.viewportControlsPreset) as any
 
   let pendingDragRelaxRaf: number | null = null
   let lastDragRelaxMs = 0
@@ -153,18 +205,18 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
         requestFlowNativeDraw(runtime, args.buildDrawArgs())
       },
     },
-    getSchema: () => useGraphStore.getState().schema,
+    getSchema: () => readViewportInteractionSnapshot().schema,
     computeScaleExtent: ({ schema, currentK }) => computeScaleExtent({ schema, currentK }),
     getPreset: () => getPreset(),
-    getPointerMode2d: () => (useGraphStore.getState().canvasPointerMode2d === 'pan' ? 'pan' : 'select'),
-    getWheelZoomCtrlMetaBoostMultiplier: () => useGraphStore.getState().wheelZoomCtrlMetaBoostMultiplier,
-    getCanvasPanSpeedMultiplier: () => useGraphStore.getState().canvasPanSpeedMultiplier,
-    getCanvasInteractionSpeedMultiplier: () => useGraphStore.getState().canvasInteractionSpeedMultiplier,
-    getFlowWheelZoomSpeedMultiplier: () => useGraphStore.getState().flowWheelZoomSpeedMultiplier,
-    getFlowWheelZoomIncrementMultiplier: () => useGraphStore.getState().flowWheelZoomIncrementMultiplier,
+    getPointerMode2d: () => (readViewportInteractionSnapshot().canvasPointerMode2d === 'pan' ? 'pan' : 'select'),
+    getWheelZoomCtrlMetaBoostMultiplier: () => readViewportInteractionSnapshot().wheelZoomCtrlMetaBoostMultiplier,
+    getCanvasPanSpeedMultiplier: () => readViewportInteractionSnapshot().canvasPanSpeedMultiplier,
+    getCanvasInteractionSpeedMultiplier: () => readViewportInteractionSnapshot().canvasInteractionSpeedMultiplier,
+    getFlowWheelZoomSpeedMultiplier: () => readViewportInteractionSnapshot().flowWheelZoomSpeedMultiplier,
+    getFlowWheelZoomIncrementMultiplier: () => readViewportInteractionSnapshot().flowWheelZoomIncrementMultiplier,
     getFlowWheelZoomSmoothDuration: () => ({
-      minMs: useGraphStore.getState().flowWheelZoomSmoothMinDurationMs,
-      maxMs: useGraphStore.getState().flowWheelZoomSmoothMaxDurationMs,
+      minMs: readViewportInteractionSnapshot().flowWheelZoomSmoothMinDurationMs,
+      maxMs: readViewportInteractionSnapshot().flowWheelZoomSmoothMaxDurationMs,
     }),
     isSpacePanHeld: () => isSpacePanHeld(),
     getWheelAnchorFallback: () => args.lastPointerInCanvasRef.current,
@@ -181,7 +233,7 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     shouldIgnoreWheelEvent: () => false,
     lockUserSelect: () => lockGlobalUserSelect(),
     unlockUserSelect: () => unlockGlobalUserSelect(),
-    disableAutoZoomModes: () => disableAutoZoomModesForUserGesture(useGraphStore.getState()),
+    disableAutoZoomModes: () => disableAutoZoomModesForUserGesture(readViewportInteractionSnapshot()),
     onInteractionFrame: args.onInteractionFrame,
     onCommit: args.requestCommit,
     readLocalPoint: (e) => readCanvasLocalPoint({ canvasEl, event: e }),
@@ -210,6 +262,7 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     readEffectiveSelectMode,
     computeScaleExtent,
     viewportWheelController,
+    readViewportInteractionSnapshot,
     cancelActiveDragIfStale,
     scheduleDragRelax,
   }
@@ -243,6 +296,7 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
   })
 
   return () => {
+    unsubscribeViewportInteractionSnapshot()
     try {
       const any = canvasEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null }
       if (any.__kgViewportControllerDestroy === viewportWheelController.destroy) any.__kgViewportControllerDestroy = null

@@ -35,6 +35,7 @@ type ApplyWorkspaceImportToCanvasOpts = {
   skipComposedGraphApply?: boolean
   workspaceEntries?: WorkspaceEntry[]
   sourcesByPath?: WorkspaceSourceIndex
+  removedPaths?: WorkspacePath[]
   premergedSourceFiles?: SourceFile[]
 }
 
@@ -125,7 +126,15 @@ export async function applyWorkspaceImportToCanvas(args: {
   if (createdPaths.length === 0) return { sourceFilesUpdated: false, enabledCount: 0, parsedCount: 0 }
 
   const store = useGraphStore.getState()
-  const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+  const removedSourcePathKeys = new Set(
+    (Array.isArray(args.opts?.removedPaths) ? args.opts.removedPaths : [])
+      .map(path => resolveWorkspaceSourcePathKey(normalizeWorkspacePath(path)))
+      .filter(Boolean),
+  )
+  const existingAll = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+  const existing = removedSourcePathKeys.size > 0
+    ? existingAll.filter(file => !removedSourcePathKeys.has(String(file?.source?.path || '')))
+    : existingAll
   const fs = args.fs
   const premergedSourceFiles = Array.isArray(args.opts?.premergedSourceFiles) ? args.opts?.premergedSourceFiles : null
   const workspaceEntries = premergedSourceFiles

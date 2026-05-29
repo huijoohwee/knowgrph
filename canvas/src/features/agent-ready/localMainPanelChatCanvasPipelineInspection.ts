@@ -1,5 +1,6 @@
 import type {
   LocalChatPipelineSurfaceSnapshot,
+  LocalCommerceReadinessSurfaceSnapshot,
   LocalEditorWorkspaceSurfaceSnapshot,
   LocalMainPanelSurfaceSnapshot,
   LocalSettingsChatReadinessSurfaceSnapshot,
@@ -13,6 +14,7 @@ import { inspectLocalWorkspaceDocument } from './localWorkspaceDocumentInspectio
 
 type LocalMainPanelChatCanvasPipelineInspectionArgs = {
   mainPanelSnapshot: (LocalMainPanelSurfaceSnapshot & { updatedAtMs?: number }) | null
+  commerceReadinessSnapshot: (LocalCommerceReadinessSurfaceSnapshot & { updatedAtMs?: number }) | null
   settingsChatReadinessSnapshot: (LocalSettingsChatReadinessSurfaceSnapshot & { updatedAtMs?: number }) | null
   editorWorkspaceSnapshot: (LocalEditorWorkspaceSurfaceSnapshot & { updatedAtMs?: number }) | null
   chatPipelineSnapshot: (LocalChatPipelineSurfaceSnapshot & { updatedAtMs?: number }) | null
@@ -32,9 +34,37 @@ type LocalMainPanelChatCanvasPipelineInspectionArgs = {
   selectedEdgeId?: unknown
 }
 
+const AGENT_READY_MAIN_PANEL_ENTRY_TABS = ['mcp', 'integrations', 'commerce']
+
+const inspectLocalCommerceReadiness = (
+  snapshot: (LocalCommerceReadinessSurfaceSnapshot & { updatedAtMs?: number }) | null,
+) => {
+  if (!snapshot) {
+    return {
+      available: false,
+      sourceKind: 'browser-local-mainpanel-commerce-readiness',
+      message: 'MainPanel Commerce readiness is not currently mounted in the local Knowgrph browser runtime.',
+    }
+  }
+  return {
+    available: true,
+    sourceKind: 'browser-local-mainpanel-commerce-readiness',
+    surface: snapshot.surface,
+    semanticKey: snapshot.semanticKey,
+    routeCount: snapshot.routeCount,
+    routePaths: snapshot.routePaths,
+    sectionCount: Array.isArray(snapshot.sections) ? snapshot.sections.length : 0,
+    sections: snapshot.sections,
+    signals: snapshot.signals,
+    updatedAtMs: snapshot.updatedAtMs || null,
+  }
+}
+
 const buildIssues = (args: {
   mainPanel: ReturnType<typeof inspectLocalMainPanelState>
+  commerceReadiness: ReturnType<typeof inspectLocalCommerceReadiness>
   settingsChatReadiness: ReturnType<typeof inspectLocalSettingsChatReadiness>
+  editorWorkspace: ReturnType<typeof inspectLocalEditorWorkspaceState>
   chatPipeline: ReturnType<typeof inspectLocalChatPipelineState>
   workspaceDocument: ReturnType<typeof inspectLocalWorkspaceDocument>
   canvasTopology: ReturnType<typeof inspectLocalCanvasTopology>
@@ -42,8 +72,16 @@ const buildIssues = (args: {
   const issues: string[] = []
   if (args.mainPanel.available !== true) {
     issues.push('MainPanel is not mounted in the local browser runtime.')
-  } else if (!['mcp', 'integrations'].includes(String(args.mainPanel.activeTab || ''))) {
-    issues.push('MainPanel is mounted, but the active tab is not MCP or Integrations.')
+  } else if (!AGENT_READY_MAIN_PANEL_ENTRY_TABS.includes(String(args.mainPanel.activeTab || ''))) {
+    issues.push('MainPanel is mounted, but the active tab is not MCP, Integrations, or Commerce.')
+  } else if (
+    String(args.mainPanel.activeTab || '') === 'commerce'
+    && (
+      args.commerceReadiness.available !== true
+      || Number(args.commerceReadiness.routeCount || 0) <= 0
+    )
+  ) {
+    issues.push('MainPanel Commerce is active, but shared commerce route readiness is not available.')
   }
 
   if (args.settingsChatReadiness.available !== true) {
@@ -55,6 +93,12 @@ const buildIssues = (args: {
     if (args.settingsChatReadiness.routing?.integrationEnabled !== true) {
       issues.push('MainPanel Integrations does not currently enable AI chat routing into the FloatingPanel chat surface.')
     }
+  }
+
+  if (args.editorWorkspace.available !== true) {
+    issues.push('Editor Workspace is not mounted in the local browser runtime.')
+  } else if (args.editorWorkspace.workspaceViewMode !== 'editor' || args.editorWorkspace.isMarkdown !== true) {
+    issues.push('Editor Workspace is mounted, but the active document is not in the Markdown editor workflow.')
   }
 
   if (args.chatPipeline.available !== true) {
@@ -95,6 +139,7 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
   args: LocalMainPanelChatCanvasPipelineInspectionArgs,
 ) => {
   const mainPanel = inspectLocalMainPanelState(args.mainPanelSnapshot)
+  const commerceReadiness = inspectLocalCommerceReadiness(args.commerceReadinessSnapshot)
   const settingsChatReadiness = inspectLocalSettingsChatReadiness(args.settingsChatReadinessSnapshot)
   const editorWorkspace = inspectLocalEditorWorkspaceState(args.editorWorkspaceSnapshot)
   const chatPipeline = inspectLocalChatPipelineState(args.chatPipelineSnapshot)
@@ -121,12 +166,25 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
 
   const issues = buildIssues({
     mainPanel,
+    commerceReadiness,
     settingsChatReadiness,
+    editorWorkspace,
     chatPipeline,
     workspaceDocument,
     canvasTopology,
   })
-  const routeReady = mainPanel.available === true && ['mcp', 'integrations'].includes(String(mainPanel.activeTab || ''))
+  const activeMainPanelTab = mainPanel.available === true ? String(mainPanel.activeTab || '') : ''
+  const commerceReady =
+    commerceReadiness.available === true
+    && Number(commerceReadiness.routeCount || 0) > 0
+    && Number(commerceReadiness.sectionCount || 0) > 0
+  const routeReady =
+    mainPanel.available === true
+    && (
+      activeMainPanelTab === 'mcp'
+      || activeMainPanelTab === 'integrations'
+      || (activeMainPanelTab === 'commerce' && commerceReady)
+    )
   const settingsReady =
     settingsChatReadiness.available === true
     && settingsChatReadiness.modelDiscovery?.ready === true
@@ -144,7 +202,11 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
   const canvasReady =
     canvasTopology.available === true
     && Number(canvasTopology.graphTopology?.nodeCount || 0) > 0
-  const pipelineReady = routeReady && settingsReady && chatReady && markdownFlowReady && canvasReady
+  const editorWorkspaceReady =
+    editorWorkspace.available === true
+    && editorWorkspace.workspaceViewMode === 'editor'
+    && editorWorkspace.isMarkdown === true
+  const pipelineReady = routeReady && settingsReady && editorWorkspaceReady && chatReady && markdownFlowReady && canvasReady
 
   return {
     available: mainPanel.available === true
@@ -157,10 +219,11 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     stage: pipelineReady ? 'ready' : chatPipeline.streaming?.active ? 'streaming' : 'partial',
     pipelineReady,
     message: pipelineReady
-      ? 'MainPanel MCP/Integrations, FloatingPanel Chat, workspace markdown/frontmatter, and active canvas topology are aligned for the current local E2E pipeline.'
+      ? 'MainPanel MCP/Integrations/Commerce, FloatingPanel Chat, workspace markdown/frontmatter, and active canvas topology are aligned for the current local E2E pipeline.'
       : 'One or more local E2E pipeline checkpoints are missing or incomplete.',
     checkpoints: {
       mainPanelMounted: mainPanel.available === true,
+      commerceReadinessMounted: commerceReadiness.available === true,
       settingsChatReadinessMounted: settingsChatReadiness.available === true,
       editorWorkspaceMounted: editorWorkspace.available === true,
       chatPipelineMounted: chatPipeline.available === true,
@@ -169,10 +232,28 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     },
     readiness: {
       routeReady,
+      commerceReady,
       settingsReady,
+      editorWorkspaceReady,
       chatReady,
       markdownFlowReady,
       canvasReady,
+    },
+    entrySurfaces: {
+      mcp: {
+        active: activeMainPanelTab === 'mcp',
+        ready: mainPanel.available === true && activeMainPanelTab === 'mcp',
+      },
+      integrations: {
+        active: activeMainPanelTab === 'integrations',
+        ready: mainPanel.available === true && activeMainPanelTab === 'integrations',
+      },
+      commerce: {
+        active: activeMainPanelTab === 'commerce',
+        ready: commerceReady,
+        semanticKey: commerceReadiness.available === true ? commerceReadiness.semanticKey : null,
+        routeCount: commerceReadiness.available === true ? commerceReadiness.routeCount : null,
+      },
     },
     route: {
       activeMainPanelTab: mainPanel.available === true ? mainPanel.activeTab : null,
@@ -194,6 +275,7 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
     },
     issues,
     mainPanel,
+    commerceReadiness,
     settingsChatReadiness,
     editorWorkspace,
     chatPipeline,

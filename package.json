@@ -23,6 +23,7 @@
     "pages:build-sync-cloudflare": "npm run pages:build-sync && npm run workers:deploy",
     "agent-ready:check": "node ./scripts/check-agent-ready.mjs",
     "auth-md:check": "node ./scripts/check-auth-md.mjs",
+    "dns-aid:contract": "node ./scripts/check-dns-aid-contract.mjs",
     "dns-aid:check": "node ./scripts/check-dns-aid-cloudflare.mjs",
     "dns-aid:publish": "node ./scripts/publish-dns-aid-cloudflare.mjs",
     "agnes:readiness:check": "node ./scripts/check-agnes-readiness.mjs",
@@ -68,7 +69,11 @@
     "docs:grabmaps-codebase-index": "npm --prefix canvas run doc:generate-grabmaps-codebase-index"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.2"
+    "@x402/core": "^2.13.0",
+    "@x402/evm": "^2.13.0",
+    "@x402/hono": "^2.13.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.23"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10"

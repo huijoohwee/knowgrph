@@ -92,14 +92,14 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness),
           title: 'Inspect Local Settings Chat Readiness',
-          description: 'Inspect the active browser-local Knowgrph SettingsView chat readiness state for MainPanel MCP and Integrations, including provider, routing, and model discovery status.',
+          description: 'Inspect the active browser-local Knowgrph SettingsView chat readiness state for MainPanel MCP, Integrations, and Commerce, including provider, routing, and model discovery status.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState),
           title: 'Inspect Local MainPanel State',
-          description: 'Inspect the active browser-local Knowgrph MainPanel tab, search, and shared action state for MCP and Integrations readiness.',
+          description: 'Inspect the active browser-local Knowgrph MainPanel tab, search, and shared action state for MCP, Integrations, and Commerce readiness.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {
@@ -120,7 +120,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline),
           title: 'Inspect Local MainPanel Chat Canvas Pipeline',
-          description: 'Inspect the active browser-local Knowgrph E2E readiness path from MainPanel MCP and Integrations through FloatingPanel Chat, workspace markdown/frontmatter, and canvas topology.',
+          description: 'Inspect the active browser-local Knowgrph E2E readiness path from MainPanel MCP, Integrations, and Commerce through FloatingPanel Chat, workspace markdown/frontmatter, and canvas topology.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {

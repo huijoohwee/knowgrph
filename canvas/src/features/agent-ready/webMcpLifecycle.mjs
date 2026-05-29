@@ -120,6 +120,10 @@ export const createWebMcpLifecycleController = (args = {}) => {
         void 0
       }
     }
+    if (providedContext) {
+      releasePreviousRegisteredContext(context)
+      return true
+    }
     if (typeof context.registerTool === 'function') {
       for (const tool of tools) {
         if (registrationState.registeredToolNames.has(tool.name)) continue

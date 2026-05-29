@@ -16,6 +16,9 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
   const createdPaths = Array.isArray(rec.createdPaths)
     ? rec.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
     : []
+  const removedPaths = Array.isArray(rec.removedPaths)
+    ? rec.removedPaths.map(path => String(path || '').trim()).filter(Boolean)
+    : []
   const sources = Array.isArray(rec.sources)
     ? rec.sources
         .map((item): WorkspaceImportResult['sources'][number] | null => {
@@ -65,6 +68,7 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
   const corpusManifest = normalizeCorpusImportManifest(rec.corpusManifest)
   return {
     createdPaths,
+    ...(removedPaths.length > 0 ? { removedPaths } : {}),
     sources,
     skipped,
     failed,
@@ -98,6 +102,7 @@ export async function applyWorkspaceImportToCanvasBestEffort(args: {
     applyToGraph?: boolean
     workspaceEntries?: WorkspaceEntry[]
     sourcesByPath?: Record<string, WorkspaceEntrySource | undefined> | null
+    removedPaths?: string[]
   } | null
 }): Promise<void> {
   const createdPaths = Array.isArray(args.createdPaths)

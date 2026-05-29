@@ -12,8 +12,19 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { buildFlowRunAllNodeSequence, type FlowRunAllPhaseId } from '@/lib/flowEditor/runAllSequenceSsot'
-import { readFlowEditorRuntimeCacheEntry, writeFlowEditorRuntimeCacheEntry } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeCache'
 import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCurveOptions } from '@/lib/flowEditor/frontmatterCollectiveLayout'
+import {
+  readCachedFlowEditorOverlayEdgeGraph,
+  readCachedFlowEditorRenderGraph,
+  readCachedFlowEditorWidgetPlacementContext,
+  readCachedFlowEditorWorkflowNodeResolutionContext,
+  readCachedFlowEditorWorkflowRunPlan,
+  writeCachedFlowEditorOverlayEdgeGraph,
+  writeCachedFlowEditorRenderGraph,
+  writeCachedFlowEditorWidgetPlacementContext,
+  writeCachedFlowEditorWorkflowNodeResolutionContext,
+  writeCachedFlowEditorWorkflowRunPlan,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraphCaches'
 
 export type FlowEditorRenderGraphLookup = {
   graph: GraphData | null
@@ -45,15 +56,6 @@ export type FlowEditorOverlayEdgeGraphLookup = {
     edgeType: string
   }>
 }
-
-const FLOW_EDITOR_OVERLAY_EDGE_GRAPH_CACHE_LIMIT = 24
-const flowEditorOverlayEdgeGraphCache = new Map<string, FlowEditorOverlayEdgeGraphLookup>()
-const FLOW_EDITOR_WIDGET_PLACEMENT_CONTEXT_CACHE_LIMIT = 24
-const flowEditorWidgetPlacementContextCache = new Map<string, FlowEditorWidgetPlacementContext>()
-const FLOW_EDITOR_WORKFLOW_RUN_PLAN_CACHE_LIMIT = 24
-const flowEditorWorkflowRunPlanCache = new Map<string, FlowEditorWorkflowRunPlan>()
-const FLOW_EDITOR_WORKFLOW_NODE_RESOLUTION_CONTEXT_CACHE_LIMIT = 24
-const flowEditorWorkflowNodeResolutionContextCache = new Map<string, FlowEditorWorkflowNodeResolutionContext>()
 
 export type FlowEditorWidgetPlacementContext = {
   graphSemanticKey: string
@@ -125,78 +127,6 @@ function buildOverlayNodeHandleSignature(
   return hashSignatureParts(['overlay-node-handle-signature', ...parts])
 }
 
-function readCachedFlowEditorOverlayEdgeGraph(
-  cacheKey: string,
-): FlowEditorOverlayEdgeGraphLookup | null {
-  return readFlowEditorRuntimeCacheEntry(flowEditorOverlayEdgeGraphCache, cacheKey)
-}
-
-function writeCachedFlowEditorOverlayEdgeGraph(
-  cacheKey: string,
-  value: FlowEditorOverlayEdgeGraphLookup,
-): FlowEditorOverlayEdgeGraphLookup {
-  return writeFlowEditorRuntimeCacheEntry(
-    flowEditorOverlayEdgeGraphCache,
-    cacheKey,
-    value,
-    FLOW_EDITOR_OVERLAY_EDGE_GRAPH_CACHE_LIMIT,
-  )
-}
-
-function readCachedFlowEditorWidgetPlacementContext(
-  cacheKey: string,
-): FlowEditorWidgetPlacementContext | null {
-  return readFlowEditorRuntimeCacheEntry(flowEditorWidgetPlacementContextCache, cacheKey)
-}
-
-function writeCachedFlowEditorWidgetPlacementContext(
-  cacheKey: string,
-  value: FlowEditorWidgetPlacementContext,
-): FlowEditorWidgetPlacementContext {
-  return writeFlowEditorRuntimeCacheEntry(
-    flowEditorWidgetPlacementContextCache,
-    cacheKey,
-    value,
-    FLOW_EDITOR_WIDGET_PLACEMENT_CONTEXT_CACHE_LIMIT,
-  )
-}
-
-function readCachedFlowEditorWorkflowRunPlan(
-  cacheKey: string,
-): FlowEditorWorkflowRunPlan | null {
-  return readFlowEditorRuntimeCacheEntry(flowEditorWorkflowRunPlanCache, cacheKey)
-}
-
-function writeCachedFlowEditorWorkflowRunPlan(
-  cacheKey: string,
-  value: FlowEditorWorkflowRunPlan,
-): FlowEditorWorkflowRunPlan {
-  return writeFlowEditorRuntimeCacheEntry(
-    flowEditorWorkflowRunPlanCache,
-    cacheKey,
-    value,
-    FLOW_EDITOR_WORKFLOW_RUN_PLAN_CACHE_LIMIT,
-  )
-}
-
-function readCachedFlowEditorWorkflowNodeResolutionContext(
-  cacheKey: string,
-): FlowEditorWorkflowNodeResolutionContext | null {
-  return readFlowEditorRuntimeCacheEntry(flowEditorWorkflowNodeResolutionContextCache, cacheKey)
-}
-
-function writeCachedFlowEditorWorkflowNodeResolutionContext(
-  cacheKey: string,
-  value: FlowEditorWorkflowNodeResolutionContext,
-): FlowEditorWorkflowNodeResolutionContext {
-  return writeFlowEditorRuntimeCacheEntry(
-    flowEditorWorkflowNodeResolutionContextCache,
-    cacheKey,
-    value,
-    FLOW_EDITOR_WORKFLOW_NODE_RESOLUTION_CONTEXT_CACHE_LIMIT,
-  )
-}
-
 export function getCachedFlowEditorRenderGraph(args: {
   scope: string
   graphData: GraphData | null
@@ -220,6 +150,23 @@ export function getCachedFlowEditorRenderGraph(args: {
   })
   if (!baseLookup) return null
 
+  const cacheKey = hashSignatureParts([
+    'flow-editor-render-graph',
+    baseLookup.cacheKey,
+  ])
+  const cached = readCachedFlowEditorRenderGraph(cacheKey)
+  if (
+    cached
+    && cached.nodes === baseLookup.nodes
+    && cached.edges === baseLookup.edges
+    && cached.nodeById === baseLookup.nodeById
+    && cached.incidentEdgesByNodeId === baseLookup.incidentEdgesByNodeId
+  ) {
+    cached.graph = graph
+    cached.revision = graphRevision
+    return cached
+  }
+
   const nodes = baseLookup.nodes
   const nodeIdsByInnerId = new Map<string, string[]>()
   for (let i = 0; i < nodes.length; i += 1) {
@@ -233,7 +180,7 @@ export function getCachedFlowEditorRenderGraph(args: {
     else nodeIdsByInnerId.set(innerId, [id])
   }
 
-  return {
+  return writeCachedFlowEditorRenderGraph(cacheKey, {
     graph,
     revision: graphRevision,
     graphSemanticKey,
@@ -244,7 +191,7 @@ export function getCachedFlowEditorRenderGraph(args: {
     eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes),
     graphMetaKind: String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null,
     nodeIdsByInnerId,
-  }
+  })
 }
 
 export function getCachedFlowEditorOverlayEdgeGraph(args: {

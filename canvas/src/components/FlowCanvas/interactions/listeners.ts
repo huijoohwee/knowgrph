@@ -19,6 +19,7 @@ import {
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { UI_SELECTORS } from '@/lib/config'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
+import { readFlowPanInteractionSpeed } from '@/components/FlowCanvas/interactions/dragSession'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 
@@ -54,6 +55,7 @@ export function bindFlowNativeInteractionListeners(args: {
         startSy: number
         startTx: number
         startTy: number
+        interactionSpeed: number
       } = null
 
   const spacePanProxyTargetSelector = [CANVAS_OVERLAY_PROXY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
@@ -106,7 +108,8 @@ export function bindFlowNativeInteractionListeners(args: {
     if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
 
     const preset = ctx.getPreset()
-    const storeStateAtDown = useGraphStore.getState()
+    const storeStateAtDown = st
+    const panInteractionSpeed = readFlowPanInteractionSpeed(storeStateAtDown)
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true
     const spacePanHeld = isSpacePanHeld()
@@ -168,6 +171,7 @@ export function bindFlowNativeInteractionListeners(args: {
         startSy: local.sy,
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
+        interactionSpeed: panInteractionSpeed,
       }
       return
     }
@@ -202,6 +206,7 @@ export function bindFlowNativeInteractionListeners(args: {
         startSy: local.sy,
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
+        interactionSpeed: panInteractionSpeed,
       }
       return
     }
@@ -220,7 +225,7 @@ export function bindFlowNativeInteractionListeners(args: {
     ctx.viewportWheelController.destroy()
     cancelFlowZoomRequestAnim(runtime)
     try {
-      disableAutoZoomModesForUserGesture(useGraphStore.getState())
+      disableAutoZoomModesForUserGesture(storeStateAtDown)
     } catch {
       void 0
     }
@@ -236,6 +241,7 @@ export function bindFlowNativeInteractionListeners(args: {
       startSy: local.sy,
       startTx: runtime.transform.x,
       startTy: runtime.transform.y,
+      interactionSpeed: panInteractionSpeed,
     }
   }
 
@@ -293,6 +299,7 @@ export function bindFlowNativeInteractionListeners(args: {
       startSy: pending.startSy,
       startTx: pending.startTx,
       startTy: pending.startTy,
+      interactionSpeed: pending.interactionSpeed,
       pointerId: pending.pointerId,
     }
     proxyPanPointerId = pending.pointerId

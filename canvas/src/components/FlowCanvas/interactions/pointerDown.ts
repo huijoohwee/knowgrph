@@ -14,6 +14,7 @@ import { lockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
+import { readFlowPanInteractionSpeed, readFlowPinchZoomSessionSettings } from '@/components/FlowCanvas/interactions/dragSession'
 import {
   isPanDragButton,
   shouldAllowPanDragForPointerEvent,
@@ -22,6 +23,7 @@ import {
 import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
 import { computeMinGroupResizeSize } from '@/lib/canvas/groupResizeMath2d'
 import { computeFlowDeltaClampForNodes, computeFlowNodeClamp } from '@/components/FlowCanvas/groupContainment'
+import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 import type { FlowCanvasDrag } from '@/components/FlowCanvas/interactions/types'
@@ -39,6 +41,9 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
     const presetRaw = ctx.getPreset()
     const storeStateAtDown = useGraphStore.getState()
     const isFlowEditor = String(storeStateAtDown.canvas2dRenderer || '') === 'flowEditor'
+    const dragSnapGrid = readSnapGridConfigFromSchema(storeStateAtDown.schema)
+    const panInteractionSpeed = readFlowPanInteractionSpeed(storeStateAtDown)
+    const edgeScrollEnabled = storeStateAtDown.viewPinned !== true
     const preset = presetRaw
     const allowButton = e.pointerType === 'touch' || e.button === 0 || isPanDragButton(e.button, preset)
     if (!allowButton) return
@@ -101,13 +106,15 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         const a = first ? first[1] : { sx, sy }
         const b = second ? second[1] : { sx, sy }
         ctx.args.setSelectionBox(null)
+        const startTransform = runtime.transform || d3.zoomIdentity
         startDrag({
           type: 'pinch',
           pointerIdA: first ? first[0] : pointerId,
           pointerIdB: second ? second[0] : pointerId,
-          startTransform: runtime.transform || d3.zoomIdentity,
+          startTransform,
           startA: { sx: a.sx, sy: a.sy },
           startB: { sx: b.sx, sy: b.sy },
+          ...readFlowPinchZoomSessionSettings(storeStateAtDown, startTransform),
           pointerId,
         })
         return
@@ -121,6 +128,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         startSy: sy,
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
+        interactionSpeed: panInteractionSpeed,
         pointerId,
       })
       return
@@ -159,6 +167,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
             startSy: sy,
             startTx: runtime.transform.x,
             startTy: runtime.transform.y,
+            interactionSpeed: panInteractionSpeed,
             pointerId,
           })
         }
@@ -195,6 +204,8 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
             startWorldY: wy,
             startNodePosById,
             deltaClamp,
+            snapGrid: dragSnapGrid,
+            edgeScrollEnabled,
             pointerId,
           })
         } else {
@@ -209,6 +220,8 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
               startNodeX: node.x,
               startNodeY: node.y,
               clamp,
+              snapGrid: dragSnapGrid,
+              edgeScrollEnabled,
               pointerId,
             })
           }
@@ -243,6 +256,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
           startSy: sy,
           startTx: runtime.transform.x,
           startTy: runtime.transform.y,
+          interactionSpeed: panInteractionSpeed,
           pointerId,
         })
         return
@@ -312,6 +326,9 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
                 },
                 minWidth,
                 minHeight,
+                snapGrid: dragSnapGrid,
+                dragSensitivity: handleCfg.dragSensitivity,
+                dragDeadzonePx: handleCfg.dragDeadzonePx,
                 pointerId,
               })
               return
@@ -329,6 +346,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
             startSy: sy,
             startTx: runtime.transform.x,
             startTy: runtime.transform.y,
+            interactionSpeed: panInteractionSpeed,
             pointerId,
           })
         }
@@ -380,6 +398,8 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
           startWorldX: wx,
           startWorldY: wy,
           startNodePosById,
+          snapGrid: dragSnapGrid,
+          edgeScrollEnabled,
           pointerId,
         })
         return
@@ -401,7 +421,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         ctx.args.setSelectionBox({ left: sx, top: sy, width: 1, height: 1 })
         const mode: 'replace' | 'add' | 'remove' =
           e.altKey === true ? 'remove' : e.shiftKey === true || e.metaKey === true || e.ctrlKey === true ? 'add' : 'replace'
-        startDrag({ type: 'lasso', startSx: sx, startSy: sy, lastSx: sx, lastSy: sy, pointerId, mode })
+        startDrag({ type: 'lasso', startSx: sx, startSy: sy, lastSx: sx, lastSy: sy, pointerId, mode, edgeScrollEnabled })
         return
       }
     }
@@ -431,6 +451,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         startSy: sy,
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
+        interactionSpeed: panInteractionSpeed,
         pointerId,
       })
       return
@@ -443,6 +464,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       startSy: sy,
       startTx: runtime.transform.x,
       startTy: runtime.transform.y,
+      interactionSpeed: panInteractionSpeed,
       pointerId,
     })
   }

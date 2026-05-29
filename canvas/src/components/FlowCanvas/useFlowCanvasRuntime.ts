@@ -29,6 +29,7 @@ import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildFlowCanvasNativeSceneKey } from '@/components/FlowCanvas/flowCanvasNativeSceneKey'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
@@ -459,9 +460,9 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportSignatureRef.current = null
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
-      // Force workspace reopen to re-run init-fit for current zoom view key.
-      // This prevents stale offscreen transforms from prior sessions persisting across reopen.
-      lastInitTransformZoomViewKeyRef.current = null
+      // Let the init guard re-fit stale or offscreen transforms, but preserve
+      // an already-usable current zoom key across the workspace open edge.
+      if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) lastInitTransformZoomViewKeyRef.current = null
       lastOffscreenOverlayRecoveryKeyRef.current = null
       resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
@@ -475,15 +476,15 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportSignatureRef.current = null
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
-      // Drop init/recovery memoization on close so next open starts from fresh fit authority.
-      lastInitTransformZoomViewKeyRef.current = null
+      // Keep the initialized Flow Editor transform through close. Reopen owns the
+      // fresh-fit reset; closing must not trigger a canvas-side refit.
       lastOffscreenOverlayRecoveryKeyRef.current = null
       resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
       clearWorkspaceOffscreenRecoveryRetry()
     }
     workspaceOverlayOpenPrevRef.current = open
-  }, [active, canvas2dRenderer, clearWorkspaceOffscreenRecoveryRetry, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen])
+  }, [active, canvas2dRenderer, clearWorkspaceOffscreenRecoveryRetry, clearWorkspaceViewportSettleRetry, workspaceEditorOverlayOpen, zoomViewKey])
 
   React.useEffect(() => {
     if (!active) return
@@ -1058,20 +1059,17 @@ export function useFlowCanvasRuntime(args: {
       )
     }
     const currentTransformUsable = isUsableFlowTransform(current)
-    if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && currentTransformUsable) return
     if (
       isFlowEditor
-      && alreadyInitializedForKey
       && workspaceEditorOverlayOpen === true
       && hasNonIdentityTransform
-      && currentTransformUsable
-      && initOverlayCollectiveCoverageComplete
-      && (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)
     ) {
-      // Preserve only if current transform remains usable/visible.
-      // If it drifted offscreen, re-apply init fit instead of requiring manual drag-back.
+      // Workspace-open recovery owns stale/offscreen correction from live overlay
+      // geometry. Init must not refit an already-visible canvas on pane open.
+      lastInitTransformZoomViewKeyRef.current = initKey
       return
     }
+    if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return
     if (!isFlowEditor && alreadyInitializedForKey && hasNonIdentityTransform) return
     const preserveCurrentTransform =
       !fitToScreenMode &&
@@ -1464,7 +1462,7 @@ export function useFlowCanvasRuntime(args: {
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime) return
-    const graphKey = `${buildGraphMetaKeyIgnoringPending(sceneGraphData)}:${sceneGraphData?.nodes?.length || 0}:${sceneGraphData?.edges?.length || 0}:${layoutVariant}`
+    const graphKey = buildFlowCanvasNativeSceneKey({ sceneGraphData, layoutVariant, rankdir, flowConfig: flowConfigEffective, forbidCircleNodes, sceneGroups })
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey

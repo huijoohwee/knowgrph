@@ -65,3 +65,75 @@ export async function testWorkspaceImportUrlApiNativeSessionTitleDrivesShareExpo
     resetWorkspaceUrlContentCacheForTests()
   }
 }
+
+export async function testWorkspaceImportUrlShareExportAvoidsDifferentSourceTitleCollision(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const shareUrl = 'https://example.test/chat/new-share-456'
+  const previousShareRoot = readWorkspaceImportShareExportRootPathSetting()
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-share-title-collision-'))
+  try {
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = `${tempRoot}/docs`
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
+    writeWorkspaceImportShareExportRootPathSetting('/docs_')
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        {
+          path: '/docs_/Repeated-title/Repeated-title.md',
+          parentPath: '/docs_/Repeated-title',
+          kind: 'file',
+          name: 'Repeated-title.md',
+          text: [
+            '---',
+            'kgWebpageUrl: "https://example.test/chat/old-share-123"',
+            'kgWebpageView: "markdown"',
+            '---',
+            '',
+            '# Old share',
+            '',
+          ].join('\n'),
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    await fs.ensureSeed()
+    const result = await importWorkspaceUrl({
+      fs,
+      urlRaw: shareUrl,
+      parentPath: '/',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: 'new-share-456.md',
+        title: 'Repeated title',
+        text: [
+          '---',
+          `kgWebpageUrl: "${url}"`,
+          'kgWebpageView: "markdown"',
+          '---',
+          '',
+          '# New share',
+          '',
+        ].join('\n'),
+      }),
+    })
+    const expectedPath = '/docs_/Repeated-title-new-share-456/Repeated-title-new-share-456.md'
+    if (result.createdPaths[0] !== expectedPath) {
+      throw new Error(`expected different-source title collision to append the URL token, got ${JSON.stringify(result.createdPaths)}`)
+    }
+    const oldText = await fs.readFileText('/docs_/Repeated-title/Repeated-title.md')
+    if (!oldText?.includes('old-share-123') || oldText.includes('# New share')) {
+      throw new Error(`expected existing different-source share artifact to remain untouched, got:\n${String(oldText || '')}`)
+    }
+    const newText = await fs.readFileText(expectedPath)
+    if (!newText?.includes('# New share')) throw new Error(`expected new share artifact at collision-safe path, got:\n${String(newText || '')}`)
+  } finally {
+    writeWorkspaceImportShareExportRootPathSetting(previousShareRoot)
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    await rm(tempRoot, { recursive: true, force: true })
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}

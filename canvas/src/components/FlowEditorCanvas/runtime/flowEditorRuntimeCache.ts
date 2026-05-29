@@ -2,8 +2,8 @@ export function readFlowEditorRuntimeCacheEntry<T>(
   cache: Map<string, T>,
   cacheKey: string,
 ): T | null {
-  const cached = cache.get(cacheKey) || null
-  if (!cached) return null
+  if (!cache.has(cacheKey)) return null
+  const cached = cache.get(cacheKey) as T
   cache.delete(cacheKey)
   cache.set(cacheKey, cached)
   return cached

@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad
-version: 1.27.1
+version: 1.27.7
 status: implemented
 created: 2026-05-21
 updated: 2026-05-29
@@ -119,6 +119,8 @@ Knowgrph must:
 - keep the default published workspace readable without requiring a caller-supplied `workspaceId`
 - keep MainPanel `mcp` and MainPanel `integrations` aligned to the same upstream settings and chat
   routing owners instead of diverging into duplicate surfaces
+- keep MainPanel `commerce` aligned to the shared Agentic Commerce route and semantic-key owner
+  instead of duplicating payment, Web3, governance, proof, or trace readiness in the browser UI
 - preserve one canonical document identity and path contract across Editor Workspace, Source Files,
   FloatingPanel Chat, frontmatter validation, canvas parsing, storage routes, and agent surfaces
 - preserve one canonical KGC contract where the LLM output starts at YAML frontmatter and uses
@@ -143,14 +145,14 @@ Knowgrph does not currently aim to:
 |---|---|---|---|
 | Link headers on service homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Headers exist on `/knowgrph/`; apex `/` remains intentionally excluded |
 | Link headers on root homepage | Implemented | `scripts/sync-pages-knowgrph.mjs` + `huijoohwee/_headers` | Root `/` advertises Knowgrph discovery without moving route ownership out of `knowgrph` |
-| Auth.md agent registration metadata | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `scripts/check-auth-md.mjs` | `/auth.md` is Markdown and OAuth authorization-server metadata includes `agent_auth`; registration remains user-mediated through the existing auth boundary |
-| DNS-AID records | Pending Cloudflare zone publish | `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | DNSSEC is active for `airvio.co`, but `_index._agents`, `_mcp._agents`, and `_a2a._agents` SVCB records must be upserted in Cloudflare DNS |
+| Auth.md agent registration metadata | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `scripts/check-auth-md.mjs` | `/auth.md` is Markdown, Protected Resource Metadata points agents at the site-owned authorization-server metadata, and that metadata includes `agent_auth`; registration remains user-mediated through the existing auth boundary |
+| DNS-AID records | Implemented | `scripts/dns-aid-records.mjs` + `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | `_index._agents.airvio.co`, `_mcp._agents.airvio.co`, and `_a2a._agents.airvio.co` return DNSSEC-authenticated ServiceMode SVCB records |
 | Markdown negotiation on homepage | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Accept parsing is intentionally narrow to `text/markdown` |
 | Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
-| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | App runtime installs twelve read-only tools, including browser-local workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors, and attempts `provideContext`, `registerTool(tool, { signal })`, then readable fallback storage |
-| Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` + `canvas/src/features/agent-ready/webMcpRuntime.ts` | Runtime and fallback expose `provideContext`, `registerTool`, readable `tools`, and paired `document.modelContext`/`navigator.modelContext` late binding without changing the shared tool contract |
+| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | App runtime installs seventeen read-only tools, including browser-local MainPanel, chat, workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors |
+| Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` + `canvas/src/features/agent-ready/webMcpRuntime.ts` | Runtime and fallback expose `provideContext`, `registerTool`, readable `tools`, and paired `document.modelContext`/`navigator.modelContext` late binding; contexts with both APIs receive one canonical `provideContext({ tools })` publication instead of duplicate registration |
 | Browser-local workspace document inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/hooks/useGraphStore.ts` | Exposed only in the app-installed browser runtime; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local canvas topology inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localCanvasTopologyInspection.ts` | Reuses active-view derivation and graph-topology helpers in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local canvas snapshot inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localCanvasSnapshotInspection.ts` | Reuses the store-owned canvas SVG snapshot seam in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
@@ -158,11 +160,12 @@ Knowgrph does not currently aim to:
 | Browser-local 3d layout-position inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localThreeLayoutPositionsInspection.ts` | Reuses the store-owned 3d layout-position seam in the app runtime only, with a bounded sampled payload; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local 2d zoom/viewport inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/local2dZoomViewportInspection.ts` | Reuses the keyed 2d zoom-state seam in the app runtime only, with renderer-aware active-view key resolution; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local Source Files snapshot inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localSourceFilesSnapshotInspection.ts` | Reuses the in-memory Source Files runtime snapshot, active workspace path, and existing composition/storage signatures in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
-| HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Inline fallback stays contract-equal with the shared published tool contract and exposes imperative WebMCP API parity for scanners before native `modelContext` arrives |
+| HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Inline fallback stays contract-equal with the shared published tool contract; root `/` no longer meta-refreshes during scanner execution and external WebMCP scan passes with five unique published tools |
 | HTTP MCP transport | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Tool surface is read-only only, by design |
 | Shared tool-schema contract | Implemented | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Future published tools must extend this shared upstream contract; browser-only tools may opt in explicitly without leaking into Pages MCP |
 | MainPanel Integrations hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/IntegrationsHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | Integrations is a thin `SettingsView` specialization, not a second routing owner |
 | MainPanel MCP hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/McpHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | MCP is also a thin `SettingsView` specialization, not a separate chat pipeline |
+| MainPanel Commerce hub | Implemented | `grph-shared/src/payments/agenticCommerceSsot.ts` + `canvas/src/features/panels/views/CommerceHubView.tsx` | Commerce is the canonical payment/agent-buyable operator surface; route readiness is read from `AGENTIC_COMMERCE_MAIN_PANEL_READINESS`, keyed by `buildAgenticCommerceMainPanelReadiness`, and published to browser-local agent inspection |
 | Chat integration routing and presets | Implemented | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` + `canvas/src/features/panels/views/settingsView.constants.ts` | Future MCP deep links must reuse the same chat routing, model, and open-panel helpers |
 | FloatingPanel chat submit pipeline | Implemented | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` + coordinator helpers | Browser-local today; not yet exposed as a first-class WebMCP or HTTP MCP tool chain |
 | KGC validation and recovery | Implemented | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` + `canvas/src/features/chat/chatMarkdownValidation.ts` + recovery helpers | Wrapper prose and parallel grouping aliases are rejected or stripped upstream before canvas apply |
@@ -178,6 +181,38 @@ Knowgrph does not currently aim to:
 | Publish sync and Pages control-file hygiene | Implemented | `scripts/sync-pages-knowgrph.mjs` | Must keep mirror non-authoritative |
 | PWA base-path correctness | Implemented | `canvas/index.html` and Pages root config | Must keep `%BASE_URL%manifest.webmanifest` invariant |
 | Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` | Must not be documented here as already shipped on the Pages agent-ready surface |
+
+## Commerce
+
+MainPanel Commerce is part of the browser-local agent-readiness path. It is not a second payment
+registry, a storefront, or a duplicate worker. The canonical Commerce contract lives in
+`grph-shared/src/payments/agenticCommerceSsot.ts` as `AGENTIC_COMMERCE_MAIN_PANEL_READINESS`.
+
+That shared owner provides the section list, row semantic keys, route paths, signal rows, route
+count, and top-level readiness semantic key through `buildAgenticCommerceMainPanelReadiness`.
+`CommerceHubView` renders those rows directly and publishes the same snapshot into
+`browserLocalSurfaceSnapshots`, so WebMCP inspection reads the same ACP discovery, UCP profile,
+MPP OpenAPI, x402 middleware probes, checkout, Stripe webhook, Base RPC/EAS, OpenBOX, proof, and trace
+readiness surface that the operator sees.
+
+`knowgrph.inspect_local_mainpanel_chat_canvas_pipeline` treats MainPanel `mcp`, `integrations`,
+and `commerce` as the valid browser-local entry surfaces for the E2E readiness path. The tool does
+not claim that Commerce mutates payments through WebMCP or HTTP MCP. It only exposes read-only
+Commerce readiness next to Settings chat readiness, mounted Editor Workspace state, FloatingPanel
+Chat state, workspace frontmatter/KGC validation, and active Canvas topology.
+
+`agentReady.localMainPanelChatCanvasPipeline.entryTabs` verifies the three valid entry tabs
+against the same ready FloatingPanel Chat, workspace, and Canvas fixture. The companion
+`agentReady.localMainPanelChatCanvasPipeline.rejectsLegacyPayments` guard keeps stale
+`payments` tab state visible as an issue instead of remapping it into Commerce.
+
+The forbidden states are:
+
+- top-level `payments` and `commerce` tabs rendered in parallel
+- browser-local route strings that duplicate `AGENTIC_COMMERCE_ROUTE_PATHS` or
+  `STRIPE_PAYMENT_ROUTE_PATHS`
+- UI-side proof recomputation, fake settlement state, or hardcoded seller/project identifiers
+- compatibility aliases that remap stale payment tab names into the Commerce route
 ## Companion Files
 
 | File | Scope |

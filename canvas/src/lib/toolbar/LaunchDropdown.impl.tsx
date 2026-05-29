@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, ChevronDown, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Palette, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, ChevronDown, CloudDownload, FolderOpen, FolderPlus, Globe, Image as ImageIcon, Link, Palette, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -28,6 +28,7 @@ import { buildAutoWebsiteImportOptions } from './importUrlWebsiteMode'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
+const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
 
 type LaunchDropdownProps = {
   anchorRef: React.RefObject<HTMLElement>
@@ -65,6 +66,7 @@ export function LaunchDropdown({
   onCloseMainPanel,
 }: LaunchDropdownProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const imageInputRef = React.useRef<HTMLInputElement | null>(null)
   const folderInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
@@ -260,6 +262,23 @@ export function LaunchDropdown({
       />
 
       <input
+        ref={imageInputRef}
+        type="file" className="sr-only" accept={WORKSPACE_IMPORT_IMAGE_ACCEPT} multiple
+        onChange={e => {
+          const files = e.target.files
+          const launchBridge = getMarkdownWorkspaceActionBridge()
+          if (typeof launchBridge.importLocalImages === 'function') launchBridge.importLocalImages(files)
+          else pushUiToast({ id: 'launch:import:localImages', kind: 'warning', message: 'Import Image: open Workspace to import images' })
+          onClose()
+          try {
+            e.currentTarget.value = ''
+          } catch {
+            void 0
+          }
+        }}
+      />
+
+      <input
         ref={el => {
           folderInputRef.current = el
           if (!el) return
@@ -339,6 +358,13 @@ export function LaunchDropdown({
             >
               <Upload className={menuIconClass} strokeWidth={1.6} />
               <span className="truncate">Import local files</span>
+            </button>
+          </li>
+
+          <li className="list-none">
+            <button type="button" className={menuItemClass} onClick={() => openFilePicker(imageInputRef.current)}>
+              <ImageIcon className={menuIconClass} strokeWidth={1.6} />
+              <span className="truncate">Import Image</span>
             </button>
           </li>
 

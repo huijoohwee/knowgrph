@@ -121,6 +121,11 @@ const buildExpectedMockAgentSurfaceInspection = (baseUrl: string) =>
       openapi: '3.1.0',
       paths: { '/knowgrph/health': { get: {} } },
     },
+    commerce: {
+      acpDiscovery: { url: `${new URL(`${baseUrl}/`).origin}/.well-known/acp.json`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/.well-known/acp.json/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
+      ucpProfile: { url: `${new URL(`${baseUrl}/`).origin}/.well-known/ucp`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/.well-known/ucp/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
+      mppOpenApi: { url: `${new URL(`${baseUrl}/`).origin}/openapi.json`, ok: true, capabilities: { tools: [{ name: 'list_source_files' }] }, status: 'pass', service: 'knowgrph-agent-ready-pages', skills: [{ name: 'knowgrph-source-files', type: 'markdown', url: `${new URL(`${baseUrl}/`).origin}/openapi.json/skill.md`, sha256: 'sha' }], openapi: '3.1.0', paths: { '/knowgrph/health': { get: {} } } },
+    },
   })
 
 export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOriginStoragePaths(): Promise<void> {

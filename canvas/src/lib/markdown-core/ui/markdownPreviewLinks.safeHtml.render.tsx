@@ -1,7 +1,9 @@
 import React from 'react'
+import { Download } from 'lucide-react'
 import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
+import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename, type MarkdownMediaDownloadKind } from './mediaDownload'
 
 const mediaFrameClassName = `rounded border ${UI_THEME_TOKENS.panel.border}`
 const tableShellClassName = `mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.panel.border} shadow-sm`
@@ -73,7 +75,52 @@ const classFromElement = (el: Element, deps: RenderDeps): string => deps.filterH
 const mediaSourceCandidate = (el: Element, deps: RenderDeps): string => {
   const srcRaw = el.getAttribute('src') || el.getAttribute('data-src') || ''
   const srcsetRaw = el.getAttribute('srcset') || el.getAttribute('data-srcset') || ''
+  const dataSrcRaw = el.getAttribute('data-src') || ''
+  if (looksLikePlaceholderMediaSrc(srcRaw) && dataSrcRaw) return dataSrcRaw
   return srcRaw || deps.pickFirstSrcsetUrl(srcsetRaw)
+}
+
+const looksLikePlaceholderMediaSrc = (value: string): boolean => {
+  const raw = String(value || '').trim()
+  if (!raw) return true
+  if (/^about:blank$/i.test(raw)) return true
+  if (/^data:image\/gif;base64,R0lGODlhAQABAIAAAAAAAP\/\/\/ywAAAAAAQABAAACAUwAOw==$/i.test(raw)) return true
+  if (/^data:image\/svg\+xml/i.test(raw)) {
+    try {
+      const decoded = decodeURIComponent(raw)
+      return /viewBox=['"]0 0 1 1['"]/i.test(decoded) || /width=['"]?1px?['"]?/i.test(decoded)
+    } catch {
+      return true
+    }
+  }
+  return false
+}
+
+const renderDownloadControl = (src: string, kind: MarkdownMediaDownloadKind, key: React.Key): React.ReactNode => {
+  const href = buildMarkdownMediaDownloadHref(src)
+  if (!href) return null
+  const filename = deriveMarkdownMediaDownloadFilename(src, kind)
+  return (
+    <a
+      key={key}
+      href={href}
+      download={filename || undefined}
+      title="Download media"
+      aria-label="Download media"
+      className={[
+        'absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded border shadow-sm',
+        UI_THEME_TOKENS.panel.border,
+        UI_THEME_TOKENS.panel.bg,
+        UI_THEME_TOKENS.text.primary,
+        'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
+      ].filter(Boolean).join(' ')}
+      onClick={event => {
+        try { event.stopPropagation() } catch { void 0 }
+      }}
+    >
+      <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+    </a>
+  )
 }
 
 export const renderSafeHtmlBlockImpl = (
@@ -193,7 +240,12 @@ export const renderSafeHtmlBlockImpl = (
         const style: React.CSSProperties = {}
         if (width) { style.width = `${Math.round(width)}px`; style.maxWidth = '100%' }
         if (height) style.height = `${Math.round(height)}px`
-        return <img key={key} src={src || undefined} alt={el.getAttribute('alt') || ''} loading="lazy" decoding="async" style={Object.keys(style).length ? style : undefined} className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} />
+        return (
+          <span key={key} className="relative inline-block group align-middle">
+            <img src={src || undefined} alt={el.getAttribute('alt') || ''} loading="lazy" decoding="async" style={Object.keys(style).length ? style : undefined} className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} />
+            {renderDownloadControl(srcCandidate, 'image', `${key}-download`)}
+          </span>
+        )
       }
 
       if (tag === 'picture') {
@@ -208,7 +260,12 @@ export const renderSafeHtmlBlockImpl = (
         const imgCandidate = img ? mediaSourceCandidate(img, deps) : ''
         if (!imgCandidate || !deps.isSafeHref(imgCandidate) || !deps.isSafeMediaSrc(imgCandidate)) return <React.Fragment key={key}>{''}</React.Fragment>
         const imgResolved = deps.applyMediaProxySrc(deps.resolveHref(imgCandidate, opts.activeDocumentPath))
-        return <picture key={key} className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={img?.getAttribute('alt') || ''} loading="lazy" decoding="async" className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} /></picture>
+        return (
+          <span key={key} className="relative inline-block group align-middle">
+            <picture className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={img?.getAttribute('alt') || ''} loading="lazy" decoding="async" className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} /></picture>
+            {renderDownloadControl(imgCandidate, 'image', `${key}-download`)}
+          </span>
+        )
       }
 
       if (tag === 'video' || tag === 'audio') {
@@ -230,9 +287,12 @@ export const renderSafeHtmlBlockImpl = (
         const poster = posterRaw && deps.isSafeHref(posterRaw) && deps.isSafeMediaSrc(posterRaw) ? deps.applyMediaProxySrc(deps.resolveHref(posterRaw, opts.activeDocumentPath)) : undefined
         const controls = el.hasAttribute('controls') ? true : el.hasAttribute('autoplay') || el.hasAttribute('loop') ? false : true
         return (
-          <video key={key} src={src} poster={poster} controls={controls} autoPlay={el.hasAttribute('autoplay') || undefined} muted={el.hasAttribute('muted') || undefined} loop={el.hasAttribute('loop') || undefined} playsInline={el.hasAttribute('playsinline') || undefined} className={['max-w-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>
-            {renderedSources as unknown as React.ReactNode}
-          </video>
+          <section key={key} className="relative inline-block group max-w-full">
+            <video src={src} poster={poster} controls={controls} autoPlay={el.hasAttribute('autoplay') || undefined} muted={el.hasAttribute('muted') || undefined} loop={el.hasAttribute('loop') || undefined} playsInline={el.hasAttribute('playsinline') || undefined} className={['max-w-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>
+              {renderedSources as unknown as React.ReactNode}
+            </video>
+            {renderDownloadControl(sourceCandidate, 'video', `${key}-download`)}
+          </section>
         )
       }
 

@@ -14,6 +14,7 @@ import {
 } from './knowgrphAgentReadyToolContract.mjs'
 import {
   readLocalChatPipelineSurfaceSnapshot,
+  readLocalCommerceReadinessSurfaceSnapshot,
   readLocalEditorWorkspaceSurfaceSnapshot,
   readLocalMainPanelSurfaceSnapshot,
   readLocalSettingsChatReadinessSurfaceSnapshot,
@@ -327,6 +328,7 @@ const buildInspectLocalMainPanelChatCanvasPipelineTool = (): WebMcpTool => ({
     const state = useGraphStore.getState()
     return inspectLocalMainPanelChatCanvasPipeline({
       mainPanelSnapshot: readLocalMainPanelSurfaceSnapshot(),
+      commerceReadinessSnapshot: readLocalCommerceReadinessSurfaceSnapshot(),
       settingsChatReadinessSnapshot: readLocalSettingsChatReadinessSurfaceSnapshot(),
       editorWorkspaceSnapshot: readLocalEditorWorkspaceSurfaceSnapshot(),
       chatPipelineSnapshot: readLocalChatPipelineSurfaceSnapshot(),

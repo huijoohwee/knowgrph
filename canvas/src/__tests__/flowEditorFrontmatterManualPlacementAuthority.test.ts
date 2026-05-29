@@ -68,8 +68,11 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!authorityText.includes('export function shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit')) {
     throw new Error('expected widget placement authority SSOT to expose one graph-commit helper for widget overlay carry-forward policy')
   }
-  if (!authorityText.includes("if (kind === 'frontmatter-flow') return false")) {
-    throw new Error('expected graph-commit widget carry-forward helper to forbid stable same-source overlay carry for frontmatter-flow outside balanced collective preservation')
+  if (
+    !authorityText.includes("if (kind === 'frontmatter-flow') {")
+    || !authorityText.includes('return args.carryForwardSameSourceUiState === true && args.stableSameSourceNodeLayout === true')
+  ) {
+    throw new Error('expected graph-commit widget carry-forward helper to gate frontmatter-flow carry on stable same-source node layout outside balanced collective preservation')
   }
   if (!graphDataCommitActionsText.includes('stripFrontmatterAutoManagedWidgetScreenPositions')) {
     throw new Error('expected graph commit path to strip stale frontmatter built-in screen positions via the shared authority helper')

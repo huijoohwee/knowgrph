@@ -28,10 +28,10 @@ import {
   getCachedFlowEditorRenderGraph,
   getCachedFlowEditorWidgetPlacementContext,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { type FrontmatterOverlayOnlyCoverageCache, resolveFrontmatterOverlayHideSafetyWithStableCoverage } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlayCoverage'
 import { buildOverlayEditorElements } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements'
 import {
   buildFlowCanvasGraphDataOverride,
-  buildFrontmatterOverlayHideSafety,
   resolveOverlayOnlyActive,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceVisibility'
 const EMPTY_GRAPH_NODES: GraphNode[] = []
@@ -558,20 +558,19 @@ export function useFlowEditorOverlaySurface(args: {
   const hasOverlayEditors =
     overlayEditorElements.length > 0
     || (workspaceInteractionPassthrough && overlayEditorNodeIds.length > 0)
-  const frontmatterOverlayHideSafety = React.useMemo(() => {
-    return buildFrontmatterOverlayHideSafety({
-      renderGraphDataOverride,
-      frontmatterVisibleSceneDisplay,
-      frontmatterRichMediaOverlayNodeIdsSnapshot,
-      overlayEditorNodeIdsSnapshot,
-      renderGraphEligibleNodeIds,
-    })
-  }, [
+  const frontmatterOverlayOnlyCoverageRef = React.useRef<FrontmatterOverlayOnlyCoverageCache | null>(null)
+  const frontmatterOverlayHideSafety = React.useMemo(() => resolveFrontmatterOverlayHideSafetyWithStableCoverage({
+    frontmatterOverlayOnlyCoverageRef,
     renderGraphDataOverride,
     frontmatterVisibleSceneDisplay,
     frontmatterRichMediaOverlayNodeIdsSnapshot,
     overlayEditorNodeIdsSnapshot,
     renderGraphEligibleNodeIds,
+    renderGraphSemanticKey,
+    workspaceMutationBlocked,
+  }), [
+    renderGraphDataOverride, frontmatterVisibleSceneDisplay, frontmatterRichMediaOverlayNodeIdsSnapshot,
+    overlayEditorNodeIdsSnapshot, renderGraphEligibleNodeIds, renderGraphSemanticKey, workspaceMutationBlocked,
   ])
 
   const overlayOnlyActive = resolveOverlayOnlyActive({

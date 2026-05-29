@@ -17,6 +17,8 @@ import { lsJson } from '@/lib/persistence'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { isCorpusSourceUnitMarkdown } from '@/features/queryable-corpus/corpusGraph'
 import { queryableCorpusParsers } from '@/features/queryable-corpus/parserSpecs'
+import { strybldrParsers } from '@/features/strybldr/parserSpecs'
+import { isStrybldrStoryboardMarkdown } from '@/features/strybldr/strybldrStoryboard'
 import {
   buildMarkdownLargeDocumentGraph,
   readMarkdownLargeDocumentProfile,
@@ -191,6 +193,7 @@ export const shouldPreferMarkdownParserInput = (name: string, text: string): boo
   const raw = String(text || '')
   if (!raw.trim()) return false
   if (isCorpusSourceUnitMarkdown(raw)) return false
+  if (isStrybldrStoryboardMarkdown(raw)) return false
   if (containsFrontmatterMermaid(raw)) return true
   if (isMarkdownLikeFileName(lower)) {
     return !isLikelyPlainTextMarkdown(raw)
@@ -442,6 +445,7 @@ const withParserTopology = (spec: ParserSpec): ParserSpec => ({
 })
 
 const rawBuiltInParsers: ParserSpec[] = [
+  ...strybldrParsers,
   ...queryableCorpusParsers,
   markdownSpec,
   graphragTextSpec,

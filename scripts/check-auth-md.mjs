@@ -1,6 +1,31 @@
 const canonicalBaseUrl = 'https://airvio.co/knowgrph'
 const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).replace(/\/+$/, '')
 const originUrl = new URL(baseUrl).origin
+const expectedAgentAuth = {
+  skill: `${originUrl}/auth.md`,
+  register_uri: `${baseUrl}/agent/auth`,
+  claim_uri: `${baseUrl}/agent/auth/claim`,
+  revocation_uri: `${baseUrl}/agent/auth/revoke`,
+}
+
+const includesAll = (values, expected) =>
+  Array.isArray(values) && expected.every(value => values.includes(value))
+
+const hasExpectedAgentAuth = (agentAuth) =>
+  agentAuth?.skill === expectedAgentAuth.skill
+  && agentAuth?.register_uri === expectedAgentAuth.register_uri
+  && agentAuth?.claim_uri === expectedAgentAuth.claim_uri
+  && agentAuth?.revocation_uri === expectedAgentAuth.revocation_uri
+  && includesAll(agentAuth?.identity_types_supported, ['anonymous', 'identity_assertion'])
+  && includesAll(agentAuth?.anonymous?.credential_types_supported, ['api_key'])
+  && includesAll(agentAuth?.identity_assertion?.assertion_types_supported, [
+    'urn:ietf:params:oauth:token-type:id-jag',
+    'verified_email',
+  ])
+  && includesAll(agentAuth?.identity_assertion?.credential_types_supported, ['access_token', 'api_key'])
+  && includesAll(agentAuth?.events_supported, [
+    'https://schemas.workos.com/events/agent/auth/identity/assertion/revoked',
+  ])
 
 const checks = [
   {
@@ -13,7 +38,27 @@ const checks = [
       && body.includes('# Knowgrph auth.md')
       && body.includes('/.well-known/oauth-protected-resource')
       && body.includes('/.well-known/oauth-authorization-server')
-      && body.includes('agent_auth'),
+      && body.includes('agent_auth')
+      && body.includes(expectedAgentAuth.register_uri)
+      && body.includes(expectedAgentAuth.claim_uri)
+      && body.includes(expectedAgentAuth.revocation_uri)
+      && body.includes('Identity assertion types')
+      && body.includes('Revocation events'),
+  },
+  {
+    name: 'auth-md-app-alias',
+    url: `${baseUrl}/auth.md`,
+    accept: 'text/markdown',
+    assert: async (response, body) =>
+      response.ok
+      && response.headers.get('content-type')?.includes('text/markdown')
+      && body.includes('# Knowgrph auth.md')
+      && body.includes('agent_auth')
+      && body.includes(expectedAgentAuth.register_uri)
+      && body.includes(expectedAgentAuth.claim_uri)
+      && body.includes(expectedAgentAuth.revocation_uri)
+      && body.includes('Identity assertion types')
+      && body.includes('Revocation events'),
   },
   {
     name: 'oauth-protected-resource',
@@ -22,9 +67,13 @@ const checks = [
     assert: async (response, body) => {
       const payload = JSON.parse(body)
       return response.ok
-        && payload.resource
+        && payload.resource === `${baseUrl}/`
         && Array.isArray(payload.authorization_servers)
+        && payload.authorization_servers.includes(originUrl)
         && Array.isArray(payload.scopes_supported)
+        && payload.scopes_supported.includes('knowgrph:read')
+        && Array.isArray(payload.bearer_methods_supported)
+        && payload.bearer_methods_supported.includes('header')
     },
   },
   {
@@ -32,13 +81,25 @@ const checks = [
     url: `${originUrl}/.well-known/oauth-authorization-server`,
     accept: 'application/json',
     assert: async (response, body) => {
-      const agentAuth = JSON.parse(body).agent_auth
+      const payload = JSON.parse(body)
+      const agentAuth = payload.agent_auth
       return response.ok
-        && agentAuth?.skill === `${originUrl}/auth.md`
-        && typeof agentAuth?.register_uri === 'string'
-        && Array.isArray(agentAuth?.identity_types_supported)
-        && Array.isArray(agentAuth?.anonymous?.credential_types_supported)
-        && Array.isArray(agentAuth?.identity_assertion?.credential_types_supported)
+        && payload.issuer === originUrl
+        && payload.resource === `${baseUrl}/`
+        && Array.isArray(payload.authorization_servers)
+        && payload.authorization_servers.includes(originUrl)
+        && hasExpectedAgentAuth(agentAuth)
+    },
+  },
+  {
+    name: 'openid-configuration-agent-auth',
+    url: `${originUrl}/.well-known/openid-configuration`,
+    accept: 'application/json',
+    assert: async (response, body) => {
+      const payload = JSON.parse(body)
+      return response.ok
+        && payload.issuer === originUrl
+        && hasExpectedAgentAuth(payload.agent_auth)
     },
   },
 ]

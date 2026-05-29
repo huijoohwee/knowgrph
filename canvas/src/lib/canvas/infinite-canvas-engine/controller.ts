@@ -46,20 +46,18 @@ export type InfiniteCanvasViewportController = {
 type PanDrag = {
   type: 'pan'
   pointerId: number
-  startSx: number
-  startSy: number
+  startSx: number; startSy: number
   startTransform: d3.ZoomTransform
-  thresholdPx: number
-  hasCrossedThreshold: boolean
+  interactionSpeed: number
+  thresholdPx: number; hasCrossedThreshold: boolean
 }
 
 type PinchDrag = {
   type: 'pinch'
-  pointerIdA: number
-  pointerIdB: number
+  pointerIdA: number; pointerIdB: number
   startTransform: d3.ZoomTransform
-  startA: { sx: number; sy: number }
-  startB: { sx: number; sy: number }
+  startA: { sx: number; sy: number }; startB: { sx: number; sy: number }
+  scaleExtent: { minK: number; maxK: number }; zoomExponentMultiplier: number
 }
 
 type ViewDrag = null | PanDrag | PinchDrag
@@ -357,21 +355,23 @@ export function createInfiniteCanvasViewportController(args: {
     return args.readLocalPoint(e)
   }
 
-  const readPanSlopPx = (e: PointerEvent): number => {
-    return readCanvasDragIntentThresholdPx(e.pointerType)
-  }
+  const readPanSlopPx = (e: PointerEvent): number => readCanvasDragIntentThresholdPx(e.pointerType)
+
+  const readPanInteractionSpeed = (): number =>
+    clampCanvasPanSpeedMultiplier(args.getCanvasPanSpeedMultiplier()) * clampCanvasInteractionSpeedMultiplier(args.getCanvasInteractionSpeedMultiplier())
 
   const startPanDrag = (e: PointerEvent) => {
     const local = readPointerLocal(e)
     if (!local) return false
     cancelWheelZoomAnimation()
     args.disableAutoZoomModes()
+    const interactionSpeed = readPanInteractionSpeed()
     drag = {
-      type: 'pan',
-      pointerId: e.pointerId,
+      type: 'pan', pointerId: e.pointerId,
       startSx: local.sx,
       startSy: local.sy,
       startTransform: args.adapter.getTransform() || d3.zoomIdentity,
+      interactionSpeed,
       thresholdPx: readPanSlopPx(e),
       hasCrossedThreshold: false,
     }
@@ -403,13 +403,21 @@ export function createInfiniteCanvasViewportController(args: {
         void 0
       }
     }
+    const startTransform = args.adapter.getTransform() || d3.zoomIdentity
+    const schema = args.getSchema()
+    const scaleExtent = readScaleExtent(schema, startTransform.k)
+    const zoomSpeed = readZoomSpeed(schema)
+    const speed = clampFlowWheelZoomSpeedMultiplier(args.getFlowWheelZoomSpeedMultiplier())
+    const increment = clampFlowWheelZoomIncrementMultiplier(args.getFlowWheelZoomIncrementMultiplier())
+    const interactionSpeed = clampCanvasInteractionSpeedMultiplier(args.getCanvasInteractionSpeedMultiplier())
+    const zoomExponentMultiplier = Math.max(0.01, zoomSpeed * speed * increment * interactionSpeed)
     drag = {
-      type: 'pinch',
-      pointerIdA,
-      pointerIdB,
-      startTransform: args.adapter.getTransform() || d3.zoomIdentity,
+      type: 'pinch', pointerIdA, pointerIdB,
+      startTransform,
       startA: { sx: a.sx, sy: a.sy },
       startB: { sx: b.sx, sy: b.sy },
+      scaleExtent,
+      zoomExponentMultiplier,
     }
     return true
   }
@@ -484,8 +492,6 @@ export function createInfiniteCanvasViewportController(args: {
       }
       if (!local) return false
       args.disableAutoZoomModes()
-      const interactionSpeed =
-        clampCanvasPanSpeedMultiplier(args.getCanvasPanSpeedMultiplier()) * clampCanvasInteractionSpeedMultiplier(args.getCanvasInteractionSpeedMultiplier())
       const rawDx = local.sx - drag.startSx
       const rawDy = local.sy - drag.startSy
       if (!drag.hasCrossedThreshold && drag.thresholdPx > 0) {
@@ -502,8 +508,8 @@ export function createInfiniteCanvasViewportController(args: {
         }
         drag.hasCrossedThreshold = true
       }
-      const dx = rawDx * interactionSpeed
-      const dy = rawDy * interactionSpeed
+      const dx = rawDx * drag.interactionSpeed
+      const dy = rawDy * drag.interactionSpeed
       applyTransform(d3.zoomIdentity.translate(drag.startTransform.x + dx, drag.startTransform.y + dy).scale(drag.startTransform.k), { commit: true })
       try {
         e.preventDefault()
@@ -519,13 +525,6 @@ export function createInfiniteCanvasViewportController(args: {
       const b = touchPointsById.get(drag.pointerIdB)
       if (!a || !b) return false
       args.disableAutoZoomModes()
-      const schema = args.getSchema()
-      const extent = readScaleExtent(schema, drag.startTransform.k)
-      const zoomSpeed = readZoomSpeed(schema)
-      const speed = clampFlowWheelZoomSpeedMultiplier(args.getFlowWheelZoomSpeedMultiplier())
-      const increment = clampFlowWheelZoomIncrementMultiplier(args.getFlowWheelZoomIncrementMultiplier())
-      const interactionSpeed = clampCanvasInteractionSpeedMultiplier(args.getCanvasInteractionSpeedMultiplier())
-      const zoomExponentMultiplier = Math.max(0.01, zoomSpeed * speed * increment * interactionSpeed)
       applyTransform(
         computePinchZoomTransform({
           startTransform: drag.startTransform,
@@ -533,8 +532,8 @@ export function createInfiniteCanvasViewportController(args: {
           startB: drag.startB,
           curA: a,
           curB: b,
-          scaleExtent: extent,
-          zoomExponentMultiplier,
+          scaleExtent: drag.scaleExtent,
+          zoomExponentMultiplier: drag.zoomExponentMultiplier,
         }),
         { commit: true },
       )
@@ -570,6 +569,7 @@ export function createInfiniteCanvasViewportController(args: {
             startSx: pt.sx,
             startSy: pt.sy,
             startTransform: args.adapter.getTransform() || d3.zoomIdentity,
+            interactionSpeed: readPanInteractionSpeed(),
             thresholdPx: readCanvasDragIntentThresholdPx('touch'),
             hasCrossedThreshold: false,
           }

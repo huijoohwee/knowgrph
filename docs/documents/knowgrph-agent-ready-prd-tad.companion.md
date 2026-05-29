@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-companion
-version: 1.27.1
+version: 1.27.5
 status: implemented
 created: 2026-05-21
 updated: 2026-05-29
@@ -58,7 +58,7 @@ frontmatter_contract: required
 | Publish sync | `scripts/sync-pages-knowgrph.mjs` | Mirrors app build and generates root control surfaces |
 | Shared Pages headers | `huijoohwee/_headers` | Final deploy header surface |
 | Shared Pages redirects | `huijoohwee/_redirects` | Final deploy redirect surface |
-| DNS-AID publisher and validator | `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | Upserts Cloudflare SVCB records and validates DNSSEC-authenticated type 64 responses |
+| DNS-AID publisher, validator, and record contract | `scripts/dns-aid-records.mjs` + `scripts/publish-dns-aid-cloudflare.mjs` + `scripts/check-dns-aid-cloudflare.mjs` | Upserts Cloudflare SVCB records and validates DNSSEC-authenticated type 64 responses against the shared record contract |
 
 ### Forbidden architecture
 The following are explicitly non-authoritative and must not be used to justify new code or docs:
@@ -124,9 +124,12 @@ discovery. Publish ServiceMode SVCB records for `_index._agents`, `_mcp._agents`
 with priority `1`, target `airvio.co.`, `port=443`, `mandatory=alpn,port`, and ALPN values `h2`,
 `mcp,h2`, and `a2a,h2`; use private-use `key65400..key65402` for the existing A2A card, endpoint
 path, and Agent Skills index until DNS-AID custom keys are registered.
-Acceptance: `npm run dns-aid:publish` upserts the Cloudflare DNS records with `proxied: false` and
-active DNSSEC; `npm run dns-aid:check` validates public DoH type 64 responses with authenticated
-data. As of 2026-05-28, the signed public zone denies the records because they are still absent.
+Acceptance: `npm run dns-aid:contract` validates the local ServiceMode SVCB contract;
+`npm run dns-aid:publish` upserts the Cloudflare DNS records with `proxied: false` and active
+DNSSEC; `npm run dns-aid:check` validates public DoH type 64 responses with authenticated data and
+the expected `alpn`, `port`, `mandatory`, and private-use endpoint parameters. As of 2026-05-29,
+`_index._agents.airvio.co`, `_mcp._agents.airvio.co`, and `_a2a._agents.airvio.co` return the
+expected DNSSEC-authenticated SVCB records.
 
 ### R1b: A2A Agent Card
 
@@ -208,14 +211,14 @@ As a browser-based agent, I want a WebMCP surface exposed through `document.mode
 - app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
 - the app runtime registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, `knowgrph.inspect_local_source_files_snapshot`, and `knowgrph.inspect_agent_surface`
 - the Pages HTML fallback registers the shared published tool set only: `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
-- registration attempts `provideContext({ tools })`, then `registerTool(tool, { signal })`, then a readable fallback `modelContext.tools` store with imperative fallback API parity
+- registration uses one canonical publication per context: `provideContext({ tools })` when available, `registerTool(tool, { signal })` when `provideContext` is unavailable, then a readable fallback `modelContext.tools` store with imperative fallback API parity
 - tool names are canonical and deduplicated by name through
   `knowgrphAgentReadyToolContract.mjs`
 - `read_source_file` requires `canonicalPath` and defaults `workspaceId` to
   `kgws:canonical-docs`
 - the document root exposes tool presence through `data-kg-webmcp-tools` and
   `data-kg-webmcp-context`
-- Knowgrph WebMCP is installed by app bootstrap and also available through HTML fallback injection
+- Knowgrph WebMCP is installed by app bootstrap and is also available through HTML fallback injection on `/knowgrph/` and root `/` without browser auto-navigation
 - browser WebMCP and HTTP MCP share the same upstream tool name and input-schema owner
 - late `document.modelContext` or `navigator.modelContext` arrival is supported through bounded retry, alias bridging, and setter-driven install
 - duplicate registration is treated as duplicate-state handling, not implicit success for all errors
@@ -224,14 +227,18 @@ As a browser-based agent, I want a WebMCP surface exposed through `document.mode
 
 #### Important correction
 
-The external scan failure `Execution context was destroyed` is not the product truth. The repo
-already contains both:
+The external scan failure `Execution context was destroyed` was caused by root `/` serving a
+zero-second HTML meta refresh before the scanner could evaluate WebMCP. Root `/` now serves a
+stable agent-ready HTML response and sources the same shared published WebMCP fallback from the
+canonical `/knowgrph/` surface. The repo contains both:
 
 - app runtime WebMCP install in `canvas/src/features/agent-ready/webMcpRuntime.ts`
 - HTML injection fallback in `cloudflare/pages/knowgrph-agent-ready.mjs`
 
 The current shipped runtime is therefore not "missing WebMCP". It already exposes the read-only
-browser tools and now ships bounded late-binding, `provideContext`/`registerTool` fallback parity, `AbortController` registration lifecycle, and same-origin/current-origin storage-resolution hardening needed for preview, localhost, and prod.
+browser tools and now ships bounded late-binding, single-publication `provideContext`/`registerTool`
+fallback parity, `AbortController` registration lifecycle, root no-navigation scan stability, and
+same-origin/current-origin storage-resolution hardening needed for preview, localhost, and prod.
 
 #### Enhancement target
 

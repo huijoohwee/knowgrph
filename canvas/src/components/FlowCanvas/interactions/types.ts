@@ -7,6 +7,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
+import type { SnapGridConfig } from '@/lib/canvas/gridSnap'
 
 export type FlowCanvasDrag =
   | null
@@ -16,6 +17,7 @@ export type FlowCanvasDrag =
       startSy: number
       startTx: number
       startTy: number
+      interactionSpeed: number
       pointerId: number
     }
   | {
@@ -25,6 +27,8 @@ export type FlowCanvasDrag =
       startTransform: d3.ZoomTransform
       startA: { sx: number; sy: number }
       startB: { sx: number; sy: number }
+      scaleExtent: { minK: number; maxK: number }
+      zoomExponentMultiplier: number
       pointerId: number
     }
   | {
@@ -34,6 +38,8 @@ export type FlowCanvasDrag =
       startWorldY: number
       startNodePosById: Record<string, { x: number; y: number }>
       deltaClamp: null | { minDx: number; maxDx: number; minDy: number; maxDy: number }
+      snapGrid: SnapGridConfig
+      edgeScrollEnabled: boolean
       pointerId: number
     }
   | {
@@ -44,6 +50,8 @@ export type FlowCanvasDrag =
       startNodeX: number
       startNodeY: number
       clamp: null | { minX: number; maxX: number; minY: number; maxY: number }
+      snapGrid: SnapGridConfig
+      edgeScrollEnabled: boolean
       pointerId: number
     }
   | {
@@ -53,6 +61,8 @@ export type FlowCanvasDrag =
       startWorldX: number
       startWorldY: number
       startNodePosById: Record<string, { x: number; y: number }>
+      snapGrid: SnapGridConfig
+      edgeScrollEnabled: boolean
       pointerId: number
     }
   | {
@@ -63,6 +73,9 @@ export type FlowCanvasDrag =
       startBounds: { x: number; y: number; width: number; height: number }
       minWidth: number
       minHeight: number
+      snapGrid: SnapGridConfig
+      dragSensitivity: number
+      dragDeadzonePx: number
       pointerId: number
     }
   | {
@@ -73,6 +86,7 @@ export type FlowCanvasDrag =
       lastSy: number
       pointerId: number
       mode: 'replace' | 'add' | 'remove'
+      edgeScrollEnabled: boolean
     }
 
 export type BindFlowCanvasNativeInteractionsArgs = {

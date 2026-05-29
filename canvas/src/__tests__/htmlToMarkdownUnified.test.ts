@@ -157,3 +157,46 @@ export async function testHtmlToMarkdownUnifiedRemovesHeadingHashAnchorIconOnly(
   if (/data:image\/svg\+xml;base64,/i.test(md)) throw new Error('expected heading hash icon to be removed')
   if (/\(#preface\)/.test(md)) throw new Error('expected heading hash link to be removed')
 }
+
+export async function testHtmlToMarkdownUnifiedUsesWeChatArticleRootAndLazyImages() {
+  const lazyUrl = 'https://mmbiz.qpic.cn/mmbiz_png/U2TOjNEaJcZqyexN2PPWt8fprzPefoobLKnzL3DEzicAX2ibmEVc8tm9icJmaaicibIlRSOiaI03aY1YnsKjYLJmdk9Q/640?wx_fmt=png'
+  const ornamentUrl = 'https://mmbiz.qpic.cn/mmbiz_png/U2TOjNEaJcZqyexN2PPWt8fprzPefoobBx5dmJIytUu6pTqSx4tudwNXOtJJnXjPOVOIsiacia2glyjjwKkRB0Bg/640?wx_fmt=png'
+  const placeholder = "data:image/svg+xml,%3Csvg width='1px' height='1px' viewBox='0 0 1 1'%3E%3C/svg%3E"
+  const html = [
+    '<!doctype html><html><head><title>WeChat title</title></head><body>',
+    '<h1>Publisher chrome should not be imported</h1>',
+    '<a href="javascript:void(0);">Open App</a>',
+    '<div id="js_content" class="rich_media_content">',
+    '<p>一幅讴歌客家先民的</p>',
+    '<p>壮丽画卷</p>',
+    '<p>赣州是客家先民中原南迁的第一站，是客家民系孕育成熟的重要摇篮。这里山川绵延、江河汇聚，先民在迁徙、拓垦、守望与融合中留下了厚重的文化记忆。</p>',
+    '<p>由老艺术家创作的长卷作品以恢宏构图记录客家先民跋山涉水、筚路蓝缕的历史图景，也呈现围屋、祠堂、书院、桥梁、古道与田园生活交织而成的精神谱系。</p>',
+    '<p>画面中的人物、器物、建筑与山水互为线索，既有历史叙事的纵深，也有民俗风情的细节。作品通过连续场景展开，表现客家人崇文重教、开拓进取、守望相助的文化气质。</p>',
+    '<p>这组内容用于模拟公众号正文的真实文本密度，确保内容根选择逻辑面对足量正文时优先提取文章本体，而不是误收页面标题、打开客户端按钮或相关推荐等外层阅读器界面。</p>',
+    `<img alt="图片" src="${placeholder}" data-src="${lazyUrl}" data-w="1025" />`,
+    '<section style="text-align:center;display:flex">',
+    `<img alt="ornament" src="${placeholder}" data-src="${ornamentUrl}" />`,
+    '<p><strong>作品赏析</strong></p>',
+    '</section>',
+    '</div>',
+    '<footer>Related article chrome</footer>',
+    '</body></html>',
+  ].join('')
+  const res = await convertHtmlToMarkdownUnified({
+    html,
+    baseUrl: 'https://mp.weixin.qq.com/s/test',
+    fidelityLevel: 4,
+    includeImages: true,
+    includeHeadSection: false,
+    maxInputChars: 200_000,
+  })
+  if (res.ok !== true) throw new Error(`expected ok, got error: ${(res as { error?: unknown }).error || ''}`)
+  const md = res.markdown
+  if (md.includes('Publisher chrome') || md.includes('Open App') || md.includes('Related article chrome')) {
+    throw new Error(`expected WeChat article root to exclude page chrome, got:\n${md}`)
+  }
+  if (!md.includes('一幅讴歌客家先民的') || !md.includes('作品赏析')) throw new Error(`expected article text preserved, got:\n${md}`)
+  if (!md.includes(lazyUrl) || !md.includes(ornamentUrl)) throw new Error(`expected lazy WeChat image data-src urls preserved, got:\n${md}`)
+  if (/data:image\/svg\+xml/i.test(md)) throw new Error(`expected placeholder svg src to be replaced, got:\n${md}`)
+  if (/U2TOjNEaJcZqyexN\s+2PPWt/i.test(md)) throw new Error(`expected media urls inside preserved html to avoid word-break spaces, got:\n${md}`)
+}

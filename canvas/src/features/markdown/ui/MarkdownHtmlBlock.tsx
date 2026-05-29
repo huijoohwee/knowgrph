@@ -5,6 +5,7 @@ import {
   applyMediaProxySrc,
   extractAttr,
   deriveSafeLayoutStyleFromClassAttr,
+  isAbsoluteWebUrl,
   isSafeHref,
   isSafeMediaSrc,
   looksLikeSingleTagBlock,
@@ -40,6 +41,11 @@ type MarkdownHtmlBlockProps = {
   fragmentStep?: number
   fragmentClassNames?: string[]
   fragmentTags?: string[]
+}
+
+const normalizeExternalEmbedUrl = (src: string): string => {
+  const raw = String(src || '').trim()
+  return raw.startsWith('//') ? `https:${raw}` : raw
 }
 
 export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
@@ -146,7 +152,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           highlightStyle={highlightStyle}
           opts={opts}
         >
-          {!/^https?:/i.test(src) ? (
+          {!isAbsoluteWebUrl(src) ? (
             <MediaIframe
               src={src}
               title="Embedded content"
@@ -156,7 +162,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
             />
           ) : (
             <MediaWebpageSnapshot
-              url={src}
+              url={normalizeExternalEmbedUrl(src)}
               title="Embedded content"
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
@@ -196,7 +202,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           highlightStyle={highlightStyle}
           opts={opts}
         >
-          {!/^https?:/i.test(src) ? (
+          {!isAbsoluteWebUrl(src) ? (
             <MediaIframe
               src={src}
               title="Embedded content"
@@ -206,7 +212,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
             />
           ) : (
             <MediaWebpageSnapshot
-              url={src}
+              url={normalizeExternalEmbedUrl(src)}
               title="Embedded content"
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}
@@ -246,7 +252,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           highlightStyle={highlightStyle}
           opts={opts}
         >
-          {!/^https?:/i.test(src) ? (
+          {!isAbsoluteWebUrl(src) ? (
             <MediaIframe
               src={src}
               title="Embedded content"
@@ -256,7 +262,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
             />
           ) : (
             <MediaWebpageSnapshot
-              url={src}
+              url={normalizeExternalEmbedUrl(src)}
               title="Embedded content"
               presentationMode={opts.markdownPresentationMode}
               containerClassName={containerStyle ? 'w-full' : undefined}

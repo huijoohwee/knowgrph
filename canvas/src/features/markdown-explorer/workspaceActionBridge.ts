@@ -16,6 +16,7 @@ export type WorkspaceImportWebsiteOpts = {
 
 export type MarkdownWorkspaceActionBridge = {
   importLocalFiles?: (files: FileList | null) => void
+  importLocalImages?: (files: FileList | null) => void
   importLocalFolder?: (files: FileList | null) => void
   importUrl?: (url: string, opts?: WorkspaceImportUrlOpts) => void
   importWebsite?: (url: string, opts?: WorkspaceImportWebsiteOpts) => void
@@ -52,6 +53,7 @@ export function getMarkdownWorkspaceActionBridge(): MarkdownWorkspaceActionBridg
   const merged: MarkdownWorkspaceActionBridge = {}
   for (const bridge of bridgeById.values()) {
     if (bridge.importLocalFiles) merged.importLocalFiles = bridge.importLocalFiles
+    if (bridge.importLocalImages) merged.importLocalImages = bridge.importLocalImages
     if (bridge.importLocalFolder) merged.importLocalFolder = bridge.importLocalFolder
     if (bridge.importUrl) merged.importUrl = bridge.importUrl
     if (bridge.importWebsite) merged.importWebsite = bridge.importWebsite

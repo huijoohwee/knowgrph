@@ -4,6 +4,7 @@ import type { CorpusImportManifest } from '@/features/queryable-corpus/sourceFil
 
 export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
+  removedPaths?: WorkspacePath[]
   sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
   skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }>
   failed: Array<{ name: string; error: string }>

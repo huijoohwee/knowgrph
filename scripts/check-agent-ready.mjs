@@ -1,6 +1,7 @@
 import { buildKnowgrphAgentReadyToolContracts } from '../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
 import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 import { buildAgentReadyDiscoveryExpectations } from '../cloudflare/pages/knowgrph-agent-ready-discovery.mjs'
+import { buildAgentReadyCommerceChecks } from './agent-ready-commerce-checks.mjs'
 
 const canonicalOriginUrl = 'https://airvio.co'
 const canonicalBaseUrl = `${canonicalOriginUrl}/knowgrph`
@@ -32,6 +33,10 @@ const expectedOpenApiPathKeys = expectedDiscovery.openApiPathKeys
 const expectedA2aSkills = expectedDiscovery.a2aSkills
 const expectedAgentSkills = expectedDiscovery.agentSkills
 const expectedAgentSkillNames = expectedAgentSkills.map((skill) => skill.name)
+const includesAll = (values, expected) => Array.isArray(values) && expected.every(value => values.includes(value))
+const hasExpectedAuthResourceReference = (payload) => payload.resource === `${baseUrl}/` && includesAll(payload.authorization_servers, [originUrl]) && includesAll(payload.scopes_supported, ['knowgrph:read'])
+const hasExpectedProtectedResource = (payload) => hasExpectedAuthResourceReference(payload) && includesAll(payload.bearer_methods_supported, ['header'])
+const hasExpectedAgentAuth = (agentAuth) => agentAuth?.skill === `${originUrl}/auth.md` && agentAuth?.register_uri === `${baseUrl}/agent/auth` && agentAuth?.claim_uri === `${baseUrl}/agent/auth/claim` && agentAuth?.revocation_uri === `${baseUrl}/agent/auth/revoke` && includesAll(agentAuth?.identity_types_supported, ['anonymous', 'identity_assertion']) && includesAll(agentAuth?.anonymous?.credential_types_supported, ['api_key']) && includesAll(agentAuth?.identity_assertion?.assertion_types_supported, ['urn:ietf:params:oauth:token-type:id-jag', 'verified_email']) && includesAll(agentAuth?.identity_assertion?.credential_types_supported, ['access_token', 'api_key']) && includesAll(agentAuth?.events_supported, ['https://schemas.workos.com/events/agent/auth/identity/assertion/revoked'])
 const preferredSharedDocSample = {
   workspaceId: 'kgws:canonical-docs',
   canonicalPath: 'huijoohwee/docs/knowgrph-design-demo.md',
@@ -78,9 +83,7 @@ const resolveSharedDocSampleFromIndex = async () => {
   })
 }
 
-const sharedDocSample =
-  await buildSharedDocSample(preferredSharedDocSample)
-  || await resolveSharedDocSampleFromIndex()
+const sharedDocSample = await buildSharedDocSample(preferredSharedDocSample) || await resolveSharedDocSampleFromIndex()
 
 const sharedDocAliasUrls = sharedDocSample
   ? {
@@ -301,11 +304,7 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      return response.ok
-        && payload.resource
-        && Array.isArray(payload.authorization_servers)
-        && payload.authorization_servers.length > 0
-        && Array.isArray(payload.scopes_supported)
+      return response.ok && hasExpectedProtectedResource(payload)
     },
   },
   {
@@ -314,7 +313,7 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => {
       const payload = JSON.parse(body)
-      return response.ok && payload.issuer && payload.authorization_endpoint && payload.token_endpoint && payload.jwks_uri
+      return response.ok && payload.issuer === originUrl && hasExpectedAuthResourceReference(payload) && payload.authorization_endpoint && payload.token_endpoint && payload.jwks_uri && hasExpectedAgentAuth(payload.agent_auth)
     },
   },
   {
@@ -624,6 +623,7 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => response.ok && Array.isArray(JSON.parse(body).skills),
   },
+  ...buildAgentReadyCommerceChecks({ originUrl }),
   {
     name: 'webmcp-html-marker',
     url: `${baseUrl}/?agentReadySmoke=1`,

@@ -230,60 +230,52 @@ Docs: https://webmachinelearning.github.io/webmcp/, https://developer.chrome.com
 
 ---
 
-## Commerce (Optional)
+## Commerce
 
 ### x402 Protocol
 
-```
 Goal: Support x402 protocol for agent-native HTTP payments
 
-Note: x402 payment protocol not detected (not a commerce site)
+Status: Implemented with the official `@x402/hono` middleware in the payment Worker. `GET /api`, `GET /api/v1`, and `GET /api/payments/commerce/x402` return HTTP 402 with a middleware-generated `payment-required` header, facilitator-backed `exact` scheme metadata, `eip155:84532`, and the configured `payTo` wallet.
 
 Fix: Add x402 payment middleware to your API routes to enable AI agents to pay for access via HTTP. Use @x402/express, @x402/hono, or @x402/next middleware with a facilitator URL and wallet address. Protected routes will return HTTP 402 with payment requirements that agents can fulfill automatically.
 
 Skill: https://isitagentready.com/.well-known/agent-skills/x402/SKILL.md
 
 Docs: https://x402.org, https://github.com/coinbase/x402, https://docs.x402.org
-```
 
 ### MPP (Machine Payment Protocol)
 
-```
 Goal: Support MPP (Machine Payment Protocol) for agent-native HTTP payments
 
-Note: MPP payment discovery not detected (not a commerce site)
+Status: Implemented through root MPP discovery. `GET /openapi.json` publishes payable operations with `x-payment-info` fields for intent, method, amount, and currency.
 
 Fix: Publish an OpenAPI document at /openapi.json with x-payment-info extensions on payable operations. Each operation should declare intent (charge or session), method (tempo, stripe, lightning, card), amount, and currency. Use the MPP SDK (mppx for TypeScript, pympp for Python) with framework middleware for Hono, Express, Next.js, or Elysia to add MPP payment handling.
 
 Skill: https://isitagentready.com/.well-known/agent-skills/mpp/SKILL.md
 
 Docs: https://mpp.dev, https://paymentauth.org/draft-payment-discovery-00.txt
-```
 
 ### Universal Commerce Protocol
 
-```
 Goal: Enable content payments via Universal Commerce Protocol
 
-Note: UCP profile returned HTML instead of expected format (not a commerce site)
+Status: Implemented through root UCP discovery. `GET /.well-known/ucp` returns JSON with the required `ucp` object, UCP version `2026-04-08`, services, capabilities, payment handlers, and endpoints.
 
 Fix: Serve /.well-known/ucp with protocol version, services, capabilities, and endpoints, and ensure spec URLs and schemas are reachable.
 
 Skill: https://isitagentready.com/.well-known/agent-skills/ucp/SKILL.md
 
 Docs: https://ucp.dev/specification/overview/
-```
 
 ### ACP (Agentic Commerce Protocol)
 
-```
 Goal: Publish ACP discovery metadata so agents can discover your commerce API
 
-Note: ACP discovery document returned HTML instead of JSON (not a commerce site)
+Status: Implemented through root ACP discovery. `GET /.well-known/acp.json` returns JSON with `protocol.name`, `protocol.version`, `protocol.supported_versions`, `api_base_url`, REST transport, and spec-shaped `capabilities.services: ["checkout"]`.
 
 Fix: Serve /.well-known/acp.json at the origin root with protocol.name "acp", protocol.version, api_base_url, supported transports, and capabilities.services so agents can discover your ACP implementation without creating a checkout session first.
 
 Skill: https://isitagentready.com/.well-known/agent-skills/acp/SKILL.md
 
 Docs: https://agenticcommerce.dev, https://github.com/agentic-commerce-protocol/agentic-commerce-protocol/blob/main/rfcs/rfc.discovery.md
-```

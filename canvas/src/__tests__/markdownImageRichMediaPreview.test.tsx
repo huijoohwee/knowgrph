@@ -47,6 +47,12 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
       '',
       '![](https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=jpeg)',
       '',
+      'Inline image: ![inline](https://example.com/inline.png)',
+      '',
+      'Local webpage asset path image:',
+      '',
+      '![](/__webpage_asset_path/https%3A%2F%2Fmmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png)',
+      '',
       'Video:',
       '',
       '![](https://example.com/demo.mp4)',
@@ -148,6 +154,16 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
     if (!video) throw new Error('expected markdown image with mp4 to render as video')
     const videoSrc = String(video.getAttribute('src') || '')
     if (!/demo\.mp4/i.test(decodeURIComponent(videoSrc))) throw new Error(`expected mp4 video src, got: ${videoSrc}`)
+    const downloadLinks = Array.from(container.querySelectorAll('a[download][aria-label="Download media"]')) as HTMLAnchorElement[]
+    const downloadHrefs = downloadLinks.map(link => String(link.getAttribute('href') || ''))
+    const hasImageDownload = downloadHrefs.some(href => href.includes('/__chat_asset_proxy?url=') && decodeURIComponent(href).includes('https://example.com/a.png'))
+    if (!hasImageDownload) throw new Error(`expected standalone image to expose a download link, got: ${downloadHrefs.join(', ')}`)
+    const hasInlineImageDownload = downloadHrefs.some(href => href.includes('/__chat_asset_proxy?url=') && decodeURIComponent(href).includes('https://example.com/inline.png'))
+    if (!hasInlineImageDownload) throw new Error(`expected inline markdown image to expose a download link, got: ${downloadHrefs.join(', ')}`)
+    const hasWebpageAssetPathDownload = downloadHrefs.some(href => href.includes('/__webpage_asset_path/') && decodeURIComponent(href).includes('mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png'))
+    if (!hasWebpageAssetPathDownload) throw new Error(`expected local webpage asset path image to expose a download link, got: ${downloadHrefs.join(', ')}`)
+    const hasVideoDownload = downloadHrefs.some(href => href.includes('/__chat_asset_proxy?url=') && decodeURIComponent(href).includes('https://example.com/demo.mp4'))
+    if (!hasVideoDownload) throw new Error(`expected standalone video to expose a download link, got: ${downloadHrefs.join(', ')}`)
 
     const audio = container.querySelector('audio') as HTMLAudioElement | null
     if (!audio) throw new Error('expected markdown image with mp3 to render as audio')

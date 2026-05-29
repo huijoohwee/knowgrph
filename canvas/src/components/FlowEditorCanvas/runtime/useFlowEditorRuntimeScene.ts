@@ -41,6 +41,13 @@ import {
 } from '@/components/FlowCanvas/transformGuards'
 import { DEFAULT_FLOW_NODE_HEIGHT_PX, DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
+import {
+  type FlowWidgetPinnedById,
+  type FlowWidgetScreenPosById,
+  type FlowWidgetWorldPosById,
+  useFlowEditorWidgetStateDependencyCounts,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeWidgetState'
+import { getCachedFlowEditorContainmentGroupLookup } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeGroupLookup'
 
 const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'
 
@@ -111,22 +118,7 @@ export function useFlowEditorRuntimeScene(args: {
   const latestAutoSeedWorldPosByNodeIdRef = React.useRef<Record<string, { x: number; y: number }>>({})
   const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
   const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
-  const flowWidgetWorldPosCount = useGraphStore(s => {
-    const graphKey = buildGraphMetaKeyIgnoringPending(s.graphData)
-    return Object.keys(resolveScopedFlowWidgetNodeMap({
-      graphMetaKey: graphKey,
-      keyedByGraphMetaKey: (s as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
-      globalByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
-    })).length
-  })
-  const flowWidgetPinnedCount = useGraphStore(s => {
-    const graphKey = buildGraphMetaKeyIgnoringPending(s.graphData)
-    return Object.keys(resolveScopedFlowWidgetNodeMap({
-      graphMetaKey: graphKey,
-      keyedByGraphMetaKey: (s as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
-      globalByNodeId: s.flowWidgetPinnedByNodeId,
-    })).length
-  })
+  const { flowWidgetPinnedCount, flowWidgetWorldPosCount } = useFlowEditorWidgetStateDependencyCounts()
   const workspaceMutationBlockedPrevRef = React.useRef<boolean>(workspaceMutationBlocked)
   const lastInteractionFrameAtMsRef = React.useRef<number>(0)
   const getVisibleViewport = React.useCallback(() => {
@@ -176,6 +168,31 @@ export function useFlowEditorRuntimeScene(args: {
       height: panelWorldH,
     }))
   }, [getVisibleViewport])
+
+  const shouldPreserveWorkspaceReopenAuthorities = React.useCallback(() => {
+    const lastUsable = lastUsableZoomTransformRef.current
+    if (!lastUsable) return false
+    const visibleViewport = getVisibleViewport()
+    const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)
+    const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})
+      .filter((world): world is { x: number; y: number } => (
+        !!world
+        && Number.isFinite(world.x)
+        && Number.isFinite(world.y)
+      ))
+    if (!normalizedLastUsable || autoSeedWorldNodes.length <= 0) return false
+    return isFlowTransformShowingGraph(normalizedLastUsable, {
+      nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
+      nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
+      nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
+    }) && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {
+      rects: buildAutoSeedWorldRectsForTransform(lastUsable),
+      viewportW: visibleViewport.width,
+      viewportH: visibleViewport.height,
+    })
+  }, [buildAutoSeedWorldRectsForTransform, getVisibleViewport, normalizeTransformToVisibleViewport])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -509,54 +526,7 @@ export function useFlowEditorRuntimeScene(args: {
     const runtime = flowRuntimeRefRef.current?.current
     const scene = runtime?.scene
     if (!runtime || !scene) return null
-    const groupIds = scene.groupIdsByNodeId?.get(id) || []
-    if (!groupIds.length) return null
-    const groups = Array.isArray(scene.groups) ? scene.groups : []
-    if (groups.length === 0) return null
-
-    const groupById = new Map<string, (typeof groups)[number]>()
-    for (let i = 0; i < groups.length; i += 1) {
-      const g = groups[i]
-      const gid = String(g?.id || '').trim()
-      if (gid && !groupById.has(gid)) groupById.set(gid, g)
-    }
-
-    const isContainmentGroup = (g: { id?: unknown; source?: unknown } | null): boolean => {
-      if (!g) return false
-      const src = String(g.source || '').trim()
-      if (src === 'userSubgraph' || src === 'mermaidSubgraph' || src === 'layer' || src === 'community') return true
-      const gid = String(g.id || '')
-      if (gid.startsWith('subgraph:') || gid.startsWith('layer:') || gid.startsWith('community:')) return true
-      return false
-    }
-
-    let bestId: string | null = null
-    let bestDepth = -Infinity
-    let bestSize = Infinity
-    for (let i = 0; i < groupIds.length; i += 1) {
-      const gid = String(groupIds[i] || '').trim()
-      if (!gid) continue
-      const g = groupById.get(gid) || null
-      if (!isContainmentGroup(g)) continue
-      const depthRaw = (g as unknown as { depth?: unknown })?.depth
-      const depth = typeof depthRaw === 'number' && Number.isFinite(depthRaw) ? Math.max(0, Math.floor(depthRaw)) : 0
-      const members = Array.isArray((g as unknown as { memberNodeIds?: unknown })?.memberNodeIds)
-        ? ((g as unknown as { memberNodeIds: unknown[] }).memberNodeIds as unknown[])
-        : []
-      const size = members.length
-      if (
-        bestId == null
-        || depth > bestDepth
-        || (depth === bestDepth && size < bestSize)
-        || (depth === bestDepth && size === bestSize && gid.localeCompare(bestId) < 0)
-      ) {
-        bestId = gid
-        bestDepth = depth
-        bestSize = size
-      }
-    }
-    if (!bestId) return null
-    const best = groupById.get(bestId) || null
+    const best = getCachedFlowEditorContainmentGroupLookup(scene)?.readContainmentGroupForNode(id) || null
     if (!best) return null
 
     const st = useGraphStore.getState()
@@ -576,7 +546,7 @@ export function useFlowEditorRuntimeScene(args: {
       labelTopExtraPx: cfg.labelTopExtraPx,
     })
     if (!aabb) return null
-    return { groupId: bestId, ...aabb }
+    return { groupId: best.id, ...aabb }
   }, [args.zoomViewKeyRef, getLiveZoomTransform])
 
   const renderGraphDataOverrideRef = React.useRef<GraphData | null>(args.renderGraphDataOverride)
@@ -590,13 +560,25 @@ export function useFlowEditorRuntimeScene(args: {
     const prev = workspaceMutationBlockedPrevRef.current
     workspaceMutationBlockedPrevRef.current = workspaceMutationBlocked
     if (workspaceMutationBlocked !== true || prev === true) return
+    if (shouldPreserveWorkspaceReopenAuthorities()) {
+      pushFlowEditorRuntimeSceneTrace({
+        reason: 'workspace-reopen-preserving-current-authorities',
+        sceneNodeCount: flowRuntimeRefRef.current?.current?.scene?.nodes?.length || 0,
+        positionsReady: flowRuntimeRefRef.current?.current?.positionsReady === true,
+        workspaceMutationBlocked,
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        transform: lastUsableZoomTransformRef.current,
+      })
+      return
+    }
     // Reset transient transform/seed authorities when Workspace overlay re-opens
-    // so reopen cannot reuse stale far-right pre-init placement state.
+    // only when the current authorities no longer keep the widget collective visible.
     lastUsableZoomTransformRef.current = null
     latestAutoSeedWorldPosByNodeIdRef.current = {}
     seededPinnedWidgetWorldPosKeyRef.current = ''
     lastAutoSeedLayoutSignatureRef.current = ''
-  }, [workspaceMutationBlocked])
+  }, [args.viewportH, args.viewportW, shouldPreserveWorkspaceReopenAuthorities, workspaceMutationBlocked])
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
     const st = useGraphStore.getState()
@@ -620,18 +602,18 @@ export function useFlowEditorRuntimeScene(args: {
     const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
     const pinnedById = resolveScopedFlowWidgetNodeMap({
       graphMetaKey: graphKey,
-      keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, FlowWidgetPinnedById> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
       globalByNodeId: st.flowWidgetPinnedByNodeId,
     })
     const posById = resolveScopedFlowWidgetNodeMap({
       graphMetaKey: graphKey,
-      keyedByGraphMetaKey: (st as unknown as { flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>> }).flowWidgetPosByNodeIdByGraphMetaKey,
-      globalByNodeId: (st as unknown as { flowWidgetPosByNodeId?: Record<string, { top: number; left: number }> }).flowWidgetPosByNodeId,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, FlowWidgetScreenPosById> }).flowWidgetPosByNodeIdByGraphMetaKey,
+      globalByNodeId: (st as unknown as { flowWidgetPosByNodeId?: FlowWidgetScreenPosById }).flowWidgetPosByNodeId,
     })
     const worldById = resolveScopedFlowWidgetNodeMap({
       graphMetaKey: graphKey,
-      keyedByGraphMetaKey: (st as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
-      globalByNodeId: (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
+      keyedByGraphMetaKey: (st as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, FlowWidgetWorldPosById> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
+      globalByNodeId: (st as unknown as { flowWidgetWorldPosByNodeId?: FlowWidgetWorldPosById }).flowWidgetWorldPosByNodeId,
     })
     const effectiveOpenIds = Array.isArray(widgetPlacementContext?.effectiveOpenWidgetNodeIds)
       ? widgetPlacementContext!.effectiveOpenWidgetNodeIds

@@ -1,12 +1,21 @@
 name = "knowgrph-payment"
 main = "index.ts"
-compatibility_date = "2026-05-07"
+compatibility_date = "2026-05-29"
+compatibility_flags = [ "nodejs_compat" ]
 
 [observability]
 enabled = true
 
 [[routes]]
 pattern = "airvio.co/api/payments/*"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/api"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/api/v1"
 zone_name = "airvio.co"
 
 [[routes]]

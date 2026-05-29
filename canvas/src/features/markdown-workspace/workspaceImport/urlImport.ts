@@ -1,5 +1,5 @@
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
-import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { parseGitHubRepoUrl } from '../githubRepoApi'
 import { importGitHubFolder } from '../githubRepoImport'
 import type { WorkspaceImportProgress, WorkspaceImportResult } from './types'
@@ -9,9 +9,11 @@ import type { WorkspaceUrlImportDocumentModeId } from './canvasPresets'
 import { shouldApplyImportedCanvasDocumentToGraph } from './applyPolicy'
 import {
   persistImportedShareUrlArtifacts,
-  resolveImportedShareUrlPrimaryWorkspacePath,
+  resolveImportedShareUrlArtifactPathsForWrite,
 } from './shareUrlExport'
+import { persistImportedWebpageUrlArtifact } from './webpageUrlExport'
 import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
+import { readWorkspaceImportMarkdownSourceUrl, workspaceImportSourceUrlsMatch } from './sourceUrlIdentity'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -57,18 +59,31 @@ export async function importWorkspaceUrl(args: {
     void 0
   }
   const sourceUrl = fetched.normalizedUrl || rawUrl
-  const sharePrimaryPath = resolveImportedShareUrlPrimaryWorkspacePath({
+  const sharePrimaryPaths = await resolveImportedShareUrlArtifactPathsForWrite({
+    fs: args.fs,
     url: sourceUrl,
     importedName: fetched.name,
     importedTitle: fetched.title,
     importedText: fetched.text,
   })
+  const sharePrimaryPath = sharePrimaryPaths?.exportMarkdownPath || null
+  const webpageUrlArtifact = sharePrimaryPath
+    ? null
+    : await persistImportedWebpageUrlArtifact({
+        fs: args.fs,
+        url: sourceUrl,
+        importedName: fetched.name,
+        importedText: fetched.text,
+      })
+  const webpageUrlArtifactPath = webpageUrlArtifact?.exportMarkdownPath || null
   const createdPath = sharePrimaryPath
     ? (await writeWorkspaceFileTextEnsuringFile({
         fs: args.fs,
         path: sharePrimaryPath,
         text: fetched.text,
       }), sharePrimaryPath)
+    : webpageUrlArtifactPath
+      ? webpageUrlArtifactPath
     : await args.fs.createFile({ parentPath, name: fetched.name, text: fetched.text })
   try {
     args.onProgress?.({ phase: 'writing', current: 1, total: 1, label: 'Writing' })
@@ -87,9 +102,23 @@ export async function importWorkspaceUrl(args: {
     importedWorkspacePath: normalized,
   })
   const sources: WorkspaceImportResult['sources'] = [{ path: normalized, source: { kind: 'url', url: sourceUrl } }]
+  const removedPaths = persistedShareArtifacts?.removedPaths || []
+  if (webpageUrlArtifactPath) {
+    const legacyPath = normalizeWorkspacePath(joinWorkspacePath(parentPath, fetched.name))
+    if (legacyPath && legacyPath !== webpageUrlArtifactPath) {
+      const legacyText = await args.fs.readFileText(legacyPath)
+      const legacySourceUrl = legacyText === null ? '' : readWorkspaceImportMarkdownSourceUrl(legacyText)
+      if (legacySourceUrl && workspaceImportSourceUrlsMatch(sourceUrl, legacySourceUrl)) {
+        await args.fs.deleteEntry(legacyPath)
+        removedPaths.push(legacyPath)
+      }
+    }
+  }
   if (persistedShareArtifacts) {
     const knownSourcePaths = new Set(sources.map(item => normalizeWorkspacePath(item.path)))
-    for (const path of [persistedShareArtifacts.exportMarkdownPath, persistedShareArtifacts.exportThinkingPath]) {
+    const artifactPaths = [persistedShareArtifacts.exportMarkdownPath, persistedShareArtifacts.exportThinkingPath]
+      .filter((path): path is string => typeof path === 'string' && !!path.trim())
+    for (const path of artifactPaths) {
       const artifactPath = normalizeWorkspacePath(path)
       if (!artifactPath || knownSourcePaths.has(artifactPath)) continue
       knownSourcePaths.add(artifactPath)
@@ -103,6 +132,7 @@ export async function importWorkspaceUrl(args: {
   return {
     createdPaths: [normalized],
     sources,
+    ...(removedPaths.length > 0 ? { removedPaths } : {}),
     skipped: [],
     failed: [],
     applyToGraph,

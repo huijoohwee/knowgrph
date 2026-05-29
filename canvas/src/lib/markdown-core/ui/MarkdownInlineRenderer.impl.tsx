@@ -38,8 +38,8 @@ import {
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
 import { renderInlineHtmlElement, renderInlineHtmlToken } from './markdownInlineHtmlToken'
+import { renderInlineMediaWithDownload } from './MarkdownInlineMediaDownload'
 import { YouTubeTimestampPreviewLink } from './MarkdownYouTubeTimestampPreviewLink'
-
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
@@ -136,7 +136,6 @@ const encodeUtf8ToBase64 = (text: string): string => {
   }
   return btoa(binary)
 }
-
 const INLINE_HTML_WRAPPER_TAGS = new Set([
   'a',
   'abbr',
@@ -595,7 +594,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         )
       }
       if (isVideo && src && isSafeMediaSrc(src)) {
-        return <MediaVideo key={key} src={src} controls />
+        return renderInlineMediaWithDownload({ children: <MediaVideo src={src} controls />, insideLink, kind: 'video', nodeKey: key, src: resolved || src })
       }
       if (isAudio && src && isSafeMediaSrc(src)) {
         return (
@@ -614,9 +613,9 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       }
       const isPdfAsset = src.startsWith('/__pdf_assets/') || /^data:image\//i.test(src)
       const isSvgImage = /^data:image\/svg\+xml;base64,/i.test(src) || /\.svg(\?|#|$)/i.test(src)
-      return (
+      const imageNode = (
         <img
-          key={key}
+          key={`${key}-image`}
           src={src || undefined}
           alt={alt}
           loading="lazy"
@@ -631,6 +630,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             .join(' ')}
         />
       )
+      return renderInlineMediaWithDownload({ children: imageNode, insideLink, kind: 'image', nodeKey: key, src: resolved || src })
     }
     if (tt.type === 'code') {
       const semanticToken = renderInlineCodeSemanticToken((t as unknown as TokensCode).text, key, activeDocumentPath)

@@ -230,11 +230,14 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('if (workspaceMutationBlocked !== true || prev === true) return')) {
     throw new Error('expected Flow Editor runtime scene to run transition reset only on workspace reopen edges')
   }
+  if (!['const shouldPreserveWorkspaceReopenAuthorities = React.useCallback(() => {', 'if (shouldPreserveWorkspaceReopenAuthorities()) {', "reason: 'workspace-reopen-preserving-current-authorities'"].every(fragment => runtimeText.includes(fragment))) {
+    throw new Error('expected Flow Editor runtime scene to preserve visible current widget authorities across workspace reopen instead of reseeding stable layouts')
+  }
   if (!runtimeText.includes("lastUsableZoomTransformRef.current = null")) {
-    throw new Error('expected Flow Editor runtime scene to clear stale last-usable transform on workspace reopen to prevent far-right jump')
+    throw new Error('expected Flow Editor runtime scene to clear stale last-usable transform only when workspace reopen authorities are no longer visible')
   }
   if (!runtimeText.includes("seededPinnedWidgetWorldPosKeyRef.current = ''") || !runtimeText.includes("lastAutoSeedLayoutSignatureRef.current = ''")) {
-    throw new Error('expected Flow Editor runtime scene to clear transient auto-seed keys on workspace reopen so post-init layout reseed is authoritative')
+    throw new Error('expected Flow Editor runtime scene to clear transient auto-seed keys only for stale workspace reopen authorities')
   }
   if (!runtimeText.includes("reason: 'scene-empty-using-last-usable-transform'")) {
     throw new Error('expected runtime trace to report scene-empty fallback that reuses last usable transform instead of dropping overlays')
@@ -536,8 +539,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (runtimeText.includes('const graphKey = `${graphDataRevision}:')) {
     throw new Error('expected Flow runtime scene rebuild key to avoid raw graphDataRevision churn')
   }
-  if (!runtimeText.includes('const graphKey = `${buildGraphMetaKeyIgnoringPending(sceneGraphData)}:')) {
-    throw new Error('expected Flow runtime scene rebuild key to reuse semantic graph identity')
+  if (!runtimeText.includes('buildFlowCanvasNativeSceneKey({') || runtimeText.includes('graphRevision: graphDataRevision,')) {
+    throw new Error('expected Flow runtime scene rebuild key to use the shared native scene semantic key without raw revision-only churn')
   }
   if (!runtimeText.includes("import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'")) {
     throw new Error('expected Flow runtime zoom seeding to reuse the shared flow transform visibility guard helper')
@@ -560,14 +563,14 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeTextIncludesAll('const seed = shouldUseInitialTransform', '? (initialTransform as d3.ZoomTransform)')) {
     throw new Error('expected Flow runtime zoom seeding to fallback from unusable initial transforms to fit/current guard path')
   }
-  if (!runtimeText.includes('if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && currentTransformUsable) return')) {
-    throw new Error('expected Flow runtime initialization to re-evaluate fit while Workspace overlay is open instead of short-circuiting after first init key hit')
+  if (!runtimeText.includes('if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return')) {
+    throw new Error('expected Flow runtime initialization to preserve already-initialized non-workspace Flow Editor transforms after workspace close')
   }
   if (!runtimeTextIncludesAll('workspaceEditorOverlayOpen !== true', 'Date.now() - lastUserInteractionAtMsRef.current < 500')) {
     throw new Error('expected Flow runtime to bypass recent-interaction init-fit suppression while Workspace overlay is open')
   }
-  if (!runtimeText.includes('&& (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
-    throw new Error('expected Flow runtime workspace-open init-fit freeze to activate only after transform authority is stabilized or user-controlled')
+  if (!runtimeTextIncludesAll('alreadyInitializedForKey', 'workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'Workspace-open recovery owns stale/offscreen correction from live overlay')) {
+    throw new Error('expected Flow runtime workspace-open init-fit guard to preserve existing non-identity transforms and delegate stale correction to recovery')
   }
   if (!runtimeTextIncludesAll('const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []', 'const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0')) {
     throw new Error('expected Flow runtime init fit strategy to detect collective Flow Editor widget overlays before selecting centered-fit mode')
@@ -742,14 +745,11 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (prev != null && prev !== zoomViewKey) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
   }
-  if (!runtimeText.includes('if (open && !prev) {')
-    || !runtimeText.includes('lastInitTransformZoomViewKeyRef.current = null')
-    || !runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = null')) {
-    throw new Error('expected Flow runtime workspace reopen edge to clear init/recovery memoization so stale offscreen transforms cannot persist across open->close->reopen')
+  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current !== zoomViewKey', 'lastInitTransformZoomViewKeyRef.current = null', 'lastOffscreenOverlayRecoveryKeyRef.current = null')) {
+    throw new Error('expected Flow runtime workspace reopen edge to reset only stale zoom-key memoization while preserving the current initialized transform')
   }
-  if (!runtimeText.includes('if (!open) {')
-    || !runtimeText.includes('Drop init/recovery memoization on close')) {
-    throw new Error('expected Flow runtime workspace close edge to clear init/recovery memoization before next reopen')
+  if (!runtimeTextIncludesAll('if (!open) {', 'Keep the initialized Flow Editor transform through close') || runtimeText.includes('Drop init/recovery memoization on close')) {
+    throw new Error('expected Flow runtime workspace close edge to preserve initialized transform authority until the next reopen owns the reset')
   }
   if (!runtimeText.includes('const currentTransformUsable = isUsableFlowTransform(current)')) {
     throw new Error('expected Flow runtime init guard to compute current transform usability before preserving already-initialized state')
@@ -758,11 +758,11 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || !runtimeText.includes('&& (initOverlayCollectiveState.visible !== true || initOverlayCollectiveState.offscreen === true)')) {
     throw new Error('expected Flow runtime init guard to reject workspace-open current transforms whenever the live Flow Editor overlay collective is still offscreen')
   }
-  if (!runtimeText.includes('workspaceEditorOverlayOpen !== true && currentTransformUsable')) {
-    throw new Error('expected Flow runtime non-workspace init-preserve guard to require usable current transform, preventing far-right offscreen preservation')
+  if (!runtimeText.includes('workspaceEditorOverlayOpen !== true && hasNonIdentityTransform')) {
+    throw new Error('expected Flow runtime non-workspace init-preserve guard to preserve initialized non-identity transforms without close-edge refits')
   }
-  if (!runtimeText.includes('&& currentTransformUsable\n      && initOverlayCollectiveCoverageComplete\n      && (workspaceOverlayStabilizedRef.current || workspaceOverlayUserControlledRef.current)')) {
-    throw new Error('expected Flow runtime workspace-open init-preserve guard to require usable current transform before skipping re-fit')
+  if (!runtimeText.includes('workspaceEditorOverlayOpen === true\n      && hasNonIdentityTransform')) {
+    throw new Error('expected Flow runtime workspace-open init-preserve guard to preserve current transform before skipping re-fit')
   }
   if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
     || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')

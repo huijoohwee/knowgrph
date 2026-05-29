@@ -71,6 +71,7 @@ export function useWorkspaceFileActions(args: UseWorkspaceFileActionsArgs): Work
     createNewFile: core.createNewFile,
     createNewFolder: core.createNewFolder,
     handleImportLocalFiles: importActions.handleImportLocalFiles,
+    handleImportLocalImages: importActions.handleImportLocalImages,
     handleImportLocalFolder: importActions.handleImportLocalFolder,
     handleImportUrl: importActions.handleImportUrl,
     handleImportWebsite: websiteImport.handleImportWebsite,

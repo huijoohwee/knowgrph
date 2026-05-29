@@ -51,6 +51,7 @@ export function buildMarkdownWorkspaceActionBridge(args: {
 }): MarkdownWorkspaceActionBridge {
   return {
     importLocalFiles: args.fileActions.handleImportLocalFiles,
+    importLocalImages: args.fileActions.handleImportLocalImages,
     importLocalFolder: args.fileActions.handleImportLocalFolder,
     importUrl: args.fileActions.handleImportUrl,
     importWebsite: args.fileActions.handleImportWebsite,

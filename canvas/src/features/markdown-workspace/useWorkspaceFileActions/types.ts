@@ -73,6 +73,7 @@ export type WorkspaceFileActions = {
   createNewFile: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
   createNewFolder: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
   handleImportLocalFiles: (files: FileList | null) => Promise<void>
+  handleImportLocalImages: (files: FileList | null) => Promise<void>
   handleImportLocalFolder: (files: FileList | null) => Promise<void>
   handleImportUrl: (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null }) => Promise<void>
   handleImportWebsite: (urlRaw: string, opts?: WorkspaceImportWebsiteOpts) => Promise<void>

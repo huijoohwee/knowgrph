@@ -2,6 +2,7 @@ import { hashText } from '../../features/parsers/hash'
 import { LRUCache } from '../cache/LRUCache'
 import { postprocessWebpageMarkdownSsot } from './webpageMarkdownPostprocess'
 import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
+import { isGenericSvgLabel, looksLikePlaceholderMediaSrc, scoreHtmlContentRootCandidate, shouldPreserveRawHtmlMarkdownLine } from './htmlToMarkdownHeuristics'
 
 type HastNode = {
   type?: unknown
@@ -99,11 +100,9 @@ const pickBestContentRoot = (root: HastNode): HastNode | null => {
   const visit = (node: HastNode): void => {
     const t = typeof node?.type === 'string' ? node.type : ''
     const tag = t === 'element' && typeof node?.tagName === 'string' ? node.tagName.toLowerCase() : ''
+    const candidateBoost = tag ? scoreHtmlContentRootCandidate({ tag, id: getProp(node, 'id'), className: getProp(node, 'className') || getProp(node, 'class'), role: getProp(node, 'role') }) : 0
 
-    if (tag === 'main' || tag === 'article' || getProp(node, 'role') === 'main') {
-      const score = extractTextLen(node)
-      if (!best || score > best.score) best = { node, score }
-    }
+    if (candidateBoost > 0) { const score = extractTextLen(node) + candidateBoost; if (!best || score > best.score) best = { node, score } }
 
     const kids = Array.isArray(node.children) ? (node.children as HastNode[]) : null
     if (!kids || kids.length === 0) return
@@ -112,8 +111,7 @@ const pickBestContentRoot = (root: HastNode): HastNode | null => {
 
   visit(root)
   if (!best) return null
-  if (best.score < 500) return null
-  return best.node
+  return extractTextLen(best.node) < 300 ? null : best.node
 }
 
 const fillEmptyAnchorText = (root: HastNode): void => {
@@ -178,7 +176,7 @@ const fillMissingMediaSrc = (node: HastNode): void => {
           ? ((img as unknown as { properties?: unknown }).properties as Record<string, unknown>)
           : null
       const imgSrc = imgProps && typeof imgProps.src === 'string' ? String(imgProps.src || '').trim() : ''
-      if (imgProps && !imgSrc) {
+      if (imgProps && (!imgSrc || looksLikePlaceholderMediaSrc(imgSrc))) {
         const firstSource = sources[0]
         const sProps =
           firstSource &&
@@ -199,7 +197,7 @@ const fillMissingMediaSrc = (node: HastNode): void => {
 
   if (props && tag === 'img') {
     const src = typeof props.src === 'string' ? props.src.trim() : ''
-    if (!src) {
+    if (!src || looksLikePlaceholderMediaSrc(src)) {
       const dataSrc =
         (typeof props['data-src'] === 'string' ? String(props['data-src'] || '').trim() : '') ||
         (typeof props.dataSrc === 'string' ? String(props.dataSrc || '').trim() : '')
@@ -538,12 +536,6 @@ export async function convertHtmlToMarkdownUnified(args: {
         return btoa(binary)
       }
 
-      const makeSvgOmittedDataUri = (label: string): string => {
-        void label
-        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="24"/>'
-        return `data:image/svg+xml;base64,${encodeUtf8ToBase64(svg)}`
-      }
-
       return (_state: unknown, node: unknown) => {
         let value = String(toHtml(node as never) || '')
         const lower = value.toLowerCase()
@@ -572,7 +564,7 @@ export async function convertHtmlToMarkdownUnified(args: {
         let url = ''
         try {
           const b64 = encodeUtf8ToBase64(withoutScripts)
-          url = b64.length <= maxSvgBase64Chars ? `data:image/svg+xml;base64,${b64}` : makeSvgOmittedDataUri('')
+          url = b64.length <= maxSvgBase64Chars ? `data:image/svg+xml;base64,${b64}` : ''
         } catch {
           url = ''
         }
@@ -959,8 +951,10 @@ export async function convertHtmlToMarkdownUnified(args: {
                 const role = (getPropStr(props, 'role') || '').toLowerCase()
                 if (role === 'presentation') return true
                 const ariaLabel = getPropStr(props, 'ariaLabel') || getPropStr(props, 'aria-label')
+                if (isGenericSvgLabel(ariaLabel)) return true
                 if (ariaLabel.trim()) return false
                 const title = getPropStr(props, 'title')
+                if (isGenericSvgLabel(title)) return true
                 if (title.trim()) return false
                 const dataIcon = getPropStr(props, 'dataIcon') || getPropStr(props, 'data-icon')
                 if (dataIcon.trim()) return true
@@ -970,7 +964,9 @@ export async function convertHtmlToMarkdownUnified(args: {
                 const height = (getPropStr(props, 'height') || '').toLowerCase()
                 if (/\bem\b/.test(width) || /\bem\b/.test(height)) return true
                 const raw = String(toHtml(node as never) || '')
+                if (/viewBox\s*=\s*["']0 0 1 1["']/i.test(raw)) return true
                 if (/<\s*use\b/i.test(raw)) return true
+                if (!ariaLabel.trim() && !title.trim() && !/<\s*(title|desc|text)\b/i.test(raw)) return true
                 return false
               }
 
@@ -1109,6 +1105,7 @@ export async function convertHtmlToMarkdownUnified(args: {
           out.push(line)
           continue
         }
+        if (shouldPreserveRawHtmlMarkdownLine(line)) { out.push(line); continue }
         let next = line
         next = next.replace(/\)\[/g, ') [')
         next = next.replace(/\)\!\[/g, ')\n\n![')

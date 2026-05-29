@@ -1,3 +1,5 @@
+import type { AgenticCommerceMainPanelReadiness } from 'grph-shared/payments/agenticCommerceSsot'
+
 export type LocalMainPanelSurfaceSnapshot = {
   activeTab: string
   activeTabLabel: string
@@ -135,12 +137,15 @@ export type LocalChatPipelineSurfaceSnapshot = {
   finalize?: LocalChatPipelineFinalizeSnapshot
 }
 
+export type LocalCommerceReadinessSurfaceSnapshot = AgenticCommerceMainPanelReadiness
+
 type TimestampedSnapshot<TSnapshot> = TSnapshot & {
   updatedAtMs: number
 }
 
 type BrowserLocalSurfaceSnapshots = {
   mainPanel: TimestampedSnapshot<LocalMainPanelSurfaceSnapshot> | null
+  commerceReadiness: TimestampedSnapshot<LocalCommerceReadinessSurfaceSnapshot> | null
   editorWorkspace: TimestampedSnapshot<LocalEditorWorkspaceSurfaceSnapshot> | null
   settingsChatReadiness: TimestampedSnapshot<LocalSettingsChatReadinessSurfaceSnapshot> | null
   chatPipeline: TimestampedSnapshot<LocalChatPipelineSurfaceSnapshot> | null
@@ -191,6 +196,7 @@ const resolveLocalChatPipelineSnapshot = (
 
 const browserLocalSurfaceSnapshots: BrowserLocalSurfaceSnapshots = {
   mainPanel: null,
+  commerceReadiness: null,
   editorWorkspace: null,
   settingsChatReadiness: null,
   chatPipeline: null,
@@ -216,6 +222,18 @@ export const clearLocalMainPanelSurfaceSnapshot = (): void => {
 
 export const readLocalMainPanelSurfaceSnapshot = (): TimestampedSnapshot<LocalMainPanelSurfaceSnapshot> | null =>
   cloneSnapshot(browserLocalSurfaceSnapshots.mainPanel)
+
+export const publishLocalCommerceReadinessSurfaceSnapshot = (value: LocalCommerceReadinessSurfaceSnapshot): void => {
+  browserLocalSurfaceSnapshots.commerceReadiness = withTimestamp(value)
+}
+
+export const clearLocalCommerceReadinessSurfaceSnapshot = (): void => {
+  browserLocalSurfaceSnapshots.commerceReadiness = null
+}
+
+export const readLocalCommerceReadinessSurfaceSnapshot = ():
+  TimestampedSnapshot<LocalCommerceReadinessSurfaceSnapshot> | null =>
+  cloneSnapshot(browserLocalSurfaceSnapshots.commerceReadiness)
 
 export const publishLocalEditorWorkspaceSurfaceSnapshot = (value: LocalEditorWorkspaceSurfaceSnapshot): void => {
   browserLocalSurfaceSnapshots.editorWorkspace = withTimestamp(value)
@@ -274,6 +292,7 @@ export const publishLocalChatPipelineFinalizeSnapshot = (value: LocalChatPipelin
 
 export const resetBrowserLocalSurfaceSnapshotsForTests = (): void => {
   browserLocalSurfaceSnapshots.mainPanel = null
+  browserLocalSurfaceSnapshots.commerceReadiness = null
   browserLocalSurfaceSnapshots.editorWorkspace = null
   browserLocalSurfaceSnapshots.settingsChatReadiness = null
   browserLocalSurfaceSnapshots.chatPipeline = null

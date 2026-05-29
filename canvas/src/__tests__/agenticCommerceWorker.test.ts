@@ -20,6 +20,36 @@ const createCommerceEnv = () => {
   return env
 }
 
+const readPaymentRequiredHeader = (response: Response): { x402Version?: number; accepts?: Array<Record<string, unknown>> } | null => {
+  const headerValue = response.headers.get('payment-required')
+  if (!headerValue) return null
+  try {
+    return JSON.parse(Buffer.from(headerValue, 'base64').toString('utf8')) as { x402Version?: number; accepts?: Array<Record<string, unknown>> }
+  } catch {
+    return null
+  }
+}
+
+const withX402FacilitatorSupportedKinds = async (callback: () => Promise<void>) => {
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const target = typeof url === 'string' || url instanceof URL ? String(url) : url.url
+      if (target === 'https://x402.org/facilitator/supported') {
+        return new Response(JSON.stringify({
+          kinds: [{ x402Version: 2, scheme: 'exact', network: 'eip155:84532' }],
+          extensions: [],
+          signers: { 'eip155:*': ['0xd407e409E34E0b9afb99EcCeb609bDbcD5e7f1bf'] },
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return originalFetch(url as never, init)
+    }) as typeof fetch
+    await callback()
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
 const createCheckoutSession = async (env: ReturnType<typeof createCommerceEnv>, overrides: Record<string, unknown> = {}) => {
   const response = await worker.fetch(
     new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.checkoutSessions}`, {
@@ -68,6 +98,29 @@ export async function testAgenticCommerceAcpConfigExposesNeutralRoutes() {
   if (body.capabilities?.web3 !== true || body.capabilities?.risk_signals !== true || !body.extensions?.includes('x-web3')) {
     throw new Error(`expected ACP commerce capabilities, got ${JSON.stringify(body)}`)
   }
+}
+
+export async function testAgenticCommerceX402RouteReturnsPaymentRequired() {
+  await withX402FacilitatorSupportedKinds(async () => {
+    const env = createCommerceEnv()
+    for (const path of [AGENTIC_COMMERCE_ROUTE_PATHS.x402PaymentRequired, AGENTIC_COMMERCE_ROUTE_PATHS.x402ApiRoot]) {
+      const response = await worker.fetch(
+        new Request(`https://commerce.example${path}`),
+        env as never,
+      )
+      if (response.status !== 402) throw new Error(`expected ${path} to return HTTP 402, received ${response.status}`)
+      const headerPayload = readPaymentRequiredHeader(response)
+      if (headerPayload?.x402Version !== 2) throw new Error(`expected x402 v2 payment-required header, got ${JSON.stringify(headerPayload)}`)
+      if (!headerPayload.accepts?.some(entry => (
+        entry.scheme === 'exact'
+        && /^0x[0-9a-fA-F]{40}$/.test(String(entry.payTo || ''))
+        && entry.network === 'eip155:84532'
+        && String(entry.asset || '').startsWith('0x')
+      ))) {
+        throw new Error(`expected middleware payment requirements with payTo/network/asset for ${path}, got ${JSON.stringify(headerPayload)}`)
+      }
+    }
+  })
 }
 
 export async function testAgenticCommerceCheckoutLifecyclePersistsProofAndTrace() {

@@ -1,22 +1,15 @@
 import * as d3 from 'd3'
 
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeFlowGroupAabb, hitTestGroup, requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
-import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
-import { DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { clampScale, computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
-import { readZoomSpeed, clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
-import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplier } from '@/lib/canvas/flow-zoom-tuning'
+import { computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
 import { clampFlowDelta, clampFlowNodeTopLeft } from '@/components/FlowCanvas/groupContainment'
-import { readSnapGridConfigFromSchema, snapDeltaToGridByAnchor, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { snapDeltaToGridByAnchor, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { computeGroupResizeBottomRight } from '@/lib/canvas/groupResizeMath2d'
 import { applyGroupResizeDragSensitivity, computeDynamicGroupResizeHandlePx, pxToWorld } from '@/lib/canvas/groupResizeHandleConfig'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
-
-const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsContext) {
   const canvasEl = ctx.canvasEl
@@ -124,14 +117,12 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     const sy = local.sy
 
     if (drag.type === 'node' || drag.type === 'nodes' || drag.type === 'group' || drag.type === 'lasso') {
-      const state = useGraphStore.getState()
-      const locked = state.viewPinned === true
       const d = ctx.edgeScroll.update({
         nowMs: Date.now(),
         pointer: { sx, sy, kind: e.pointerType === 'touch' ? 'touch' : e.pointerType === 'pen' ? 'pen' : 'mouse' },
         viewport: { w: runtime.viewportW, h: runtime.viewportH },
         zoomK: runtime.transform?.k || 1,
-        enabled: local.inBounds === true && !locked,
+        enabled: local.inBounds === true && drag.edgeScrollEnabled,
       })
       if (Math.abs(d.dx) > 1e-6 || Math.abs(d.dy) > 1e-6) {
         setFlowNativeTransform(runtime, d3.zoomIdentity.translate(runtime.transform.x + d.dx, runtime.transform.y + d.dy).scale(runtime.transform.k))
@@ -151,14 +142,12 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       if (!group) return
       const minW = typeof drag.minWidth === 'number' && Number.isFinite(drag.minWidth) ? drag.minWidth : 24
       const minH = typeof drag.minHeight === 'number' && Number.isFinite(drag.minHeight) ? drag.minHeight : 24
-      const snapGrid = readSnapGridConfigFromSchema(useGraphStore.getState().schema)
-      const dragCfg = runtime.presentation.groups.resizeHandle || null
       const adjustedWorld = applyGroupResizeDragSensitivity({
         startWorld: { x: drag.startWorldX, y: drag.startWorldY },
         world: { x: wx, y: wy },
         zoomK: t0.k,
-        dragSensitivity: dragCfg && Number.isFinite(dragCfg.dragSensitivity) ? dragCfg.dragSensitivity : 0.72,
-        dragDeadzonePx: dragCfg && Number.isFinite(dragCfg.dragDeadzonePx) ? dragCfg.dragDeadzonePx : 3,
+        dragSensitivity: drag.dragSensitivity,
+        dragDeadzonePx: drag.dragDeadzonePx,
       })
       const next = computeGroupResizeBottomRight({
         startBounds: { x: drag.startBounds.x, y: drag.startBounds.y, w: drag.startBounds.width, h: drag.startBounds.height },
@@ -166,7 +155,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
         world: adjustedWorld,
         minW,
         minH,
-        snapGrid,
+        snapGrid: drag.snapGrid,
         altDown: e.altKey === true,
       })
       const previous = (group as unknown as { bounds?: { x?: number; y?: number; width?: number; height?: number } }).bounds
@@ -199,26 +188,14 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       const a = ctx.touchPointsById.get(drag.pointerIdA)
       const b = ctx.touchPointsById.get(drag.pointerIdB)
       if (!a || !b) return
-      const state = useGraphStore.getState()
-      disableAutoZoomModesForUserGesture(state)
-      const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(state.schema)
-      const maxScale = Math.min(schemaMaxScale, FLOW_ZOOM_MAX_VISUAL_CAP)
-      const minScaleBase = Math.min(schemaMinScale, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP)
-      const minScale = clampScale(minScaleBase, { minK: DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, maxK: maxScale })
-      const minK = Math.min(minScale, drag.startTransform.k)
-      const zoomSpeedRaw = readZoomSpeed(state.schema)
-      const zoomSpeed = Number.isFinite(zoomSpeedRaw) && zoomSpeedRaw > 0 ? zoomSpeedRaw : 1
-      const speed = clampFlowWheelZoomSpeedMultiplier(state.flowWheelZoomSpeedMultiplier)
-      const increment = clampFlowWheelZoomIncrementMultiplier(state.flowWheelZoomIncrementMultiplier)
-      const interactionSpeed = clampCanvasInteractionSpeedMultiplier(state.canvasInteractionSpeedMultiplier)
       const next = computePinchZoomTransform({
         startTransform: drag.startTransform,
         startA: drag.startA,
         startB: drag.startB,
         curA: a,
         curB: b,
-        scaleExtent: { minK, maxK: maxScale },
-        zoomExponentMultiplier: zoomSpeed * speed * increment * interactionSpeed,
+        scaleExtent: drag.scaleExtent,
+        zoomExponentMultiplier: drag.zoomExponentMultiplier,
       })
       setFlowNativeTransform(runtime, next)
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
@@ -249,10 +226,8 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     }
 
     if (drag.type === 'pan') {
-      const st = useGraphStore.getState()
-      const interactionSpeed = clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
-      const dx = (sx - drag.startSx) * interactionSpeed
-      const dy = (sy - drag.startSy) * interactionSpeed
+      const dx = (sx - drag.startSx) * drag.interactionSpeed
+      const dy = (sy - drag.startSy) * drag.interactionSpeed
       setFlowNativeTransform(runtime, d3.zoomIdentity.translate(drag.startTx + dx, drag.startTy + dy).scale(runtime.transform.k))
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
       ctx.args.requestCommit()
@@ -271,8 +246,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       const wy = (sy - t0.y) / t0.k
       const dx = wx - drag.startWorldX
       const dy = wy - drag.startWorldY
-      const st = useGraphStore.getState()
-      const grid = readSnapGridConfigFromSchema(st.schema)
+      const grid = drag.snapGrid
       const allowSnap = grid.enabled && e.altKey !== true
       const scene = runtime.scene
       if (!scene) return
@@ -302,8 +276,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       const wy = (sy - t0.y) / t0.k
       const dx = wx - drag.startWorldX
       const dy = wy - drag.startWorldY
-      const st = useGraphStore.getState()
-      const grid = readSnapGridConfigFromSchema(st.schema)
+      const grid = drag.snapGrid
       const allowSnap = grid.enabled && e.altKey !== true
       const scene = runtime.scene
       if (!scene) return
@@ -331,8 +304,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     const wy = (sy - t0.y) / t0.k
     const dx = wx - drag.startWorldX
     const dy = wy - drag.startWorldY
-    const st = useGraphStore.getState()
-    const grid = readSnapGridConfigFromSchema(st.schema)
+    const grid = drag.snapGrid
     const allowSnap = grid.enabled && e.altKey !== true
     const scene = runtime.scene
     const node = scene?.nodeById.get(drag.nodeId)

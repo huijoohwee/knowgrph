@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 
 import { fetchWorkspaceUrlContent, importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
@@ -1712,7 +1712,7 @@ export async function testWorkspaceImportUrlShareArtifactPersistNormalizesThinki
       rootFolderPath,
     })
     if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')
-    const thinkingText = String(await fs.readFileText(persisted.exportThinkingPath) || '')
+    const thinkingText = String(await fs.readFileText(persisted.exportThinkingPath || '') || '')
     if (thinkingText.includes('<div class=')) {
       throw new Error(`expected persisted thinking markdown to drop raw html wrappers, got:\n${thinkingText}`)
     }
@@ -1753,9 +1753,8 @@ export async function testWorkspaceImportUrlShareArtifactDoesNotBackfillThinking
       rootFolderPath,
     })
     if (!persisted) throw new Error('expected eligible share url to persist markdown artifacts')
-    const thinkingText = String(await fs.readFileText(persisted.exportThinkingPath) || '')
-    if (thinkingText.trim()) {
-      throw new Error(`expected empty share thinking artifact when no thinking payload exists, got:\n${thinkingText}`)
+    if (persisted.exportThinkingPath) {
+      throw new Error(`expected share import without thinking payload to avoid a thinking artifact path, got ${persisted.exportThinkingPath}`)
     }
   } finally {
     await rm(rootFolderPath, { recursive: true, force: true })

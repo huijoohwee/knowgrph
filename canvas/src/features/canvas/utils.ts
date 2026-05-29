@@ -18,7 +18,7 @@ export type PropsPanelOpenEventDetail = {
 }
 
 export type FloatingPanelOpenEventDetail = {
-  tab?: 'inspector' | 'node' | 'view' | 'chat' | 'geo'
+  tab?: 'inspector' | 'node' | 'view' | 'chat' | 'geo' | 'storybldr'
   open?: boolean
 }
 

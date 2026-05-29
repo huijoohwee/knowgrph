@@ -7,6 +7,7 @@ import {
   Copy,
   CreditCard,
   Eraser,
+  Film,
   GitBranch,
   Hand,
   Hash,
@@ -77,6 +78,7 @@ export type MainPanelTypeIconKey =
   | 'floatingPanel.chat'
   | 'floatingPanel.geo'
   | 'floatingPanel.renderer'
+  | 'floatingPanel.storybldr'
   | 'floatingPanel.graphTraversal'
 
 export type MainPanelTypeIconMeta = Readonly<{
@@ -340,6 +342,13 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     usage: 'FloatingPanel view for renderer presets and visualization controls.',
     Icon: MonitorPlay,
   },
+  'floatingPanel.storybldr': {
+    category: 'FloatingPanel surface',
+    label: 'Storybldr',
+    agentic: 'Image storyboard orchestration',
+    usage: 'FloatingPanel view for image reverse engineering, element cards, and video handoff.',
+    Icon: Film,
+  },
   'floatingPanel.graphTraversal': {
     category: 'FloatingPanel surface',
     label: 'Graph Traversal',
@@ -387,6 +396,7 @@ export type FloatingPanelTypeIconView =
   | 'chat'
   | 'geo'
   | 'renderer'
+  | 'storybldr'
   | 'graphTraversal'
 
 export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
@@ -397,6 +407,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   chat: 'floatingPanel.chat',
   geo: 'floatingPanel.geo',
   renderer: 'floatingPanel.renderer',
+  storybldr: 'floatingPanel.storybldr',
   graphTraversal: 'floatingPanel.graphTraversal',
 } satisfies Record<FloatingPanelTypeIconView, MainPanelTypeIconKey>
 
@@ -408,6 +419,7 @@ export const FLOATING_PANEL_TYPE_ICON_BY_VIEW: Record<FloatingPanelTypeIconView,
   chat: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.chat'].Icon,
   geo: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.geo'].Icon,
   renderer: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.renderer'].Icon,
+  storybldr: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.storybldr'].Icon,
   graphTraversal: MAIN_PANEL_TYPE_ICON_META_BY_KEY['floatingPanel.graphTraversal'].Icon,
 }
 
@@ -423,6 +435,7 @@ export const MAIN_PANEL_HELP_TYPE_ICON_KEYS = [
   'floatingPanel.chat',
   'floatingPanel.geo',
   'floatingPanel.renderer',
+  'floatingPanel.storybldr',
   'floatingPanel.graphTraversal',
   'collaboration.peer',
   'collaboration.session',

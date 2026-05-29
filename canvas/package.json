@@ -51,10 +51,12 @@
     "sandbox:export-test-file-01": "node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs ./sandbox/export-canvas-html.ts --input ../../sandbox/test-data/test-file-01.md --output ../../sandbox/test-data/test-file-01.canvas-2d.html --mode 2d && node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs ./sandbox/export-canvas-html.ts --input ../../sandbox/test-data/test-file-01.md --output ../../sandbox/test-data/test-file-01.canvas-3d.html --mode 3d"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@react-three/fiber": "^8.17.8",
     "@turf/bbox": "^7.2.0",
     "@turf/helpers": "^7.2.0",
     "@types/d3": "^7.4.3",
+    "@vladmandic/human": "^3.3.6",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
     "dagre": "^0.8.5",

@@ -15,6 +15,10 @@ import {
   buildAgentReadyOpenApiPaths,
 } from "./knowgrph-agent-ready-discovery.mjs";
 import {
+  buildKnowgrphCommerceDiscovery,
+  buildKnowgrphCommerceStaticFiles,
+} from "./knowgrph-agent-ready-commerce.mjs";
+import {
   PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE,
   createPublishedDocIdentityResolver,
   resolvePublishedDocIdentity,
@@ -27,6 +31,7 @@ import {
 import {
   A2A_AGENT_CARD_PATH,
   A2A_AGENT_CARD_URL,
+  agentReadyHomepageLinkHeaderValue,
   agentReadyMarkdownBody,
   APP_A2A_AGENT_CARD_PATH,
   APP_BASE_PATH,
@@ -57,15 +62,7 @@ const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
     : buildKnowgrphStorageDefaultDocPath(normalizedCanonicalPath);
 };
 const normalizeToolString = (value) => String(value || "").trim();
-export const agentReadyHomepageLinkHeaderValue = [
-  `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
-  `<${APP_BASE_PATH}/.well-known/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"`,
-  `<${APP_BASE_PATH}/llms.txt>; rel="service-doc"; type="text/plain"`,
-  `</auth.md>; rel="service-doc"; type="text/markdown"`,
-  `<${HEALTH_PATH}>; rel="status"; type="application/health+json"`,
-  `<${APP_BASE_PATH}/.well-known/mcp/server-card.json>; rel="mcp-server-card"; type="application/json"`,
-  `<${A2A_AGENT_CARD_PATH}>; rel="describedby"; type="application/json"`,
-].join(", ");
+export { agentReadyHomepageLinkHeaderValue };
 
 const jsonResponse = (body, contentType = "application/json; charset=utf-8") =>
   new Response(JSON.stringify(body, null, 2), {
@@ -198,26 +195,11 @@ const openApi = {
   }),
 };
 
-const oauthProtectedResource = {
-  resource: APP_URL,
-  authorization_servers: [`${SITE_ORIGIN}/cdn-cgi/access`],
-  scopes_supported: ["knowgrph:read", "knowgrph:source-files:read"],
-  bearer_methods_supported: ["header"],
-  resource_documentation: `${APP_URL}llms.txt`,
-};
+const oauthProtectedResource = { resource: APP_URL, resource_name: "Knowgrph", authorization_servers: [SITE_ORIGIN], scopes_supported: ["knowgrph:read", "knowgrph:source-files:read"], bearer_methods_supported: ["header"], resource_documentation: `${APP_URL}llms.txt` };
+const cloudflareAccessIssuer = `${SITE_ORIGIN}/cdn-cgi/access`;
 const agentAuthMetadata = { skill: `${SITE_ORIGIN}/auth.md`, register_uri: `${APP_URL}agent/auth`, claim_uri: `${APP_URL}agent/auth/claim`, revocation_uri: `${APP_URL}agent/auth/revoke`, identity_types_supported: ["anonymous", "identity_assertion"], anonymous: { credential_types_supported: ["api_key"] }, identity_assertion: { assertion_types_supported: ["urn:ietf:params:oauth:token-type:id-jag", "verified_email"], credential_types_supported: ["access_token", "api_key"] }, events_supported: ["https://schemas.workos.com/events/agent/auth/identity/assertion/revoked"], registration_status: "metadata_published_runtime_user_mediated" };
-const oauthAuthorizationServer = {
-  issuer: `${SITE_ORIGIN}/cdn-cgi/access`,
-  authorization_endpoint: `${SITE_ORIGIN}/cdn-cgi/access/login`,
-  token_endpoint: `${SITE_ORIGIN}/cdn-cgi/access/token`,
-  jwks_uri: `${APP_URL}.well-known/http-message-signatures-directory`,
-  response_types_supported: ["code"],
-  grant_types_supported: ["authorization_code", "client_credentials"],
-  token_endpoint_auth_methods_supported: ["client_secret_basic", "private_key_jwt"],
-  scopes_supported: oauthProtectedResource.scopes_supported,
-  agent_auth: agentAuthMetadata,
-};
-const authMd = `# Knowgrph auth.md\n\nKnowgrph publishes agent registration metadata for the read-only agent surface at ${APP_URL}. Agents should first fetch ${SITE_ORIGIN}/.well-known/oauth-protected-resource, then ${SITE_ORIGIN}/.well-known/oauth-authorization-server, and read the agent_auth block.\n\n## Registration\n\n- Register: ${agentAuthMetadata.register_uri}\n- Claim: ${agentAuthMetadata.claim_uri}\n- Revoke: ${agentAuthMetadata.revocation_uri}\n- Supported identity types: ${agentAuthMetadata.identity_types_supported.join(", ")}\n- Credential types: api_key, access_token\n- Current runtime policy: user-mediated access through the existing Cloudflare Access/OAuth boundary; no separate MCP-only auth stack.\n- Pipeline rule: agents must not bypass MainPanel -> FloatingPanel Chat -> KGC -> Canvas for user-mediated graph work; published HTTP MCP tools remain read-only until mutation auth and conflict semantics are implemented.`;
+const oauthAuthorizationServer = { issuer: SITE_ORIGIN, resource: oauthProtectedResource.resource, resource_name: oauthProtectedResource.resource_name, authorization_servers: oauthProtectedResource.authorization_servers, cloudflare_access_issuer: cloudflareAccessIssuer, authorization_endpoint: `${cloudflareAccessIssuer}/login`, token_endpoint: `${cloudflareAccessIssuer}/token`, jwks_uri: `${APP_URL}.well-known/http-message-signatures-directory`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "client_credentials"], token_endpoint_auth_methods_supported: ["client_secret_basic", "private_key_jwt"], scopes_supported: oauthProtectedResource.scopes_supported, agent_auth: agentAuthMetadata };
+const authMd = `# Knowgrph auth.md\n\nKnowgrph publishes agent registration metadata for the read-only agent surface at ${APP_URL}. Agents should first fetch ${SITE_ORIGIN}/.well-known/oauth-protected-resource, follow its authorization_servers entry to ${SITE_ORIGIN}/.well-known/oauth-authorization-server, and read the agent_auth block.\n\n## Registration\n\n- Register: ${agentAuthMetadata.register_uri}\n- Claim: ${agentAuthMetadata.claim_uri}\n- Revoke: ${agentAuthMetadata.revocation_uri}\n- Supported identity types: ${agentAuthMetadata.identity_types_supported.join(", ")}\n- Anonymous credentials: ${agentAuthMetadata.anonymous.credential_types_supported.join(", ")}\n- Identity assertion types: ${agentAuthMetadata.identity_assertion.assertion_types_supported.join(", ")}\n- Identity assertion credentials: ${agentAuthMetadata.identity_assertion.credential_types_supported.join(", ")}\n- Revocation events: ${agentAuthMetadata.events_supported.join(", ")}\n- Current runtime policy: user-mediated access through the existing Cloudflare Access/OAuth boundary; no separate MCP-only auth stack.\n- Pipeline rule: agents must not bypass MainPanel -> FloatingPanel Chat -> KGC -> Canvas for user-mediated graph work; published HTTP MCP tools remain read-only until mutation auth and conflict semantics are implemented.`;
 
 const a2aAgentCard = {
   name: "Knowgrph Agent",
@@ -504,6 +486,7 @@ export const webMcpScript = `(() => {
   };
   const buildAgentSurfaceInspectionPayload = (args = {}) => {
     const baseUrl = String(args.baseUrl || "").replace(/\\/+$/, "");
+    const originUrl = baseUrl ? new URL(baseUrl + "/").origin : "";
     return {
       baseUrl,
       healthUrl: baseUrl + "/health",
@@ -513,12 +496,14 @@ export const webMcpScript = `(() => {
       mcpServerCardUrl: baseUrl + "/.well-known/mcp/server-card.json",
       agentCardUrl: baseUrl + "/.well-known/agent-card.json",
       agentSkillsUrl: baseUrl + "/.well-known/agent-skills/index.json",
+      commerceUrls: { acpDiscoveryUrl: originUrl + "/.well-known/acp.json", ucpProfileUrl: originUrl + "/.well-known/ucp", mppOpenApiUrl: originUrl + "/openapi.json", x402PaymentRequiredUrl: originUrl + "/api/payments/commerce/x402" },
       health: args.health,
       apiCatalog: args.apiCatalog,
       openApi: args.openApi,
       mcpServerCard: args.mcpServerCard,
       agentCard: args.agentCard,
       agentSkills: args.agentSkills,
+      commerce: args.commerce,
     };
   };
   const createAgentSurfaceInspectionExecutor = (args = {}) => {
@@ -530,7 +515,9 @@ export const webMcpScript = `(() => {
     if (typeof fetchJson !== "function") {
       throw new Error("fetchJson is required");
     }
+    const fetchJsonOrNull = async (url, accept = "application/json") => { try { return await fetchJson(url, accept); } catch { return null; } };
     return async () => {
+      const originUrl = new URL(baseUrl + "/").origin;
       const responses = await Promise.all([
         fetchJson(baseUrl + "/health", "application/health+json"),
         fetchJson(baseUrl + "/.well-known/api-catalog", "application/linkset+json"),
@@ -538,6 +525,9 @@ export const webMcpScript = `(() => {
         fetchJson(baseUrl + "/.well-known/mcp/server-card.json", "application/json"),
         fetchJson(baseUrl + "/.well-known/agent-card.json", "application/json"),
         fetchJson(baseUrl + "/.well-known/agent-skills/index.json", "application/json"),
+        fetchJsonOrNull(originUrl + "/.well-known/acp.json", "application/json"),
+        fetchJsonOrNull(originUrl + "/.well-known/ucp", "application/json"),
+        fetchJsonOrNull(originUrl + "/openapi.json", "application/json"),
       ]);
       return buildAgentSurfaceInspectionPayload({
         baseUrl,
@@ -547,6 +537,7 @@ export const webMcpScript = `(() => {
         mcpServerCard: responses[3],
         agentCard: responses[4],
         agentSkills: responses[5],
+        commerce: { acpDiscovery: responses[6], ucpProfile: responses[7], mppOpenApi: responses[8] },
       });
     };
   };
@@ -692,6 +683,10 @@ export const webMcpScript = `(() => {
       let providedContext = false;
       if (typeof context.provideContext === "function") {
         try { context.provideContext({ tools }); providedContext = true; } catch { void 0; }
+      }
+      if (providedContext) {
+        releasePreviousRegisteredContext(context);
+        return true;
       }
       if (typeof context.registerTool === "function") for (const tool of tools) {
         if (registrationState.registeredToolNames.has(tool.name)) continue;
@@ -920,6 +915,7 @@ const buildHealthStatusBody = () => ({
     markdownNegotiation: true,
     httpMcp: true,
     webMcp: true,
+    commerce: { acp: true, ucp: true, mpp: true, x402: true },
     defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
   },
 });
@@ -932,6 +928,7 @@ const buildAgentSurfaceInspection = async () => buildAgentSurfaceInspectionPaylo
   mcpServerCard,
   agentCard: a2aAgentCard,
   agentSkills: await agentSkillsIndex(),
+  commerce: buildKnowgrphCommerceDiscovery({ origin: SITE_ORIGIN }),
 });
 
 const PUBLISHED_MCP_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
@@ -1078,6 +1075,7 @@ const handleMcpTransport = async (request) => {
 };
 
 export const buildAgentReadyStaticFiles = async () => ({
+  ...buildKnowgrphCommerceStaticFiles({ origin: SITE_ORIGIN }),
   "auth.md": { contentType: "text/markdown; charset=utf-8", body: authMd },
   "robots.txt": {
     contentType: "text/plain; charset=utf-8",

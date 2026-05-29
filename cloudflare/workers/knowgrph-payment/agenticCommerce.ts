@@ -2,6 +2,7 @@ import {
   AGENTIC_COMMERCE_API_VERSION,
   AGENTIC_COMMERCE_ENV_KEYS,
   AGENTIC_COMMERCE_ROUTE_PATHS,
+  AGENTIC_COMMERCE_X402_ROUTE_PATHS,
   buildAgenticCommerceAcpConfig,
   buildAgenticCommerceDepositAddress,
   buildAgenticCommerceSemanticKey,
@@ -39,6 +40,7 @@ import {
   ingestOpenboxProof,
 } from './agenticCommerceIntegrations'
 import { settleAgenticCommerceSession } from './agenticCommerceSettlement'
+import { handleAgenticCommerceX402Route } from './agenticCommerceX402'
 
 export { settleAgenticCommerceSessionFromStripeSession } from './agenticCommerceSettlement'
 
@@ -146,7 +148,6 @@ const handleAcpConfig = (
     web3Enabled: isAgenticCommerceWeb3Enabled(env),
   }), corsHeaders)
 }
-
 const buildSessionCreateWrite = (
   request: Request,
   env: AgenticCommerceEnvLike,
@@ -524,6 +525,7 @@ const handleCommerceWebhook = async (
 
 export const isAgenticCommerceRoute = (pathname: string): boolean => (
   pathname === AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig
+  || AGENTIC_COMMERCE_X402_ROUTE_PATHS.includes(pathname as never)
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact
@@ -533,7 +535,7 @@ export const isAgenticCommerceRoute = (pathname: string): boolean => (
 )
 
 export const isAgenticCommerceRouteDbBacked = (pathname: string): boolean => (
-  pathname !== AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig && isAgenticCommerceRoute(pathname)
+  pathname !== AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig && !AGENTIC_COMMERCE_X402_ROUTE_PATHS.includes(pathname as never) && isAgenticCommerceRoute(pathname)
 )
 
 export const handleAgenticCommerceRoute = async (
@@ -548,6 +550,12 @@ export const handleAgenticCommerceRoute = async (
   }
   if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig) {
     return errorJson(404, 'ACP config route not found.', corsHeaders)
+  }
+  if (AGENTIC_COMMERCE_X402_ROUTE_PATHS.includes(pathname as never) && request.method === 'GET') {
+    return handleAgenticCommerceX402Route(request, env, corsHeaders)
+  }
+  if (AGENTIC_COMMERCE_X402_ROUTE_PATHS.includes(pathname as never)) {
+    return errorJson(404, 'x402 payment route not found.', corsHeaders)
   }
   if (!db) return errorJson(500, 'missing Cloudflare D1 binding DB', corsHeaders)
   if (!isAuthorizedAcpRequest(request, env)) return errorJson(401, 'ACP bearer token is required.', corsHeaders)

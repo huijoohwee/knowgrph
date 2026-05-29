@@ -88,6 +88,16 @@ export const testSanitizeImportedMarkdownCapsLargeInlineSvgHtmlConversion = () =
   if ((m[1] || '').length > 100) throw new Error('expected svg base64 payload to be capped to <= 100 chars')
 }
 
+export const testSanitizeImportedMarkdownDropsGenericLargeInlineSvgHtmlConversion = () => {
+  const big = 'A'.repeat(9000)
+  const input = ['<svg aria-label="插图" viewBox="0 0 10 10" width="10" height="10">', `<text>${big}</text>`, '</svg>'].join('\n')
+  const out = sanitizeImportedMarkdownText(input)
+  if (!out.changed) throw new Error('expected changed')
+  if (/data:image\/svg\+xml/i.test(out.text) || /!\[插图\]/.test(out.text)) {
+    throw new Error(`expected generic omitted svg placeholder to be dropped, got: ${out.text.slice(0, 120)}`)
+  }
+}
+
 export const testSanitizeImportedMarkdownAppendsSourceLinkForOmittedSvg = () => {
   const input = '![Google](data:image/svg+xml;base64,' + 'A'.repeat(50_000) + ')'
   const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://astro.build/' })
@@ -198,4 +208,19 @@ export const testSanitizeImportedMarkdownConvertsInteractiveHtmlDivBlockToPlainT
   if (!out.text.includes('Web report')) throw new Error(`expected title text preserved, got: ${out.text}`)
   if (!out.text.includes('View / share web report')) throw new Error(`expected detail text preserved, got: ${out.text}`)
   if (!out.text.includes('Click to view')) throw new Error(`expected CTA text preserved, got: ${out.text}`)
+}
+
+export const testSanitizeImportedMarkdownDropsEmptyMediaAndJavascriptLinks = () => {
+  const input = [
+    '[赣州市文化馆](javascript:void\\(0\\);)******![]()在小说阅读器读本章去阅读![]()',
+    '',
+    '[safe](https://example.com)',
+    '',
+  ].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://mp.weixin.qq.com/s/test' })
+  if (!out.changed) throw new Error('expected changed')
+  if (/javascript:/i.test(out.text)) throw new Error(`expected javascript link href removed, got: ${out.text}`)
+  if (/!\[[^\]]*\]\(\s*\)/.test(out.text)) throw new Error(`expected empty image markers removed, got: ${out.text}`)
+  if (!out.text.includes('赣州市文化馆')) throw new Error(`expected link label text preserved, got: ${out.text}`)
+  if (!out.text.includes('[safe](https://example.com)')) throw new Error(`expected safe link preserved, got: ${out.text}`)
 }

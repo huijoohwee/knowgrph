@@ -1,3 +1,5 @@
+import { sanitizeImportedMarkdownUnsafeMediaLinks } from './sanitizeImportedMarkdownSafety'
+
 export type SanitizeMarkdownResult = { text: string; changed: boolean }
 
 export type SanitizeImportedMarkdownOptions = { sourceUrl?: string }
@@ -322,6 +324,8 @@ const extractSvgAlt = (svg: string): string => {
   return String(m?.[1] || '').trim()
 }
 
+const isGenericSvgAlt = (value: string): boolean => !String(value || '').trim() || /^(插图|图片|image|img|illustration|svg|icon)$/i.test(String(value || '').trim())
+
 export function convertOrDropInlineSvgHtmlBlocks(raw: string): SanitizeMarkdownResult {
   const text = String(raw || '')
   const lines = text.split(/\r?\n/g)
@@ -364,6 +368,7 @@ export function convertOrDropInlineSvgHtmlBlocks(raw: string): SanitizeMarkdownR
         if (svg.length <= maxSvgCharsForDataUri && !/<\s*script\b/i.test(svg)) {
           const alt = extractSvgAlt(svg)
           const b64 = encodeUtf8ToBase64(svg)
+          if (b64.length > maxSvgBase64Chars && isGenericSvgAlt(alt)) { changed = true; i = end; continue }
           const url = b64.length <= maxSvgBase64Chars ? `data:image/svg+xml;base64,${b64}` : makeSvgOmittedDataUri(alt)
           out.push(`![${alt}](${url})`)
           changed = true
@@ -847,7 +852,8 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
 
   const a0 = fixBrokenMarkdownImageSyntax(raw)
   const a1 = removeImagesInsideLinkLabelsWhenTextExists(a0.text)
-  const a2 = convertOrDropInlineSvgHtmlBlocks(a1.text)
+  const a1b = sanitizeImportedMarkdownUnsafeMediaLinks(a1.text)
+  const a2 = convertOrDropInlineSvgHtmlBlocks(a1b.text)
   const a3 = stripHeadingPermalinkArtifacts(a2.text, { sourceUrl })
   const a4 = normalizeStandaloneImageAutolinks(a3.text)
   const a5 = normalizeStandaloneHtmlTablesToMarkdown(a4.text)
@@ -897,18 +903,7 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
   })()
   const e = normalizeHeadingsSingleH1(d.text)
   const changed =
-    a0.changed ||
-    a1.changed ||
-    a2.changed ||
-    a3.changed ||
-    a4.changed ||
-    a5.changed ||
-    a6.changed ||
-    a7.changed ||
-    a8.changed ||
-    b.changed ||
-    c.changed ||
-    d.changed ||
-    e.changed
+    a0.changed || a1.changed || a1b.changed || a2.changed || a3.changed || a4.changed || a5.changed || a6.changed ||
+    a7.changed || a8.changed || b.changed || c.changed || d.changed || e.changed
   return { text: e.text, changed }
 }

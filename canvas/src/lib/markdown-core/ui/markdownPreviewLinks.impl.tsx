@@ -14,6 +14,7 @@ import {
 } from 'grph-shared/rich-media/providers'
 import { renderSafeHtmlBlockImpl } from './markdownPreviewLinks.safeHtml.render'
 import { deriveSafeLayoutStyleFromClassAttrImpl } from './markdownPreviewLinks.layoutStyle.derive'
+import { normalizeMarkdownLocalProxyUrl } from './mediaProxyUrl'
 
 export { applyMediaProxySrc, extractScriptEmbedAnchorHref, looksLikeSingleTagBlock, normalizeHtmlHrefLikeValue, pickFirstSrcsetUrl }
 
@@ -212,8 +213,10 @@ const resolveDocsAwareJoinedPath = (activeRelPath: string, rawHref: string): str
 export const resolveHref = (href: string, activeDocumentPath: string): string => {
   const raw = String(href || '').trim()
   if (!raw) return ''
+  const normalizedLocalProxy = normalizeMarkdownLocalProxyUrl(raw)
+  if (normalizedLocalProxy && normalizedLocalProxy !== raw) return normalizedLocalProxy
   if (raw.startsWith('#')) return raw
-  if (isInternalRouteHref(raw)) return raw
+  if (isInternalRouteHref(raw)) return normalizedLocalProxy || raw
   if (/^(data:|blob:|mailto:|tel:|javascript:)/i.test(raw)) return raw
   if (/^https?:\/\//i.test(raw) || raw.startsWith('//')) return raw
 

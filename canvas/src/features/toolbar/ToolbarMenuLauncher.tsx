@@ -39,7 +39,7 @@ export function ToolbarMenuLauncher({
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
     {
-      view: 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+      view: 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'storybldr' | 'graphTraversal'
       seq: number
     } | null
   >(null)
@@ -119,6 +119,8 @@ export function ToolbarMenuLauncher({
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
+            : tab === 'storybldr'
+              ? 'storybldr'
             : null
       if (!requested) return
       if (detail?.open === false) {

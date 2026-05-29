@@ -25,6 +25,7 @@ const agentReadyDefaultDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', '
 const agentReadyShareRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'share', '[[path]].js')
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoverySource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-discovery.mjs')
+const agentReadyCommerceSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-commerce.mjs')
 const agentReadySharedTarget = path.resolve(
   githubRoot,
   'huijoohwee',
@@ -39,6 +40,10 @@ const agentReadyDiscoveryTarget = path.resolve(
   'knowgrph',
   'knowgrph-agent-ready-discovery.mjs',
 )
+const agentReadyCommerceTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-commerce.mjs')
+const agentReadyCommerceX402RouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'api', 'payments', 'commerce', 'x402.js')
+const agentReadyCommerceX402RouteBody = `import { buildKnowgrphX402PaymentRequiredResponse } from "../../../knowgrph/knowgrph-agent-ready-commerce.mjs";\n\nexport async function onRequest(context) {\n  return buildKnowgrphX402PaymentRequiredResponse(context.request, context.env || {});\n}\n`
+const agentReadyRuntimeCopies = [[agentReadyCommerceSource, agentReadyCommerceTarget], ...['dist/payments/agenticCommerceSsot.js', 'dist/payments/stripePaymentSsot.js', 'dist/hash/signature.js', 'dist/hash/stringHash.js'].map(rel => [path.resolve(knowgrphRoot, 'grph-shared', rel), path.resolve(githubRoot, 'huijoohwee', 'grph-shared', rel)])]
 const rootAgentReadySharedTarget = path.resolve(
   githubRoot,
   'huijoohwee',
@@ -513,42 +518,15 @@ const agentReadyDefaultDocRouteNeedsUpdate = await textFileNeedsUpdate(agentRead
 const agentReadyShareRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyShareRouteTarget)
 const agentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, agentReadySharedTarget)
 const agentReadyDiscoveryNeedsUpdate = await plainFileNeedsUpdate(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
-const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(
-  agentReadySharedSource,
-  rootAgentReadySharedTarget,
-)
-const rootAgentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(
-  rootAgentReadyFunctionSource,
-  rootAgentReadyFunctionTarget,
-)
-const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(
-  agentReadyToolContractSource,
-  agentReadyToolContractTarget,
-)
-const sharedDocumentStructureInspectionNeedsUpdate = await plainFileNeedsUpdate(
-  sharedDocumentStructureInspectionSource,
-  sharedDocumentStructureInspectionTarget,
-)
-const agentSurfaceInspectionNeedsUpdate = await plainFileNeedsUpdate(
-  agentSurfaceInspectionSource,
-  agentSurfaceInspectionTarget,
-)
-const webMcpLifecycleNeedsUpdate = await plainFileNeedsUpdate(
-  webMcpLifecycleSource,
-  webMcpLifecycleTarget,
-)
-const publishedToolExecutorsNeedsUpdate = await plainFileNeedsUpdate(
-  publishedToolExecutorsSource,
-  publishedToolExecutorsTarget,
-)
-const publishedDocShareTokenNeedsUpdate = await plainFileNeedsUpdate(
-  publishedDocShareTokenSource,
-  publishedDocShareTokenTarget,
-)
-const knowgrphStorageSyncContractNeedsUpdate = await plainFileNeedsUpdate(
-  knowgrphStorageSyncContractSource,
-  knowgrphStorageSyncContractTarget,
-)
+const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, rootAgentReadySharedTarget)
+const rootAgentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(rootAgentReadyFunctionSource, rootAgentReadyFunctionTarget)
+const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(agentReadyToolContractSource, agentReadyToolContractTarget)
+const sharedDocumentStructureInspectionNeedsUpdate = await plainFileNeedsUpdate(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
+const agentSurfaceInspectionNeedsUpdate = await plainFileNeedsUpdate(agentSurfaceInspectionSource, agentSurfaceInspectionTarget)
+const webMcpLifecycleNeedsUpdate = await plainFileNeedsUpdate(webMcpLifecycleSource, webMcpLifecycleTarget)
+const publishedToolExecutorsNeedsUpdate = await plainFileNeedsUpdate(publishedToolExecutorsSource, publishedToolExecutorsTarget)
+const publishedDocShareTokenNeedsUpdate = await plainFileNeedsUpdate(publishedDocShareTokenSource, publishedDocShareTokenTarget)
+const knowgrphStorageSyncContractNeedsUpdate = await plainFileNeedsUpdate(knowgrphStorageSyncContractSource, knowgrphStorageSyncContractTarget)
 const sharedD1NeedsUpdate = await plainFileNeedsUpdate(sharedD1Source, sharedD1Target)
 const sharedPublishedDocNeedsUpdate = await plainFileNeedsUpdate(sharedPublishedDocSource, sharedPublishedDocTarget)
 const agentReadyArtifacts = await buildAgentReadyStaticFiles()
@@ -701,6 +679,12 @@ if (checkMode) {
     await fs.mkdir(path.dirname(agentReadyDiscoveryTarget), { recursive: true })
     await fs.copyFile(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
   }
+  for (const [src, dst] of agentReadyRuntimeCopies) {
+    await fs.mkdir(path.dirname(dst), { recursive: true })
+    await fs.copyFile(src, dst)
+  }
+  await fs.mkdir(path.dirname(agentReadyCommerceX402RouteTarget), { recursive: true })
+  await fs.writeFile(agentReadyCommerceX402RouteTarget, agentReadyCommerceX402RouteBody, 'utf8')
   if (rootAgentReadySharedNeedsUpdate) {
     await fs.mkdir(path.dirname(rootAgentReadySharedTarget), { recursive: true })
     await fs.copyFile(agentReadySharedSource, rootAgentReadySharedTarget)

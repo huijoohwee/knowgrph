@@ -7,12 +7,14 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
   const overlaySurfaceRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const runtimeWidgetStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRuntimeWidgetState.ts')
   const widgetScopePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetStateScope.ts')
   const editorText = readFileSync(editorPath, 'utf8')
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const overlaySurfaceText = readFileSync(overlaySurfaceElementsPath, 'utf8')
   const overlaySurfaceRuntimeText = readFileSync(overlaySurfaceRuntimePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
+  const runtimeWidgetStateText = readFileSync(runtimeWidgetStatePath, 'utf8')
   const widgetScopeText = readFileSync(widgetScopePath, 'utf8')
 
   if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.renderGraphDataOverride)')) {
@@ -90,11 +92,29 @@ export function testFlowEditorOverlayPrefersGraphKeyedWidgetState() {
   if (!runtimeSceneText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)')) {
     throw new Error('expected Flow Editor runtime scene workspace-blocked widget seeding to write graph-keyed world positions under the active render graph key before falling back to store graph state')
   }
-  if (!runtimeSceneText.includes('const flowWidgetWorldPosCount = useGraphStore(s => {')) {
-    throw new Error('expected Flow Editor runtime scene to scope world-position dependency counts to the active render graph')
+  if (!runtimeSceneText.includes('useFlowEditorWidgetStateDependencyCounts')) {
+    throw new Error('expected Flow Editor runtime scene to delegate hot-path widget dependency counts to the shared runtime helper')
   }
-  if (!runtimeSceneText.includes('const flowWidgetPinnedCount = useGraphStore(s => {')) {
-    throw new Error('expected Flow Editor runtime scene to scope pinned-state dependency counts to the active render graph')
+  if (!runtimeWidgetStateText.includes("import { useShallow } from 'zustand/react/shallow'")) {
+    throw new Error('expected Flow Editor runtime scene to select widget state through a shallow store selector')
+  }
+  if (!runtimeWidgetStateText.includes('const state = useGraphStore(useShallow(s => ({')) {
+    throw new Error('expected Flow Editor runtime scene to gather widget state refs without rebuilding graph identity inside store selectors')
+  }
+  if (!runtimeWidgetStateText.includes('const graphKey = React.useMemo(() => buildGraphMetaKeyIgnoringPending(state.graphData), [state.graphData])')) {
+    throw new Error('expected Flow Editor runtime scene to memoize the active graph key for widget dependency counts')
+  }
+  if (!runtimeWidgetStateText.includes('const flowWidgetWorldPosCount = React.useMemo(() => Object.keys(resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor runtime scene to memoize scoped world-position dependency counts')
+  }
+  if (!runtimeWidgetStateText.includes('const flowWidgetPinnedCount = React.useMemo(() => Object.keys(resolveScopedFlowWidgetNodeMap({')) {
+    throw new Error('expected Flow Editor runtime scene to memoize scoped pinned-state dependency counts')
+  }
+  if (runtimeSceneText.includes('const flowWidgetWorldPosCount = useGraphStore(s => {') || runtimeWidgetStateText.includes('const flowWidgetWorldPosCount = useGraphStore(s => {')) {
+    throw new Error('expected Flow Editor runtime scene to avoid rebuilding graph keys inside world-position store selectors')
+  }
+  if (runtimeSceneText.includes('const flowWidgetPinnedCount = useGraphStore(s => {') || runtimeWidgetStateText.includes('const flowWidgetPinnedCount = useGraphStore(s => {')) {
+    throw new Error('expected Flow Editor runtime scene to avoid rebuilding graph keys inside pinned-state store selectors')
   }
   if (!runtimeSceneText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'")) {
     throw new Error('expected Flow Editor runtime scene to reuse the shared scoped widget-state helper before reading workspace-blocked widget state')

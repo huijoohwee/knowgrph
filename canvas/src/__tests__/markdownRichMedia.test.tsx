@@ -86,6 +86,11 @@ export async function testMarkdownPreviewRendersSvgAndIframeHtmlBlocks() {
     if (!imgSrc.includes('/__fetch_remote') && !imgSrc.includes('example.com/a.webp')) {
       throw new Error(`expected img src to resolve from srcset, got: ${imgSrc}`)
     }
+    const htmlImageDownload = img.parentElement?.querySelector('a[download][aria-label="Download media"]') as HTMLAnchorElement | null
+    if (!htmlImageDownload) throw new Error(`expected HTML img to expose a download link; html=${container.innerHTML}`)
+    if (!decodeURIComponent(String(htmlImageDownload.getAttribute('href') || '')).includes('https://example.com/a.webp')) {
+      throw new Error(`expected HTML image download to target source image, got: ${htmlImageDownload.getAttribute('href') || ''}`)
+    }
     const pictureImg = (Array.from(container.querySelectorAll('img')) as unknown as HTMLImageElement[]).find(el => (el.getAttribute('alt') || '') === 'pic')
     if (!pictureImg) throw new Error('expected picture img to be rendered')
     const proxiedWebpImg = (Array.from(container.querySelectorAll('img')) as unknown as HTMLImageElement[]).find(el => (el.getAttribute('alt') || '') === 'webp-proxy')

@@ -128,7 +128,7 @@ export const readShareUrlArtifactKind = (value: string): ShareUrlArtifactKind =>
   }
 }
 
-const readShareUrlArtifactUrlToken = (value: string): string => {
+export const readShareUrlArtifactUrlToken = (value: string): string => {
   try {
     const url = new URL(String(value || '').trim())
     const segments = url.pathname.split('/').map(part => String(part || '').trim()).filter(Boolean)
@@ -167,6 +167,7 @@ export const resolveShareUrlArtifactPaths = (args: {
   importedName?: string | null
   importedTitle?: string | null
   importedText?: string | null
+  exportTokenOverride?: string | null
 }): {
   exportToken: string
   exportFolderPath: string
@@ -174,10 +175,12 @@ export const resolveShareUrlArtifactPaths = (args: {
   exportThinkingPath: string
   kind: ShareUrlArtifactKind
 } => {
-  const exportToken = readShareUrlArtifactExportToken(args.url, args.importedName, {
-    importedTitle: args.importedTitle,
-    importedText: args.importedText,
-  })
+  const exportToken = args.exportTokenOverride
+    ? sanitizeShareUrlArtifactTitleToken(args.exportTokenOverride, '', args.url) || sanitizeShareUrlArtifactToken(args.exportTokenOverride, 'share')
+    : readShareUrlArtifactExportToken(args.url, args.importedName, {
+        importedTitle: args.importedTitle,
+        importedText: args.importedText,
+      })
   const exportFolderPath = normalizeWorkspacePath(`${args.rootFolderPath === '/' ? '' : args.rootFolderPath}/${exportToken}`)
   return {
     exportToken,
@@ -186,4 +189,12 @@ export const resolveShareUrlArtifactPaths = (args: {
     exportThinkingPath: normalizeWorkspacePath(`${exportFolderPath}/${exportToken}-thinking.md`),
     kind: readShareUrlArtifactKind(args.url),
   }
+}
+
+export const buildShareUrlArtifactConflictExportToken = (primaryToken: string, sourceUrl: string): string => {
+  const primary = sanitizeShareUrlArtifactTitleToken(primaryToken, '', sourceUrl) || sanitizeShareUrlArtifactToken(primaryToken, 'share')
+  const urlToken = readShareUrlArtifactUrlToken(sourceUrl)
+  if (!urlToken || sanitizeShareUrlArtifactToken(primary, '') === urlToken) return primary
+  return sanitizeShareUrlArtifactTitleToken(`${primary}-${urlToken}`, '', sourceUrl)
+    || sanitizeShareUrlArtifactToken(`${primary}-${urlToken}`, 'share')
 }

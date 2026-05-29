@@ -11,6 +11,17 @@ const API_NATIVE_BROWSER_THINKING_KEYS = [
   'thoughts_markdown',
   'thoughts',
 ] as const
+const API_NATIVE_BROWSER_URL_KEYS = [
+  'url',
+  'href',
+  'currentUrl',
+  'current_url',
+  'sourceUrl',
+  'source_url',
+  'finalUrl',
+  'final_url',
+] as const
+const API_NATIVE_BROWSER_TITLE_KEYS = ['title', 'pageTitle', 'page_title', 'name'] as const
 
 function extractApiNativeBrowserString(value: unknown, maxDepth = 4): string {
   if (typeof value === 'string') return value.trim()
@@ -66,14 +77,37 @@ export function readApiNativeBrowserResponseText(rawText: string): string {
   }
 }
 
-export function readApiNativeBrowserMarkdownPayload(rawText: string): { markdown: string; thinkingMarkdown?: string } {
+export function readApiNativeBrowserResponseSourceUrl(rawText: string): string {
+  const text = String(rawText || '').trim()
+  if (!text) return ''
+  try {
+    const parsed = JSON.parse(text) as unknown
+    return extractApiNativeBrowserField(parsed, API_NATIVE_BROWSER_URL_KEYS)
+  } catch {
+    return ''
+  }
+}
+
+export function readApiNativeBrowserMarkdownPayload(rawText: string): {
+  markdown: string
+  thinkingMarkdown?: string
+  sourceUrl?: string
+  title?: string
+} {
   const text = String(rawText || '').trim()
   if (!text) return { markdown: '' }
   try {
     const parsed = JSON.parse(text) as unknown
     const markdown = extractApiNativeBrowserString(parsed) || text
     const thinkingMarkdown = extractApiNativeBrowserField(parsed, API_NATIVE_BROWSER_THINKING_KEYS)
-    return { markdown, ...(thinkingMarkdown ? { thinkingMarkdown } : {}) }
+    const sourceUrl = extractApiNativeBrowserField(parsed, API_NATIVE_BROWSER_URL_KEYS)
+    const title = extractApiNativeBrowserField(parsed, API_NATIVE_BROWSER_TITLE_KEYS)
+    return {
+      markdown,
+      ...(thinkingMarkdown ? { thinkingMarkdown } : {}),
+      ...(sourceUrl ? { sourceUrl } : {}),
+      ...(title ? { title } : {}),
+    }
   } catch {
     return { markdown: text }
   }

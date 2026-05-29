@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect';
 
@@ -60,6 +60,7 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>, optio
     () => resolveMeasureElement(ref, { resolveMeasureElement: resolveMeasureElementOption }),
     [ref, resolveMeasureElementOption],
   )
+  const pendingFrameRef = useRef<number | null>(null);
   const [dims, setDims] = useState<ContainerDims>(() => readContainerDims(readMeasureTarget()));
 
   useIsomorphicLayoutEffect(() => {
@@ -70,24 +71,42 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>, optio
 
   useEffect(() => {
     if (!ref.current) return;
+    let disposed = false;
     const sync = () => {
+      if (disposed) return;
       const el = readMeasureTarget();
       if (!el) return;
       const next = readContainerDims(el);
       setDims(prev => (isSameDims(prev, next) ? prev : next));
     };
+    const scheduleSync = () => {
+      if (disposed) return;
+      if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+        sync();
+        return;
+      }
+      if (pendingFrameRef.current != null) return;
+      pendingFrameRef.current = window.requestAnimationFrame(() => {
+        pendingFrameRef.current = null;
+        sync();
+      });
+    };
     sync();
-    const ro = new ResizeObserver(() => {
-      sync();
-    });
+    const ResizeObserverImpl = typeof ResizeObserver !== 'undefined' ? ResizeObserver : null;
+    const ro = ResizeObserverImpl ? new ResizeObserverImpl(scheduleSync) : null;
     const self = ref.current;
     const target = readMeasureTarget();
-    if (self) ro.observe(self);
-    if (target && target !== self) ro.observe(target);
-    if (typeof window !== 'undefined') window.addEventListener('resize', sync);
+    if (self) ro?.observe(self);
+    if (target && target !== self) ro?.observe(target);
+    if (typeof window !== 'undefined') window.addEventListener('resize', scheduleSync);
     return () => {
-      ro.disconnect();
-      if (typeof window !== 'undefined') window.removeEventListener('resize', sync);
+      disposed = true;
+      ro?.disconnect();
+      if (pendingFrameRef.current != null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(pendingFrameRef.current);
+      }
+      pendingFrameRef.current = null;
+      if (typeof window !== 'undefined') window.removeEventListener('resize', scheduleSync);
     };
   }, [readMeasureTarget, ref]);
 

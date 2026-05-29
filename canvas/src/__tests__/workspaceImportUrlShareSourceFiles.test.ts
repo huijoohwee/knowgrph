@@ -124,6 +124,7 @@ export async function testWorkspaceImportUrlShareThinkingTaskDoesNotBlockFinalDo
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
   const previousShareRoot = readWorkspaceImportShareExportRootPathSetting()
+  const previousSourceFiles = useGraphStore.getState().sourceFiles
   const previousFetch = globalThis.fetch
   const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-share-background-thinking-'))
   const mirrorWriteCalls: Array<{ url: string; body: string }> = []
@@ -159,11 +160,11 @@ export async function testWorkspaceImportUrlShareThinkingTaskDoesNotBlockFinalDo
       }),
     })
     if (Date.now() - startedAt > 1000) throw new Error('expected pending thinking side task to avoid blocking final document commit')
-    if (!result.sources.some(item => item.path === thinkingPath && item.source.kind === 'url')) {
-      throw new Error(`expected pending thinking artifact to be registered as a URL source, got ${JSON.stringify(result.sources)}`)
+    if (result.sources.some(item => item.path === thinkingPath)) {
+      throw new Error(`expected pending thinking artifact to wait for non-empty content before Source Files registration, got ${JSON.stringify(result.sources)}`)
     }
     const initialThinkingText = await fs.readFileText(thinkingPath)
-    if (initialThinkingText !== '') throw new Error(`expected initial pending thinking artifact to be empty, got ${JSON.stringify(initialThinkingText)}`)
+    if (initialThinkingText !== null) throw new Error(`expected pending thinking artifact to avoid an empty placeholder file, got ${JSON.stringify(initialThinkingText)}`)
     resolveThinking?.('# Thinking\n\n- delayed Source Files update\n')
     let finalThinkingText = ''
     for (let i = 0; i < 60; i += 1) {
@@ -179,6 +180,93 @@ export async function testWorkspaceImportUrlShareThinkingTaskDoesNotBlockFinalDo
     }
   } finally {
     resolveThinking?.('')
+    writeWorkspaceImportShareExportRootPathSetting(previousShareRoot)
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousChatLogAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = previousChatLogAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+    await rm(tempRoot, { recursive: true, force: true })
+    restore()
+  }
+}
+
+export async function testWorkspaceImportUrlShareImportSkipsEmptyThinkingArtifact(): Promise<void> {
+  const { restore } = initJsdomHarness()
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousChatLogAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT
+  const previousShareRoot = readWorkspaceImportShareExportRootPathSetting()
+  const previousSourceFiles = useGraphStore.getState().sourceFiles
+  const previousFetch = globalThis.fetch
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'workspace-import-share-no-thinking-'))
+  const mirrorWriteCalls: Array<{ url: string; body: string }> = []
+  const shareUrl = 'https://example.test/chat/no-thinking-run'
+  const token = 'No-thinking-panel-share'
+  const markdownPath = `/docs_/${token}/${token}.md`
+  const thinkingPath = `/docs_/${token}/${token}-thinking.md`
+  try {
+    useGraphStore.getState().setSourceFiles([{
+      id: 'stale-empty-thinking',
+      name: `${token}-thinking.md`,
+      text: '',
+      enabled: false,
+      status: 'idle',
+      source: { kind: 'url', url: shareUrl, path: `workspace:${thinkingPath}` },
+    }])
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = `${tempRoot}/docs`
+    process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT = `${tempRoot}/chat-log`
+    writeWorkspaceImportShareExportRootPathSetting('/docs_')
+    ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      mirrorWriteCalls.push({ url: String(typeof input === 'string' ? input : input.toString()), body: String(init?.body || '') })
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }) as typeof fetch
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const result = await importWorkspaceUrl({
+      fs,
+      urlRaw: shareUrl,
+      parentPath: '/',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: 'share.md',
+        title: 'No thinking panel share',
+        text: '# Share without thinking panel\n',
+      }),
+    })
+    if (!result.sources.some(item => item.path === markdownPath && item.source.kind === 'url')) {
+      throw new Error(`expected share markdown artifact to remain registered, got ${JSON.stringify(result.sources)}`)
+    }
+    if (result.sources.some(item => item.path === thinkingPath)) {
+      throw new Error(`expected share import without thinking text to avoid registering an empty sidecar, got ${JSON.stringify(result.sources)}`)
+    }
+    if (!result.removedPaths?.includes(thinkingPath)) {
+      throw new Error(`expected share import without thinking text to request stale sidecar removal, got ${JSON.stringify(result.removedPaths || [])}`)
+    }
+    if ((await fs.readFileText(thinkingPath)) !== null) throw new Error('expected share import without thinking text to avoid creating an empty thinking file')
+    const expectedThinkingMirrorPath = path.join(tempRoot, 'docs_', token, `${token}-thinking.md`)
+    if (mirrorWriteCalls.some(call => call.url === '/__kg_fs_write' && call.body.includes(expectedThinkingMirrorPath))) {
+      throw new Error(`expected share import without thinking text to avoid mirroring an empty thinking file, got ${JSON.stringify(mirrorWriteCalls)}`)
+    }
+    const sourcesByPath = Object.fromEntries(result.sources.map(item => [item.path, item.source])) as WorkspaceSourceIndex
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: result.createdPaths,
+      opts: {
+        applyToGraph: false,
+        workspaceEntries: await fs.listEntries(),
+        sourcesByPath,
+        ...(result.removedPaths ? { removedPaths: result.removedPaths } : {}),
+      },
+    })
+    if (useGraphStore.getState().sourceFiles.some(file => file.source?.path === `workspace:${thinkingPath}`)) {
+      throw new Error('expected stale empty thinking Source File to be pruned from the workspace UI')
+    }
+  } finally {
+    useGraphStore.getState().setSourceFiles(previousSourceFiles)
     writeWorkspaceImportShareExportRootPathSetting(previousShareRoot)
     if (previousFetch) {
       ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
@@ -225,6 +313,35 @@ export function testConfiguredDocsRootWorkspaceFileIsVisibleWithoutLegacySourceI
   if (!thinking) throw new Error('expected existing /docs_ workspace artifact to be visible without legacy source-index metadata')
   const hidden = sourceFiles.find(file => file.source?.path === 'workspace:/scratch/hidden.md')
   if (hidden) throw new Error('expected docs-only Source Files mode to keep non-root workspace files hidden')
+}
+
+export function testSourceFilesMergeDropsMissingEmptyWorkspaceArtifact(): void {
+  const thinkingPath = '/docs_/missing-share/missing-share-thinking.md'
+  const sourceFiles = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [{
+      id: 'stale-empty',
+      name: 'missing-share-thinking.md',
+      text: '',
+      enabled: false,
+      status: 'idle',
+      source: { kind: 'url', url: 'https://example.test/chat/missing-share', path: `workspace:${thinkingPath}` },
+    }],
+    workspaceEntries: [{
+      kind: 'file',
+      path: thinkingPath as never,
+      parentPath: '/docs_/missing-share' as never,
+      name: 'missing-share-thinking.md',
+      text: '',
+      updatedAtMs: 1,
+    }],
+    sourcesByPath: { [thinkingPath]: { kind: 'url', url: 'https://example.test/chat/missing-share' } },
+    preserveExistingWorkspaceEntries: true,
+    workspaceDocsOnly: true,
+    workspaceSourceRootPaths: ['/docs_', '/docs', '/chat-log'],
+  })
+  if (sourceFiles.some(file => file.source?.path === `workspace:${thinkingPath}`)) {
+    throw new Error('expected missing empty workspace artifacts to be dropped instead of preserved as stale Source Files')
+  }
 }
 
 export function testViteDevServerIgnoresWorkspaceMirrorOutputRoots(): void {

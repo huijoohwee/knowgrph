@@ -1,4 +1,3 @@
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
@@ -100,7 +99,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
       return
     }
 
-    const storeState = useGraphStore.getState()
+    const storeState = ctx.readViewportInteractionSnapshot()
     const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
     const preset = ctx.getPreset()
     disableAutoZoomModesForUserGesture(storeState)
@@ -145,7 +144,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
 
   const onWindowWheelCapture = (e: WheelEvent) => {
     if (!ctx.args.active) return
-    const st = useGraphStore.getState()
+    const st = ctx.readViewportInteractionSnapshot()
     const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
     if (!isFlowEditorFrontmatterDocumentModeRequested({
       canvas2dRenderer: String(st.canvas2dRenderer || ''),
@@ -181,7 +180,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   }
 
   const shouldProxyGestureToCanvas = (event: Event): boolean => {
-    const st = useGraphStore.getState()
+    const st = ctx.readViewportInteractionSnapshot()
     if (!isFlowEditorFrontmatterDocumentModeRequested({
       canvas2dRenderer: String(st.canvas2dRenderer || ''),
       frontmatterModeEnabled: st.frontmatterModeEnabled === true,
@@ -205,9 +204,9 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
         requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
       },
     },
-    getSchema: () => useGraphStore.getState().schema,
+    getSchema: () => ctx.readViewportInteractionSnapshot().schema,
     computeScaleExtent: (x) => ctx.computeScaleExtent(x),
-    disableAutoZoomModes: () => disableAutoZoomModesForUserGesture(useGraphStore.getState()),
+    disableAutoZoomModes: () => disableAutoZoomModesForUserGesture(ctx.readViewportInteractionSnapshot()),
     onInteractionFrame: ctx.args.onInteractionFrame,
     onCommit: ctx.args.requestCommit,
     onGestureStart: () => {
