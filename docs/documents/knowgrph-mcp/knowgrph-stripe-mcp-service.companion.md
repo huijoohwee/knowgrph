@@ -75,7 +75,7 @@ Scoring scale: 1-5. For security and TCO, higher means lower risk.
 | E1 - MainPanel MCP render proof | Shared Stripe MCP defaults render without duplicated strings | Render test includes remote URL, registry URL, local launcher, env placeholder, and tool list | Maintainer |
 | E2 - Secret-boundary scan | Docs and UI fixtures avoid real Stripe key prefixes | Secret-key and restricted-key literals do not appear in Stripe MCP surfaces | Maintainer |
 | E3 - Confirmation gate smoke | Payment-mutating tools cannot run implicitly | Calls to create/refund/invoice/payment-link tools require explicit confirmation | Operator |
-| E4 - Payments handoff | MCP readiness does not duplicate checkout UX | MainPanel MCP links to Payments; checkout/entitlements stay owned by Payments | Maintainer |
+| E4 - Commerce handoff | MCP readiness does not duplicate checkout UX | MainPanel MCP links to Commerce; checkout/entitlements stay owned by Commerce | Maintainer |
 
 ---
 
@@ -94,4 +94,4 @@ Scoring scale: 1-5. For security and TCO, higher means lower risk.
 | `OQ-01` | Which agent host will be the first OAuth-capable Stripe MCP runtime? | `{{owner}}` | TBD | blocking |
 | `OQ-02` | Which exact restricted-key permissions are required for the first payment workflow? | `{{owner}}` | TBD | blocking |
 | `OQ-03` | Should backend audit persistence be added now or deferred until live checkout is enabled? | `{{owner}}` | TBD | medium |
-| `OQ-04` | Which Payments handoff should be first: checkout setup, entitlement view, or webhook readiness? | `{{owner}}` | TBD | medium |
+| `OQ-04` | Which Commerce handoff should be first: checkout setup, entitlement view, or webhook readiness? | `{{owner}}` | TBD | medium |

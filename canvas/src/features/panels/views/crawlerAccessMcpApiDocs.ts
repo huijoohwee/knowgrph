@@ -72,7 +72,7 @@ export function buildCrawlerAccessReadinessManifestJson(): string {
       },
       payment: {
         crawlerAccess: 'Cloudflare AI Crawl Control Pay Per Crawl',
-        appPayments: 'Stripe MCP and MainPanel Payments',
+        appPayments: 'Stripe MCP and MainPanel Commerce',
       },
     },
   }, null, 2)
@@ -176,9 +176,9 @@ const CRAWLER_ACCESS_MCP_DOC_ROWS: ReadonlyArray<CrawlerAccessMcpDocRow> = [
   {
     key: 'payment.handoff',
     typeLabel: 'handoff',
-    value: 'Crawler payment is Cloudflare Pay Per Crawl; app/customer payments remain Stripe MCP plus MainPanel Payments.',
+    value: 'Crawler payment is Cloudflare Pay Per Crawl; app/customer commerce remains Stripe MCP plus MainPanel Commerce.',
     responsibility: 'Keeps crawler monetization and app checkout from conflicting while MainPanel MCP stays payment-ready.',
-    searchHints: ['accept payment', 'Stripe MCP', 'MainPanel Payments', 'Cloudflare Pay Per Crawl'],
+    searchHints: ['accept payment', 'Stripe MCP', 'MainPanel Commerce', 'Cloudflare Pay Per Crawl'],
   },
   {
     key: 'readiness_manifest',

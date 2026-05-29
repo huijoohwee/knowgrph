@@ -2,8 +2,8 @@
 title: "Knowgrph Queryable Corpus Graph - PRD and TAD"
 doc_type: "Combined PRD/TAD"
 id: "knowgrph-query-prd-tad"
-version: "0.2.0"
-status: "finetune-contract"
+version: "0.2.1"
+status: "implemented-finetune-contract"
 created: "2026-05-29"
 updated: "2026-05-29"
 author: "airvio / joohwee"
@@ -55,6 +55,8 @@ Knowgrph should turn an imported folder or file set into a queryable knowledge g
 This is a native in-repo enhancement. It must not copy Graphify implementation details, command structure, output files, prompts, schemas, or examples. The product inspiration is limited to the general pattern: ingest a mixed corpus, cache source-level extraction, build a persistent graph, expose query/path/explain workflows, and report which relationships are extracted versus inferred.
 
 The min-viable-max-value version finetunes the existing E2E pipeline rather than adding a parallel CLI or external service. The user imports a folder or file, Editor Workspace persists and previews source artifacts, Source Files parses and composes graph fragments, Canvas renders the active queryable graph, and FloatingPanel Chat queries that graph with bounded context, citations, and token-cost logs.
+
+**Implementation note (2026-05-29)**: The Phase 1 through Phase 3 native slice is implemented through `canvas/src/features/queryable-corpus/`, existing workspace import owners, Source Files composition, and FloatingPanel Chat request construction. The implementation does not add a Graphify dependency, a separate graph database, a duplicate import bridge, or a standalone chat pipeline.
 
 ## Directive Commitments
 
@@ -369,18 +371,29 @@ type CorpusQueryEvidencePack = {
 
 | Component | Responsibility | Interfaces | FOSS/vendor | Status |
 |---|---|---|---|---|
-| Launch import entry | Keep file/folder import discoverable in existing Launch menu. | File inputs, `getMarkdownWorkspaceActionBridge()` | Browser-native | Built, enhance |
-| Workspace import normalizer | Convert FileList and folder-relative paths into workspace entries and source units. | `importWorkspaceLocalFiles`, `importWorkspaceLocalFolder` | Browser-native | Built, enhance |
-| Editor Workspace surface | Persist, list, preview, and focus imported corpus artifacts. | `WorkspaceImportResult`, workspace entries, source index | Browser-native | Built, finetune |
-| Corpus source manifest | Record source-unit metadata, hashes, status, and skipped/failed evidence. | Proposed `sourceFilesCorpusManifest.ts` | In-repo | Proposed |
-| Parse cache | Reuse unchanged extraction by source hash and parser version. | Existing source text hash pattern plus proposed fragment cache | In-repo | Proposed |
-| Parser adapters | Emit neutral graph fragments for file classes. | `ParserSpec`, `GraphData` | In-repo / FOSS local parsers | Built, extend |
-| Graph fragment composer | Merge fragments and preserve evidence. | `composeGraphFromSourceLayers`, `applyComposedGraphFromSourceFiles` | In-repo | Built, enhance |
-| Canvas/rendering pipeline | Render active corpus graph through existing GraphData display modes. | `GraphData`, renderer mode state, Graph Data Table | In-repo | Built, finetune |
-| Query planner | Classify ask/path/explain/impact and select graph traversal. | Proposed `queryGraphPlanner.ts` | In-repo | Proposed |
-| Evidence pack builder | Build bounded citation packs for chat. | Proposed `queryGraphEvidencePack.ts` | In-repo | Proposed |
-| Chat harness | Generate answer only after evidence pack validation. | Existing FloatingPanel Chat submit coordinator | BYOK or server-managed provider | Built, enhance |
-| Cost logger | Emit token, cache, and cost metrics. | Existing chat usage stream plus proposed query log | In-repo | Proposed |
+| Launch import entry | Keep file/folder import discoverable in existing Launch menu. | File inputs, `getMarkdownWorkspaceActionBridge()` | Browser-native | Implemented through existing Launch bridge |
+| Workspace import normalizer | Convert FileList and folder-relative paths into workspace entries and source units. | `importWorkspaceLocalFiles`, `importWorkspaceLocalFolder` | Browser-native | Implemented with corpus manifest output |
+| Editor Workspace surface | Persist, list, preview, and focus imported corpus artifacts. | `WorkspaceImportResult`, workspace entries, source index | Browser-native | Implemented with import summary and focus flow |
+| Corpus source manifest | Record source-unit metadata, hashes, status, and skipped/failed evidence. | `sourceFilesCorpusManifest.ts`, `WorkspaceImportResult.corpusManifest` | In-repo | Implemented |
+| Parse cache | Reuse unchanged import artifacts by source text hash and report cache metrics. | `sourceFilesCorpusManifest.ts`, workspace import cache-hit status | In-repo | Implemented for unchanged file/folder imports |
+| Parser adapters | Emit neutral graph fragments for file classes. | `parserSpecs.ts`, `corpusGraph.ts`, `corpusConfigGraph.ts`, `ParserSpec`, `GraphData` | In-repo / FOSS local parsers | Implemented for code, SQL, scripts, config, source-unit metadata |
+| Graph fragment composer | Merge fragments and preserve evidence. | `composeGraphFromSourceLayers`, `applyComposedGraphFromSourceFiles` | In-repo | Implemented with evidence-kind preservation and cross-source inferred refs |
+| Canvas/rendering pipeline | Render active corpus graph through existing GraphData display modes. | `GraphData`, renderer mode state, Graph Data Table | In-repo | Implemented via ordinary composed GraphData |
+| Query planner | Classify ask/path/explain/impact/compare/summarize and select graph traversal. | `queryEvidencePack.ts` | In-repo | Implemented inside evidence-pack owner |
+| Evidence pack builder | Build bounded citation packs for chat. | `queryEvidencePack.ts` | In-repo | Implemented |
+| Chat harness | Generate answer only after evidence pack validation. | `floatingPanelChatSubmitRequest.ts`, existing FloatingPanel Chat submit coordinator | BYOK or server-managed provider | Implemented as evidence-pack system prompt injection |
+| Cost logger | Emit token, cache, and cost metrics. | `queryEvidencePack.ts` preflight `costLog`, existing provider usage stream | In-repo | Implemented preflight; provider final usage remains in existing chat stream |
+
+### Current Implementation Evidence
+
+| Requirement slice | Evidence owner | Verification |
+|---|---|---|
+| Import file/folder creates source units | `workspaceImport/localImport.ts`, `sourceFilesCorpusManifest.ts` | `queryableCorpus.importManifest.cacheReuse` |
+| Code, SQL, script, config parsing stays local and neutral | `parserSpecs.ts`, `corpusGraph.ts`, `corpusConfigGraph.ts` | `queryableCorpus.parsers.emitEvidence` |
+| Media imports become explicit metadata source units | `buildCorpusMediaMetadataMarkdown` | `queryableCorpus.mediaImport.metadataSourceUnit` |
+| Cross-source references keep auditability | `composeGraphFromSourceLayers` | `queryableCorpus.compose.crossSourceEvidence` |
+| Chat receives bounded graph evidence before answer synthesis | `queryEvidencePack.ts`, `floatingPanelChatSubmitRequest.ts` | `queryableCorpus.chat.evidencePackContext` |
+| Import -> Source Files -> Canvas -> Chat readiness uses existing owners | `applyWorkspaceImportToCanvas`, Source Files, chat request context | `queryableCorpus.e2e.importSourceFilesCanvasChatReadiness` |
 
 ### AI Harness Contract
 
@@ -462,8 +475,8 @@ Orchestration topology:
 | Editor Workspace focus | Store/action state | created workspace paths and active document | Missing artifact -> focus first valid file |
 | Parser adapter | TypeScript function | `ParserSpec -> GraphData` | Adapter returns warnings, not thrown raw failures |
 | Canvas render handoff | Store graph state | composed `GraphData` | Empty/invalid graph -> structured no-evidence state |
-| Fragment cache | IndexedDB/local workspace cache | hash-keyed JSON | Version mismatch -> reparse |
-| Query planner | TypeScript function | query + graph snapshot -> evidence pack | Empty graph -> no-evidence response |
+| Import cache | Existing workspace text/hash comparison plus corpus manifest metrics | `CorpusImportManifest.metrics.cacheHits` | Changed text -> reparse; unchanged text -> cached source unit |
+| Query evidence pack | TypeScript function | query + graph snapshot -> evidence pack | Empty graph -> no-evidence response |
 | Chat harness | Existing chat transport | messages + schema prompt | Provider error -> traversal-only fallback |
 | Publish/sync | Existing Pages build/sync path | static assets and route files | Deploy failure does not alter local source truth |
 
@@ -471,7 +484,7 @@ Orchestration topology:
 
 ## ADR-001: Enhance Existing E2E Import, Rendering, and Chat Owners
 
-**Status**: Proposed  
+**Status**: Accepted and implemented  
 **Date**: 2026-05-29
 
 ### Context
@@ -480,7 +493,7 @@ The existing app already has Launch file/folder import, Editor Workspace, Source
 
 ### Decision
 
-Implement queryable corpus graph behavior as an enhancement to existing owners. Add only thin corpus-manifest, parser-adapter, query-planner, and evidence-pack modules where the current owners need a new responsibility boundary; keep rendering on ordinary GraphData.
+Implement queryable corpus graph behavior as an enhancement to existing owners. Add only thin corpus-manifest, parser-adapter, and evidence-pack modules where the current owners need a new responsibility boundary; keep rendering on ordinary GraphData.
 
 ### Alternatives Considered
 
@@ -490,7 +503,7 @@ Implement queryable corpus graph behavior as an enhancement to existing owners. 
 
 ## ADR-002: Graph Traversal Before LLM Answering
 
-**Status**: Proposed  
+**Status**: Accepted and implemented  
 **Date**: 2026-05-29
 
 ### Context
@@ -509,7 +522,7 @@ Every query answer first builds a bounded evidence pack from graph traversal, so
 
 ## ADR-003: Evidence Kind Is Required on Edges
 
-**Status**: Proposed  
+**Status**: Accepted and implemented  
 **Date**: 2026-05-29
 
 ### Context
@@ -530,21 +543,7 @@ Every composed edge emitted by corpus adapters carries evidence kind: `extracted
 
 The implementation must preserve the existing topology:
 
-```text
-Dev
-  /Users/huijoohwee/Documents/GitHub/knowgrph
-  -> source edits, tests, docs, pages build
-
-Prod mirror
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
-  -> generated app payload only
-
-Cloudflare
-  https://airvio.co/knowgrph
-  -> live smoke after sync/deploy when credentials are available
-```
-
-Local validation precedes prod sync. Cloudflare deployment is not required to validate the PRD/TAD itself, but any future implementation claiming production completion must verify Dev -> Prod -> Cloudflare.
+Dev `/Users/huijoohwee/Documents/GitHub/knowgrph` owns source edits, tests, docs, and Pages build; prod mirror `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` receives generated app payload only; Cloudflare `https://airvio.co/knowgrph` requires live smoke after sync/deploy when claiming production completion.
 
 ### Validation Plan
 
@@ -552,11 +551,11 @@ Local validation precedes prod sync. Cloudflare deployment is not required to va
 |---|---|---|
 | Frontmatter validity | Markdown begins with YAML frontmatter and quoted scalars where needed | This document and future generated docs |
 | Import bridge regression | Focused tests for Launch file/folder shared bridge | Toolbar and workspace bridge |
-| Source-unit manifest | Unit tests for supported, skipped, failed, and hash-cache paths | Workspace import |
-| Parser neutrality | Fixtures with generic names across code/sql/script/docs/media | Parser adapters |
-| Provenance completeness | Schema test that every composed edge has evidence kind | Graph fragment composer |
-| Chat evidence bounds | Unit test for evidence pack max tokens and source refs | Query planner/chat context |
-| E2E render readiness | Browser smoke or focused test for import -> parse -> Canvas -> Chat context | Editor Workspace, Canvas, Chat |
+| Source-unit manifest | `npm --prefix canvas run test:ci:unit -- "queryableCorpus.importManifest"` | Workspace import |
+| Parser neutrality | `npm --prefix canvas run test:ci:unit -- "queryableCorpus.parsers"` | Parser adapters |
+| Provenance completeness | `npm --prefix canvas run test:ci:unit -- "queryableCorpus.compose"` | Graph fragment composer |
+| Chat evidence bounds | `npm --prefix canvas run test:ci:unit -- "queryableCorpus.chat"` | Query evidence pack/chat context |
+| E2E render readiness | `npm --prefix canvas run test:ci:unit -- "queryableCorpus.e2e"` | Editor Workspace, Canvas, Chat |
 | Hygiene gate | `npm run hygiene:check` | Repo regression bar |
 | Typecheck | `npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false` | Canvas type safety |
 | Build sync | `npm run pages:build-sync` | Dev -> prod mirror |
@@ -571,29 +570,22 @@ Local validation precedes prod sync. Cloudflare deployment is not required to va
 | PRD-E02-S01 Code/script extraction | Parser adapters, Graph fragments | Code/script fixtures emit typed graph nodes and provenance. |
 | PRD-E02-S02 SQL/config extraction | Parser adapters, Graph fragments | Schema/config fixtures emit neutral nodes and cross-source refs. |
 | PRD-E02-S03 Docs/media extraction | Existing doc/PDF/data import plus media adapters | Docs/media fixtures produce artifacts or structured unsupported states. |
-| PRD-E03-S01 Ask questions | Query planner, Evidence pack, Chat harness | Chat answers cite graph/source refs and log cost. |
-| PRD-E03-S02 Path/explain | Query planner, Graph traversal | Path/explain queries use traversal before LLM summarization. |
+| PRD-E03-S01 Ask questions | Query evidence pack, Chat harness | Chat answers cite graph/source refs and log cost. |
+| PRD-E03-S02 Path/explain | Query evidence pack, Graph traversal | Path/explain queries use traversal before LLM summarization. |
 | PRD-E04-S01 Cache updates | Parse cache, source hashes | Re-import reuses unchanged cache entries. |
 | PRD-E04-S02 Evidence kind | Graph fragment composer | Every composed edge has evidence kind and confidence. |
 | PRD-E05-S01 E2E readiness | Editor Workspace, Source Files, Canvas, Chat | Imported corpus is listed, parsed, rendered, and query-ready through existing owners. |
 
 ### Implementation Phases
 
-| Phase | Deliverable | Exit check |
-|---|---|---|
-| 0 | Source audit and final implementation PRD review | Owners confirmed; no duplicate architecture. |
-| 1 | Source unit manifest, cache, import file/folder shared pipeline | Focused import/cache tests pass. |
-| 2 | Parser adapter extensions and evidence-kind graph fragments | Parser/provenance tests pass. |
-| 3 | Query planner and FloatingPanel Chat evidence pack | Chat query tests pass with token bounds. |
-| 4 | Dev -> Prod -> Cloudflare build/smoke | Build sync and live smoke pass when credentials are available. |
+| Phase | Deliverable | Exit check | Status |
+|---|---|---|---|
+| 0 | Source audit and final implementation PRD review | Owners confirmed; no duplicate architecture. | Complete |
+| 1 | Source unit manifest, cache, import file/folder shared pipeline | Focused import/cache tests pass. | Implemented |
+| 2 | Parser adapter extensions and evidence-kind graph fragments | Parser/provenance tests pass. | Implemented for code, SQL, scripts, config, media metadata, and cross-source refs |
+| 3 | Query evidence pack and FloatingPanel Chat context injection | Chat query tests pass with token bounds. | Implemented |
+| 4 | Dev -> Prod -> Cloudflare build/smoke | Build sync and live smoke pass when publishing source changes. | Deployment gate; rerun for production claim |
 
 ## Acceptance Gate
 
-This PRD/TAD is ready for implementation when:
-
-- it remains a standalone Markdown document with valid YAML frontmatter
-- every Must feature has a measurable acceptance criterion
-- every AI behavior has a harness, fallback, and token budget
-- every significant decision has FOSS/TCO reasoning
-- the architecture enhances existing in-repo owners instead of copying Graphify or adding a duplicate graph runtime
-- Dev -> Prod -> Cloudflare validation remains explicit for future production claims
+This implemented PRD/TAD remains accepted when it keeps valid YAML frontmatter, measurable Must criteria, AI harness/fallback/token budgets, FOSS/TCO reasoning, native owner reuse, and explicit Dev -> Prod -> Cloudflare validation for production claims.

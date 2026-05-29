@@ -171,10 +171,10 @@ const STRIPE_MCP_DOC_ROWS: ReadonlyArray<StripeMcpDocRow> = [
   {
     key: 'accept_payment_ready',
     typeLabel: 'readiness',
-    value: 'MainPanel MCP is ready to accept payment through Stripe MCP: remote OAuth first, restricted-key local/server fallback, human confirmation, and MainPanel Payments checkout handoff.',
+    value: 'MainPanel MCP is ready to accept payment through Stripe MCP: remote OAuth first, restricted-key local/server fallback, human confirmation, and MainPanel Commerce checkout handoff.',
     responsibility: 'Payment readiness signal for agent workflows that need Stripe without browser-stored secrets.',
-    notes: 'Crawler Pay Per Crawl remains Cloudflare-owned; app and customer checkout readiness stays with Stripe MCP plus MainPanel Payments.',
-    searchHints: ['accept payment', 'payment ready', 'MainPanel Payments', 'checkout handoff', 'crawler payment boundary'],
+    notes: 'Crawler Pay Per Crawl remains Cloudflare-owned; app and customer checkout readiness stays with Stripe MCP plus MainPanel Commerce.',
+    searchHints: ['accept payment', 'payment ready', 'MainPanel Commerce', 'checkout handoff', 'crawler payment boundary'],
   },
   {
     key: 'registry.url',

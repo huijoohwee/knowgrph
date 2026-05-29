@@ -1,19 +1,19 @@
 ---
 title: Knowgrph LLM Prompt Contract PRD-TAD Companion (Runtime, Validation, Implementation)
-id: knowgrph-llm-prompt-contract-prd-tad-proposed-companion
+id: knowgrph-llm-prompt-contract-prd-tad-companion
 schema: kgc-computing-flow/v1
 doc_type: prd-tad-companion
-status: Proposed
-version: 0.3.2
+status: Accepted and implemented
+version: 0.3.4
 created: 2026-05-27
-updated: 2026-05-27
-canonical_doc: docs/documents/knowgrph-llm-prompt-contract-prd-tad-proposed.md
+updated: 2026-05-29
+canonical_doc: docs/documents/knowgrph-llm-prompt-contract-prd-tad.md
 continuation_note: Maintains TAD, validation, and implementation detail moved out of the canonical sub-600-line source index.
 ---
 
 # Knowgrph LLM Prompt Contract PRD-TAD Companion
 
-> Canonical source: `docs/documents/knowgrph-llm-prompt-contract-prd-tad-proposed.md`
+> Canonical source: `docs/documents/knowgrph-llm-prompt-contract-prd-tad.md`
 >
 > Continuation scope: TAD, data contracts, validation, implementation guidance, open questions, and final decision.
 
@@ -30,6 +30,7 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 | Keep `tryParseMarkdownFrontmatterFlowGraph()` as the first Markdown graph parser | Accepted | Prevents duplicate or lossy parser forks. |
 | Keep `flow.subgraphs -> kg:subgraphs -> deriveGraphGroups()` as the grouping pipeline | Accepted | Prevents duplicate cluster/group owners. |
 | Reuse `buildScopedGraphSemanticKey()` everywhere graph identity is needed | Accepted | Prevents recomputation churn and signature drift. |
+| Parse typed KGC semantic sigils through `kgcSemanticGraph.ts` | Accepted | Adds queryable semantic nodes and directed edges without legacy untyped remaps or a second Markdown parser. |
 | Delete stale competing paths instead of aliasing them | Accepted | Aligns with root-fix and no-backcompat-shim rules. |
 
 ### 7.2 Component Specification
@@ -130,6 +131,12 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 - Responsibility: stable graph-structure signatures and scope-aware semantic keys for reuse across graph-aware UI surfaces.
 - Constraint: no local substitute helper may fork semantic identity behavior.
 
+#### TAD-C13 - Typed KGC Semantic Graph Extraction
+
+- Owner: `kgcSemanticGraph.ts`, `kgcSemanticQuery.ts`, `workspaceStructuredGraph.ts`, and the default Markdown parser.
+- Responsibility: parse inline typed `` `@node:type:id` `` and `` `@edge:predicate:source->target` `` sigils outside fenced code, validate optional `node_types` and `edge_predicates` frontmatter lists, infer edge endpoints only when the typed contract is explicit, merge semantic GraphData with neutral Markdown structure, and expose path/filter/search/ancestor/descendant helpers.
+- Constraint: untyped legacy references such as `@node:n-trigger` are references only; they must not be remapped into typed nodes.
+
 ### 7.3 Data Contracts
 
 #### DC-01 - Chat Storage Target
@@ -169,6 +176,13 @@ The runtime MUST derive these from the shared session timestamp instead of provi
 - Correction prompt reuses the same output contract.
 - Finalize persists the validated or best-available KGC document.
 
+#### DC-06 - Typed KGC Semantic Sigils
+
+- Node sigil: `` `@node:<type>:<id>` ``
+- Edge sigil: `` `@edge:<predicate>:<source>-><target>` ``
+- Optional frontmatter guards: `node_types` and `edge_predicates`
+- Graph identity: `metadata.kind = kgc-semantic`, `metadata.graphSemanticKey` from `buildScopedGraphSemanticKey()`
+
 ### 7.4 Failure Handling
 
 | Failure point | Current owner | Required behavior |
@@ -181,6 +195,7 @@ The runtime MUST derive these from the shared session timestamp instead of provi
 | Share/report dereference failure | `chatStreamArtifactDereference.ts` via `fetchWorkspaceUrlContent()` | Skip the failing dereference, keep the original observed URL, and avoid a second fetch stack. |
 | Persist/apply mismatch | `useFinalizeAssistantSuccess` / `chatKgcCanvasApply.ts` | Persist canonical file first, then apply through workspace-document import. |
 | Parse failure | parser stack | Fall back inside the existing parser chain only; do not spawn a parallel parser owner. |
+| Typed semantic parse mismatch | `kgcSemanticGraph.ts` | Emit warnings or fail strict mode at the parser owner; do not reinterpret untyped legacy sigils downstream. |
 | Group rendering mismatch | `subgraphs.ts` / `graphGroups.ts` | Fix normalization or projection at the root; do not duplicate group metadata. |
 
 ### 7.5 Performance And Stability Constraints
@@ -192,6 +207,7 @@ The runtime MUST derive these from the shared session timestamp instead of provi
 - URL dereference must reuse the shared workspace URL-content import path, not a second fetch/cache layer.
 - Group derivation must read normalized metadata and avoid recomputing alternative group registries.
 - Graph cache identity must reuse the shared semantic-key helper.
+- Typed KGC semantic Markdown is a structured workspace graph and must suppress keyword-mode re-derivation.
 
 ---
 
@@ -208,6 +224,7 @@ The runtime MUST derive these from the shared session timestamp instead of provi
 | Stream artifact session writes | `canvas/src/__tests__/chatStreamArtifacts.test.ts` | Session-folder stream logs, reports, and dereferenced markdown artifacts stay on the shared workspace path. |
 | Stream hardcode guard | `canvas/src/__tests__/miromindStreamArtifactHardcodeGuard.test.ts` | Example shared URLs are not committed as repo literals. |
 | Frontmatter-flow parse behavior | `frontmatterFlowNodeNormalize.test.ts` | Frontmatter-flow node and subgraph normalization stays valid. |
+| Typed KGC semantic graph | `canvas/src/__tests__/kgcSemanticGraph.test.ts` | Typed `@node` / `@edge` sigils become semantic-keyed GraphData, query helpers work, Markdown parser merge preserves document structure, and untyped legacy references are not remapped. |
 | Passive import-mode guard | `frontmatterFlowImportModeSeepageRegression.test.ts` | Passive flows do not replay interactive import modes. |
 | Source-file apply guard | `sourceFilesIngestStaleGuard.test.ts` | Workspace import and composed graph apply stay on the canonical graph-owning path. |
 | Shared semantic-key reuse | `sourceFilesIngestStaleGuard.test.ts` and other regressions | Graph identity remains rooted in `buildScopedGraphSemanticKey()`. |
@@ -221,6 +238,7 @@ The runtime MUST derive these from the shared session timestamp instead of provi
 | PRD-E3 | TAD-C04, TAD-C05, TAD-C06, TAD-C07 | finalize/apply tests plus stream artifact and workspace path helpers |
 | PRD-E4 | TAD-C08, TAD-C09, TAD-C10, TAD-C11 | parser and import-mode regression tests |
 | PRD-E5 | TAD-C10, TAD-C11, TAD-C12 | stale-guard and semantic-key reuse tests |
+| PRD-E6 | TAD-C13, DC-06 | `kgcSemanticGraph.test.ts` plus parser runner coverage |
 
 ### 8.3 Definition Of Done
 
@@ -298,6 +316,6 @@ Everything stale, speculative, duplicate, conflicting, downstream-patched, or se
 
 ---
 
-*Companion ID: `knowgrph-llm-prompt-contract-prd-tad-proposed-companion`*  
-*Version: `0.3.2`*  
-*Updated: `2026-05-27`*
+*Companion ID: `knowgrph-llm-prompt-contract-prd-tad-companion`*  
+*Version: `0.3.3`*  
+*Updated: `2026-05-29`*

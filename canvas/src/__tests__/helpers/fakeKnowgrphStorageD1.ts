@@ -414,6 +414,32 @@ export class FakeKnowgrphStorageD1Database {
         .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
         .slice(0, 1)
     }
+    if (normalizedSql.includes('select * from agentic_commerce_proofs order by created_at, id')) {
+      return Array.from(this.agenticCommerceProofs.values())
+        .sort((a, b) => {
+          const timeDelta = String(a.created_at || '').localeCompare(String(b.created_at || ''))
+          if (timeDelta !== 0) return timeDelta
+          return String(a.id || '').localeCompare(String(b.id || ''))
+        })
+    }
+    if (normalizedSql.includes('select * from agentic_commerce_trace_events where session_id = ?')) {
+      const [sessionId] = values
+      return Array.from(this.agenticCommerceTraceEvents.values())
+        .filter(row => row.session_id === sessionId)
+        .sort((a, b) => {
+          const timeDelta = String(a.created_at || '').localeCompare(String(b.created_at || ''))
+          if (timeDelta !== 0) return timeDelta
+          return String(a.id || '').localeCompare(String(b.id || ''))
+        })
+    }
+    if (normalizedSql.includes('select * from agentic_commerce_trace_events order by created_at, id')) {
+      return Array.from(this.agenticCommerceTraceEvents.values())
+        .sort((a, b) => {
+          const timeDelta = String(a.created_at || '').localeCompare(String(b.created_at || ''))
+          if (timeDelta !== 0) return timeDelta
+          return String(a.id || '').localeCompare(String(b.id || ''))
+        })
+    }
     if (normalizedSql.includes('from documents where documents.workspace_id = ?')) {
       return this.filterByWorkspaceAndSince(this.documents, values)
     }

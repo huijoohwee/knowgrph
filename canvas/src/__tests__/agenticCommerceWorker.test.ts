@@ -123,8 +123,27 @@ export async function testAgenticCommerceCheckoutLifecyclePersistsProofAndTrace(
       throw new Error(`expected one commerce proof with OpenBOX risk, got ${JSON.stringify(proofRows)}`)
     }
     const traceRows = Array.from(env.DB.agenticCommerceTraceEvents.values())
-    if (traceRows.length !== 1 || traceRows[0].event_type !== 'knowgrph.commerce.settle') {
+    const traceTypes = traceRows.map(row => row.event_type)
+    if (!traceTypes.includes('knowgrph.commerce.delegate_payment') || !traceTypes.includes('knowgrph.commerce.settle')) {
       throw new Error(`expected settle trace event, got ${JSON.stringify(traceRows)}`)
+    }
+    const proofArtifactResponse = await worker.fetch(
+      new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact}?session_id=${created.session.id}`),
+      env as never,
+    )
+    if (!proofArtifactResponse.ok) throw new Error(`expected harness-proof artifact ok, received ${proofArtifactResponse.status}`)
+    const proofArtifact = await proofArtifactResponse.json() as { commerce?: Array<{ session_id?: string; openbox_risk?: unknown }> }
+    if (proofArtifact.commerce?.[0]?.session_id !== created.session.id || !proofArtifact.commerce[0].openbox_risk) {
+      throw new Error(`expected harness-proof commerce entry with OpenBOX risk, got ${JSON.stringify(proofArtifact)}`)
+    }
+    const traceArtifactResponse = await worker.fetch(
+      new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact}?session_id=${created.session.id}`),
+      env as never,
+    )
+    if (!traceArtifactResponse.ok) throw new Error(`expected trace artifact ok, received ${traceArtifactResponse.status}`)
+    const traceArtifact = await traceArtifactResponse.text()
+    if (!traceArtifact.includes('knowgrph.commerce.settle') || !traceArtifact.includes(created.session.id)) {
+      throw new Error(`expected trace.jsonl settle entry, got ${traceArtifact}`)
     }
   } finally {
     globalThis.fetch = originalFetch
@@ -259,6 +278,140 @@ export async function testAgenticCommerceStripeWebhookSettlesAcpSession() {
   }
 }
 
+export async function testAgenticCommerceWeb3SettleRouteConfirmsBaseRpcAndAttests() {
+  const env = createCommerceEnv()
+  delete env.OPENBOX_API_URL
+  env.BASE_RPC_URL = 'https://base.example/rpc'
+  env.EAS_ATTEST_URL = 'https://eas.example/attest'
+  const created = await createCheckoutSession(env, {
+    idempotencyKey: 'web3-rpc-settle-idempotency-1',
+    currency: 'usdc',
+    'x-web3': {
+      payment_method: 'erc20',
+      payer_did: 'did:debox:0x987',
+    },
+  })
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const target = url instanceof Request ? url.url : String(url)
+      if (target === 'https://base.example/rpc') {
+        const requestBody = JSON.parse(String(init?.body || '{}')) as { method?: string }
+        if (requestBody.method !== 'eth_getTransactionByHash') throw new Error(`unexpected RPC method ${requestBody.method}`)
+        return new Response(JSON.stringify({
+          result: {
+            to: '0x0000000000000000000000000000000000000001',
+            value: '0x0',
+            input: encodeErc20TransferInput(String(created.session.deposit_address), 2500),
+            blockNumber: '0x10',
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      if (target === 'https://eas.example/attest') {
+        return new Response(JSON.stringify({ attestation_uid: 'eas_rpc_123' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      throw new Error(`unexpected fetch target ${target}`)
+    }) as typeof fetch
+
+    const response = await worker.fetch(
+      new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session_id: created.session.id, tx_hash: '0xabc123' }),
+      }),
+      env as never,
+    )
+    if (!response.ok) throw new Error(`expected web3 settle route ok, received ${response.status}: ${await response.text()}`)
+    const body = await response.json() as {
+      session?: { status?: string }
+      proof?: { attestation_uid?: string; canvas_node?: { tx_hash?: string; attestation_uid?: string } }
+    }
+    if (body.session?.status !== 'complete' || body.proof?.attestation_uid !== 'eas_rpc_123') {
+      throw new Error(`expected Base RPC + EAS settlement proof, got ${JSON.stringify(body)}`)
+    }
+    const canvasNode = body.proof?.canvas_node
+    if (canvasNode?.tx_hash !== '0xabc123' || canvasNode.attestation_uid !== 'eas_rpc_123') {
+      throw new Error(`expected @node:proof tx and attestation, got ${JSON.stringify(body.proof)}`)
+    }
+    const traceTypes = Array.from(env.DB.agenticCommerceTraceEvents.values()).map(row => row.event_type)
+    if (!traceTypes.includes('knowgrph.commerce.web3_confirm') || !traceTypes.includes('knowgrph.commerce.attest')) {
+      throw new Error(`expected Web3 confirmation and attest trace events, got ${JSON.stringify(traceTypes)}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testAgenticCommerceOpenboxIngestRoutePostsProofArtifact() {
+  const env = createCommerceEnv()
+  env.OPENBOX_INGEST_URL = 'https://openbox.example/ingest'
+  const created = await createCheckoutSession(env, { idempotencyKey: 'openbox-ingest-idempotency-1' })
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const target = url instanceof Request ? url.url : String(url)
+      if (target !== 'https://openbox.example/ingest') throw new Error(`unexpected fetch target ${target}`)
+      const headers = new Headers(init?.headers)
+      if (headers.get('authorization') !== 'Bearer openbox_test_key') throw new Error('expected OpenBOX ingest bearer token')
+      const requestBody = JSON.parse(String(init?.body || '{}')) as { commerce?: Array<{ session_id?: string }> }
+      if (requestBody.commerce?.[0]?.session_id !== created.session.id) throw new Error(`expected posted proof artifact, got ${JSON.stringify(requestBody)}`)
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }) as typeof fetch
+    const response = await worker.fetch(
+      new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schema: 'knowgrph-commerce-proof/v1',
+          commerce: [{ session_id: created.session.id, proof_id: 'proof_ingest_route' }],
+        }),
+      }),
+      env as never,
+    )
+    if (!response.ok) throw new Error(`expected OpenBOX ingest route ok, received ${response.status}: ${await response.text()}`)
+    const traceTypes = Array.from(env.DB.agenticCommerceTraceEvents.values()).map(row => row.event_type)
+    if (!traceTypes.includes('knowgrph.commerce.openbox_ingest')) {
+      throw new Error(`expected OpenBOX ingest trace event, got ${JSON.stringify(traceTypes)}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testAgenticCommerceBearerTokenProtectsDbBackedRoutes() {
+  const env = createCommerceEnv()
+  env.ACP_BEARER_TOKEN = 'acp_secret'
+  const configResponse = await worker.fetch(
+    new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig}`),
+    env as never,
+  )
+  if (!configResponse.ok) throw new Error(`expected public ACP config with bearer configured, received ${configResponse.status}`)
+  const blocked = await worker.fetch(
+    new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.checkoutSessions}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ amount_total: 2500, currency: 'usd' }),
+    }),
+    env as never,
+  )
+  if (blocked.status !== 401) throw new Error(`expected unauthenticated checkout to be blocked, received ${blocked.status}`)
+  const allowed = await worker.fetch(
+    new Request(`https://commerce.example${AGENTIC_COMMERCE_ROUTE_PATHS.checkoutSessions}`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer acp_secret',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ amount_total: 2500, currency: 'usd', idempotency_key: 'bearer-idempotency-1' }),
+    }),
+    env as never,
+  )
+  if (!allowed.ok) throw new Error(`expected authenticated checkout to pass, received ${allowed.status}: ${await allowed.text()}`)
+}
+
 export function testAgenticCommerceWorkerUsesSharedSemanticKeyHelper() {
   const workerText = readFileSync(resolve(process.cwd(), '../cloudflare/workers/knowgrph-payment/agenticCommerce.ts'), 'utf8')
   const sharedText = readFileSync(resolve(process.cwd(), '../grph-shared/src/payments/agenticCommerceSsot.ts'), 'utf8')
@@ -268,6 +421,12 @@ export function testAgenticCommerceWorkerUsesSharedSemanticKeyHelper() {
   if (!sharedText.includes("hashSignatureParts(['agentic-commerce'")) {
     throw new Error('expected commerce semantic-key helper to be rooted in the shared hash signature helper')
   }
+}
+
+const encodeErc20TransferInput = (recipient: string, amount: number): string => {
+  const address = recipient.toLowerCase().replace(/^0x/, '').padStart(64, '0')
+  const amountHex = BigInt(amount).toString(16).padStart(64, '0')
+  return `0xa9059cbb${address}${amountHex}`
 }
 
 const buildStripeSignatureHeader = async (payload: string, secret: string, timestamp = Math.floor(Date.now() / 1000)): Promise<string> => {

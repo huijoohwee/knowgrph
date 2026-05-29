@@ -24,7 +24,7 @@ export const testMainPanelTypeIconsReuseSharedSsot = () => {
     'mainPanel.integrations',
     'mainPanel.mcp',
     'mainPanel.maps',
-    'mainPanel.payments',
+    'mainPanel.commerce',
     'mainPanel.settings',
     'floatingPanel.chat',
     'floatingPanel.graphTraversal',

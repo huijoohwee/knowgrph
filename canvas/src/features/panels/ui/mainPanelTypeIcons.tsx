@@ -62,7 +62,7 @@ export type MainPanelTypeIconKey =
   | 'mainPanel.integrations'
   | 'mainPanel.mcp'
   | 'mainPanel.maps'
-  | 'mainPanel.payments'
+  | 'mainPanel.commerce'
   | 'mainPanel.design'
   | 'mainPanel.workflowManager'
   | 'mainPanel.dashboard'
@@ -235,11 +235,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     usage: 'MainPanel tab for map providers, directions, and GeoJSON settings.',
     Icon: MapIcon,
   },
-  'mainPanel.payments': {
+  'mainPanel.commerce': {
     category: 'MainPanel surface',
-    label: 'Payments',
-    agentic: 'Payment configuration',
-    usage: 'MainPanel tab for Stripe and payment readiness settings.',
+    label: 'Commerce',
+    agentic: 'Commerce operations',
+    usage: 'MainPanel tab for ACP, Stripe, Web3, OpenBOX, proof, and trace readiness.',
     Icon: CreditCard,
   },
   'mainPanel.design': {
@@ -354,7 +354,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB = {
   integrations: 'mainPanel.integrations',
   mcp: 'mainPanel.mcp',
   maps: 'mainPanel.maps',
-  payments: 'mainPanel.payments',
+  commerce: 'mainPanel.commerce',
   design: 'mainPanel.design',
   workflowManager: 'mainPanel.workflowManager',
   dashboard: 'mainPanel.dashboard',
@@ -369,7 +369,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_BY_KEY: Record<MainPanelTabKey, MainPanelT
   integrations: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.integrations'].Icon,
   mcp: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.mcp'].Icon,
   maps: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.maps'].Icon,
-  payments: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.payments'].Icon,
+  commerce: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.commerce'].Icon,
   design: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.design'].Icon,
   workflowManager: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.workflowManager'].Icon,
   dashboard: MAIN_PANEL_TYPE_ICON_META_BY_KEY['mainPanel.dashboard'].Icon,
@@ -416,7 +416,7 @@ export const MAIN_PANEL_HELP_TYPE_ICON_KEYS = [
   'mainPanel.integrations',
   'mainPanel.mcp',
   'mainPanel.maps',
-  'mainPanel.payments',
+  'mainPanel.commerce',
   'mainPanel.settings',
   'floatingPanel.propsPanel',
   'floatingPanel.view',

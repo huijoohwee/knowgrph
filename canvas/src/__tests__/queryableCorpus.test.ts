@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildCorpusQueryEvidencePack } from '@/features/queryable-corpus/queryEvidencePack'
@@ -13,6 +15,12 @@ import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
+}
+
+function readQueryableCorpusPrdTad(): string {
+  const cwd = process.cwd()
+  const repoRoot = path.basename(cwd) === 'canvas' ? path.resolve(cwd, '..') : cwd
+  return fs.readFileSync(path.join(repoRoot, 'docs/documents/knowgrph-query-prd-tad.md'), 'utf8')
 }
 
 function createMemoryWorkspaceFs(): WorkspaceFs & { readAll: () => WorkspaceEntry[] } {
@@ -141,6 +149,32 @@ export function testQueryableCorpusImportFormatsCoverPrdPhaseOneFamilies() {
   const localText = new Set(SOURCE_FILES_FORMATS.importLocalText.map(ext => ext.toLowerCase()))
   assert(localText.has('.sql') && localText.has('.sh') && localText.has('.ts') && localText.has('.toml'), 'expected code/schema/script/config files to import as text')
   assert(!localText.has('.png') && !localText.has('.mp4'), 'expected binary media to use metadata source units instead of text import')
+}
+
+export function testQueryableCorpusPrdTadNamesImplementedOwners() {
+  const doc = readQueryableCorpusPrdTad()
+  const required = [
+    'status: "implemented-finetune-contract"',
+    '`sourceFilesCorpusManifest.ts`, `WorkspaceImportResult.corpusManifest`',
+    '`parserSpecs.ts`, `corpusGraph.ts`, `corpusConfigGraph.ts`',
+    '`queryEvidencePack.ts`',
+    '`floatingPanelChatSubmitRequest.ts`, existing FloatingPanel Chat submit coordinator',
+    'queryableCorpus.e2e.importSourceFilesCanvasChatReadiness',
+  ]
+  for (const token of required) {
+    assert(doc.includes(token), `expected query PRD/TAD to include implemented owner token ${JSON.stringify(token)}`)
+  }
+  const stale = [
+    'Proposed `sourceFilesCorpusManifest.ts`',
+    'Proposed `queryGraphPlanner.ts`',
+    'Proposed `queryGraphEvidencePack.ts`',
+    'proposed fragment cache',
+    'proposed query log',
+    '**Status**: Proposed',
+  ]
+  for (const token of stale) {
+    assert(!doc.includes(token), `expected query PRD/TAD to remove stale proposed owner token ${JSON.stringify(token)}`)
+  }
 }
 
 export async function testQueryableCorpusParsersEmitEvidenceForCodeSqlAndScripts() {

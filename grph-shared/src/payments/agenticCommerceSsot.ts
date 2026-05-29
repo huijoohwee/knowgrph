@@ -8,6 +8,10 @@ export const AGENTIC_COMMERCE_ROUTE_PATHS = {
   acpConfig: '/.well-known/acp-config',
   checkoutSessions: '/checkout/sessions',
   commerceWebhook: '/api/payments/commerce/webhook',
+  commerceProofArtifact: '/api/payments/commerce/harness-proof.json',
+  commerceTraceArtifact: '/api/payments/commerce/trace.jsonl',
+  openboxIngest: '/api/payments/commerce/openbox/ingest',
+  web3Settle: '/api/payments/commerce/web3/settle',
 } as const
 
 export const AGENTIC_COMMERCE_ENV_KEYS = {
@@ -15,8 +19,14 @@ export const AGENTIC_COMMERCE_ENV_KEYS = {
   checkoutBaseUrl: 'CHECKOUT_BASE_URL',
   web3Enabled: 'WEB3_ENABLED',
   web3DepositAddress: 'WEB3_DEPOSIT_ADDRESS',
+  baseRpcUrl: 'BASE_RPC_URL',
+  baseConfirmationBlocks: 'BASE_CONFIRMATION_BLOCKS',
+  easAttestUrl: 'EAS_ATTEST_URL',
   openboxApiUrl: 'OPENBOX_API_URL',
+  openboxIngestUrl: 'OPENBOX_INGEST_URL',
   openboxApiKey: 'OPENBOX_API_KEY',
+  stripeDelegatePaymentUrl: 'STRIPE_DELEGATE_PAYMENT_URL',
+  acpBearerToken: 'ACP_BEARER_TOKEN',
 } as const
 
 export type AgenticCommerceEnvLike = Record<string, unknown>
@@ -53,6 +63,8 @@ export const readAgenticCommerceCheckoutBaseUrl = (
 
 export const isAgenticCommerceWeb3Enabled = (env: AgenticCommerceEnvLike): boolean => {
   const raw = readEnvString(env, AGENTIC_COMMERCE_ENV_KEYS.web3Enabled).toLowerCase()
+  if (!raw) return true
+  if (raw === '0' || raw === 'false' || raw === 'no') return false
   return raw === '1' || raw === 'true' || raw === 'yes'
 }
 

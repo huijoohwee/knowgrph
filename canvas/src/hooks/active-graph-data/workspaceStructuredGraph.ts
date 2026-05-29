@@ -10,6 +10,10 @@ import { buildFlowchartSourceMeta } from '@/lib/flowchart/source'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { LRUCache } from '@/lib/cache/LRUCache'
+import {
+  mergeKgcSemanticGraphIntoGraphData,
+  parseKgcSemanticGraphFromMarkdown,
+} from '@/features/parsers/kgcSemanticGraph'
 
 export const WORKSPACE_GRAPH_CONTEXT = 'workspace:graph'
 export const WORKSPACE_GRAPH_SOURCE = 'workspace:graph'
@@ -18,10 +22,11 @@ export const WORKSPACE_GRAPH_SOURCE_KIND = 'workspace'
 
 const workspaceJsonGraphParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 const workspaceFrontmatterMermaidParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
+const workspaceKgcSemanticGraphParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
 export const WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS = 120
 
 const buildWorkspaceStructuredParseKey = (args: {
-  parseKind: 'json-graph' | 'frontmatter-mermaid'
+  parseKind: 'json-graph' | 'frontmatter-mermaid' | 'kgc-semantic'
   markdownName: string | null
   markdownText: string | null
 }): string => {
@@ -204,6 +209,42 @@ export const parseWorkspaceJsonGraphDataCached = (args: { markdownName: string |
   if (cached) return cached.graphData
   const graphData = parseWorkspaceJsonGraphData(args)
   workspaceJsonGraphParseCache.set(key, { graphData })
+  return graphData
+}
+
+export const parseWorkspaceKgcSemanticGraphDataCached = (args: {
+  markdownName: string | null
+  markdownText: string | null
+}): GraphData | null => {
+  const text = String(args.markdownText || '')
+  if (!text.trim()) return null
+  const key = buildWorkspaceStructuredParseKey({
+    parseKind: 'kgc-semantic',
+    markdownName: args.markdownName,
+    markdownText: args.markdownText,
+  })
+  const cached = workspaceKgcSemanticGraphParseCache.get(key)
+  if (cached) return cached.graphData
+  let graphData: GraphData | null = null
+  try {
+    const semantic = parseKgcSemanticGraphFromMarkdown({
+      name: args.markdownName || 'workspace:kgc-semantic.md',
+      text,
+    })
+    if (semantic) {
+      const jsonld = buildMarkdownJsonLd(args.markdownName || 'workspace:kgc-semantic.md', text)
+      const parsed = parseJsonLd(jsonld)
+      graphData = toWorkspaceJsonGraphData(
+        mergeKgcSemanticGraphIntoGraphData({
+          base: parsed,
+          semantic: semantic.graphData,
+        }),
+      )
+    }
+  } catch {
+    graphData = null
+  }
+  workspaceKgcSemanticGraphParseCache.set(key, { graphData })
   return graphData
 }
 

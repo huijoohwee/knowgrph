@@ -51,7 +51,7 @@ export const UI_LABELS = {
   integrations: 'Integrations',
   mcp: 'MCP',
   maps: 'Maps',
-  payments: 'Payments',
+  commerce: 'Commerce',
   inspector: 'Inspector',
   schema: 'Schema',
   settings: 'Settings',

@@ -1,8 +1,8 @@
 # Knowgrph Crawler Access - PRD & TAD
 
-**Document Version**: 1.0.0
-**Date**: 2026-05-19
-**Status**: Draft aligned to implemented crawler-access slice
+**Document Version**: 1.0.1
+**Date**: 2026-05-29
+**Status**: Implemented crawler-access contract
 **Scope**: AI crawler and non-JavaScript access to Editor Workspace Source Files through storage-owned read-only routes, Cloudflare AI Crawl Control Pay Per Crawl compatibility, and Dev -> Prod -> Cloudflare publication parity
 
 ---
@@ -302,7 +302,7 @@ flowchart TB
 | Worker route contract | Worker contract mirror | `cloudflare/workers/knowgrph-storage/contract.ts` | Reuse the same route and header semantics inside the Worker | Implemented |
 | Worker router | Storage API entrypoint | `cloudflare/workers/knowgrph-storage/index.ts` | Delegate crawler routes before generic storage handling | Implemented |
 | Crawler handler | Source Files index builder | `cloudflare/workers/knowgrph-storage/crawler.ts` | Read D1 documents and build markdown or text crawler responses | Implemented |
-| Operator readiness | MainPanel MCP crawler access | `canvas/src/features/panels/views/crawlerAccessMcpApiDocs.ts` | Surface storage route constants, Pay Per Crawl headers, read-only guard, and Stripe/MainPanel Payments handoff | Implemented |
+| Operator readiness | MainPanel MCP crawler access | `canvas/src/features/panels/views/crawlerAccessMcpApiDocs.ts` | Surface storage route constants, Pay Per Crawl headers, read-only guard, and Stripe/MainPanel Commerce handoff | Implemented |
 | Persistence | Documents table | D1 `documents` | Store canonical Source Files metadata and markdown content | Implemented |
 | Document content | Doc-view route | `/api/storage/doc/{workspaceId}/{canonicalPath}` | Serve latest markdown content for a canonical Source File | Implemented |
 | Verification | Storage contract tests | `canvas/src/__tests__/knowgrphStorageContracts.test.ts` | Guard centralized routes and Pay Per Crawl header names | Implemented |
@@ -556,7 +556,7 @@ Metadata plus doc-view links gives crawlers freshness evidence and direct conten
 | LLM text entrypoint | Focused storage Worker test | `/api/storage/llms.txt` returns text/plain with Source Files and Pay Per Crawl metadata |
 | Type safety | `npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false` | No TypeScript errors |
 | Static artifact | `npm run pages:build` | Built `llms.txt` includes Source Files and access policy |
-| MainPanel MCP readiness | Focused MainPanel MCP crawler/payment render test | MCP hub surfaces crawler routes, Pay Per Crawl boundary, Stripe MCP payment readiness, and no app-local crawler price |
+| MainPanel MCP readiness | Focused MainPanel MCP crawler/payment render test | MCP hub surfaces crawler routes, Pay Per Crawl boundary, Stripe MCP payment readiness, MainPanel Commerce handoff, and no app-local crawler price |
 | Docs map | `python3 ../huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` | Documentation map remains synchronized or is regenerated from canonical docs |
 | Production smoke | Direct Cloudflare route probes after deploy | HTML route, storage crawler route, payment Worker route, and hashed static assets are reachable |
 

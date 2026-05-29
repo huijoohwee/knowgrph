@@ -116,7 +116,7 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
   }
 }
 
-export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
+export async function testMainPanelRequestedCommerceSearchUsesTabMetadata() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -136,7 +136,7 @@ export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
     await mountReactRoot(
       root,
       React.createElement(MainPanel, {
-        requestedTab: 'payments',
+        requestedTab: 'commerce',
         requestedSearchQuery: 'stripe',
       } as never),
       { window: dom.window, frames: 4 },
@@ -144,13 +144,13 @@ export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
 
     const searchInput = container.querySelector('input')
     if (!(searchInput instanceof dom.window.HTMLInputElement)) {
-      throw new Error('expected payments tab to render the search input')
+      throw new Error('expected commerce tab to render the search input')
     }
     if (searchInput.placeholder !== UI_COPY.searchSettingsPlaceholder) {
-      throw new Error(`expected payments search placeholder, got ${JSON.stringify(searchInput.placeholder)}`)
+      throw new Error(`expected commerce search placeholder, got ${JSON.stringify(searchInput.placeholder)}`)
     }
     if (searchInput.value !== 'stripe') {
-      throw new Error(`expected payments search query to be preserved, got ${JSON.stringify(searchInput.value)}`)
+      throw new Error(`expected commerce search query to be preserved, got ${JSON.stringify(searchInput.value)}`)
     }
   } finally {
     try {

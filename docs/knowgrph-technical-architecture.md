@@ -19,7 +19,7 @@ generator_owner: "canvas/src/cli/lint-doc.ts"
 - Runtime or documentation decisions must never be inferred from stale generated rows when the canonical authored docs disagree; fix the upstream source and regenerate.
 
 Canonical technical architecture documentation lives in `docs/documents/knowgrph-settings-document.md` together with the broader architecture/design set in `docs/documents/`.
-For chat-to-canvas runtime ownership and KGC persistence behavior, use `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.md` and `docs/documents/knowgrph-llm-prompt-contract-prd-tad-proposed.md` as the canonical owner maps rather than inferring behavior from the generated settings registry alone.
+For chat-to-canvas runtime ownership and KGC persistence behavior, use `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.md` and `docs/documents/knowgrph-llm-prompt-contract-prd-tad.md` as the canonical owner maps rather than inferring behavior from the generated settings registry alone.
 
 This root document exists as the auto-generated settings registry table surface used by `canvas/src/cli/lint-doc.ts`.
 

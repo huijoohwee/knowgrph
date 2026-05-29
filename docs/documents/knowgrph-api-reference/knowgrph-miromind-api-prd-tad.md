@@ -2,8 +2,8 @@
 schema: kgc-computing-flow/v1
 id: knowgrph-miromind-api-prd-tad
 version: 0.2.0
-status: draft
-date: 2026-05-27
+status: accepted-implemented-baseline
+date: 2026-05-29
 repo: https://github.com/huijoohwee/knowgrph
 surface: MainPanel > Integrations
 publish_topology:
@@ -15,7 +15,7 @@ tags: [prd, tad, miromind, integrations, mcp, chat, markdown, frontmatter, canva
 
 # PRD + TAD - Knowgrph x MiroMind API Integration
 
-> **Scope**: Add `MiroMind API` to MainPanel `Integrations`, align MainPanel `MCP` guidance, and keep the existing browser-local chat -> workspace markdown -> canvas pipeline as the only downstream graph-application route.  
+> **Scope**: Maintain `MiroMind API` in MainPanel `Integrations`, align MainPanel `MCP` guidance, and keep the existing browser-local chat -> workspace markdown -> canvas pipeline as the only downstream graph-application route.  
 > **Lens**: universal, neutral, upstream-first, no duplicate pipelines, no renderer forks, no legacy shims.  
 > **Repo truth**: shared `SettingsView` remains the owner for MainPanel `integrations` and `mcp`; frontmatter-first markdown remains the only canonical payload that applies to canvas.
 
@@ -49,18 +49,18 @@ Knowgrph already ships the core end-to-end path that MiroMind must reuse:
 
 ## 2. Problem Statement
 
-Knowgrph lacks a repo-accurate MiroMind integration plan across the real shipped surfaces.
+Knowgrph now has a repo-accurate MiroMind baseline across the real shipped surfaces.
 
-Current gaps:
+Current implemented baseline:
 
-1. MainPanel `Integrations` does not yet document or expose `MiroMind API` through the same shared settings owner used by other providers.
-2. MainPanel `MCP` does not yet explain how MiroMind's optional `mcp_servers` capability relates to the existing Knowgrph MCP/readiness surfaces.
-3. The current draft over-describes a separate query-panel runtime instead of the existing `SettingsView` -> FloatingPanel Chat -> Workspace markdown -> Canvas path.
-4. MiroMind reasoning-step streaming is valuable, but must remain an additive transport/parser capability inside the existing chat request pipeline, not a second graph materialization path.
+1. MainPanel `Integrations` documents and exposes `MiroMind API` through the same shared settings owner used by other providers.
+2. MainPanel `MCP` explains how MiroMind's optional `mcp_servers` capability relates to the existing Knowgrph MCP/readiness surfaces.
+3. The runtime path is the existing `SettingsView` -> FloatingPanel Chat -> Workspace markdown -> Canvas path.
+4. MiroMind reasoning-step streaming is additive transport/parser capability inside the existing chat request pipeline, not a second graph materialization path.
 
 ## 3. Product Goal
 
-Add MiroMind in a way that preserves one upstream-to-downstream contract:
+Maintain MiroMind in a way that preserves one upstream-to-downstream contract:
 
 - Upstream provider readiness and configuration live in shared MainPanel settings owners.
 - Chat orchestration stays inside FloatingPanel Chat and the existing submit coordinator stack.
@@ -106,7 +106,7 @@ Needs clear guidance on the difference between MainPanel `Integrations` provider
 
 ## 7. Epics, Stories, Acceptance Criteria
 
-### Epic MM-E1 - Add MiroMind to MainPanel Integrations
+### Epic MM-E1 - Keep MiroMind In MainPanel Integrations
 
 **Story MM-E1-S1 - Shared settings owner exposes MiroMind API**
 
@@ -193,8 +193,8 @@ Acceptance criteria:
 
 | Metric | Baseline | Target |
 |---|---|---|
-| MainPanel Integrations provider discoverability | no MiroMind row | one shared-owner MiroMind area |
-| Duplicate chat/graph pipeline count | at risk in draft docs | exactly 0 |
+| MainPanel Integrations provider discoverability | implemented MiroMind row | one shared-owner MiroMind area |
+| Duplicate chat/graph pipeline count | 0 | exactly 0 |
 | Direct LLM-output -> graph bypasses | possible by ambiguity | exactly 0 |
 | Renderer-specific provider branches | at risk by poor design | exactly 0 |
 | Publish-surface doc divergence | possible | source-owned only in `knowgrph` |
@@ -479,4 +479,4 @@ Guardrails:
 
 ---
 
-*v0.2.0 · 2026-05-27 · repo-accurate draft aligned to shared settings/chat/workspace/canvas owners*
+*v0.2.0 · 2026-05-29 · accepted implemented baseline aligned to shared settings/chat/workspace/canvas owners*

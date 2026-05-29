@@ -18,21 +18,29 @@ import {
   mapSessionRow,
   parseJson,
   readProofForSession,
+  readProofRows,
   readRecordString,
   readSession,
   readSessionByIdempotencyKey,
+  readTraceRows,
   stableJson,
   updateSessionState,
-  writeProof,
   writeSession,
   writeTraceEvent,
   type AgenticCommercePaymentRail,
-  type AgenticCommerceRiskSignal,
   type AgenticCommerceSessionRow,
   type AgenticCommerceSessionStatus,
   type AgenticCommerceSessionWrite,
-  type OpenboxAction,
 } from './agenticCommercePersistence'
+import {
+  attestWeb3Settlement,
+  authorizeStripeDelegatePayment,
+  confirmWeb3Transfer,
+  ingestOpenboxProof,
+} from './agenticCommerceIntegrations'
+import { settleAgenticCommerceSession } from './agenticCommerceSettlement'
+
+export { settleAgenticCommerceSessionFromStripeSession } from './agenticCommerceSettlement'
 
 type HeadersRecord = Record<string, string>
 
@@ -79,6 +87,15 @@ const parseSessionRoute = (pathname: string): ParsedSessionRoute => {
   return { kind: 'item', id: decodeURIComponent(parts[0]), action }
 }
 
+const readAcpBearerToken = (env: AgenticCommerceEnvLike): string =>
+  String(env[AGENTIC_COMMERCE_ENV_KEYS.acpBearerToken] || '').trim()
+
+const isAuthorizedAcpRequest = (request: Request, env: AgenticCommerceEnvLike): boolean => {
+  const expected = readAcpBearerToken(env)
+  if (!expected) return true
+  return request.headers.get('authorization') === `Bearer ${expected}`
+}
+
 const readWeb3Extension = (payload: Record<string, unknown>): Record<string, unknown> | null =>
   asRecord(payload['x-web3']) || asRecord(payload.x_web3)
 
@@ -114,95 +131,6 @@ const readCheckoutCurrency = (payload: Record<string, unknown>): string => {
     if (currency) return currency
   }
   return ''
-}
-
-const readOpenboxAction = (value: unknown): OpenboxAction | '' => {
-  const action = String(value || '').trim()
-  return action === 'authorized' || action === 'manual_review' || action === 'blocked' ? action : ''
-}
-
-const readOpenboxRiskSignal = async (
-  env: AgenticCommerceEnvLike,
-  session: AgenticCommerceSessionRow,
-): Promise<AgenticCommerceRiskSignal | null> => {
-  const apiUrl = String(env[AGENTIC_COMMERCE_ENV_KEYS.openboxApiUrl] || '').trim()
-  if (!apiUrl) return null
-  const apiKey = String(env[AGENTIC_COMMERCE_ENV_KEYS.openboxApiKey] || '').trim()
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
-      },
-      body: JSON.stringify({
-        session_id: session.id,
-        action: 'agentic_checkout_complete',
-        payment_rail: session.payment_rail,
-        amount_total: session.amount_total,
-        currency: session.currency,
-      }),
-    })
-    if (!response.ok) return null
-    const body = asRecord(await response.json().catch(() => null))
-    if (!body) return null
-    const nested = asRecord(body.openbox_risk)
-    const scoreValue = nested?.score ?? body.score ?? body.risk_score
-    const score = typeof scoreValue === 'number' ? scoreValue : Number(scoreValue)
-    const action = readOpenboxAction(nested?.action ?? body.action)
-    if (!Number.isFinite(score) || !action) return null
-    return {
-      source: 'openbox',
-      score,
-      action,
-      session_id: session.id,
-    }
-  } catch {
-    return null
-  }
-}
-
-const buildProof = (args: {
-  session: AgenticCommerceSessionRow
-  riskSignal: AgenticCommerceRiskSignal | null
-  completedAt: string
-  txHash?: string | null
-  attestationUid?: string | null
-}) => {
-  const proofId = `proof_${buildAgenticCommerceSemanticKey('commerce-proof', [
-    args.session.id,
-    args.completedAt,
-    args.riskSignal?.score ?? '',
-    args.riskSignal?.action ?? '',
-    args.txHash || '',
-    args.attestationUid || '',
-  ])}`
-  const canvasNode = args.session.payment_rail === 'erc20'
-    ? {
-        type: '@node:proof',
-        session_id: args.session.id,
-        tx_hash: args.txHash || null,
-        attestation_uid: args.attestationUid || null,
-      }
-    : null
-  return {
-    proof_id: proofId,
-    session_id: args.session.id,
-    status: 'complete',
-    payment_rail: args.session.payment_rail,
-    amount_total: args.session.amount_total,
-    currency: args.session.currency,
-    ...(args.riskSignal ? { openbox_risk: args.riskSignal } : {}),
-    ...(args.attestationUid ? { attestation_uid: args.attestationUid } : {}),
-    ...(canvasNode ? { canvas_node: canvasNode } : {}),
-    cost_log: {
-      model: 'none',
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      cache_hits: 0,
-      estimated_cost_usd: 0,
-    },
-  }
 }
 
 const handleAcpConfig = (
@@ -335,80 +263,97 @@ const handleGetSession = async (
   }, corsHeaders)
 }
 
-export const settleAgenticCommerceSession = async (
-  db: D1DatabaseLike,
-  env: AgenticCommerceEnvLike,
-  sessionId: string,
-  options: { txHash?: string | null; attestationUid?: string | null } = {},
-): Promise<{ session: ReturnType<typeof mapSessionRow>; proof: unknown } | null> => {
-  const session = await readSession(db, sessionId)
-  if (!session) return null
-  const existingProof = await readProofForSession(db, sessionId)
-  if (session.status === 'complete' && existingProof) {
-    return {
-      session: mapSessionRow(session),
-      proof: parseJson(existingProof.proof_json, null),
-    }
-  }
-
-  const completedAt = session.completed_at || new Date().toISOString()
-  const riskSignal = await readOpenboxRiskSignal(env, session)
-  const riskSignals = riskSignal ? [riskSignal] : []
-  const completedSession: AgenticCommerceSessionRow = {
-    ...session,
-    status: 'complete',
-    updated_at: completedAt,
-    completed_at: completedAt,
-    risk_signals_json: stableJson(riskSignals),
-  }
-  const proof = buildProof({
-    session: completedSession,
-    riskSignal,
-    completedAt,
-    txHash: options.txHash || null,
-    attestationUid: options.attestationUid || null,
-  })
-  await updateSessionState(db, {
-    id: session.id,
-    status: 'complete',
-    responseJson: stableJson(mapSessionRow(completedSession)),
-    riskSignalsJson: stableJson(riskSignals),
-    updatedAt: completedAt,
-    completedAt,
-  })
-  await writeProof(db, {
-    id: proof.proof_id,
-    sessionId: session.id,
-    proofJson: stableJson(proof),
-    createdAt: completedAt,
-  })
-  await writeTraceEvent(db, {
-    sessionId: session.id,
-    eventType: 'knowgrph.commerce.settle',
-    payload: {
-      tool: 'knowgrph.commerce.settle',
-      session_id: session.id,
-      proof_id: proof.proof_id,
-      risk_signal_source: riskSignal?.source || null,
-    },
-    createdAt: completedAt,
-  })
-  const updated = await readSession(db, session.id)
-  return {
-    session: updated ? mapSessionRow(updated) : mapSessionRow(completedSession),
-    proof,
-  }
+const readArtifactSessionId = (request: Request): string | null => {
+  const value = new URL(request.url).searchParams.get('session_id')
+  const sessionId = String(value || '').trim()
+  return sessionId || null
 }
 
-export const settleAgenticCommerceSessionFromStripeSession = async (
+const handleProofArtifact = async (
+  request: Request,
   db: D1DatabaseLike,
+  corsHeaders: HeadersRecord,
+): Promise<Response> => {
+  const rows = await readProofRows(db, readArtifactSessionId(request))
+  return json(200, {
+    schema: 'knowgrph-commerce-proof/v1',
+    apiVersion: AGENTIC_COMMERCE_API_VERSION,
+    commerce: rows.map(row => parseJson(row.proof_json, {
+      proof_id: row.id,
+      session_id: row.session_id,
+    })),
+  }, corsHeaders)
+}
+
+const handleTraceArtifact = async (
+  request: Request,
+  db: D1DatabaseLike,
+  corsHeaders: HeadersRecord,
+): Promise<Response> => {
+  const rows = await readTraceRows(db, readArtifactSessionId(request))
+  const body = rows
+    .map(row => stableJson({
+      event: row.event_type,
+      session_id: row.session_id,
+      created_at: row.created_at,
+      payload: parseJson(row.payload_json, {}),
+    }))
+    .join('\n')
+  return new Response(body ? `${body}\n` : '', {
+    status: 200,
+    headers: {
+      'content-type': 'application/x-ndjson; charset=utf-8',
+      'cache-control': 'no-store',
+      ...corsHeaders,
+    },
+  })
+}
+
+const readProofSessionId = (value: unknown): string => {
+  const record = asRecord(value)
+  if (!record) return ''
+  const direct = readRecordString(record, 'session_id')
+  if (direct) return direct
+  const commerce = Array.isArray(record.commerce) ? record.commerce : []
+  for (const entry of commerce) {
+    const entryRecord = asRecord(entry)
+    const sessionId = entryRecord ? readRecordString(entryRecord, 'session_id') : ''
+    if (sessionId) return sessionId
+  }
+  return ''
+}
+
+const handleOpenboxIngest = async (
+  request: Request,
   env: AgenticCommerceEnvLike,
-  stripeSession: Record<string, unknown>,
-): Promise<void> => {
-  const metadata = asRecord(stripeSession.metadata)
-  const sessionId = metadata ? readRecordString(metadata, 'acp_session_id') : ''
-  if (!sessionId) return
-  await settleAgenticCommerceSession(db, env, sessionId)
+  db: D1DatabaseLike,
+  corsHeaders: HeadersRecord,
+): Promise<Response> => {
+  const payload = await readRequestJson(request)
+  if (!payload) return errorJson(400, 'OpenBOX ingest body must be JSON.', corsHeaders)
+  const result = await ingestOpenboxProof(env, payload)
+  if (!result) return errorJson(503, 'OPENBOX_INGEST_URL is required for OpenBOX ingest.', corsHeaders)
+  const sessionId = readProofSessionId(payload)
+  if (sessionId && await readSession(db, sessionId)) {
+    await writeTraceEvent(db, {
+      sessionId,
+      eventType: 'knowgrph.commerce.openbox_ingest',
+      payload: {
+        tool: 'knowgrph.commerce.openbox_ingest',
+        session_id: sessionId,
+        ok: result.ok,
+        status: result.status,
+        error: result.ok ? null : result.error,
+      },
+      createdAt: new Date().toISOString(),
+    })
+  }
+  if (!result.ok) return errorJson(result.status, result.error, corsHeaders)
+  return json(200, {
+    ok: true,
+    apiVersion: AGENTIC_COMMERCE_API_VERSION,
+    status: result.status,
+  }, corsHeaders)
 }
 
 const handleCompleteSession = async (
@@ -424,6 +369,37 @@ const handleCompleteSession = async (
   const vaultToken = readRecordString(payload, 'vault_token') || readRecordString(payload, 'payment_token') || readRecordString(payload, 'shared_payment_token')
   if (session.payment_rail === 'fiat' && session.status !== 'complete' && !vaultToken) {
     return errorJson(422, 'vault_token is required to complete a fiat ACP checkout session.', corsHeaders)
+  }
+  if (session.payment_rail === 'fiat' && session.status !== 'complete') {
+    const authorization = await authorizeStripeDelegatePayment(env, session, vaultToken)
+    const authorizedAt = new Date().toISOString()
+    await writeTraceEvent(db, {
+      sessionId,
+      eventType: authorization.ok ? 'knowgrph.commerce.delegate_payment' : 'knowgrph.commerce.payment_failed',
+      payload: {
+        tool: 'knowgrph.commerce.delegate_payment',
+        session_id: sessionId,
+        ok: authorization.ok,
+        details: authorization.details || null,
+        error: authorization.ok ? null : authorization.error,
+      },
+      createdAt: authorizedAt,
+    })
+    if (!authorization.ok) {
+      const failedSession: AgenticCommerceSessionRow = {
+        ...session,
+        status: 'payment_failed',
+        updated_at: authorizedAt,
+      }
+      await updateSessionState(db, {
+        id: session.id,
+        status: 'payment_failed',
+        responseJson: stableJson(mapSessionRow(failedSession)),
+        riskSignalsJson: session.risk_signals_json || '[]',
+        updatedAt: authorizedAt,
+      })
+      return errorJson(authorization.status, authorization.error, corsHeaders)
+    }
   }
   const settled = await settleAgenticCommerceSession(db, env, sessionId, {
     txHash: readRecordString(payload, 'tx_hash') || null,
@@ -469,6 +445,60 @@ const handleCancelSession = async (
   }, corsHeaders)
 }
 
+const handleWeb3Settle = async (
+  request: Request,
+  env: AgenticCommerceEnvLike,
+  db: D1DatabaseLike,
+  corsHeaders: HeadersRecord,
+): Promise<Response> => {
+  const payload = asRecord(await readRequestJson(request)) || {}
+  const sessionId = readRecordString(payload, 'session_id')
+  const txHash = readRecordString(payload, 'tx_hash')
+  if (!sessionId) return errorJson(400, 'session_id is required.', corsHeaders)
+  if (!txHash) return errorJson(400, 'tx_hash is required.', corsHeaders)
+  const session = await readSession(db, sessionId)
+  if (!session) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
+  if (session.payment_rail !== 'erc20') return errorJson(422, 'Web3 settlement requires an ERC-20 ACP session.', corsHeaders)
+  const confirmation = await confirmWeb3Transfer(env, session, txHash)
+  if (!confirmation.ok) return errorJson(confirmation.status, confirmation.error, corsHeaders)
+  const confirmedAt = new Date().toISOString()
+  await writeTraceEvent(db, {
+    sessionId,
+    eventType: 'knowgrph.commerce.web3_confirm',
+    payload: {
+      tool: 'knowgrph.commerce.web3_confirm',
+      session_id: sessionId,
+      tx_hash: txHash,
+      details: confirmation.details || null,
+    },
+    createdAt: confirmedAt,
+  })
+  const attestation = await attestWeb3Settlement(env, session, txHash)
+  if (!attestation.ok) return errorJson(attestation.status, attestation.error, corsHeaders)
+  await writeTraceEvent(db, {
+    sessionId,
+    eventType: 'knowgrph.commerce.attest',
+    payload: {
+      tool: 'knowgrph.commerce.attest',
+      session_id: sessionId,
+      tx_hash: txHash,
+      attestation_uid: attestation.attestationUid,
+    },
+    createdAt: new Date().toISOString(),
+  })
+  const settled = await settleAgenticCommerceSession(db, env, sessionId, {
+    txHash,
+    attestationUid: attestation.attestationUid || null,
+  })
+  if (!settled) return errorJson(404, 'ACP checkout session not found.', corsHeaders)
+  return json(200, {
+    ok: true,
+    apiVersion: AGENTIC_COMMERCE_API_VERSION,
+    session: settled.session,
+    proof: settled.proof,
+  }, corsHeaders)
+}
+
 const handleCommerceWebhook = async (
   request: Request,
   env: AgenticCommerceEnvLike,
@@ -495,6 +525,10 @@ const handleCommerceWebhook = async (
 export const isAgenticCommerceRoute = (pathname: string): boolean => (
   pathname === AGENTIC_COMMERCE_ROUTE_PATHS.acpConfig
   || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook
+  || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact
+  || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact
+  || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest
+  || pathname === AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle
   || parseSessionRoute(pathname) !== null
 )
 
@@ -516,6 +550,19 @@ export const handleAgenticCommerceRoute = async (
     return errorJson(404, 'ACP config route not found.', corsHeaders)
   }
   if (!db) return errorJson(500, 'missing Cloudflare D1 binding DB', corsHeaders)
+  if (!isAuthorizedAcpRequest(request, env)) return errorJson(401, 'ACP bearer token is required.', corsHeaders)
+  if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceProofArtifact && request.method === 'GET') {
+    return handleProofArtifact(request, db, corsHeaders)
+  }
+  if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceTraceArtifact && request.method === 'GET') {
+    return handleTraceArtifact(request, db, corsHeaders)
+  }
+  if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest && request.method === 'POST') {
+    return handleOpenboxIngest(request, env, db, corsHeaders)
+  }
+  if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle && request.method === 'POST') {
+    return handleWeb3Settle(request, env, db, corsHeaders)
+  }
   if (pathname === AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook && request.method === 'POST') {
     return handleCommerceWebhook(request, env, db, corsHeaders)
   }

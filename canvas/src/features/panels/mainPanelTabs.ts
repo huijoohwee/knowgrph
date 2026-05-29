@@ -5,7 +5,7 @@ export type MainPanelTabKey =
   | 'integrations'
   | 'mcp'
   | 'maps'
-  | 'payments'
+  | 'commerce'
   | 'design'
   | 'workflowManager'
   | 'help'
@@ -52,11 +52,11 @@ const MAIN_PANEL_TAB_METADATA: MainPanelTabMeta[] = [
     footerLabel: UI_LABELS.maps,
   },
   {
-    key: 'payments',
-    label: UI_LABELS.payments,
+    key: 'commerce',
+    label: UI_LABELS.commerce,
     searchable: true,
     searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
-    footerLabel: UI_LABELS.payments,
+    footerLabel: UI_LABELS.commerce,
   },
   {
     key: 'design',

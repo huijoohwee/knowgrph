@@ -6,8 +6,8 @@ service_type: "AI-native MCP payment integration"
 doc_type: "PRD + TAD"
 version: "0.2.0"
 owner: "joohwee"
-status: "draft"
-date: "2026-05-19"
+status: "accepted-implemented-baseline"
+date: "2026-05-29"
 license: "FOSS-compatible integration posture"
 tier: "free + pay-per-use + subscription"
 ai_model: "provider-swappable"
@@ -70,12 +70,12 @@ pipeline:
     priority: P0
   - seq: S04
     node: n-handoff
-    label: "payments handoff"
+    label: "commerce handoff"
     actor: ["operator","system"]
-    user_action: "Operator can move from MainPanel MCP setup to MainPanel Payments without duplicating config."
-    sys_event: "MainPanel MCP owns integration readiness; MainPanel Payments owns customer-facing checkout and entitlement UX."
+    user_action: "Operator can move from MainPanel MCP setup to MainPanel Commerce without duplicating config."
+    sys_event: "MainPanel MCP owns integration readiness; MainPanel Commerce owns customer-facing checkout and entitlement UX."
     data_in: "tool_pkg"
-    data_out: "handoff_pkg {mcp_ready, payments_surface_linked}"
+    data_out: "handoff_pkg {mcp_ready, commerce_surface_linked}"
     status: in-flight
     priority: P1
 
@@ -93,7 +93,7 @@ mermaid: |
     StripeRemote[/"Stripe remote MCP\nhttps://mcp.stripe.com"/]
     LocalMCP[/"Local Stripe MCP\nnpx -y @stripe/mcp@latest"/]
     SecretBoundary[/"Secret boundary\nOAuth or restricted key"/]
-    Payments[/"MainPanel Payments"/]
+    Commerce[/"MainPanel Commerce"/]
 
     Operator -->|configure| MainPanelMCP
     MainPanelMCP -->|reads constants| SharedSSOT
@@ -101,10 +101,10 @@ mermaid: |
     MainPanelMCP -->|local/server fallback| LocalMCP
     StripeRemote --> SecretBoundary
     LocalMCP --> SecretBoundary
-    MainPanelMCP -->|payment readiness handoff| Payments
+    MainPanelMCP -->|payment readiness handoff| Commerce
 
     class Operator actor
-    class MainPanelMCP,StripeRemote,LocalMCP,Payments process
+    class MainPanelMCP,StripeRemote,LocalMCP,Commerce process
     class SecretBoundary secure
     class SharedSSOT data
 ---
@@ -113,7 +113,7 @@ mermaid: |
 
 `bg#E1F5EE:version {{version}}` - `bg#FAEEDA:status {{status}}` - owner `{{owner}}` - {{date}}
 
-This document turns the MainPanel MCP Stripe surface into a PRD/TAD contract for accepting payment through Stripe MCP without embedding payment credentials in the browser. The implementation posture is neutral: MainPanel MCP exposes payment readiness and agent configuration; MainPanel Payments remains the customer-facing checkout, entitlement, and reconciliation surface.
+This document turns the MainPanel MCP Stripe surface into a PRD/TAD contract for accepting payment through Stripe MCP without embedding payment credentials in the browser. The implementation posture is neutral: MainPanel MCP exposes payment readiness and agent configuration; MainPanel Commerce remains the customer-facing checkout, entitlement, and reconciliation surface.
 
 The official Stripe MCP server is the integration source of truth. Use the remote server at `{{mcp.remote_url}}` with OAuth when the MCP client supports it. If OAuth is unavailable, use a restricted API key only from a server secret store or local environment. Payment-mutating tools stay behind human confirmation.
 
@@ -143,7 +143,7 @@ The product risk is not lack of Stripe API coverage; it is unsafe configuration 
 |---|---|---|
 | Operator | Configure Stripe MCP for an agent or server workflow | Remote and local `mcpServers` snippets are visible and use shared defaults |
 | Maintainer | Keep Stripe MCP labels, URLs, tools, and security guidance in one place | UI, tests, and docs resolve the same semantic keys |
-| End user | Pay only after an intentional checkout action | Payment-mutating calls require confirmation and entitlement UX stays in Payments |
+| End user | Pay only after an intentional checkout action | Payment-mutating calls require confirmation and entitlement UX stays in Commerce |
 | Auditor | Review whether keys and payment actions are handled safely | No secret examples, least-privilege scope, and traceable tool intent are documented |
 
 ### User Journey Flow
@@ -154,7 +154,7 @@ The product risk is not lack of Stripe API coverage; it is unsafe configuration 
 | 2 | Choose remote mode | UI shows `{{mcp.remote_url}}` and OAuth-preferred connection guidance | Browser stores no OAuth token, restricted key, or secret key |
 | 3 | Choose local/server fallback | UI shows local `mcpServers` JSON with `npx` and `@stripe/mcp@latest` | Secret value is represented only by `{{stripe_mcp_secret_placeholder}}` |
 | 4 | Review tools | UI lists payment-capable Stripe MCP tools | Mutating tools are labeled as requiring human confirmation |
-| 5 | Continue to payments | Operator opens MainPanel Payments | Payments surface owns checkout, entitlement, and reconciliation UX |
+| 5 | Continue to commerce | Operator opens MainPanel Commerce | Commerce surface owns checkout, entitlement, and reconciliation UX |
 
 ### User Stories
 
@@ -164,7 +164,7 @@ The product risk is not lack of Stripe API coverage; it is unsafe configuration 
 | `US-02` | As an operator, I can run a local Stripe MCP server without pasting keys into Knowgrph | Local config uses `command: "{{mcp.local_command}}"`, `args: {{mcp.local_args}}`, and an environment placeholder | P0 |
 | `US-03` | As a maintainer, I can update Stripe MCP defaults once | Docs, MainPanel MCP rows, and tests use one shared semantic-key owner | P0 |
 | `US-04` | As an auditor, I can distinguish read-only from payment-mutating readiness | Payment-capable tools are listed and confirmation is required before mutation | P0 |
-| `US-05` | As an end user, I never enter checkout from an implicit agent action | Checkout and entitlement UX remain in MainPanel Payments, not hidden MCP rows | P1 |
+| `US-05` | As an end user, I never enter checkout from an implicit agent action | Checkout and entitlement UX remain in MainPanel Commerce, not hidden MCP rows | P1 |
 
 ### MoSCoW Scope
 
@@ -175,7 +175,7 @@ The product risk is not lack of Stripe API coverage; it is unsafe configuration 
 | Must | Keep Stripe MCP constants in shared SSOT and reuse them in MainPanel MCP docs/tests |
 | Must | Require human confirmation for payment-mutating tools |
 | Should | Surface local `@stripe/mcp@latest` launcher config for agents that need local MCP |
-| Should | Link MainPanel MCP setup to MainPanel Payments handoff |
+| Should | Link MainPanel MCP setup to MainPanel Commerce handoff |
 | Could | Add per-tool scope presets after the first payment workflow is finalized |
 | Won't | Store Stripe secret or restricted keys in browser localStorage/sessionStorage |
 
@@ -193,7 +193,7 @@ The product risk is not lack of Stripe API coverage; it is unsafe configuration 
 
 In scope: Stripe MCP readiness rows, remote/local MCP config snippets, payment-tool labels, confirmation policy, secret-boundary guidance, docs, and tests.
 
-Out of scope: creating live Stripe products, choosing actual prices, running production checkout, webhook fulfillment, refunds policy, and entitlement ledger migration. Those belong to MainPanel Payments and backend payment services.
+Out of scope: creating live Stripe products, choosing actual prices, running production checkout, webhook fulfillment, refunds policy, and entitlement ledger migration. Those belong to MainPanel Commerce and backend payment services.
 
 ### Assumptions
 
@@ -202,7 +202,7 @@ Out of scope: creating live Stripe products, choosing actual prices, running pro
 | `A-01` | OAuth is available in the MCP host for the preferred remote path | Confirm during agent-host setup |
 | `A-02` | Restricted API keys are used only for server/local fallback | Verify deployment secrets and local env templates |
 | `A-03` | Payment tools may create or mutate Stripe resources | Keep `{{mcp.require_confirmation}}` true by default |
-| `A-04` | MainPanel MCP is configuration readiness, not checkout UX | Keep customer-facing payment flow in Payments |
+| `A-04` | MainPanel MCP is configuration readiness, not checkout UX | Keep customer-facing payment flow in Commerce |
 
 ---
 
@@ -216,7 +216,7 @@ Out of scope: creating live Stripe products, choosing actual prices, running pro
 | MainPanel MCP | Renders Stripe MCP configuration rows and agent-ready JSON | Non-secret settings only | Browser UI |
 | Stripe remote MCP | Official hosted MCP server | OAuth or bearer authorization | External service |
 | Local Stripe MCP | Local/server MCP process launched by an agent host | `STRIPE_SECRET_KEY` from environment | Local/server process |
-| MainPanel Payments | Checkout, entitlement, and reconciliation UX | Payment state and entitlement state | Product payment surface |
+| MainPanel Commerce | Checkout, entitlement, and reconciliation UX | Payment state and entitlement state | Product commerce surface |
 | Stripe Projects | Local project credential provisioning and sync | `.env` and `.projects/vault/` on developer machines | Local development, not production host |
 | `knowgrph-payment` Worker | Hosted Checkout Session creation, status reads, and webhook verification | Cloudflare Worker secrets and D1 checkout-session rows | `airvio.co/api/payments/*` |
 
@@ -281,7 +281,7 @@ sequenceDiagram
   participant SSOT as Shared Stripe MCP SSOT
   participant Host as Agent/MCP Host
   participant Stripe as Stripe MCP
-  participant Payments as MainPanel Payments
+  participant Commerce as MainPanel Commerce
 
   Operator->>MCP: Open Stripe MCP Configuration
   MCP->>SSOT: Resolve shared Stripe MCP constants
@@ -289,7 +289,7 @@ sequenceDiagram
   Operator->>Host: Configure Stripe MCP outside browser secrets
   Host->>Stripe: Connect with OAuth or restricted-key bearer
   Stripe-->>Host: Expose authorized Stripe tools
-  Operator->>Payments: Continue to checkout/entitlement setup
+  Operator->>Commerce: Continue to checkout/entitlement setup
 ```
 
 ### Data Flow
@@ -359,7 +359,7 @@ Do not configure these as browser storage or rely on Cloudflare Pages project va
 
 1. Keep Stripe MCP defaults in the shared payment SSOT.
 2. Render MainPanel MCP rows from the shared constants.
-3. Keep existing Payments settings focused on customer-facing checkout.
+3. Keep existing payment settings focused on customer-facing checkout inside Commerce.
 4. Validate render tests and docs lint before syncing Dev to Prod.
 5. Configure real OAuth/restricted-key credentials only in the target MCP host or backend secret store.
 
@@ -370,7 +370,7 @@ Do not configure these as browser storage or rely on Cloudflare Pages project va
 | Use official Stripe remote MCP URL | Accepted | Reduces custom adapter churn and follows Stripe's MCP documentation |
 | Prefer OAuth over embedded bearer tokens | Accepted | Supports user-scoped authorization and avoids browser secret exposure |
 | Keep local `@stripe/mcp@latest` fallback | Accepted | Supports agent hosts that need local MCP or lack remote OAuth |
-| Separate MCP readiness from checkout UX | Accepted | Avoids duplicate payment logic and keeps MainPanel Payments as the checkout owner |
+| Separate MCP readiness from checkout UX | Accepted | Avoids duplicate payment logic and keeps MainPanel Commerce as the checkout owner |
 
 ### Traceability
 
@@ -380,7 +380,7 @@ Do not configure these as browser storage or rely on Cloudflare Pages project va
 | Local MCP fallback | `US-02`, journey step 3 | Local config, authorization rules |
 | Shared semantic-key reuse | `US-03`, MoSCoW Must | Shared SSOT, deployment steps |
 | Confirmation for mutating tools | `US-04`, success metrics | Tool table, error handling |
-| Payments handoff | `US-05`, scope | Workflow flow, ADR |
+| Commerce handoff | `US-05`, scope | Workflow flow, ADR |
 
 ---
 

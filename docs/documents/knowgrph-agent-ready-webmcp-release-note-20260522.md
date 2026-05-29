@@ -100,7 +100,7 @@ Expected result:
 - Agent-ready smoke owner:
   `scripts/check-agent-ready.mjs`
 - Canonical implementation-accurate PRD/TAD:
-  `docs/documents/knowgrph-agent-ready-prd-tad-proposed.md`
+  `docs/documents/knowgrph-agent-ready-prd-tad.md`
 - Canonical MCP PRD/TAD:
   `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md`
 

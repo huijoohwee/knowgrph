@@ -52,10 +52,18 @@ export type AgenticCommerceSessionRow = {
   cancelled_at: string | null
 }
 
-type AgenticCommerceProofRow = {
+export type AgenticCommerceProofRow = {
   id: string
   session_id: string
   proof_json: string
+  created_at: string
+}
+
+export type AgenticCommerceTraceRow = {
+  id: string
+  session_id: string
+  event_type: string
+  payload_json: string
   created_at: string
 }
 
@@ -208,6 +216,18 @@ export const readProofForSession = async (
     [sessionId],
   )
 
+export const readProofRows = async (
+  db: D1DatabaseLike,
+  sessionId?: string | null,
+): Promise<AgenticCommerceProofRow[]> => {
+  if (sessionId) {
+    const row = await readProofForSession(db, sessionId)
+    return row ? [row] : []
+  }
+  const result = await db.prepare('SELECT * FROM agentic_commerce_proofs ORDER BY created_at, id').bind().all<AgenticCommerceProofRow>()
+  return Array.isArray(result.results) ? result.results : []
+}
+
 export const writeProof = async (
   db: D1DatabaseLike,
   proof: { id: string; sessionId: string; proofJson: string; createdAt: string },
@@ -234,4 +254,15 @@ export const writeTraceEvent = async (db: D1DatabaseLike, args: {
      VALUES (?, ?, ?, ?, ?)`,
     [id, args.sessionId, args.eventType, stableJson(args.payload), args.createdAt],
   )
+}
+
+export const readTraceRows = async (
+  db: D1DatabaseLike,
+  sessionId?: string | null,
+): Promise<AgenticCommerceTraceRow[]> => {
+  const query = sessionId
+    ? db.prepare('SELECT * FROM agentic_commerce_trace_events WHERE session_id = ? ORDER BY created_at, id').bind(sessionId)
+    : db.prepare('SELECT * FROM agentic_commerce_trace_events ORDER BY created_at, id').bind()
+  const result = await query.all<AgenticCommerceTraceRow>()
+  return Array.isArray(result.results) ? result.results : []
 }

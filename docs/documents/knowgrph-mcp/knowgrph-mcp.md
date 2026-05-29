@@ -21,7 +21,7 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
 | MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown -> Canvas apply path |
-| Remote Worker MCP platform | Proposed only | none in repo yet | must not be documented as implemented |
+| Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |
 
 ---
 

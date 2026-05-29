@@ -249,7 +249,7 @@ flowchart TB
 5. Implement D1→filesystem export script for git-backed backup
 6. Update workspace creation flow to detect multi-member workspaces and flip SSOT to D1
 
-### Phase 3 — Multi-User Auth + Authorization (PROPOSED)
+### Phase 3 — Multi-User Auth + Authorization (Planned Extension)
 
 1. Add D1 migration for `users`, `workspace_members`, `invitations` tables
 2. Implement JWT auth middleware in Worker

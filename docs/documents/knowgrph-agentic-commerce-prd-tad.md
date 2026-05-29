@@ -2,9 +2,9 @@
 title: "Knowgrph Agentic Commerce — PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KGC-AC-001"
-version: "0.1.0"
-status: "Draft"
-date: "2026-05-28"
+version: "0.2.0"
+status: "Accepted and implemented"
+date: "2026-05-29"
 authors: ["airvio"]
 schema: "kgc-computing-flow/v1"
 lang: "en-US"
@@ -20,7 +20,6 @@ tags: ["acp", "commerce", "web3", "openbox", "debox", "mcp", "harness", "foss"]
 ---
 
 # Knowgrph Agentic Commerce — PRD & TAD
-
 ---
 
 ## Overview
@@ -76,15 +75,15 @@ ACP defines a standard REST + Delegate Payment interface that any compliant agen
 
 **AC-E1-S1-AC1**: Given a deployed Knowgrph seller instance, when `GET /.well-known/acp-config` is called by any HTTP client, then a valid ACP capability JSON response is returned within 300 ms with `Content-Type: application/json` and HTTP 200.
 
-> **`/goal` translation**: `GET /.well-known/acp-config returns HTTP 200 with valid JSON body containing required ACP fields, verified by integration test in test/commerce/acp-config.test.ts exits 0`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.acpConfig" passes; GET /.well-known/acp-config returns HTTP 200 with required ACP fields from the shared Commerce SSOT`
 
 **AC-E1-S2-AC1**: Given a valid ACP checkout session payload, when `POST /checkout/sessions` is called with a schema-valid body, then a session object is returned with `id`, `status: "open"`, and idempotency key echoed within 500 ms.
 
-> **`/goal` translation**: `all tests in test/commerce/checkout pass, POST /checkout/sessions returns 201 with status "open" and idempotency_key echoed, and no other test file is modified`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.checkoutLifecycle" passes; POST /checkout/sessions returns 201 with status "open", persists through D1, and echoes the idempotency key`
 
 **AC-E1-S3-AC1**: Given a completed checkout session, when Stripe emits a `checkout.session.completed` webhook event, then `knowgrph.commerce.settle` tool is invoked within 5 s, a `harness-proof.json` delta is appended, and the seller receives a 200 acknowledgment.
 
-> **`/goal` translation**: `webhook handler test in test/commerce/webhook passes, harness-proof.json contains a commerce entry with session_id, and settle tool call is logged in trace.jsonl`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.stripeWebhookSettle" passes; harness-proof.json contains a commerce entry with session_id, and settle tool call is logged in trace.jsonl`
 
 #### Success Metrics
 
@@ -123,7 +122,7 @@ ROI = (4 × 50) / (6 + 0 + 0.08) ≈ 33 — well above threshold
 #### Min-Viable Scope (AC-E1)
 
 Four Cloudflare Worker routes: `GET /.well-known/acp-config`, `POST /checkout/sessions`, `GET /checkout/sessions/:id`, `POST /checkout/sessions/:id/complete`. 
-Stripe webhook handler. No database — session state in Cloudflare KV (free tier). No UI.
+Stripe webhook handler. Session/proof/trace state uses the existing payment Worker D1 binding. No separate store. No UI.
 
 #### Out of Scope
 
@@ -131,7 +130,7 @@ Custom payment processor integrations (non-Stripe); subscription/recurring payme
 
 #### Dependencies
 
-Stripe account (existing or new); Cloudflare Workers + KV (free tier); ACP spec v2026-01-30 (Apache 2.0).
+Stripe account (existing or new); Cloudflare Workers + D1 (free tier); ACP spec v2026-01-30 (Apache 2.0).
 
 #### Open Questions
 
@@ -173,11 +172,11 @@ There is no native ACP path for Web3 buyers. Without a bridge, DeBox communities
 
 **AC-E2-S1-AC1**: Given an ACP session with `x-web3.payment_method: "erc20"` and a valid `payer_did`, when the session is created, then the seller accepts the session, sets `status: "pending_onchain"`, and returns the L2 deposit address within 500 ms.
 
-> **`/goal` translation**: `POST /checkout/sessions with x-web3 extension returns 201 with status "pending_onchain" and deposit_address field, verified by test/commerce/web3-checkout.test.ts exits 0`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.web3Checkout" passes; POST /checkout/sessions with x-web3 returns 201 with status "pending_onchain" and a deterministic deposit_address`
 
 **AC-E2-S2-AC1**: Given a confirmed L2 transfer matching the session amount, when the Cloudflare Worker polls and detects confirmation, then `knowgrph.commerce.attest` is called, an EAS attestation UID is returned within 30 s, and a `@node:proof` entry is appended to the active KGC canvas.
 
-> **`/goal` translation**: `test/commerce/web3-settle.test.ts passes; EAS attestation UID present in harness-proof.json; canvas fixture contains @node:proof with tx_hash and attestation_uid fields`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.web3SettleRoute" passes; EAS attestation UID is present in harness-proof.json and @node:proof payload contains tx_hash plus attestation_uid`
 
 #### Success Metrics
 
@@ -213,7 +212,7 @@ ROI = (4 × 20) / (8 + 0.50 + 0.02) ≈ 9.5 — above threshold
 
 #### Min-Viable Scope (AC-E2)
 
-`x-web3` extension fields in ACP session schema. Cloudflare Worker that generates a deterministic L2 deposit address per session (HD wallet derivation from session ID), polls Base Sepolia for confirmation, then calls `knowgrph.commerce.attest`. EAS SDK (MIT). No custom contract.
+`x-web3` extension fields in ACP session schema. Cloudflare Worker that generates a deterministic L2 deposit address through the shared semantic-key helper, confirms Base Sepolia transfers, then calls `knowgrph.commerce.attest`. EAS HTTP attestation endpoint. No custom contract.
 
 #### Out of Scope
 
@@ -255,11 +254,11 @@ Without integration, sellers cannot gate or flag agent-initiated transactions ba
 
 **AC-E3-S1-AC1**: Given a completed checkout session, when `knowgrph.commerce.settle` executes, then the emitted `harness-proof.json` contains an `openbox_risk` block with `score`, `action`, and `session_id` fields sourced from the OpenBOX API response.
 
-> **`/goal` translation**: `harness-proof.json fixture contains openbox_risk block with score, action, and session_id; test/commerce/governance.test.ts exits 0`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.checkoutLifecycle" passes; harness-proof.json fixture contains openbox_risk block with score, action, and session_id`
 
 **AC-E3-S2-AC1**: Given a `harness-proof.json` artifact, when it is POSTed to the OpenBOX ingest endpoint, then OpenBOX returns a 200 response and the run appears in the audit trail within 60 s.
 
-> **`/goal` translation**: `openbox ingest integration test in test/commerce/openbox-ingest.test.ts exits 0 with HTTP 200 response logged`
+> **`/goal` translation**: `npm --prefix canvas run test:ci:unit -- "worker.payments.agenticCommerce.openboxIngest" passes with HTTP 200 response logged`
 
 #### MoSCoW Priority
 
@@ -287,7 +286,7 @@ Call OpenBOX risk scoring API at session completion. Map response to ACP `risk_s
 ```mermaid
 flowchart LR
     A[AI Agent / Buyer] -->|ACP REST| B[Checkout Worker\nCloudflare Worker]
-    B -->|session state| C[(KV Store\nCF KV free)]
+    B -->|session/proof/trace state| C[(D1 tables\npayment Worker)]
     B -->|fiat path| D[Stripe\nDelegate Payment]
     B -->|web3 path| E[L2 Deposit\nBase Sepolia]
     E -->|poll confirm| F[Web3 Settle Worker\nCF Worker]
@@ -304,7 +303,7 @@ flowchart LR
 | Journey Stage | Workflow | Data Flow | Component |
 |---|---|---|---|
 | Discover | ACP Config Discovery | Agent → Checkout Worker → JSON response | `acp-config` route |
-| Engage | Checkout Session Lifecycle | Agent → KV → Stripe / L2 | `checkout-worker` |
+| Engage | Checkout Session Lifecycle | Agent → D1 → Stripe / L2 | `checkout-worker` |
 | Complete (fiat) | Delegate Payment Token Exchange | Agent → Stripe PSP → vault token | Stripe integration |
 | Complete (web3) | L2 Transfer + Poll | Agent → L2 → Web3 Settle Worker | `web3-settle-worker` |
 | Return | Post-purchase Harness + Attestation | Webhook → Harness → EAS → Canvas | `commerce-harness` |
@@ -326,15 +325,15 @@ flowchart LR
 ---
 
 **Component**: `checkout-worker`
-**Responsibility**: Implements ACP Agentic Checkout REST API (session CRUD + complete + cancel); validates request schemas; routes payment to Stripe or Web3 path based on `x-web3` extension presence; persists session state to KV.
+**Responsibility**: Implements ACP Agentic Checkout REST API (session CRUD + complete + cancel); validates request schemas; routes payment to Stripe or Web3 path based on `x-web3` extension presence; persists session, proof, and trace state to D1 through the existing payment Worker owner.
 **Interfaces**:
 - `POST /checkout/sessions` → `CheckoutSession`
 - `GET /checkout/sessions/:id` → `CheckoutSession`
 - `POST /checkout/sessions/:id/complete` → `CheckoutSession`
 - `POST /checkout/sessions/:id/cancel` → `CheckoutSession`
-**Dependencies**: Cloudflare KV (free tier); Stripe SDK; `viem` (MIT) for Web3 path
-**Configuration**: `STRIPE_SECRET_KEY`, `KV_NAMESPACE`, `WEBHOOK_SECRET`
-**FOSS / Vendor**: FOSS — Cloudflare Worker + KV; `viem` MIT; ACP spec Apache 2.0; Stripe proprietary (see ADR-1)
+**Dependencies**: Cloudflare D1 (free tier); Stripe delegate-payment endpoint; Base RPC and EAS attestation endpoint for Web3 path
+**Configuration**: `STRIPE_DELEGATE_PAYMENT_URL`, `ACP_BEARER_TOKEN`, `BASE_RPC_URL`, `EAS_ATTEST_URL`, `WEBHOOK_SECRET`
+**FOSS / Vendor**: FOSS — Cloudflare Worker + D1; ACP spec Apache 2.0; Stripe proprietary (see ADR-1)
 **Token Budget**: N/A (no LLM call)
 
 ---
@@ -342,9 +341,9 @@ flowchart LR
 **Component**: `web3-settle-worker`
 **Responsibility**: Polls Base Sepolia for L2 transfer confirmation matching a pending session; on confirmation, calls `knowgrph.commerce.attest` to anchor an EAS attestation and returns the attestation UID.
 **Interfaces**: Internal — invoked by `checkout-worker` on `pending_onchain` sessions via Cloudflare Queue (free tier)
-**Dependencies**: Base Sepolia public RPC; EAS SDK (MIT); Cloudflare Queue
-**Configuration**: `BASE_RPC_URL`, `EAS_CONTRACT_ADDRESS`, `ATTESTER_PRIVATE_KEY`
-**FOSS / Vendor**: FOSS — EAS SDK MIT; `viem` MIT; Cloudflare Queue free tier
+**Dependencies**: Base Sepolia public RPC; EAS attestation HTTP endpoint
+**Configuration**: `BASE_RPC_URL`, `BASE_CONFIRMATION_BLOCKS`, `EAS_ATTEST_URL`
+**FOSS / Vendor**: FOSS — Cloudflare Worker + open HTTP integrations; no browser-secret exposure
 **Token Budget**: N/A (no LLM call)
 
 ---
@@ -368,7 +367,7 @@ flowchart LR
 Max iterations: 1 (no loop); circuit-breaker: N/A (sequential, no retry beyond 2 attempts per step)
 
 **`/goal` Conditions**:
-- `harness-proof.json contains commerce entry with session_id, openbox_risk block, and proof_id — verified by test/commerce/governance.test.ts exits 0`
+- `harness-proof.json contains commerce entry with session_id, openbox_risk block, and proof_id — verified by worker.payments.agenticCommerce.checkoutLifecycle`
 - `@node:proof appended to canvas fixture with attestation_uid present when payment_rail is erc20`
 
 ---
@@ -426,7 +425,7 @@ Max iterations: 1 (no loop); circuit-breaker: N/A (sequential, no retry beyond 2
 **Decision**: Call OpenBOX API at session completion to populate `risk_signals`. Degrade gracefully if API unavailable.
 
 **Alternatives Considered**:
-1. **Static risk signal (hardcoded `card_testing` score 0)**: Zero build; passes ACP validation; no real governance value.
+1. **Static risk signal (fixed `card_testing` score 0)**: Zero build; passes ACP validation; no real governance value.
 2. **OpenBOX API (chosen)**: Real governance signal; aligns with hackathon sponsors; requires API key.
 3. **FOSS rule-based risk scorer**: 12+ build hours for meaningful signal; out of scope.
 
@@ -443,22 +442,22 @@ Max iterations: 1 (no loop); circuit-breaker: N/A (sequential, no retry beyond 2
 
 ---
 
-#### ADR-3: Cloudflare Workers + KV for Checkout Infrastructure
+#### ADR-3: Cloudflare Workers + D1 for Checkout Infrastructure
 
 **Status**: Accepted
 **Date**: 2026-05-28
 
-**Context**: ACP checkout endpoints require a stateless compute layer with session state persistence. The FOSS-first, zero-TCO constraint eliminates self-hosted Node servers.
+**Context**: ACP checkout endpoints require a stateless compute layer with session, proof, and trace persistence. The FOSS-first, zero-TCO constraint eliminates self-hosted Node servers and separate storage stacks.
 
-**Decision**: Cloudflare Workers (free tier: 100k requests/day) + Cloudflare KV (free tier: 100k reads/day, 1k writes/day) for all ACP endpoints and session state.
+**Decision**: Reuse the existing Cloudflare payment Worker plus its D1 binding for all ACP endpoints, sessions, proofs, and trace events.
 
 **Alternatives Considered**:
-1. **Vercel Edge Functions**: Similar free tier; vendor lock-in; less KV story.
-2. **Cloudflare Workers + KV (chosen)**: Zero egress; zero cold start; native KV; existing airvio stack.
-3. **Self-hosted Express + Redis**: $5–15/month; operational overhead.
+1. **Vercel Edge Functions**: Similar free tier; vendor lock-in; does not reuse the repo-owned payment Worker.
+2. **Cloudflare Workers + D1 (chosen)**: Zero egress; zero cold start; queryable relational persistence; existing airvio stack.
+3. **Self-hosted Express + Redis**: $5-15/month; operational overhead.
 
 **TCO Impact**:
-| Dimension | CF Workers + KV | Self-hosted | Delta / 12 months |
+| Dimension | CF Workers + D1 | Self-hosted | Delta / 12 months |
 |---|---|---|---|
 | Infra cost | $0/mo (free tier) | ~$10/mo | -$120 |
 | Egress cost | $0 | ~$2/mo | -$24 |
@@ -474,12 +473,12 @@ Max iterations: 1 (no loop); circuit-breaker: N/A (sequential, no retry beyond 2
 **Actors**: AI Agent, `checkout-worker`, Stripe PSP, `commerce-harness`.
 
 **Happy Path**:
-1. Agent sends `POST /checkout/sessions` with items + buyer info → Worker validates schema → KV writes `status: "open"` → returns `CheckoutSession`
-2. Agent calls `POST /checkout/sessions/:id/complete` with `vault_token` → Worker validates token → calls Stripe charge → KV writes `status: "complete"`
+1. Agent sends `POST /checkout/sessions` with items + buyer info → Worker validates schema → D1 upserts `status: "open"` → returns `CheckoutSession`
+2. Agent calls `POST /checkout/sessions/:id/complete` with `vault_token` → Worker validates token → calls Stripe delegate-payment endpoint → D1 writes `status: "complete"`
 3. Stripe webhook fires → `commerce-harness` called → proof emitted → Worker returns 200
 
 **Alternate Paths**:
-- Agent calls `POST /checkout/sessions/:id/cancel` before complete → KV writes `status: "cancelled"` → Stripe token released
+- Agent calls `POST /checkout/sessions/:id/cancel` before complete → D1 writes `status: "cancelled"` → Stripe token released
 
 **Error Paths**:
 - Stripe charge fails (declined) → session `status: "payment_failed"` → agent receives 422 with error code
@@ -492,18 +491,18 @@ Max iterations: 1 (no loop); circuit-breaker: N/A (sequential, no retry beyond 2
 sequenceDiagram
     participant Agent
     participant CheckoutWorker
-    participant KV
+    participant D1
     participant Stripe
     participant CommerceHarness
 
     Agent->>CheckoutWorker: POST /checkout/sessions
-    CheckoutWorker->>KV: write session (status: open)
+    CheckoutWorker->>D1: upsert session (status: open)
     CheckoutWorker-->>Agent: 201 CheckoutSession
 
     Agent->>CheckoutWorker: POST /checkout/sessions/:id/complete (vault_token)
     CheckoutWorker->>Stripe: charge vault_token
     Stripe-->>CheckoutWorker: charge success
-    CheckoutWorker->>KV: write status: complete
+    CheckoutWorker->>D1: write status: complete
     CheckoutWorker->>CommerceHarness: webhook trigger
     CommerceHarness-->>CheckoutWorker: 200 proof emitted
     CheckoutWorker-->>Agent: 200 session complete
@@ -515,7 +514,7 @@ sequenceDiagram
 **Actors**: AI Agent, `checkout-worker`, `web3-settle-worker`, EAS, `commerce-harness`.
 
 **Happy Path**:
-1. Agent sends session with `x-web3` fields → Worker generates deterministic L2 deposit address → KV writes `status: "pending_onchain"` → returns session with `deposit_address`
+1. Agent sends session with `x-web3` fields → Worker generates deterministic L2 deposit address → D1 writes `status: "pending_onchain"` → returns session with `deposit_address`
 2. Web3 buyer sends L2 transfer to deposit address
 3. `web3-settle-worker` polls Base RPC → detects confirmed transfer → calls EAS → attestation UID returned
 4. Worker calls `commerce-harness` webhook → proof + `@node:proof` emitted
@@ -534,10 +533,10 @@ sequenceDiagram
 
 | Stage | Component | Input Format | Output Format | Persistence | Error Handling |
 |---|---|---|---|---|---|
-| Ingest | `checkout-worker` | ACP `CreateSessionRequest` JSON | Validated `CheckoutSession` | KV: `session:{id}` | 400 on schema fail; 422 on semantic fail |
+| Ingest | `checkout-worker` | ACP `CreateSessionRequest` JSON | Validated `CheckoutSession` | D1: `agentic_commerce_sessions` | 400 on schema fail; 422 on semantic fail |
 | Transform | `checkout-worker` | `CheckoutSession` + `vault_token` | Stripe charge request | None | Fail-fast; 422 to caller |
-| Store | Cloudflare KV | `CheckoutSession` JSON | `CheckoutSession` JSON | KV TTL: 24h | KV write error → 500; retry once |
-| Serve | `checkout-worker` | `session_id` | `CheckoutSession` JSON | KV read | KV miss → 404 |
+| Store | Cloudflare D1 | `CheckoutSession` JSON | `CheckoutSession` JSON | D1 row with proof/trace joins | D1 write error → 500; no silent fallback |
+| Serve | `checkout-worker` | `session_id` | `CheckoutSession` JSON | D1 read | Missing row → 404 |
 
 #### Data Flow: Commerce Proof Emission
 
@@ -554,12 +553,12 @@ sequenceDiagram
 
 | Attribute | Scenario | Pattern | Validation |
 |---|---|---|---|
-| Performance | 50 sessions/day → checkout create < 500 ms p95 | CF Worker edge compute; KV read < 5 ms | Load test with `wrangler dev` |
-| Scalability | 10× traffic spike → no cold starts | CF Worker zero-cold-start; KV scales automatically | CF Workers dashboard metrics |
-| Security | Vault token must not be logged or persisted | Token passed through only; never written to KV or proof | Code review + secret scanning |
+| Performance | 50 sessions/day → checkout create < 500 ms p95 | CF Worker edge compute; D1 indexed session lookup | Load test with `wrangler dev` |
+| Scalability | 10× traffic spike → no cold starts | CF Worker zero-cold-start; D1 free tier covers launch volume | CF Workers dashboard metrics |
+| Security | Vault token must not be logged or persisted | Token passed through only; never written to D1 or proof | Code review + secret scanning |
 | Observability | Every harness call emits cost log | `cost_log` field in every `commerce-harness` output | Log sampling test |
 | Token Cost | < 500 tokens / checkout session at target load | Haiku model for governance call; prompt compression | Cost log p95 per sprint |
-| TCO | 12-month infra cost = $0 | CF Worker + KV free tier; Base Sepolia free RPC; EAS ~$0.01/tx | Monthly cost audit |
+| TCO | 12-month infra cost = $0 | CF Worker + D1 free tier; Base Sepolia free RPC; EAS ~$0.01/tx | Monthly cost audit |
 
 ---
 
@@ -571,7 +570,7 @@ sequenceDiagram
 
 **Environment variables**: `STRIPE_SECRET_KEY`, `OPENBOX_API_KEY`, `ATTESTER_PRIVATE_KEY` stored as Cloudflare Worker secrets (never in `wrangler.toml`).
 
-**Migration path**: If session volume exceeds KV free tier (>1k writes/day), migrate to Cloudflare D1 (SQLite; free tier: 5M rows). No schema change required — `CheckoutSession` JSON maps directly to a single D1 table.
+**Migration path**: If session/proof/trace volume exceeds D1 free tier, shard by seller or move hot trace artifacts to R2 while preserving the shared route and semantic-key helpers.
 
 ---
 
@@ -604,7 +603,7 @@ flowchart TB
     subgraph "Knowgrph Artifacts"
         E1[harness-proof.json]
         E2[KGC Canvas\n@node:proof]
-        E3[KV Store\nsession state]
+        E3[D1 tables\nsession/proof/trace state]
     end
 
     A1 -->|GET .well-known/acp-config| B1
@@ -627,14 +626,15 @@ flowchart TB
 |---|---|---|---|
 | Config | ACP config route | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
 | Checkout | Checkout Worker | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
-| Web3 | Web3 settlement path | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented as session completion + proof node |
-| Harness | Commerce Harness persistence | `cloudflare/workers/knowgrph-payment/agenticCommercePersistence.ts` | Implemented |
+| Web3 | Web3 settlement path | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts`, `agenticCommerceIntegrations.ts` | Implemented as Base RPC confirmation + EAS attest route |
+| Harness | Commerce Harness persistence | `cloudflare/workers/knowgrph-payment/agenticCommerceSettlement.ts`, `agenticCommercePersistence.ts` | Implemented |
 | Schema | ACP/session/Web3/proof shared SSOT + semantic keys | `grph-shared/src/payments/agenticCommerceSsot.ts`, `grph-shared/src/hash/signature.ts` | Implemented |
 | Data | D1 session/proof/trace tables | `cloudflare/d1/migrations/0003_agentic_commerce.sql` | Implemented |
-| Test | ACP config, checkout, Web3 proof node, Stripe webhook settle, OpenBOX proof block | `canvas/src/__tests__/agenticCommerceWorker.test.ts` | Implemented |
+| Test | ACP config, checkout, Web3 settle, Stripe webhook settle, OpenBOX proof/ingest, artifact routes, shared semantic-key helper | `canvas/src/__tests__/agenticCommerceWorker.test.ts` | Implemented; includes `worker.payments.agenticCommerce.sharedSemanticKey` |
 | Config | Wrangler config | `cloudflare/workers/knowgrph-payment/wrangler.toml` | Implemented |
+| Operator UI | MainPanel Commerce | `docs/documents/knowgrph-mainpanel-commerce-prd-tad.md` | Implemented as canonical Commerce operator UI |
 
-**Implementation note (2026-05-29)**: The existing repo already owned payment APIs in `cloudflare/workers/knowgrph-payment`, so ACP reuses that Worker and its D1 binding instead of adding a parallel `src/routes` tree or separate KV worker. The Web3 MVP accepts `x-web3` sessions, returns a deterministic deposit address, and emits `@node:proof` payloads with `tx_hash` and `attestation_uid` during settlement; Base RPC polling and direct EAS SDK signing remain environment-secret-dependent follow-on integration points with no fake chain confirmation or hardcoded key material in repo.
+**Implementation note (2026-05-29)**: The existing repo already owned payment APIs in `cloudflare/workers/knowgrph-payment`, so ACP reuses that Worker and its D1 binding instead of adding a parallel route tree or second state worker. The Web3 path accepts `x-web3` sessions, returns a deterministic deposit address, confirms matching Base RPC transfers, calls an EAS attestation endpoint, and emits `@node:proof` payloads with `tx_hash` and `attestation_uid`; credential material stays in Cloudflare secrets and outside the repo.
 
 ---
 
@@ -642,12 +642,12 @@ flowchart TB
 
 | PRD Story | Acceptance Criterion | TAD Component | Interface | `/goal` Condition |
 |---|---|---|---|---|
-| AC-E1-S1 | AC-E1-S1-AC1 | `acp-config-route` | `GET /.well-known/acp-config` | `test/commerce/acp-config.test.ts exits 0` |
-| AC-E1-S2 | AC-E1-S2-AC1 | `checkout-worker` | `POST /checkout/sessions` | `test/commerce/checkout.test.ts exits 0` |
-| AC-E1-S3 | AC-E1-S3-AC1 | `commerce-harness` | Webhook → harness | `webhook handler test passes; harness-proof.json updated` |
-| AC-E2-S1 | AC-E2-S1-AC1 | `checkout-worker` | `POST /checkout/sessions` (x-web3) | `test/commerce/web3-checkout.test.ts exits 0` |
-| AC-E2-S2 | AC-E2-S2-AC1 | `web3-settle-worker` + `commerce-harness` | EAS + canvas writer | `test/commerce/web3-settle.test.ts exits 0; @node:proof in canvas` |
-| AC-E3-S1 | AC-E3-S1-AC1 | `commerce-harness` | OpenBOX API | `test/commerce/governance.test.ts exits 0` |
+| AC-E1-S1 | AC-E1-S1-AC1 | `acp-config-route` | `GET /.well-known/acp-config` | `worker.payments.agenticCommerce.acpConfig` passes |
+| AC-E1-S2 | AC-E1-S2-AC1 | `checkout-worker` | `POST /checkout/sessions` | `worker.payments.agenticCommerce.checkoutLifecycle` passes |
+| AC-E1-S3 | AC-E1-S3-AC1 | `commerce-harness` | Webhook → harness | `worker.payments.agenticCommerce.stripeWebhookSettle` passes; harness-proof.json updated |
+| AC-E2-S1 | AC-E2-S1-AC1 | `checkout-worker` | `POST /checkout/sessions` (x-web3) | `worker.payments.agenticCommerce.web3Checkout` passes |
+| AC-E2-S2 | AC-E2-S2-AC1 | `web3-settle-worker` + `commerce-harness` | EAS + canvas writer | `worker.payments.agenticCommerce.web3SettleRoute` passes; @node:proof payload emitted |
+| AC-E3-S1 | AC-E3-S1-AC1 | `commerce-harness` | OpenBOX API | `worker.payments.agenticCommerce.openboxIngest` passes |
 
 ---
 

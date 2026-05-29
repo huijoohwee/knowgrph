@@ -162,7 +162,7 @@ export function assertMcpHubSurfacesStripeMcpPaymentReadiness(container: Element
     'accept payment',
     'checkout handoff',
     'Payment-mutating MCP tools stay behind human confirmation and least-privilege authorization.',
-    'Open MainPanel Payments',
+    'Open MainPanel Commerce',
   ].forEach(token => {
     if (!searchableText.includes(token)) {
       throw new Error(`expected MCP hub to include Stripe MCP payment-readiness token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)
@@ -226,7 +226,7 @@ export function assertMcpHubSurfacesCrawlerAccessAndPaymentReadiness(container: 
     'Pay Per Crawl',
     'accept payment',
     'Stripe MCP',
-    'MainPanel Payments',
+    'MainPanel Commerce',
   ].forEach(token => {
     if (!searchableText.includes(token)) {
       throw new Error(`expected MCP hub to include crawler/payment readiness token ${JSON.stringify(token)}, got ${JSON.stringify(searchableText)}`)

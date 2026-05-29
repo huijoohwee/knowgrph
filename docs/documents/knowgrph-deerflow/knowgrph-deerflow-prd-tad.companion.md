@@ -1,316 +1,165 @@
-# Knowgrph DeerFlow Integration — TAD Companion
+# Knowgrph DeerFlow Integration - TAD Companion
 
 Continuation of [knowgrph-deerflow-prd-tad.md](knowgrph-deerflow-prd-tad.md). Contains Part II: Technical Architecture Documentation.
 
-**Document Version**: 1.1.0
-**Date**: 2026-05-07
-**Status**: Proposed
+**Document Version**: 1.2.0  
+**Date**: 2026-05-29  
+**Status**: Accepted and implemented baseline
 
 ---
 
-# PART II: TECHNICAL ARCHITECTURE DOCUMENTATION (TAD)
+# Part II: Technical Architecture Documentation (TAD)
 
 ## Architecture Overview
 
-**From markdown flow input to rendered media artifacts**:  
-Knowgrph Ingest/Parser -> Provider Metadata Normalizer -> Graph Build -> Generation Dispatcher -> DeerFlow Adapter (Direct or MCP) -> Artifact Normalizer -> Canvas 2D Renderer.
+Knowgrph's implemented DeerFlow baseline is a local-gateway integration. UI surfaces remain provider-neutral; DeerFlow-specific transport stays in DeerFlow gateway owners.
 
 ```mermaid
 flowchart LR
-    A[Flow Markdown] --> B[Parser + Normalizer]
-    B --> C[Graph Build]
-    C --> D[Generation Dispatcher]
-    D --> E{Provider Mode}
-    E -->|direct| F[Direct Adapter]
-    E -->|mcp| G[MCP Adapter]
-    F --> H[DeerFlow API]
-    G --> I[DeerFlow MCP Server]
-    H --> J[Artifact Normalizer]
-    I --> J
-    J --> K[Canvas 2D Renderer]
+    A[MainPanel Integrations] --> B[deerflowApiDocs.ts]
+    C[Flow Editor Registry] --> D[registryTemplates.ts + registry persistence]
+    B --> E[chatEndpoint.ts]
+    D --> E
+    E --> F[richMediaRun.ts]
+    F --> G[deerflowRunGeneration.ts]
+    G --> H[DeerFlow Gateway /api/runs/stream]
+    H --> I[Shared artifact persistence]
+    J[Import URL] --> K[deerflowUrlImport.ts]
+    K --> L[DeerFlow Gateway /api/runs/wait]
+    L --> M[Source Files]
 ```
-
----
 
 ## Component Inventory
 
-| ID | Component | Responsibility | Module | Input | Output |
-|----|-----------|---------------|--------|-------|--------|
-| TAD-C001 | Integration SSOT | Single source of truth for DeerFlow provider configuration rows | `features/integrations/config.ts` | `DeerFlowIntegrationRow[]` | `IntegrationRow[]` |
-| TAD-C002 | Provider Metadata Normalizer | Normalizes raw markdown frontmatter into typed provider metadata for graph nodes | `features/parsers/agenticRag.ts` | Raw frontmatter | `ParsedProviderMetadata` |
-| TAD-C003 | Generation Dispatcher | Routes generation requests to the correct adapter by provider+mode; manages retry and cancellation | `features/chat/richMediaRun.ts` | `RunGenerationRequest` | Adapter call result |
-| TAD-C004 | DeerFlow Adapter | Calls DeerFlow API (direct) or MCP server; handles auth, streaming, and error mapping | `features/integrations/deer-flow/deerFlowAdapter.ts` | HTTP/MCP payload | Raw provider response |
-| TAD-C005 | Artifact Normalizer | Transforms raw provider responses into canonical artifacts consumed by Canvas renderer | `features/integrations/deer-flow/artifactNormalizer.ts` | Raw response | `CanonicalArtifact` |
-
----
-
-## Journey → System Mapping
-
-| Journey Stage | Workflow        | Data Flow       | Component        |
-|---------------|-----------------|-----------------|------------------|
-| Trigger       | Configure Provider | —               | TAD-C001 (SSOT)  |
-| Discover       | Configure Provider | —               | TAD-C001 (SSOT)  |
-| Engage        | Configure Provider | Config persist  | TAD-C001 (SSOT)  |
-| Complete       | Run Generation   | Config → Dispatch | TAD-C003 (Dispatch) |
-| Trigger       | Ingest & Parse   | Markdown → Metadata | TAD-C002 (Parse) |
-| Discover       | Ingest & Parse   | Raw → Normalized | TAD-C002 (Parse) |
-| Engage        | Ingest & Parse   | Metadata → Graph | TAD-C002 (Parse) |
-| Complete       | Run Generation   | Graph → Dispatch | TAD-C003 (Dispatch) |
-| Engage        | Run Generation   | Request → Adapter | TAD-C004 (Adapter) |
-| Complete       | Run Generation   | Raw → Canonical  | TAD-C005 (Normalizer) |
-| Complete       | Run Generation   | Artifact → Render | TAD-C005 (Normalizer) |
-| Return         | Failure & Retry  | Error → Category | TAD-C003 (Dispatch) |
-
----
+| ID | Component | Responsibility | Module | Status |
+|---|---|---|---|---|
+| TAD-DF-C001 | DeerFlow settings rows | Build `deerflowApi.*` settings rows from OpenAI-compatible row semantics | `canvas/src/features/panels/views/deerflowApiDocs.ts` | Shipped |
+| TAD-DF-C002 | Settings renderer | Search, filter, and render DeerFlow rows in MainPanel Integrations | `canvas/src/features/panels/views/useSettingsView.ts` | Shipped |
+| TAD-DF-C003 | Provider SSOT | Define `CHAT_PROVIDER_DEERFLOW`, default endpoint, provider labels, proxy headers, and endpoint resolution | `canvas/src/lib/chatEndpoint.ts` | Shipped |
+| TAD-DF-C004 | Registry templates | Build DeerFlow text widget fields and deep links | `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Shipped |
+| TAD-DF-C004A | Registry persistence seed | Seed `textGeneration.deerflow` default widget entries | `canvas/src/hooks/store/flowEditorManagerRegistryPersistence.ts` | Shipped |
+| TAD-DF-C005 | Rich-media dispatcher | Select DeerFlow image/video generation by normalized provider | `canvas/src/features/chat/richMediaRun.ts` | Shipped |
+| TAD-DF-C006 | Gateway adapter | Derive `/api/runs/stream`, parse SSE/JSON, fetch artifacts, return `GeneratedBinaryAsset` | `canvas/src/features/chat/deerflowRunGeneration.ts` | Shipped |
+| TAD-DF-C007 | URL import adapter | Derive `/api/runs/wait`, parse manifest output, write workspace files | `canvas/src/features/markdown-workspace/workspaceImport/deerflowUrlImport.ts` | Shipped |
+| TAD-DF-C008 | Setup guide | Dev/Prod/Cloudflare Tunnel operator setup | `docs/documents/knowgrph-deerflow/knowgrph-deerflow-setup-guide.md` | Active |
 
 ## Data Flows
 
-### Data Flow: Provider Configuration
+### MainPanel Configuration
 
-| Stage     | Component        | Input Format     | Output Format    | Persistence       | Error Handling    |
-|-----------|------------------|------------------|------------------|-------------------|-------------------|
-| Ingest    | MainPanel UI     | User form input  | `DeerFlowIntegrationRow[]` | IndexedDB (uiSettings) | Validation error toast |
-| Transform | Mode Gator      | Raw row values   | Mode-filtered required set | None | Block save with message |
-| Store     | Settings Store   | Validated rows   | Persisted config | IndexedDB | Rollback on failure |
-| Serve     | SSOT Module      | Config read      | `IntegrationRow[]` | None | Fail closed on schema error |
+| Stage | Owner | Input | Output |
+|---|---|---|---|
+| Generate | `deerflowApiDocs.ts` | `OPENAI_RESPONSES_API_DOC_ROWS` | `DEERFLOW_API_REQUEST_DOC_ENTRIES` |
+| Normalize | `mapOpenAiRowKeyToDeerFlowRowKey()` | `openaiApi.*` keys | `deerflowApi.*` keys |
+| Anchor | `getDeerFlowApiRowAnchorId()` | row key | stable `deerflow-api-row-*` id |
+| Render | `useSettingsView.ts` | virtual settings entries | searchable MainPanel rows |
 
-### Data Flow: Flow Markdown to Graph Metadata
+### Flow Editor Text Widget
 
-| Stage     | Component        | Input Format     | Output Format    | Persistence       | Error Handling    |
-|-----------|------------------|------------------|------------------|-------------------|-------------------|
-| Ingest    | Parser           | Markdown frontmatter | Raw node config | None | Syntax error |
-| Transform | Normalizer       | Raw node config  | `ParsedProviderMetadata` | None | Warning for unknown optional fields |
-| Store     | Graph Store      | Normalized metadata | Graph node properties | IndexedDB | Reject on missing required fields |
-| Serve     | Graph Compiler   | Graph nodes      | Compiled graph | None | Compilation error |
+| Stage | Owner | Input | Output |
+|---|---|---|---|
+| Seed | `registryTemplates.ts` | default registry templates | `textGeneration.deerflow` entry |
+| Link | `resolveWidgetRegistryMainPanelLink()` | widget metadata | MainPanel Integrations link and anchor |
+| Normalize | `normalizeTextGenerationRegistryEntry()` | provider/form id | `providerFamily: "deerflow"` and DeerFlow endpoint |
 
-### Data Flow: Generation Request to Rendered Artifact
+### Rich-Media Runtime
 
-| Stage     | Component        | Input Format     | Output Format    | Persistence       | Error Handling    |
-|-----------|------------------|------------------|------------------|-------------------|-------------------|
-| Ingest    | Dispatcher       | `RunGenerationRequest` | Adapter call | None | Queue state |
-| Transform | Adapter          | HTTP/MCP payload | Raw provider response | None | Retry or terminal error |
-| Transform | Normalizer       | Raw response     | `CanonicalArtifact` | None | Fallback degradation |
-| Store     | Node State       | Artifact + state | Updated node properties | IndexedDB | State transition error |
-| Serve     | Renderer         | `CanonicalArtifact` | Rendered text/image/video | None | Fallback UI for missing optional fields |
+| Stage | Owner | Input | Output |
+|---|---|---|---|
+| Request build | `buildRichMediaWidgetRunRequest()` | graph node and connected values | provider-neutral image/video request |
+| Dispatch | `runRichMediaWidgetGeneration()` | request plus `RunGenerationConfig` | selected provider adapter call |
+| DeerFlow transport | `deerflowRunGeneration.ts` | prompt/options/config | `/api/runs/stream` gateway request |
+| Artifact normalize | `deerflowRunGeneration.ts` | SSE/JSON response | `GeneratedBinaryAsset` |
+| Persist | `persistGeneratedAsset()` | blob and workspace path | workspace artifact path or browser download |
 
----
+### URL Import
 
-## Component Specifications
-
-### Component TAD-C001: DeerFlow Integration SSOT
-
-**Responsibility**: Provides single-source integration definitions consumed by MainPanel Integrations, Flow Editor manager, and node overlay.
-
-**Interfaces**:
-- `IntegrationRow[]`: canonical rows for endpoint, auth, mode, model/skill, timeout, retry
-- `resolveWidgetApiRowKey(args)`: field-to-row mapping for deep links and docs
-
-**Dependencies**: Settings view ownership filters, widget schema mappings  
-**Configuration**: Provider mode (`direct|mcp`), endpoint URLs, auth references, model defaults
-
-**From configuration to UI parity**: SSOT rows -> filtered by settings mode -> reused by all integration surfaces -> eliminates duplicate row definitions.
-
----
-
-### Component TAD-C002: DeerFlow Parse Extension
-
-**Responsibility**: Normalizes DeerFlow provider metadata during frontmatter flow parsing.
-
-**Interfaces**:
-- `parseProviderMetadata(rawNodeConfig) -> ProviderMetadata`
-- `validateProviderMetadata(metadata) -> warnings[]`
-
-**Dependencies**: Existing markdown frontmatter graph parser and compose pipeline  
-**Configuration**: Allowed fields, defaults, required-by-mode rules
-
-**From text to typed graph metadata**: parser reads node config -> normalizer maps fields to canonical schema -> warnings emitted for unsupported keys -> graph remains compilable.
-
----
-
-### Component TAD-C003: Provider Dispatch Runtime
-
-**Responsibility**: Routes generation nodes to DeerFlow through one runtime contract for text/image/video.
-
-**Interfaces**:
-- `runGenerationWithProvider(config, kind, prompt, options) -> GeneratedArtifact|Error`
-- `mapRuntimeState(status) -> NodeExecutionState`
-
-**Dependencies**: Existing generation runtime, node execution lifecycle, flow dataflow computation  
-**Configuration**: timeout, retry, cancellation, mode routing
-
-**From node execution to provider call**: generation node starts -> dispatcher selects adapter by provider+mode -> executes request -> returns normalized artifact and typed status.
-
----
-
-### Component TAD-C004: DeerFlow Adapter Layer
-
-**Responsibility**: Implements protocol-specific communication to DeerFlow in direct API mode or MCP bridge mode.
-
-**Interfaces**:
-- `DeerFlowDirectAdapter.generateText/Image/Video(...)`
-- `DeerFlowMcpAdapter.invokeTool(...)`
-- `normalizeDeerFlowResponse(raw) -> CanonicalArtifact`
-
-**Dependencies**: HTTP client, MCP client, secure credential resolution  
-**Configuration**: base URLs, headers, tool names, OAuth/token refresh policy
-
-**From provider response to stable contract**: adapter receives provider payload -> validates and transforms output -> returns canonical artifact schema to renderer.
-
----
-
-### Component TAD-C005: Artifact Normalizer and Renderer Contract
-
-**Responsibility**: Enforces canonical output schema used by Canvas 2D renderer and rich media panels.
-
-**Interfaces**:
-- `normalizeTextArtifact(raw) -> {type:'text', content, meta}`
-- `normalizeImageArtifact(raw) -> {type:'image', uri, width, height, mime, meta}`
-- `normalizeVideoArtifact(raw) -> {type:'video', uri, duration, previewUri, mime, meta}`
-
-**Dependencies**: Flow node output schema, rich media rendering components  
-**Configuration**: required fields, fallback display policy, validation strictness
-
-**From artifacts to renderable outputs**: runtime outputs are normalized -> schema validated -> renderer consumes uniform objects with no provider branching in UI layer.
-
----
+| Stage | Owner | Input | Output |
+|---|---|---|---|
+| Resolve endpoint | `resolveDeerFlowRunsWaitEndpoint()` | configured endpoint | `/api/runs/wait` gateway URL |
+| Prompt | `buildDeerFlowIngestPrompt()` | normalized URL | manifest-generation prompt |
+| Parse | `findFirstJsonManifest()` | DeerFlow response | file manifest |
+| Write | `importWorkspaceUrlViaDeerFlow()` | manifest files | workspace `deerflow/` files |
 
 ## Integration Contracts
 
-### Contract TAD-I001: MainPanel Integration Contract
-- **Protocol**: Internal TypeScript contract
-- **Data Format**: Typed SSOT rows
-- **Error Handling**: Fail closed on invalid row schema, report explicit validation errors
+### TAD-DF-I001: Settings Row Contract
 
-### Contract TAD-I002: Parser Metadata Contract
-- **Protocol**: Frontmatter flow node config
-- **Data Format**: Provider metadata object with mode-aware required fields
-- **Error Handling**: Emit warnings for unsupported fields; reject only missing required fields
+- Rows are generated once as `DEERFLOW_API_REQUEST_DOC_ENTRIES`.
+- Row keys use `deerflowApi.*`.
+- Provider row default is `CHAT_PROVIDER_DEERFLOW`.
+- Endpoint row default is `CHAT_DEERFLOW_ENDPOINT_URL`.
+- Anchors are generated by `getDeerFlowApiRowAnchorId()`.
 
-### Contract TAD-I003: Runtime Generation Contract
-- **Protocol**: Internal dispatcher interface
-- **Data Format**: `kind + prompt + options -> canonical artifact`
-- **Error Handling**: Typed errors (`auth`, `timeout`, `rate_limit`, `invalid_request`, `provider_unavailable`)
+### TAD-DF-I002: Provider Normalization Contract
 
-### Contract TAD-I004: DeerFlow Bridge Contract
-- **Protocol**: HTTP REST (direct) and MCP (bridge)
-- **Data Format**: JSON request/response with adapter normalization
-- **Error Handling**: retry strategy for transient failures; no silent fallback between modes
+- Provider ids normalize through `normalizeChatProviderId()`.
+- DeerFlow may be selected only by normalized `CHAT_PROVIDER_DEERFLOW`.
+- Endpoint routing uses `resolveChatEndpointForRequest()` and `buildChatProxyHeaders()`.
+- Source code must not hardcode absolute local repo paths.
 
----
+### TAD-DF-I003: Rich-Media Adapter Contract
 
-## Architectural Decisions (ADR)
+- DeerFlow image/video calls are entered only through `runRichMediaWidgetGeneration()`.
+- The DeerFlow adapter derives gateway run paths from the configured endpoint.
+- SSE and JSON responses normalize before reaching Canvas node patching.
+- UI renderer code must not branch on DeerFlow-specific payload shapes.
 
-### ADR-001: Use SSOT-First Integration Rows
-**Status**: Accepted  
-**Decision**: Add DeerFlow via one integrations SSOT model reused by all settings/editor surfaces.  
-**Rationale**: Preserves consistency and minimizes duplicate wiring.  
-**Alternatives Considered**:
-1. Separate per-surface row definitions: faster local edits, high drift risk.
-2. Runtime-generated rows from provider schema: flexible, higher complexity.
-**Trade-offs**: Requires initial schema discipline, reduces long-term maintenance cost.
+### TAD-DF-I004: URL Import Contract
 
-### ADR-002: Keep Provider Execution Behind One Dispatcher
-**Status**: Accepted  
-**Decision**: Route all text/image/video generation through one provider dispatcher.  
-**Rationale**: Enforces uniform lifecycle states and error semantics.  
-**Alternatives Considered**:
-1. Per-node provider execution: low initial effort, duplicates logic.
-2. Plugin-level node executors: flexible, fragmented observability.
-**Trade-offs**: Dispatcher abstraction upfront, lower regression risk over time.
+- URL import remains a workspace Source Files operation.
+- DeerFlow returns a manifest; Knowgrph writes sanitized file names and text.
+- Failed import attempts return structured failure entries.
+- Import does not bypass Source Files or write to generated downstream mirrors.
 
-### ADR-003: Parse-Phase Normalization with Warning-First Policy
-**Status**: Accepted  
-**Decision**: Normalize DeerFlow metadata during parse and warn on unsupported optional fields.  
-**Rationale**: Keeps pipeline resilient while preserving author feedback.  
-**Alternatives Considered**:
-1. Strict reject on any unknown key: safer, harms author iteration speed.
-2. Late normalization at runtime: parser simplicity, delayed failures.
-**Trade-offs**: Warning management needed, better ingest resilience.
+## Architectural Decisions
 
----
+### ADR-DF-001: Reuse OpenAI-Compatible Rows for DeerFlow
+
+**Status**: Accepted and implemented.  
+**Decision**: DeerFlow rows are generated from OpenAI-compatible response rows with `deerflowApi.*` keys.  
+**Reasoning**: DeerFlow Gateway exposes an OpenAI-compatible LLM surface, so one row model prevents duplicated setting definitions.
+
+### ADR-DF-002: Keep DeerFlow Transport Inside Gateway Adapters
+
+**Status**: Accepted and implemented.  
+**Decision**: Image/video DeerFlow transport lives in `deerflowRunGeneration.ts`; URL import transport lives in `deerflowUrlImport.ts`.  
+**Reasoning**: Canvas and MainPanel continue to consume provider-neutral requests and artifacts.
+
+### ADR-DF-003: Treat MCP Bridge as Outside the Implemented Baseline
+
+**Status**: Accepted and implemented.  
+**Decision**: The shipped DeerFlow baseline documents the local HTTP gateway, not a DeerFlow MCP bridge.  
+**Reasoning**: No DeerFlow MCP adapter exists in the current source owners; documenting one as shipped would create stale architecture.
 
 ## Quality Attributes
 
-| Attribute     | Scenario                           | Pattern             | Validation         |
-|---------------|------------------------------------|---------------------|--------------------|
-| Performance   | Dispatch overhead <=50ms median over current path | Adapter selection before provider call | Latency benchmark in CI |
-| Scalability   | Bounded concurrent generation nodes | Deterministic cancellation and retry limits | Concurrency stress test |
-| Security      | Credentials externalized from graph documents | Secure credential resolution in adapter | Secret-scan on graph snapshots |
-| Reliability    | Transient failure recovery | Bounded retry with jittered backoff | Error-path test matrix |
-| Observability | Structured logs for every generation run | Provider mode, node kind, latency, error category | Log assertion tests |
-| Maintainability | Provider protocol logic isolated | Adapter isolation pattern | Module dependency audit |
-
----
+| Attribute | Implemented Pattern | Evidence |
+|---|---|---|
+| Maintainability | One settings row generator and one provider normalization path | `deerflowApiDocs.ts`, `chatEndpoint.ts` |
+| Neutrality | Shared rich-media request and artifact contracts | `richMediaRun.ts` |
+| Reliability | Explicit failure details from gateway responses | `parseErrorBody()` usage in `deerflowRunGeneration.ts` |
+| Portability | Endpoint-derived run paths and Cloudflare Tunnel setup | setup guide and `resolveDeerFlowRunsStreamEndpoint()` |
+| Testability | Focused docs guard plus existing MainPanel/runtime tests | `deerflowPrdTadDocs.test.ts` |
 
 ## Deployment Strategy
 
-- **Phase 1**: Ship MainPanel SSOT integration rows and parser metadata support behind feature flag.
-- **Phase 2**: Enable unified dispatcher and direct DeerFlow adapter in controlled environment.
-- **Phase 3**: Add MCP bridge mode and full validation matrix.
-- **Phase 4**: Enable by default after fixture and regression gates pass.
-
----
+- Dev: run the Knowgrph dev server and, when DeerFlow is needed, the local DeerFlow gateway.
+- Prod mirror: propagate source-owned assets through the normal build/sync path.
+- Cloudflare: expose the DeerFlow gateway through Cloudflare Tunnel when the operator opts into DeerFlow in production.
+- No downstream patching: prod and Cloudflare artifacts must remain generated from dev source owners.
 
 ## Migration Path
 
-- Preserve existing provider contracts; DeerFlow is additive.
-- Maintain canonical artifact schema so renderer does not branch by provider.
-- Migrate node/provider mappings via registry templates, not ad hoc node rewrites.
-- Remove temporary compatibility toggles after default enablement validation.
-
----
-
-## Requirement Traceability Matrix
-
-| PRD ID | Requirement Summary | TAD Component/Contract | Validation |
-|--------|----------------------|------------------------|------------|
-| PRD-E001-S001 | DeerFlow visible/configurable in Integrations | TAD-C001, TAD-I001 | MainPanel integration tests |
-| PRD-E001-S002 | Direct vs MCP mode configuration | TAD-C001, TAD-C004, TAD-I004 | Settings validation tests |
-| PRD-E002-S001 | Parse DeerFlow metadata | TAD-C002, TAD-I002 | Parser fixture tests |
-| PRD-E002-S002 | Render canonical artifacts | TAD-C005, TAD-I003 | Render contract tests |
-| PRD-E003-S001 | Unified text/image/video runtime | TAD-C003, TAD-I003 | Flow runtime tests |
-| PRD-E003-S002 | Retry/failure semantics | TAD-C003, TAD-I003 | Runtime error-path tests |
-| PRD-E004-S001 | End-to-end fixture validation | TAD-C002/C003/C005 | Fixture pipeline test suite |
-
----
-
-## Validation Plan
-
-### Fixture
-- `knowgrph-video-demo.md` (path-agnostic workspace seed)
-
-### Focused Validation Scope
-- Integrations tab discoverability and anchor/deep-link behavior for DeerFlow rows.
-- Parser normalization and warning behavior for DeerFlow metadata.
-- Unified runtime dispatch for text/image/video with deterministic state transitions.
-- Renderer contract compliance for text/image/video canonical artifacts.
-
-### Exit Criteria
-- All Must-Have stories pass acceptance criteria.
-- No critical regressions in existing non-DeerFlow provider flows.
-- Traceability matrix entries have corresponding passing tests.
-
----
-
-## Risks and Mitigations
-
-- **Risk**: Provider payload variation across DeerFlow modes.  
-  **Mitigation**: enforce adapter-level normalization and strict contract tests.
-
-- **Risk**: Increased runtime complexity from mode branching.  
-  **Mitigation**: isolate branching in adapter selection only; keep dispatcher contract stable.
-
-- **Risk**: Hidden parse-field drift over time.  
-  **Mitigation**: parser schema snapshots and warning coverage tests.
-
-- **Risk**: User confusion with advanced provider fields.  
-  **Mitigation**: progressive disclosure in integration settings with sane defaults.
-
----
+- Remove stale unshipped mode language from implementation-owned docs.
+- Keep `deerflowApi.*` keys stable.
+- Extend future gateway features inside `deerflowRunGeneration.ts` or `deerflowUrlImport.ts` first.
+- Add any future MCP bridge as a new source-backed owner and guard before documenting it as implemented.
 
 ## Revision History
 
 | Version | Date | Author | Summary |
-|---------|------|--------|---------|
-| 1.0.0 | 2026-05-07 | joohwee | Initial PRD-TAD for DeerFlow integration |
-| 1.1.0 | 2026-05-07 | joohwee | Added User Journeys, Workflow Flows, Data Flows, Mermaid architecture diagram, Component Inventory, Journey→System Mapping, Quality Attributes table per PRD-TAD guidelines |
+|---|---|---|---|
+| 1.0.0 | 2026-05-07 | joohwee | Initial architecture companion |
+| 1.1.0 | 2026-05-07 | joohwee | Added diagrams and PRD/TAD guideline sections |
+| 1.2.0 | 2026-05-29 | joohwee | Replaced unshipped mode architecture with implemented local-gateway owners |

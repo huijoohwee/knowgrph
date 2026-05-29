@@ -1,11 +1,11 @@
 ---
 title: Knowgrph MCP Service - PRD & TAD
-id: md:knowgrph-mcp-service-prd-tad-proposed
+id: md:knowgrph-mcp-service-prd-tad
 author: joohwee
 date: 2026-05-20
-updated: 2026-05-23
-version: 0.4.14
-status: proposed
+updated: 2026-05-29
+version: 0.4.15
+status: accepted-implemented-baseline
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
 kgCanvasSurfaceMode: 2d
@@ -18,10 +18,18 @@ traceability:
   repo: huijoohwee/knowgrph
   repoPath: mcp/
 linkedDocs:
-  - "{{md:knowgrph-agent-ready-prd-tad-proposed}}"
-  - "{{md:knowgrph-llm-prompt-contract-prd-tad-proposed}}"
+  - "{{md:knowgrph-agent-ready-prd-tad}}"
+  - "{{md:knowgrph-llm-prompt-contract-prd-tad}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.15
+    date: 2026-05-29
+    summary: >
+      Promoted the document identity from a planning artifact to an accepted
+      implemented-baseline contract. The shipped stdio, Pages/browser WebMCP,
+      MainPanel shell, and FloatingPanel Chat -> KGC -> Canvas owners remain
+      implementation truth; richer remote Worker MCP remains planned and must
+      reuse those owners before it can be documented as shipped.
   - version: 0.4.14
     date: 2026-05-23
     summary: >
@@ -120,14 +128,14 @@ changelog:
 # Knowgrph MCP Service - PRD & TAD
 
 > **Document type**: Combined PRD + TAD  
-> **Phase**: Implementation-aligned baseline plus proposed next phase  
-> **Version**: 0.4.14
+> **Phase**: Implemented baseline plus planned remote extension  
+> **Version**: 0.4.15
 
 ---
 
 ## Executive Summary
 
-This document defines the next MCP phase for Knowgrph, but it starts from the current repo truth instead of older roadmap assumptions.
+This document defines the implemented MCP baseline for Knowgrph and the rules for any planned remote extension. It starts from current repo truth instead of older roadmap assumptions.
 
 ### Repo Truth Baseline
 
@@ -143,7 +151,7 @@ This document defines the next MCP phase for Knowgrph, but it starts from the cu
 | MainPanel `integrations` | Shipped | `canvas/src/features/panels/views/IntegrationsHubView.tsx` | Thin `SettingsView mode="integrations"` shell |
 | Shared chat readiness | Shipped | `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | Chat preset, routing, model readiness owner |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | Browser-local validated KGC path |
-| Full remote Worker MCP platform | Proposed only | This document | Not implemented in repo today |
+| Full remote Worker MCP platform | Planned extension | none in repo yet | Not implemented in repo today |
 
 ### Primary Correction
 
@@ -154,7 +162,7 @@ The repo does **not** currently contain the previously described remote Worker m
 - `cloudflare/workers/kgc-pipeline-mcp.ts`
 - a shipped D1-backed server shadow graph for the browser pipeline
 
-Those modules remain proposed. Any document or implementation note that treats them as already implemented is stale and forbidden.
+Those modules remain planned, not shipped. Any document or implementation note that treats them as already implemented is stale and forbidden.
 
 ### Product Direction
 
@@ -165,7 +173,7 @@ Knowgrph should evolve toward a richer MCP platform, but only by:
 - keeping MainPanel `mcp` and `integrations` as thin shells over shared settings and chat-routing owners
 - reusing the shipped FloatingPanel Chat -> KGC validation -> Canvas apply helpers instead of introducing a second MCP-only graph pipeline
 - keeping `flow.subgraphs` as the sole upstream grouping authoring surface
-- separating shipped implementation from proposed remote-service work at every layer, document, and deploy description
+- separating shipped implementation from planned remote-service work at every layer, document, and deploy description
 
 ---
 
@@ -178,7 +186,7 @@ Knowgrph already exposes useful MCP-ready surfaces, but they are fragmented:
 1. `mcp/server.js` is useful for local power users and automation, but it is stdio-only and local-root scoped.
 2. `/knowgrph/mcp` and browser WebMCP are deployed and agent-ready, but intentionally limited to read-only published-document tools.
 3. MainPanel `mcp` and `integrations` already guide users toward MCP and integration readiness, yet the MCP docs underdescribe how those surfaces feed the richer FloatingPanel Chat -> KGC -> Canvas pipeline.
-4. Older MCP proposals blur the line between what is shipped and what is still proposed, which risks duplicate architecture, stale code planning, and downstream patching.
+4. Older MCP drafts blur the line between what is shipped and what is still planned, which risks duplicate architecture, stale code planning, and downstream patching.
 
 ### Desired Outcome
 
@@ -197,7 +205,7 @@ Future MCP work must unify these surfaces into one consistent story:
 
 Knowgrph MCP must:
 
-- expose truthful shipped MCP surfaces without conflating them with proposed remote services
+- expose truthful shipped MCP surfaces without conflating them with planned remote services
 - support seamless E2E flow across MainPanel `mcp` and MainPanel `integrations` -> FloatingPanel Chat UI -> LLM output -> YAML frontmatter -> Canvas nodes / edges / subgraphs / groups / clusters
 - keep one canonical KGC contract where output starts at YAML frontmatter and `flow.subgraphs` is the only upstream grouping authoring surface
 - keep one canonical graph-apply path through existing chat finalize and parser/store actions
@@ -255,7 +263,7 @@ This document does not claim that the following are already implemented:
 | Stage | Action | Touchpoint | Current owner | Gap |
 |---|---|---|---|---|
 | Stream | Assistant draft streams | chat streaming helper | `floatingPanelChatStreaming.ts` | Not yet formalized as transport-agnostic contract |
-| Validate | KGC is recovered and validated | KGC retry + validation helpers | `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Docs previously proposed parallel pipelines |
+| Validate | KGC is recovered and validated | KGC retry + validation helpers | `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Older docs described parallel pipelines |
 | Finalize | KGC persists to workspace | finalize helper | `useFinalizeAssistantSuccess.ts` | Must remain canonical write path |
 | Apply | Canvas graph materializes | parser/store apply chain | `chatKgcCanvasApply.ts` -> `setActiveMarkdownDocument()` -> frontmatter-flow parser | Remote MCP future must wrap, not fork |
 
@@ -263,7 +271,7 @@ This document does not claim that the following are already implemented:
 
 #### Epic MCP-1 - Truthful Surface Separation
 
-- **PRD-MCP1-S1**: As a maintainer, I want all MCP docs to distinguish shipped stdio MCP, shipped read-only Pages/browser MCP, and proposed future remote MCP service so that no stale architecture is treated as implementation truth.
+- **PRD-MCP1-S1**: As a maintainer, I want all MCP docs to distinguish shipped stdio MCP, shipped read-only Pages/browser MCP, and planned future remote MCP service so that no stale architecture is treated as implementation truth.
 - **PRD-MCP1-S2**: As a maintainer, I want explicit forbidden-architecture rules so future changes do not reintroduce conflicting pipeline, grouping, or deploy authority narratives.
 
 #### Epic MCP-2 - MainPanel Readiness Alignment
@@ -290,7 +298,7 @@ This document does not claim that the following are already implemented:
 **Then** the docs clearly separate:
 - shipped local stdio MCP in `mcp/server.js`
 - shipped read-only Pages/browser MCP in `cloudflare/pages/knowgrph-agent-ready.mjs` and `webMcpRuntime.ts`
-- proposed future remote MCP service work that is not yet implemented
+- planned future remote MCP service work that is not yet implemented
 
 #### PRD-MCP1-S2 - Forbidden architecture
 
@@ -422,7 +430,7 @@ These are implementation facts, but they are compatibility debt rather than appr
 
 ### Future Remote MCP Architecture Direction
 
-The next remote MCP layer is still proposed. When it is implemented, it should follow these rules:
+The next remote MCP layer is planned but not implemented. When it is implemented, it should follow these rules:
 
 | Concern | Required direction | Forbidden shortcut |
 |---|---|---|
@@ -496,7 +504,7 @@ flowchart LR
 
 ## Validation Checklist
 
-- [x] Distinguishes shipped stdio MCP, shipped read-only Pages/browser MCP, and proposed future remote MCP
+- [x] Distinguishes shipped stdio MCP, shipped read-only Pages/browser MCP, and planned future remote MCP
 - [x] Documents MainPanel `mcp` and `integrations` as thin `SettingsView` shells
 - [x] Documents `useSettingsChatAssist.tsx` as the shared chat readiness owner
 - [x] Documents `useFloatingPanelChatSubmit.ts` as a thin shell over the coordinator/helper stack
@@ -504,8 +512,8 @@ flowchart LR
 - [x] Documents `flow.subgraphs` as the sole upstream grouping authoring surface
 - [x] Forbids stale remote Worker module claims and duplicate graph pipelines
 - [x] Reuses the storage-worker origin rule for future server-side reads
-- [x] Keeps future remote MCP work explicitly proposed rather than shipped
+- [x] Keeps future remote MCP work explicitly planned rather than shipped
 
 ---
 
-*Document ID: `md:knowgrph-mcp-service-prd-tad-proposed` · Version: 0.4.14 · Updated: 2026-05-23*
+*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.15 · Updated: 2026-05-29*

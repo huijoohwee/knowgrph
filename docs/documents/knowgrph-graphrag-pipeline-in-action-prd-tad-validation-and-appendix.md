@@ -377,9 +377,9 @@ interface AnalyticsStageMetrics {
 **Previous Version**: 1.0.0  
 **Last Updated**: 2026-01-22  
 **Authors**: Product Team, Architecture Team, Analytics Team  
-**Reviewers**: [Pending]  
-**Status**: Draft → Pending Review  
-**Next Review Date**: 2026-01-29
+**Reviewers**: Knowgrph maintainers  
+**Status**: Accepted validation appendix  
+**Next Review Date**: On source-owner change
 
 **Major Changes from v1.0.0**:
 - Added 4 new analytics epics (PRD-E002 through PRD-E005)

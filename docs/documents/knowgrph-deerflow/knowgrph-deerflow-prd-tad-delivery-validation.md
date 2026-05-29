@@ -1,333 +1,115 @@
 # Knowgrph DeerFlow Delivery and Validation
 
-**Document Version**: 1.1.0  
-**Date**: 2026-05-07  
-**Status**: Proposed  
+**Document Version**: 1.2.0  
+**Date**: 2026-05-29  
+**Status**: Accepted and implemented baseline  
 **Companion To**: `knowgrph-deerflow-prd-tad.md`, `knowgrph-deerflow-prd-tad-integration-contracts-and-patterns.md`
 
 ---
 
 ## Document Purpose
 
-**Context**: DeerFlow integration requires coordinated delivery across settings, parser, runtime, and renderer surfaces.  
-**Intent**: Define phased rollout, acceptance gates, and focused validation tied to canonical fixtures.  
-**Directive**: Validation must prioritize focused diffs and contract coverage; avoid broad, unfocused full-suite runs.
+**Context**: DeerFlow delivery now has an implemented local-gateway baseline across MainPanel settings, Flow Editor text widgets, rich-media generation, URL import, and setup documentation.
+
+**Intent**: Keep validation tied to source owners and focused tests so stale planning language cannot drift back into implementation-owned docs.
+
+**Directive**: Validate the active gateway path. Do not use broad proposed phase gates or unimplemented MCP assumptions as evidence.
 
 ---
 
-## Delivery Strategy
+## Implemented Delivery Map
 
 ```mermaid
 flowchart LR
-    P0[Phase 0: Readiness] --> P1[Phase 1: MainPanel]
-    P1 --> P2[Phase 2: Parse]
-    P2 --> P3[Phase 3: Runtime]
-    P3 --> P4[Phase 4: E2E + Release]
-
-    P0 -.->|baseline snapshots| P4
-    P1 -.->|SSOT rows| P2
-    P2 -.->|normalized metadata| P3
-    P3 -.->|canonical artifacts| P4
+    P1[MainPanel rows] --> P2[Provider normalization]
+    P2 --> P3[Flow Editor registry]
+    P2 --> P4[Rich-media dispatch]
+    P4 --> P5[DeerFlow /api/runs/stream]
+    P5 --> P6[Shared artifact persistence]
+    P2 --> P7[URL import]
+    P7 --> P8[DeerFlow /api/runs/wait]
+    P8 --> P9[Source Files]
 ```
 
-## Phase 0: Readiness and Baselines
+| Delivery ID | Surface | Owner | Implemented Evidence |
+|---|---|---|---|
+| DFD-001 | MainPanel rows | `deerflowApiDocs.ts` | `DEERFLOW_API_REQUEST_DOC_ENTRIES` |
+| DFD-002 | Provider normalization | `chatEndpoint.ts` | `CHAT_PROVIDER_DEERFLOW`, `CHAT_DEERFLOW_ENDPOINT_URL` |
+| DFD-003 | Flow Editor text widget helpers | `registryTemplates.ts` | DeerFlow provider-family fields and links |
+| DFD-003A | Flow Editor seeded registry entry | `flowEditorManagerRegistryPersistence.ts` | `textGeneration.deerflow` |
+| DFD-004 | Image/video dispatch | `richMediaRun.ts` | `generateRunImageWithDeerFlow()`, `generateRunVideoWithDeerFlow()` |
+| DFD-005 | Gateway adapter | `deerflowRunGeneration.ts` | `/api/runs/stream`, `parseSseEvents()` |
+| DFD-006 | URL import | `deerflowUrlImport.ts` | `/api/runs/wait`, manifest-to-workspace write |
+| DFD-007 | Operator setup | `knowgrph-deerflow-setup-guide.md` | Active Dev/Prod/Cloudflare Tunnel guide |
 
-### Objectives
-- Confirm baseline behavior for current providers and generation nodes.
-- Freeze contract IDs and PRD traceability IDs before implementation.
+## Focused Test Matrix
 
-### Deliverables
-- Approved contract catalog and patterns.
-- Baseline test report for impacted parser/runtime/integration tests.
+| Test ID | Layer | Scenario | Evidence |
+|---|---|---|---|
+| DFV-001 | Docs guard | PRD/TAD names implemented gateway owners | `deerflowPrdTadDocs.test.ts` |
+| DFV-002 | MainPanel | DeerFlow rows visible and searchable | `mainPanelIntegrations.test.tsx` |
+| DFV-003 | Registry | DeerFlow text widget seeded and linked | `flowEditorManagerRegistry.test.ts` |
+| DFV-004 | Runtime | DeerFlow image/video dispatch uses shared rich-media runtime | `byteplusRunGeneration.test.ts`, `flowWidgetOutputRichMediaReuse.test.ts` |
+| DFV-005 | Import | DeerFlow URL import uses manifest and Source Files | `deerflowUrlImport.ts` contract plus import tests |
+| DFV-006 | Hygiene | No stale proposed mode docs return | `hygiene:check` plus docs guard |
 
-### Exit Criteria
-- Stakeholders agree on PRD scope, TAD contracts, and MoSCoW priorities.
-- Baseline fixture snapshots stored for regression comparison.
+## Acceptance Criteria by Requirement
 
----
+| Requirement | Pass Condition |
+|---|---|
+| DeerFlow MainPanel discovery | `DEERFLOW_API_REQUEST_DOC_ENTRIES` exists and docs name `deerflowApiDocs.ts` as the shipped row owner |
+| Provider normalization | `CHAT_PROVIDER_DEERFLOW` and `CHAT_DEERFLOW_ENDPOINT_URL` exist in `chatEndpoint.ts` |
+| Flow Editor registry | `textGeneration.deerflow` exists and maps to DeerFlow anchors |
+| Rich-media generation | `richMediaRun.ts` dispatches image/video through DeerFlow functions after provider normalization |
+| Gateway run adapter | `deerflowRunGeneration.ts` derives `/api/runs/stream` and returns `GeneratedBinaryAsset` |
+| URL import | `deerflowUrlImport.ts` derives `/api/runs/wait` and writes sanitized files through workspace FS |
+| Stale-doc cleanup | PRD/TAD family no longer uses proposed status or unshipped adapter claims |
 
-## Phase 1: MainPanel Integrations Enablement
+## Validation Commands
 
-### Scope
-- DeerFlow SSOT rows in Integrations mode.
-- Anchor/deep-link support from Flow Manager and Node Overlay.
-- Mode-gated direct/MCP settings validation.
+```bash
+npm --prefix canvas run test:ci:unit -- "deerflow.prdTad"
+npm --prefix canvas run test:ci:unit -- "mainPanelIntegrations"
+npm --prefix canvas run test:ci:unit -- "flowEditorManagerRegistry"
+npm run hygiene:check
+npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false
+```
 
-### Stories
-- PRD-E001-S001
-- PRD-E001-S002
-
-### Acceptance Gates
-- DeerFlow rows are discoverable via MainPanel search.
-- Deep links open correct section and row anchor.
-- Invalid mixed-mode settings are blocked with explicit errors.
-
-### Risks
-- Anchor mismatch between row keys and editor links.
-- Mode-specific required fields drifting across surfaces.
-
-### Mitigations
-- Generate anchors from canonical key builder.
-- Validate row schema and mode rules in one shared module.
-
----
-
-## Phase 2: Ingest->Parse->Graph Metadata
-
-### Scope
-- Parse DeerFlow metadata in frontmatter flow nodes.
-- Normalize metadata into typed graph contract.
-- Warning-first behavior for optional unsupported fields.
-
-### Stories
-- PRD-E002-S001
-
-### Acceptance Gates
-- Parser emits normalized metadata for text/image/video nodes.
-- Unknown optional fields generate warnings, not crashes.
-- Missing required-by-mode fields fail with actionable messages.
-
-### Risks
-- Field coercion ambiguity creating hidden runtime defects.
-- Backward drift between parser output and dispatcher input schema.
-
-### Mitigations
-- Strict schema validation with deterministic coercion rules.
-- Snapshot tests on parsed metadata payloads.
-
----
-
-## Phase 3: Runtime Dispatch and Artifact Normalization
-
-### Scope
-- Unified generation dispatcher for text/image/video.
-- DeerFlow direct and MCP adapters.
-- Canonical artifact normalization and node state mapping.
-
-### Stories
-- PRD-E002-S002
-- PRD-E003-S001
-- PRD-E003-S002
-
-### Acceptance Gates
-- One dispatcher path handles all generation kinds.
-- Node lifecycle states are monotonic and deterministic.
-- Error categories drive retry behavior correctly.
-- Renderer consumes canonical artifacts without provider-specific branches.
-
-### Risks
-- Adapter payload variance by mode or tool path.
-- Retry storms under transport instability.
-
-### Mitigations
-- Adapter-level normalization tests with representative payloads.
-- Bounded retries, jittered backoff, and explicit circuit limits.
-
----
-
-## Phase 4: End-to-End Validation and Release
-
-### Scope
-- Fixture-driven full path validation from ingest to render.
-- Regression gates for existing provider flows.
-- Release checklist and rollback readiness.
-
-### Stories
-- PRD-E004-S001
-
-### Acceptance Gates
-- Canonical fixture passes all required assertions.
-- No critical regression in existing generation providers.
-- Release notes and migration guidance completed.
-
----
-
-## Work Breakdown Structure (WBS)
-
-| Workstream | Description | Primary Owner | Depends On |
-|------------|-------------|---------------|------------|
-| W1 | Integration SSOT and MainPanel wiring | Frontend | Phase 0 |
-| W2 | Parser metadata normalization | Parsing | W1 |
-| W3 | Dispatcher and adapter implementation | Runtime | W2 |
-| W4 | Artifact normalization and renderer binding | Frontend Runtime | W3 |
-| W5 | Test harness and fixture matrix | QA | W1-W4 |
-| W6 | Observability and release controls | Platform | W3-W5 |
-
----
-
-## Validation Scope
-
-## Canonical Fixture
-- `knowgrph-video-demo.md` (workspace seed basename; path-agnostic)
-
-## Focused Test Domains
-- MainPanel integration discoverability and anchor routing.
-- Frontmatter parser normalization and warning behavior.
-- Runtime dispatch for text/image/video in direct and MCP modes.
-- Renderer artifact contract and fallback behavior.
-- Error taxonomy mapping and retry paths.
-
-## Non-Goals for Validation Cycle
-- Unrelated panel modes not touching DeerFlow surfaces.
-- Non-generation node execution behaviors outside mapped contracts.
-
----
-
-## Test Matrix
-
-| Test ID | Layer | Scenario | Input | Expected Result |
-|---------|-------|----------|-------|-----------------|
-| DFV-001 | Integrations UI | Search DeerFlow rows | "deerflow" query | DeerFlow section visible with expected row set |
-| DFV-002 | Integrations UI | Deep-link anchor resolution | row key from node overlay | MainPanel opens exact anchor |
-| DFV-003 | Parser | Direct mode metadata parse | frontmatter node with direct fields | normalized metadata emitted |
-| DFV-004 | Parser | MCP mode metadata parse | frontmatter node with mcp fields | normalized metadata emitted |
-| DFV-005 | Parser | Unknown optional fields | frontmatter with extras | warnings emitted, parse succeeds |
-| DFV-006 | Parser | Missing required fields | invalid mode payload | parse fails with actionable message |
-| DFV-007 | Runtime | Text generation dispatch | valid text request | text artifact contract returned |
-| DFV-008 | Runtime | Image generation dispatch | valid image request | image artifact contract returned |
-| DFV-009 | Runtime | Video generation dispatch | valid video request | video artifact contract returned |
-| DFV-010 | Runtime | Timeout retry behavior | simulated timeout error | bounded retry then fail with retryable category |
-| DFV-011 | Runtime | Auth failure behavior | invalid credentials | terminal auth error, no retry |
-| DFV-012 | Renderer | Text artifact rendering | canonical text artifact | text block rendered |
-| DFV-013 | Renderer | Image artifact rendering | canonical image artifact | image rendered with metadata |
-| DFV-014 | Renderer | Video artifact rendering | canonical video artifact | video rendered with preview metadata |
-| DFV-015 | E2E | Fixture ingest->render | `knowgrph-video-demo.md` | pipeline completes with expected outputs |
-| DFV-016 | Regression | Existing provider stability | baseline provider fixture | no critical regression |
-
----
-
-## Acceptance Criteria by PRD Story
-
-| PRD Story | Acceptance Tests | Pass Condition |
-|-----------|------------------|----------------|
-| PRD-E001-S001 | DFV-001, DFV-002 | Discoverable DeerFlow rows and stable deep links |
-| PRD-E001-S002 | DFV-003, DFV-004, DFV-006 | Valid mode enforcement and mode-correct persistence |
-| PRD-E002-S001 | DFV-003, DFV-004, DFV-005, DFV-006 | Metadata normalization with warning-first policy |
-| PRD-E002-S002 | DFV-007, DFV-008, DFV-009, DFV-012-014 | Canonical artifacts render consistently |
-| PRD-E003-S001 | DFV-007-009, DFV-015 | Unified runtime path across generation kinds |
-| PRD-E003-S002 | DFV-010, DFV-011 | Deterministic failure/retry semantics |
-| PRD-E004-S001 | DFV-015, DFV-016 | End-to-end and regression gates pass |
-
----
-
-## Quality Gate Definitions
+## Rollback and Recovery
 
 ```mermaid
 flowchart TD
-    QG1[QG-1: Contract Gate] -->|pass| QG2[QG-2: Functionality Gate]
-    QG2 -->|pass| QG3[QG-3: Reliability Gate]
-    QG3 -->|pass| QG4[QG-4: Regression Gate]
-    QG4 -->|pass| QG5[QG-5: Release Gate]
-    QG5 -->|pass| REL[Release]
-
-    QG1 -->|fail| FIX1[Fix contract mismatch]
-    QG2 -->|fail| FIX2[Fix blocker defects]
-    QG3 -->|fail| FIX3[Fix retry/failure paths]
-    QG4 -->|fail| FIX4[Fix regressions]
-    QG5 -->|fail| FIX5[Complete documentation]
-
-    FIX1 --> QG1
-    FIX2 --> QG2
-    FIX3 --> QG3
-    FIX4 --> QG4
-    FIX5 --> QG5
+    TRIGGER[Gateway failure] --> R1[Set provider away from deerflow]
+    R1 --> R2[Keep shared widgets and Source Files intact]
+    R2 --> R3[Fix DeerFlow gateway or endpoint config]
+    R3 --> VERIFY[Run focused DeerFlow validation]
 ```
 
-## QG-1: Contract Gate
-- All required contracts compile and validate.
-- No unresolved contract mismatch between parser and dispatcher.
-
-## QG-2: Functionality Gate
-- Must-Have PRD stories pass mapped acceptance tests.
-- No blocker defects in integration, parser, runtime, or renderer.
-
-## QG-3: Reliability Gate
-- Retry/failure paths verified for timeout and auth classes.
-- No unbounded retries or silent fallbacks.
-
-## QG-4: Regression Gate
-- Existing provider fixtures remain green on focused regression suite.
-- No P0/P1 regressions against baseline snapshots.
-
-## QG-5: Release Gate
-- Documentation updated and traceability matrix complete.
-- Rollback instructions validated.
-
----
-
-## Rollback and Recovery Plan
-
-```mermaid
-flowchart TD
-    TRIGGER[Trigger: Critical failure detected] --> R1[Disable DeerFlow feature flag]
-    R1 --> R2[Revert to prior provider routing]
-    R2 --> R3[Preserve parsed metadata, bypass adapter]
-    R3 --> R4[Publish incident note + ETA]
-    R4 --> VERIFY[Smoke test MainPanel + parser + existing flow]
-    VERIFY -->|pass| STABLE[System stable on prior provider]
-    VERIFY -->|fail| R1
-```
-
-## Trigger Conditions
-- Critical runtime failures in generation dispatch.
-- Contract mismatch causing parser or renderer instability.
-- High-severity regressions in existing provider paths.
-
-## Rollback Actions
-1. Disable DeerFlow feature flag for runtime dispatch.
-2. Revert to prior provider routing for generation nodes.
-3. Preserve parsed metadata but bypass DeerFlow adapter path.
-4. Publish incident note and remediation ETA.
-
-## Recovery Verification
-- Focused smoke tests on MainPanel, parser, and existing generation flow.
-- Confirm no residual invalid state in persisted integration settings.
-
----
+Rules:
+- Rollback is operator configuration, not source-code aliasing.
+- Existing OpenAI, BytePlus, Gemini, PixVerse, and non-DeerFlow paths remain independent.
+- Source Files created by DeerFlow import remain ordinary workspace files.
 
 ## Release Checklist
 
-- [ ] PRD/TAD traceability matrix updated.
-- [ ] Integration contracts and patterns approved.
-- [ ] Focused test matrix executed with recorded evidence.
-- [ ] Fixture `knowgrph-video-demo.md` passes E2E expectations.
-- [ ] Regression suite for existing providers passes.
-- [ ] Feature flag strategy documented.
-- [ ] Rollback runbook reviewed and accessible.
-- [ ] Release notes include known limitations and open questions.
+- [x] PRD/TAD status reflects implemented baseline.
+- [x] Direct/MCP proposed language is removed from implementation-owned docs.
+- [x] Source owners are named explicitly.
+- [x] Focused docs guard is registered.
+- [x] Validation commands are source-owned and repeatable.
 
----
+## Known Limits
 
-## Open Validation Questions
-
-**VQ-001**: Should MCP-mode integration tests use a local mock MCP server or controlled staging endpoint?  
-**Owner**: QA + Platform  
-**Decision Target**: Before Phase 3 complete
-
-**VQ-002**: What minimum sample size is required for run reliability target (`>=95%`) in CI?  
-**Owner**: QA  
-**Decision Target**: Before Phase 4 start
-
-**VQ-003**: Should renderer snapshot assertions include metadata ordering guarantees or only key presence?  
-**Owner**: Frontend + QA  
-**Decision Target**: Before Phase 4 start
-
----
-
-## Milestone Timeline
-
-| Milestone | Scope | Target |
-|-----------|-------|--------|
-| M1 | Phase 1 complete | Sprint 1 |
-| M2 | Phase 2 complete | Sprint 1 |
-| M3 | Phase 3 complete | Sprint 2 |
-| M4 | Phase 4 and release gate | Sprint 2 |
+- DeerFlow is optional; Knowgrph must operate fully when no DeerFlow gateway is running.
+- The implemented baseline is local HTTP gateway based.
+- A future DeerFlow MCP bridge requires source owners and tests before docs can mark it implemented.
 
 ---
 
 ## Revision History
 
 | Version | Date | Author | Summary |
-|---------|------|--------|---------|
-| 1.0.0 | 2026-05-07 | joohwee | Initial delivery phases and validation matrix for DeerFlow integration |
-| 1.1.0 | 2026-05-07 | joohwee | Added Mermaid diagrams (delivery pipeline, quality gates, rollback flow) per PRD-TAD guidelines |
+|---|---|---|---|
+| 1.0.0 | 2026-05-07 | joohwee | Initial delivery phases and validation matrix |
+| 1.1.0 | 2026-05-07 | joohwee | Added Mermaid diagrams |
+| 1.2.0 | 2026-05-29 | joohwee | Promoted to implemented baseline and aligned validation with shipped gateway path |

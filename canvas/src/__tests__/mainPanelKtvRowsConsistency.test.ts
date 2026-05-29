@@ -51,7 +51,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['IntegrationsHubView.tsx', 'integrations'],
     ['McpHubView.tsx', 'mcp'],
     ['MapsHubView.tsx', 'maps'],
-    ['PaymentsHubView.tsx', 'payments'],
+    ['CommerceHubView.tsx', 'payments'],
   ]
   for (const [fileName, mode] of hubModes) {
     const text = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName))

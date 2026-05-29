@@ -148,12 +148,12 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [STRIPE_MCP_DOC_AREA]: {
     docsUrl: STRIPE_MCP_DOCS_URL,
     docsLabel: 'Open Stripe MCP Docs',
-    panelLabel: 'Open MainPanel Payments',
+    panelLabel: 'Open MainPanel Commerce',
     note: 'Remote Stripe MCP uses OAuth when available; local or bearer-token flows must keep restricted keys server-side.',
     highlights: [
       'Payment-mutating MCP tools stay behind human confirmation and least-privilege authorization.',
     ],
-    openPanel: () => emitMainPanelOpen({ tab: 'payments', searchQuery: 'stripeApi.checkout' }),
+    openPanel: () => emitMainPanelOpen({ tab: 'commerce', searchQuery: 'stripeApi.checkout' }),
   },
   [PIXVERSE_MCP_DOC_AREA]: {
     docsUrl: PIXVERSE_MCP_DOCS_URL,

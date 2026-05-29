@@ -1,12 +1,12 @@
 ---
-title: Knowgrph LLM Prompt Contract PRD-TAD (Implementation-Aligned E2E)
-id: knowgrph-llm-prompt-contract-prd-tad-proposed
+title: Knowgrph LLM Prompt Contract PRD-TAD (Implemented E2E)
+id: knowgrph-llm-prompt-contract-prd-tad
 schema: kgc-computing-flow/v1
 doc_type: prd-tad
-version: 0.3.2
-status: Proposed
+version: 0.3.4
+status: Accepted and implemented
 created: 2026-05-21
-updated: 2026-05-27
+updated: 2026-05-29
 author: "@airvio"
 repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
 repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
@@ -17,6 +17,8 @@ related_docs:
   - canvas/src/features/chat/chatResponseBaseContract.ts
   - canvas/src/__tests__/chatResponseContractPrompt.test.ts
   - canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts
+  - canvas/src/features/parsers/kgcSemanticGraph.ts
+  - canvas/src/lib/graph/kgcSemanticQuery.ts
   - canvas/src/features/workspace-fs/applyWorkspaceImportToCanvas.ts
 epics:
   - PRD-E1: MainPanel And FloatingPanel Chat Integration
@@ -24,6 +26,7 @@ epics:
   - PRD-E3: Workspace-First KGC Persistence And Apply
   - PRD-E4: Frontmatter Flow Graph And Group Pipeline
   - PRD-E5: Shared Semantic Key And Stale-Path Elimination
+  - PRD-E6: Typed KGC Semantic Graph Extraction
 constraints:
   lean_mvp: true
   single_source_of_truth: true
@@ -47,9 +50,15 @@ changelog:
   - version: 0.3.2
     date: 2026-05-27
     summary: Promotes the original file to the sub-600 canonical index, moves TAD and validation detail into a companion, and aligns streaming docs with raw SSE chunk capture, workspace stream artifacts, and share/report URL dereference on the shared pipeline.
+  - version: 0.3.3
+    date: 2026-05-29
+    summary: Promotes the implementation-aligned contract from proposed naming to canonical accepted/implemented naming and preserves the companion split.
+  - version: 0.3.4
+    date: 2026-05-29
+    summary: Documents the typed KGC semantic graph parser and query helpers as implemented parser owners for inline `@node:type:id` and `@edge:predicate:source->target` sigils, with no legacy untyped remap.
 ---
 
-# Knowgrph - LLM Prompt Contract PRD-TAD (Implementation-Aligned E2E)
+# Knowgrph - LLM Prompt Contract PRD-TAD (Implemented E2E)
 
 > Scope: MainPanel integrations -> FloatingPanel chat UI -> raw SSE JSON chunks -> workspace stream artifacts -> Markdown YAML frontmatter output -> canvas nodes / subgraphs / groups / clusters / edges.
 >
@@ -69,8 +78,9 @@ The current repo already has a working upstream path for chat-generated structur
 6. `useFinalizeAssistantSuccess` writes the canonical `kgc_<session>.md` workspace document from that folder and calls `applyChatKgcWorkspaceDocumentToCanvas()`.
 7. `applyChatKgcWorkspaceDocumentToCanvas()` loads the saved Markdown into `setActiveMarkdownDocument({ applyViewPreset: true, applyToGraph: true, forceApplyToGraph: true })`.
 8. The Markdown parser prefers `tryParseMarkdownFrontmatterFlowGraph()` before generic Markdown or JSON-LD parsing.
-9. Frontmatter-flow metadata becomes `GraphData` with `context: 'frontmatter-flow'`.
-10. `flow.subgraphs` are normalized into `kg:subgraphs`, then `readSubgraphs()` and `deriveGraphGroups()` project them into rendered groups and cluster underlays.
+9. Typed KGC semantic sigils are parsed by `parseKgcSemanticGraphFromMarkdown()` and merged through the shared Markdown parser without replacing frontmatter-flow ownership.
+10. Frontmatter-flow metadata becomes `GraphData` with `context: 'frontmatter-flow'`.
+11. `flow.subgraphs` are normalized into `kg:subgraphs`, then `readSubgraphs()` and `deriveGraphGroups()` project them into rendered groups and cluster underlays.
 
 This document enhances that existing path. It does not invent a second one.
 
@@ -95,6 +105,7 @@ This document enhances that existing path. It does not invent a second one.
 | Workspace KGC apply | Chat KGC canvas bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | Applies saved Markdown by reusing `setActiveMarkdownDocument`, not by local graph patching. |
 | Markdown parse priority | Default parser pipeline | `canvas/src/features/parsers/default.ts` | `tryParseMarkdownFrontmatterFlowGraph()` runs before generic Markdown/JSON-LD parsing. |
 | Frontmatter-flow parse | Frontmatter-flow parser core | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts` plus supporting parser modules | Parses YAML frontmatter or body `flow:` blocks, nodes, edges, subgraphs, clusters, and metadata. |
+| Typed KGC semantic graph | KGC semantic parser and query helpers | `canvas/src/features/parsers/kgcSemanticGraph.ts`, `canvas/src/lib/graph/kgcSemanticQuery.ts`, `canvas/src/hooks/active-graph-data/workspaceStructuredGraph.ts` | Parses typed inline `@node:type:id` / `@edge:predicate:source->target` sigils, emits semantic-keyed GraphData, and keeps untyped legacy references out of the graph. |
 | Interactive import replay | Workspace import path | `canvas/src/features/workspace-fs/applyWorkspaceImportToCanvas.ts`, `canvas/src/features/parsers/frontmatterFlowImportMode.ts`, `canvas/src/features/parsers/applyGraphDataCanonicalBootstrap.ts` | Applies graph data and view presets through canonical import helpers. |
 | Group and cluster render | Group derivation and rendering | `canvas/src/lib/graph/subgraphs.ts`, `canvas/src/components/GraphCanvas/layout/graphGroups.ts` | `kg:subgraphs` is the group SSOT; rendered group IDs are `subgraph:${id}`. |
 | Graph cache identity | Shared semantic-key helpers | `canvas/src/lib/graph/semanticKey.ts`, `canvas/src/lib/graph/lookupCache.ts` | `buildScopedGraphSemanticKey()` is the upstream semantic signature helper reused across MainPanel, chat, preview, workspace, and canvas flows. |
@@ -155,9 +166,10 @@ The implementation and all future changes under this scope MUST NOT introduce an
 5. A second grouping model separate from `flow.subgraphs -> kg:subgraphs -> readSubgraphs() -> deriveGraphGroups()`.
 6. Local ad hoc graph signature helpers when `buildScopedGraphSemanticKey()` already exists.
 7. Legacy alias remaps such as duplicate `clusters` or duplicate grouping payloads when `flow.subgraphs` already owns grouping semantics.
-8. Request boilerplate or copied fixture prose that causes duplicate sections, stale labels, hardcoded actors, hardcoded model IDs, or hardcoded retry counts.
-9. Passive import-mode seepage that mutates canvas view state during passive source switching.
-10. Backward-compatibility shims that preserve stale conflicting owners instead of deleting them.
+8. Untyped KGC sigil remaps such as `@node:n-trigger`; typed semantic extraction must require explicit `@node:type:id` or declared `@edge:predicate:source->target` syntax.
+9. Request boilerplate or copied fixture prose that causes duplicate sections, stale labels, hardcoded actors, hardcoded model IDs, or hardcoded retry counts.
+10. Passive import-mode seepage that mutates canvas view state during passive source switching.
+11. Backward-compatibility shims that preserve stale conflicting owners instead of deleting them.
 
 ### 3.2 Upstream SSOT Rules
 
@@ -177,6 +189,7 @@ If any bug appears anywhere in the chat-to-canvas path, the fix MUST happen at t
 - validation issue -> `chatMarkdownValidation`
 - persistence/apply issue -> chat workspace persistence or `chatKgcCanvasApply.ts`
 - parse issue -> frontmatter-flow parser modules
+- typed KGC semantic extraction issue -> `kgcSemanticGraph.ts` and `kgcSemanticQuery.ts`
 - grouping issue -> `subgraphs.ts` or `graphGroups.ts`
 - cache signature issue -> `semanticKey.ts`
 
@@ -216,6 +229,7 @@ A user configures chat from MainPanel, opens FloatingPanel chat, submits a reque
 - Streaming draft persistence, correction retry, canonical workspace persistence, and canvas apply.
 - Frontmatter-flow parsing of nodes, edges, subgraphs, clusters, groups, and import modes.
 - Shared semantic-key reuse and stale-path elimination.
+- Typed KGC semantic sigil extraction and queryable graph helpers.
 
 ### 4.5 Out Of Scope
 
@@ -494,7 +508,7 @@ Therefore the prompt contract MUST be authored so that validator failure drives 
 
 ### Continuation
 
-See continuation in `knowgrph-llm-prompt-contract-prd-tad-proposed.companion.md` for:
+See continuation in `knowgrph-llm-prompt-contract-prd-tad.companion.md` for:
 
 - TAD component specifications
 - data contracts
@@ -504,6 +518,6 @@ See continuation in `knowgrph-llm-prompt-contract-prd-tad-proposed.companion.md`
 
 ---
 
-*Document ID: `knowgrph-llm-prompt-contract-prd-tad-proposed`*  
-*Version: `0.3.2`*  
-*Updated: `2026-05-27`*
+*Document ID: `knowgrph-llm-prompt-contract-prd-tad`*  
+*Version: `0.3.4`*  
+*Updated: `2026-05-29`*

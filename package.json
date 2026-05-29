@@ -18,6 +18,8 @@
     "pages:check-sync": "node ./scripts/sync-pages-knowgrph.mjs --check",
     "pages:sync": "node ./scripts/sync-pages-knowgrph.mjs",
     "pages:build-sync": "npm run pages:build && npm run pages:sync",
+    "pages:functions:build": "node ./scripts/build-pages-functions-worker.mjs",
+    "pages:deploy-cloudflare": "npm run pages:build-sync && npm run pages:functions:build && npx wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true",
     "pages:build-sync-cloudflare": "npm run pages:build-sync && npm run workers:deploy",
     "agent-ready:check": "node ./scripts/check-agent-ready.mjs",
     "auth-md:check": "node ./scripts/check-auth-md.mjs",

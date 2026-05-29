@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
+from playwright.sync_api import Error as PlaywrightError, Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 
 APP_URL = os.environ.get("KG_PIXVERSE_READINESS_URL", "http://localhost:5173/")
@@ -54,22 +54,45 @@ def open_settings_integrations(page: Page) -> None:
     page.wait_for_load_state("networkidle", timeout=60000)
     page.get_by_role("button", name="Settings").click()
     page.get_by_role("tab", name="Integrations").click()
+
+
+def filter_settings(page: Page, query: str) -> None:
     search = page.locator("[aria-label='Main panel'] input[placeholder*='Search']").first
     if search.count():
-        search.fill("PixVerse")
+        search.fill(query)
+
+
+def launch_chromium(playwright):
+    errors: list[str] = []
+    for launch_options in ({}, {"channel": "chrome"}, {"channel": "msedge"}):
+        try:
+            return playwright.chromium.launch(headless=True, **launch_options)
+        except PlaywrightError as exc:
+            label = launch_options.get("channel", "bundled chromium")
+            errors.append(f"{label}: {exc}")
+    browser_path = os.environ.get("KG_PIXVERSE_READINESS_BROWSER_PATH", "").strip()
+    if browser_path:
+        try:
+            return playwright.chromium.launch(headless=True, executable_path=browser_path)
+        except PlaywrightError as exc:
+            errors.append(f"KG_PIXVERSE_READINESS_BROWSER_PATH: {exc}")
+    raise AssertionError(
+        "Could not launch Chromium for PixVerse readiness E2E. "
+        "Install Playwright browsers, use a system Chrome channel, or set KG_PIXVERSE_READINESS_BROWSER_PATH.\n"
+        + "\n".join(errors)
+    )
 
 
 def main() -> int:
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
+        browser = launch_chromium(playwright)
         page = browser.new_page(viewport={"width": 1440, "height": 1080})
         try:
             open_settings_integrations(page)
+            filter_settings(page, "integrationConfigsJson")
             page.get_by_role("button", name="PixVerse Auto").wait_for(timeout=15000)
             page.get_by_role("button", name="PixVerse I2V").wait_for(timeout=15000)
             page.get_by_role("button", name="PixVerse Transition").wait_for(timeout=15000)
-            page.get_by_role("button", name=re.compile(r"^PixVerse Video Generation")).wait_for(timeout=15000)
-            page.get_by_role("link", name="Open PixVerse Video Generation Docs").wait_for(timeout=15000)
 
             expect_integration_state(page, enabled=False, strategy="auto")
 
@@ -88,6 +111,10 @@ def main() -> int:
             page.get_by_role("button", name="Disable PixVerse").click()
             page.wait_for_timeout(250)
             expect_integration_state(page, enabled=False, strategy="auto")
+
+            filter_settings(page, "PixVerse Video Generation")
+            page.get_by_role("button", name=re.compile(r"^PixVerse Video Generation")).wait_for(timeout=15000)
+            page.get_by_role("link", name="Open PixVerse Video Generation Docs").wait_for(timeout=15000)
 
             SCREENSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)

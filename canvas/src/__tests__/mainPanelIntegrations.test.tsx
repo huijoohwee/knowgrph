@@ -6,7 +6,7 @@ import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
 import McpHubView from '@/features/panels/views/McpHubView'
 import MapsHubView from '@/features/panels/views/MapsHubView'
-import PaymentsHubView from '@/features/panels/views/PaymentsHubView'
+import CommerceHubView from '@/features/panels/views/CommerceHubView'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -873,7 +873,7 @@ export function testKnowgrphMcpServerExposesApiNativeBrowserBridge() {
   })
 }
 
-export async function testPaymentsHubOmitsGlobalResetSection() {
+export async function testCommerceHubOmitsGlobalResetSection() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -889,16 +889,16 @@ export async function testPaymentsHubOmitsGlobalResetSection() {
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    await renderAndFlush(root, React.createElement(PaymentsHubView), anyWindow.requestAnimationFrame, 4)
+    await renderAndFlush(root, React.createElement(CommerceHubView), anyWindow.requestAnimationFrame, 4)
 
     const text = container.textContent || ''
     ;['Key', 'Type', 'Value'].forEach(token => {
       if (!text.includes(token)) {
-        throw new Error(`expected payments hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected commerce hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
     if (text.includes('Global Reset')) {
-      throw new Error('expected payments hub to omit global reset section')
+      throw new Error('expected commerce hub to omit global reset section')
     }
   } finally {
     try {

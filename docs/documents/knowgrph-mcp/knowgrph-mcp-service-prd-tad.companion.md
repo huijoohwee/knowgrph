@@ -2,8 +2,8 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md).
 
-**Document Version**: 0.4.14  
-**Date**: 2026-05-23  
+**Document Version**: 0.4.15  
+**Date**: 2026-05-29  
 **Status**: Implementation-aligned supplement
 
 ---
@@ -21,7 +21,7 @@ It answers four questions:
 
 ---
 
-## Shipped Vs Proposed
+## Shipped Vs Planned
 
 | Surface | Status | Canonical owner | Contract |
 |---|---|---|---|
@@ -43,7 +43,7 @@ It answers four questions:
 | Stripe MCP readiness docs | Shipped | `canvas/src/features/panels/views/stripeMcpApiDocs.ts` | readiness/config only |
 | Crawler Access MCP readiness docs | Shipped | `canvas/src/features/panels/views/crawlerAccessMcpApiDocs.ts` | readiness/config only |
 | FloatingPanel Chat -> Canvas flow | Shipped | `canvas/src/features/chat/*` + parser/store owners | browser-local validated KGC pipeline |
-| Remote Worker MCP gateway / pipeline platform | Proposed only | none in repo yet | must not be described as implemented |
+| Remote Worker MCP gateway / pipeline platform | Planned extension | none in repo yet | must not be described as implemented |
 
 ---
 
@@ -195,13 +195,13 @@ If a future remote MCP service is added, it must:
 
 ## Review Checklist
 
-- [x] Companion aligns with the main PRD/TAD `0.4.13`
+- [x] Companion aligns with the main PRD/TAD `0.4.15`
 - [x] Owner map points only to files that actually exist in the repo
 - [x] WebMCP readiness ownership is implementation-accurate
-- [x] Shipped vs proposed boundary is explicit
+- [x] Shipped vs planned boundary is explicit
 - [x] E2E MainPanel -> FloatingPanel Chat -> KGC -> Canvas contract is documented
 - [x] Forbidden architecture list blocks stale/conflicting narratives
 
 ---
 
-*Document Version: 0.4.14 · Updated: 2026-05-23*
+*Document Version: 0.4.15 · Updated: 2026-05-29*

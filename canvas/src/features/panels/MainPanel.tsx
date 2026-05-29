@@ -29,7 +29,7 @@ const mainPanelTabSupportsSearch = (tab: MainPanelTabKey): boolean => getMainPan
 const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
 const McpHubViewLazy = React.lazy(() => import('./views/McpHubView'))
 const MapsHubViewLazy = React.lazy(() => import('./views/MapsHubView'))
-const PaymentsHubViewLazy = React.lazy(() => import('./views/PaymentsHubView'))
+const CommerceHubViewLazy = React.lazy(() => import('./views/CommerceHubView'))
 const CollaborationViewLazy = React.lazy(() => import('./views/CollaborationView'))
 const DesignEditorMainPanelViewLazy = React.lazy(() => import('@/features/panels/views/DesignEditorMainPanelView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
@@ -48,7 +48,7 @@ type MainPanelSharedActions = {
   allCollapsed?: boolean
 }
 
-type SharedMainPanelTabKey = 'collaboration' | 'integrations' | 'mcp' | 'maps' | 'payments' | 'settings'
+type SharedMainPanelTabKey = 'collaboration' | 'integrations' | 'mcp' | 'maps' | 'commerce' | 'settings'
 
 type SharedMainPanelViewProps = {
   searchQuery: string
@@ -57,7 +57,7 @@ type SharedMainPanelViewProps = {
   onRegisterActions: (next: MainPanelSharedActions) => void
 }
 
-const SHARED_MAIN_PANEL_TABS: SharedMainPanelTabKey[] = ['collaboration', 'integrations', 'mcp', 'maps', 'payments', 'settings']
+const SHARED_MAIN_PANEL_TABS: SharedMainPanelTabKey[] = ['collaboration', 'integrations', 'mcp', 'maps', 'commerce', 'settings']
 const DEFAULT_MAIN_PANEL_SHARED_ACTIONS: MainPanelSharedActions = { allCollapsed: true }
 const MAIN_PANEL_SHARED_VIEW_BY_TAB: Record<
   SharedMainPanelTabKey,
@@ -67,7 +67,7 @@ const MAIN_PANEL_SHARED_VIEW_BY_TAB: Record<
   integrations: IntegrationsHubViewLazy,
   mcp: McpHubViewLazy,
   maps: MapsHubViewLazy,
-  payments: PaymentsHubViewLazy,
+  commerce: CommerceHubViewLazy,
   settings: SettingsViewLazy,
 }
 
@@ -77,7 +77,7 @@ function createMainPanelSharedActionsState(): Record<SharedMainPanelTabKey, Main
     integrations: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
     mcp: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
     maps: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
-    payments: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
+    commerce: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
     settings: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
   }
 }
