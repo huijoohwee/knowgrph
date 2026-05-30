@@ -17,6 +17,7 @@ const builtChunkBudgetOverrides = [
   { pattern: /^canvas\/dist\/assets\/monaco-[A-Za-z0-9_-]+\.js$/, limit: 3000 * 1024, reason: 'lazy Monaco editor vendor chunk' },
   { pattern: /^canvas\/dist\/assets\/three-core-[A-Za-z0-9_-]+\.js$/, limit: 800 * 1024, reason: 'lazy Three.js core vendor chunk' },
   { pattern: /^canvas\/dist\/assets\/maplibre-[A-Za-z0-9_-]+\.js$/, limit: 1200 * 1024, reason: 'lazy MapLibre vendor chunk' },
+  { pattern: /^canvas\/dist\/assets\/transformers-[A-Za-z0-9_-]+\.js$/, limit: 700 * 1024, reason: 'lazy Hugging Face Transformers vendor chunk' },
 ]
 
 const args = new Set(process.argv.slice(2))

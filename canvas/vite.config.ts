@@ -5761,8 +5761,7 @@ export default defineConfig(({ command }) => {
       resolveDependencies: (_filename: string, deps: string[]) =>
         deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
     },
-    // Keep Vite quiet for known source-owned lazy vendor chunks; scripts/check-hygiene-compliance.mjs
-    // keeps tighter per-chunk budgets for app/source regressions.
+    // Keep Vite quiet for known lazy vendor chunks; hygiene keeps tighter per-chunk budgets for regressions.
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
@@ -5808,6 +5807,7 @@ export default defineConfig(({ command }) => {
                 if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
                 if (moduleId.includes('/node_modules/three/')) return 'three-core'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre'
+                if (moduleId.includes('/node_modules/@huggingface/transformers/')) return 'transformers'
                 if (moduleId.includes('/src/')) return undefined
                 return undefined
               },
