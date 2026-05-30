@@ -233,7 +233,6 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
            })
            setWorkspaceEntrySource(path, { kind: 'url', url: converted.sourceUrl })
            useMarkdownExplorerStore.getState().setActivePath(path)
-           state.setWorkspaceViewMode('editor')
         } else {
            // Markdown (default)
            const path = await upsertWorkspaceTextDocument({
@@ -244,7 +243,6 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
            })
            setWorkspaceEntrySource(path, { kind: 'url', url: converted.sourceUrl })
            useMarkdownExplorerStore.getState().setActivePath(path)
-           state.setWorkspaceViewMode('editor')
         }
       } catch {
         void 0

@@ -4,6 +4,10 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownDataViewBlock } from '@/features/markdown/ui/MarkdownDataViewBlock'
 import type { RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
+import {
+  defaultWorkspaceDataViewConfig,
+  writeWorkspaceDataViewConfig,
+} from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 
 const tick = async () => {
   await new Promise<void>(resolve => {
@@ -43,6 +47,15 @@ export async function testMarkdownDataViewBlockColumnHeaderTypeMenuIsClickable()
       previewOverlayScope: 'container',
       webpageLayoutWireframeAscii: null,
     }
+    writeWorkspaceDataViewConfig({
+      activeDocumentPath: 'doc.md',
+      tableId: 'md-block:1-4',
+      value: defaultWorkspaceDataViewConfig({
+        title: 'Multi-dimensional Table',
+        layout: 'table',
+        groupByColumnId: null,
+      }),
+    })
 
     root.render(
       React.createElement(MarkdownDataViewBlock, {
@@ -55,11 +68,8 @@ export async function testMarkdownDataViewBlockColumnHeaderTypeMenuIsClickable()
 
     for (let i = 0; i < 50; i += 1) await tick()
 
-    const viewButtons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
-    const tableBtn = viewButtons.find(b => /table/i.test(String(b.textContent || ''))) || null
-    if (!tableBtn) throw new Error('Expected Table view button')
-    tableBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    for (let i = 0; i < 20; i += 1) await tick()
+    const tableLayoutButton = container.querySelector('button[aria-label="Layout: Table View"]') as HTMLButtonElement | null
+    if (!tableLayoutButton) throw new Error('Expected table layout control')
 
     const summary = doc.querySelector('summary[aria-label="Column type: Status"]') as HTMLElement | null
     if (!summary) throw new Error('Expected Status header summary')

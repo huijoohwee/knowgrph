@@ -1,6 +1,6 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { importLocalFilesFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -27,6 +27,12 @@ import { GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE, parseGlbAssetDocument } from
 import { inspectGlbBytes } from '@/lib/assets/gltfFormat'
 import { resolveModelAssetExportBlob } from '@/lib/assets/modelAssetExport'
 import { buildGlbAssetMarkdown, buildGltfAssetMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
+import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import {
+  buildStrybldrStoryboardDocument,
+  buildStrybldrVideoHandoffFromGraphData,
+  serializeStrybldrStoryboardMarkdown,
+} from '@/features/strybldr/strybldrStoryboard'
 import {
   KNOWGRPH_VIDEO_DEMO_BASENAME,
   KNOWGRPH_VIDEO_DEMO_WORKSPACE_PATH,
@@ -41,6 +47,36 @@ const createFile = (name: string, text: string) => {
 const createBinaryFile = (name: string, bytes: Uint8Array, type = 'application/octet-stream') => {
   const blob = new Blob([bytes], { type })
   return new File([blob], name, { type })
+}
+
+function readStrybldrLocalImportInput(): { name: string; text: string } {
+  const inputPath = String(process.env.KNOWGRPH_STRYFORK_DEMO_INPUT || '').trim()
+  if (inputPath) {
+    return {
+      name: basename(inputPath) || 'strybldr-local-import.md',
+      text: readFileSync(inputPath, 'utf8'),
+    }
+  }
+  return {
+    name: 'strybldr-local-import.md',
+    text: serializeStrybldrStoryboardMarkdown(buildStrybldrStoryboardDocument({
+      createdAtMs: 1,
+      sourceUnits: [
+        {
+          id: 'local-import-strybldr-source',
+          workspacePath: '/source.md',
+          relativePath: 'source.md',
+          originalName: 'source.md',
+          mediaKind: 'video',
+          mimeHint: 'text/markdown',
+          byteSize: 0,
+          textHash: 'local-import',
+          status: 'parsed',
+          provenance: { importMode: 'file', importedAtMs: 1 },
+        },
+      ],
+    })),
+  }
 }
 
 function createGlbBytes(args?: {
@@ -824,10 +860,10 @@ export async function testWorkspaceImportSkipsUnsupportedFilesButContinues() {
     await fs.ensureSeed()
 
     const supported = createFile('ok.md', '# ok\n')
-    const unsupported = new File([new Blob(['x'], { type: 'image/png' })], 'image.png', { type: 'image/png' })
+    const unsupported = new File([new Blob(['x'], { type: 'application/octet-stream' })], 'image.bin', { type: 'application/octet-stream' })
 
     Object.defineProperty(supported, 'webkitRelativePath', { value: 'MyFolder/ok.md', configurable: true })
-    Object.defineProperty(unsupported, 'webkitRelativePath', { value: 'MyFolder/image.png', configurable: true })
+    Object.defineProperty(unsupported, 'webkitRelativePath', { value: 'MyFolder/image.bin', configurable: true })
 
     const res = await importWorkspaceLocalFolder({ fs, files: [supported, unsupported] })
     if (res.createdPaths.length !== 1) throw new Error(`expected 1 created path, got ${res.createdPaths.length}`)
@@ -836,9 +872,9 @@ export async function testWorkspaceImportSkipsUnsupportedFilesButContinues() {
 
     const entries = await fs.listEntries()
     const hasOk = entries.some(e => e.kind === 'file' && e.name === 'ok.md')
-    const hasImage = entries.some(e => e.kind === 'file' && e.name === 'image.png')
+    const hasImage = entries.some(e => e.kind === 'file' && e.name === 'image.bin')
     if (!hasOk) throw new Error('expected ok.md to be imported')
-    if (hasImage) throw new Error('expected image.png to be skipped')
+    if (hasImage) throw new Error('expected image.bin to be skipped')
   } finally {
     restore()
   }
@@ -954,6 +990,84 @@ export async function testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGr
     }
     if (next.frontmatterModeEnabled !== true) {
       throw new Error('expected workspace import to enable frontmatter mode for parsed non-frontmatter-flow graph preset')
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableRunAllSurface() {
+  const { restore } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+    store.setFloatingPanelOpen(false)
+    store.setFloatingPanelView('chat')
+
+    const input = readStrybldrLocalImportInput()
+    const file = createFile(input.name, input.text)
+    const result = await importWorkspaceLocalFiles({ fs, files: [file], parentPath: '/' })
+    const importedPath = String(result.createdPaths[0] || '').trim()
+    if (!importedPath) throw new Error('expected local Strybldr import to create a workspace file')
+
+    const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: result.createdPaths })
+    if (!applyToGraph) throw new Error('expected imported Strybldr markdown to opt into graph-aware landing')
+
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: result.createdPaths,
+      opts: { applyToGraph: true, skipComposedGraphApply: true },
+    })
+    const afterApply = useGraphStore.getState()
+    if (afterApply.canvasRenderMode !== '2d') {
+      throw new Error(`expected local Strybldr import apply to set 2d render mode, got ${String(afterApply.canvasRenderMode || '')}`)
+    }
+    if (afterApply.canvas2dRenderer !== 'strybldr') {
+      throw new Error(`expected local Strybldr import apply to set Strybldr renderer, got ${String(afterApply.canvas2dRenderer || '')}`)
+    }
+    if (afterApply.floatingPanelOpen !== true || afterApply.floatingPanelView !== 'strybldr') {
+      throw new Error('expected local Strybldr import apply to mount the Strybldr run consumer panel')
+    }
+
+    await activateFirstImportedWorkspaceFile({ fs, createdPaths: result.createdPaths, applyToGraph: true })
+    const next = useGraphStore.getState()
+    if (useMarkdownExplorerStore.getState().activePath !== importedPath) {
+      throw new Error(`expected local Strybldr activation to focus imported file, got ${String(useMarkdownExplorerStore.getState().activePath || '')}`)
+    }
+    if (next.canvas2dRenderer !== 'strybldr') {
+      throw new Error(`expected local Strybldr activation to keep Strybldr renderer, got ${String(next.canvas2dRenderer || '')}`)
+    }
+    if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') {
+      throw new Error('expected local Strybldr activation to keep the Strybldr Run all consumer mounted')
+    }
+
+    const board = buildStoryboardBoardModel({ graphData: next.graphData, graphRevision: 1 })
+    const lanes = new Set(board.lanes.map(lane => lane.id))
+    if (!lanes.has('Source') || !lanes.has('Elements')) {
+      throw new Error(`expected local Strybldr graph to expose Source and Elements lanes, got ${Array.from(lanes).join(', ')}`)
+    }
+    if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text)) {
+      const cards = board.lanes.flatMap(lane => lane.cards)
+      if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) {
+        throw new Error(`expected local Strybldr YouTube source to expose renderable iframe media, got ${JSON.stringify(cards.map(card => card.media))}`)
+      }
+      if (!cards.some(card => card.references.some(reference => reference.kind === 'image' && /ytimg\.com\/vi\//i.test(reference.url)))) {
+        throw new Error(`expected local Strybldr YouTube source to expose thumbnail image references, got ${JSON.stringify(cards.map(card => card.references))}`)
+      }
+    }
+    const handoff = buildStrybldrVideoHandoffFromGraphData(next.graphData)
+    if (handoff.cards.length < 2 || !handoff.prompt.includes('approved Strybldr storyboard cards')) {
+      throw new Error('expected local Strybldr graph to compile a runnable Toolbar Run all handoff prompt')
+    }
+    if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text) && !/ytimg\.com\/vi\//i.test(String(handoff.referenceImageUrl || ''))) {
+      throw new Error(`expected local Strybldr Run all handoff to carry a thumbnail reference image, got ${String(handoff.referenceImageUrl || '')}`)
     }
   } finally {
     restore()

@@ -28,6 +28,10 @@ const KNOWGRPH_IMPORTED_FILE_NAME = 'kgc_20260523133000.md'
 const HISTORY_IMPORTED_FILE_NAME = 'history_local_import_20260523133000.md'
 const KNOWGRPH_IMPORTED_PATH = `/workspace/chat/${KNOWGRPH_IMPORTED_FILE_NAME}`
 const HISTORY_IMPORTED_PATH = `/workspace/chat/${HISTORY_IMPORTED_FILE_NAME}`
+const KNOWGRPH_FOLDER_FILE_NAME = 'kgc_20260523133100.md'
+const HISTORY_FOLDER_FILE_NAME = 'history_folder_20260523133000.md'
+const KNOWGRPH_FOLDER_IMPORTED_PATH = `/workspace/chat/folder/${KNOWGRPH_FOLDER_FILE_NAME}`
+const HISTORY_FOLDER_IMPORTED_PATH = `/workspace/chat/folder/${HISTORY_FOLDER_FILE_NAME}`
 
 const findButtonByLabel = (container: HTMLElement, label: string): HTMLButtonElement => {
   const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
@@ -62,6 +66,8 @@ function SettingsLocalImportHarness(props: {
   const {
     importLocalFilesForChatHistory,
     importLocalFilesForKnowgrph,
+    importLocalFolderForChatHistory,
+    importLocalFolderForKnowgrph,
     chatHistoryPathStatus,
     knowgrphPathStatus,
   } = useSettingsWorkspaceActions({
@@ -77,6 +83,14 @@ function SettingsLocalImportHarness(props: {
   )
   const historyFiles = React.useMemo(
     () => [new File(['# Imported History\n'], HISTORY_IMPORTED_FILE_NAME, { type: 'text/markdown' })] as unknown as FileList,
+    [],
+  )
+  const knowgrphFolderFiles = React.useMemo(
+    () => [new File(['---\n$schema: "kgc-pipeline/v1"\n---\n\n# Imported Knowgrph Folder\n'], KNOWGRPH_FOLDER_FILE_NAME, { type: 'text/markdown' })] as unknown as FileList,
+    [],
+  )
+  const historyFolderFiles = React.useMemo(
+    () => [new File(['# Imported History Folder\n'], HISTORY_FOLDER_FILE_NAME, { type: 'text/markdown' })] as unknown as FileList,
     [],
   )
 
@@ -102,6 +116,18 @@ function SettingsLocalImportHarness(props: {
       >
         Import History Local File
       </button>
+      <button
+        type="button"
+        onClick={() => importLocalFolderForKnowgrph(knowgrphFolderFiles)}
+      >
+        Import Knowgrph Local Folder
+      </button>
+      <button
+        type="button"
+        onClick={() => importLocalFolderForChatHistory(historyFolderFiles)}
+      >
+        Import History Local Folder
+      </button>
     </div>
   )
 }
@@ -113,18 +139,30 @@ export async function testSettingsLocalImportActionsKeepDraftStateLocalUntilAppl
   let settingsRoot: ReturnType<typeof createRoot> | null = null
   let chatRoot: ReturnType<typeof createRoot> | null = null
   const actionsRef: { current: RegisteredSettingsActions | null } = { current: null }
-  const importedFileNames: string[] = []
+  const importedSelections: Array<{ kind: 'files' | 'folder'; fileName: string }> = []
   const unregisterBridge = registerMarkdownWorkspaceActionBridge('test-local-import-bridge', {
     importLocalFiles: files => {
       const snapshot = files ? Array.from(files as ArrayLike<File>) : []
       const firstName = String(snapshot[0]?.name || '').trim()
       if (firstName) {
-        importedFileNames.push(firstName)
+        importedSelections.push({ kind: 'files', fileName: firstName })
       }
       if (firstName === KNOWGRPH_IMPORTED_FILE_NAME) {
         useMarkdownExplorerStore.getState().setActivePath(KNOWGRPH_IMPORTED_PATH)
       } else if (firstName === HISTORY_IMPORTED_FILE_NAME) {
         useMarkdownExplorerStore.getState().setActivePath(HISTORY_IMPORTED_PATH)
+      }
+    },
+    importLocalFolder: files => {
+      const snapshot = files ? Array.from(files as ArrayLike<File>) : []
+      const firstName = String(snapshot[0]?.name || '').trim()
+      if (firstName) {
+        importedSelections.push({ kind: 'folder', fileName: firstName })
+      }
+      if (firstName === KNOWGRPH_FOLDER_FILE_NAME) {
+        useMarkdownExplorerStore.getState().setActivePath(KNOWGRPH_FOLDER_IMPORTED_PATH)
+      } else if (firstName === HISTORY_FOLDER_FILE_NAME) {
+        useMarkdownExplorerStore.getState().setActivePath(HISTORY_FOLDER_IMPORTED_PATH)
       }
     },
   })
@@ -188,6 +226,14 @@ export async function testSettingsLocalImportActionsKeepDraftStateLocalUntilAppl
       findButtonByLabel(settingsContainer, 'Import History Local File').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
       await waitForFrames(dom.window as unknown as Window, 2)
     })
+    await act(async () => {
+      findButtonByLabel(settingsContainer, 'Import Knowgrph Local Folder').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
+    await act(async () => {
+      findButtonByLabel(settingsContainer, 'Import History Local Folder').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
 
     const draftKnowgrphStorageMode = settingsContainer.querySelector('[data-draft-knowgrph-storage-mode]')?.getAttribute('data-draft-knowgrph-storage-mode')
     const draftHistoryStorageMode = settingsContainer.querySelector('[data-draft-history-storage-mode]')?.getAttribute('data-draft-history-storage-mode')
@@ -203,8 +249,8 @@ export async function testSettingsLocalImportActionsKeepDraftStateLocalUntilAppl
       draftHistoryStorageMode !== 'local' ||
       draftKnowgrphCloudUrl !== '' ||
       draftHistoryCloudUrl !== '' ||
-      draftKnowgrphWorkspacePath !== KNOWGRPH_IMPORTED_PATH ||
-      draftHistoryWorkspacePath !== HISTORY_IMPORTED_PATH
+      draftKnowgrphWorkspacePath !== KNOWGRPH_FOLDER_IMPORTED_PATH ||
+      draftHistoryWorkspacePath !== HISTORY_FOLDER_IMPORTED_PATH
     ) {
       throw new Error(`expected local import actions to patch draft local storage state, got ${JSON.stringify({
         draftKnowgrphStorageMode,
@@ -215,15 +261,18 @@ export async function testSettingsLocalImportActionsKeepDraftStateLocalUntilAppl
         draftHistoryWorkspacePath,
       })}`)
     }
-    if (knowgrphStatus !== KNOWGRPH_IMPORTED_PATH || historyStatus !== HISTORY_IMPORTED_PATH) {
+    if (knowgrphStatus !== KNOWGRPH_FOLDER_IMPORTED_PATH || historyStatus !== HISTORY_FOLDER_IMPORTED_PATH) {
       throw new Error(`expected local import actions to expose imported workspace path status, got ${JSON.stringify({ knowgrphStatus, historyStatus })}`)
     }
     if (
-      importedFileNames.length !== 2 ||
-      importedFileNames[0] !== KNOWGRPH_IMPORTED_FILE_NAME ||
-      importedFileNames[1] !== HISTORY_IMPORTED_FILE_NAME
+      JSON.stringify(importedSelections) !== JSON.stringify([
+        { kind: 'files', fileName: KNOWGRPH_IMPORTED_FILE_NAME },
+        { kind: 'files', fileName: HISTORY_IMPORTED_FILE_NAME },
+        { kind: 'folder', fileName: KNOWGRPH_FOLDER_FILE_NAME },
+        { kind: 'folder', fileName: HISTORY_FOLDER_FILE_NAME },
+      ])
     ) {
-      throw new Error(`expected workspace import bridge to receive both local files, got ${JSON.stringify(importedFileNames)}`)
+      throw new Error(`expected workspace import bridge to receive local files and folders, got ${JSON.stringify(importedSelections)}`)
     }
 
     const preApplyChatInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
@@ -258,16 +307,16 @@ export async function testSettingsLocalImportActionsKeepDraftStateLocalUntilAppl
     const appliedChatInspection = inspectLocalChatPipelineState(readLocalChatPipelineSurfaceSnapshot())
     if (
       appliedChatInspection.available !== true ||
-      appliedChatInspection.workspacePaths.chatKnowgrphWorkspacePath !== KNOWGRPH_IMPORTED_PATH ||
-      appliedChatInspection.workspacePaths.chatHistoryWorkspacePath !== HISTORY_IMPORTED_PATH ||
+      appliedChatInspection.workspacePaths.chatKnowgrphWorkspacePath !== KNOWGRPH_FOLDER_IMPORTED_PATH ||
+      appliedChatInspection.workspacePaths.chatHistoryWorkspacePath !== HISTORY_FOLDER_IMPORTED_PATH ||
       appliedChatInspection.cloudUrls.chatKnowgrphCloudUrl !== null ||
       appliedChatInspection.cloudUrls.chatHistoryCloudUrl !== null
     ) {
       throw new Error(`expected FloatingPanel Chat pipeline local-import state to update after Settings apply, got ${JSON.stringify(appliedChatInspection)}`)
     }
     if (
-      useGraphStore.getState().chatKnowgrphWorkspacePath !== KNOWGRPH_IMPORTED_PATH ||
-      useGraphStore.getState().chatHistoryWorkspacePath !== HISTORY_IMPORTED_PATH ||
+      useGraphStore.getState().chatKnowgrphWorkspacePath !== KNOWGRPH_FOLDER_IMPORTED_PATH ||
+      useGraphStore.getState().chatHistoryWorkspacePath !== HISTORY_FOLDER_IMPORTED_PATH ||
       useGraphStore.getState().chatKnowgrphStorageMode !== 'local' ||
       useGraphStore.getState().chatHistoryStorageMode !== 'local' ||
       String(useGraphStore.getState().chatKnowgrphCloudUrl || '').trim() !== '' ||

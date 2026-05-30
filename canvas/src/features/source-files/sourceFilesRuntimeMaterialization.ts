@@ -234,6 +234,7 @@ async function resolveNonGraphActiveWorkspaceSourceFiles(args: {
   sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']
   activeWorkspaceEntriesSnapshot?: WorkspaceEntry[]
   fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
+  refreshActiveText?: boolean
 }): Promise<ReturnType<typeof useGraphStore.getState>['sourceFiles'] | null> {
   const materializedSourceFiles = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
   if (materializedSourceFiles.length === 0) return null
@@ -242,14 +243,15 @@ async function resolveNonGraphActiveWorkspaceSourceFiles(args: {
   let nextSourceFiles = materializedSourceFiles
   const activeFile = materializedSourceFiles[activeIndex] || null
   const activeText = String(activeFile?.text || '')
-  if (!activeText.trim()) {
+  if (args.refreshActiveText || !activeText.trim()) {
     const fallbackText = await readActiveWorkspaceSourceFileFallbackText({
       activePath: args.activePath,
       activeFile,
       activeWorkspaceEntriesSnapshot: args.activeWorkspaceEntriesSnapshot,
       fs: args.fs,
+      ignoreActiveFileText: args.refreshActiveText === true,
     })
-    if (fallbackText.trim()) {
+    if (fallbackText.trim() && fallbackText !== activeText) {
       nextSourceFiles = materializedSourceFiles.slice()
       nextSourceFiles[activeIndex] = {
         ...activeFile,
@@ -311,6 +313,7 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   sourcesByPath?: WorkspaceSourceIndex
   premergedSourceFiles?: SourceFile[]
   applyToGraph?: boolean
+  refreshActiveText?: boolean
 }): Promise<void> {
   const activePath = resolveMaterializedWorkspaceActivePath({
     activePathOverride: args?.activePathOverride ?? null,
@@ -330,6 +333,7 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
       sourceFiles: materializedSourceFiles,
       activeWorkspaceEntriesSnapshot: args?.activeWorkspaceEntriesSnapshot,
       fs: args?.fs,
+      refreshActiveText: args?.refreshActiveText === true,
     })
     if (next) {
       if (next !== existing) {

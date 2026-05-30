@@ -2,6 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import { buildSourceLayerKeys } from '@/lib/graph/sourceLayers'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { buildMarkdownGeodataCandidateProfile } from '@/lib/markdown/markdownGeodataAnalysis'
 import { isGeospatialSourceFileEligible } from './geospatialSourceEligibility'
 import { readSourceFileParsedState } from '@/features/source-files/sourceFileParsedState'
@@ -28,11 +29,14 @@ type SourceFileLike = {
   } | null
 }
 
-const sourceFileTextHashCache = new WeakMap<object, { text: string; hash: string }>()
-
 export const isWorkspaceBackedSourceFile = (entry: unknown): boolean => {
   const item = entry as SourceFileLike | null | undefined
   return String(item?.source?.path || '').trim().startsWith('workspace:')
+}
+
+const readAllSourceFiles = (value: unknown): SourceFileLike[] => {
+  const items = Array.isArray(value) ? value : []
+  return items.map(entry => entry as SourceFileLike)
 }
 
 const readPersistableSourceFiles = (value: unknown): SourceFileLike[] => {
@@ -59,18 +63,21 @@ export const readSourceFilesForComposition = (
 
 export const getSourceFileTextHash = (entry: unknown): string => {
   if (!entry || typeof entry !== 'object') return hashStringToHex('')
-  const cached = sourceFileTextHashCache.get(entry as object)
   const item = entry as { text?: unknown }
   const text = String(item?.text || '')
-  if (cached && cached.text === text) return cached.hash
-  const next = hashStringToHex(String(item?.text || ''))
-  sourceFileTextHashCache.set(entry as object, { text, hash: next })
-  return next
+  const source = (entry as SourceFileLike).source
+  const cacheKey = [
+    'source-file',
+    String((entry as SourceFileLike).id || '').trim(),
+    String(source?.path || source?.url || '').trim(),
+    String((entry as SourceFileLike).name || '').trim(),
+  ].filter(Boolean).join(':') || 'source-file:anonymous'
+  return hashStringToHexCached(cacheKey, text)
 }
 
-export const areSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
-  const aa = readPersistableSourceFiles(a)
-  const bb = readPersistableSourceFiles(b)
+const areSourceFileListsEqualByIdAndHash = (a: SourceFileLike[], b: SourceFileLike[]): boolean => {
+  const aa = a
+  const bb = b
   if (aa.length !== bb.length) return false
   for (let i = 0; i < aa.length; i += 1) {
     const x = aa[i] as SourceFileLike
@@ -84,6 +91,14 @@ export const areSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean 
   }
   return true
 }
+
+export const areSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean => (
+  areSourceFileListsEqualByIdAndHash(readPersistableSourceFiles(a), readPersistableSourceFiles(b))
+)
+
+export const areRuntimeSourceFilesEqualByIdAndHash = (a: unknown, b: unknown): boolean => (
+  areSourceFileListsEqualByIdAndHash(readAllSourceFiles(a), readAllSourceFiles(b))
+)
 
 export const buildSourceFilesPersistenceSignature = (value: unknown): string => {
   const items = readPersistableSourceFiles(value)

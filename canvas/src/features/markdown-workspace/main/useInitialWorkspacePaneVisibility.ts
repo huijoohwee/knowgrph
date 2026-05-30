@@ -11,6 +11,7 @@ type UseInitialWorkspacePaneVisibilityArgs = {
   webpageUrl?: string | null
   webpageView?: WebpageViewMode | null
   workspaceEditorOverlayOpen: boolean
+  workspaceEditorSurfaceActive?: boolean
   setSplitPaneVisibility: React.Dispatch<React.SetStateAction<MarkdownWorkspacePaneVisibility>>
 }
 
@@ -21,8 +22,9 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
     // Preserve the last applied preset across overlay close/reopen cycles so a
     // user-enabled Viewer pane does not get reset back to markdown-only for the
     // same workspace document.
-    if (!args.workspaceEditorOverlayOpen) return
     const webpageView = args.webpageView || ''
+    const requiresDocumentSpecificPreset = !!args.modelAssetFormat || webpageView === 'html' || webpageView === 'json'
+    if (!args.workspaceEditorOverlayOpen && !(args.workspaceEditorSurfaceActive && requiresDocumentSpecificPreset)) return
     const presetKey = [
       args.activeDocumentKey,
       args.modelAssetFormat || '',
@@ -59,5 +61,6 @@ export function useInitialWorkspacePaneVisibility(args: UseInitialWorkspacePaneV
     args.webpageUrl,
     args.webpageView,
     args.workspaceEditorOverlayOpen,
+    args.workspaceEditorSurfaceActive,
   ])
 }

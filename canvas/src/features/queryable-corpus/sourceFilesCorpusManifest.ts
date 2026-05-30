@@ -1,5 +1,5 @@
 import { hashText } from '@/features/parsers/hash'
-import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
+import type { CorpusMediaKind, CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import { inferCorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 
 export type CorpusImportSkipped = {
@@ -39,6 +39,7 @@ export type CorpusSourceUnitRecordInput = {
   text: string
   mimeHint?: string | null
   byteSize?: number | null
+  mediaKind?: CorpusMediaKind | null
   status: CorpusSourceUnit['status']
 }
 
@@ -55,6 +56,25 @@ const normalizeStatus = (raw: unknown): CorpusSourceUnit['status'] => {
   return 'parsed'
 }
 
+const normalizeMediaKind = (raw: unknown): CorpusMediaKind | null => {
+  const value = String(raw || '').trim()
+  switch (value) {
+    case 'code':
+    case 'sql':
+    case 'script':
+    case 'doc':
+    case 'paper':
+    case 'image':
+    case 'video':
+    case 'data':
+    case 'model':
+    case 'unknown':
+      return value
+    default:
+      return null
+  }
+}
+
 export function buildCorpusSourceUnit(args: {
   workspacePath: string
   relativePath: string
@@ -62,6 +82,7 @@ export function buildCorpusSourceUnit(args: {
   text: string
   mimeHint?: string | null
   byteSize?: number | null
+  mediaKind?: CorpusMediaKind | null
   status?: CorpusSourceUnit['status']
   importMode: CorpusSourceUnit['provenance']['importMode']
   importedAtMs?: number | null
@@ -84,7 +105,7 @@ export function buildCorpusSourceUnit(args: {
     workspacePath,
     relativePath,
     originalName,
-    mediaKind: inferCorpusMediaKind(originalName, args.mimeHint),
+    mediaKind: normalizeMediaKind(args.mediaKind) || inferCorpusMediaKind(originalName, args.mimeHint),
     mimeHint: String(args.mimeHint || '').trim() || null,
     byteSize: Number.isFinite(Number(args.byteSize)) ? Math.max(0, Number(args.byteSize)) : text.length,
     textHash,
@@ -107,6 +128,7 @@ export function createCorpusSourceUnitRecorder(args: {
       text: input.text,
       mimeHint: input.mimeHint,
       byteSize: input.byteSize,
+      mediaKind: input.mediaKind,
       status: input.status,
       importMode: args.importMode,
       importedAtMs,

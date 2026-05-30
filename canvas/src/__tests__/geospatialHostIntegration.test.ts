@@ -399,8 +399,8 @@ export const testSourceFilesPersistenceUsesContentHashNotLengthOnly = () => {
   if (!text.includes('areSourceFilesEqualByIdAndHash') || !text.includes('buildSourceFilesPersistenceSignature')) {
     throw new Error('Expected source-files persistence bootstrap to reuse shared persistence equality and signature helpers')
   }
-  if (!signaturesText.includes('hashStringToHex(String(item?.text || \'\'))')) {
-    throw new Error('Expected shared source-files persistence hashing to hash canonical text content')
+  if (!signaturesText.includes('hashStringToHexCached(cacheKey, text)')) {
+    throw new Error('Expected shared source-files persistence hashing to hash canonical text content through the bounded text-hash cache')
   }
   if (text.includes("String(x?.text || '').length !== String(y?.text || '').length")) {
     throw new Error('Source-files persistence must not compare by text length only')

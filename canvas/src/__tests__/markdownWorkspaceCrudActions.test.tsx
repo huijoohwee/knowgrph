@@ -1,8 +1,11 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { MarkdownWorkspace } from '@/lib/markdown-workspace-runtime'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 
 const tick = async () => {
   await new Promise<void>(resolve => {
@@ -34,6 +37,8 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
   const confirm = dom.window.confirm
 
   try {
+    useGraphStore.getState().resetAll()
+    useMarkdownExplorerStore.getState().setActivePath(null)
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
     const beforeEntries = await fs.listEntries()
@@ -42,7 +47,11 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     ;(dom.window as unknown as { prompt: (message?: string, defaultValue?: string) => string }).prompt = () => createName
     ;(dom.window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
 
-    root.render(React.createElement(MarkdownWorkspace))
+    await mountReactRoot(root, React.createElement(MarkdownWorkspace), {
+      window: dom.window as unknown as Window,
+      frames: 1,
+      tasks: 1,
+    })
 
     let sourceFileBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 60; i += 1) {
@@ -55,12 +64,15 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     }
     if (!sourceFileBtn) throw new Error('Source file row button not found')
 
-    sourceFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: 24,
-      clientY: 24,
-    }))
+    await React.act(async () => {
+      sourceFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 24,
+      }))
+      await tick()
+    })
 
     let newFileBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 40; i += 1) {
@@ -70,7 +82,10 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     }
     if (!newFileBtn) throw new Error('New file context menu item not found')
 
-    newFileBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await React.act(async () => {
+      newFileBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+    })
 
     let createdPath: string | null = null
     for (let i = 0; i < 80; i += 1) {
@@ -95,16 +110,22 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     }
     if (!createdFileBtn) throw new Error('Created file row button not found')
 
-    createdFileBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await React.act(async () => {
+      createdFileBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+    })
     const staleHeaderDeleteBtn = findButtonByAriaLabel(container, `Delete ${createdPath.split('/').pop()}`)
     if (staleHeaderDeleteBtn) throw new Error('Delete should not remain in Explorer header actions')
 
-    createdFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: 28,
-      clientY: 28,
-    }))
+    await React.act(async () => {
+      createdFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 28,
+        clientY: 28,
+      }))
+      await tick()
+    })
 
     let clearBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 40; i += 1) {
@@ -113,14 +134,20 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
       if (clearBtn) break
     }
     if (!clearBtn) throw new Error('Clear context menu item not found')
-    clearBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await React.act(async () => {
+      clearBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+    })
 
-    createdFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: 28,
-      clientY: 28,
-    }))
+    await React.act(async () => {
+      createdFileBtn.dispatchEvent(new dom.window.MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 28,
+        clientY: 28,
+      }))
+      await tick()
+    })
 
     let deleteBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 40; i += 1) {
@@ -129,7 +156,10 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
       if (deleteBtn) break
     }
     if (!deleteBtn) throw new Error('Delete context menu item not found')
-    deleteBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await React.act(async () => {
+      deleteBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+    })
 
     for (let i = 0; i < 80; i += 1) {
       await tick()
@@ -144,7 +174,7 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     ;(dom.window as unknown as { prompt: typeof prompt }).prompt = prompt
     ;(dom.window as unknown as { confirm: typeof confirm }).confirm = confirm
     try {
-      root.unmount()
+      await unmountReactRoot(root, { window: dom.window as unknown as Window, tasks: 1 })
     } catch {
       void 0
     }

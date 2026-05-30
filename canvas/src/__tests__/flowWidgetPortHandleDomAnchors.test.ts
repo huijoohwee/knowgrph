@@ -1,7 +1,6 @@
 import { JSDOM } from 'jsdom'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import {
@@ -16,88 +15,97 @@ import {
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
 } from '@/lib/config.flow-editor'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
-
+type DomGlobalState = { window?: unknown; document?: unknown }
+const restoreDomGlobal = (target: DomGlobalState, key: keyof DomGlobalState, value: unknown) => {
+  if (typeof value === 'undefined') {
+    delete target[key]
+    return
+  }
+  target[key] = value
+}
+const installDomGlobals = (dom: JSDOM): (() => void) => {
+  const g = globalThis as unknown as DomGlobalState
+  const previousWindow = g.window
+  const previousDocument = g.document
+  g.window = dom.window
+  g.document = dom.window.document
+  return () => {
+    restoreDomGlobal(g, 'window', previousWindow)
+    restoreDomGlobal(g, 'document', previousDocument)
+    dom.window.close()
+  }
+}
 export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
-
-  const g = globalThis as unknown as { window?: unknown; document?: unknown }
-  g.window = dom.window
-  g.document = dom.window.document
-
+  const restoreGlobals = installDomGlobals(dom)
   const host = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(host)
   const root = createRoot(host)
-
-  root.render(
-    React.createElement(
-      'div',
-      { style: { width: 360, height: 420 } },
-      React.createElement(NodeOverlayEditorSchemaTable, {
-        active: true,
-        schemaFields: [{ id: 'prompt', label: 'Prompt', type: 'string' }],
-        portHandlesEnabled: true,
-        dotSizePx: 10,
-        dotHitPx: 18,
-        microLabelClass: 'text-xs',
-        textSizeClass: 'text-sm',
-        keyValueInputClass: 'border',
-        onCommitSchemaFields: () => void 0,
-      }),
-      React.createElement(NodeOverlayEditorRegistrySection, {
-        active: true,
-        properties: {},
-        registryEntry: {
-          id: 'x',
-          widgetTypeId: 'x',
-          fields: [],
-          ports: [{ portKey: 'prompt_out', direction: 'output' }],
-        } as any,
-        microLabelClass: 'text-xs',
-        monospaceTextClass: 'font-mono',
-        textSizeClass: 'text-sm',
-        keyValueInputClass: 'border',
-        keyLabelClass: 'text-xs',
-        ids: { registryField: (k: string) => k },
-        dotSizePx: 10,
-        dotHitPx: 18,
-        portHandlesEnabled: true,
-        onSetProperties: () => void 0,
-      }),
-    ),
-  )
-
-  await new Promise<void>(resolve => setTimeout(resolve, 20))
-
-  const schemaIn = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-key^="field:"]')
-  const schemaOut = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key^="field:"]')
-  if (!schemaIn || !schemaOut) throw new Error('expected schema port handle buttons to expose DOM anchor data')
-
-  const regOut = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key="prompt_out"]')
-  if (!regOut) throw new Error('expected registry port handle button to expose DOM anchor data')
-  const regOutRow = regOut.closest('tr')
-  if (!regOutRow) throw new Error('expected registry port row to render')
-  if (!regOutRow.textContent?.includes('handles.source')) {
-    throw new Error('expected registry port key column to render shared handles.source path text')
+  try {
+    root.render(
+      React.createElement(
+        'div',
+        { style: { width: 360, height: 420 } },
+        React.createElement(NodeOverlayEditorSchemaTable, {
+          active: true,
+          schemaFields: [{ id: 'prompt', label: 'Prompt', type: 'string' }],
+          portHandlesEnabled: true,
+          dotSizePx: 10,
+          dotHitPx: 18,
+          microLabelClass: 'text-xs',
+          textSizeClass: 'text-sm',
+          keyValueInputClass: 'border',
+          onCommitSchemaFields: () => void 0,
+        }),
+        React.createElement(NodeOverlayEditorRegistrySection, {
+          active: true,
+          properties: {},
+          registryEntry: {
+            id: 'x',
+            widgetTypeId: 'x',
+            fields: [],
+            ports: [{ portKey: 'prompt_out', direction: 'output' }],
+          } as any,
+          microLabelClass: 'text-xs',
+          monospaceTextClass: 'font-mono',
+          textSizeClass: 'text-sm',
+          keyValueInputClass: 'border',
+          keyLabelClass: 'text-xs',
+          ids: { registryField: (k: string) => k },
+          dotSizePx: 10,
+          dotHitPx: 18,
+          portHandlesEnabled: true,
+          onSetProperties: () => void 0,
+        }),
+      ),
+    )
+    await new Promise<void>(resolve => setTimeout(resolve, 20))
+    const schemaIn = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-key^="field:"]')
+    const schemaOut = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key^="field:"]')
+    if (!schemaIn || !schemaOut) throw new Error('expected schema port handle buttons to expose DOM anchor data')
+    const regOut = host.querySelector('button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-key="prompt_out"]')
+    if (!regOut) throw new Error('expected registry port handle button to expose DOM anchor data')
+    const regOutRow = regOut.closest('tr')
+    if (!regOutRow) throw new Error('expected registry port row to render')
+    if (!regOutRow.textContent?.includes('handles.source')) {
+      throw new Error('expected registry port key column to render shared handles.source path text')
+    }
+    const regOutValueInput = regOutRow.querySelector('input[readonly][disabled]')
+    if (!regOutValueInput) throw new Error('expected registry port value column to reuse shared read-only input typography')
+  } finally {
+    root.unmount()
+    restoreGlobals()
   }
-  const regOutValueInput = regOutRow.querySelector('input[readonly][disabled]')
-  if (!regOutValueInput) throw new Error('expected registry port value column to reuse shared read-only input typography')
-
-  root.unmount()
 }
-
 export const testTextWidgetCellsStayLocallyEditable = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
-
   const g = globalThis as unknown as { window?: unknown; document?: unknown }
   g.window = dom.window
   g.document = dom.window.document
-
   const host = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(host)
   const root = createRoot(host)
-
   const patched: Array<Record<string, unknown>> = []
-
   root.render(
     React.createElement(NodeOverlayEditorRegistrySection, {
       active: true,
@@ -132,34 +140,26 @@ export const testTextWidgetCellsStayLocallyEditable = async () => {
       onSetProperties: next => patched.push(next),
     }),
   )
-
   await new Promise<void>(resolve => setTimeout(resolve, 20))
-
   const promptInput = host.querySelector<HTMLInputElement>('#prompt')
   const modelInput = host.querySelector<HTMLInputElement>('#chatModel')
   const topPInput = host.querySelector<HTMLInputElement>('#chatTopP')
   if (!promptInput || !modelInput || !topPInput) {
     throw new Error('expected local BytePlus text widget inputs to render')
   }
-
   const promptPort = host.querySelector('button[data-kg-port-key="prompt_in"]')
   if (promptPort) throw new Error('expected BytePlus text widget to omit non-API registry port rows')
-
   promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
   promptInput.value = 'updated prompt'
   promptInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-
   modelInput.value = 'seed-2-0-lite-custom'
   modelInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
   topPInput.value = '0.4'
   topPInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-
   await new Promise<void>(resolve => setTimeout(resolve, 20))
-
   if (patched.length === 0) {
     throw new Error('expected local BytePlus text widget field edits to patch widget properties')
   }
-
   root.unmount()
 }
 

@@ -1,5 +1,6 @@
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
+import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 
 export type MarkdownFileTreeContextMenuItem = {
   key: 'shareUrl' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'newFile' | 'clear' | 'rename' | 'delete'
@@ -12,7 +13,7 @@ type BuildMarkdownFileTreeContextMenuItemsArgs = {
   entry: WorkspaceEntry
   copyToClipboard: (text: string) => Promise<boolean>
   buildShareUrl?: (entryPath: WorkspacePath) => string | null
-  onCreateNewFile?: () => void
+  onCreateNewFile?: (parentPath: WorkspacePath) => void
   onRevealInFinder?: (path: WorkspacePath) => void
   onClearFile?: (path: WorkspacePath) => void
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
@@ -76,7 +77,10 @@ export function buildMarkdownFileTreeContextMenuItems(
       key: 'newFile',
       label: 'New file',
       onSelect: () => {
-        args.onCreateNewFile?.()
+        const parentPath = args.entry.kind === 'folder'
+          ? args.entry.path
+          : args.entry.parentPath || WORKSPACE_ROOT_PATH
+        args.onCreateNewFile?.(parentPath)
         args.closeContextMenu()
       },
     })

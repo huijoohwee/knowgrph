@@ -2,6 +2,11 @@ import { hashText } from '@/features/parsers/hash'
 import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import {
+  buildRenderableIframeUrl,
+  buildRenderableMediaThumbnailUrl,
+  inferMediaKindFromResourceUrl,
+} from '@/lib/graph/mediaUrlKind'
 import type {
   StrybldrBox,
   StrybldrDetectionProvider,
@@ -12,11 +17,8 @@ import type {
   StrybldrSource,
   StrybldrStoryboardDocument,
 } from './strybldrTypes'
-
 const STRYBLDR_JSON_FENCE_RE = /```(?:json\s+)?strybldr-storyboard\s*\n([\s\S]*?)\n```/i
-
 const asJson = (value: unknown): JSONValue => value as JSONValue
-
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
@@ -24,6 +26,38 @@ const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g,
 const shortHash = (value: unknown): string => hashText(String(value ?? '')).slice(0, 12)
 
 const yamlQuote = (value: string): string => `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+
+const CORPUS_MEDIA_KINDS = new Set([
+  'code',
+  'sql',
+  'script',
+  'doc',
+  'paper',
+  'image',
+  'video',
+  'data',
+  'model',
+  'unknown',
+])
+
+const readCorpusMediaKind = (value: unknown): CorpusSourceUnit['mediaKind'] => {
+  const raw = cleanText(value)
+  return CORPUS_MEDIA_KINDS.has(raw) ? raw as CorpusSourceUnit['mediaKind'] : 'unknown'
+}
+
+const uniqueCleanTexts = (values: readonly unknown[]): string[] => {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const value of values) {
+    const text = cleanText(value)
+    if (!text) continue
+    const key = text.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(text)
+  }
+  return out
+}
 
 const titleCase = (value: string): string => {
   const text = cleanText(value)
@@ -74,7 +108,49 @@ export const toStrybldrSource = (unit: CorpusSourceUnit, opts?: { mediaUrl?: str
   mediaUrl: cleanText(opts?.mediaUrl) || null,
 })
 
-const sourceLabel = (source: StrybldrSource): string => titleCase(basenameWithoutExt(source.originalName || source.relativePath)) || 'Image'
+const sourceLabel = (source: StrybldrSource): string => titleCase(basenameWithoutExt(source.originalName || source.relativePath)) || 'Source'
+
+const sourceKindLabel = (source: Pick<StrybldrSource, 'mediaKind'>): string => {
+  switch (source.mediaKind) {
+    case 'image':
+      return 'image'
+    case 'video':
+      return 'video'
+    case 'paper':
+      return 'paper'
+    case 'model':
+      return 'model'
+    case 'data':
+      return 'data'
+    case 'code':
+    case 'script':
+    case 'sql':
+      return 'code'
+    case 'doc':
+      return 'document'
+    default:
+      return 'source'
+  }
+}
+
+const buildStrybldrSourceMediaFields = (source: StrybldrSource): {
+  mediaUrl: string
+  sourceUrl: string
+  renderUrl: string
+  thumbnailUrl: string
+  references: string[]
+} => {
+  const mediaUrl = cleanText(source.mediaUrl) || cleanText(source.originalName)
+  const sourceUrl = /^https?:\/\//i.test(mediaUrl) ? mediaUrl : ''
+  const renderUrl = buildRenderableIframeUrl(mediaUrl)
+  const thumbnailUrl = buildRenderableMediaThumbnailUrl(mediaUrl)
+  const references = uniqueCleanTexts([
+    source.workspacePath || source.relativePath || source.originalName,
+    sourceUrl,
+    thumbnailUrl,
+  ])
+  return { mediaUrl, sourceUrl, renderUrl, thumbnailUrl, references }
+}
 
 const createFallbackElements = (source: StrybldrSource, sourceIndex: number): StrybldrElement[] => {
   const label = sourceLabel(source)
@@ -90,9 +166,9 @@ const createFallbackElements = (source: StrybldrSource, sourceIndex: number): St
       evidenceKind: 'source-metadata',
       provider: 'fallback',
       order: sourceIndex * 10 + 1,
-      summary: `Main visual subject inferred from ${label}.`,
-      action: 'Confirm or replace this element after local detection.',
-      prompt: `Describe the primary subject in ${label} as a video storyboard element.`,
+      summary: `Primary story evidence inferred from ${label}.`,
+      action: 'Confirm or replace this element after reviewing source evidence.',
+      prompt: `Describe the primary story subject in ${label} as a video storyboard element.`,
     },
     {
       id: `strybldr-el-${shortHash(`${elementBase}:composition`)}`,
@@ -103,9 +179,9 @@ const createFallbackElements = (source: StrybldrSource, sourceIndex: number): St
       evidenceKind: 'source-metadata',
       provider: 'fallback',
       order: sourceIndex * 10 + 2,
-      summary: `Image composition placeholder for ${label}.`,
-      action: 'Break the frame into foreground, midground, and background beats.',
-      prompt: `Create a concise shot plan from the visible composition in ${label}.`,
+      summary: `Story composition placeholder for ${label}.`,
+      action: 'Break the source into foreground, midground, background, or narrative beats.',
+      prompt: `Create a concise shot plan from the available ${sourceKindLabel(source)} evidence in ${label}.`,
     },
   ]
 }
@@ -117,7 +193,6 @@ export const buildStrybldrStoryboardDocument = (args: {
   createdAtMs?: number | null
 }): StrybldrStoryboardDocument => {
   const sources = args.sourceUnits
-    .filter(unit => unit.mediaKind === 'image')
     .map(unit => toStrybldrSource(unit, { mediaUrl: args.mediaUrlBySourceUnitId?.[unit.id] || null }))
   const runId = buildStrybldrRunId(sources)
   const explicitElements = Array.isArray(args.elements) ? args.elements.slice() : []
@@ -321,9 +396,9 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     const sourceNodeId = `strybldr:source:${shortHash(base)}`
     const frameNodeId = `strybldr:frame:${shortHash(`${base}:frame`)}`
     const title = sourceLabel(source)
+    const media = buildStrybldrSourceMediaFields(source)
     sourceNodeIdByUnit.set(source.sourceUnitId, sourceNodeId)
     frameNodeIdByUnit.set(source.sourceUnitId, frameNodeId)
-    const mediaUrl = cleanText(source.mediaUrl) || cleanText(source.originalName)
     nodes.push({
       id: sourceNodeId,
       label: title,
@@ -332,14 +407,17 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         title: asJson(title),
         lane: asJson('Source'),
         order: asJson(index * 100),
-        summary: asJson(`Imported image source unit: ${source.originalName}.`),
-        action: asJson('Reverse-engineer the image into editable storyboard elements.'),
-        prompt: asJson(`Use ${source.originalName} as the visual reference image.`),
-        mediaUrl: asJson(mediaUrl),
+        summary: asJson(`Imported ${sourceKindLabel(source)} source unit: ${source.originalName}.`),
+        action: asJson('Review the source evidence into editable storyboard elements.'),
+        prompt: asJson(`Use ${source.originalName} as the reference source.`),
+        mediaUrl: asJson(media.mediaUrl),
+        sourceUrl: asJson(media.sourceUrl || null),
+        renderUrl: asJson(media.renderUrl || null),
+        thumbnailUrl: asJson(media.thumbnailUrl || null),
         mediaKind: asJson(source.mediaKind),
         mimeHint: asJson(source.mimeHint || null),
         byteSize: asJson(source.byteSize),
-        references: asJson([source.workspacePath || source.relativePath || source.originalName].filter(Boolean)),
+        references: asJson(media.references),
         strybldrRunId: asJson(doc.runId),
         strybldrSourceUnitId: asJson(source.sourceUnitId),
         strybldrElementId: asJson(sourceNodeId),
@@ -356,14 +434,17 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         title: asJson(`${title} Frame`),
         lane: asJson('Storyboard'),
         order: asJson(index * 100 + 1),
-        summary: asJson('Frame-level storyboard card generated from the imported image.'),
+        summary: asJson('Frame-level storyboard card generated from the imported source.'),
         action: asJson('Review element cards, revise prompts, then send the approved sequence to video generation.'),
         prompt: asJson(`Create a short video storyboard beat from ${source.originalName}.`),
-        mediaUrl: asJson(mediaUrl),
+        mediaUrl: asJson(media.mediaUrl),
+        sourceUrl: asJson(media.sourceUrl || null),
+        renderUrl: asJson(media.renderUrl || null),
+        thumbnailUrl: asJson(media.thumbnailUrl || null),
         mediaKind: asJson(source.mediaKind),
         mimeHint: asJson(source.mimeHint || null),
         byteSize: asJson(source.byteSize),
-        references: asJson([source.workspacePath || source.relativePath || source.originalName].filter(Boolean)),
+        references: asJson(media.references),
         strybldrRunId: asJson(doc.runId),
         strybldrSourceUnitId: asJson(source.sourceUnitId),
         strybldrElementId: asJson(frameNodeId),
@@ -381,7 +462,8 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     if (!sourceNodeId || !frameNodeId) continue
     const source = doc.sources.find(item => item.sourceUnitId === element.sourceUnitId) || null
     const elementId = cleanText(element.id) || `strybldr:element:${shortHash(`${element.sourceUnitId}:${element.label}:${element.order}`)}`
-    const mediaUrl = cleanText(source?.mediaUrl) || cleanText(source?.originalName)
+    const media = source ? buildStrybldrSourceMediaFields(source) : null
+    const mediaUrl = media?.mediaUrl || cleanText(source?.originalName)
     nodes.push({
       id: elementId,
       label: element.label,
@@ -394,10 +476,13 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         action: asJson(element.action || 'Edit this element before video generation.'),
         prompt: asJson(element.prompt || `Animate ${element.label} as a distinct storyboard element.`),
         mediaUrl: asJson(mediaUrl),
+        sourceUrl: asJson(media?.sourceUrl || null),
+        renderUrl: asJson(media?.renderUrl || null),
+        thumbnailUrl: asJson(media?.thumbnailUrl || null),
         mediaKind: asJson(source?.mediaKind || 'image'),
         mimeHint: asJson(source?.mimeHint || null),
         byteSize: asJson(source?.byteSize || 0),
-        references: asJson([source?.workspacePath || source?.relativePath || source?.originalName].filter(Boolean)),
+        references: asJson(media?.references || [source?.workspacePath || source?.relativePath || source?.originalName].filter(Boolean)),
         strybldrRunId: asJson(doc.runId),
         strybldrSourceUnitId: asJson(element.sourceUnitId),
         strybldrElementId: asJson(elementId),
@@ -451,12 +536,12 @@ export const mergeStrybldrElementsIntoGraphData = (args: {
         sourceUnitId: cleanText(props.strybldrSourceUnitId),
         workspacePath: cleanText((Array.isArray(props.references) ? props.references[0] : '') || ''),
         relativePath: cleanText((Array.isArray(props.references) ? props.references[0] : '') || ''),
-        originalName: cleanText(node.label || 'image'),
-        mediaKind: 'image' as const,
-        mimeHint: null,
-        byteSize: 0,
+        originalName: cleanText(node.label || 'source'),
+        mediaKind: readCorpusMediaKind(props.mediaKind),
+        mimeHint: cleanText(props.mimeHint) || null,
+        byteSize: Number.isFinite(Number(props.byteSize)) ? Math.max(0, Number(props.byteSize)) : 0,
         textHash: '',
-        mediaUrl: cleanText(props.mediaUrl),
+        mediaUrl: cleanText(props.mediaUrl) || cleanText(props.sourceUrl) || cleanText(props.renderUrl),
       }
     })
     .filter(source => source.sourceUnitId)
@@ -492,6 +577,13 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     })
     .map((node, index): StrybldrVideoHandoffCard => {
       const props = node.properties || {}
+      const mediaUrl = cleanText(props.mediaUrl)
+      const references = uniqueCleanTexts([
+        ...readNodeReferences(props.references),
+        cleanText(props.sourceUrl),
+        mediaUrl,
+        cleanText(props.thumbnailUrl) || buildRenderableMediaThumbnailUrl(mediaUrl),
+      ])
       return {
         id: cleanText(node.id) || `strybldr-card-${index + 1}`,
         lane: cleanText(props.lane) || 'Storyboard',
@@ -499,7 +591,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
         summary: cleanText(props.summary),
         action: cleanText(props.action),
         prompt: cleanText(props.prompt),
-        references: readNodeReferences(props.references),
+        references,
         order: Number.isFinite(Number(props.order)) ? Number(props.order) : index,
         sourceUnitId: cleanText(props.strybldrSourceUnitId),
       }
@@ -524,7 +616,15 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
   ]
 
   const mediaUrl = nodes
-    .map(node => cleanText(node.properties?.mediaUrl))
+    .flatMap(node => {
+      const props = node.properties || {}
+      const rawMediaUrl = cleanText(props.mediaUrl)
+      const inferred = inferMediaKindFromResourceUrl(rawMediaUrl)
+      return [
+        cleanText(props.thumbnailUrl) || buildRenderableMediaThumbnailUrl(rawMediaUrl),
+        inferred === 'image' || inferred === 'svg' ? rawMediaUrl : '',
+      ]
+    })
     .find(value => /^https?:\/\//i.test(value)) || null
 
   return {

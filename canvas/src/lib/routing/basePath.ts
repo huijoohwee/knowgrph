@@ -1,5 +1,12 @@
-export function resolveRouterBasename(baseUrl: unknown): string | undefined {
-  const raw = String(baseUrl || '').trim() || '/'
+type RouterBasenameRuntime = {
+  pathname?: unknown
+  rootAliasBasePath?: unknown
+}
+
+const ROOT_ALIAS_META_NAME = 'x-knowgrph-root-alias'
+
+function normalizeBasePath(value: unknown): string | undefined {
+  const raw = String(value || '').trim() || '/'
   if (raw === '/' || raw === '') return undefined
   const withLeading = raw.startsWith('/') ? raw : `/${raw}`
   const noTrailing = withLeading.endsWith('/') ? withLeading.slice(0, -1) : withLeading
@@ -7,3 +14,40 @@ export function resolveRouterBasename(baseUrl: unknown): string | undefined {
   return noTrailing
 }
 
+function normalizePathname(value: unknown): string {
+  const raw = String(value || '').trim() || '/'
+  const pathname = raw.startsWith('/') ? raw : `/${raw}`
+  const noTrailing = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  return noTrailing || '/'
+}
+
+function readRuntimePathname(runtime?: RouterBasenameRuntime): string | undefined {
+  if (runtime && Object.prototype.hasOwnProperty.call(runtime, 'pathname')) {
+    return normalizePathname(runtime.pathname)
+  }
+  if (typeof window === 'undefined') return undefined
+  return normalizePathname(window.location?.pathname)
+}
+
+function readRuntimeRootAliasBasePath(runtime?: RouterBasenameRuntime): string | undefined {
+  if (runtime && Object.prototype.hasOwnProperty.call(runtime, 'rootAliasBasePath')) {
+    return normalizeBasePath(runtime.rootAliasBasePath)
+  }
+  if (typeof document === 'undefined') return undefined
+  const raw = document
+    .querySelector(`meta[name="${ROOT_ALIAS_META_NAME}"]`)
+    ?.getAttribute('content')
+  return normalizeBasePath(raw)
+}
+
+export function resolveRouterBasename(baseUrl: unknown, runtime?: RouterBasenameRuntime): string | undefined {
+  const basename = normalizeBasePath(baseUrl)
+  if (!basename) return undefined
+
+  const rootAliasBasePath = readRuntimeRootAliasBasePath(runtime)
+  if (rootAliasBasePath === basename && readRuntimePathname(runtime) === '/') {
+    return undefined
+  }
+
+  return basename
+}

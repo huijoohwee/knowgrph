@@ -41,7 +41,6 @@ import {
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { useP2PCollaborationRuntime } from '@/features/collaboration/useP2PCollaborationRuntime'
-
 const EMPTY_STRING_ARRAY: string[] = []
 
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
@@ -506,6 +505,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     sourcesByPath,
     folderModeContract,
     setFolderModeContract,
+    activePath,
     selectionPath: selectionState.selectionPath,
     selectionEntryKind: selectionState.selectionEntry?.kind ?? null,
     setActivePathSafe: selectionState.setActivePathSafe,
@@ -557,7 +557,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             onRevealLine={interactionState.revealLineInEditor}
             onOpenBacklink={viewShell.openBacklink}
             onTocReorder={interactionState.onTocReorder}
-            onCreateNewFile={() => void fileActions.createNewFile({ parentPath: selectionState.createParentPath })}
+            onCreateNewFile={parentPath => void fileActions.createNewFile({ parentPath: parentPath || selectionState.createParentPath })}
             onRefresh={() => void explorerState.refresh()}
             canRefreshActiveFromSource={viewShell.canRefreshActiveFromSource}
             onRefreshActiveFromSource={() => {

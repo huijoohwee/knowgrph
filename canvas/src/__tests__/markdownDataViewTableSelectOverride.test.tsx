@@ -47,13 +47,13 @@ export async function testMarkdownDataViewTableViewSelectOverrideRendersSingleSe
       if (cell) break
     }
     if (!cell) throw new Error('Expected at least one table cell')
-    cell.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true }))
+    cell.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
 
     let singleSelect: HTMLElement | null = null
     for (let i = 0; i < 20; i += 1) {
       await tick()
-      singleSelect = container.querySelector('section[aria-label="Single select"]') as HTMLElement | null
+      singleSelect = doc.querySelector('section[aria-label="Single select"]') as HTMLElement | null
       if (singleSelect) break
     }
     if (!singleSelect) throw new Error('Expected single-select editor to render for select override')

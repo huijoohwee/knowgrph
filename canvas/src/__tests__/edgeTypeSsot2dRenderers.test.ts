@@ -14,7 +14,9 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
   const designPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas.tsx')
   const designText = readFileSync(designPath, 'utf8')
-  const flowEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const designWireframePath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useDesignCanvasWireframeDecor.ts')
+  const designWireframeText = readFileSync(designWireframePath, 'utf8')
+  const flowEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const flowEditorText = readFileSync(flowEditorPath, 'utf8')
   const d3LinksPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'layers', 'links.ts')
   const d3LinksText = readFileSync(d3LinksPath, 'utf8')
@@ -82,7 +84,7 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   if (flowCanvasText.includes('frontmatterFlowRenderSettings?.edgeType || base.edges.edgeType')) {
     throw new Error('expected Flow canvas frontmatter mode to keep global edge-type SSOT without local edge-type override')
   }
-  if (!designText.includes('const wireframeEdgeStroke = readGlobalEdgeColor(snapshot.schema)')) {
+  if (!designWireframeText.includes('const wireframeEdgeStroke = readGlobalEdgeColor(schema)')) {
     throw new Error('expected Design renderer wireframe edge stroke to reuse shared global edge color SSOT')
   }
   if (!flowEditorText.includes('const edgeAnimated = readGlobalEdgeAnimationEnabled(schema)')) {
@@ -91,7 +93,7 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   if (!flowEditorText.includes('const globalEdgeColor = readGlobalEdgeColor(schema)')) {
     throw new Error('expected Flow Editor overlay edge stroke to reuse shared global edge color helper')
   }
-  if (!designText.includes('const edgeType = readGlobalEdgeType(snapshot.schema)')) {
+  if (!designWireframeText.includes('const edgeType = readGlobalEdgeType(schema)')) {
     throw new Error('expected Design renderer edge type to derive from shared global edge-type SSOT')
   }
   if (!flowEditorText.includes('const globalEdgeType = readGlobalEdgeType(schema)')) {

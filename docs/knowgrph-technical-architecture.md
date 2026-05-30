@@ -7,7 +7,6 @@ frontmatter_contract: "required"
 canonical_docs_root: "docs/documents"
 generator_owner: "canvas/src/cli/lint-doc.ts"
 ---
-
 # Knowgrph Technical Architecture
 
 ## Generated Registry Contract
@@ -598,4 +597,5 @@ This root document exists as the auto-generated settings registry table surface 
 | `payments.stripe.mcp.localArgs` | json | localStorage |  |  |
 | `payments.stripe.mcp.startupTimeoutMs` | number | localStorage |  |  |
 | `payments.stripe.mcp.requireConfirmation` | boolean | localStorage |  |  |
+
 <!-- SETTINGS_REGISTRY_TABLE_END -->

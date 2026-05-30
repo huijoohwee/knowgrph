@@ -1,6 +1,7 @@
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { CorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
+import type { CorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 
 export type WorkspaceImportResult = {
   createdPaths: WorkspacePath[]
@@ -17,6 +18,8 @@ export type WorkspaceUrlContent = {
   name: string
   title?: string
   text: string
+  sourceMediaKind?: CorpusMediaKind
+  sourceMimeHint?: string | null
   thinkingText?: string
   thinkingTextTask?: Promise<string>
 }

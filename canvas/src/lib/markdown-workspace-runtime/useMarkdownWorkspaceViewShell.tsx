@@ -18,6 +18,7 @@ export function useMarkdownWorkspaceViewShell(args: {
   sourcesByPath: WorkspaceSourceIndex
   folderModeContract: FolderModeContract
   setFolderModeContract: React.Dispatch<React.SetStateAction<FolderModeContract>>
+  activePath: WorkspacePath | null
   selectionPath: WorkspacePath | null
   selectionEntryKind: WorkspaceEntry['kind'] | null
   setActivePathSafe: (path: WorkspacePath) => void
@@ -35,6 +36,7 @@ export function useMarkdownWorkspaceViewShell(args: {
     sourcesByPath,
     folderModeContract,
     setFolderModeContract,
+    activePath,
     selectionPath,
     selectionEntryKind,
     setActivePathSafe,
@@ -59,6 +61,13 @@ export function useMarkdownWorkspaceViewShell(args: {
     [setStatusWithAutoClear],
   )
   const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(entries), [entries])
+
+  React.useEffect(() => {
+    if (!selectionPath || selectionEntryKind !== 'folder') return
+    const target = pickFolderContractTargetPath(selectionPath, folderModeContract)
+    if (!target || target === activePath) return
+    setActivePathSafe(target)
+  }, [activePath, folderModeContract, pickFolderContractTargetPath, selectionEntryKind, selectionPath, setActivePathSafe])
 
   const toggleExpanded = React.useCallback((path: WorkspacePath) => {
     const normalized = normalizeWorkspacePath(path)

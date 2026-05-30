@@ -29,6 +29,7 @@ import {
   buildStrybldrWorkspaceDocumentName,
   serializeStrybldrStoryboardMarkdown,
 } from '@/features/strybldr/strybldrStoryboard'
+import { activateStrybldrImportSurface } from '@/features/strybldr/strybldrImportSurface'
 
 const loadWorkspaceImportRuntimeActions = (): Promise<typeof import('./importRuntimeActions')> => import('./importRuntimeActions')
 
@@ -280,15 +281,7 @@ export function useWorkspaceImportActions(args: {
           hydratePending: false,
           applyToGraph: true,
         })
-        try {
-          const store = useGraphStore.getState()
-          store.setCanvasRenderMode('2d')
-          store.setCanvas2dRenderer('strybldr')
-          store.setFloatingPanelOpen(true)
-          store.setFloatingPanelView('strybldr')
-        } catch {
-          void 0
-        }
+        activateStrybldrImportSurface({ canvas2dRenderer: 'strybldr', openFloatingPanel: true })
         const focusPath = storyPath || createdPath
         if (focusPath) {
           await focusAfterImport(focusPath, { applyToGraph: true, jobId })
@@ -427,6 +420,9 @@ export function useWorkspaceImportActions(args: {
         }
         if (selectedCanvas2dRenderer === 'design') {
           activateDesignEditorSurface({ openFloatingPanel: true })
+        }
+        if (selectedCanvas2dRenderer === 'strybldr') {
+          activateStrybldrImportSurface({ canvas2dRenderer: 'strybldr', openFloatingPanel: true })
         }
 
         status.setStatusInfo(summary.imported > 1 ? `Imported ${summary.imported}${summary.suffix}${summary.failureSuffix}` : `Imported URL${summary.suffix}${summary.failureSuffix}`)

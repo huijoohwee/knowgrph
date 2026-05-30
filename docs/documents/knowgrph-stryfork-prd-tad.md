@@ -34,52 +34,46 @@ related:
   - "docs/documents/knowgrph-query-prd-tad.md"
   - "docs/branch-protection.md"
 ---
-
 # Knowgrph Stryfork - PRD and TAD
-
 ## Document Map
-
 This document makes Stryfork existing-repo-relevant. Stryfork is a product-level
 story-fork workflow over the existing `strybldr` runtime, not a new runtime ID,
 parser family, renderer, standalone harness, or generated-artifact stack.
-
 The current repository already has the canonical implementation slice:
-
 - Import images through Launch and Source Files.
+- Import URLs through Launch with the `strybldr` renderer selected, then
+  materialize the imported URL document as a neutral corpus source unit.
+- Import an existing Strybldr Markdown document through Launch -> Import local
+  files, then activate the same runnable Strybldr surface from its frontmatter
+  and storyboard payload.
 - Materialize corpus media source units.
 - Create `.strybldr.md` storyboard documents.
 - Parse those documents into semantic-keyed `GraphData`.
 - Render them on the shared Storyboard surface through the `strybldr` renderer.
 - Let the Strybldr floating panel run local evidence analysis, edit cards, and
   compile a bounded video handoff or fallback artifact.
-
 Operational rollout context follows Dev -> Prod -> Cloudflare. Concrete local
 paths, account identifiers, and host routes are execution evidence for a
 specific rollout, not reusable contract values. Runtime code, tests, fixtures,
 and persisted documents must not hardcode them.
-
 ## Existing Repo Fit
-
 Stryfork means: take a source artifact, preserve its provenance, derive editable
 storyboard structure, and produce an approved handoff from that structure. The
-repo-relevant MVP is image-backed because the current implementation already
+repo-relevant MVP started image-backed because the implementation already
 supports image import, local image analysis, storyboard projection, and video
-handoff.
-
+handoff. The renderer-selected Import URL path now enters through the same
+workspace import and corpus source-unit owners before creating a Strybldr
+document; URL/video-specific evidence is input data, not a second runtime.
 The canonical runtime name remains `strybldr`. This document must not cause a
 new `stryfork` renderer, parser, store field, toolbar branch, fixture, test
-alias, or panel name. Future video or URL story-forking must enter through the
-same Source Files and queryable-corpus source-unit contracts before reaching the
-same Strybldr graph projection.
-
+alias, or panel name. Video or URL story-forking must enter through the same
+Source Files and queryable-corpus source-unit contracts before reaching the same
+Strybldr graph projection.
 ## Legacy Neutralization
-
 The prior Stryfork draft described a separate transcript extraction and
 standalone storyboard rendering pipeline. That is not the current repo shape and
 is removed from this contract.
-
 The valid contract is:
-
 - No separate harness outside the existing web app and workspace import owners.
 - No source-specific fixture as an acceptance dependency.
 - No generated sidecar JSON, SVG-frame, or HTML-player artifact family as the
@@ -91,34 +85,29 @@ The valid contract is:
 - No downstream patch that repairs imported or generated output after the fact.
   Source truth must be neutralized at import, parse, graph projection, or handoff
   ownership.
-
 # Part I - Product Requirements Document
-
 ## Feature
-
 Stryfork is the source-backed story-fork workflow for Knowgrph. In the current
-repo it is implemented as the Strybldr image-to-storyboard path.
-
+repo it is implemented as the Strybldr source-to-storyboard path for imported
+images and renderer-selected imported URLs.
 ## Problem
-
 A solo builder can start from a reference image or visual source, but turning it
 into a traceable storyboard and provider-ready video request usually requires
 manual object listing, prompt writing, provider-specific handoff, and untracked
 fallback notes. This creates duplicate work and makes it hard to prove which
 source image produced which storyboard card.
-
 ## Hypothesis
 
 If Knowgrph reuses its existing import, source-unit, Strybldr, Storyboard,
-semantic-key, and BytePlus owners, then a source image can become an editable
-storyboard and bounded video handoff without a new backend, duplicate renderer,
-hardcoded source, stale fixture, or hidden paid call.
+semantic-key, and BytePlus owners, then an imported source can become an
+editable storyboard and bounded video handoff without a new backend, duplicate
+renderer, hardcoded source, stale fixture, or hidden paid call.
 
 ## Personas
 
 | Persona | Job To Be Done | Constraint |
 |---|---|---|
-| Solo founder | Fork a source image into a storyboard quickly. | Needs a small, local-first loop. |
+| Solo founder | Fork an imported source into a storyboard quickly. | Needs a small, local-first loop. |
 | Creative operator | Inspect and correct cards before generation. | Needs editable evidence and provenance. |
 | Knowgrph maintainer | Extend story workflows without runtime drift. | Needs shared owners and semantic-key reuse. |
 
@@ -126,8 +115,8 @@ hardcoded source, stale fixture, or hidden paid call.
 
 | Stage | Action | Existing Touchpoint | Required Behavior |
 |---|---|---|---|
-| Trigger | User has a visual source. | Launch -> Import Image | No hardcoded image or fixture. |
-| Ingest | User imports image files. | Source Files import actions | Create corpus source units and a `.strybldr.md` document. |
+| Trigger | User has a visual source, URL source, or existing Strybldr Markdown source. | Launch -> Import Image, Launch -> Import URL with Strybldr selected, or Launch -> Import local files | No hardcoded image, URL, path, or fixture. |
+| Ingest | User imports image files, a renderer-selected URL, or an existing Strybldr Markdown file. | Source Files / URL import actions | Create corpus source units and a `.strybldr.md` document when needed; directly activate imported Strybldr Markdown when already present. |
 | Project | Workspace applies the document. | Strybldr parser and Storyboard surface | Render source, storyboard, and element lanes from graph state. |
 | Analyse | User runs local analysis. | Strybldr floating panel | Use local DETR/Human evidence first; keep privacy guardrails. |
 | Edit | User edits title, summary, action, prompt, and order. | Shared graph update path | Update graph card fields, not a detached prompt. |
@@ -138,7 +127,7 @@ hardcoded source, stale fixture, or hidden paid call.
 
 ### PRD-SF-E01 - Source-Backed Import
 
-As a Knowgrph user, I want a source image to create one traceable storyboard
+As a Knowgrph user, I want an imported source to create one traceable storyboard
 document so I can fork the source without a duplicate workspace.
 
 Acceptance criteria:
@@ -149,8 +138,16 @@ Acceptance criteria:
 - Given image source units exist, when the import commit finalizes, then one
   `.strybldr.md` document is created through the Strybldr feature owner and
   focused instead of a raw source file.
-- `/goal`: imported images produce one applied Strybldr graph linked to corpus
-  source-unit provenance, with no source-specific fixture or hardcoded file name.
+- Given Import URL runs with `strybldr` selected, when the imported URL document
+  is committed, then one neutral URL corpus source unit is created and one
+  `.strybldr.md` document is focused before the raw source document.
+- Given Import local files selects an existing Strybldr Markdown document, when
+  the import applies, then the imported file is focused, `Canvas View Mode`
+  resolves to `2D Renderer: Strybldr`, and the Strybldr Run all consumer panel is
+  mounted without a path-specific branch.
+- `/goal`: imported images, renderer-selected URLs, and existing Strybldr
+  Markdown files produce one applied Strybldr graph linked to source
+  provenance, with no source-specific fixture or hardcoded file name.
 
 ### PRD-SF-E02 - Shared Storyboard Projection
 
@@ -231,6 +228,9 @@ Acceptance criteria:
   stale aliases and maps to the shared Storyboard surface.
 - Given toolbar Run All dispatch runs, when the active renderer is `strybldr`,
   then it uses the same shared run event path as other eligible renderers.
+- Given toolbar Run All is enabled for a renderer whose consumer lives in a
+  floating panel, when the user clicks Run All, then the toolbar opens that
+  shared panel owner before dispatching the run event.
 - Given tests cover this feature, when they assert old names, duplicate fallback
   owners, or runtime remaps, then those assertions must be removed or retargeted
   to the canonical owner.
@@ -242,6 +242,7 @@ Acceptance criteria:
 ### Must
 
 - Reuse Launch -> Import Image.
+- Reuse Launch -> Import URL when `strybldr` is explicitly selected.
 - Reuse workspace import actions and corpus media source units.
 - Reuse Strybldr Markdown serialization and parsing.
 - Reuse the shared Storyboard surface for `strybldr`.
@@ -260,8 +261,8 @@ Acceptance criteria:
 
 ### Could
 
-- Add a future video-source mode only after video/transcript evidence becomes a
-  neutral corpus source-unit type.
+- Add richer video-source extraction only after video/transcript evidence
+  remains a neutral corpus source-unit type.
 - Add provider-neutral handoff adapters only after the BytePlus owner remains
   stable and the adapter boundary is shared.
 - Add storyboard comparison only as a Storyboard-surface extension, not a new
@@ -282,7 +283,7 @@ Acceptance criteria:
 
 | Metric | Baseline | Target | Validation |
 |---|---:|---:|---|
-| Source-to-storyboard path | Manual prompt writing | One Import Image run | Focused Strybldr tests |
+| Source-to-storyboard path | Manual prompt writing | One Import Image or Strybldr Import URL run | Focused Strybldr and Import URL tests |
 | Mandatory paid calls | Possible provider-first flow | 0 | Local-analysis and fallback tests |
 | Renderer duplication | Risk of new surface | 0 new surfaces | Renderer registry test |
 | Graph identity helpers | Risk of local hash logic | Shared helper only | Parser/metadata test |
@@ -296,6 +297,7 @@ Acceptance criteria:
 ```mermaid
 flowchart LR
   A["Launch -> Import Image"] --> B["workspace import actions"]
+  A2["Launch -> Import URL (Strybldr selected)"] --> B
   B --> C["queryable-corpus media source units"]
   C --> D["Strybldr storyboard document"]
   D --> E["strybldr-storyboard parser"]
@@ -316,10 +318,13 @@ must be normalized upstream as a corpus source unit before it reaches Strybldr.
 | Component | Existing Owner | Responsibility |
 |---|---|---|
 | Launch image entry | `canvas/src/lib/toolbar/LaunchDropdown.impl.tsx` | Expose Import Image and pass files to the workspace bridge. |
+| Launch URL entry | `canvas/src/lib/toolbar/LaunchDropdown.impl.tsx` and `canvas/src/lib/toolbar/ImportUrlRendererSelect.tsx` | Expose Import URL and the explicit Strybldr renderer selection. |
 | Bridge retry | `canvas/src/lib/toolbar/launchImageImportBridge.ts` | Open Workspace when needed and retry the import bridge before warning. |
-| Workspace import | `canvas/src/features/markdown-workspace/useWorkspaceFileActions/importActions.ts` | Import image files, register source units, create Strybldr Markdown, focus/apply graph, switch to Strybldr. |
+| Workspace import | `canvas/src/features/markdown-workspace/useWorkspaceFileActions/importActions.ts` and `canvas/src/features/markdown-workspace/workspaceImport/urlImport.ts` | Import image files, renderer-selected URLs, or existing Strybldr Markdown, register source units, create Strybldr Markdown when needed, focus/apply graph, switch to Strybldr. |
+| URL content import | `canvas/src/features/markdown-workspace/workspaceImport/urlContent.ts` and `youtubeEntryText.ts` | Convert URL evidence into workspace Markdown while preserving source URL metadata and media kind. |
 | Image registry | `canvas/src/features/strybldr/strybldrImageFileRegistry.ts` | Keep same-session `File` handles for local browser analysis. |
 | Strybldr document owner | `canvas/src/features/strybldr/strybldrStoryboard.ts` | Build, serialize, parse, project, merge, and hand off Strybldr storyboard data. |
+| Strybldr import surface | `canvas/src/features/strybldr/strybldrImportSurface.ts` | Detect Strybldr graph/text imports and mount the canonical Strybldr renderer plus floating-panel Run all consumer. |
 | Strybldr types | `canvas/src/features/strybldr/strybldrTypes.ts` | Define source, element, evidence, and handoff contracts. |
 | Local vision | `canvas/src/features/strybldr/strybldrLocalVision.ts` | Run local DETR and privacy-safe Human geometry analysis. |
 | Parser registry | `canvas/src/features/strybldr/parserSpecs.ts` and `canvas/src/features/parsers/default.ts` | Register Strybldr parsing before generic Markdown. |
@@ -379,8 +384,8 @@ Each `StrybldrSource` must preserve:
 - optional `mediaUrl`
 
 Source identity is derived from source-unit and workspace metadata. It must not
-depend on a specific file path, visible file name, local absolute root, or demo
-image.
+depend on a specific file path, visible file name, local absolute root, demo
+image, or demo URL.
 
 ### Element Contract
 
@@ -454,6 +459,9 @@ Run focused tests first:
 
 ```bash
 npm --prefix canvas run test:ci:unit -- strybldr
+npm --prefix canvas run test:ci:unit -- workspace.importUrl.youtube.strybldrStoryboard
+npm --prefix canvas run test:ci:unit -- youtube
+KNOWGRPH_FORBID_HARDCODE_INPUT="/path/to/demo.md" npm --prefix canvas run test:ci:unit -- policy.forbidHardcodedYouTubeUrlLiteral
 ```
 
 Run changed-file hygiene:
@@ -485,16 +493,20 @@ npm run pages:deploy-cloudflare
 
 ## Validation Evidence
 
-Current evidence for this implementation contract:
+Current evidence for this implementation contract after the Import
+URL-to-Strybldr enhancement:
 
 | Stage | Command | Result | Notes |
 |---|---|---|---|
-| Dev focused regression | `npm --prefix canvas run test:ci:unit -- strybldr` | Passed: 5/5 Strybldr tests | Covers parser, renderer registry, import wiring, video fallback, and privacy guard. |
-| Dev changed-file hygiene | `npm run hygiene:check` | Passed | Validates the current changed-file set against repo hygiene checks. |
+| Dev URL-to-Strybldr regression | `npm --prefix canvas run test:ci:unit -- workspace.importUrl.youtube.strybldrStoryboard` | Passed: 1/1 | Proves renderer-selected Import URL writes a neutral URL corpus source unit, focuses the generated `.strybldr.md` graph document, and produces a runnable Run All handoff prompt. |
+| Dev local Strybldr Markdown import regression | `KNOWGRPH_STRYFORK_DEMO_INPUT=... npm --prefix canvas run test:ci:unit -- workspace.import.localFiles.strybldrRunnableRunAllSurface` | Passed: 1/1 | Uses an external validation file path to prove local import focuses the document, activates `2D Renderer: Strybldr`, mounts the Run all consumer, exposes Source/Elements lanes, and compiles a handoff prompt without embedding the URL or local path in repo code. |
+| Dev Strybldr regression | `npm --prefix canvas run test:ci:unit -- strybldr` | Passed: 7/7 | Covers parser, renderer registry, Import Image wiring, Import URL wiring, local Strybldr Markdown import activation, bounded external-provider fallback, Source Files refresh, and privacy guard. |
+| Dev YouTube/import regression | `KNOWGRPH_FORBID_HARDCODE_INPUT=... npm --prefix canvas run test:ci:unit -- youtube` | Passed: 14/14 | Covers dynamic hardcode validation input, YouTube import, preview behavior, and URL-to-Strybldr creation. |
+| Dev toolbar Run All regression | `npm --prefix canvas run test:ci:unit -- toolbar.workspaceSelect.visibleWhenCollapsed` | Passed: 1/1 | Covers shared Run All readiness plus renderer-owned panel activation before dispatch. |
+| Dev renderer preset regression | `npm --prefix canvas run test:ci:unit -- workspaceImport.urlImport.rendererSelectionDocumentMode` and `npm --prefix canvas run test:ci:unit -- workspaceImport.urlImport.htmlRendererPresetsFetch` | Passed: 2/2 | Covers the expanded Import URL renderer selection and canvas frontmatter presets. |
 | Dev type check | `npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false` | Passed | Required because this contract points at active TypeScript owners. |
-| Prod build | `npm run pages:build` | Passed | Vite emitted existing dynamic/static import warnings but exited successfully. |
-| Prod mirror | `npm run pages:sync` then `npm run pages:check-sync` | Passed | Publish mirror is up to date with the rebuilt app output. |
-| Cloudflare publish | `npm run pages:deploy-cloudflare` | Passed | The local Cloudflare env loader no longer promotes the DNS token into Wrangler's generic API token names. A clean shell now uses the existing Wrangler OAuth login with Pages access, and the Pages deploy completed successfully. |
+| Browser E2E runnable URL path | Local browser at `http://127.0.0.1:5173/`: Launch -> Import URL -> Strybldr -> toolbar Run All | Passed | Fresh import showed Strybldr Source/Elements lanes, toolbar Run All wrote a new `strybldr-video-fallback-*.md` artifact, and browser console errors were 0. |
+| Browser E2E runnable local-file path | Local browser at `http://127.0.0.1:5173/`: Import local files -> Strybldr -> toolbar Run All | Passed | External Markdown validation input imported as Strybldr, mounted the Run All consumer, wrote a new `strybldr-video-fallback-*.md` artifact, and browser console errors were 0. |
 
 ## Test Coverage Matrix
 
@@ -503,6 +515,9 @@ Current evidence for this implementation contract:
 | Strybldr Markdown parses to graph | `canvas/src/__tests__/strybldr.test.ts` | Parser ID, renderer metadata, source-unit provenance, semantic key, Storyboard lanes. |
 | Renderer reuses shared surface | `canvas/src/__tests__/strybldr.test.ts` | `strybldr` resolves canonically, has no aliases, maps to Storyboard, supports Run All. |
 | Import Image wiring | `canvas/src/__tests__/strybldr.test.ts` | Launch, bridge retry, workspace action bridge, import action, floating panel, and Run All wiring. |
+| Import URL Strybldr wiring | `canvas/src/__tests__/workspaceImportUrlStubNoFetch.test.ts` | Strybldr-selected YouTube import creates a source Markdown document, a video corpus source unit, and a focused `.strybldr.md` document. |
+| Import local Strybldr Markdown wiring | `canvas/src/__tests__/workspaceImportLocal.test.ts` | External-input Strybldr Markdown imports as a focused runnable graph with Strybldr panel and Run all handoff readiness. |
+| Hardcode guard | `canvas/src/__tests__/youtubeImportAction.test.ts` | External validation input URLs and YouTube IDs are forbidden in the repo source tree. |
 | Video fallback | `canvas/src/__tests__/strybldr.test.ts` | Handoff reads edited graph cards and writes structured fallback cost evidence. |
 | Privacy guard | `canvas/src/__tests__/strybldr.test.ts` | Local vision uses DETR/Human and disables identity-sensitive Human features. |
 
@@ -542,11 +557,11 @@ cards exist.
 
 Rationale: This keeps the base workflow TCO-zero and makes paid calls visible.
 
-### ADR-005 - Future Video Forking Must Enter Upstream
+### ADR-005 - URL And Video Forking Enters Upstream
 
-Decision: If URL or video story forking is added later, it must first become a
-neutral Source Files/queryable-corpus source-unit path, then reuse the same
-Strybldr graph and handoff contracts.
+Decision: URL or video story forking must first become a neutral Source
+Files/queryable-corpus source-unit path, then reuse the same Strybldr graph and
+handoff contracts.
 
 Rationale: A parallel extraction pipeline would bypass the current import,
 provenance, parser, renderer, and semantic-key owners.

@@ -26,8 +26,8 @@ export function testMarkdownDesignOverlayBlockDragIsRafThrottled() {
   if (!text.includes('createRafValueScheduler') || !text.includes('patchById')) {
     throw new Error('expected markdown design block dragging to use shared raf scheduler + patchById')
   }
-  const onMoveIdx = text.indexOf('onMove: ev =>')
-  if (onMoveIdx < 0) throw new Error('expected markdown design overlay drag onMove handler')
+  const onMoveIdx = text.indexOf('onHeaderDrag={args0 =>')
+  if (onMoveIdx < 0) throw new Error('expected markdown design overlay header drag handler')
   const snippet = text.slice(onMoveIdx, Math.min(text.length, onMoveIdx + 700))
   if (snippet.includes('prev.map(')) {
     throw new Error('expected markdown design block drag to avoid mapping all blocks on each move')

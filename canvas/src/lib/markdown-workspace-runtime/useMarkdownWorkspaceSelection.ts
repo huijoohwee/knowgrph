@@ -5,9 +5,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
-import {
-  resolveWorkspaceDirtyState,
-} from './markdownWorkspaceRuntime.shared'
+import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
 import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
 import { resolveMarkdownWorkspaceBootstrapActivePath } from './markdownWorkspaceSelectionBootstrap'
 import { resolveMarkdownWorkspaceCanonicalSelection } from './markdownWorkspaceSelectionCanonicalPath'
@@ -125,10 +123,17 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
 
   const [selectionPath, setSelectionPath] = React.useState<WorkspacePath | null>(null)
   const selectionPathRef = React.useRef<WorkspacePath | null>(null)
-  selectionPathRef.current = selectionPath
+  const pendingSelectionPathRef = React.useRef<WorkspacePath | null>(null)
+  if (pendingSelectionPathRef.current === selectionPath) {
+    pendingSelectionPathRef.current = null
+  }
+  selectionPathRef.current = pendingSelectionPathRef.current || selectionPath
 
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
-    setSelectionPath(normalizeMarkdownWorkspaceSelectionPath(path))
+    const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
+    pendingSelectionPathRef.current = normalized
+    selectionPathRef.current = normalized
+    setSelectionPath(normalized)
   }, [])
 
   const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])

@@ -40,7 +40,7 @@ import {
 import { renderInlineHtmlElement, renderInlineHtmlToken } from './markdownInlineHtmlToken'
 import { renderInlineMediaWithDownload } from './MarkdownInlineMediaDownload'
 import { YouTubeTimestampPreviewLink } from './MarkdownYouTubeTimestampPreviewLink'
-const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
+import { normalizeSvgDataUriForImg } from './markdownSvgDataUri'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
 
@@ -91,51 +91,6 @@ function InlineMathRenderer({ tex, display }: { tex: string; display: boolean })
   return <span className="inline-block" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-const padBase64 = (raw: string): string => {
-  const s = String(raw || '').trim()
-  if (!s) return ''
-  const mod = s.length % 4
-  if (mod === 0) return s
-  return `${s}${'='.repeat(4 - mod)}`
-}
-
-const decodeBase64ToUtf8 = (b64: string): string => {
-  const raw = padBase64(String(b64 || ''))
-  if (!raw) return ''
-  const anyGlobal = globalThis as unknown as {
-    Buffer?: { from: (input: string, enc: string) => { toString: (enc: string) => string } }
-  }
-  if (anyGlobal.Buffer && typeof anyGlobal.Buffer.from === 'function') {
-    return anyGlobal.Buffer.from(raw, 'base64').toString('utf8')
-  }
-  try {
-    const binary = atob(raw)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
-    return new TextDecoder().decode(bytes)
-  } catch {
-    return ''
-  }
-}
-
-const encodeUtf8ToBase64 = (text: string): string => {
-  const raw = String(text ?? '')
-  const anyGlobal = globalThis as unknown as {
-    Buffer?: { from: (input: string, enc: string) => { toString: (enc: string) => string } }
-  }
-  if (anyGlobal.Buffer && typeof anyGlobal.Buffer.from === 'function') {
-    return anyGlobal.Buffer.from(raw, 'utf8').toString('base64')
-  }
-  const encoder = new TextEncoder()
-  const bytes = encoder.encode(raw)
-  let binary = ''
-  const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) {
-    const slice = bytes.subarray(i, Math.min(bytes.length, i + chunk))
-    binary += String.fromCharCode(...Array.from(slice))
-  }
-  return btoa(binary)
-}
 const INLINE_HTML_WRAPPER_TAGS = new Set([
   'a',
   'abbr',
@@ -173,26 +128,6 @@ const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' |
   const tag = String(openMatch[1] || '').toLowerCase()
   if (!INLINE_HTML_WRAPPER_TAGS.has(tag)) return null
   return { tag, kind: 'open', raw }
-}
-
-const normalizeSvgDataUriForImg = (src: string): string => {
-  const raw = String(src || '').trim()
-  if (!raw.toLowerCase().startsWith(SVG_DATA_URI_BASE64_PREFIX)) return raw
-  const b64Raw = raw.slice(SVG_DATA_URI_BASE64_PREFIX.length)
-  const b64 = padBase64(b64Raw)
-  if (!b64) return raw
-  if (b64.length > 50_000) return raw
-  const decoded = decodeBase64ToUtf8(b64)
-  if (!decoded) return raw
-  const m = decoded.match(/<svg\b([^>]*)>/i)
-  if (!m) return raw
-  const attrs = String(m[1] || '')
-  if (/xmlns\s*=/.test(attrs)) return raw
-  const replacement = `<svg xmlns="http://www.w3.org/2000/svg"${attrs}>`
-  const injected = decoded.replace(m[0], replacement)
-  const nextB64 = encodeUtf8ToBase64(injected)
-  if (!nextB64) return raw
-  return `${SVG_DATA_URI_BASE64_PREFIX}${nextB64}`
 }
 
 const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: string }> => {
@@ -565,7 +500,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'image') {
       const img = t as unknown as TokensImage
-      const resolved = isSafeHref(img.href) ? resolveHref(img.href, activeDocumentPath) : ''
+      const resolved = isSafeMediaSrc(img.href) ? resolveHref(img.href, activeDocumentPath) : ''
       const srcRaw = applyMediaProxySrc(resolved)
       const src = normalizeSvgDataUriForImg(srcRaw)
       const alt = String(img.text || '')

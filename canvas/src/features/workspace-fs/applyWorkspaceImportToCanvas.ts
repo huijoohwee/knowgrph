@@ -29,6 +29,7 @@ import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspa
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { resolveWorkspaceSourceFileInlineText } from './workspaceInlineText'
+import { activateStrybldrImportSurface } from '@/features/strybldr/strybldrImportSurface'
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
@@ -102,6 +103,16 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
     } catch {
       void 0
     }
+  }
+
+  try {
+    activateStrybldrImportSurface({
+      graphData,
+      rawText,
+      openFloatingPanel: true,
+    })
+  } catch {
+    void 0
   }
 
 }

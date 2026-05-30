@@ -41,7 +41,6 @@ import {
   clearLocalEditorWorkspaceSurfaceSnapshot,
   publishLocalEditorWorkspaceSurfaceSnapshot,
 } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
-
 const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
   async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspacePresentationSurface')['MarkdownWorkspacePresentationSurface'] }> =>
     import('./presentation/MarkdownWorkspacePresentationSurface').then(mod => ({ default: mod.MarkdownWorkspacePresentationSurface })),
@@ -157,7 +156,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   }, [frontmatterBlock])
 
   const showWebpageHtml = shouldRenderWebpageIframe(webpageMeta)
-  const forceMarkdownEditorInEditorMode = !modelAssetFormat && (!webpageMeta || webpageMeta.view === 'markdown')
+  const forceMarkdownEditorInEditorMode = !modelAssetFormat && (!webpageMeta || webpageMeta.view === 'markdown' || typeof editorTextOverride === 'string')
 
   const [viewerKind, setViewerKind] = React.useState<MarkdownWorkspaceDerivedViewerKind>('markdown')
   const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>('read')
@@ -185,6 +184,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     webpageUrl: webpageMeta?.url || null,
     webpageView: webpageMeta?.view || null,
     workspaceEditorOverlayOpen,
+    workspaceEditorSurfaceActive: workspaceEditorOverlayOpen || layoutMode === 'editor' || layoutMode === 'split',
     setSplitPaneVisibility,
   })
 

@@ -10,6 +10,7 @@ import {
 import type { WorkspaceImportResult } from '../workspaceImport/types'
 import { shouldApplyImportedCanvasDocumentToGraph } from '../workspaceImport/applyPolicy'
 import { normalizeCorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
+import { activateStrybldrImportSurface } from '@/features/strybldr/strybldrImportSurface'
 
 export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportResult {
   const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
@@ -128,10 +129,15 @@ export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, cr
   if (normalized.length === 0) return null
 
   try {
-    const createdSet = new Set(normalized)
     const entries = await fs.listEntries()
-    const firstFile = entries.find(entry => entry.kind === 'file' && createdSet.has(String(entry.path || '').trim()))
-    if (firstFile) return String(firstFile.path || '').trim() || null
+    const filePaths = new Set(
+      entries
+        .filter(entry => entry.kind === 'file')
+        .map(entry => String(entry.path || '').trim())
+        .filter(Boolean),
+    )
+    const firstFilePath = normalized.find(path => filePaths.has(path))
+    if (firstFilePath) return firstFilePath
   } catch {
     void 0
   }
@@ -198,6 +204,11 @@ export async function activateFirstImportedWorkspaceFile(args: {
         applyCanvasFrontmatterPreset({
           graphData: useGraphStore.getState().graphData,
           rawText: text,
+        })
+        activateStrybldrImportSurface({
+          graphData: useGraphStore.getState().graphData,
+          rawText: text,
+          openFloatingPanel: true,
         })
       } catch {
         void 0

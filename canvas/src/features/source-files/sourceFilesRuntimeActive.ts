@@ -5,41 +5,15 @@ import type { SourceFile } from '@/hooks/store/types'
 import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { readEnvString } from '@/lib/config.env'
-import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncContract'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 import { loadPersistedSourceFilesWorkspace } from '@/features/source-files/sourceFilesDb'
+import { readFirstKnowgrphStorageDocText } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import {
   readCachedWorkspaceActiveEntrySnapshot,
   rememberWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/workspaceActiveEntryCache'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
-const STORAGE_DOC_FALLBACK_TIMEOUT_MS = 8000
-const STORAGE_DOC_FALLBACK_CACHE_TTL_MS = 5 * 60 * 1000
-const STORAGE_DOC_FALLBACK_NEGATIVE_CACHE_TTL_MS = 30 * 1000
-const STORAGE_DOC_FALLBACK_CACHE_MAX_ENTRIES = 64
-const STORAGE_DOC_FALLBACK_CACHE_MAX_CHARS = 1024 * 1024
-
-type StorageDocTextCacheEntry = {
-  text: string
-  expiresAtMs: number
-}
-
-const storageDocTextCache = new Map<string, StorageDocTextCacheEntry>()
-const storageDocTextInFlight = new Map<string, Promise<string>>()
-
-const buildKnowgrphStorageRequestUrl = (args: { path: string; baseUrl: string }): string => {
-  const safePath = normalizeString(args.path)
-  if (!safePath) return ''
-  if (typeof window !== 'undefined') {
-    const host = normalizeString(window.location?.hostname).toLowerCase()
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
-    if (isLocalhost && safePath.startsWith('/api/storage/')) return safePath
-  }
-  const baseUrl = normalizeString(args.baseUrl)
-  if (!baseUrl) return safePath
-  return new URL(safePath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString()
-}
 
 const readStorageCanonicalPathCandidatesForActivePath = (activePath: WorkspacePath): string[] => {
   const normalized = normalizeWorkspacePath(String(activePath || '').trim())
@@ -56,66 +30,6 @@ const readStorageCanonicalPathCandidatesForActivePath = (activePath: WorkspacePa
   out.add(`huijoohwee/docs/${rel}`)
   out.add(`docs/${rel}`)
   return [...out]
-}
-
-const readStorageDocTextViaFetch = async (requestUrl: string): Promise<string> => {
-  if (typeof fetch !== 'function') return ''
-  const url = normalizeString(requestUrl)
-  if (!url) return ''
-  const now = Date.now()
-  const cached = storageDocTextCache.get(url)
-  if (cached && cached.expiresAtMs > now) {
-    storageDocTextCache.delete(url)
-    storageDocTextCache.set(url, cached)
-    return cached.text
-  }
-  if (cached) storageDocTextCache.delete(url)
-  const inFlight = storageDocTextInFlight.get(url)
-  if (inFlight) return inFlight
-  const promise = (async (): Promise<string> => {
-    const text = await readStorageDocTextViaFetchUncached(url)
-    if (!text || text.length <= STORAGE_DOC_FALLBACK_CACHE_MAX_CHARS) {
-      storageDocTextCache.set(url, {
-        text,
-        expiresAtMs: Date.now() + (text ? STORAGE_DOC_FALLBACK_CACHE_TTL_MS : STORAGE_DOC_FALLBACK_NEGATIVE_CACHE_TTL_MS),
-      })
-      while (storageDocTextCache.size > STORAGE_DOC_FALLBACK_CACHE_MAX_ENTRIES) {
-        const oldest = storageDocTextCache.keys().next().value
-        if (!oldest) break
-        storageDocTextCache.delete(oldest)
-      }
-    }
-    return text
-  })()
-  storageDocTextInFlight.set(url, promise)
-  try {
-    return await promise
-  } finally {
-    storageDocTextInFlight.delete(url)
-  }
-}
-
-const readStorageDocTextViaFetchUncached = async (url: string): Promise<string> => {
-  const controller = typeof AbortController === 'function' ? new AbortController() : null
-  const timeout = controller && typeof setTimeout === 'function'
-    ? setTimeout(() => {
-        try {
-          controller.abort()
-        } catch {
-          void 0
-        }
-      }, STORAGE_DOC_FALLBACK_TIMEOUT_MS)
-    : null
-  try {
-    const response = await fetch(url, controller ? { signal: controller.signal } : undefined)
-    if (!response.ok) return ''
-    const text = String(await response.text())
-    return text.trim() ? text : ''
-  } catch {
-    return ''
-  } finally {
-    if (timeout != null) clearTimeout(timeout)
-  }
 }
 
 const readWorkspaceStorageDocFallbackText = async (
@@ -158,17 +72,14 @@ const readWorkspaceStorageDocFallbackText = async (
     for (let w = 0; w < workspaceIds.length; w += 1) {
       const workspaceId = workspaceIds[w]
       if (!workspaceId) continue
-      for (let i = 0; i < canonicalCandidates.length; i += 1) {
-        const canonicalPath = canonicalCandidates[i]
-        if (!canonicalPath) continue
-        const docPath = `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
-        const requestUrl = buildKnowgrphStorageRequestUrl({ path: docPath, baseUrl })
-        if (!requestUrl) continue
-        const text = await readStorageDocTextViaFetch(requestUrl)
-        if (text.trim()) {
-          fallbackByActivePath?.set(normalizedPath, text)
-          return text
-        }
+      const text = await readFirstKnowgrphStorageDocText({
+        baseUrl,
+        workspaceId,
+        canonicalPathCandidates: canonicalCandidates,
+      })
+      if (text.trim()) {
+        fallbackByActivePath?.set(normalizedPath, text)
+        return text
       }
     }
   } catch {
@@ -281,9 +192,10 @@ export async function readActiveWorkspaceSourceFileFallbackText(args: {
   activeFile?: SourceFile | null
   activeWorkspaceEntriesSnapshot?: WorkspaceEntry[]
   fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
+  ignoreActiveFileText?: boolean
 }): Promise<string> {
   const activeText = String(args.activeFile?.text || '')
-  if (activeText.trim()) return activeText
+  if (!args.ignoreActiveFileText && activeText.trim()) return activeText
   const providedSnapshot = readProvidedActiveWorkspaceEntriesSnapshot({
     activePath: args.activePath,
     activeWorkspaceEntriesSnapshot: args.activeWorkspaceEntriesSnapshot,

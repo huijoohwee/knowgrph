@@ -3,6 +3,7 @@ import { looksLikeWebpageShellText } from './webpageShellHeuristics'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { postprocessWebpageMarkdownSsot } from '@/lib/markdown/webpageMarkdownPostprocess'
+import { shouldSkipUnifiedMarkdownConversion } from './webpageMarkdownConversionBudget'
 
 export type WebpageClientConvertResult =
   | { ok: true; markdown: string; title: string }
@@ -107,21 +108,23 @@ export const convertWebpageUrlToMarkdownViaProxyFetch = async (url: string): Pro
       const fidelityLevel: 1 | 2 | 3 | 4 = isSubstackLike ? 4 : h.length > 5_000_000 ? 2 : 4
       return { includeImages, fidelityLevel }
     })()
-    try {
-      const converted = await convertHtmlToMarkdownUnified({
-        html: bounded,
-        baseUrl: url,
-        maxInputChars: 8_000_000,
-        includeImages: auto.includeImages,
-        fidelityLevel: auto.fidelityLevel,
-        includeHeadSection: false,
-      })
-      if (converted.ok === true && converted.markdown.trim()) {
-        const processed = postprocessWebpageMarkdownSsot(converted.markdown)
-        if (processed.trim()) return { ok: true, markdown: processed.trim(), title }
+    if (!shouldSkipUnifiedMarkdownConversion(bounded)) {
+      try {
+        const converted = await convertHtmlToMarkdownUnified({
+          html: bounded,
+          baseUrl: url,
+          maxInputChars: 8_000_000,
+          includeImages: auto.includeImages,
+          fidelityLevel: auto.fidelityLevel,
+          includeHeadSection: false,
+        })
+        if (converted.ok === true && converted.markdown.trim()) {
+          const processed = postprocessWebpageMarkdownSsot(converted.markdown)
+          if (processed.trim()) return { ok: true, markdown: processed.trim(), title }
+        }
+      } catch {
+        void 0
       }
-    } catch {
-      void 0
     }
     const fallbackMd = htmlFallbackToMarkdownAllText(bounded)
     if (fallbackMd.trim()) return { ok: true, markdown: fallbackMd.trim(), title }

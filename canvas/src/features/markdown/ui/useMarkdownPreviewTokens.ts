@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildMarkdownTokensKey, lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { parseMarkdownFrontmatter, splitMarkdownLines, type MarkdownFrontmatter } from '@/lib/markdown'
+import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 
 type LexedMarkdownResult = {
   tokens: TokenWithLines[]
@@ -125,12 +126,20 @@ export function useMarkdownPreviewLexedMarkdown(
   const canCacheInStore = text.length <= 120_000
 
   const storedTokens = useGraphStore(s => s.markdownTokens)
+  const storedTokensPath = useGraphStore(s => s.markdownTokensPath)
   const storedTokensKey = useGraphStore(s => s.markdownTokensKey)
   const storedTokensMeta = useGraphStore(s => s.markdownTokensMeta)
   const storedTokensStartLineOffset = useGraphStore(s => s.markdownTokensStartLineOffset)
   const setMarkdownTokens = useGraphStore(s => s.setMarkdownTokens)
 
   const currentTokensKey = React.useMemo(() => buildMarkdownTokensKey(text), [text])
+  const storedTokensPathMatches = React.useMemo(() => {
+    const activePath = String(activeDocumentPath || '').trim()
+    if (!activePath) return true
+    const storedPath = String(storedTokensPath || '').trim()
+    if (!storedPath) return false
+    return matchesMarkdownDocumentPath(storedPath, activePath)
+  }, [activeDocumentPath, storedTokensPath])
 
   const providedTokensFrontmatter = React.useMemo(() => {
     if (!providedTokens || providedTokens.length === 0) return null
@@ -160,6 +169,7 @@ export function useMarkdownPreviewLexedMarkdown(
     if (
       storedTokens &&
       storedTokensKey === currentTokensKey &&
+      storedTokensPathMatches &&
       storedTokensMeta != null &&
       storedTokensStartLineOffset != null
     ) {
@@ -177,6 +187,7 @@ export function useMarkdownPreviewLexedMarkdown(
     providedTokensFrontmatter,
     storedTokens,
     storedTokensKey,
+    storedTokensPathMatches,
     storedTokensMeta,
     storedTokensStartLineOffset,
     text,
@@ -190,15 +201,17 @@ export function useMarkdownPreviewLexedMarkdown(
     if (!canCacheInStore) return
 
     const keysMatch = storedTokensKey === currentTokensKey
+    const pathMatches = storedTokensPathMatches
     const metaMatches = storedTokensMeta != null && storedTokensMeta === lexed.meta
     const offsetMatches =
       storedTokensStartLineOffset != null && storedTokensStartLineOffset === lexed.startLineOffset
 
-    if (keysMatch && metaMatches && offsetMatches) return
+    if (keysMatch && pathMatches && metaMatches && offsetMatches) return
 
     if (
       lexed.tokens &&
       (!keysMatch ||
+        !pathMatches ||
         storedTokensMeta !== lexed.meta ||
         storedTokensStartLineOffset !== lexed.startLineOffset)
     ) {
@@ -216,6 +229,7 @@ export function useMarkdownPreviewLexedMarkdown(
     lexed.meta,
     lexed.startLineOffset,
     storedTokensKey,
+    storedTokensPathMatches,
     currentTokensKey,
     providedTokens,
     setMarkdownTokens,

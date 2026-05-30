@@ -107,7 +107,7 @@ export const deriveSafeLayoutStyleFromClassAttrImpl = (rawClass: string): React.
     if (inner.length > 120) return ''
     if (/url\s*\(|expression\s*\(|@import/i.test(inner)) return ''
     if (!/^[a-zA-Z0-9\s().,%:/_+-]+$/.test(inner)) return ''
-    return inner
+    return inner.replace(/_/g, ' ')
   }
   const toDimension = (util: string): string | null => {
     if (/^(?:full)$/i.test(util)) return '100%'
@@ -115,6 +115,21 @@ export const deriveSafeLayoutStyleFromClassAttrImpl = (rawClass: string): React.
     if (/^min$/i.test(util)) return 'min-content'
     if (/^max$/i.test(util)) return 'max-content'
     if (/^fit$/i.test(util)) return 'fit-content'
+    const namedMaxWidthRem: Record<string, string> = {
+      xs: '20rem',
+      sm: '24rem',
+      md: '28rem',
+      lg: '32rem',
+      xl: '36rem',
+      '2xl': '42rem',
+      '3xl': '48rem',
+      '4xl': '56rem',
+      '5xl': '64rem',
+      '6xl': '72rem',
+      '7xl': '80rem',
+      prose: '65ch',
+    }
+    if (namedMaxWidthRem[util]) return namedMaxWidthRem[util]
     const frac = util.match(/^(\d+)\/(\d+)$/)
     if (frac) {
       const a = Number.parseInt(frac[1], 10)
@@ -364,6 +379,9 @@ export const deriveSafeLayoutStyleFromClassAttrImpl = (rawClass: string): React.
 
   const out: React.CSSProperties = {}
   if (display) out.display = display.value as React.CSSProperties['display']
+  else if (gridCols || gridRows || gridColsArb || gridRowsArb || gridAutoFlow || gridAutoRows || gridAutoCols || gridAutoRowsArb || gridAutoColsArb) {
+    out.display = 'grid'
+  }
   if (tableLayout) out.tableLayout = tableLayout.value as React.CSSProperties['tableLayout']
   if (borderCollapse) out.borderCollapse = borderCollapse.value as React.CSSProperties['borderCollapse']
   if (gridCols) out.gridTemplateColumns = `repeat(${gridCols.value}, minmax(0, 1fr))`

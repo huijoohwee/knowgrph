@@ -23,6 +23,7 @@ import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from 
 import { getDefaultNewWorkspaceFileName, resolveNewWorkspaceFileDraft } from './fileDraft'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { shouldApplyImportedCanvasDocumentToGraph } from '../workspaceImport/applyPolicy'
+import { activateStrybldrImportSurface } from '@/features/strybldr/strybldrImportSurface'
 
 const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
 
@@ -224,6 +225,11 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         applyCanvasFrontmatterPreset({
           graphData: useGraphStore.getState().graphData,
           rawText: resolvedText,
+        })
+        activateStrybldrImportSurface({
+          graphData: useGraphStore.getState().graphData,
+          rawText: resolvedText,
+          openFloatingPanel: true,
         })
       } catch {
         void 0

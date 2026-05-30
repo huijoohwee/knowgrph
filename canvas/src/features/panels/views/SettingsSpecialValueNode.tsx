@@ -292,7 +292,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.chatHistoryPathStatus}</div>
           )}
         </div>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localImportInputRef.current) }} className={pillButtonClassName}>Import Local</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localImportInputRef.current) }} className={pillButtonClassName}>Import Files</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.localFolderImportInputRef.current) }} className={pillButtonClassName}>Import Folder</button>
         <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsChatHistory() }} className={pillButtonClassName}>Use Active</button>
         <button type="button" onClick={e => { e.stopPropagation(); void actions.createAndSelectChatHistoryFile() }} disabled={status.isUpdatingChatHistoryPath} className={pillButtonClassName}>{status.isUpdatingChatHistoryPath ? 'Creating...' : 'New File'}</button>
         <button
@@ -324,7 +325,8 @@ export function SettingsSpecialValueNode(props: SettingsSpecialValueNodeProps): 
             <div className={`mt-1 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${ui.uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{status.knowgrphPathStatus}</div>
           )}
         </div>
-        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalImportInputRef.current) }} className={pillButtonClassName}>Import Local</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalImportInputRef.current) }} className={pillButtonClassName}>Import Files</button>
+        <button type="button" onClick={e => { e.stopPropagation(); actions.openFilePicker(refs.kgcLocalFolderImportInputRef.current) }} className={pillButtonClassName}>Import Folder</button>
         <button type="button" onClick={e => { e.stopPropagation(); actions.applyActiveWorkspaceFileAsKnowgrph() }} className={pillButtonClassName}>Use Active</button>
         <button type="button" onClick={e => { e.stopPropagation(); void actions.createAndSelectKnowgrphFile() }} disabled={status.isUpdatingKnowgrphPath} className={pillButtonClassName}>{status.isUpdatingKnowgrphPath ? 'Creating...' : 'New File'}</button>
         <button

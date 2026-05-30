@@ -3,11 +3,10 @@ import { buildCodebaseFilePath, buildLocalFsFetchPath } from '@/lib/url'
 import { readWorkspaceImportDefaultSourceUrlSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 import {
-  KNOWGRPH_STORAGE_ROUTE_PATHS,
   buildKnowgrphStorageExportPath,
   type KnowgrphStorageExportResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
-import { readCachedWorkspaceDocsMirrorEntries, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
+import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
@@ -217,19 +216,6 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageExportUncached = async (a
   }
 }
 
-const buildKnowgrphStorageRequestUrl = (args: { path: string; baseUrl: string }): string => {
-  const safePath = String(args.path || '').trim()
-  if (!safePath) return ''
-  if (typeof window !== 'undefined') {
-    const host = String(window.location?.hostname || '').trim().toLowerCase()
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
-    if (isLocalhost && safePath.startsWith('/api/storage/')) return safePath
-  }
-  const baseUrl = String(args.baseUrl || '').trim()
-  if (!baseUrl) return safePath
-  return new URL(safePath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString()
-}
-
 const readCanonicalPathCandidatesForSourcePath = (sourcePathRaw: string): string[] => {
   const sourcePath = String(sourcePathRaw || '').trim().replace(/\\/g, '/')
   if (!sourcePath) return []
@@ -298,9 +284,9 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles = async
   const sourceFiles = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
   if (sourceFiles.length === 0) return []
   const selectedFolderPath = normalizeMirrorRelPath(args.selectedFolderPath)
-  const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
   const maxFiles = Math.min(WORKSPACE_DOCS_MIRROR_MAX_FILES, 16)
-  for (let i = 0; i < sourceFiles.length && byRelPath.size < maxFiles; i += 1) {
+  const candidates: Array<Promise<WorkspaceDocsMirrorEntry | null>> = []
+  for (let i = 0; i < sourceFiles.length && candidates.length < maxFiles; i += 1) {
     const sourceFile = sourceFiles[i]
     if (!sourceFile) continue
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
@@ -319,25 +305,25 @@ const readWorkspaceDocsMirrorEntriesFromKnowgrphStorageDocsBySourceFiles = async
       return ''
     })()
     if (!relPath) continue
-    let text = ''
-    for (let c = 0; c < canonicalCandidates.length; c += 1) {
-      const canonicalPath = canonicalCandidates[c]
-      if (!canonicalPath) continue
-      const docPath = `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
-      const requestUrl = buildKnowgrphStorageRequestUrl({ path: docPath, baseUrl: args.baseUrl })
-      if (!requestUrl) continue
-      const fetched = await readTextViaFetch(requestUrl)
-      if (!fetched) continue
-      text = fetched
-      break
-    }
-    if (!text.trim()) continue
     const updatedAtMsRaw = Number(sourceFile.updatedAtMs)
     const updatedAtMs = Number.isFinite(updatedAtMsRaw) ? Math.floor(updatedAtMsRaw) : Date.now()
-    const next: WorkspaceDocsMirrorEntry = { relPath, text, updatedAtMs }
-    const existing = byRelPath.get(relPath)
+    candidates.push((async () => {
+      const text = await readFirstKnowgrphStorageDocText({
+        baseUrl: args.baseUrl,
+        workspaceId,
+        canonicalPathCandidates: canonicalCandidates,
+      })
+      return text.trim() ? { relPath, text, updatedAtMs } : null
+    })())
+  }
+  const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
+  const resolved = await Promise.all(candidates)
+  for (let i = 0; i < resolved.length; i += 1) {
+    const next = resolved[i]
+    if (!next) continue
+    const existing = byRelPath.get(next.relPath)
     if (!existing || next.updatedAtMs >= existing.updatedAtMs) {
-      byRelPath.set(relPath, next)
+      byRelPath.set(next.relPath, next)
     }
   }
   return [...byRelPath.values()]
@@ -531,6 +517,7 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecords = (args: {
     if (!existing || next.updatedAtMs >= existing.updatedAtMs) {
       byRelPath.set(relPath, next)
     }
+    if (byRelPath.size >= WORKSPACE_DOCS_MIRROR_MAX_FILES) break
   }
   return [...byRelPath.values()]
     .sort((a, b) => a.relPath.localeCompare(b.relPath))
@@ -610,8 +597,18 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
     }
     return [...out]
   }
-  const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
-  for (let i = 0; i < sourceFiles.length; i += 1) {
+  const readFirstLocalFsMirrorText = async (sourcePathRaw: string): Promise<string> => {
+    const fsCandidates = buildLocalFsHydrationCandidates(sourcePathRaw)
+    for (let c = 0; c < fsCandidates.length; c += 1) {
+      const localFsUrl = buildLocalFsFetchPath(fsCandidates[c]!)
+      if (!localFsUrl) continue
+      const hydrated = await readTextViaFetch(localFsUrl)
+      if (hydrated?.trim()) return hydrated
+    }
+    return ''
+  }
+  const candidates: Array<Promise<WorkspaceDocsMirrorEntry | null>> = []
+  for (let i = 0; i < sourceFiles.length && candidates.length < WORKSPACE_DOCS_MIRROR_MAX_FILES; i += 1) {
     const sourceFile = sourceFiles[i]
     if (!sourceFile) continue
     const sourceKind = String(sourceFile.source?.kind || '').trim().toLowerCase()
@@ -625,40 +622,29 @@ const readWorkspaceDocsMirrorEntriesFromSourceFilesRecordsHydrated = async (args
     if (!relPath || !isWorkspaceSourceMirrorFileName(relPath)) continue
 
     let text = String(sourceFile.text || '')
-    if (!text.trim()) {
-      if (storageFallbackConfigured) {
-        const canonicalCandidates = readCanonicalPathCandidatesForSourcePath(sourcePathRaw)
-        for (let c = 0; c < canonicalCandidates.length; c += 1) {
-          const canonicalPath = String(canonicalCandidates[c] || '').trim()
-          if (!canonicalPath) continue
-          const docPath = `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(fallbackWorkspaceId)}/${encodeURIComponent(canonicalPath)}`
-          const requestUrl = buildKnowgrphStorageRequestUrl({ path: docPath, baseUrl: fallbackBaseUrl })
-          if (!requestUrl) continue
-          const hydrated = await readTextViaFetch(requestUrl)
-          if (!hydrated) continue
-          text = hydrated
-          break
-        }
-      } else {
-        const fsCandidates = buildLocalFsHydrationCandidates(sourcePathRaw)
-        for (let c = 0; c < fsCandidates.length; c += 1) {
-          const localFsUrl = buildLocalFsFetchPath(fsCandidates[c]!)
-          if (!localFsUrl) continue
-          const hydrated = await readTextViaFetch(localFsUrl)
-          if (!hydrated) continue
-          text = hydrated
-          break
-        }
-      }
-    }
-    if (!text.trim()) continue
-
     const updatedAtMsRaw = Number(sourceFile.updatedAtMs)
     const updatedAtMs = Number.isFinite(updatedAtMsRaw) ? Math.floor(updatedAtMsRaw) : Date.now()
-    const next: WorkspaceDocsMirrorEntry = { relPath, text, updatedAtMs }
-    const existing = byRelPath.get(relPath)
+    candidates.push((async () => {
+      if (!text.trim()) {
+        text = storageFallbackConfigured
+          ? await readFirstKnowgrphStorageDocText({
+              baseUrl: fallbackBaseUrl,
+              workspaceId: fallbackWorkspaceId,
+              canonicalPathCandidates: readCanonicalPathCandidatesForSourcePath(sourcePathRaw),
+            })
+          : await readFirstLocalFsMirrorText(sourcePathRaw)
+      }
+      return text.trim() ? { relPath, text, updatedAtMs } : null
+    })())
+  }
+  const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
+  const resolved = await Promise.all(candidates)
+  for (let i = 0; i < resolved.length; i += 1) {
+    const next = resolved[i]
+    if (!next) continue
+    const existing = byRelPath.get(next.relPath)
     if (!existing || next.updatedAtMs >= existing.updatedAtMs) {
-      byRelPath.set(relPath, next)
+      byRelPath.set(next.relPath, next)
     }
   }
   return [...byRelPath.values()]

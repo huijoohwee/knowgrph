@@ -261,6 +261,7 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
   const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
   const state = useGraphStore.getState()
   const prevMode = state.richMediaPanelMode
+  let root: ReturnType<typeof createRoot> | null = null
   try {
     state.setRichMediaPanelMode('snapshot')
     ;(globalThis as unknown as { fetch?: unknown }).fetch = (async (input: unknown) => {
@@ -269,7 +270,7 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
     const doc = dom.window.document
     const container = doc.createElement('div')
     doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
+    root = createRoot(container as unknown as HTMLElement)
 
     const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as MarkdownPresentationApi | null }
@@ -329,11 +330,15 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
     if (doc.querySelector('[data-kg-webpage-snapshot="1"]')) {
       throw new Error('expected HTML editor workspace to render source HTML, not a snapshot placeholder')
     }
-    const viewerPane = doc.querySelector('section[aria-label="Viewer"] section[aria-label="Webpage Viewer"]')
-    if (!viewerPane) throw new Error('expected editor layout to keep the selected HTML viewer pane mounted')
+    const viewerPane = doc.querySelector('section[aria-label="Viewer"]')
+    if (!viewerPane) throw new Error('expected editor layout to keep the Viewer pane mounted')
+    const htmlPane = doc.querySelector('section[aria-label="HTML Viewer"] section[aria-label="Webpage Viewer"]')
+    if (!htmlPane) throw new Error('expected editor layout to keep the selected HTML viewer pane mounted')
 
     root.unmount()
+    root = null
   } finally {
+    root?.unmount()
     state.setRichMediaPanelMode(prevMode)
     ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
     restore()

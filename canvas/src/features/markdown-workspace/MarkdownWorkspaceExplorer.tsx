@@ -52,7 +52,7 @@ export type MarkdownWorkspaceExplorerProps = {
 
   onTocReorder: (parentId: string | null, fromIndex: number, toIndex: number) => void
 
-  onCreateNewFile: () => void
+  onCreateNewFile: (parentPath?: WorkspacePath) => void
   onRefresh: () => void
 
   canRefreshActiveFromSource: boolean

@@ -363,7 +363,7 @@ export function testCanvasViewportMountsOnlyActiveRendererSurface() {
   const requiredSnippets = [
     "d3SurfaceActive ? <GraphCanvasLazy active /> : null",
     "active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null",
-    "active2dSurface === 'flowEditor' ? <FlowEditorCanvas active /> : null",
+    "active2dSurface === 'flowEditor' ? <FlowEditorCanvasLazy active /> : null",
     "canvasRenderMode === '2d' && (",
   ]
   const missing = requiredSnippets.filter(s => !text.includes(s))

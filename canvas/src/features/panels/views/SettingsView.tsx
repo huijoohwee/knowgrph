@@ -188,11 +188,15 @@ export default function SettingsView({
     importCloudUrlForKnowgrph,
     importLocalFilesForChatHistory,
     importLocalFilesForKnowgrph,
+    importLocalFolderForChatHistory,
+    importLocalFolderForKnowgrph,
     isUpdatingChatHistoryPath,
     isUpdatingKnowgrphPath,
     kgcLocalImportInputRef,
+    kgcLocalFolderImportInputRef,
     knowgrphPathStatus,
     localImportInputRef,
+    localFolderImportInputRef,
     setChatHistoryPathStatus,
     setKnowgrphPathStatus,
     openFilePicker,
@@ -305,8 +309,10 @@ export default function SettingsView({
     isUpdatingChatHistoryPath,
     isUpdatingKnowgrphPath,
     kgcLocalImportInputRef,
+    kgcLocalFolderImportInputRef,
     knowgrphPathStatus,
     localImportInputRef,
+    localFolderImportInputRef,
     normalizedChatProvider,
     openFilePicker,
     openWorkspaceFile,
@@ -364,6 +370,22 @@ export default function SettingsView({
         }}
       />
       <input
+        ref={el => {
+          kgcLocalFolderImportInputRef.current = el
+          if (!el) return
+          el.setAttribute('webkitdirectory', '')
+          el.setAttribute('directory', '')
+        }}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={e => {
+          const files = e.currentTarget.files
+          importLocalFolderForKnowgrph(files)
+          e.currentTarget.value = ''
+        }}
+      />
+      <input
         ref={localImportInputRef}
         type="file"
         multiple
@@ -372,6 +394,22 @@ export default function SettingsView({
         onChange={e => {
           const files = e.currentTarget.files
           importLocalFilesForChatHistory(files)
+          e.currentTarget.value = ''
+        }}
+      />
+      <input
+        ref={el => {
+          localFolderImportInputRef.current = el
+          if (!el) return
+          el.setAttribute('webkitdirectory', '')
+          el.setAttribute('directory', '')
+        }}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={e => {
+          const files = e.currentTarget.files
+          importLocalFolderForChatHistory(files)
           e.currentTarget.value = ''
         }}
       />

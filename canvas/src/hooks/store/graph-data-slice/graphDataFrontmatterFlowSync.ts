@@ -360,7 +360,13 @@ export function isActiveMarkdownSourceFile(state: GraphState, file: GraphState['
     state,
     fallbackName: state.markdownDocumentName,
   })
-  return preferred === file
+  if (!preferred || !file) return false
+  const preferredId = String(preferred.id || '').trim()
+  const fileId = String(file.id || '').trim()
+  if (preferredId && fileId && preferredId === fileId) return true
+  const preferredPath = readComposedSourceFilePath(preferred)
+  const filePath = readComposedSourceFilePath(file)
+  return !!preferredPath && preferredPath === filePath
 }
 
 export function findSourceFileForMarkdownDocument(state: GraphState, name: string): GraphState['sourceFiles'][number] | null {

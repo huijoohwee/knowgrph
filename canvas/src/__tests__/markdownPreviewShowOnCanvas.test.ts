@@ -6,6 +6,7 @@ import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/mark
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import type { GraphData } from '@/lib/graph/types'
 
 const findButtonByExactText = (rootEl: HTMLElement, label: string): HTMLButtonElement | null => {
@@ -99,7 +100,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    root.render(
+    await mountReactRoot(root,
       React.createElement(MarkdownPreview, {
         markdownText,
         activeDocumentPath: 'docs/example.md',
@@ -113,6 +114,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
         previewOverlayPortalTarget: null,
         previewScrollable: true,
       } as never),
+      { window: dom.window as unknown as Window, frames: 1, tasks: 1 },
     )
 
     const tick = (label: string) =>
@@ -131,8 +133,6 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
           resolve()
         }, 0)
       })
-    await tick('mount')
-
     const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
     if (!rootEl) {
       throw new Error('markdown preview root not found')
@@ -154,24 +154,30 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
       clientX: 10,
       clientY: 10,
     })
-    targetBlock.dispatchEvent(contextMenuEvent)
-    await tick('contextmenu')
+    await React.act(async () => {
+      targetBlock.dispatchEvent(contextMenuEvent)
+      await tick('contextmenu')
+    })
     let menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     if (!menuButton) {
       const actionsButton = findButtonByAriaLabel(rootEl, 'Selection actions')
       if (!actionsButton) {
         throw new Error('Selection actions button not found')
       }
-      actionsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-      await tick('actions-open')
+      await React.act(async () => {
+        actionsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+        await tick('actions-open')
+      })
       menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     }
     if (!menuButton) {
       throw new Error('Show on Canvas menu button not found')
     }
 
-    menuButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await tick('show-on-canvas')
+    await React.act(async () => {
+      menuButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick('show-on-canvas')
+    })
 
     const selectedNodeId = useGraphStore.getState().selectedNodeId
     const selectedEdgeId = useGraphStore.getState().selectedEdgeId
@@ -183,7 +189,7 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
 
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window as unknown as Window, tasks: 1 })
     } catch {
       void 0
     }
@@ -225,7 +231,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    root.render(
+    await mountReactRoot(root,
       React.createElement(MarkdownPreview, {
         markdownText,
         activeDocumentPath: 'docs/example.md',
@@ -239,6 +245,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
         previewOverlayPortalTarget: null,
         previewScrollable: true,
       } as never),
+      { window: dom.window as unknown as Window, frames: 1, tasks: 1 },
     )
 
     const tick = (label: string) =>
@@ -257,8 +264,6 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
           resolve()
         }, 0)
       })
-    await tick('mount')
-
     const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
     if (!rootEl) {
       throw new Error('markdown preview root not found')
@@ -280,16 +285,20 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
       clientX: 10,
       clientY: 10,
     })
-    targetBlock.dispatchEvent(contextMenuEvent)
-    await tick('contextmenu')
+    await React.act(async () => {
+      targetBlock.dispatchEvent(contextMenuEvent)
+      await tick('contextmenu')
+    })
     let menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     if (!menuButton) {
       const actionsButton = findButtonByAriaLabel(rootEl, 'Selection actions')
       if (!actionsButton) {
         throw new Error('Selection actions button not found inside markdown preview root')
       }
-      actionsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-      await tick('actions-open')
+      await React.act(async () => {
+        actionsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+        await tick('actions-open')
+      })
       menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
     }
     if (!menuButton) {
@@ -298,7 +307,7 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
 
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window as unknown as Window, tasks: 1 })
     } catch {
       void 0
     }
@@ -342,7 +351,7 @@ export async function testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    root.render(
+    await mountReactRoot(root,
       React.createElement(MarkdownPreview, {
         markdownText: markdownB,
         activeDocumentPath: 'docB.md',
@@ -356,25 +365,8 @@ export async function testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath() {
         previewOverlayPortalTarget: null,
         previewScrollable: true,
       } as never),
+      { window: dom.window as unknown as Window, frames: 1, tasks: 1 },
     )
-
-    const tick = (label: string) =>
-      new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 750) as unknown as number
-        const raf = anyWindow.requestAnimationFrame
-        if (typeof raf === 'function') {
-          raf(() => {
-            clearTimeout(timer)
-            resolve()
-          })
-          return
-        }
-        setTimeout(() => {
-          clearTimeout(timer)
-          resolve()
-        }, 0)
-      })
-    await tick('mount')
 
     const rootEl = doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null
     if (!rootEl) throw new Error('markdown preview root not found')
@@ -388,7 +380,7 @@ export async function testMarkdownPreviewTokenCacheDoesNotCrossDocumentPath() {
     }
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window as unknown as Window, tasks: 1 })
     } catch {
       void 0
     }
@@ -417,24 +409,7 @@ export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath(
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    const tick = (label: string) =>
-      new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), 750) as unknown as number
-        const raf = anyWindow.requestAnimationFrame
-        if (typeof raf === 'function') {
-          raf(() => {
-            clearTimeout(timer)
-            resolve()
-          })
-          return
-        }
-        setTimeout(() => {
-          clearTimeout(timer)
-          resolve()
-        }, 0)
-      })
-
-    root.render(
+    await mountReactRoot(root,
       React.createElement(MarkdownPreview, {
         markdownText: ['# A', '', 'alpha'].join('\n'),
         activeDocumentPath: 'docA.md',
@@ -449,10 +424,10 @@ export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath(
         previewScrollable: true,
         viewMode: 'viewer',
       } as never),
+      { window: dom.window as unknown as Window, frames: 1, tasks: 1 },
     )
-    await tick('mount-A')
 
-    root.render(
+    await mountReactRoot(root,
       React.createElement(MarkdownPreview, {
         markdownText: ['# B', '', 'beta'].join('\n'),
         activeDocumentPath: 'docB.md',
@@ -467,8 +442,8 @@ export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath(
         previewScrollable: true,
         viewMode: 'presentation',
       } as never),
+      { window: dom.window as unknown as Window, frames: 1, tasks: 1 },
     )
-    await tick('mount-B')
 
     const rootEl =
       (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null) ||
@@ -483,7 +458,7 @@ export async function testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath(
     }
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window as unknown as Window, tasks: 1 })
     } catch {
       void 0
     }

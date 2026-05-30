@@ -37,6 +37,7 @@ import {
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import {
   areSourceFilesEqualByIdAndHash,
+  areRuntimeSourceFilesEqualByIdAndHash,
   buildSourceFilesCompositionSignature,
   buildSourceFilesPersistenceSignature,
   type SourceFilesCompositionSignatureOptions,
@@ -70,14 +71,12 @@ import {
   loadKnowgrphStorageRuntimeDependencies,
   type KnowgrphStorageRuntimeDependencies,
 } from '@/features/source-files/sourceFilesKnowgrphStorageRuntime'
-
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
 const ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS = 800
 const markWorkspaceSeedSyncDebug = (source: string): void => {
   __canvasStartupDebug.workspaceSeedLastSyncAtMs = Date.now()
   __canvasStartupDebug.workspaceSeedLastSyncSource = String(source || '').trim()
 }
-
 function schedulePersistedSnapshotIfChanged<Snapshot>(args: {
   taskKey: string
   scopeKey: string
@@ -95,7 +94,6 @@ function schedulePersistedSnapshotIfChanged<Snapshot>(args: {
     void args.persist(nextSnapshot)
   }, SOURCE_FILES_PERSIST_DELAY_MS, { signature: args.signature, scopeKey: args.scopeKey })
 }
-
 function subscribeCoalescedStorePersistence<Snapshot>(args: {
   taskKey: string
   scopeKey: string
@@ -127,7 +125,6 @@ function subscribeCoalescedStorePersistence<Snapshot>(args: {
     { equalityFn: args.equalityFn },
   )
 }
-
 function stripPersistedWorkspaceBackedSourceFiles(value: unknown) {
   const items = Array.isArray(value) ? value : []
   return items.filter(entry => {
@@ -350,7 +347,7 @@ export function SourceFilesPersistenceBootstrap() {
       sourceFiles => {
         latestSourceFilesSnapshotRef.current = readCurrentSourceFilesSnapshot(sourceFiles as ReturnType<typeof useGraphStore.getState>['sourceFiles'])
       },
-      { equalityFn: areSourceFilesEqualByIdAndHash },
+      { equalityFn: areRuntimeSourceFilesEqualByIdAndHash },
     )
     return () => {
       latestSourceFilesSnapshotRef.current = []
@@ -573,11 +570,12 @@ export function SourceFilesPersistenceBootstrap() {
       explorerActivePath: args?.activePathSnapshot == null ? useMarkdownExplorerStore.getState().activePath : null,
     })
     if (!activePath) return null
+    const activePathKey = buildMaterializedWorkspaceActivePathKey({
+      activePathOverride: activePath,
+    })
     return {
       activePath,
-      activePathKey: buildMaterializedWorkspaceActivePathKey({
-        activePathOverride: activePath,
-      }),
+      activePathKey,
       sourceFilesSnapshot: readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot),
       workspaceEntriesSnapshot: args?.workspaceEntriesSnapshot === undefined
         ? reusableWorkspaceEntriesRef.current
@@ -595,7 +593,9 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   const shouldSkipActivePathMaterializationRequest = React.useCallback((request: ActivePathMaterializationRequest): boolean => {
-    return lastMaterializedActivePathRef.current === request.activePathKey
+    const activePathKey = request.activePathKey
+    if (lastMaterializedActivePathRef.current === activePathKey) return true
+    return false
   }, [])
 
   const runActivePathMaterialization = React.useCallback((request: ActivePathMaterializationRequest) => {
@@ -702,20 +702,20 @@ export function SourceFilesPersistenceBootstrap() {
     }
     const sourcesByPathSnapshot = readReusableWorkspaceSourceIndexSnapshot()
     if (request.op === 'ensureSeed') {
+      const sourceFilesSnapshot = readCallerOwnedSourceFilesSnapshot()
       void materializeActiveWorkspaceEntryIntoSourceFiles({
         activePathOverride: request.activePathRequest?.activePath,
         fs: reusableWorkspaceFsRef.current || undefined,
-        activeWorkspaceEntriesSnapshot: request.activePathRequest?.workspaceEntriesSnapshot,
-        sourceFilesSnapshot: request.sourceFilesSnapshot,
-        workspaceEntries: request.activePathRequest?.workspaceEntriesSnapshot,
+        sourceFilesSnapshot,
         sourcesByPath: sourcesByPathSnapshot,
+        refreshActiveText: true,
       }).catch(() => {
         void 0
       })
     }
     markWorkspaceSeedSyncDebug(`workspace-fs:${request.op}`)
     scheduleWorkspaceRematerializeRef.current?.({ sourceFilesSnapshot: request.sourceFilesSnapshot })
-  }, [isWorkspaceSourceRootMutationPath, readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
+  }, [isWorkspaceSourceRootMutationPath, readCallerOwnedSourceFilesSnapshot, readReusableWorkspaceSourceIndexSnapshot, workspaceSourceFilesDocsOnly])
 
   const prepareEnsureSeedMutationRequest = React.useCallback((args?: {
     sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']

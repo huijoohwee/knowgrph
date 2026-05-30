@@ -4,9 +4,13 @@ import { resolve } from 'node:path'
 export function testViewLockCopyAndRendererGuardsStayConsistent() {
   const interactionPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'InteractionModeSelect.tsx')
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const flowCanvasGraphStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
   const flowEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const graphRootPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'GraphCanvasRootImpl.tsx')
   const designPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas.tsx')
+  const designFrameDragPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useFrameDragController.ts')
+  const designResizePath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useResizeMarqueeController.ts')
+  const designGroupResizePath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useGroupResizeController.ts')
   const minimapPath = resolve(process.cwd(), 'src', 'features', 'minimap', 'Minimap.tsx')
   const threeLayoutPath = resolve(process.cwd(), 'src', 'features', 'three', 'layout.ts')
   const canvasSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'canvasSlice.ts')
@@ -15,9 +19,13 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
 
   const interactionText = readFileSync(interactionPath, 'utf8')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
+  const flowCanvasGraphStateText = readFileSync(flowCanvasGraphStatePath, 'utf8')
   const flowEditorText = readFileSync(flowEditorPath, 'utf8')
   const graphRootText = readFileSync(graphRootPath, 'utf8')
   const designText = readFileSync(designPath, 'utf8')
+  const designFrameDragText = readFileSync(designFrameDragPath, 'utf8')
+  const designResizeText = readFileSync(designResizePath, 'utf8')
+  const designGroupResizeText = readFileSync(designGroupResizePath, 'utf8')
   const minimapText = readFileSync(minimapPath, 'utf8')
   const threeLayoutText = readFileSync(threeLayoutPath, 'utf8')
   const canvasSliceText = readFileSync(canvasSlicePath, 'utf8')
@@ -30,7 +38,7 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   if (interactionText.includes("label: 'Mode switch: Lock'")) {
     throw new Error('unexpected legacy Mode switch label in Interaction menu')
   }
-  if (!flowCanvasText.includes("const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true")) {
+  if (!flowCanvasGraphStateText.includes("const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true")) {
     throw new Error('expected Flow renderer to block drag mutations while View Lock is ON')
   }
   if (!flowEditorText.includes("const canEdit = active && !documentStructureBaselineLock")) {
@@ -39,7 +47,12 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   if (!graphRootText.includes("allowNodeDrag: documentStructureBaselineLock !== true && schema?.behavior?.allowNodeDrag !== false")) {
     throw new Error('expected D3/Flowchart drag binding to honor View Lock state')
   }
-  if ((designText.match(/snapshot\.documentStructureBaselineLock === true\) return/g) || []).length < 3) {
+  if (
+    !designText.includes('documentStructureBaselineLock: baselineLock')
+    || !designFrameDragText.includes('if (documentStructureBaselineLock) return')
+    || !designResizeText.includes('if (documentStructureBaselineLock) return')
+    || !designGroupResizeText.includes('if (documentStructureBaselineLock) return')
+  ) {
     throw new Error('expected Design renderer drag/resize entry points to guard on View Lock')
   }
   if (!copyText.includes('View Lock is ON. Turn it OFF to drag or edit graph elements.')) {

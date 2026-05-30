@@ -7,6 +7,7 @@ import {
   buildYouTubeEmbedUrl,
   isAbsoluteWebUrl,
   isSafeHref,
+  isSafeMediaSrc,
   isVideoUrl,
   resolveHref,
   shouldRenderStandaloneMediaForLine,
@@ -33,7 +34,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 import { readStandaloneParagraphUrlToken } from './standaloneMediaBudget'
 import { normalizeMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
-
 const extractLinkText = (token: Token): string => {
   const p = token as unknown as TokensParagraph
   const inner = Array.isArray(p.tokens) ? p.tokens : []
@@ -542,7 +542,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     )
   }
   const standaloneMedia = getStandaloneMediaImageHref(p.tokens)
-  if (standaloneMedia && isSafeHref(standaloneMedia.href)) {
+  if (standaloneMedia && isSafeMediaSrc(standaloneMedia.href)) {
     const resolved = resolveHref(standaloneMedia.href, opts.activeDocumentPath)
     const renderStandaloneMedia = (type: string, children: React.ReactNode) => (
       <MediaWrapper

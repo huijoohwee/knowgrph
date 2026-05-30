@@ -14,6 +14,12 @@ import {
 import { persistImportedWebpageUrlArtifact } from './webpageUrlExport'
 import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
 import { readWorkspaceImportMarkdownSourceUrl, workspaceImportSourceUrlsMatch } from './sourceUrlIdentity'
+import { buildCorpusImportManifest, buildCorpusSourceUnit } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
+import {
+  buildStrybldrStoryboardDocument,
+  buildStrybldrWorkspaceDocumentName,
+  serializeStrybldrStoryboardMarkdown,
+} from '@/features/strybldr/strybldrStoryboard'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -128,16 +134,53 @@ export async function importWorkspaceUrl(args: {
       sources.push({ path: artifactPath, source: { kind: 'url', url: sourceUrl } })
     }
   }
+  const sourceUnit = buildCorpusSourceUnit({
+    workspacePath: normalized,
+    relativePath: fetched.name,
+    originalName: fetched.name,
+    text: fetched.text,
+    mimeHint: fetched.sourceMimeHint || 'text/markdown',
+    byteSize: fetched.text.length,
+    mediaKind: fetched.sourceMediaKind,
+    status: 'parsed',
+    importMode: 'url',
+  })
   const applyToGraph = shouldApplyImportedCanvasDocumentToGraph({
     path: normalized || fetched.name,
     text: fetched.text,
   })
+  const createdPaths: WorkspacePath[] = [normalized]
+  let effectiveApplyToGraph = applyToGraph
+  if (args.canvas2dRenderer === 'strybldr') {
+    const storyDoc = buildStrybldrStoryboardDocument({
+      sourceUnits: [sourceUnit],
+      mediaUrlBySourceUnitId: { [sourceUnit.id]: sourceUrl },
+    })
+    const storySource = storyDoc.sources[0] || null
+    if (storySource) {
+      const storyName = buildStrybldrWorkspaceDocumentName(storySource)
+      const storyPath = await args.fs.createFile({
+        parentPath,
+        name: storyName,
+        text: serializeStrybldrStoryboardMarkdown(storyDoc),
+      })
+      const normalizedStoryPath = normalizeWorkspacePath(storyPath)
+      createdPaths.unshift(normalizedStoryPath)
+      sources.unshift({ path: normalizedStoryPath, source: { kind: 'url', url: sourceUrl } })
+      effectiveApplyToGraph = true
+    }
+  }
   return {
-    createdPaths: [normalized],
+    createdPaths,
     sources,
     ...(removedPaths.length > 0 ? { removedPaths } : {}),
     skipped: [],
     failed: [],
-    applyToGraph,
+    applyToGraph: effectiveApplyToGraph,
+    corpusManifest: buildCorpusImportManifest({
+      sourceUnits: [sourceUnit],
+      skipped: [],
+      failed: [],
+    }),
   }
 }

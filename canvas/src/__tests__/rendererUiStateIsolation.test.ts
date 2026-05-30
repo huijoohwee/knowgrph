@@ -133,6 +133,7 @@ export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendere
 
 export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitRendererMode() {
   const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const editorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
@@ -141,6 +142,7 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   const flowCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
   const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const editorText = readFileSync(editorPath, 'utf8')
+  const editorViewText = readFileSync(editorViewPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
   const collisionText = readFileSync(collisionPath, 'utf8')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
@@ -148,13 +150,13 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
   const flowCanvasRuntimeText = readFileSync(flowCanvasRuntimePath, 'utf8')
   const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
-  if (!editorText.includes('data-kg-flow-editor-mode="1"')) {
+  if (!editorViewText.includes('data-kg-flow-editor-mode="1"')) {
     throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor mode')
   }
   if (panelText.includes('data-kg-flow-editor-mode="1"') || panelText.includes('data-kg-widget={String(node.id || \'\')}')) {
     throw new Error('expected Flow Editor floating panels to avoid masquerading as canvas overlay roots')
   }
-  if (!editorText.includes('data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}')) {
+  if (!editorViewText.includes('data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}')) {
     throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor surface identity')
   }
   if (!flowEditorSurfaceText.includes('data-kg-flow-editor-surface-root={props.flowEditorSurfaceId}')) {
@@ -187,8 +189,8 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   if (!overlayEdgesText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
     throw new Error('expected Flow Editor overlay edge queries to be bounded by the active surface root')
   }
-  if (!overlayEdgesText.includes('const queryRoot: ParentNode = surfaceRoot || root')) {
-    throw new Error('expected Flow Editor overlay edge queries to avoid document-wide overlay seepage')
+  if (!overlayEdgesText.includes('const queryRoot: ParentNode = typeof document !== \'undefined\' ? document : root')) {
+    throw new Error('expected Flow Editor overlay edge queries to account for portal-mounted overlay roots')
   }
   if (!overlayEdgesText.includes('readFlowEditorOverlaySurfaceId(el) !== surfaceId')) {
     throw new Error('expected Flow Editor overlay edge queries to exclude overlays from other surfaces')

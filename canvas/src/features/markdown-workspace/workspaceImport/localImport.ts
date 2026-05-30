@@ -21,6 +21,7 @@ import type { WorkspaceImportResult } from './types'
 import {
   buildCorpusMediaMetadataMarkdown,
   buildCorpusMediaWorkspaceDocumentName,
+  inferCorpusMediaKind,
   type CorpusSourceUnit,
 } from '@/features/queryable-corpus/corpusGraph'
 import {
@@ -133,6 +134,11 @@ async function ensureFolderRel(fs: WorkspaceFs, parentPath: WorkspacePath, relDi
     parent = normalizeWorkspacePath(`${parent}/${name}`)
   }
   return parent
+}
+
+function shouldMaterializeFolderTextForCorpus(nameRaw: string, mimeHint?: string | null): boolean {
+  const mediaKind = inferCorpusMediaKind(nameRaw, mimeHint)
+  return mediaKind === 'code' || mediaKind === 'sql' || mediaKind === 'script' || mediaKind === 'data'
 }
 
 export async function importWorkspaceLocalFiles(args: {
@@ -412,7 +418,12 @@ export async function importWorkspaceLocalFolder(args: {
       let unitText = ''
       let unitStatus: CorpusSourceUnit['status'] = 'pending'
       const deferLocalImport = shouldDeferLargeLocalFileImport(file, rawRelName)
-      const importAsImmediateText = !mediaMetadata && !modelFormat && !isPdfFile(file) && !deferLocalImport && isLocalTextWorkspaceImportName(rawRelName)
+      const importAsImmediateCorpusText = !mediaMetadata
+        && !modelFormat
+        && !isPdfFile(file)
+        && !deferLocalImport
+        && isLocalTextWorkspaceImportName(rawRelName)
+        && shouldMaterializeFolderTextForCorpus(rawRelName, file.type)
       if (mediaMetadata) {
         unitText = buildCorpusMediaMetadataMarkdown({
           originalName: rawRelName,
@@ -422,7 +433,7 @@ export async function importWorkspaceLocalFolder(args: {
           relativePath: relPath || rawRelName,
         })
         unitStatus = 'unsupported'
-      } else if (importAsImmediateText) {
+      } else if (importAsImmediateCorpusText) {
         unitText = await file.text()
         unitStatus = 'parsed'
       } else if (!isPdfFile(file)) {
@@ -449,7 +460,7 @@ export async function importWorkspaceLocalFolder(args: {
             name: relName,
             text: unitText,
           })
-        : importAsImmediateText
+        : importAsImmediateCorpusText
         ? await args.fs.createFile({
             parentPath,
             name: relName,

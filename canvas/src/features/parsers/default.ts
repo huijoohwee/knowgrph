@@ -130,6 +130,21 @@ function enrichFrontmatterFlowWithMarkdownReferences(args: {
   text: string
   frontmatterFlow: { graphData: GraphData; warnings: string[] }
 }): { graphData: GraphData; warnings: string[] } {
+  const metadata = isRecord(args.frontmatterFlow.graphData.metadata)
+    ? (args.frontmatterFlow.graphData.metadata as Record<string, unknown>)
+    : null
+  const frontmatterMeta = isRecord(metadata?.frontmatterMeta)
+    ? (metadata.frontmatterMeta as Record<string, unknown>)
+    : null
+  const frontmatterModeEnabledRaw = frontmatterMeta?.kgFrontmatterModeEnabled
+  const frontmatterModeEnabled =
+    frontmatterModeEnabledRaw === true ||
+    String(frontmatterModeEnabledRaw || '').trim().toLowerCase() === 'true'
+  const canvas2dRenderer = String(frontmatterMeta?.kgCanvas2dRenderer || '').trim()
+  if (isRecord(frontmatterMeta?.flow) || frontmatterModeEnabled || canvas2dRenderer === 'flowEditor') {
+    return args.frontmatterFlow
+  }
+
   const markdownReferences = pickMarkdownReferenceGraph({
     base: parseJsonLd(buildMarkdownJsonLd(args.name, args.text)),
     overlay: args.frontmatterFlow.graphData,

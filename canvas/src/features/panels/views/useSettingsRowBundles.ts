@@ -35,8 +35,10 @@ type UseSettingsRowBundlesArgs = {
   isUpdatingChatHistoryPath: boolean
   isUpdatingKnowgrphPath: boolean
   kgcLocalImportInputRef: React.RefObject<HTMLInputElement | null>
+  kgcLocalFolderImportInputRef: React.RefObject<HTMLInputElement | null>
   knowgrphPathStatus: string | null
   localImportInputRef: React.RefObject<HTMLInputElement | null>
+  localFolderImportInputRef: React.RefObject<HTMLInputElement | null>
   normalizedChatProvider: string
   openFilePicker: (el: HTMLInputElement | null) => void
   openWorkspaceFile: (path: string) => void
@@ -86,8 +88,10 @@ export function useSettingsRowBundles({
   isUpdatingChatHistoryPath,
   isUpdatingKnowgrphPath,
   kgcLocalImportInputRef,
+  kgcLocalFolderImportInputRef,
   knowgrphPathStatus,
   localImportInputRef,
+  localFolderImportInputRef,
   normalizedChatProvider,
   openFilePicker,
   openWorkspaceFile,
@@ -106,8 +110,10 @@ export function useSettingsRowBundles({
   const refs = React.useMemo<SettingsRowRefs>(() => ({
     dirtyRef,
     kgcLocalImportInputRef,
+    kgcLocalFolderImportInputRef,
     localImportInputRef,
-  }), [dirtyRef, kgcLocalImportInputRef, localImportInputRef])
+    localFolderImportInputRef,
+  }), [dirtyRef, kgcLocalFolderImportInputRef, kgcLocalImportInputRef, localFolderImportInputRef, localImportInputRef])
 
   const status = React.useMemo<SettingsRowStatusState>(() => ({
     bytePlusHealthDetails,

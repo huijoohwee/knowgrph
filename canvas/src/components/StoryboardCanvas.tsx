@@ -38,6 +38,7 @@ import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMe
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
+import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 
 type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
@@ -87,6 +88,22 @@ function StoryboardMediaPreview(props: {
         playsInline
         preload="metadata"
         draggable={false}
+      />
+    )
+  }
+  if (media?.kind === 'iframe') {
+    const embed = resolveIframeEmbed({ url: media.url, scriptPolicy: 'allow' })
+    return (
+      <iframe
+        src={embed.iframeSrc}
+        title={title}
+        className="pointer-events-none h-full w-full select-none border-0"
+        allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        sandbox={embed.sandbox}
+        referrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
+        loading="lazy"
+        data-kg-storyboard-media-iframe="1"
       />
     )
   }

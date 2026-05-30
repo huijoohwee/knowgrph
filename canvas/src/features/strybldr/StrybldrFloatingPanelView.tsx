@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { JSONValue } from '@/lib/graph/types'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { notifyWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
 import { CHAT_PROVIDER_BYTEPLUS, getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
@@ -19,6 +20,7 @@ import { runStrybldrDetrObjectDetection } from './strybldrLocalVision'
 const readString = (value: unknown): string => String(value ?? '').trim()
 const LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS = 12000
 const LOCAL_ANALYSIS_DETR_BATCH_BYTE_LIMIT = 8 * 1024 * 1024
+const VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = 6000
 
 const readStrybldrSourceUnitIds = (graphData: ReturnType<typeof useGraphStore.getState>['graphData']): string[] => {
   const out: string[] = []
@@ -38,6 +40,18 @@ const runStrybldrDetectionWithTimeout = (promise: Promise<StrybldrElement[]>, ti
   return Promise.race([
     promise,
     new Promise<StrybldrElement[]>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+    }),
+  ]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
+
+const runStrybldrProviderWithTimeout = <T,>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
       timer = setTimeout(() => reject(new Error(message)), timeoutMs)
     }),
   ]).finally(() => {
@@ -245,19 +259,25 @@ export function StrybldrFloatingPanelView() {
     try {
       if (provider !== CHAT_PROVIDER_BYTEPLUS) {
         errorReason = 'BytePlus ModelArk is not the active provider.'
+      } else if (chatAuthMode === 'byok' && !readString(chatApiKey)) {
+        errorReason = 'BytePlus BYOK API key is not configured.'
       } else {
         paidCallCount = 1
-        const asset = await generateRunVideoWithBytePlus({
-          config: {
-            provider,
-            endpointUrl: chatEndpointUrl || getChatDefaultEndpointUrlForProvider(provider),
-            apiKey: chatAuthMode === 'byok' ? chatApiKey : null,
-          },
-          prompt: handoff.prompt,
-          options: {
-            referenceImageUrl: handoff.referenceImageUrl,
-          },
-        })
+        const asset = await runStrybldrProviderWithTimeout(
+          generateRunVideoWithBytePlus({
+            config: {
+              provider,
+              endpointUrl: chatEndpointUrl || getChatDefaultEndpointUrlForProvider(provider),
+              apiKey: chatAuthMode === 'byok' ? chatApiKey : null,
+            },
+            prompt: handoff.prompt,
+            options: {
+              referenceImageUrl: handoff.referenceImageUrl,
+            },
+          }),
+          VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS,
+          `BytePlus video generation did not complete within ${VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS}ms.`,
+        )
         if (asset) {
           status = 'generated'
           model = asset.model
@@ -273,7 +293,7 @@ export function StrybldrFloatingPanelView() {
     try {
       const fs = await getWorkspaceFs()
       await fs.ensureSeed()
-      await fs.createFile({
+      const createdPath = await fs.createFile({
         parentPath: WORKSPACE_ROOT_PATH,
         name: `${status === 'generated' ? 'strybldr-video' : 'strybldr-video-fallback'}-${Date.now().toString(36)}.md`,
         text: buildStrybldrVideoHandoffMarkdown({
@@ -289,6 +309,7 @@ export function StrybldrFloatingPanelView() {
           cacheHit: false,
         }),
       })
+      notifyWorkspaceFsChanged({ op: 'createFile', path: createdPath })
       addHistory(status === 'generated' ? 'Strybldr video generated' : 'Strybldr video fallback')
       pushUiToast({
         id: 'strybldr:video:done',
@@ -309,13 +330,13 @@ export function StrybldrFloatingPanelView() {
   }, [addHistory, chatApiKey, chatAuthMode, chatEndpointUrl, chatProvider, graphData, pushUiToast, running, videoRunning])
 
   React.useEffect(() => {
-    if (typeof window === 'undefined' || canvas2dRenderer !== 'strybldr') return
+    if (typeof window === 'undefined') return
     const handleRunAll = () => {
       void runVideoHandoff()
     }
     window.addEventListener(WORKFLOW_RUN_ALL_EVENT, handleRunAll)
     return () => window.removeEventListener(WORKFLOW_RUN_ALL_EVENT, handleRunAll)
-  }, [canvas2dRenderer, runVideoHandoff])
+  }, [runVideoHandoff])
 
   return (
     <section className="h-full flex flex-col" aria-label="Strybldr panel">

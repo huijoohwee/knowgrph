@@ -504,7 +504,8 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         outPortNode: !isIn ? portButton : null,
         keyNode: (
           <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>
-            {portKey}
+            <span>{handlePath}</span>
+            <span className={cn('block', UI_THEME_TOKENS.text.tertiary)}>{portKey}</span>
           </label>
         ),
         typeNode: <NodeOverlayEditorTypePill text={handleType} />,

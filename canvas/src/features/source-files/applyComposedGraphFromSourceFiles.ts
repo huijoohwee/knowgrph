@@ -77,6 +77,21 @@ function resetPendingComposedGraphApplyState() {
   pendingComposeIncludesWorkspaceBackedSources = false
 }
 
+function clearComposedGraphIfEmpty(store: ReturnType<typeof useGraphStore.getState>, hasEnabledSourceFiles: boolean) {
+  resetPendingComposedGraphApplyState()
+  lastAppliedComposedImportModesSignature = ''
+  if (
+    shouldClearComposedGraphForEmptyState({
+      previousGraphData: store.graphData,
+      hasEnabledSourceFiles,
+      hasEnabledContent: false,
+    })
+  ) {
+    store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
+    store.setOpenWidgetNodeIds([])
+  }
+}
+
 function readCurrentComposedGraphSignature(options: ComposeSourceFilesOptions = {}): string {
   const precomputedSignature = String(options.precomputedSignature || '').trim()
   if (precomputedSignature) return precomputedSignature
@@ -256,11 +271,11 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
   const composeSignature = pendingComposedGraphSignature || readCurrentComposedGraphSignature(composeScopeOptions)
   const store = useGraphStore.getState()
   if (!includeWorkspaceBacked && !hasEnabledNonWorkspaceComposedSources(store.sourceFiles)) {
-    resetPendingComposedGraphApplyState()
+    clearComposedGraphIfEmpty(store, false)
     return
   }
   if (includeWorkspaceBacked && !hasEnabledComposedSources(store.sourceFiles)) {
-    resetPendingComposedGraphApplyState()
+    clearComposedGraphIfEmpty(store, false)
     return
   }
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(store)
@@ -268,17 +283,7 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
   const hasEnabledSourceFiles = sourceFilesForComposition.some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
     if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
-    resetPendingComposedGraphApplyState()
-    lastAppliedComposedImportModesSignature = ''
-    if (
-      shouldClearComposedGraphForEmptyState({
-        previousGraphData: store.graphData,
-        hasEnabledSourceFiles,
-        hasEnabledContent: false,
-      })
-    ) {
-      store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
-    }
+    clearComposedGraphIfEmpty(store, hasEnabledSourceFiles)
     return
   }
   const layers = sourceFilesForComposition.map(f => ({
@@ -300,17 +305,7 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
   })
   if (!hasEnabledContent) {
     if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
-    resetPendingComposedGraphApplyState()
-    lastAppliedComposedImportModesSignature = ''
-    if (
-      shouldClearComposedGraphForEmptyState({
-        previousGraphData: store.graphData,
-        hasEnabledSourceFiles,
-        hasEnabledContent,
-      })
-    ) {
-      store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
-    }
+    clearComposedGraphIfEmpty(store, hasEnabledSourceFiles)
     return
   }
 
@@ -360,7 +355,6 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
 
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)
-    applyComposedSourceImportModes(graphData, sourceFilesForComposition)
     requestWorkspaceOpenFlowEditorFit(graphData)
     return
   }

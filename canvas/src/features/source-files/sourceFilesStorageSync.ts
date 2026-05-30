@@ -229,6 +229,20 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
     if (!id.startsWith(KNOWGRPH_SOURCE_FILE_DOCUMENT_ID_PREFIX)) continue
     existingById.set(id, row.toJSON() as KgDocumentLocalRecord)
   }
+  const graphSnapshotRows = await collections.graphSnapshots.find({ selector: { workspaceId } }).exec()
+  const existingGraphSnapshotById = new Map<string, {
+    row: (typeof graphSnapshotRows)[number]
+    record: KgGraphSnapshotRecord
+  }>()
+  for (let i = 0; i < graphSnapshotRows.length; i += 1) {
+    const row = graphSnapshotRows[i]!
+    const id = normalizeString(row.get('id'))
+    if (!id.startsWith(KNOWGRPH_SOURCE_FILE_GRAPH_SNAPSHOT_ID_PREFIX)) continue
+    existingGraphSnapshotById.set(id, {
+      row,
+      record: row.toJSON() as KgGraphSnapshotRecord,
+    })
+  }
   let queuedMutationCount = 0
   const keepDocumentIds = new Set<string>()
   const nextFiles = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
@@ -261,8 +275,9 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
     }
     const hasGraphData = !!(file.parsedGraphData && typeof file.parsedGraphData === 'object')
     const graphSnapshotId = buildSourceFileGraphSnapshotId(file.id)
-    const existingGraphSnapshotDoc = await collections.graphSnapshots.findOne(graphSnapshotId).exec()
-    const existingGraphSnapshot = existingGraphSnapshotDoc?.toJSON() || null
+    const existingGraphSnapshotEntry = existingGraphSnapshotById.get(graphSnapshotId) || null
+    const existingGraphSnapshotDoc = existingGraphSnapshotEntry?.row || null
+    const existingGraphSnapshot = existingGraphSnapshotEntry?.record || null
     if (hasGraphData) {
       const nextGraphSnapshot = buildGraphSnapshotRecordForSourceFile(workspaceId, file, nextLocalRecord.documentRevision)
       const didGraphChange =
@@ -288,6 +303,7 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
         updatedAtMs: Date.now(),
       }
       await existingGraphSnapshotDoc.remove()
+      existingGraphSnapshotById.delete(graphSnapshotId)
       await queueKnowgrphStorageMutation({
         workspaceId,
         entity: 'graphSnapshot',
@@ -326,13 +342,14 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
     })
     queuedMutationCount += 1
     const graphSnapshotId = buildSourceFileGraphSnapshotId(previousFile.id)
-    const existingGraphSnapshotDoc = await collections.graphSnapshots.findOne(graphSnapshotId).exec()
-    if (existingGraphSnapshotDoc) {
+    const existingGraphSnapshotEntry = existingGraphSnapshotById.get(graphSnapshotId) || null
+    if (existingGraphSnapshotEntry) {
       const deletedSnapshot = {
-        ...(existingGraphSnapshotDoc.toJSON() as KgGraphSnapshotRecord),
+        ...existingGraphSnapshotEntry.record,
         updatedAtMs: Date.now(),
       }
-      await existingGraphSnapshotDoc.remove()
+      await existingGraphSnapshotEntry.row.remove()
+      existingGraphSnapshotById.delete(graphSnapshotId)
       await queueKnowgrphStorageMutation({
         workspaceId,
         entity: 'graphSnapshot',

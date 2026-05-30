@@ -2,7 +2,7 @@ import { hashText } from '../../features/parsers/hash'
 import { LRUCache } from '../cache/LRUCache'
 import { postprocessWebpageMarkdownSsot } from './webpageMarkdownPostprocess'
 import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
-import { isGenericSvgLabel, looksLikePlaceholderMediaSrc, scoreHtmlContentRootCandidate, shouldPreserveRawHtmlMarkdownLine } from './htmlToMarkdownHeuristics'
+import { looksLikePlaceholderMediaSrc, scoreHtmlContentRootCandidate, shouldPreserveRawHtmlMarkdownLine } from './htmlToMarkdownHeuristics'
 
 type HastNode = {
   type?: unknown
@@ -424,6 +424,28 @@ type HtmlToMarkdownProgressPhase = 'parse' | 'transform' | 'toMarkdown' | 'strin
 
 const CACHE = new LRUCache<string, string>(60, 5 * 60_000)
 
+const SOURCE_JOINED_ASCII_TOKEN_RE = /\b([A-Za-z][A-Za-z0-9]{1,}) ([A-Za-z0-9]{2,})\b/g
+
+const normalizeHtmlSourceForAsciiTokenLookup = (source: string): string =>
+  String(source || '')
+    .replace(/&(?:nbsp|#160|#x[aA]0);/g, ' ')
+    .replace(/\s+/g, ' ')
+
+const restoreSourceJoinedAsciiTokens = (markdown: string, sourceHtml: string): string => {
+  const input = String(markdown || '')
+  const source = String(sourceHtml || '')
+  if (!input || !source) return input
+  const sourceLookup = [
+    normalizeHtmlSourceForAsciiTokenLookup(source),
+    normalizeHtmlSourceForAsciiTokenLookup(source.replace(/<[^>]*>/g, '')),
+  ].join('\n')
+  return input.replace(SOURCE_JOINED_ASCII_TOKEN_RE, (match: string, left: string, right: string) => {
+    const joined = `${left}${right}`
+    if (sourceLookup.includes(joined) && !sourceLookup.includes(match)) return joined
+    return match
+  })
+}
+
 export async function convertHtmlToMarkdownUnified(args: {
   html: string
   baseUrl?: string
@@ -538,7 +560,6 @@ export async function convertHtmlToMarkdownUnified(args: {
 
       return (_state: unknown, node: unknown) => {
         let value = String(toHtml(node as never) || '')
-        const lower = value.toLowerCase()
         if (!value.trim()) return { type: 'html', value, position: null }
         const useRef = value.match(/<(?:\s*use\b)[^>]*\s(?:xlink:href|href)\s*=\s*["']\s*#([^"'\s>]+)\s*["'][^>]*>/i)
         if (useRef) {
@@ -559,21 +580,24 @@ export async function convertHtmlToMarkdownUnified(args: {
         }
         const maxSvgCharsForDataUri = 24_000
         const maxSvgBase64Chars = 100
-        if (value.length > maxSvgCharsForDataUri) return { type: 'html', value, position: null }
-        const withoutScripts = value.replace(/<\s*script\b[\s\S]*?<\/\s*script\s*>/gi, '')
-        let url = ''
-        try {
-          const b64 = encodeUtf8ToBase64(withoutScripts)
-          url = b64.length <= maxSvgBase64Chars ? `data:image/svg+xml;base64,${b64}` : ''
-        } catch {
-          url = ''
-        }
-        if (!url) return { type: 'html', value, position: null }
         const altMatch =
           value.match(/\baria-label\s*=\s*["']([^"']+)["']/i) ||
           value.match(/\bdata-icon\s*=\s*["']([^"']+)["']/i) ||
           value.match(/<\s*title[^>]*>([^<]{1,80})<\/\s*title\s*>/i)
         const alt = String(altMatch?.[1] || '').trim()
+        const withoutScripts = value.length <= maxSvgCharsForDataUri
+          ? value.replace(/<\s*script\b[\s\S]*?<\/\s*script\s*>/gi, '')
+          : ''
+        const placeholderSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+        let url = ''
+        try {
+          const b64 = withoutScripts ? encodeUtf8ToBase64(withoutScripts) : ''
+          const cappedB64 = b64 && b64.length <= maxSvgBase64Chars ? b64 : encodeUtf8ToBase64(placeholderSvg)
+          url = cappedB64 ? `data:image/svg+xml;base64,${cappedB64}` : ''
+        } catch {
+          url = ''
+        }
+        if (!url) return { type: 'html', value, position: null }
         return { type: 'image', url, alt, title: null, position: null }
       }
     }
@@ -937,52 +961,6 @@ export async function convertHtmlToMarkdownUnified(args: {
                 for (const child of kids) stripIconsAndImagesFromLinksWithText(child)
               }
 
-              const isDecorativeSvg = (node: HastNode): boolean => {
-                const el = node as unknown as { type?: string; tagName?: string; properties?: Record<string, unknown> }
-                if (String(el?.type || '') !== 'element') return false
-                if (String(el.tagName || '').toLowerCase() !== 'svg') return false
-                const props = el.properties || {}
-                const ariaHiddenRaw = props.ariaHidden ?? (props as Record<string, unknown>)['aria-hidden']
-                const ariaHidden =
-                  typeof ariaHiddenRaw === 'boolean'
-                    ? ariaHiddenRaw
-                    : String(ariaHiddenRaw || '').toLowerCase() === 'true'
-                if (ariaHidden) return true
-                const role = (getPropStr(props, 'role') || '').toLowerCase()
-                if (role === 'presentation') return true
-                const ariaLabel = getPropStr(props, 'ariaLabel') || getPropStr(props, 'aria-label')
-                if (isGenericSvgLabel(ariaLabel)) return true
-                if (ariaLabel.trim()) return false
-                const title = getPropStr(props, 'title')
-                if (isGenericSvgLabel(title)) return true
-                if (title.trim()) return false
-                const dataIcon = getPropStr(props, 'dataIcon') || getPropStr(props, 'data-icon')
-                if (dataIcon.trim()) return true
-                const cls = (getPropStr(props, 'className') || getPropStr(props, 'class')).toLowerCase()
-                if (/\bicon\b/.test(cls)) return true
-                const width = (getPropStr(props, 'width') || '').toLowerCase()
-                const height = (getPropStr(props, 'height') || '').toLowerCase()
-                if (/\bem\b/.test(width) || /\bem\b/.test(height)) return true
-                const raw = String(toHtml(node as never) || '')
-                if (/viewBox\s*=\s*["']0 0 1 1["']/i.test(raw)) return true
-                if (/<\s*use\b/i.test(raw)) return true
-                if (!ariaLabel.trim() && !title.trim() && !/<\s*(title|desc|text)\b/i.test(raw)) return true
-                return false
-              }
-
-              const removeDecorativeSvgs = (node: HastNode) => {
-                const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[] }
-                const type = String(el?.type || '')
-                if (type !== 'element' && type !== 'root') return
-                const kids = Array.isArray(el.children) ? el.children : []
-                if (kids.length) {
-                  const nextKids = kids.filter(k => !isDecorativeSvg(k))
-                  ;(el.children as HastNode[]) = nextKids
-                }
-                const next = Array.isArray(el.children) ? el.children : []
-                for (const child of next) removeDecorativeSvgs(child)
-              }
-
               const unwrapLayoutWrappers = (node: HastNode) => {
                 const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
                 const type = String(el?.type || '')
@@ -1030,7 +1008,6 @@ export async function convertHtmlToMarkdownUnified(args: {
               removeHeadingPermalinkAnchors(tree as HastNode)
               stripIconsAndImagesFromLinksWithText(tree as HastNode)
               unwrapLayoutWrappers(tree as HastNode)
-              removeDecorativeSvgs(tree as HastNode)
             } catch {
               void 0
             }
@@ -1429,7 +1406,7 @@ export async function convertHtmlToMarkdownUnified(args: {
 
     const parts = [titleHeading, headSection, coreMarkdown].filter(Boolean)
     const markdownRaw = parts.join('\n\n').trim()
-    const markdown = postprocessWebpageMarkdownSsot(markdownRaw)
+    const markdown = restoreSourceJoinedAsciiTokens(postprocessWebpageMarkdownSsot(markdownRaw), html)
     if (!markdown) return { ok: false, error: 'Conversion produced empty markdown' }
 
     CACHE.set(cacheKey, markdown)

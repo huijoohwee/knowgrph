@@ -1,16 +1,14 @@
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { applyGraphOwnerComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-
 export async function testComposedUpdateNodeSyncsToSourceFileAndRecomposes() {
   const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {
     const state = useGraphStore.getState()
     state.clearSourceFiles()
     state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
-
     const g1: GraphData = {
       type: 'Graph',
       nodes: [{ id: 'n1', label: 'A', type: 'Thing', properties: {} }],
@@ -30,7 +28,7 @@ export async function testComposedUpdateNodeSyncsToSourceFileAndRecomposes() {
       source: { kind: 'local', path: 'a.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const before = useGraphStore.getState()
     const beforeGraph = before.graphData
     if (!beforeGraph) throw new Error('expected composed graph data')
@@ -102,7 +100,7 @@ export async function testComposedAddNodePrefersActiveMarkdownDocumentSourceFile
       source: { kind: 'local', path: 'workspace:/b.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const composed = useGraphStore.getState()
     composed.setMarkdownDocument('workspace:/b.md', '---\ntitle: B\n---\n')
     useGraphStore.setState({ selectedNodeId: 'sf-a::a1' })
@@ -201,7 +199,7 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
       source: { kind: 'local', path: 'workspace:/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
 
     const after = useGraphStore.getState()
     if (after.canvasRenderMode !== '2d') {
@@ -285,14 +283,14 @@ export async function testComposedSourceFilesOrderOnlyRecomposeDoesNotReplayUnch
       source: { kind: 'local', path: 'workspace:/demo.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     if (useGraphStore.getState().canvas2dRenderer !== 'd3') {
       throw new Error('expected initial composed apply to honor the README preset renderer')
     }
 
     useGraphStore.getState().setCanvas2dRenderer('flowEditor')
     useGraphStore.setState(s => ({ sourceFiles: [s.sourceFiles[1], s.sourceFiles[0]] }))
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
 
     if (useGraphStore.getState().canvas2dRenderer !== 'flowEditor') {
       throw new Error('expected order-only recomposition to avoid replaying an unchanged composed frontmatter preset')
@@ -331,7 +329,7 @@ export async function testComposedSourceFilesDeleteLastEnabledSourceClearsGraphA
       source: { kind: 'local', path: 'workspace:/only.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     state.setOpenWidgetNodeIds(['sf-1::n1'])
 
     const composedBeforeDelete = useGraphStore.getState().graphData
@@ -340,7 +338,7 @@ export async function testComposedSourceFilesDeleteLastEnabledSourceClearsGraphA
     }
 
     state.setSourceFiles([])
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
 
     const after = useGraphStore.getState()
     const graph = after.graphData
@@ -394,7 +392,7 @@ export async function testComposedAddNodeSeedsActiveMarkdownDocumentWhenGraphMis
       source: { kind: 'local', path: 'workspace:/b.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const composed = useGraphStore.getState()
     composed.setMarkdownDocument('workspace:/b.md', '---\ntitle: B\n---\n')
     useGraphStore.setState({ selectedNodeId: 'sf-a::a1' })
@@ -521,7 +519,7 @@ export async function testComposedUpdateNodePreservesTypedFrontmatterEnvelopeWri
       source: { kind: 'local', path: 'workspace:/typed.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const before = useGraphStore.getState()
     before.setMarkdownDocument('workspace:/typed.md', '---\ntitle: Typed\n---\n')
     before.updateNode('sf-typed::w-text', {
@@ -609,11 +607,13 @@ export async function testComposedTextWidgetUpdatePreservesWidgetLayoutAndEdgeWr
       source: { kind: 'local', path: 'workspace:/typed-layout.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const before = useGraphStore.getState()
     before.setMarkdownDocument('workspace:/typed-layout.md', '---\ntitle: Typed Layout\n---\n')
-    before.setFlowWidgetPosByNodeId({ 'sf-layout::w-text': { top: 120, left: 240 } })
-    before.setFlowWidgetWorldPosByNodeId({ 'sf-layout::w-text': { x: 12, y: 24 } })
+    useGraphStore.setState({
+      flowWidgetPosByNodeId: { 'sf-layout::w-text': { top: 120, left: 240 } },
+      flowWidgetWorldPosByNodeId: { 'sf-layout::w-text': { x: 12, y: 24 } },
+    } as never)
 
     before.updateNode('sf-layout::w-text', {
       properties: {
@@ -675,7 +675,7 @@ export async function testComposedAddEdgeSyncsToSourceFileAndActiveMarkdownText(
       source: { kind: 'local', path: 'workspace:/edge.md' },
     })
 
-    applyComposedGraphFromSourceFiles()
+    applyGraphOwnerComposedGraphFromSourceFiles()
     const before = useGraphStore.getState()
     before.setMarkdownDocument('workspace:/edge.md', '---\ntitle: Edge\n---\n')
     before.addEdge({

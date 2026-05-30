@@ -7,6 +7,8 @@ export function resolveInitialMarkdownWorkspaceSelectionPath(args: {
 }): WorkspacePath | null {
   if (!args.activePath) return null
   if (args.selectionPath === args.activePath) return null
+  const selectionPath = String(args.selectionPath || '').replace(/\/+$/, '')
+  if (selectionPath && String(args.activePath || '').startsWith(`${selectionPath}/`)) return null
   return args.activePath
 }
 

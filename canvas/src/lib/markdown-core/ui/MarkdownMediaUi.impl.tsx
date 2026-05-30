@@ -17,6 +17,7 @@ import {
   useWebpageLayoutSnapshotLifecycle,
   useWebpageSnapshotSurfaceAssets,
 } from '@/lib/websites/webpageSnapshotShared'
+import { normalizeSvgDataUriForImg } from './markdownSvgDataUri'
 export { MediaWrapper } from './MarkdownMediaWrapper'
 
 const mediaFrameClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
@@ -485,10 +486,11 @@ export const MediaImage = ({
     style.maxWidth = '100%'
   }
   if (height) style.height = `${Math.round(height)}px`
-  const primarySrc = applyImageLikeProxySrc(src || '')
+  const normalizedSrc = normalizeSvgDataUriForImg(src || '')
+  const primarySrc = applyImageLikeProxySrc(normalizedSrc)
   const [useFallback, setUseFallback] = React.useState(false)
-  const activeSrc = useFallback ? (src || '') : primarySrc
-  if (!src || error) {
+  const activeSrc = useFallback ? normalizedSrc : primarySrc
+  if (!normalizedSrc || error) {
     return <MediaErrorPlaceholder alt={alt} />
   }
   return (

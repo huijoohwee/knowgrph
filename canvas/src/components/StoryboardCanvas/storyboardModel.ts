@@ -1,5 +1,9 @@
 import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
-import { inferMediaKindFromResourceUrl, type UrlMediaKind } from '@/lib/graph/mediaUrlKind'
+import {
+  inferMediaKindFromResourceUrl,
+  resolveRenderableMediaResource,
+  type UrlMediaKind,
+} from '@/lib/graph/mediaUrlKind'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import {
@@ -20,7 +24,7 @@ const ORDER_PROPERTY_KEYS = ['order', 'sort', 'sequence', 'sceneOrder', 'shotOrd
 const INDEX_PROPERTY_KEYS = ['frame', 'frameNumber', 'sceneNumber', 'shotNumber', 'panelNumber', 'number', 'index', 'step', 'stepNumber', 'sequenceNumber', 'position', 'ordinal'] as const
 const TAG_PROPERTY_KEYS = ['tags', 'keywords'] as const
 const META_PROPERTY_KEYS = ['owner', 'priority'] as const
-const MEDIA_PROPERTY_KEYS = ['media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'src', 'url'] as const
+const MEDIA_PROPERTY_KEYS = ['renderUrl', 'embedUrl', 'media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'src', 'url'] as const
 const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'briefUrl', 'assetUrl', 'documentUrl'] as const
 const SLUGLINE_PROPERTY_KEYS = ['slugline'] as const
 const LOCATION_PROPERTY_KEYS = ['location', 'setting', 'place', 'surface', 'context'] as const
@@ -36,6 +40,8 @@ type GraphNodeProperties = Record<string, JSONValue>
 export type StoryboardCardMedia = {
   kind: UrlMediaKind
   url: string
+  sourceUrl: string
+  thumbnailUrl?: string | null
 }
 
 export type StoryboardCardReference = {
@@ -192,15 +198,18 @@ const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): 
   for (const key of MEDIA_PROPERTY_KEYS) {
     const url = readString(properties[key])
     if (!url) continue
-    const kind = inferMediaKindFromResourceUrl(url) ?? declaredKind
-    if (!kind) continue
-    return { kind, url }
+    const resource = resolveRenderableMediaResource(url, declaredKind)
+    if (!resource) continue
+    const sourceUrl = key === 'renderUrl' || key === 'embedUrl'
+      ? readFirstPropertyString(properties, LINK_PROPERTY_KEYS) || readFirstPropertyString(properties, ['mediaUrl', 'media_url']) || resource.sourceUrl
+      : resource.sourceUrl
+    return { ...resource, sourceUrl }
   }
   if (typeof node.type === 'string' && /\b(image|video)\b/i.test(node.type)) {
     const url = readFirstPropertyString(properties, LINK_PROPERTY_KEYS)
     if (!url) return null
-    const kind = inferMediaKindFromResourceUrl(url) ?? declaredKind
-    return kind ? { kind, url } : null
+    const resource = resolveRenderableMediaResource(url, declaredKind)
+    return resource ? { ...resource } : null
   }
   return null
 }
@@ -209,6 +218,15 @@ const readStoryboardReferences = (properties: GraphNodeProperties, media: Storyb
   const out: StoryboardCardReference[] = []
   const seen = new Set<string>()
   if (media?.url) seen.add(media.url.toLowerCase())
+  if (media?.sourceUrl) seen.add(media.sourceUrl.toLowerCase())
+  if (media?.thumbnailUrl) {
+    const thumbnailUrl = media.thumbnailUrl
+    const normalized = thumbnailUrl.toLowerCase()
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      out.push({ kind: 'image', url: thumbnailUrl })
+    }
+  }
   for (const url of readPropertyLists(properties, REFERENCE_PROPERTY_KEYS)) {
     const normalized = url.toLowerCase()
     if (seen.has(normalized)) continue
@@ -223,6 +241,7 @@ const readStoryboardReferences = (properties: GraphNodeProperties, media: Storyb
 }
 
 const readStoryboardHref = (properties: GraphNodeProperties, media: StoryboardCardMedia | null): string => {
+  if (media?.sourceUrl) return media.sourceUrl
   if (media?.url) return media.url
   return readFirstPropertyString(properties, LINK_PROPERTY_KEYS)
 }

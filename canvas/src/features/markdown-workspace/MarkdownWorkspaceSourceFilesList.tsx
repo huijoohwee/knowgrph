@@ -16,7 +16,7 @@ type MarkdownWorkspaceSourceFilesListProps = {
   onSelectFile: (path: WorkspacePath) => void
   onSelectFolder: (path: WorkspacePath) => void
   sourcesByPath: WorkspaceSourceIndex | null
-  onCreateNewFile: () => void
+  onCreateNewFile: (parentPath?: WorkspacePath) => void
   onRevealInFinder: (path: WorkspacePath) => void
   onClearFile: (path: WorkspacePath) => void
   onRenameEntry: (path: WorkspacePath, nextName: string) => void

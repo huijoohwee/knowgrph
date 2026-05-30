@@ -15,7 +15,7 @@ import { MarkdownFootnoteBlock } from './MarkdownFootnoteBlock'
 import { buildStandaloneMediaRenderLineSetFromTokens } from './standaloneMediaBudget'
 import type { MarkdownGeoDatasetIntegration, RenderOpts } from './MarkdownRendererTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { applyMediaProxySrc, isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
+import { applyMediaProxySrc, isSafeMediaSrc, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 export type MarkdownTokenRendererProps = {
@@ -343,7 +343,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
             >
               <section className={['grid grid-cols-1', gridColsClass, 'gap-3 items-start'].filter(Boolean).join(' ')}>
                 {images.map((img, k) => {
-                  const resolved = isSafeHref(img.href) ? resolveHref(img.href, opts.activeDocumentPath) : ''
+                  const resolved = isSafeMediaSrc(img.href) ? resolveHref(img.href, opts.activeDocumentPath) : ''
                   const src = resolved ? applyMediaProxySrc(resolved) : ''
                   const alt = img.alt || ''
                   return (

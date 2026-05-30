@@ -1,4 +1,5 @@
 import type { WorkspaceDocsMirrorEntry } from './workspaceSeedProvider'
+import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncContract'
 
 const STORAGE_FETCH_TIMEOUT_MS = 8000
 const STORAGE_CACHE_TTL_MS = 30 * 1000
@@ -17,6 +18,39 @@ const storageExportMirrorCache = new Map<string, { entries: WorkspaceDocsMirrorE
 const storageExportMirrorInFlight = new Map<string, Promise<WorkspaceDocsMirrorEntry[]>>()
 
 const isStorageDocRequestUrl = (url: string): boolean => String(url || '').includes('/api/storage/doc/')
+
+export const buildKnowgrphStorageRequestUrl = (args: { path: string; baseUrl: string }): string => {
+  const safePath = String(args.path || '').trim()
+  if (!safePath) return ''
+  if (typeof window !== 'undefined') {
+    const host = String(window.location?.hostname || '').trim().toLowerCase()
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+    if (isLocalhost && safePath.startsWith('/api/storage/')) return safePath
+  }
+  const baseUrl = String(args.baseUrl || '').trim()
+  if (!baseUrl) return safePath
+  return new URL(safePath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString()
+}
+
+export const readFirstKnowgrphStorageDocText = async (args: {
+  baseUrl: string
+  workspaceId: string
+  canonicalPathCandidates: ReadonlyArray<string>
+}): Promise<string> => {
+  const workspaceId = String(args.workspaceId || '').trim()
+  if (!workspaceId) return ''
+  const candidates = Array.isArray(args.canonicalPathCandidates) ? args.canonicalPathCandidates : []
+  for (let i = 0; i < candidates.length; i += 1) {
+    const canonicalPath = String(candidates[i] || '').trim()
+    if (!canonicalPath) continue
+    const docPath = `${KNOWGRPH_STORAGE_ROUTE_PATHS.docPrefix}${encodeURIComponent(workspaceId)}/${encodeURIComponent(canonicalPath)}`
+    const requestUrl = buildKnowgrphStorageRequestUrl({ path: docPath, baseUrl: args.baseUrl })
+    if (!requestUrl) continue
+    const text = await readWorkspaceDocsMirrorTextViaFetch(requestUrl)
+    if (text?.trim()) return text
+  }
+  return ''
+}
 
 const cloneWorkspaceDocsMirrorEntries = (entries: ReadonlyArray<WorkspaceDocsMirrorEntry>): WorkspaceDocsMirrorEntry[] => {
   return (Array.isArray(entries) ? entries : []).map(entry => ({ ...entry }))

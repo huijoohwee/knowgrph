@@ -243,8 +243,8 @@ export function testSourceFilesBootstrapSchedulesComposeOnlyForCompositionSignat
   if (!bootstrapText.includes('areSourceFilesEqualByIdAndHash') || !bootstrapText.includes('buildSourceFilesPersistenceSignature(next)')) {
     throw new Error('expected source files bootstrap persistence path to reuse shared equality and persistence-signature helpers')
   }
-  if (!helperText.includes('hashStringToHex(String(item?.text || \'\'))')) {
-    throw new Error('expected source files persistence hashing to stay centralized in the shared source-files signature helper')
+  if (!helperText.includes('hashStringToHexCached(cacheKey, text)')) {
+    throw new Error('expected source files persistence hashing to reuse the shared bounded text-hash cache in the source-files signature helper')
   }
 }
 

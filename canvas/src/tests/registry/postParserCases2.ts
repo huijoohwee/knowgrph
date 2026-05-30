@@ -159,6 +159,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["workspaceImport.urlContentCache.evictsStaleInflightImport","@/__tests__/workspaceUrlContentCache.test","testWorkspaceUrlContentCacheEvictsStaleInflightImportRequest"],
   ["workspaceImport.urlGlb.binaryManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGlbFetchesBinaryManifest"],
   ["workspaceImport.urlGltf.jsonManifest","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlGltfFetchesJsonManifest"],
+  ["workspaceImport.urlImport.rendererSelectionDocumentMode","@/__tests__/workspaceImportUrlHtmlRendererPresets.test","testImportUrlRendererSelectionCarriesDocumentMode"],
   ["workspaceImport.urlImport.htmlRendererPresetsFetch","@/__tests__/workspaceImportUrlHtmlRendererPresets.test","testWorkspaceImportUrlHtmlRendererPresetsFetchAndSetCanvasPreset"],
   ["workspaceImport.policy.forbidVendorHostLiterals","@/__tests__/forbidHardcodedVendorHosts.test","testForbidHardcodedDesignVendorHosts"],
   ["ui.markdown.workspace.toolbar.webpageViewControls.consolidated","@/__tests__/markdownWorkspaceToolbarWebpageViewControls.test","testMarkdownWorkspaceToolbarWebpageViewControlsConsolidated"],

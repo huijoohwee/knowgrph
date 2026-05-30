@@ -1,14 +1,16 @@
 import path from 'node:path'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-
 import { fetchWorkspaceUrlContent, importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { setWorkspaceWebpageDomExportForTests } from '@/features/markdown-workspace/workspaceImport/urlContent'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/workspaceImport/applyPolicy'
-import { resolveImportedCanvasDocumentApplyToGraph } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
+import { pickFirstCreatedFilePathForImportFocus, resolveImportedCanvasDocumentApplyToGraph } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
+import { buildStrybldrVideoHandoffFromGraphData } from '@/features/strybldr/strybldrStoryboard'
+import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import {
   chooseDomRecoveredMarkdown,
   chooseWebpageMarkdownByContentCoverage,
@@ -25,9 +27,7 @@ import {
   writeWorkspaceImportShareExportRootPathSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
-
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
-
 const webpageHtml = (title: string, extraHead = '') => [
   '<!doctype html>',
   '<html>',
@@ -40,7 +40,6 @@ const webpageHtml = (title: string, extraHead = '') => [
   '</body>',
   '</html>',
 ].join('')
-
 function createMinimalGlbBytes(): Uint8Array {
   const json = JSON.stringify({
     asset: { version: '2.0' },
@@ -62,7 +61,6 @@ function createMinimalGlbBytes(): Uint8Array {
   bytes.fill(0x20, 20 + jsonRaw.byteLength, 20 + jsonLength)
   return bytes
 }
-
 function installWebpageProxyFetch(htmlByUrl: Map<string, string>, calls: string[]) {
   const g = globalThis as GlobalWithFetch
   const prev = g.fetch
@@ -85,7 +83,6 @@ function installWebpageProxyFetch(htmlByUrl: Map<string, string>, calls: string[
     g.fetch = prev
   }
 }
-
 function installYouTubeTranscriptFetch(calls: string[]) {
   const g = globalThis as GlobalWithFetch
   const prev = g.fetch
@@ -118,7 +115,6 @@ function installYouTubeTranscriptFetch(calls: string[]) {
     g.fetch = prev
   }
 }
-
 async function assertFetchedImportFor(url: string) {
   resetWorkspaceUrlContentCacheForTests()
   const calls: string[] = []
@@ -139,12 +135,10 @@ async function assertFetchedImportFor(url: string) {
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportFetchesAndParsesWebpage(): Promise<void> {
   await assertFetchedImportFor('https://example.com/')
   await assertFetchedImportFor('https://vercel.com/')
 }
-
 export async function testWorkspaceImportUrlViewHintsUseSingleIngestionPass(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const jsonUrl = 'https://example.com/json'
@@ -192,7 +186,6 @@ export async function testWorkspaceImportUrlViewHintsUseSingleIngestionPass(): P
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlYouTubePreservesPaneContentFormats(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const calls: string[] = []
@@ -210,7 +203,6 @@ export async function testWorkspaceImportUrlYouTubePreservesPaneContentFormats()
     if (!markdownRes.text.includes(`[![Transcript ${fakeId}](https://i.ytimg.com/vi/${fakeId}/hqdefault.jpg)](${watchUrl})`)) {
       throw new Error('expected markdown import to render the source URL as a linked thumbnail image')
     }
-
     const jsonUrl = `https://www.youtube.com/watch?v=${fakeId}&t=42&pane=json`
     const jsonRes = await fetchWorkspaceUrlContent(jsonUrl, { mode: 'import', viewHint: 'json' })
     if (!jsonRes.text.includes(`kgYoutubeVideoId: "${fakeId}"`)) {
@@ -222,7 +214,6 @@ export async function testWorkspaceImportUrlYouTubePreservesPaneContentFormats()
     if (!jsonRes.text.includes('```json') || !jsonRes.text.includes(`"video_id": "${fakeId}"`)) {
       throw new Error('expected JSON import to keep transcript JSON visible in the workspace file')
     }
-
     const rendererRes = await fetchWorkspaceUrlContent(watchUrl, {
       mode: 'import',
       viewHint: 'html',
@@ -256,7 +247,59 @@ export async function testWorkspaceImportUrlYouTubePreservesPaneContentFormats()
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
+export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocument(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const calls: string[] = []
+  const restore = installYouTubeTranscriptFetch(calls)
+  try {
+    const fakeId = 'StRyB1dR234'
+    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}&t=42`
+    const fs = createMemoryWorkspaceFs()
+    const res = await importWorkspaceUrl({
+      fs,
+      urlRaw: watchUrl,
+      canvas2dRenderer: 'strybldr',
+      documentSemanticMode: 'document',
+    })
+    if (res.applyToGraph !== true) throw new Error('expected Strybldr URL import to apply the generated storyboard graph')
+    if (res.createdPaths.length !== 2) throw new Error(`expected source plus Strybldr document, got ${res.createdPaths.join(', ')}`)
+    const storyPath = res.createdPaths[0] || ''
+    const sourcePath = res.createdPaths[1] || ''
+    if (!storyPath.endsWith('.strybldr.md')) throw new Error(`expected first created path to be Strybldr document, got ${storyPath}`)
+    if (!sourcePath.includes(`youtube-${fakeId}.md`)) throw new Error(`expected second created path to be YouTube source markdown, got ${sourcePath}`)
+    const focusPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
+    if (focusPath !== storyPath) throw new Error(`expected import focus helper to preserve created path priority, got ${String(focusPath || '<none>')}`)
+    const storyText = String((await fs.readFileText(storyPath)) || '')
+    if (!storyText.includes('kgCanvas2dRenderer: "strybldr"')) throw new Error('expected generated Strybldr frontmatter')
+    if (!storyText.includes(`"mediaKind": "video"`)) throw new Error('expected URL source unit to preserve video media kind')
+    if (!storyText.includes(watchUrl)) throw new Error('expected generated Strybldr source to preserve normalized URL provenance')
+    const parsed = await loadGraphDataFromTextViaParser('youtube.strybldr.md', storyText, { applyToStore: false })
+    if (parsed?.parserId !== 'strybldr-storyboard') throw new Error(`expected Strybldr parser, got ${String(parsed?.parserId || '')}`)
+    if (String(parsed.graphData?.metadata && (parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') !== 'strybldr') {
+      throw new Error('expected parsed storyboard graph to activate Strybldr renderer metadata')
+    }
+    const board = buildStoryboardBoardModel({ graphData: parsed.graphData, graphRevision: 1 })
+    const cards = board.lanes.flatMap(lane => lane.cards)
+    if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) {
+      throw new Error(`expected generated Strybldr YouTube graph to expose renderable iframe media, got ${JSON.stringify(cards.map(card => card.media))}`)
+    }
+    if (!cards.some(card => card.references.some(reference => reference.kind === 'image' && reference.url.includes(`/vi/${fakeId}/`)))) {
+      throw new Error(`expected generated Strybldr YouTube graph to expose thumbnail image references, got ${JSON.stringify(cards.map(card => card.references))}`)
+    }
+    const handoff = buildStrybldrVideoHandoffFromGraphData(parsed.graphData)
+    if (handoff.cards.length < 1 || !handoff.prompt) throw new Error('expected generated Strybldr storyboard graph to be runnable by Toolbar Run all')
+    if (!res.corpusManifest || res.corpusManifest.sourceUnits.length !== 1) {
+      throw new Error('expected URL import result to expose one neutral corpus source unit')
+    }
+    const sourceUnit = res.corpusManifest.sourceUnits[0]
+    if (sourceUnit?.mediaKind !== 'video' || sourceUnit.provenance.importMode !== 'url') {
+      throw new Error(`expected video URL source-unit provenance, got ${JSON.stringify(sourceUnit)}`)
+    }
+  } finally {
+    restore()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+}
 export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const calls: string[] = []
@@ -277,7 +320,6 @@ export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): P
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDocsRoot(): Promise<void> {
   const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
   const exportToken = 'c753877f-7480-4e76-bf75-89fe18358943'
@@ -353,7 +395,6 @@ export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDoc
     await rm(tempRoot, { recursive: true, force: true })
   }
 }
-
 export async function testWorkspaceImportUrlExportsClaudeChatArtifactsIntoDocsRoot(): Promise<void> {
   const chatUrl = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
   const urlToken = '6706219f-f8d2-418a-90a9-aae18de752a7', exportToken = 'MiroThinker-global-oil-price-trajectory-simulation-20260407'
@@ -410,7 +451,6 @@ export async function testWorkspaceImportUrlExportsClaudeChatArtifactsIntoDocsRo
     await rm(tempRoot, { recursive: true, force: true })
   }
 }
-
 export function testWorkspaceImportShareExportRootSettingNormalizesSiblingAbsolutePath(): void {
   const { restore } = initJsdomHarness()
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
@@ -429,7 +469,6 @@ export function testWorkspaceImportShareExportRootSettingNormalizesSiblingAbsolu
     restore()
   }
 }
-
 export function testWorkspaceSourceRootPathsIncludeConfiguredShareExportRoot(): void {
   const { restore } = initJsdomHarness()
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
@@ -451,7 +490,6 @@ export function testWorkspaceSourceRootPathsIncludeConfiguredShareExportRoot(): 
     restore()
   }
 }
-
 export async function testWorkspaceImportUrlUsesConfiguredShareExportRootSetting(): Promise<void> {
   const { restore } = initJsdomHarness()
   const shareUrl = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
@@ -500,7 +538,6 @@ export async function testWorkspaceImportUrlUsesConfiguredShareExportRootSetting
     restore()
   }
 }
-
 export async function testWorkspaceImportApplyPolicyIgnoresBodyOnlyCanvasWords(): Promise<void> {
   const transcriptText = [
     '---',
@@ -519,7 +556,6 @@ export async function testWorkspaceImportApplyPolicyIgnoresBodyOnlyCanvasWords()
   if (shouldApplyImportedCanvasDocumentToGraph({ path: '/youtube-transcript.md', text: transcriptText })) {
     throw new Error('expected import graph-apply policy to inspect only the frontmatter header')
   }
-
   const canvasText = [
     '---',
     'flow:',
@@ -533,7 +569,6 @@ export async function testWorkspaceImportApplyPolicyIgnoresBodyOnlyCanvasWords()
     throw new Error('expected frontmatter flow documents to apply to graph')
   }
 }
-
 export async function testWorkspaceImportToCanvasRespectsApplyToGraphFalseForTranscripts(): Promise<void> {
   const prevSourceFiles = useGraphStore.getState().sourceFiles
   try {
@@ -566,7 +601,6 @@ export async function testWorkspaceImportToCanvasRespectsApplyToGraphFalseForTra
     useGraphStore.getState().setSourceFiles(prevSourceFiles)
   }
 }
-
 export async function testWorkspaceImportUrlPrefersHigherCoverageMarkdownFallback(): Promise<void> {
   const converted = [
     '# Session 32',
@@ -584,7 +618,6 @@ export async function testWorkspaceImportUrlPrefersHigherCoverageMarkdownFallbac
       `Transcript paragraph ${index + 1} preserves source-visible content across the whole page.`,
     ].join('\n')),
   ].join('\n\n')
-
   const selected = chooseWebpageMarkdownByContentCoverage({
     mode: 'import',
     convertedMarkdown: converted,
@@ -600,7 +633,6 @@ export async function testWorkspaceImportUrlPrefersHigherCoverageMarkdownFallbac
     throw new Error('expected late source section to be preserved by fallback selection')
   }
 }
-
 export async function testWorkspaceImportUrlDomChooserIgnoresShellChromeDuringCoverage(): Promise<void> {
   const convertedMarkdown = [
     '# Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.',
@@ -622,13 +654,11 @@ export async function testWorkspaceImportUrlDomChooserIgnoresShellChromeDuringCo
     "What's New",
     'Release notes and changelog',
   ].join('\n')
-
   const selected = chooseDomRecoveredMarkdown({
     mode: 'import',
     convertedMarkdown,
     renderedTextMarkdown,
   })
-
   if (selected.source !== 'converted') {
     throw new Error(`expected shell-pruned DOM chooser to preserve structured markdown, got ${selected.source}`)
   }
@@ -636,7 +666,6 @@ export async function testWorkspaceImportUrlDomChooserIgnoresShellChromeDuringCo
     throw new Error(`expected shell-pruned rendered coverage to stay high, got ${selected.renderedCoverageRatio}`)
   }
 }
-
 export async function testWorkspaceImportUrlChromePruningDoesNotTruncateSubstantiveAboutLines(): Promise<void> {
   const pruned = pruneWebpageChromeText([
     'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS.',
@@ -653,7 +682,6 @@ export async function testWorkspaceImportUrlChromePruningDoesNotTruncateSubstant
     "What's New",
     'Release notes and changelog',
   ].join('\n'))
-
   if (!pruned.includes('about $85/bbl from $77')) {
     throw new Error(`expected substantive lines containing "about" to survive chrome pruning, got:\n${pruned}`)
   }
@@ -661,7 +689,6 @@ export async function testWorkspaceImportUrlChromePruningDoesNotTruncateSubstant
     throw new Error(`expected low-value tail sections to be pruned, got:\n${pruned}`)
   }
 }
-
 export async function testWorkspaceImportUrlDomChooserRepairsMergedLeadingBoundariesFromRenderedText(): Promise<void> {
   const convertedMarkdown = [
     'Analyze recent oil market reports from major institutions like Goldman Sachs and UBS. Identify a shared logical blind spot. Based on this flaw, re-simulate the global oil price trajectory for the next six months.Show thinking trajectory Summary',
@@ -674,18 +701,15 @@ export async function testWorkspaceImportUrlDomChooserRepairsMergedLeadingBounda
     'Summary',
     '1. Shared logical blind spot in recent Goldman Sachs & UBS oil reports',
   ].join('\n')
-
   const selected = chooseDomRecoveredMarkdown({
     mode: 'import',
     convertedMarkdown,
     renderedTextMarkdown,
   })
-
   if (!selected.markdown.includes('next six months.\n\nShow thinking trajectory\n\nSummary')) {
     throw new Error(`expected chooser to repair merged leading boundaries, got:\n${selected.markdown}`)
   }
 }
-
 export async function testWorkspaceImportUrlImportPreservesFullTextFallbackBody(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://example.com/conference'
@@ -715,7 +739,6 @@ export async function testWorkspaceImportUrlImportPreservesFullTextFallbackBody(
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportRecoversJsRenderedContentViaDomExportFallback(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://example.com/shared-report'
@@ -792,7 +815,6 @@ export async function testWorkspaceImportUrlImportRecoversJsRenderedContentViaDo
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportRecoversLongLoadingShellViaDomExportFallback(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://example.com/shared-conversation'
@@ -867,7 +889,6 @@ export async function testWorkspaceImportUrlImportRecoversLongLoadingShellViaDom
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportRecoversProxyFetchFailureViaDomExportFallback(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -947,7 +968,6 @@ export async function testWorkspaceImportUrlImportRecoversProxyFetchFailureViaDo
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportDoesNotReuseCachedConnectionShellMarkdown(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -979,7 +999,6 @@ export async function testWorkspaceImportUrlImportDoesNotReuseCachedConnectionSh
   try {
     const rejectedConnectionShell = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' }).then(() => false, e => String((e as { message?: unknown })?.message || e).includes('Authenticated browser session required'))
     if (!rejectedConnectionShell) throw new Error('expected first import fetch to reject the low-fidelity connection shell before persistence')
-
     currentHtml = [
       '<!doctype html>',
       '<html>',
@@ -993,7 +1012,6 @@ export async function testWorkspaceImportUrlImportDoesNotReuseCachedConnectionSh
       '</body>',
       '</html>',
     ].join('')
-
     const second = await fetchWorkspaceUrlContent(url, { mode: 'import', viewHint: 'markdown' })
     if (!second.text.includes('Oil market blind spot analysis and price forecast')) {
       throw new Error(`expected second import fetch to bypass stale cached shell content, got:\n${second.text}`)
@@ -1007,7 +1025,6 @@ export async function testWorkspaceImportUrlImportDoesNotReuseCachedConnectionSh
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportUsesApiNativeBrowserSessionMarkdownWhenProxyAndDomStayLowFidelity(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -1089,7 +1106,6 @@ export async function testWorkspaceImportUrlImportUsesApiNativeBrowserSessionMar
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportPrefersScriptDisabledTextProbeWhenHtmlRecoveryIsInsufficient(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -1149,7 +1165,6 @@ export async function testWorkspaceImportUrlImportPrefersScriptDisabledTextProbe
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeWhenScriptDisabledHtmlIsHydrationShell(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -1214,7 +1229,6 @@ export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeW
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeWhenScriptDisabledHtmlIsConnectionShell(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -1285,7 +1299,6 @@ export async function testWorkspaceImportUrlImportRetriesScriptEnabledHtmlProbeW
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportPrefersStructuredDomMarkdownWhenItPreservesRenderedContent(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://example.com/rendered-share'
@@ -1359,7 +1372,6 @@ export async function testWorkspaceImportUrlImportPrefersStructuredDomMarkdownWh
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlImportSkipsTextDomProbeWhenStructuredHtmlRecoveryIsAlreadySufficient(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://claude.ai/chat/6706219f-f8d2-418a-90a9-aae18de752a7'
@@ -1410,7 +1422,6 @@ export async function testWorkspaceImportUrlImportSkipsTextDomProbeWhenStructure
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSiblingExport(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
@@ -1536,7 +1547,6 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSi
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWholeDocumentHtmlFallback(): Promise<void> {
   resetWorkspaceUrlContentCacheForTests()
   const url = 'https://dr.miromind.ai/share/c753877f-7480-4e76-bf75-89fe18358943'
@@ -1590,7 +1600,6 @@ export async function testWorkspaceImportUrlShareThinkingTrajectoryDoesNotUseWho
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-
 export async function testPlainTextToMarkdownPreservesThinkingTranscriptMarkdownStructure(): Promise<void> {
   const markdown = restoreWebpageMarkdownSyntaxFidelity(plainTextToMarkdown([
     '- The user wants me to: 1. Analyze recent oil market reports 2. Identify a shared logical blind spot 3. Re-simulate the global oil price trajectory for the next six months',

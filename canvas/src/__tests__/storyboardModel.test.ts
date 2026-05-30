@@ -132,3 +132,39 @@ export function testStoryboardBoardModelSupportsUniversalNeutralAliases() {
     throw new Error(`expected assets/documentUrl aliases to project references and href, got ${JSON.stringify(card)}`)
   }
 }
+
+export function testStoryboardBoardModelResolvesProviderVideoToRenderableEmbedAndThumbnail() {
+  const videoId = ['Story', 'Board', '42'].join('')
+  const watchUrl = ['https://www.youtube.com/watch', `?v=${videoId}&t=42`].join('')
+  const board = buildStoryboardBoardModel({
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'video-source',
+          label: 'Provider Video Source',
+          type: 'StoryboardFrame',
+          properties: {
+            lane: 'Storyboard',
+            mediaKind: 'video',
+            mediaUrl: watchUrl,
+            order: 1,
+          },
+        },
+      ],
+      edges: [],
+    },
+    graphRevision: 10,
+  })
+  const card = board.lanes[0]?.cards[0]
+  if (!card) throw new Error('expected provider video source to project one storyboard card')
+  if (card.media?.kind !== 'iframe' || !card.media.url.includes('/embed/') || card.media.url === watchUrl) {
+    throw new Error(`expected provider video to resolve to renderable iframe media, got ${JSON.stringify(card.media)}`)
+  }
+  if (card.href !== watchUrl) {
+    throw new Error(`expected card href to preserve source URL provenance, got ${card.href}`)
+  }
+  if (!card.references.some(reference => reference.kind === 'image' && reference.url.includes(`/vi/${videoId}/`))) {
+    throw new Error(`expected provider video thumbnail image reference, got ${JSON.stringify(card.references)}`)
+  }
+}

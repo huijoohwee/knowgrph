@@ -13,8 +13,8 @@ import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSel
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { emitWorkflowRunAll } from '@/features/canvas/utils'
-import { supportsToolbarRunAll } from '@/lib/config.render'
+import { emitFloatingPanelOpen, emitWorkflowRunAll } from '@/features/canvas/utils'
+import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
@@ -32,6 +32,7 @@ const SearchPanelLazy = React.lazy(() => import('@/components/SearchPanel'));
 const ToolbarMenuLauncherLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarMenuLauncher').then(mod => ({ default: mod.ToolbarMenuLauncher })),
 );
+const TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS = 120
 
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
@@ -65,12 +66,16 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     canvas2dRenderer,
   } = useCanvasToolbarContext({ onReset, onZoomSelection })
   const pushUiToast = useGraphStore(s => s.pushUiToast)
+  const floatingPanelOpen = useGraphStore(s => s.floatingPanelOpen)
+  const floatingPanelView = useGraphStore(s => s.floatingPanelView)
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
+  const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
+  const runAllFloatingPanelConsumerMounted = !!runAllFloatingPanelTab && floatingPanelOpen === true && floatingPanelView === runAllFloatingPanelTab
 
   useEffect(() => {
     const root = document.documentElement
@@ -255,6 +260,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         onClick={() => {
           if (!canRunAll) {
             pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor or Strybldr to run all.', ttlMs: 2200 })
+            return
+          }
+          if (runAllFloatingPanelTab) {
+            if (runAllFloatingPanelConsumerMounted) {
+              emitWorkflowRunAll({ source: 'toolbar' })
+              return
+            }
+            emitFloatingPanelOpen({ tab: runAllFloatingPanelTab, open: true })
+            window.setTimeout(() => emitWorkflowRunAll({ source: 'toolbar' }), TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS)
             return
           }
           emitWorkflowRunAll({ source: 'toolbar' })
