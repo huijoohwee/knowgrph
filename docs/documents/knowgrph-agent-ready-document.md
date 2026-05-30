@@ -401,7 +401,7 @@ Latest live deployment target:
 
 - service URL: `https://airvio.co/knowgrph/`
 - Cloudflare Pages project: `joohwee`
-- deployment preview: `https://0b76c831.joohwee.pages.dev`
+- deployment preview: `https://0d812758.joohwee.pages.dev`
 - Commerce root scan: external `isitagentready.com` scan for `https://airvio.co` returned
   `commerce.acp`, `commerce.ucp`, `commerce.mpp`, and `commerce.x402` as `pass`
 
@@ -415,7 +415,7 @@ Checks:
 | DNS-AID | `npm run dns-aid:check` | `3/3` |
 | WebMCP external scan | `isitagentready.com` scan for `https://airvio.co/knowgrph/` | passed with five published tools |
 | Commerce external scan | `isitagentready.com` scan for `https://airvio.co` | ACP, UCP, MPP, and x402 passed |
-| Root scan stability | `https://airvio.co/` | 200 app-shell alias, no meta refresh, inline WebMCP present |
+| Root scan stability | `https://airvio.co/` | 200 app-shell alias with fixed first-viewport fallback, no meta refresh, inline WebMCP present |
 
 ## Guardrails
 

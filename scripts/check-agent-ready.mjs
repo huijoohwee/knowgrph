@@ -181,7 +181,23 @@ const checks = [
       && String(response.headers.get('vary') || '').toLowerCase().includes('accept')
       && body.trim().startsWith('# Knowgrph'),
   },
-  { name: 'root-homepage-app-alias', url: `${originUrl}/`, accept: 'text/html', assert: async (response, body) => response.ok && response.headers.get('content-type')?.includes('text/html') && body.includes('<div id="root"></div>') && body.includes('/knowgrph/assets/') && body.includes('name="x-knowgrph-root-alias" content="/knowgrph/"') && body.includes('Agent-actionable chat-to-canvas knowledge graph workspace') && !body.includes(['Agent-readable', 'knowledge graph workspace'].join(' ')) && !/http-equiv=["']refresh["']/i.test(body) && !body.includes('url=/knowgrph/') },
+  {
+    name: 'root-homepage-app-alias',
+    url: `${originUrl}/`,
+    accept: 'text/html',
+    assert: async (response, body) =>
+      response.ok
+      && response.headers.get('content-type')?.includes('text/html')
+      && body.includes('<div id="root"></div>')
+      && body.includes('/knowgrph/assets/')
+      && body.includes('name="x-knowgrph-root-alias" content="/knowgrph/"')
+      && body.includes('id="knowgrph-root-fallback"')
+      && body.includes('data-knowgrph-root-fallback="visible"')
+      && body.includes('Agent-actionable chat-to-canvas knowledge graph workspace')
+      && !body.includes(['Agent-readable', 'knowledge graph workspace'].join(' '))
+      && !/http-equiv=["']refresh["']/i.test(body)
+      && !body.includes('url=/knowgrph/'),
+  },
   {
     name: 'markdown-negotiation',
     url: `${baseUrl}/`,
