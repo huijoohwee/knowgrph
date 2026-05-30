@@ -241,7 +241,7 @@ export async function testWorkspaceImportUrlYouTubePreservesPaneContentFormats()
       createdPaths: ['/youtube-transcript.md'],
     })
     if (applyToGraph) throw new Error('expected imported YouTube transcript content to remain a workspace document')
-    if (calls.length !== 2) throw new Error(`expected renderer-selected import to reuse the cached YouTube conversion, got ${calls.length} requests`)
+    const transcriptRequestCount = calls.filter(call => call.startsWith('/__youtube_transcript?')).length; if (transcriptRequestCount !== 2) throw new Error(`expected renderer-selected import to reuse the cached YouTube conversion, got ${transcriptRequestCount} transcript requests`)
   } finally {
     restore()
     resetWorkspaceUrlContentCacheForTests()
@@ -253,7 +253,7 @@ export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocu
   const restore = installYouTubeTranscriptFetch(calls)
   try {
     const fakeId = 'StRyB1dR234'
-    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}&t=42`
+    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}`
     const fs = createMemoryWorkspaceFs()
     const res = await importWorkspaceUrl({
       fs,
@@ -275,22 +275,20 @@ export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocu
     if (!storyText.includes(watchUrl)) throw new Error('expected generated Strybldr source to preserve normalized URL provenance')
     const parsed = await loadGraphDataFromTextViaParser('youtube.strybldr.md', storyText, { applyToStore: false })
     if (parsed?.parserId !== 'strybldr-storyboard') throw new Error(`expected Strybldr parser, got ${String(parsed?.parserId || '')}`)
-    if (String(parsed.graphData?.metadata && (parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') !== 'strybldr') {
-      throw new Error('expected parsed storyboard graph to activate Strybldr renderer metadata')
-    }
+    if (String(parsed.graphData?.metadata && (parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') !== 'strybldr') throw new Error('expected parsed storyboard graph to activate Strybldr renderer metadata')
     const board = buildStoryboardBoardModel({ graphData: parsed.graphData, graphRevision: 1 })
     const cards = board.lanes.flatMap(lane => lane.cards)
-    if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) {
-      throw new Error(`expected generated Strybldr YouTube graph to expose renderable iframe media, got ${JSON.stringify(cards.map(card => card.media))}`)
-    }
-    if (!cards.some(card => card.references.some(reference => reference.kind === 'image' && reference.url.includes(`/vi/${fakeId}/`)))) {
-      throw new Error(`expected generated Strybldr YouTube graph to expose thumbnail image references, got ${JSON.stringify(cards.map(card => card.references))}`)
-    }
+    if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) throw new Error(`expected generated Strybldr YouTube graph to expose renderable iframe media, got ${JSON.stringify(cards.map(card => card.media))}`)
+    const frameReference = cards.flatMap(card => card.references).find(reference => reference.kind === 'image' && reference.url.startsWith('/__video_frame?'))
+    if (!frameReference) throw new Error(`expected generated Strybldr YouTube graph to expose frame-extraction image references, got ${JSON.stringify(cards.map(card => card.references))}`)
+    const frameRequest = new URL(frameReference.url, 'https://example.test')
+    if (frameRequest.searchParams.get('url') !== watchUrl || frameRequest.searchParams.get('time') !== '0') throw new Error(`expected frame extraction request to preserve input URL and default timestamp, got ${frameReference.url}`)
+    if (!cards.some(card => card.references.some(reference => reference.kind === 'image' && reference.url.includes(`/vi/${fakeId}/`)))) throw new Error(`expected generated Strybldr YouTube graph to keep provider-safe fallback thumbnail references, got ${JSON.stringify(cards.map(card => card.references))}`)
     const handoff = buildStrybldrVideoHandoffFromGraphData(parsed.graphData)
     if (handoff.cards.length < 1 || !handoff.prompt) throw new Error('expected generated Strybldr storyboard graph to be runnable by Toolbar Run all')
-    if (!res.corpusManifest || res.corpusManifest.sourceUnits.length !== 1) {
-      throw new Error('expected URL import result to expose one neutral corpus source unit')
-    }
+    if (!handoff.cards.some(card => card.references.some(reference => reference.startsWith('/__video_frame?')))) throw new Error(`expected Toolbar Run all handoff cards to carry frame-extraction references, got ${JSON.stringify(handoff.cards)}`)
+    if (!String(handoff.referenceImageUrl || '').includes(`/vi/${fakeId}/`)) throw new Error(`expected Toolbar Run all handoff to retain an external provider-safe reference image, got ${String(handoff.referenceImageUrl || '')}`)
+    if (!res.corpusManifest || res.corpusManifest.sourceUnits.length !== 1) throw new Error('expected URL import result to expose one neutral corpus source unit')
     const sourceUnit = res.corpusManifest.sourceUnits[0]
     if (sourceUnit?.mediaKind !== 'video' || sourceUnit.provenance.importMode !== 'url') {
       throw new Error(`expected video URL source-unit provenance, got ${JSON.stringify(sourceUnit)}`)
@@ -1800,6 +1798,43 @@ export async function testWorkspaceImportUrlAcceptsAbsoluteFsPathViaViteFsFetch(
     }
   } finally {
     g.fetch = prev
+  }
+}
+
+export async function testWorkspaceImportUrlFetchesRootRelativeStorageMarkdownAsUrl(): Promise<void> {
+  resetWorkspaceUrlContentCacheForTests()
+  const g = globalThis as GlobalWithFetch
+  const prev = g.fetch
+  const calls: string[] = []
+  g.fetch = (async (input: unknown) => {
+    const calledUrl = input instanceof URL ? input.toString() : String(input || '')
+    calls.push(calledUrl)
+    return new Response('# Shared Storage Doc\n\nFetched from storage.\n', {
+      status: 200,
+      headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+    })
+  }) as unknown as typeof fetch
+  try {
+    const sourceUrl = '/api/storage/doc-default/huijoohwee%2Fdocs%2Fshared-storage-doc.md'
+    const res = await fetchWorkspaceUrlContent(sourceUrl, { mode: 'import', viewHint: 'markdown' })
+    if (calls.join(',') !== sourceUrl) {
+      throw new Error(`expected root-relative storage markdown to fetch directly as a URL, got ${calls.join(',')}`)
+    }
+    if (calls.some(call => call.includes('/__codebase_file') || call.includes('/@fs') || call.includes('/__fetch_remote'))) {
+      throw new Error(`expected storage URL import to avoid local/proxy fetch fallbacks, got ${calls.join(',')}`)
+    }
+    if (res.name !== 'shared-storage-doc.md') {
+      throw new Error(`expected filename from root-relative storage URL, got ${res.name}`)
+    }
+    if (res.normalizedUrl !== sourceUrl) {
+      throw new Error(`expected root-relative storage URL identity to be preserved, got ${res.normalizedUrl}`)
+    }
+    if (!res.text.includes('Shared Storage Doc')) {
+      throw new Error('expected storage markdown body to be imported verbatim')
+    }
+  } finally {
+    g.fetch = prev
+    resetWorkspaceUrlContentCacheForTests()
   }
 }
 

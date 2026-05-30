@@ -14,10 +14,19 @@ export type WorkspaceImportWebsiteOpts = {
   source?: 'import-url' | 'website'
 }
 
+export type WorkspaceFileSelection = FileList | ReadonlyArray<File> | null
+
+export type WorkspaceBridgeImportResult = {
+  createdPaths?: string[]
+  removedPaths?: string[]
+}
+
+type WorkspaceBridgeImportReturn = void | WorkspaceBridgeImportResult | Promise<void | WorkspaceBridgeImportResult>
+
 export type MarkdownWorkspaceActionBridge = {
-  importLocalFiles?: (files: FileList | null) => void
-  importLocalImages?: (files: FileList | null) => void
-  importLocalFolder?: (files: FileList | null) => void
+  importLocalFiles?: (files: WorkspaceFileSelection) => WorkspaceBridgeImportReturn
+  importLocalImages?: (files: WorkspaceFileSelection) => WorkspaceBridgeImportReturn
+  importLocalFolder?: (files: WorkspaceFileSelection) => WorkspaceBridgeImportReturn
   importUrl?: (url: string, opts?: WorkspaceImportUrlOpts) => void
   importWebsite?: (url: string, opts?: WorkspaceImportWebsiteOpts) => void
   createNewFolder?: () => void

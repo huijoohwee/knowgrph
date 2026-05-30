@@ -324,7 +324,12 @@ export class FakeKnowgrphStorageD1Database {
 
   private readRows(sql: string, values: unknown[]): FakeRow[] {
     const normalizedSql = normalizeSql(sql)
-    if (normalizedSql.includes('select id, content_md from documents where documents.workspace_id = ? and documents.canonical_path = ? and documents.deleted = ?')) {
+    if (
+      normalizedSql.includes('select id, content_md from documents')
+      && normalizedSql.includes('documents.workspace_id = ?')
+      && normalizedSql.includes('documents.canonical_path = ?')
+      && normalizedSql.includes('documents.deleted = ?')
+    ) {
       const [workspaceId, canonicalPath, deleted] = values
       const rows = Array.from(this.documents.values()).filter(
         row =>

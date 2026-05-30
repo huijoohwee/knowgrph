@@ -20,7 +20,7 @@ import {
   importWorkspaceUrl,
 } from '../workspaceImport'
 import type { WorkspaceImportResult } from '../workspaceImport/types'
-import type { WorkspaceImportActionsCtx } from './types'
+import type { WorkspaceFileSelection, WorkspaceImportActionsCtx } from './types'
 import { summarizeCorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 import { inferCorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 import { registerStrybldrImageFiles } from '@/features/strybldr/strybldrImageFileRegistry'
@@ -180,7 +180,7 @@ export function useWorkspaceImportActions(args: {
   )
 
   const handleImportLocalFiles = React.useCallback(
-    async (files: FileList | null) => {
+    async (files: WorkspaceFileSelection) => {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
       const jobId = (importJobRef.current += 1)
@@ -214,6 +214,7 @@ export function useWorkspaceImportActions(args: {
           await focusAfterImport(createdPath, { applyToGraph, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported', res).message)
+        return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
       } catch (e) {
         if (importJobRef.current !== jobId) return
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -223,7 +224,7 @@ export function useWorkspaceImportActions(args: {
   )
 
   const handleImportLocalImages = React.useCallback(
-    async (files: FileList | null) => {
+    async (files: WorkspaceFileSelection) => {
       const snapshot = files ? Array.from(files) : []
       const images = snapshot.filter(file => inferCorpusMediaKind(file.name, file.type) === 'image')
       if (snapshot.length === 0) return
@@ -287,6 +288,7 @@ export function useWorkspaceImportActions(args: {
           await focusAfterImport(focusPath, { applyToGraph: true, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported image', res).message)
+        return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
       } catch (e) {
         if (importJobRef.current !== jobId) return
         status.setStatusError(`Import Image failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -296,7 +298,7 @@ export function useWorkspaceImportActions(args: {
   )
 
   const handleImportLocalFolder = React.useCallback(
-    async (files: FileList | null) => {
+    async (files: WorkspaceFileSelection) => {
       const snapshot = files ? Array.from(files) : []
       if (snapshot.length === 0) return
       const jobId = (importJobRef.current += 1)
@@ -324,6 +326,7 @@ export function useWorkspaceImportActions(args: {
           await focusAfterImport(createdPath, { applyToGraph, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported folder:', res).message)
+        return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
       } catch (e) {
         if (importJobRef.current !== jobId) return
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)

@@ -23,6 +23,7 @@ import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/s
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
+import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
 import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
 import {
   buildWebpageSandboxCsp,
@@ -5653,15 +5654,8 @@ function createYoutubeConvertHandler(): import('vite').Connect.NextHandleFunctio
   }
 }
 
-const youtubeConvertDevPlugin = {
-  name: 'knowgrph-youtube-convert-dev',
-  configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler())
-  },
-  configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler())
-  },
-}
+const youtubeConvertDevPlugin = { name: 'knowgrph-youtube-convert-dev', configureServer(server: import('vite').ViteDevServer) { server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler()) }, configurePreviewServer(server: import('vite').PreviewServer) { server.middlewares.use('/__youtube_transcript', createYoutubeConvertHandler()) } }
+const remoteVideoFrameDevPlugin = { name: 'knowgrph-remote-video-frame-dev', configureServer(server: import('vite').ViteDevServer) { const handler = createRemoteVideoFrameHandler({ repoRoot, workspaceRoot, getPythonBin, withRepoPythonPath }); server.middlewares.use('/__video_frame', handler); server.middlewares.use(REMOTE_VIDEO_FRAME_PUBLIC_PREFIX, createRemoteVideoFramePublicAssetHandler({ workspaceRoot })) }, configurePreviewServer(server: import('vite').PreviewServer) { const handler = createRemoteVideoFrameHandler({ repoRoot, workspaceRoot, getPythonBin, withRepoPythonPath }); server.middlewares.use('/__video_frame', handler); server.middlewares.use(REMOTE_VIDEO_FRAME_PUBLIC_PREFIX, createRemoteVideoFramePublicAssetHandler({ workspaceRoot })) } }
 
 function readViteDevPortHint(): string {
   const envPort = String(
@@ -6027,6 +6021,7 @@ export default defineConfig(({ command }) => {
           pdfWorkspaceDevPlugin,
           websiteImportDevPlugin,
           youtubeConvertDevPlugin,
+          remoteVideoFrameDevPlugin,
         ]),
   ],
   }

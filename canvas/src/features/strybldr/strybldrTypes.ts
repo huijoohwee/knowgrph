@@ -72,4 +72,6 @@ export type StrybldrVideoHandoff = {
   cards: StrybldrVideoHandoffCard[]
   prompt: string
   referenceImageUrl: string | null
+  sourceVideoUrl?: string | null
+  renderVideoUrl?: string | null
 }

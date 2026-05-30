@@ -35,6 +35,9 @@ export function testAnimaticCanvasRetainsNativeRunnerAutoScrollSwitchContract() 
 
 export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
+  const transportText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'TimelineTransportControls.tsx'), 'utf8')
+  const transportUtilsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'timelineTransport.ts'), 'utf8')
+  const sharedTransportText = [text, transportText, transportUtilsText].join('\n')
   for (const snippet of [
     'const SCALE_ROW_HEIGHT_PX = 32',
     'const LANE_ROW_HEIGHT_PX = 32',
@@ -43,7 +46,10 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     'uiToolbarResponsiveRowScrollClassName',
     'uiToolbarTouchRowScrollClassName',
     'UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME',
-    'type AnimationTimelineScaleConfig',
+    'type AnimaticTimelineScaleConfig',
+    'TimelineTransportControls',
+    'useTimelineTransportPlayback',
+    'resolveTimelineTransportUnitsPerMs',
     'timelineModel.scaleConfig',
     'setTimingOverrides({})',
     'setDragState(null)',
@@ -61,8 +67,9 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     "touchAction: 'pan-x manipulation'",
     '<div className="timeline-player">',
     'className="play-control"',
-    "aria-label={playing ? 'pause' : 'caret-right'}",
-    '<div className="time">{currentTimeLabel}</div>',
+    "aria-label={playing ? 'Pause playback' : 'Start playback'}",
+    'currentLabel={currentTimeLabel}',
+    '<div className="time">{currentLabel}</div>',
     '<div className="rate-control">',
     'className="ant-select ant-select-sm ant-select-single ant-select-show-arrow"',
     '<div ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">',
@@ -97,7 +104,7 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     'itemTitle: string',
     'sourceBeatRef: string',
     'type AnimationLaneItemMoveSource = {',
-    'const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimationTimelineLaneId, HTMLDivElement | null>>>({})',
+    'const laneTrackOverlayRefs = React.useRef<Partial<Record<AnimaticTimelineLaneId, HTMLDivElement | null>>>({})',
     'const resolveBeatAtLaneTrackClientX = React.useCallback(',
     'const resolveLaneItemMoveNodeId = React.useCallback(',
     'const overlay = laneTrackOverlayRefs.current[laneId]',
@@ -140,7 +147,7 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     'bg-cyan-500/6',
     'bg-cyan-500/4',
   ]) {
-    if (!text.includes(snippet)) {
+    if (!sharedTransportText.includes(snippet)) {
       throw new Error(`expected AnimaticCanvas to retain reference player/timeline shell snippet: ${snippet}`)
     }
   }
@@ -166,7 +173,10 @@ export function testAnimaticCanvasDoesNotImportVendorTimelineEditor() {
 
 export function testAnimaticCanvasRetainsSoftenedVisualTextureContract() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.tsx'), 'utf8')
-  const cssText = readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.css'), 'utf8')
+  const cssText = [
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'AnimaticCanvas.css'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'TimelineTransportControls.css'), 'utf8'),
+  ].join('\n')
   for (const snippet of ['border-cyan-400/30 bg-cyan-500/8', 'border-fuchsia-400/30 bg-fuchsia-500/8', 'border-amber-400/30 bg-amber-500/8', 'border-emerald-400/30 bg-emerald-500/8', 'border-slate-500/30 bg-slate-500/8']) {
     if (!text.includes(snippet)) {
       throw new Error(`expected AnimaticCanvas to retain softened lane accent snippet: ${snippet}`)

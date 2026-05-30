@@ -90,3 +90,55 @@ export async function testMarkdownFileTreeContextMenuItemsHideMutationsForInitia
     throw new Error(`expected initialization-file menu to hide rename and delete, got ${labels}`)
   }
 }
+
+export async function testMarkdownFileTreeShareUrlAwaitsAsyncPublishedUrlBeforeCopy() {
+  const calls: string[] = []
+  const copied: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildShareUrl: async () => 'https://airvio.co/knowgrph/share/kg-public-token',
+    copyToClipboard: async text => {
+      copied.push(text)
+      return true
+    },
+    closeContextMenu: () => calls.push('close'),
+  })
+
+  await items[0]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  if (calls.join(',') !== 'close') {
+    throw new Error(`expected Share URL to close the context menu immediately, got ${calls.join(',')}`)
+  }
+  if (copied.join(',') !== 'https://airvio.co/knowgrph/share/kg-public-token') {
+    throw new Error(`expected async published Share URL to be copied, got ${copied.join(',')}`)
+  }
+}
+
+export async function testMarkdownFileTreeShareUrlPromptsWhenClipboardUnavailable() {
+  const prompted: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildShareUrl: () => 'https://airvio.co/knowgrph/share/kg-public-token',
+    copyToClipboard: async () => false,
+    promptShareUrl: url => prompted.push(url),
+    closeContextMenu: () => void 0,
+  })
+
+  await items[0]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  if (prompted.join(',') !== 'https://airvio.co/knowgrph/share/kg-public-token') {
+    throw new Error(`expected Share URL fallback prompt when clipboard write is unavailable, got ${prompted.join(',')}`)
+  }
+}

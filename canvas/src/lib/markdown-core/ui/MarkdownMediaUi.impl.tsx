@@ -5,7 +5,7 @@ import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
 import { applyMediaProxySrc } from '@/features/markdown/ui/markdownPreviewLinks'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
-import { getYouTubeId } from 'grph-shared/rich-media/providers'
+import { buildYouTubeThumbnailPreviewDescriptor, getYouTubeId } from 'grph-shared/rich-media/providers'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { getWebpageFallbackInfo } from 'grph-shared/rich-media/webpageFallback'
 import { applyImageLikeProxySrc } from '@/lib/url'
@@ -173,6 +173,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   title,
   presentationMode,
   thumbnailSrc,
+  fallbackThumbnailSrc,
   containerClassName,
   containerStyle,
   className,
@@ -182,6 +183,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   title: string
   presentationMode: boolean
   thumbnailSrc?: string
+  fallbackThumbnailSrc?: string
   containerClassName?: string
   containerStyle?: React.CSSProperties
   className?: string
@@ -190,13 +192,24 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   const normalizedUrl = String(url || '').trim()
   const fallbackInfo = React.useMemo(() => getWebpageFallbackInfo(normalizedUrl, title), [normalizedUrl, title])
   const immediateThumbnailSrc = React.useMemo(() => applyImageLikeProxySrc(String(thumbnailSrc || '').trim()), [thumbnailSrc])
-  const [thumb, setThumb] = React.useState<string>(() => immediateThumbnailSrc)
+  const explicitFallbackThumbnailSrc = React.useMemo(() => applyImageLikeProxySrc(String(fallbackThumbnailSrc || '').trim()), [fallbackThumbnailSrc])
+  const youtubeFallbackThumbnailSrc = React.useMemo(
+    () => explicitFallbackThumbnailSrc || applyImageLikeProxySrc(String(buildYouTubeThumbnailPreviewDescriptor(normalizedUrl)?.thumbnailUrl || '').trim()),
+    [explicitFallbackThumbnailSrc, normalizedUrl],
+  )
+  const immediateOrExplicitFallbackThumbnailSrc = React.useMemo(
+    () => immediateThumbnailSrc || explicitFallbackThumbnailSrc,
+    [explicitFallbackThumbnailSrc, immediateThumbnailSrc],
+  )
+  const [thumb, setThumb] = React.useState<string>(
+    () => immediateOrExplicitFallbackThumbnailSrc,
+  )
   const snapshotOverlayBadgeClassName = `absolute left-2 bottom-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   React.useEffect(() => {
     let cancelled = false
-    setThumb(immediateThumbnailSrc)
-    if (immediateThumbnailSrc) return
+    setThumb(immediateOrExplicitFallbackThumbnailSrc)
+    if (immediateOrExplicitFallbackThumbnailSrc) return
     if (!normalizedUrl) return
     void getOrCreateVideoThumbnail(normalizedUrl).then((v) => {
       if (cancelled) return
@@ -206,7 +219,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
     return () => {
       cancelled = true
     }
-  }, [immediateThumbnailSrc, normalizedUrl])
+  }, [immediateOrExplicitFallbackThumbnailSrc, normalizedUrl])
 
   if (!normalizedUrl) return <MediaErrorPlaceholder alt={title} />
 
@@ -238,6 +251,9 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
               decoding="async"
               className="absolute inset-0 w-full h-full"
               style={{ objectFit: 'cover', filter: 'saturate(1.05) contrast(1.02)' }}
+              onError={() => {
+                setThumb(prev => (youtubeFallbackThumbnailSrc && prev !== youtubeFallbackThumbnailSrc ? youtubeFallbackThumbnailSrc : ''))
+              }}
             />
           ) : (
             <div className="absolute inset-0 bg-black/5" />

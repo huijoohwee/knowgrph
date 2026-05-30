@@ -20,19 +20,17 @@ const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
+const youtubeTranscriptFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'youtube-transcript.mjs')
+const youtubeTranscriptFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', '__youtube_transcript.js')
+const videoFrameFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'video-frame.mjs')
+const videoFrameFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', '__video_frame.js')
 const agentReadyDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc', '[[path]].js')
 const agentReadyDefaultDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc-default', '[[path]].js')
 const agentReadyShareRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'share', '[[path]].js')
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoverySource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-discovery.mjs')
 const agentReadyCommerceSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-commerce.mjs')
-const agentReadySharedTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
-  'functions',
-  'knowgrph',
-  'knowgrph-agent-ready-shared.mjs',
-)
+const agentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoveryTarget = path.resolve(
   githubRoot,
   'huijoohwee',
@@ -44,12 +42,9 @@ const agentReadyCommerceTarget = path.resolve(githubRoot, 'huijoohwee', 'functio
 const agentReadyCommerceX402RouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'api', 'payments', 'commerce', 'x402.js')
 const agentReadyCommerceX402RouteBody = `import { buildKnowgrphX402PaymentRequiredResponse } from "../../../knowgrph/knowgrph-agent-ready-commerce.mjs";\n\nexport async function onRequest(context) {\n  return buildKnowgrphX402PaymentRequiredResponse(context.request, context.env || {});\n}\n`
 const agentReadyRuntimeCopies = [[agentReadyCommerceSource, agentReadyCommerceTarget], ...['dist/payments/agenticCommerceSsot.js', 'dist/payments/stripePaymentSsot.js', 'dist/hash/signature.js', 'dist/hash/stringHash.js'].map(rel => [path.resolve(knowgrphRoot, 'grph-shared', rel), path.resolve(githubRoot, 'huijoohwee', 'grph-shared', rel)])]
-const rootAgentReadySharedTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
-  'functions',
-  'knowgrph-agent-ready-shared.mjs',
-)
+const videoFrameSharedProviderSource = path.resolve(knowgrphRoot, 'grph-shared', 'dist', 'rich-media', 'providers.js')
+const videoFrameSharedProviderTarget = path.resolve(githubRoot, 'huijoohwee', 'grph-shared', 'dist', 'rich-media', 'providers.js')
+const rootAgentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph-agent-ready-shared.mjs')
 const rootAgentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'root-agent-ready-index.mjs')
 const rootAgentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'index.js')
 const agentReadyToolContractSource = path.resolve(
@@ -335,6 +330,9 @@ const copyIfChanged = async (src, dest, rel) => {
   return true
 }
 
+const copyPlainFile = async (src, dest) => fs.mkdir(path.dirname(dest), { recursive: true }).then(() => fs.copyFile(src, dest))
+const writeTextFile = async (dest, body) => fs.mkdir(path.dirname(dest), { recursive: true }).then(() => fs.writeFile(dest, body, 'utf8'))
+
 const removeEmptyDirs = async (rootDir) => {
   const walk = async (dir) => {
     let entries = []
@@ -513,6 +511,9 @@ const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
 const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
 const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
+const youtubeTranscriptFunctionNeedsUpdate = await plainFileNeedsUpdate(youtubeTranscriptFunctionSource, youtubeTranscriptFunctionTarget)
+const videoFrameFunctionNeedsUpdate = await plainFileNeedsUpdate(videoFrameFunctionSource, videoFrameFunctionTarget)
+const videoFrameSharedProviderNeedsUpdate = await plainFileNeedsUpdate(videoFrameSharedProviderSource, videoFrameSharedProviderTarget)
 const agentReadyDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDocRouteTarget)
 const agentReadyDefaultDocRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyDefaultDocRouteTarget)
 const agentReadyShareRouteNeedsUpdate = await textFileNeedsUpdate(agentReadyDocRouteBody, agentReadyShareRouteTarget)
@@ -547,6 +548,9 @@ if (checkMode) {
     publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
     agentReadyFunctionNeedsUpdate ||
+    youtubeTranscriptFunctionNeedsUpdate ||
+    videoFrameFunctionNeedsUpdate ||
+    videoFrameSharedProviderNeedsUpdate ||
     agentReadyDocRouteNeedsUpdate ||
     agentReadyDefaultDocRouteNeedsUpdate ||
     agentReadyShareRouteNeedsUpdate ||
@@ -591,6 +595,9 @@ if (checkMode) {
     }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
     if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
+    if (youtubeTranscriptFunctionNeedsUpdate) console.error('  - YouTube transcript Pages Function is out of sync')
+    if (videoFrameFunctionNeedsUpdate) console.error('  - Video frame Pages Function is out of sync')
+    if (videoFrameSharedProviderNeedsUpdate) console.error('  - Video frame shared provider helper is out of sync')
     if (agentReadyDocRouteNeedsUpdate) console.error('  - Knowgrph shared-doc Pages Function is out of sync')
     if (agentReadyDefaultDocRouteNeedsUpdate) console.error('  - Knowgrph default shared-doc Pages Function is out of sync')
     if (agentReadyShareRouteNeedsUpdate) console.error('  - Knowgrph opaque share Pages Function is out of sync')
@@ -656,85 +663,74 @@ if (checkMode) {
     await fs.writeFile(redirectsPath, nextRedirects, 'utf8')
   }
   if (agentReadyFunctionNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadyFunctionTarget), { recursive: true })
-    await fs.copyFile(agentReadyFunctionSource, agentReadyFunctionTarget)
+    await copyPlainFile(agentReadyFunctionSource, agentReadyFunctionTarget)
+  }
+  if (youtubeTranscriptFunctionNeedsUpdate) {
+    await copyPlainFile(youtubeTranscriptFunctionSource, youtubeTranscriptFunctionTarget)
+  }
+  if (videoFrameFunctionNeedsUpdate) {
+    await copyPlainFile(videoFrameFunctionSource, videoFrameFunctionTarget)
   }
   if (agentReadyDocRouteNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadyDocRouteTarget), { recursive: true })
-    await fs.writeFile(agentReadyDocRouteTarget, agentReadyDocRouteBody, 'utf8')
+    await writeTextFile(agentReadyDocRouteTarget, agentReadyDocRouteBody)
   }
   if (agentReadyDefaultDocRouteNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadyDefaultDocRouteTarget), { recursive: true })
-    await fs.writeFile(agentReadyDefaultDocRouteTarget, agentReadyDocRouteBody, 'utf8')
+    await writeTextFile(agentReadyDefaultDocRouteTarget, agentReadyDocRouteBody)
   }
   if (agentReadyShareRouteNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadyShareRouteTarget), { recursive: true })
-    await fs.writeFile(agentReadyShareRouteTarget, agentReadyDocRouteBody, 'utf8')
+    await writeTextFile(agentReadyShareRouteTarget, agentReadyDocRouteBody)
   }
   if (agentReadySharedNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadySharedTarget), { recursive: true })
-    await fs.copyFile(agentReadySharedSource, agentReadySharedTarget)
+    await copyPlainFile(agentReadySharedSource, agentReadySharedTarget)
   }
   if (agentReadyDiscoveryNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadyDiscoveryTarget), { recursive: true })
-    await fs.copyFile(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
+    await copyPlainFile(agentReadyDiscoverySource, agentReadyDiscoveryTarget)
   }
   for (const [src, dst] of agentReadyRuntimeCopies) {
-    await fs.mkdir(path.dirname(dst), { recursive: true })
-    await fs.copyFile(src, dst)
+    await copyPlainFile(src, dst)
   }
-  await fs.mkdir(path.dirname(agentReadyCommerceX402RouteTarget), { recursive: true })
-  await fs.writeFile(agentReadyCommerceX402RouteTarget, agentReadyCommerceX402RouteBody, 'utf8')
+  if (videoFrameSharedProviderNeedsUpdate) {
+    await copyPlainFile(videoFrameSharedProviderSource, videoFrameSharedProviderTarget)
+  }
+  await writeTextFile(agentReadyCommerceX402RouteTarget, agentReadyCommerceX402RouteBody)
   if (rootAgentReadySharedNeedsUpdate) {
-    await fs.mkdir(path.dirname(rootAgentReadySharedTarget), { recursive: true })
-    await fs.copyFile(agentReadySharedSource, rootAgentReadySharedTarget)
+    await copyPlainFile(agentReadySharedSource, rootAgentReadySharedTarget)
   }
   if (rootAgentReadyFunctionNeedsUpdate) {
-    await fs.mkdir(path.dirname(rootAgentReadyFunctionTarget), { recursive: true })
-    await fs.copyFile(rootAgentReadyFunctionSource, rootAgentReadyFunctionTarget)
+    await copyPlainFile(rootAgentReadyFunctionSource, rootAgentReadyFunctionTarget)
   }
   if (agentReadyToolContractNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentReadyToolContractTarget), { recursive: true })
-    await fs.copyFile(agentReadyToolContractSource, agentReadyToolContractTarget)
+    await copyPlainFile(agentReadyToolContractSource, agentReadyToolContractTarget)
   }
   if (sharedDocumentStructureInspectionNeedsUpdate) {
-    await fs.mkdir(path.dirname(sharedDocumentStructureInspectionTarget), { recursive: true })
-    await fs.copyFile(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
+    await copyPlainFile(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
   }
   if (agentSurfaceInspectionNeedsUpdate) {
-    await fs.mkdir(path.dirname(agentSurfaceInspectionTarget), { recursive: true })
-    await fs.copyFile(agentSurfaceInspectionSource, agentSurfaceInspectionTarget)
+    await copyPlainFile(agentSurfaceInspectionSource, agentSurfaceInspectionTarget)
   }
   if (webMcpLifecycleNeedsUpdate) {
-    await fs.mkdir(path.dirname(webMcpLifecycleTarget), { recursive: true })
-    await fs.copyFile(webMcpLifecycleSource, webMcpLifecycleTarget)
+    await copyPlainFile(webMcpLifecycleSource, webMcpLifecycleTarget)
   }
   if (publishedToolExecutorsNeedsUpdate) {
-    await fs.mkdir(path.dirname(publishedToolExecutorsTarget), { recursive: true })
-    await fs.copyFile(publishedToolExecutorsSource, publishedToolExecutorsTarget)
+    await copyPlainFile(publishedToolExecutorsSource, publishedToolExecutorsTarget)
   }
   if (publishedDocShareTokenNeedsUpdate) {
-    await fs.mkdir(path.dirname(publishedDocShareTokenTarget), { recursive: true })
-    await fs.copyFile(publishedDocShareTokenSource, publishedDocShareTokenTarget)
+    await copyPlainFile(publishedDocShareTokenSource, publishedDocShareTokenTarget)
   }
   if (knowgrphStorageSyncContractNeedsUpdate) {
-    await fs.mkdir(path.dirname(knowgrphStorageSyncContractTarget), { recursive: true })
-    await fs.copyFile(knowgrphStorageSyncContractSource, knowgrphStorageSyncContractTarget)
+    await copyPlainFile(knowgrphStorageSyncContractSource, knowgrphStorageSyncContractTarget)
   }
   if (sharedD1NeedsUpdate) {
-    await fs.mkdir(path.dirname(sharedD1Target), { recursive: true })
-    await fs.copyFile(sharedD1Source, sharedD1Target)
+    await copyPlainFile(sharedD1Source, sharedD1Target)
   }
   if (sharedPublishedDocNeedsUpdate) {
-    await fs.mkdir(path.dirname(sharedPublishedDocTarget), { recursive: true })
-    await fs.copyFile(sharedPublishedDocSource, sharedPublishedDocTarget)
+    await copyPlainFile(sharedPublishedDocSource, sharedPublishedDocTarget)
   }
   let agentReadyStaticUpdated = 0
   for (const rel of agentReadyStaticFilesToWrite) {
     const artifact = agentReadyArtifacts[rel]
     const dst = path.resolve(githubRoot, 'huijoohwee', rel)
-    await fs.mkdir(path.dirname(dst), { recursive: true })
-    await fs.writeFile(dst, artifact.body, 'utf8')
+    await writeTextFile(dst, artifact.body)
     agentReadyStaticUpdated += 1
   }
   if (headersNeedUpdate) {
@@ -742,6 +738,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
   )
 }

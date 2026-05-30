@@ -1,15 +1,22 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import storageWorker from '../../../cloudflare/workers/knowgrph-storage/index.ts'
+import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnowgrphStorageD1'
 import type { SourceFile } from '@/hooks/store/types'
 import {
   __resetKnowgrphStorageDbForTests,
   getKnowgrphStorageDb,
 } from '@/lib/storage/knowgrphStorageDb'
+import { buildKnowgrphStorageDocPath } from '@/lib/storage/knowgrphStorageSyncContract'
 import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
   buildSourceFilesStorageSyncSignature,
   syncSourceFilesToKnowgrphStorage,
 } from '@/features/source-files/sourceFilesStorageSync'
+import {
+  publishWorkspaceEntriesToKnowgrphStorage,
+  publishWorkspaceEntryShareUrl,
+} from '@/features/source-files/sourceFileShareUrl'
 import { getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
 
 const sourceFileFixture: SourceFile = {
@@ -32,6 +39,22 @@ const sourceFileFixture: SourceFile = {
     path: '/imports/demo.md',
   },
 }
+
+const readStorageWorker = (): { fetch: (request: Request, env: never) => Promise<Response> } => {
+  const candidate = storageWorker as unknown as {
+    fetch?: (request: Request, env: never) => Promise<Response>
+    default?: { fetch?: (request: Request, env: never) => Promise<Response> }
+  }
+  const fetchImpl = candidate.fetch || candidate.default?.fetch
+  if (!fetchImpl) throw new Error('expected storage worker test module to expose fetch')
+  return { fetch: fetchImpl }
+}
+
+const createStorageWorkerFetch = (env: ReturnType<typeof createFakeKnowgrphStorageWorkerEnv>) =>
+  async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = input instanceof Request ? input : new Request(String(input), init)
+    return readStorageWorker().fetch(request, env as never)
+  }
 
 export function testKnowgrphWorkspaceIdBuildsStableScopedIdentity() {
   const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
@@ -190,6 +213,154 @@ export function testSourceFilesStorageSyncSkipsWorkspaceBackedSourceFiles() {
   const signature = buildSourceFilesStorageSyncSignature([workspaceOnly])
   if (signature !== '[]') {
     throw new Error('expected storage sync signature to skip workspace-backed source files and avoid switch-time churn')
+  }
+}
+
+export async function testSelectedWorkspaceEntriesPublishAsExplicitStorageRecords() {
+  await __resetKnowgrphStorageDbForTests()
+  const result = await publishWorkspaceEntriesToKnowgrphStorage({
+    workspaceId: 'kgws:test-settings-import-selection',
+    syncNow: false,
+    entries: [
+      {
+        path: '/workspace/chat/a.md',
+        parentPath: '/workspace/chat',
+        kind: 'file',
+        name: 'a.md',
+        text: '# A',
+        updatedAtMs: 1,
+      },
+      {
+        path: '/workspace/chat/data.txt',
+        parentPath: '/workspace/chat',
+        kind: 'file',
+        name: 'data.txt',
+        text: 'alpha,beta',
+        updatedAtMs: 2,
+      },
+      {
+        path: '/workspace/chat',
+        parentPath: '/workspace',
+        kind: 'folder',
+        name: 'chat',
+        updatedAtMs: 3,
+      },
+    ],
+  })
+  if (result.storedCount !== 2) {
+    throw new Error(`expected selected file records to publish without folder rows, got ${result.storedCount}`)
+  }
+  if (result.queuedMutationCount !== 2) {
+    throw new Error(`expected one storage document mutation per selected file, got ${result.queuedMutationCount}`)
+  }
+  if (!result.canonicalPaths.includes('workspace/chat/a.md') || !result.canonicalPaths.includes('workspace/chat/data.txt')) {
+    throw new Error(`expected selected workspace paths to map to neutral canonical storage paths, got ${JSON.stringify(result.canonicalPaths)}`)
+  }
+  const dbState = await getKnowgrphStorageDb()
+  const rows = await dbState.collections.documents.find({ selector: { workspaceId: 'kgws:test-settings-import-selection' } }).exec()
+  if (rows.length !== 2) {
+    throw new Error(`expected storage DB to contain two selected import documents, got ${rows.length}`)
+  }
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testSelectedWorkspaceEntriesFlushToPublicStorageWorker() {
+  await __resetKnowgrphStorageDbForTests()
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const fetchImpl = createStorageWorkerFetch(env)
+  const workspaceId = 'kgws:test-settings-share-url-worker'
+  const result = await publishWorkspaceEntriesToKnowgrphStorage({
+    workspaceId,
+    syncNow: true,
+    baseUrl: 'https://example.com',
+    fetchImpl,
+    entries: [
+      {
+        path: '/workspace/chat/shared.md',
+        parentPath: '/workspace/chat',
+        kind: 'file',
+        name: 'shared.md',
+        text: '# Shared through storage',
+        updatedAtMs: 1,
+      },
+    ],
+  })
+  if (result.storedCount !== 1) {
+    throw new Error(`expected one selected file to be stored, got ${result.storedCount}`)
+  }
+  if (!result.syncResult || result.syncResult.pushedCount !== 1 || result.syncResult.appliedCount !== 1) {
+    throw new Error(`expected storage publish to flush one public worker mutation, got ${JSON.stringify(result.syncResult)}`)
+  }
+  const docResponse = await readStorageWorker().fetch(
+    new Request(`https://example.com${buildKnowgrphStorageDocPath(workspaceId, 'workspace/chat/shared.md')}`),
+    env as never,
+  )
+  if (!docResponse.ok) {
+    throw new Error(`expected published storage document to be publicly readable, got ${docResponse.status}`)
+  }
+  const text = await docResponse.text()
+  if (text !== '# Shared through storage') {
+    throw new Error(`expected public document content to match selected file, got ${text}`)
+  }
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testSourceFileShareUrlFailsClosedWhenStoragePublishFails() {
+  await __resetKnowgrphStorageDbForTests()
+  let rejected = false
+  try {
+    await publishWorkspaceEntryShareUrl({
+      workspaceId: 'kgws:test-share-url-fail-closed',
+      baseUrl: 'https://example.com',
+      fetchImpl: async () => new Response(JSON.stringify({ ok: false, error: 'push failed' }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      }),
+      entry: {
+        path: '/workspace/chat/fail.md',
+        parentPath: '/workspace/chat',
+        kind: 'file',
+        name: 'fail.md',
+        text: '# Fail closed',
+        updatedAtMs: 1,
+      },
+    })
+  } catch {
+    rejected = true
+  }
+  if (!rejected) {
+    throw new Error('expected Share URL generation to fail closed instead of copying an unpublished public URL')
+  }
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export async function testSourceFileShareUrlReturnsAirvioOpaquePublicRouteAfterPublish() {
+  await __resetKnowgrphStorageDbForTests()
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  try {
+    const env = createFakeKnowgrphStorageWorkerEnv()
+    const fetchImpl = createStorageWorkerFetch(env)
+    const shareUrl = await publishWorkspaceEntryShareUrl({
+      workspaceId: 'kgws:test-share-url-public-route',
+      baseUrl: 'https://example.com',
+      fetchImpl,
+      entry: {
+        path: '/workspace/chat/public.md',
+        parentPath: '/workspace/chat',
+        kind: 'file',
+        name: 'public.md',
+        text: '# Public Share URL',
+        updatedAtMs: 1,
+      },
+    })
+    if (!shareUrl || !shareUrl.startsWith('https://airvio.co/knowgrph/share/')) {
+      throw new Error(`expected Share URL to use the public airvio.co opaque share route, got ${String(shareUrl || '')}`)
+    }
+  } finally {
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    await __resetKnowgrphStorageDbForTests()
   }
 }
 

@@ -2,7 +2,7 @@ import React from 'react'
 
 export const isInteractiveEventTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof Element)) return false
-  return !!target.closest('button,select,input,textarea,a,[role="menu"],[role="menuitem"]')
+  return !!target.closest('button,select,input,textarea,a,[role="menu"],[role="menuitem"],[data-kg-card-media-interactive="1"]')
 }
 
 export const useDismissableMenu = (args: {
@@ -34,4 +34,3 @@ export const useDismissableMenu = (args: {
     }
   }, [args])
 }
-

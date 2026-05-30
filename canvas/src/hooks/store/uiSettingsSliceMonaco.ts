@@ -4,6 +4,7 @@ import type { GraphState } from './types'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetBool } from '@/lib/persistence'
 import type { UiStorageReaders } from './uiSliceStorage'
+import { TIMELINE_ENABLED_DEFAULT, resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -12,6 +13,8 @@ export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageRea
   return {
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
+  timelineEnabled: lsBool(LS_KEYS.timelineEnabled, TIMELINE_ENABLED_DEFAULT),
+  setTimelineEnabled: (v: boolean) => set({ timelineEnabled: lsSetBool(LS_KEYS.timelineEnabled, resolveTimelineEnabled(v)) }),
   mediaNodeOpacity: 0.9,
   setMediaNodeOpacity: (v: number) => {
     const n = Number.isFinite(v) ? Number(v) : 0.9;

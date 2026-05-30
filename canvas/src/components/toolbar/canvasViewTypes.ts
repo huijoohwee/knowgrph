@@ -21,6 +21,9 @@ export type CanvasViewOptionId =
   | 'animation:menu'
   | 'animation:force'
   | 'animation:orbit'
+  | 'timeline:menu'
+  | 'timeline:on'
+  | 'timeline:off'
   | 'control:menu'
   | 'control:richMedia'
   | 'control:nodeShape'
@@ -61,6 +64,7 @@ export type CanvasViewModelState = {
   frontmatterModeEnabled: boolean
   multiDimTableModeEnabled: boolean
   renderMediaAsNodes: boolean
+  timelineEnabled: boolean
   geospatialEnabled: boolean
   layoutMode?: string
   schema: GraphSchema

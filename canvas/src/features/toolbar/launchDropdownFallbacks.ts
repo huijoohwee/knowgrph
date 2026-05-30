@@ -1,4 +1,5 @@
 import type { UiToastInput } from '@/hooks/store/types'
+import type { WorkspaceBridgeImportResult } from '@/features/markdown-explorer/workspaceActionBridge'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
@@ -30,7 +31,7 @@ async function focusFirstImportedWorkspaceFile(args: {
 export async function importLocalFilesFallback(args: {
   files: FileList | ReadonlyArray<File> | null
   pushUiToast: PushUiToast
-}): Promise<void> {
+}): Promise<void | WorkspaceBridgeImportResult> {
   const snapshot = args.files ? Array.from(args.files as ArrayLike<File>) : []
   if (snapshot.length === 0) return
   args.pushUiToast({
@@ -87,6 +88,7 @@ export async function importLocalFilesFallback(args: {
       ttlMs: UI_TOAST_TTL_MS.actionFeedback,
       dismissible: false,
     })
+    return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
   } catch (e) {
     args.pushUiToast({
       id: 'launch:import:localFiles',
@@ -101,7 +103,7 @@ export async function importLocalFilesFallback(args: {
 export async function importLocalFolderFallback(args: {
   files: FileList | ReadonlyArray<File> | null
   pushUiToast: PushUiToast
-}): Promise<void> {
+}): Promise<void | WorkspaceBridgeImportResult> {
   const snapshot = args.files ? Array.from(args.files as ArrayLike<File>) : []
   if (snapshot.length === 0) return
   args.pushUiToast({ id: 'launch:import:folder', kind: 'neutral', message: 'Importing folder…', ttlMs: null, dismissible: false })
@@ -144,6 +146,7 @@ export async function importLocalFolderFallback(args: {
       ttlMs: UI_TOAST_TTL_MS.actionFeedback,
       dismissible: false,
     })
+    return { createdPaths: res.createdPaths, removedPaths: res.removedPaths }
   } catch (e) {
     args.pushUiToast({
       id: 'launch:import:folder',

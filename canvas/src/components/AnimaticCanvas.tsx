@@ -32,6 +32,14 @@ import {
 } from '@/features/toolbar/ui/toolbarStyles'
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import { TimelineTransportControls } from '@/components/timeline/TimelineTransportControls'
+import {
+  TIMELINE_TRANSPORT_PLAYBACK_RATES,
+  clampTimelineTransportValue,
+  resolveTimelineTransportUnitsPerMs,
+  type TimelineTransportPlaybackRate,
+  useTimelineTransportPlayback,
+} from '@/components/timeline/timelineTransport'
 import {
   isAnimaticTimelineMutationHotkeyAction,
   resolveAnimaticTimelineHotkeyAction,
@@ -40,6 +48,7 @@ import {
 import { resolveAnimaticTimelineLanePresentation } from '@/components/AnimaticCanvas/animaticLaneControls'
 import { useAnimaticTimelineModel } from '@/components/AnimaticCanvas/useAnimaticTimelineModel'
 import { getIconSizeClass } from '@/lib/ui'
+import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 import {
   applyAnimaticTimelineBeatTimingOverrides,
   cloneAnimaticTimelineFrontmatterMeta,
@@ -70,7 +79,6 @@ const ORDINAL_PLAYBACK_BEAT_MS = 1000
 const SCALE_ROW_HEIGHT_PX = 32
 const BEAT_HEADER_HEIGHT_PX = 72
 const LANE_ROW_HEIGHT_PX = 32
-const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const
 const SNAP_STEP_OPTIONS_MS = [100, 250, 500, 1000] as const
 const EDIT_MIN_DURATION_MS = 300
 const DRAG_EDGE_SCROLL_THRESHOLD_PX = 72
@@ -323,10 +331,11 @@ export default function AnimaticCanvas({
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const updateGraphMetadata = useGraphStore(s => s.updateGraphMetadata)
   const updateNode = useGraphStore(s => s.updateNode)
+  const timelineEnabled = useGraphStore(s => resolveTimelineEnabled(s.timelineEnabled))
   const baseTimelineModel = useAnimaticTimelineModel({ graphData, graphDataRevision, markdownText })
   const [playbackPosition, setPlaybackPosition] = React.useState(0)
   const [playing, setPlaying] = React.useState(false)
-  const [playbackRate, setPlaybackRate] = React.useState<(typeof PLAYBACK_RATES)[number]>(1)
+  const [playbackRate, setPlaybackRate] = React.useState<TimelineTransportPlaybackRate>(1)
   const [runtimeAutoScrollEnabled, setRuntimeAutoScrollEnabled] = React.useState(true)
   const [snapEnabled, setSnapEnabled] = React.useState(true)
   const [snapStepMs, setSnapStepMs] = React.useState<(typeof SNAP_STEP_OPTIONS_MS)[number]>(500)
@@ -410,7 +419,7 @@ export default function AnimaticCanvas({
       setPlaying(false)
       return
     }
-    setPlaybackPosition(current => clamp(current, 0, timelineModel.totalSpan))
+    setPlaybackPosition(current => clampTimelineTransportValue(current, 0, timelineModel.totalSpan))
   }, [timelineModel.totalSpan])
 
   React.useEffect(() => {
@@ -425,30 +434,28 @@ export default function AnimaticCanvas({
     dragEdgeScrollDirectionRef.current = 0
   }, [timelineModel.usesAbsoluteTiming])
 
+  const timelinePlaybackUnitsPerMs = React.useMemo(
+    () =>
+      resolveTimelineTransportUnitsPerMs({
+        usesAbsoluteTiming: timelineModel.usesAbsoluteTiming,
+        ordinalUnitMs: ORDINAL_PLAYBACK_BEAT_MS,
+      }),
+    [timelineModel.usesAbsoluteTiming],
+  )
+  useTimelineTransportPlayback({
+    active: active && timelineEnabled,
+    playing,
+    position: playbackPosition,
+    max: timelineModel.totalSpan,
+    playbackRate,
+    unitsPerMs: timelinePlaybackUnitsPerMs,
+    onPositionChange: setPlaybackPosition,
+    onPlaybackEnd: () => setPlaying(false),
+  })
+
   React.useEffect(() => {
-    if (!active || !playing || timelineModel.totalSpan <= 0) return
-    let frameId = 0
-    let startTimestamp = 0
-    let startPosition = playbackPosition
-    const unitsPerMs = (timelineModel.usesAbsoluteTiming ? 1 : 1 / ORDINAL_PLAYBACK_BEAT_MS) * playbackRate
-    const tick = (timestamp: number) => {
-      if (startTimestamp === 0) startTimestamp = timestamp
-      const elapsedMs = timestamp - startTimestamp
-      const nextPosition = clamp(startPosition + elapsedMs * unitsPerMs, 0, timelineModel.totalSpan)
-      setPlaybackPosition(nextPosition)
-      if (nextPosition >= timelineModel.totalSpan) {
-        setPlaying(false)
-        return
-      }
-      frameId = window.requestAnimationFrame(tick)
-    }
-    frameId = window.requestAnimationFrame(tick)
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      startTimestamp = 0
-      startPosition = 0
-    }
-  }, [active, playbackPosition, playbackRate, playing, timelineModel.totalSpan, timelineModel.usesAbsoluteTiming])
+    if (!timelineEnabled) setPlaying(false)
+  }, [timelineEnabled])
 
   React.useEffect(() => {
     dragSessionIdRef.current += 1
@@ -1573,6 +1580,18 @@ export default function AnimaticCanvas({
     timelineUnitsPerPixel,
   ])
 
+  if (!timelineEnabled) {
+    return (
+      <section className="w-full h-full bg-[#0b0f17] text-slate-100" data-kg-timeline-disabled="1">
+        <div className="h-full w-full flex items-center justify-center p-8">
+          <div className="max-w-xl rounded border border-slate-800 bg-slate-900/85 p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold">Timeline Off</h2>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   if (!timelineModel.beats.length) {
     return (
       <section className="w-full h-full bg-[#0b0f17] text-slate-100">
@@ -1610,59 +1629,23 @@ export default function AnimaticCanvas({
               <div className="ant-click-animating-node"></div>
             </button>
           </div>
-          <div className="timeline-player">
-            <button
-              type="button"
-              className="play-control"
-              aria-label={playing ? 'Pause playback' : 'Start playback'}
-              title={playing ? 'Pause (Space)' : 'Play (Space)'}
-              onClick={handleTogglePlayback}
-            >
-              <span role="img" aria-label={playing ? 'pause' : 'caret-right'} className={`anticon ${playing ? 'anticon-pause' : 'anticon-caret-right'}`}>
-                {playing ? (
-                  <svg viewBox="64 64 896 896" focusable="false" data-icon="pause" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                    <path d="M424 792V232c0-4.4-3.6-8-8-8h-72c-4.4 0-8 3.6-8 8v560c0 4.4 3.6 8 8 8h72c4.4 0 8-3.6 8-8zm264 0V232c0-4.4-3.6-8-8-8h-72c-4.4 0-8 3.6-8 8v560c0 4.4 3.6 8 8 8h72c4.4 0 8-3.6 8-8z"></path>
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 1024 1024" focusable="false" data-icon="caret-right" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                    <path d="M715.8 493.5L335 165.1c-14.2-12.2-35-1.2-35 18.5v656.8c0 19.7 20.8 30.7 35 18.5l380.8-328.4c10.9-9.4 10.9-27.6 0-37z"></path>
-                  </svg>
-                )}
-              </span>
-            </button>
-            <div className="time">{currentTimeLabel}</div>
-            <div className="rate-control">
-              <label className="sr-only" htmlFor="animatic-timeline-playback-rate">
-                Playback rate
-              </label>
-              <div className="ant-select ant-select-sm ant-select-single ant-select-show-arrow" style={{ width: 90 }}>
-                <select
-                  id="animatic-timeline-playback-rate"
-                  className="ant-select-selection-native"
-                  value={String(playbackRate)}
-                  onChange={event => setPlaybackRate(Number(event.target.value) as (typeof PLAYBACK_RATES)[number])}
-                >
-                  {PLAYBACK_RATES.map(rate => (
-                    <option key={rate} value={String(rate)}>
-                      {rate.toFixed(1)}x
-                    </option>
-                  ))}
-                </select>
-                <div className="ant-select-selector">
-                  <span className="ant-select-selection-item" title={`${playbackRate.toFixed(1)}x`}>
-                    {playbackRate.toFixed(1)}x
-                  </span>
-                </div>
-                <span className="ant-select-arrow" unselectable="on" aria-hidden="true">
-                  <span role="img" aria-label="down" className="anticon anticon-down ant-select-suffix">
-                    <svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                      <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
-                    </svg>
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
+          <TimelineTransportControls
+            ariaLabel="Animation timeline playhead"
+            currentLabel={currentTimeLabel}
+            max={timelineModel.totalSpan || 0}
+            playbackRate={playbackRate}
+            playbackRates={TIMELINE_TRANSPORT_PLAYBACK_RATES}
+            playing={playing}
+            rangeClassName="mt-3"
+            step={timelineModel.usesAbsoluteTiming ? 10 : 0.01}
+            value={playbackPosition}
+            onPlaybackRateChange={setPlaybackRate}
+            onTogglePlayback={handleTogglePlayback}
+            onValueChange={nextValue => {
+              setPlaying(false)
+              setPlaybackPosition(nextValue)
+            }}
+          />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <IconButton title="Prev Beat (Left Arrow)" showTooltip className={getTimelineCompactIconButtonClassName(true)} onClick={() => handleStepBeat(-1)}>
               <SkipBack className={compactToolbarIconClassName} />
@@ -1861,21 +1844,6 @@ export default function AnimaticCanvas({
                 </span>
               ) : null}
             </div>
-          </div>
-          <div className="mt-3">
-            <input
-              aria-label="Animation timeline playhead"
-              className="w-full accent-cyan-400"
-              type="range"
-              min={0}
-              max={timelineModel.totalSpan || 0}
-              step={timelineModel.usesAbsoluteTiming ? 10 : 0.01}
-              value={playbackPosition}
-              onChange={event => {
-                setPlaying(false)
-                setPlaybackPosition(Number(event.target.value || 0))
-              }}
-            />
           </div>
         </header>
         <div className="flex min-h-0 flex-1 overflow-hidden">

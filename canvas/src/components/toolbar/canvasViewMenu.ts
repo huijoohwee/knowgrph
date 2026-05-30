@@ -9,6 +9,7 @@ import {
   isD3Like2dRenderer,
 } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
+import { getTimelineViewModeTitle, resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
   if (
@@ -64,6 +65,7 @@ export const buildCanvasViewOptions = (
   rendererOptions: CanvasViewRendererOption[],
 ): CanvasViewOption[] => {
   const animationApplicable = isAnimationApplicable(state)
+  const timelineEnabled = resolveTimelineEnabled(state.timelineEnabled)
   const nodeShapeMode = state.schema.behavior?.nodeShapeMode
   const nodeShapeIcon =
     nodeShapeMode === 'rect'
@@ -294,6 +296,32 @@ export const buildCanvasViewOptions = (
           disabled: state.geospatialEnabled || !animationApplicable,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : 'Animation is not applicable in current view',
           enableHint: state.geospatialEnabled ? 'Switch to Document Mode to enable' : undefined,
+        },
+      ],
+    },
+    {
+      id: 'timeline:menu',
+      title: 'Timeline',
+      label: 'Time',
+      Icon: MonitorPlay,
+      dividerBefore: true,
+      isActive: timelineEnabled,
+      children: [
+        {
+          id: 'timeline:on',
+          title: getTimelineViewModeTitle(true),
+          label: 'On',
+          Icon: MonitorPlay,
+          isActive: timelineEnabled,
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: 'timeline:off',
+          title: getTimelineViewModeTitle(false),
+          label: 'Off',
+          Icon: MonitorPlay,
+          isActive: !timelineEnabled,
         },
       ],
     },

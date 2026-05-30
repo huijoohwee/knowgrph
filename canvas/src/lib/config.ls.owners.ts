@@ -76,6 +76,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   sectionHeaderRowHeightClass: 'ui.icons',
   sectionHeaderRowPaddingClass: 'ui.icons',
   bottomSurfaceHeight: 'ui.bottomSurface',
+  timelineEnabled: 'ui.bottomSurface',
   minimapCollapsed: 'ui.bottomSurface',
   markdownWordWrap: 'ui.bottomSurface',
   markdownPresentationMode: 'ui.bottomSurface',

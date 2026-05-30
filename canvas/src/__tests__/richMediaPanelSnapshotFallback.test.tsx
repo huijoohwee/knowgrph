@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import RichMediaPanel from '@/components/RichMediaPanel'
@@ -180,6 +182,102 @@ export async function testRichMediaPanelVideoRendersInlineWithoutBodyClickOverla
     await unmountReactRoot(root, { window: dom.window })
   } finally {
     restoreDom()
+  }
+}
+
+export async function testRichMediaPanelDirectIframeAndVideoKeepPlayableSurfaceWithForwarding() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    resetRichMediaPanelTestStoreState()
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const forwardWheelTo = () => doc.body
+
+    await mountReactRoot(root,
+      React.createElement(RichMediaPanel, {
+        title: 'Playable video',
+        url: 'https://example.com/generated.mp4',
+        kind: 'video',
+        interactive: true,
+        forwardWheelTo,
+      }),
+    { window: dom.window, frames: 10 })
+
+    const video = container.querySelector('video') as HTMLVideoElement | null
+    if (!video) throw new Error('expected shared card media video surface')
+    if (!video.hasAttribute('controls')) throw new Error('expected video card media to expose playback controls')
+    if (video.getAttribute('data-kg-card-media-interactive') !== '1') {
+      throw new Error('expected playable video to mark the shared card media surface as interactive')
+    }
+    if (video.style.pointerEvents === 'none') {
+      throw new Error('expected playable video pointer events to remain enabled even when canvas wheel forwarding exists')
+    }
+
+    await act(async () => {
+      root.render(
+        React.createElement(RichMediaPanel, {
+          title: 'Playable YouTube',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s',
+          kind: 'iframe',
+          interactive: true,
+          forwardWheelTo,
+        }),
+      )
+      await waitForFrames(dom.window, 10)
+    })
+
+    const iframe = container.querySelector('iframe[data-kg-card-media-iframe="1"]') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected direct YouTube/embed iframe to reuse the shared card media iframe surface')
+    if (!String(iframe.getAttribute('src') || '').includes('youtube-nocookie.com/embed/')) {
+      throw new Error(`expected YouTube link to resolve into a direct playable embed, got ${String(iframe.getAttribute('src') || '')}`)
+    }
+    if (iframe.getAttribute('data-kg-card-media-interactive') !== '1') {
+      throw new Error('expected direct iframe embed to mark the shared card media surface as interactive')
+    }
+    if (iframe.style.pointerEvents === 'none') {
+      throw new Error('expected direct iframe pointer events to remain enabled so click-to-play works')
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+  }
+}
+
+export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
+  const root = process.cwd()
+  const sharedCardMediaText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'CardMediaPreview.tsx'), 'utf8')
+  const sharedCardMediaUtilsText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'cardMediaPreviewUtils.ts'), 'utf8')
+  const richMediaPanelText = readFileSync(resolve(root, 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
+  const storyboardCanvasText = readFileSync(resolve(root, 'src', 'components', 'StoryboardCanvas.tsx'), 'utf8')
+  const kanbanMenuText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'kanbanMenu.ts'), 'utf8')
+
+  for (const snippet of ['export function CardMediaPreview', 'export function CardMediaEmptyPlaceholder', 'export function CardMediaLoadingSkeleton']) {
+    if (!sharedCardMediaText.includes(snippet)) throw new Error(`expected shared card media owner to expose ${snippet}`)
+  }
+  if (!sharedCardMediaUtilsText.includes('export function isDirectPlayableCardMedia')) {
+    throw new Error('expected shared card media utility owner to expose direct playable media detection')
+  }
+  if (!richMediaPanelText.includes("from '@/lib/cards/CardMediaPreview'")) {
+    throw new Error('expected RichMediaPanel to reuse the shared card media surface')
+  }
+  if (!richMediaPanelText.includes("from '@/lib/cards/cardMediaPreviewUtils'")) {
+    throw new Error('expected RichMediaPanel to reuse the shared card media utility owner')
+  }
+  if (!storyboardCanvasText.includes("import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'")) {
+    throw new Error('expected Storyboard cards to reuse the shared card media surface')
+  }
+  if (richMediaPanelText.includes('function RichMediaEmptyCardPlaceholder') || richMediaPanelText.includes('function RichMediaLoadingSkeleton')) {
+    throw new Error('expected RichMediaPanel to stop owning duplicate local card placeholder renderers')
+  }
+  if (storyboardCanvasText.includes("import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'")) {
+    throw new Error('expected Storyboard iframe media rendering to route through shared card media')
+  }
+  if (!kanbanMenuText.includes('[data-kg-card-media-interactive="1"]')) {
+    throw new Error('expected shared card media to be recognized as an interactive kanban card target')
   }
 }
 

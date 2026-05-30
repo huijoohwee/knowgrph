@@ -6,10 +6,12 @@ export type YouTubeEmbedOptions = {
   origin?: string | null
 }
 
-export type RichMediaPreviewKind = 'timestamp-embed' | 'thumbnail'
+export type RichMediaPreviewProvider = 'youtube' | 'bilibili' | 'remote-video'
+
+export type RichMediaPreviewKind = 'timestamp-embed' | 'timestamp-frame' | 'thumbnail'
 
 export type RichMediaPreviewDescriptor = {
-  provider: 'youtube'
+  provider: RichMediaPreviewProvider
   kind: RichMediaPreviewKind
   sourceUrl: string
   semanticKey: string
@@ -29,6 +31,93 @@ export function buildRichMediaPreviewSemanticKey(parts: Array<string | number | 
     })
     .join('|')
   return `rich-media-preview:${hashStringToHex(signature)}`
+}
+
+export const DEFAULT_REMOTE_VIDEO_FRAME_ROUTE_PATH = '/__video_frame'
+export const DEFAULT_REMOTE_VIDEO_FRAME_FORMAT = 'png'
+
+export function normalizeRemoteVideoFrameSeconds(value: unknown): number | null {
+  const raw = typeof value === 'number' ? value : Number(String(value ?? '').trim())
+  if (!Number.isFinite(raw)) return null
+  const seconds = Math.max(0, Math.floor(raw))
+  return Number.isFinite(seconds) ? seconds : null
+}
+
+export function normalizeRemoteVideoFrameFormat(value: unknown): 'png' | 'jpg' {
+  const raw = String(value || '').trim().toLowerCase()
+  return raw === 'jpg' || raw === 'jpeg' ? 'jpg' : 'png'
+}
+
+export function buildRemoteVideoFrameSemanticKey(args: {
+  sourceUrl: string
+  timeSeconds: number
+  format?: string
+}): string {
+  const sourceUrl = String(args.sourceUrl || '').trim()
+  const timeSeconds = normalizeRemoteVideoFrameSeconds(args.timeSeconds) ?? 0
+  const format = normalizeRemoteVideoFrameFormat(args.format || DEFAULT_REMOTE_VIDEO_FRAME_FORMAT)
+  return buildRichMediaPreviewSemanticKey(['remote-video-frame', sourceUrl, timeSeconds, format])
+}
+
+export function buildRemoteVideoFrameFileName(args: {
+  sourceUrl: string
+  timeSeconds: number
+  format?: string
+}): string {
+  const timeSeconds = normalizeRemoteVideoFrameSeconds(args.timeSeconds) ?? 0
+  const format = normalizeRemoteVideoFrameFormat(args.format || DEFAULT_REMOTE_VIDEO_FRAME_FORMAT)
+  const semanticKey = buildRemoteVideoFrameSemanticKey({ ...args, timeSeconds, format })
+  const hash = semanticKey.split(':').pop() || hashStringToHex(semanticKey)
+  return `frame-${hash}-t${timeSeconds}.${format}`
+}
+
+export function buildRemoteVideoFrameRequestUrl(args: {
+  sourceUrl: string
+  timeSeconds: number
+  routePath?: string
+  format?: string
+  emit?: 'image' | 'json'
+}): string {
+  const sourceUrl = String(args.sourceUrl || '').trim()
+  const timeSeconds = normalizeRemoteVideoFrameSeconds(args.timeSeconds)
+  if (!sourceUrl || timeSeconds == null) return ''
+  const routePath = String(args.routePath || DEFAULT_REMOTE_VIDEO_FRAME_ROUTE_PATH).trim() || DEFAULT_REMOTE_VIDEO_FRAME_ROUTE_PATH
+  const format = normalizeRemoteVideoFrameFormat(args.format || DEFAULT_REMOTE_VIDEO_FRAME_FORMAT)
+  const qs = new URLSearchParams()
+  qs.set('url', sourceUrl)
+  qs.set('time', String(timeSeconds))
+  qs.set('format', format)
+  if (args.emit === 'json') qs.set('emit', 'json')
+  return `${routePath}?${qs.toString()}`
+}
+
+export function buildRemoteVideoTimestampFramePreviewDescriptor(args: {
+  provider?: RichMediaPreviewProvider
+  sourceUrl: string
+  timeSeconds: number
+  routePath?: string
+  format?: string
+}): RichMediaPreviewDescriptor | null {
+  const sourceUrl = String(args.sourceUrl || '').trim()
+  const startSeconds = normalizeRemoteVideoFrameSeconds(args.timeSeconds)
+  if (!sourceUrl || startSeconds == null) return null
+  const thumbnailUrl = buildRemoteVideoFrameRequestUrl({
+    sourceUrl,
+    timeSeconds: startSeconds,
+    routePath: args.routePath,
+    format: args.format,
+  })
+  if (!thumbnailUrl) return null
+  const format = normalizeRemoteVideoFrameFormat(args.format || DEFAULT_REMOTE_VIDEO_FRAME_FORMAT)
+  return {
+    provider: args.provider || 'remote-video',
+    kind: 'timestamp-frame',
+    sourceUrl,
+    startSeconds,
+    timestampLabel: formatMediaTimestampSeconds(startSeconds),
+    thumbnailUrl,
+    semanticKey: buildRemoteVideoFrameSemanticKey({ sourceUrl, timeSeconds: startSeconds, format }),
+  }
 }
 
 const normalizeYouTubeIdLikeValue = (value: string): string | null => {
@@ -181,6 +270,23 @@ export function buildYouTubeTimestampPreviewDescriptor(
     timestampLabel,
     semanticKey: buildRichMediaPreviewSemanticKey(['youtube', 'timestamp-embed', id, startSeconds, embedUrl]),
   }
+}
+
+export function buildYouTubeTimestampFramePreviewDescriptor(
+  href: string,
+  opts?: { routePath?: string; format?: string },
+): RichMediaPreviewDescriptor | null {
+  const sourceUrl = stripYouTubeUrlTrailingPunctuation(href)
+  const id = getYouTubeId(sourceUrl)
+  const startSeconds = parseYouTubeStartSeconds(sourceUrl)
+  if (!id || startSeconds == null || !Number.isFinite(startSeconds)) return null
+  return buildRemoteVideoTimestampFramePreviewDescriptor({
+    provider: 'youtube',
+    sourceUrl,
+    timeSeconds: startSeconds,
+    routePath: opts?.routePath,
+    format: opts?.format,
+  })
 }
 
 export function getTwitterStatusId(href: string): string | null {

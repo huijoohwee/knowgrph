@@ -9,7 +9,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { notifyWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
-import { generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
+import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS, generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
 import { CHAT_PROVIDER_BYTEPLUS, getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
 import { getStrybldrImageFile } from './strybldrImageFileRegistry'
@@ -20,7 +20,7 @@ import { runStrybldrDetrObjectDetection } from './strybldrLocalVision'
 const readString = (value: unknown): string => String(value ?? '').trim()
 const LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS = 12000
 const LOCAL_ANALYSIS_DETR_BATCH_BYTE_LIMIT = 8 * 1024 * 1024
-const VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = 6000
+const VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS + 60000
 
 const readStrybldrSourceUnitIds = (graphData: ReturnType<typeof useGraphStore.getState>['graphData']): string[] => {
   const out: string[] = []
@@ -250,19 +250,24 @@ export function StrybldrFloatingPanelView() {
     const started = performance.now()
     const provider = normalizeChatProviderId(chatProvider)
     let paidCallCount = 0
-    let status: 'generated' | 'fallback' = 'fallback'
+    let status: 'generated' | 'copied' | 'fallback' = 'fallback'
     let model: string | null = null
     let renderUrl: string | null = null
     let sourceUrl: string | null = null
     let errorReason: string | null = null
+    let copyReason: string | null = null
     setVideoRunning(true)
     try {
-      if (provider !== CHAT_PROVIDER_BYTEPLUS) {
+      if (handoff.sourceVideoUrl && handoff.renderVideoUrl) {
+        status = 'copied'
+        sourceUrl = handoff.sourceVideoUrl
+        renderUrl = handoff.renderVideoUrl
+        copyReason = 'Copied the imported source video as the runnable Strybldr video artifact.'
+      } else if (provider !== CHAT_PROVIDER_BYTEPLUS) {
         errorReason = 'BytePlus ModelArk is not the active provider.'
       } else if (chatAuthMode === 'byok' && !readString(chatApiKey)) {
         errorReason = 'BytePlus BYOK API key is not configured.'
       } else {
-        paidCallCount = 1
         const asset = await runStrybldrProviderWithTimeout(
           generateRunVideoWithBytePlus({
             config: {
@@ -283,6 +288,7 @@ export function StrybldrFloatingPanelView() {
           model = asset.model
           renderUrl = asset.renderUrl
           sourceUrl = asset.sourceUrl || null
+          paidCallCount = 1
         } else {
           errorReason = 'BytePlus returned no video asset.'
         }
@@ -290,12 +296,21 @@ export function StrybldrFloatingPanelView() {
     } catch (e) {
       errorReason = String((e as { message?: unknown })?.message ?? e)
     }
+    if (status !== 'generated' && status !== 'copied' && handoff.sourceVideoUrl && handoff.renderVideoUrl) {
+      status = 'copied'
+      sourceUrl = handoff.sourceVideoUrl
+      renderUrl = handoff.renderVideoUrl
+      copyReason = errorReason
+        ? `Provider generation failed; copied the imported source video instead. ${errorReason}`
+        : 'Copied the imported source video as the runnable Strybldr video artifact.'
+      errorReason = null
+    }
     try {
       const fs = await getWorkspaceFs()
       await fs.ensureSeed()
       const createdPath = await fs.createFile({
         parentPath: WORKSPACE_ROOT_PATH,
-        name: `${status === 'generated' ? 'strybldr-video' : 'strybldr-video-fallback'}-${Date.now().toString(36)}.md`,
+        name: `${status === 'fallback' ? 'strybldr-video-fallback' : 'strybldr-video'}-${Date.now().toString(36)}.md`,
         text: buildStrybldrVideoHandoffMarkdown({
           handoff,
           status,
@@ -304,18 +319,23 @@ export function StrybldrFloatingPanelView() {
           renderUrl,
           sourceUrl,
           errorReason,
+          copyReason,
           elapsedMs: performance.now() - started,
           paidCallCount,
           cacheHit: false,
         }),
       })
       notifyWorkspaceFsChanged({ op: 'createFile', path: createdPath })
-      addHistory(status === 'generated' ? 'Strybldr video generated' : 'Strybldr video fallback')
+      addHistory(status === 'generated' ? 'Strybldr video generated' : status === 'copied' ? 'Strybldr video copied' : 'Strybldr video fallback')
       pushUiToast({
         id: 'strybldr:video:done',
-        kind: status === 'generated' ? 'success' : 'warning',
-        message: status === 'generated' ? 'Strybldr video handoff saved.' : 'Strybldr fallback artifact saved.',
-        dismissible: status !== 'generated',
+        kind: status === 'fallback' ? 'warning' : 'success',
+        message: status === 'generated'
+          ? 'Strybldr video handoff saved.'
+          : status === 'copied'
+            ? 'Strybldr source video copy saved.'
+            : 'Strybldr fallback artifact saved.',
+        dismissible: status === 'fallback',
       })
     } catch (e) {
       pushUiToast({

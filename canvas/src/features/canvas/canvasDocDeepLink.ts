@@ -1,8 +1,10 @@
 import {
   buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageDocPath,
+  KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import { readEnvString } from '@/lib/config.env'
 import {
   decodePublishedDocShareToken,
   encodePublishedDocShareToken,
@@ -102,6 +104,31 @@ export function buildPublishedDocShareDeepLink(args: {
   return buildPublishedDocSharePath(args)
 }
 
+const readPublishedDocShareOrigin = (origin?: string | null): string => {
+  const explicitOrigin = String(origin || '').trim()
+  if (explicitOrigin) return explicitOrigin.replace(/\/+$/, '')
+  const configuredOrigin = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
+  if (configuredOrigin) return configuredOrigin.replace(/\/+$/, '')
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return String(window.location.origin || '').replace(/\/+$/, '')
+  }
+  return 'https://airvio.co'
+}
+
+export function buildPublishedDocShareUrl(args: {
+  workspaceId?: string | null
+  canonicalPath: string
+  origin?: string | null
+}): string | null {
+  const canonicalPath = String(args.canonicalPath || '').trim()
+  if (!canonicalPath) return null
+  const workspaceId = String(args.workspaceId || '').trim()
+  const identity = workspaceId && workspaceId !== KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID
+    ? { workspaceId, canonicalPath }
+    : { canonicalPath }
+  return `${readPublishedDocShareOrigin(args.origin)}${buildPublishedDocShareDeepLink(identity)}`
+}
+
 function parsePublishedDocSourceUrl(sourceUrl: string): { workspaceId: string | null; canonicalPath: string } | null {
   const trimmed = String(sourceUrl || '').trim()
   if (!trimmed) return null
@@ -134,9 +161,7 @@ export function buildPublishedDocShareUrlFromSource(args: {
 }): string | null {
   const parsed = parsePublishedDocSourceUrl(args.sourceUrl)
   if (!parsed) return null
-  const origin = String(args.origin || '').trim() || (typeof window !== 'undefined' ? window.location.origin : '')
-  if (!origin) return null
-  return `${origin}${buildPublishedDocShareDeepLink(parsed)}`
+  return buildPublishedDocShareUrl({ ...parsed, origin: args.origin })
 }
 
 export function consumeDeepLinkParams(search: string): void {

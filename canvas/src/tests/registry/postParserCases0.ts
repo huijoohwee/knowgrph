@@ -18,6 +18,8 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["richMedia.panel.bodyClickOpensUrl","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelClickToOpenUsesBodyNotHeader"],
   ["richMedia.panel.imageRendersInlineWithoutBodyOverlay","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelImageRendersInlineWithoutBodyClickOverlay"],
   ["richMedia.panel.videoRendersInlineWithoutBodyOverlay","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelVideoRendersInlineWithoutBodyClickOverlay"],
+  ["richMedia.panel.playableEmbedSurfaceWithForwarding","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelDirectIframeAndVideoKeepPlayableSurfaceWithForwarding"],
+  ["richMedia.panel.storyboardCardSharedMediaSurface","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface"],
   ["richMedia.panel.videoHideUntilReadyRevealsOnLoadedMetadata","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenHideUntilReady"],
   ["richMedia.panel.emptyImageRendersPlaceholder","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelEmptyImageRendersPlaceholderInsteadOfBlankMedia"],
   ["richMedia.panel.emptyVideoRendersPlaceholder","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelEmptyVideoRendersPlaceholderInsteadOfBlankMedia"],

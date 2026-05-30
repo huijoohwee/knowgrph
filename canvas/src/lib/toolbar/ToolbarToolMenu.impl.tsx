@@ -402,12 +402,10 @@ export function ToolbarToolMenu({
   )
 
   const floatingPanelRootClassName = 'fixed inset-0 pointer-events-none'
-
   const handlePinToggle = toggleFloatingPanelPinned
   const registerManagedHeaderActions = React.useCallback((actions: FloatingHeaderActions) => {
     setManagedHeaderActions(actions)
   }, [])
-
   const floatingPanelRootStyle = React.useMemo(() => {
     const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : Z_INDEX_FLOATING_PANEL_DEFAULT
     if (floatingPanelPinned) return { zIndex: Math.max(safeZ, 1000) }
@@ -534,8 +532,7 @@ export function ToolbarToolMenu({
   }, [floatingPanelPinned, floatingPanelZIndex, setFloatingPanelZIndex])
 
   React.useEffect(() => {
-    if (!requestedFloatingPanelView || !requestedFloatingPanelViewSeq) return
-    if (handledRequestedViewSeqRef.current === requestedFloatingPanelViewSeq) return
+    if (!requestedFloatingPanelView || !requestedFloatingPanelViewSeq || handledRequestedViewSeqRef.current === requestedFloatingPanelViewSeq) return
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
     setFloatingPanelView(requestedFloatingPanelView)

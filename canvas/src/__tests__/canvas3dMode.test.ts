@@ -70,6 +70,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
     frontmatterModeEnabled: false,
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
+    timelineEnabled: true,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => {},
     setCanvasRenderMode: mode => {
@@ -82,6 +83,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
     },
     setSchema: () => {},
     setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: () => {},
     setDocumentSemanticMode: () => {},
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},
@@ -259,12 +261,14 @@ export function testCanvasViewSelectionBlocksVoxelDuringGeospatialMode() {
     frontmatterModeEnabled: false,
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
+    timelineEnabled: true,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => { setCanvas2dRendererCalls += 1 },
     setCanvasRenderMode: () => { setCanvasRenderModeCalls += 1 },
     setCanvas3dMode: () => { setCanvas3dModeCalls += 1 },
     setSchema: () => { setSchemaCalls += 1 },
     setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: () => {},
     setDocumentSemanticMode: () => {},
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},
@@ -288,6 +292,7 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
       frontmatterModeEnabled: false,
       multiDimTableModeEnabled: false,
       renderMediaAsNodes: false,
+      timelineEnabled: true,
       geospatialEnabled: false,
       layoutMode: 'block',
       schema: BLOCK_SCHEMA,
@@ -325,6 +330,7 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
       frontmatterModeEnabled: false,
       multiDimTableModeEnabled: false,
       renderMediaAsNodes: false,
+      timelineEnabled: true,
       geospatialEnabled: false,
       layoutMode: 'block',
       schema: BLOCK_SCHEMA,
@@ -336,12 +342,103 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
     getCanvasViewRendererOptions(),
   )
   const titles = options.map(option => option.title)
-  const expected = ['2D Renderer', 'Layout Mode', 'Document Modes', 'Surface Mode', 'Animation Mode', 'Display Controls']
+  const expected = ['2D Renderer', 'Layout Mode', 'Document Modes', 'Surface Mode', 'Animation Mode', 'Timeline', 'Display Controls']
   if (titles.join('|') !== expected.join('|')) {
     throw new Error(`Expected Canvas View Mode grouped order ${expected.join(' > ')}, got ${titles.join(' > ')}`)
   }
   for (const option of options) {
     if (!option.children?.length) throw new Error(`Expected ${option.title} to expand into child controls`)
+  }
+}
+
+export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
+  const options = buildCanvasViewOptions(
+    {
+      canvas2dRenderer: 'strybldr',
+      canvas3dMode: '3d',
+      canvasRenderMode: '2d',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      renderMediaAsNodes: false,
+      timelineEnabled: true,
+      geospatialEnabled: false,
+      layoutMode: 'block',
+      schema: BLOCK_SCHEMA,
+      frontmatterOnlyAllowed: false,
+      isD3Like2dLayoutToggle: true,
+      voxelApplicable: true,
+      voxelDisabledReason: null,
+    },
+    getCanvasViewRendererOptions(),
+  )
+  const timelineMenu = options.find(option => option.id === 'timeline:menu')
+  if (!timelineMenu?.children?.length) {
+    throw new Error('Expected Canvas View Mode to expose a shared Timeline menu')
+  }
+  const childIds = timelineMenu.children.map(child => child.id).join('|')
+  if (childIds !== 'timeline:on|timeline:off') {
+    throw new Error(`Expected Timeline menu to own On/Off children, got ${childIds}`)
+  }
+  const calls: string[] = []
+  applyCanvasViewSelection({
+    id: 'timeline:off',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected Timeline toggle to avoid opening Geospatial Mode')
+    },
+    canvas2dRenderer: 'strybldr',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: true,
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: () => {},
+    setCanvasRenderMode: () => {},
+    setCanvas3dMode: () => {},
+    setSchema: () => {},
+    setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: enabled => calls.push(String(enabled)),
+    setDocumentSemanticMode: () => {},
+    setFrontmatterModeEnabled: () => {},
+    setMultiDimTableModeEnabled: () => {},
+  })
+  if (calls.join('|') !== 'false') {
+    throw new Error(`Expected Timeline Off to toggle the shared bottom-panel setting, got ${calls.join('|')}`)
+  }
+  calls.length = 0
+  applyCanvasViewSelection({
+    id: 'timeline:on',
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => {
+      throw new Error('Expected Timeline toggle to avoid opening Geospatial Mode')
+    },
+    canvas2dRenderer: 'strybldr',
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d',
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    renderMediaAsNodes: false,
+    timelineEnabled: false,
+    schema: BLOCK_SCHEMA,
+    setCanvas2dRenderer: () => {},
+    setCanvasRenderMode: () => {},
+    setCanvas3dMode: () => {},
+    setSchema: () => {},
+    setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: enabled => calls.push(String(enabled)),
+    setDocumentSemanticMode: () => {},
+    setFrontmatterModeEnabled: () => {},
+    setMultiDimTableModeEnabled: () => {},
+  })
+  if (calls.join('|') !== 'true') {
+    throw new Error(`Expected Timeline On to enable the shared bottom-panel setting, got ${calls.join('|')}`)
   }
 }
 
@@ -363,12 +460,14 @@ export function testCanvasViewRendererSelectionActivates2dSurface() {
     frontmatterModeEnabled: true,
     multiDimTableModeEnabled: false,
     renderMediaAsNodes: false,
+    timelineEnabled: true,
     schema: BLOCK_SCHEMA,
     setCanvas2dRenderer: () => { rendererCalls += 1 },
     setCanvasRenderMode: mode => { renderModes.push(mode) },
     setCanvas3dMode: () => {},
     setSchema: () => {},
     setRenderMediaAsNodes: () => {},
+    setTimelineEnabled: () => {},
     setDocumentSemanticMode: () => {},
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},

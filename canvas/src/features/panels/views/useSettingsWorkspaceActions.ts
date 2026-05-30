@@ -3,7 +3,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
-import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import {
+  getMarkdownWorkspaceActionBridge,
+  type WorkspaceBridgeImportResult,
+  type WorkspaceFileSelection,
+} from '@/features/markdown-explorer/workspaceActionBridge'
 import { importLocalFilesFallback, importLocalFolderFallback, importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import {
   ACTIVE_WORKSPACE_SYNC_MAX_ATTEMPTS,
@@ -185,7 +189,43 @@ export function useSettingsWorkspaceActions({
     }
   }, [])
 
-  const importLocalSelection = React.useCallback((kind: WorkspaceKind, files: FileList | null, selectionKind: 'files' | 'folder') => {
+  const readBridgeImportResultCreatedPaths = React.useCallback((value: void | WorkspaceBridgeImportResult): string[] => {
+    const result = value && typeof value === 'object' ? value : null
+    const createdPaths = Array.isArray(result?.createdPaths) ? result.createdPaths : []
+    return createdPaths.map(path => String(path || '').trim()).filter(Boolean)
+  }, [])
+
+  const syncImportedWorkspaceSelectionToStorage = React.useCallback(async (args: {
+    createdPaths: string[]
+    label: string
+  }) => {
+    if (args.createdPaths.length === 0) return
+    try {
+      const { publishWorkspacePathsToKnowgrphStorage } = (await import('@/features/source-files/sourceFileShareUrl')) as typeof import('@/features/source-files/sourceFileShareUrl')
+      const result = await publishWorkspacePathsToKnowgrphStorage({
+        paths: args.createdPaths,
+        syncNow: true,
+      })
+      if (result.storedCount <= 0) return
+      pushUiToast({
+        id: `settings-import-storage-sync-${Date.now().toString(36)}`,
+        kind: 'success',
+        message: `Stored ${result.storedCount} selected ${args.label} for sync.`,
+        ttlMs: 2600,
+        dismissible: true,
+      })
+    } catch (err) {
+      pushUiToast({
+        id: 'settings-import-storage-sync-failed',
+        kind: 'error',
+        message: err instanceof Error ? err.message : 'Selected files were imported but storage sync failed.',
+        ttlMs: 5000,
+        dismissible: true,
+      })
+    }
+  }, [pushUiToast])
+
+  const importLocalSelection = React.useCallback((kind: WorkspaceKind, files: WorkspaceFileSelection, selectionKind: 'files' | 'folder') => {
     const snapshot = files ? Array.from(files) : []
     if (snapshot.length === 0) return
     const label = selectionKind === 'folder' ? 'folder' : 'files'
@@ -196,13 +236,32 @@ export function useSettingsWorkspaceActions({
       setKnowgrphPathStatus(`Importing local ${label}...`)
       patchChatValues({ chatKnowgrphStorageMode: 'local', chatKnowgrphCloudUrl: '' })
     }
-    if (selectionKind === 'folder') {
-      if (typeof bridgeImportLocalFolder === 'function') bridgeImportLocalFolder(files)
-      else void importLocalFolderFallbackImpl({ files, pushUiToast })
-    } else if (typeof bridgeImportLocalFiles === 'function') bridgeImportLocalFiles(files)
-    else void importLocalFilesFallbackImpl({ files, pushUiToast })
-    syncPathFromActiveWorkspaceFile(kind)
-  }, [bridgeImportLocalFiles, bridgeImportLocalFolder, importLocalFilesFallbackImpl, importLocalFolderFallbackImpl, patchChatValues, pushUiToast, syncPathFromActiveWorkspaceFile])
+    const selection = snapshot
+    void (async () => {
+      const result = selectionKind === 'folder'
+        ? typeof bridgeImportLocalFolder === 'function'
+          ? await bridgeImportLocalFolder(selection)
+          : await importLocalFolderFallbackImpl({ files: selection, pushUiToast })
+        : typeof bridgeImportLocalFiles === 'function'
+          ? await bridgeImportLocalFiles(selection)
+          : await importLocalFilesFallbackImpl({ files: selection, pushUiToast })
+      syncPathFromActiveWorkspaceFile(kind)
+      await syncImportedWorkspaceSelectionToStorage({
+        createdPaths: readBridgeImportResultCreatedPaths(result),
+        label,
+      })
+    })()
+  }, [
+    bridgeImportLocalFiles,
+    bridgeImportLocalFolder,
+    importLocalFilesFallbackImpl,
+    importLocalFolderFallbackImpl,
+    patchChatValues,
+    pushUiToast,
+    readBridgeImportResultCreatedPaths,
+    syncImportedWorkspaceSelectionToStorage,
+    syncPathFromActiveWorkspaceFile,
+  ])
 
   const importCloudUrl = React.useCallback((kind: WorkspaceKind) => {
     const next = String(kind === 'chatHistory' ? chatHistoryCloudUrl : chatKnowgrphCloudUrl || '').trim()
@@ -229,10 +288,10 @@ export function useSettingsWorkspaceActions({
     applyActiveWorkspaceFileAsKnowgrph: React.useCallback(() => applyActiveWorkspaceFile('knowgrph'), [applyActiveWorkspaceFile]),
     importCloudUrlForChatHistory: React.useCallback(() => importCloudUrl('chatHistory'), [importCloudUrl]),
     importCloudUrlForKnowgrph: React.useCallback(() => importCloudUrl('knowgrph'), [importCloudUrl]),
-    importLocalFilesForChatHistory: React.useCallback((files: FileList | null) => importLocalSelection('chatHistory', files, 'files'), [importLocalSelection]),
-    importLocalFilesForKnowgrph: React.useCallback((files: FileList | null) => importLocalSelection('knowgrph', files, 'files'), [importLocalSelection]),
-    importLocalFolderForChatHistory: React.useCallback((files: FileList | null) => importLocalSelection('chatHistory', files, 'folder'), [importLocalSelection]),
-    importLocalFolderForKnowgrph: React.useCallback((files: FileList | null) => importLocalSelection('knowgrph', files, 'folder'), [importLocalSelection]),
+    importLocalFilesForChatHistory: React.useCallback((files: WorkspaceFileSelection) => importLocalSelection('chatHistory', files, 'files'), [importLocalSelection]),
+    importLocalFilesForKnowgrph: React.useCallback((files: WorkspaceFileSelection) => importLocalSelection('knowgrph', files, 'files'), [importLocalSelection]),
+    importLocalFolderForChatHistory: React.useCallback((files: WorkspaceFileSelection) => importLocalSelection('chatHistory', files, 'folder'), [importLocalSelection]),
+    importLocalFolderForKnowgrph: React.useCallback((files: WorkspaceFileSelection) => importLocalSelection('knowgrph', files, 'folder'), [importLocalSelection]),
     isUpdatingChatHistoryPath,
     isUpdatingKnowgrphPath,
     kgcLocalImportInputRef,

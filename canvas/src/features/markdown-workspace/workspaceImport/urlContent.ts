@@ -2,6 +2,7 @@ import {
   buildLocalFsFetchPath,
   buildCodebaseFilePath,
   deriveFilenameFromUrl,
+  isLikelyAbsoluteFsPath,
   isYouTubeUrl,
   normalizeGitHubBlobLikeUrl,
   unwrapUserProvidedText,
@@ -57,6 +58,25 @@ type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
 let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
 const SHARE_THINKING_CLICK_TEXT_HINTS = ['Show thinking trajectory', 'Show thinking', 'Show reasoning', 'Show thought process', 'View thinking', 'View reasoning', 'Thinking', 'Reasoning', '\u663e\u793a\u601d\u8003\u8fc7\u7a0b']
 const WORKSPACE_IMPORT_DOM_EXPORT_TIMEOUT_MS = 10_000
+const isRootRelativeFetchUrl = (value: string): boolean => {
+  const raw = String(value || '').trim()
+  if (!raw.startsWith('/')) return false
+  if (raw.startsWith('/@fs/')) return false
+  if (/^\/__codebase_(file|asset)(?:\?|$)/.test(raw)) return false
+  return !isLikelyAbsoluteFsPath(raw)
+}
+const deriveFetchFilename = (rawUrl: string, fallback: string): string => {
+  const derived = deriveFilenameFromUrl(rawUrl, fallback)
+  if (derived !== fallback || !isRootRelativeFetchUrl(rawUrl)) return derived
+  const pathOnly = String(rawUrl || '').split(/[?#]/)[0] || ''
+  const basename = pathOnly.split('/').filter(Boolean).pop() || ''
+  if (!basename) return fallback
+  try {
+    return decodeURIComponent(basename).split('/').filter(Boolean).pop() || fallback
+  } catch {
+    return basename
+  }
+}
 const normalizeRecoveredWebpageMarkdown = (markdown: string): string =>
   restoreWebpageMarkdownSyntaxFidelity(normalizeWebpageCardAndListBlocks(markdown)).trim()
 const readWorkspaceWebpageDomExport = (): WorkspaceWebpageDomExportFn =>
@@ -107,7 +127,9 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
-  const isLocalRepoPath = (!isHttpUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)) || isFileUrl
+  const isRootRelativeFetch = isRootRelativeFetchUrl(normalizedUrl)
+  const isLocalRepoPath =
+    (!isHttpUrl && !isRootRelativeFetch && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)) || isFileUrl
   const localFsFetchPath =
     buildLocalFsFetchPath(normalizedUrl)
     || (isFileUrl ? buildLocalFsFetchPath(normalizedUrl.replace(/^file:\/\//i, '')) : null)
@@ -166,7 +188,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     opts?.onProgress?.(10)
     const fetchPath =
       localFsFetchPath ||
-      (isLocalRepoPath ? buildCodebaseFilePath(localRepoPath) : resolveBinaryDownloadProxyUrl(normalizedUrl))
+      (isRootRelativeFetch ? normalizedUrl : (isLocalRepoPath ? buildCodebaseFilePath(localRepoPath) : resolveBinaryDownloadProxyUrl(normalizedUrl)))
     const accept = isGltf
       ? `${GLTF_ASSET_MIME_TYPE},application/json,text/plain,*/*`
       : `${GLB_ASSET_MIME_TYPE},application/octet-stream,*/*`
@@ -796,7 +818,21 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   }
 
   opts?.onProgress?.(10)
-  const res = await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
+  const res = isRootRelativeFetch
+    ? await (async () => {
+        const response = await fetch(normalizedUrl, { headers: { Accept: 'text/markdown,text/plain,*/*' } })
+        if (!response.ok) {
+          return {
+            ok: false,
+            kind: 'http',
+            url: normalizedUrl,
+            usedProxy: false,
+            status: response.status,
+          } as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure
+        }
+        return { ok: true, text: await response.text(), url: normalizedUrl, usedProxy: false } as const
+      })()
+    : await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
   opts?.onProgress?.(100)
   if (!res.ok) throw new Error(describeFetchRemoteTextFailure(res as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
   const text = res.text
@@ -804,7 +840,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   const fallbackExt = deriveFallbackExtFromNormalizedLower(normalizedLower)
 
   const fallback = `import${fallbackExt}`
-  const derived = deriveFilenameFromUrl(normalizedUrl, fallback)
+  const derived = deriveFetchFilename(normalizedUrl, fallback)
   const name = derived.includes('.') ? derived : `${derived}${fallbackExt}`
   return { normalizedUrl, name, text }
 }

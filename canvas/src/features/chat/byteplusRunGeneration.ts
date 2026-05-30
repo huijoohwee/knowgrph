@@ -117,14 +117,14 @@ type BytePlusImageFailureContext = {
   attemptedResolvedModels: string[]
 }
 
-const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 24
+export const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 24
 
-const getBytePlusVideoPollDelayMs = (attempt: number): number => {
+export const getBytePlusVideoPollDelayMs = (attempt: number): number => {
   if (attempt < 3) return 2500
   if (attempt < 6) return 5000
   return 10000
 }
-
+export const BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS = Array.from({ length: BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS - 1 }, (_, index) => getBytePlusVideoPollDelayMs(index + 1)).reduce((sum, delayMs) => sum + delayMs, 0)
 const toRequestId = (prefix: string): string => `${prefix}-${Date.now().toString(36)}`
 
 const cleanString = (value: unknown): string => {

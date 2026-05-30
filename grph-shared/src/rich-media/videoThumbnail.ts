@@ -1,4 +1,8 @@
-import { buildRichMediaPreviewSemanticKey, buildYouTubeThumbnailPreviewDescriptor } from './providers.js'
+import {
+  buildRichMediaPreviewSemanticKey,
+  buildYouTubeThumbnailPreviewDescriptor,
+  buildYouTubeTimestampFramePreviewDescriptor,
+} from './providers.js'
 
 type CacheEntry = {
   value: string | null
@@ -135,7 +139,8 @@ async function captureVideoFrameThumbnail(absUrl: string): Promise<string | null
 export async function getOrCreateVideoThumbnail(url: string): Promise<string | null> {
   const raw = String(url || '').trim()
   if (!raw) return null
-  const youtubeThumbnail = buildYouTubeThumbnailPreviewDescriptor(raw)
+  const youtubeFrameThumbnail = buildYouTubeTimestampFramePreviewDescriptor(raw)
+  const youtubeThumbnail = youtubeFrameThumbnail || buildYouTubeThumbnailPreviewDescriptor(raw)
   const cacheKey = youtubeThumbnail?.semanticKey || buildRichMediaPreviewSemanticKey(['video', 'thumbnail', raw])
   const cache = getCache()
   const existing = cache.get(cacheKey)
@@ -148,7 +153,11 @@ export async function getOrCreateVideoThumbnail(url: string): Promise<string | n
   }
 
   const inflight = (async (): Promise<string | null> => {
-    if (youtubeThumbnail?.thumbnailUrl) return toProxy(youtubeThumbnail.thumbnailUrl)
+    if (youtubeThumbnail?.thumbnailUrl) {
+      return youtubeFrameThumbnail?.thumbnailUrl
+        ? youtubeFrameThumbnail.thumbnailUrl
+        : toProxy(youtubeThumbnail.thumbnailUrl)
+    }
     if (isDirectVideoUrl(raw)) {
       return await captureVideoFrameThumbnail(raw)
     }

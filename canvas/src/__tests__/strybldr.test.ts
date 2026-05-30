@@ -10,6 +10,7 @@ import {
   serializeStrybldrStoryboardMarkdown,
 } from '@/features/strybldr/strybldrStoryboard'
 import { getCanvas2dSurfaceId, getToolbarRunAllFloatingPanelTab, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId, supportsToolbarRunAll } from '@/lib/config.render'
+import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS } from '@/features/chat/byteplusRunGeneration'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -54,6 +55,12 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
 
 export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   const renderConfigText = readSource('lib', 'config.render.ts')
+  const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
+  const floatingPanelText = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const timelineVisibilityText = readSource('lib', 'timeline', 'timelineVisibility.ts')
+  const timelineBottomPanelText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
+  const timelinePanelText = readSource('features', 'strybldr', 'StrybldrTimelinePanel.tsx')
+  const storyboardTimelineText = readSource('components', 'StoryboardCanvas', 'storyboardTimeline.ts')
   const retiredRendererId = ['story', 'bldr'].join('')
   assert(resolveCanvas2dRendererId('strybldr') === 'strybldr', 'expected canonical strybldr renderer id')
   assert(resolveCanvas2dRendererId(retiredRendererId) === undefined, 'expected no retired renderer remap')
@@ -64,6 +71,23 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(getToolbarRunAllFloatingPanelTab('strybldr') === 'strybldr', 'expected Strybldr Run All to mount its shared floating panel consumer')
   assert(getToolbarRunAllFloatingPanelTab('flowEditor') === null, 'expected Flow Editor Run All to keep its always-mounted canvas runtime consumer')
   assert(supportsToolbarRunAll('flowEditor'), 'expected Flow Editor to keep Toolbar Run All dispatch')
+  assert(canvasViewportText.includes('StrybldrTimelineBottomPanelLazy'), 'expected Strybldr timeline to mount as the CanvasViewport bottom panel')
+  assert(!floatingPanelText.includes("floatingPanelView === 'timeline'"), 'expected Timeline to stay out of the FloatingPanel view registry')
+  assert(timelineVisibilityText.includes('TIMELINE_ENABLED_DEFAULT'), 'expected Timeline visibility default to live in shared timeline utils')
+  assert(timelineVisibilityText.includes('shouldRenderTimelineSurface'), 'expected Timeline visibility gating to live in shared timeline utils')
+  assert(timelineBottomPanelText.includes('HeaderActions'), 'expected Timeline bottom panel to reuse shared panel header actions')
+  assert(timelineBottomPanelText.includes('onPinToggle={handlePinToggle}'), 'expected Timeline bottom panel to expose shared pin/unpin controls')
+  assert(timelineBottomPanelText.includes('setTimelineEnabled(false)'), 'expected Timeline bottom panel close to update the shared Timeline setting')
+  assert(timelineBottomPanelText.includes('startPointerDrag'), 'expected Timeline bottom panel drag to reuse the shared pointer drag utility')
+  assert(timelineBottomPanelText.includes('UI_SELECTORS.draggablePanelIgnorePointerDown'), 'expected Timeline bottom panel drag to reuse shared no-drag heuristics')
+  assert(timelineBottomPanelText.includes('data-kg-strybldr-bottom-timeline-panel'), 'expected Timeline bottom panel to expose a bottom-panel marker')
+  assert(timelinePanelText.includes('TimelineTransportControls'), 'expected Strybldr timeline panel to reuse the shared timeline transport control')
+  assert(timelinePanelText.includes('useTimelineTransportPlayback'), 'expected Strybldr timeline panel to reuse the shared playback loop')
+  assert(timelinePanelText.includes('buildStoryboardBoardModel'), 'expected Strybldr timeline panel to reuse the Storyboard board model')
+  assert(timelinePanelText.includes('board.semanticKey'), 'expected Strybldr timeline state to reset from the shared Storyboard semantic key')
+  assert(!timelinePanelText.includes('type="range"'), 'expected Strybldr timeline panel to avoid a local range input duplicate')
+  assert(storyboardTimelineText.includes('buildStoryboardTimelineItems'), 'expected Storyboard timeline projection to live in a shared helper')
+  assert(storyboardTimelineText.includes('resolveStoryboardTimelineIndex'), 'expected Strybldr selection to use shared timeline index semantics')
 }
 
 export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
@@ -207,6 +231,124 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
   assert(mergedElementNodes.some(node => String(node.properties?.strybldrSourceUnitId || '') === 'corpus-source-merge-b' && String(node.properties?.evidenceKind || '') === 'source-metadata'), 'expected local analysis merge to preserve fallback cards for un-analyzed sources')
 }
 
+export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReachable() {
+  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
+  const renderUrl = '/__chat_asset_proxy/strybldr-generated-video.mp4'
+  const sourceUrl = ['https://assets.example.test', '/strybldr-generated-video.mp4'].join('')
+  const generatedMarkdown = buildStrybldrVideoHandoffMarkdown({
+    handoff: {
+      prompt: 'Create one approved generated video.',
+      referenceImageUrl: null,
+      cards: [
+        {
+          id: 'generated-card',
+          lane: 'Elements',
+          title: 'Generated card',
+          summary: 'Approved generated summary.',
+          action: 'Render the edited beat.',
+          prompt: 'Use the approved card fields.',
+          references: [],
+          order: 1,
+          sourceUnitId: 'generated-source',
+        },
+      ],
+    },
+    status: 'generated',
+    provider: 'byteplus-modelark',
+    model: 'video-model',
+    renderUrl,
+    sourceUrl,
+    elapsedMs: 1234,
+    paidCallCount: 1,
+    cacheHit: false,
+  })
+  assert(BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS >= 200000, `expected BytePlus video owner to expose a real task polling window, got ${BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS}`)
+  assert(panelText.includes('BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS'), 'expected Strybldr video handoff to reuse the BytePlus bounded polling window')
+  assert(panelText.includes('BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS + 60000'), 'expected Strybldr handoff timeout to include task polling plus asset download slack')
+  assert(!panelText.includes('VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = 6000'), 'expected Strybldr handoff not to force legitimate provider runs into fallback after six seconds')
+  assert(panelText.includes('if (handoff.sourceVideoUrl && handoff.renderVideoUrl)'), 'expected Strybldr source-video handoff to copy/fork without a paid provider call first')
+  assert(panelText.indexOf('if (handoff.sourceVideoUrl && handoff.renderVideoUrl)') < panelText.indexOf('generateRunVideoWithBytePlus({'), 'expected source-video copy path to run before BytePlus generation')
+  assert(panelText.includes("status = 'generated'"), 'expected provider-backed Strybldr video recreation to remain a generated outcome, not fallback-only')
+  assert(panelText.includes("status === 'fallback' ? 'strybldr-video-fallback'"), 'expected playable Strybldr videos to write non-fallback artifacts')
+  assert(generatedMarkdown.includes('status: "generated"'), 'expected generated handoff markdown status')
+  assert(generatedMarkdown.includes(`renderUrl: "${renderUrl}"`), 'expected generated handoff markdown to expose the render URL')
+  assert(generatedMarkdown.includes(`sourceUrl: "${sourceUrl}"`), 'expected generated handoff markdown to preserve the source URL')
+  assert(generatedMarkdown.includes('paidCallCount: 1'), 'expected generated handoff markdown to record paid call count')
+  assert(generatedMarkdown.includes('## Video'), 'expected generated handoff markdown to include a playable video body')
+  assert(generatedMarkdown.includes(`<video controls playsinline src="${renderUrl}"`), 'expected generated handoff markdown to render the shared proxied video URL')
+  assert(!generatedMarkdown.includes('errorReason:'), 'expected generated handoff markdown not to carry a fallback error reason')
+
+  const copiedMarkdown = buildStrybldrVideoHandoffMarkdown({
+    handoff: {
+      prompt: 'Copy one approved source video.',
+      referenceImageUrl: null,
+      sourceVideoUrl: sourceUrl,
+      renderVideoUrl: renderUrl,
+      cards: [
+        {
+          id: 'copied-card',
+          lane: 'Source',
+          title: 'Copied source',
+          summary: 'Approved source video.',
+          action: 'Fork the source motion.',
+          prompt: 'Use the imported source video as the playable fork.',
+          references: [sourceUrl],
+          order: 1,
+          sourceUnitId: 'copied-source',
+        },
+      ],
+    },
+    status: 'copied',
+    provider: 'byteplus-modelark',
+    renderUrl,
+    sourceUrl,
+    copyReason: 'provider inactive; copied source video',
+    elapsedMs: 123,
+    paidCallCount: 0,
+    cacheHit: false,
+  })
+  assert(copiedMarkdown.includes('status: "copied"'), 'expected copied source video handoff status')
+  assert(copiedMarkdown.includes(`renderUrl: "${renderUrl}"`), 'expected copied handoff markdown to expose a render URL')
+  assert(copiedMarkdown.includes(`sourceUrl: "${sourceUrl}"`), 'expected copied handoff markdown to preserve the source URL')
+  assert(copiedMarkdown.includes('paidCallCount: 0'), 'expected copied source video to avoid paid generation cost')
+  assert(copiedMarkdown.includes('copyReason:'), 'expected copied handoff markdown to explain the source-video fork')
+  assert(copiedMarkdown.includes(`<video controls playsinline src="${renderUrl}"`), 'expected copied direct video handoff to stay visibly playable')
+
+  const youtubeSourceUrl = 'https://www.youtube.com/watch?v=77FAnT935IE'
+  const youtubeRenderUrl = 'https://www.youtube.com/embed/77FAnT935IE'
+  const youtubeCopiedMarkdown = buildStrybldrVideoHandoffMarkdown({
+    handoff: {
+      prompt: 'Copy one approved YouTube source.',
+      referenceImageUrl: null,
+      sourceVideoUrl: youtubeSourceUrl,
+      renderVideoUrl: youtubeRenderUrl,
+      cards: [
+        {
+          id: 'copied-youtube-card',
+          lane: 'Source',
+          title: 'Copied YouTube source',
+          summary: 'Approved source video.',
+          action: 'Fork the source motion.',
+          prompt: 'Use the imported source video as the playable fork.',
+          references: [youtubeSourceUrl],
+          order: 1,
+          sourceUnitId: 'copied-youtube-source',
+        },
+      ],
+    },
+    status: 'copied',
+    provider: 'byteplus-modelark',
+    renderUrl: youtubeRenderUrl,
+    sourceUrl: youtubeSourceUrl,
+    copyReason: 'provider inactive; copied source video',
+    elapsedMs: 123,
+    paidCallCount: 0,
+    cacheHit: false,
+  })
+  assert(youtubeCopiedMarkdown.includes(`<iframe src="${youtubeRenderUrl}"`), 'expected copied YouTube handoff to render the embeddable source video')
+  assert(youtubeCopiedMarkdown.includes(`[Open source video](${youtubeSourceUrl})`), 'expected copied YouTube handoff to retain the source link')
+}
+
 export async function testStrybldrVideoSourceKeepsRenderableMediaAcrossMergeAndHandoff() {
   const videoId = ['Stry', 'Media', '123'].join('')
   const watchUrl = ['https://www.youtube.com/watch', `?v=${videoId}`].join('')
@@ -261,6 +403,8 @@ export async function testStrybldrVideoSourceKeepsRenderableMediaAcrossMergeAndH
   assert(mergedBoard.lanes.flatMap(lane => lane.cards).some(card => card.media?.kind === 'iframe'), 'expected merged Strybldr graph to keep renderable provider video media')
   const handoff = buildStrybldrVideoHandoffFromGraphData(merged)
   assert(String(handoff.referenceImageUrl || '').includes(`/vi/${videoId}/`), `expected video handoff reference image to use provider thumbnail, got ${String(handoff.referenceImageUrl || '')}`)
+  assert(handoff.sourceVideoUrl === watchUrl, `expected video handoff to preserve source video URL, got ${String(handoff.sourceVideoUrl || '')}`)
+  assert(String(handoff.renderVideoUrl || '').includes('/embed/'), `expected video handoff to expose a playable embed URL, got ${String(handoff.renderVideoUrl || '')}`)
   assert(handoff.cards.some(card => card.references.includes(watchUrl) && card.references.some(reference => reference.includes(`/vi/${videoId}/`))), 'expected video handoff cards to retain source URL and thumbnail references')
 }
 

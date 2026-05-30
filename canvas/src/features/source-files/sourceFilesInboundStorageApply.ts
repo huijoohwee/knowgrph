@@ -21,10 +21,14 @@ import type {
   KnowgrphStoragePullResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import { KNOWGRPH_STORAGE_ROUTE_PATHS } from '@/lib/storage/knowgrphStorageSyncContract'
+import {
+  looksLikeHttpUrl,
+  normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath,
+  normalizeStorageCanonicalPathCandidate,
+  readStorageCanonicalPathCandidatesForDocument,
+} from '@/features/source-files/sourceFilesStoragePaths'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
-
-const looksLikeHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value)
 
 const readSourceFileNameFromCanonicalPath = (canonicalPath: string, fallbackTitle: string | null): string => {
   const safeTitle = normalizeString(fallbackTitle)
@@ -42,76 +46,6 @@ const readSourceFileNameFromCanonicalPath = (canonicalPath: string, fallbackTitl
   return workspaceBasename(path) || canonicalPath || 'remote.md'
 }
 
-const normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath = (canonicalPathRaw: string): string => {
-  const canonicalPath = normalizeString(canonicalPathRaw).replace(/\\/g, '/')
-  if (!canonicalPath || looksLikeHttpUrl(canonicalPath)) return ''
-  const withoutWorkspacePrefix = canonicalPath.startsWith('workspace:') ? canonicalPath.slice('workspace:'.length) : canonicalPath
-  const normalized = withoutWorkspacePrefix.replace(/^\/+/, '')
-  const lower = normalized.toLowerCase()
-  const marker = 'huijoohwee/docs/'
-  let docsRelative = ''
-  const markerIndex = lower.indexOf(marker)
-  if (markerIndex >= 0) {
-    docsRelative = normalized.slice(markerIndex + marker.length)
-  } else if (lower.startsWith('docs/')) {
-    docsRelative = normalized.slice('docs/'.length)
-  } else {
-    return ''
-  }
-  const rel = docsRelative
-    .split('/')
-    .filter(Boolean)
-    .join('/')
-  if (!rel) return ''
-  return `workspace:/docs/${rel}`
-}
-
-const normalizeStorageCanonicalPathCandidate = (value: string): string => {
-  const normalized = normalizeString(value).replace(/\\/g, '/').replace(/^workspace:/, '').replace(/^\/+/, '')
-  if (!normalized || looksLikeHttpUrl(normalized)) return ''
-  const lower = normalized.toLowerCase()
-  const marker = 'huijoohwee/docs/'
-  if (lower.includes(marker)) {
-    const idx = lower.indexOf(marker)
-    return normalized.slice(idx)
-  }
-  if (lower.startsWith('docs/')) return `huijoohwee/${normalized}`
-  return normalized
-}
-
-const readStorageCanonicalPathCandidatesForDocument = (args: {
-  documentCanonicalPath: string
-  sourcePath: string
-}): string[] => {
-  const out = new Set<string>()
-  const pushWorkspaceCanonical = (value: string) => {
-    const normalized = normalizeString(value).replace(/\\/g, '/')
-    if (!normalized.startsWith('workspace:/')) return
-    const lower = normalized.toLowerCase()
-    if (!lower.endsWith('.md') && !lower.endsWith('.markdown') && !lower.endsWith('.mdx') && !lower.endsWith('.mmd')) return
-    out.add(normalized)
-  }
-  const push = (value: string) => {
-    const normalized = normalizeStorageCanonicalPathCandidate(value)
-    if (!normalized) return
-    const lower = normalized.toLowerCase()
-    if (!lower.endsWith('.md') && !lower.endsWith('.markdown') && !lower.endsWith('.mdx') && !lower.endsWith('.mmd')) return
-    if (lower.includes('/huijoohwee/docs/huijoohwee/docs/')) return
-    out.add(normalized)
-  }
-  pushWorkspaceCanonical(args.documentCanonicalPath)
-  push(args.documentCanonicalPath)
-  const sourcePath = normalizeString(args.sourcePath)
-  if (sourcePath.startsWith('workspace:/docs/')) {
-    pushWorkspaceCanonical(sourcePath)
-    const rel = sourcePath.slice('workspace:/docs/'.length).replace(/^\/+/, '')
-    if (rel) {
-      push(`huijoohwee/docs/${rel}`)
-      push(`docs/${rel}`)
-    }
-  }
-  return [...out]
-}
 
 const buildKnowgrphStorageRequestUrl = (args: { path: string; baseUrl: string }): string => {
   const safePath = normalizeString(args.path)

@@ -52,7 +52,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   onClearFile?: (path: WorkspacePath) => void
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry?: (path: WorkspacePath) => void
-  buildShareUrl?: (entryPath: WorkspacePath) => string | null
+  buildShareUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
   renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }) {
   const {
@@ -105,10 +105,10 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     }
     return false
   }, [])
-  const defaultBuildShareUrl = React.useCallback((entryPath: WorkspacePath): string | null => {
-    const publishedShareUrl = buildShareUrl?.(entryPath)
+  const defaultBuildShareUrl = React.useCallback((entry: WorkspaceEntry): string | null | Promise<string | null> => {
+    const publishedShareUrl = buildShareUrl?.(entry)
     if (publishedShareUrl) return publishedShareUrl
-    const relative = String(entryPath || '').replace(/^\/+/, '')
+    const relative = String(entry.path || '').replace(/^\/+/, '')
     if (!relative) return null
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const base = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') : '/knowgrph'

@@ -14,6 +14,16 @@ import {
   readLatestGrabMapsPoiRichMediaPreview,
   subscribeGrabMapsPoiRichMediaPreview,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
+import {
+  CardMediaEmptyPlaceholder,
+  CardMediaLoadingSkeleton,
+  CardMediaPreview,
+} from '@/lib/cards/CardMediaPreview'
+import {
+  isDirectPlayableCardMedia,
+  type CardMediaPlaceholderVariant,
+  type CardMediaSkeletonVariant,
+} from '@/lib/cards/cardMediaPreviewUtils'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
@@ -75,271 +85,6 @@ export type RichMediaPanelProps = {
   flowEditorFrontmatterDocumentMode?: boolean
   flowEditorSurfaceId?: string
   onPanelChange?: (next: { activeTab: RichMediaPanelTab; freezeConnectedOutput: boolean; text?: string }) => void
-}
-
-const RICH_MEDIA_SKELETON_STYLE_ID = 'kg-rich-media-skeleton-style'
-type RichMediaPlaceholderMode = 'text' | 'image' | 'video' | 'undefined'
-
-type RichMediaSkeletonVariant = RichMediaPlaceholderMode | 'iframe'
-
-function useRichMediaSkeletonStyles() {
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return
-    if (document.getElementById(RICH_MEDIA_SKELETON_STYLE_ID)) return
-    const style = document.createElement('style')
-    style.id = RICH_MEDIA_SKELETON_STYLE_ID
-    style.textContent = `
-      @keyframes kgRichMediaSkeletonShimmer {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-      }
-      .kg-rich-media-skeleton-block {
-        background-image: linear-gradient(
-          90deg,
-          rgba(148, 163, 184, 0.14) 0%,
-          rgba(148, 163, 184, 0.22) 25%,
-          rgba(255, 255, 255, 0.40) 50%,
-          rgba(148, 163, 184, 0.22) 75%,
-          rgba(148, 163, 184, 0.14) 100%
-        );
-        background-size: 220% 100%;
-        animation: kgRichMediaSkeletonShimmer 1.35s linear infinite;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .kg-rich-media-skeleton-block {
-          animation: none;
-          background-position: 50% 0;
-        }
-      }
-    `
-    document.head.appendChild(style)
-  }, [])
-}
-
-function getRichMediaSkeletonBlocks(variant: RichMediaSkeletonVariant, labelWidth: string) {
-  if (variant === 'text') {
-    return [
-      { width: labelWidth, height: 12, radius: 999 },
-      { width: '100%', height: 18, radius: 8 },
-      { width: '92%', height: 18, radius: 8 },
-      { width: '96%', height: 18, radius: 8 },
-      { width: '100%', height: '100%', minHeight: 84, flex: 1, radius: 12 },
-    ] as const
-  }
-  if (variant === 'image') {
-    return [
-      { width: labelWidth, height: 12, radius: 999 },
-      { width: '100%', height: '100%', minHeight: 112, flex: 1, radius: 14 },
-      { width: '52%', height: 12, radius: 999 },
-    ] as const
-  }
-  if (variant === 'video') {
-    return [
-      { width: labelWidth, height: 12, radius: 999 },
-      { width: '100%', height: '100%', minHeight: 112, flex: 1, radius: 14 },
-      { width: '36%', height: 10, radius: 999 },
-      { width: '58%', height: 10, radius: 999 },
-    ] as const
-  }
-  return [
-    { width: labelWidth, height: 12, radius: 999 },
-    { width: '100%', height: '100%', minHeight: 112, flex: 1, radius: 14 },
-    { width: '70%', height: 12, radius: 999 },
-    { width: '46%', height: 12, radius: 999 },
-  ] as const
-}
-
-function RichMediaLoadingSkeleton({
-  label,
-  variant,
-}: {
-  label: string
-  variant: RichMediaSkeletonVariant
-}) {
-  useRichMediaSkeletonStyles()
-  const safeLabel = String(label || '').trim() || 'Generating output...'
-  const labelWidth = `${Math.min(72, Math.max(28, Math.round(safeLabel.length * 2.6)))}%`
-  const blocks = getRichMediaSkeletonBlocks(variant, labelWidth)
-
-  return (
-    <section
-      aria-label="Rich media loading state"
-      aria-live="polite"
-      className="w-full h-full"
-      data-kg-rich-media-loading-surface="1"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        padding: 14,
-        borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-        background: 'rgba(15, 23, 42, 0.04)',
-        color: 'var(--kg-muted-foreground, rgba(0,0,0,0.62))',
-        fontSize: 12,
-        userSelect: 'none',
-        pointerEvents: 'none',
-        overflow: 'hidden',
-      }}
-    >
-      <section
-        aria-hidden="true"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        {blocks.map((block, index) => (
-          <span
-            key={`${variant}-${index}`}
-            className="kg-rich-media-skeleton-block"
-            style={{
-              display: 'block',
-              width: block.width,
-              height: block.height,
-              minHeight: block.minHeight,
-              flex: block.flex,
-              borderRadius: block.radius,
-            }}
-          />
-        ))}
-      </section>
-      <span
-        style={{
-          display: 'block',
-          fontSize: 11,
-          lineHeight: 1.3,
-          color: 'var(--kg-muted-foreground, rgba(0,0,0,0.62))',
-        }}
-      >
-        {safeLabel}
-      </span>
-    </section>
-  )
-}
-
-function getRichMediaEmptyCardBlocks(variant: RichMediaPlaceholderMode) {
-  if (variant === 'text') {
-    return [
-      { width: '46%', height: 12, radius: 999 },
-      { width: '100%', height: 16, radius: 8 },
-      { width: '92%', height: 16, radius: 8 },
-      { width: '96%', minHeight: 58, flex: 1, radius: 12 },
-      { width: '64%', height: 10, radius: 999 },
-    ] as const
-  }
-  if (variant === 'image') {
-    return [
-      { width: '34%', height: 12, radius: 999 },
-      { width: '100%', minHeight: 80, flex: 1, radius: 14 },
-      { width: '48%', height: 10, radius: 999 },
-      { width: '66%', height: 10, radius: 999 },
-    ] as const
-  }
-  if (variant === 'video') {
-    return [
-      { width: '38%', height: 12, radius: 999 },
-      { width: '100%', minHeight: 80, flex: 1, radius: 14 },
-      { width: '28%', height: 8, radius: 999 },
-      { width: '52%', height: 8, radius: 999 },
-      { width: '40%', height: 8, radius: 999 },
-    ] as const
-  }
-  return [
-    { width: '42%', height: 12, radius: 999 },
-    { width: '100%', minHeight: 76, flex: 1, radius: 14 },
-    { width: '72%', height: 10, radius: 999 },
-    { width: '56%', height: 10, radius: 999 },
-  ] as const
-}
-
-function getRichMediaEmptyCardStatusLabel(variant: RichMediaPlaceholderMode) {
-  if (variant === 'text') return 'Waiting for text content'
-  if (variant === 'image') return 'Waiting for image content'
-  if (variant === 'video') return 'Waiting for video content'
-  return 'Waiting for rich media content'
-}
-
-function RichMediaEmptyCardPlaceholder({
-  variant,
-}: {
-  variant: RichMediaPlaceholderMode
-}) {
-  const blocks = getRichMediaEmptyCardBlocks(variant)
-  const statusLabel = getRichMediaEmptyCardStatusLabel(variant)
-
-  return (
-    <section
-      aria-label="Rich media empty state"
-      role="status"
-      className="w-full h-full"
-      data-kg-rich-media-empty-card-placeholder="1"
-      data-kg-rich-media-empty-card-static="1"
-      data-kg-rich-media-empty-card-variant={variant}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 14,
-        borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-        background: 'transparent',
-        userSelect: 'none',
-        pointerEvents: 'none',
-        overflow: 'hidden',
-      }}
-    >
-      <section
-        aria-hidden="true"
-        style={{
-          width: '100%',
-          maxWidth: 260,
-          minHeight: 132,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-          padding: 14,
-          borderRadius: 14,
-          border: '1px solid rgba(148, 163, 184, 0.24)',
-          background: 'rgba(15, 23, 42, 0.035)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-        }}
-      >
-        {blocks.map((block, index) => (
-          <span
-            key={`${variant}-${index}`}
-            style={{
-              display: 'block',
-              width: block.width,
-              height: block.height,
-              minHeight: block.minHeight,
-              flex: block.flex,
-              borderRadius: block.radius,
-              background: index === 0
-                ? 'rgba(148, 163, 184, 0.18)'
-                : 'rgba(148, 163, 184, 0.12)',
-            }}
-          />
-        ))}
-      </section>
-      <span
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          padding: 0,
-          margin: -1,
-          overflow: 'hidden',
-          clip: 'rect(0, 0, 0, 0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
-      >
-        {statusLabel}
-      </span>
-    </section>
-  )
 }
 
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
@@ -510,6 +255,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || isFlowEditorRenderer === true
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
+  const playableCardMedia = isDirectPlayableCardMedia({ kind, url: rawUrl }) && props.interactive !== false
   const installWheelForwarding =
     typeof props.forwardWheelTo === 'function'
     && (
@@ -518,9 +264,12 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     )
   const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true
   const forwardingEnabled =
+    !playableCardMedia
+    && (
     !preferEmbed
     && flowEditorFrontmatterDocumentMode !== true
     && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
+    )
   const [ready, setReady] = React.useState<boolean>(() => !hideUntilReady)
   React.useEffect(() => {
     setReady(!hideUntilReady)
@@ -560,7 +309,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const isSnapshotVideo = false
   const isSnapshotStaticMedia = !preferEmbed && (kind === 'image' || kind === 'svg')
   const contentInteractive =
-    (preferEmbed || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
+    (preferEmbed || playableCardMedia || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
     && (!hideUntilReady || ready)
   const canClickToOpen = !headerPassthrough && kind !== 'video' && kind !== 'image' && kind !== 'svg' && !contentInteractive && !!safeOpenUrl
   const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen
@@ -834,9 +583,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   }, [installHeaderDrag, installOverlayPan, overlayAlreadySelected, props, selectSelf, startHeaderDrag])
   const panelIsLoading = panel?.isLoading === true
   const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
-  const loadingSkeletonVariant: RichMediaSkeletonVariant =
+  const loadingSkeletonVariant: CardMediaSkeletonVariant =
     panelSelectedTab === 'text' ? 'text' : (kind === 'image' || kind === 'video' ? kind : 'iframe')
-  const expectedEmptyPlaceholderVariant: RichMediaPlaceholderMode =
+  const expectedEmptyPlaceholderVariant: CardMediaPlaceholderVariant =
     panelSelectedTab === 'text' || panelSelectedTab === 'image' || panelSelectedTab === 'video'
       ? panelSelectedTab
       : panel
@@ -989,7 +738,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           }}
           data-kg-media-scroll-surface="1"
         >
-          <React.Suspense fallback={<RichMediaLoadingSkeleton label="Rendering markdown..." variant="text" />}>
+          <React.Suspense fallback={<CardMediaLoadingSkeleton label="Rendering markdown..." variant="text" richMediaDataAttrs />}>
             <MarkdownPreviewLazy
               markdownText={panelDisplayText}
               activeDocumentPath={panelMarkdownDocumentPath}
@@ -1009,12 +758,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           </React.Suspense>
         </section>
       ) : panelIsLoading ? (
-        <RichMediaLoadingSkeleton
+        <CardMediaLoadingSkeleton
           label={panelLoadingLabel}
           variant={loadingSkeletonVariant}
+          richMediaDataAttrs
         />
       ) : isEmptyPanel ? (
-        <RichMediaEmptyCardPlaceholder variant={expectedEmptyPlaceholderVariant} />
+        <CardMediaEmptyPlaceholder variant={expectedEmptyPlaceholderVariant} richMediaDataAttrs />
       ) : kind === 'iframe' ? (
         effectiveInlineSrcDoc ? (
           <SharedWebpageSurface
@@ -1028,8 +778,17 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             style={iframeSurfaceStyle}
             onLoad={() => setReady(true)}
           />
-        ) : (
-        iframeEmbed && !iframeEmbed.direct && (hideUntilReady || forceSnapshotIframe) && (!preferEmbed || forceSnapshotIframe) ? (
+        ) : iframeEmbed?.direct ? (
+          <CardMediaPreview
+            kind="iframe"
+            url={rawUrl}
+            title={title}
+            interactive={contentInteractive}
+            fit="contain"
+            mediaStyle={iframeSurfaceStyle}
+            onReady={() => setReady(true)}
+          />
+        ) : iframeEmbed && !iframeEmbed.direct && (hideUntilReady || forceSnapshotIframe) && (!preferEmbed || forceSnapshotIframe) ? (
           <SharedWebpageSurface
             renderMode="snapshot"
             webpageUrl={proxiedUrl}
@@ -1055,27 +814,24 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             onLoad={() => setReady(true)}
           />
         )
-        )
       ) : kind === 'video' ? (
-        <video
-          src={mediaSrc}
-          playsInline
-          muted
-          controls
-          preload="metadata"
-          onLoadedMetadata={() => setReady(true)}
-          onLoadedData={() => setReady(true)}
-          onCanPlay={() => setReady(true)}
+        <CardMediaPreview
+          kind="video"
+          url={mediaSrc}
+          title={title}
+          interactive={contentInteractive}
+          fit="contain"
+          videoControls
+          onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)
           }}
-          style={{
+          mediaStyle={{
             display: 'block',
             width: '100%',
             height: '100%',
             border: 0,
             borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-            objectFit: 'contain',
             background: 'rgba(2, 6, 23, 0.72)',
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
@@ -1083,21 +839,22 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           }}
         />
       ) : (
-        <img
-          src={mediaSrc}
-          alt={title}
-          loading="lazy"
-          onLoad={() => setReady(true)}
+        <CardMediaPreview
+          kind={kind === 'svg' ? 'svg' : 'image'}
+          url={mediaSrc}
+          title={title}
+          interactive={false}
+          fit="contain"
+          onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)
           }}
-          style={{
+          mediaStyle={{
             display: 'block',
             width: '100%',
             height: '100%',
             border: 0,
             borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-            objectFit: 'contain',
             background: 'rgba(15, 23, 42, 0.06)',
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',

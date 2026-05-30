@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { buildYouTubeThumbnailPreviewDescriptor, type RichMediaPreviewDescriptor } from 'grph-shared/rich-media/providers'
+import { buildYouTubeThumbnailPreviewDescriptor, buildYouTubeTimestampFramePreviewDescriptor, type RichMediaPreviewDescriptor } from 'grph-shared/rich-media/providers'
 import { MediaVideoSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
@@ -36,7 +36,11 @@ export function YouTubeTimestampPreviewLink({
   const pointerTypeRef = React.useRef<string | null>(null)
   const sourceUrl = preview?.kind === 'timestamp-embed' ? String(preview.sourceUrl || '') : ''
   const timestampLabel = String(preview?.timestampLabel || '')
-  const thumbnailSrc = React.useMemo(
+  const timestampFrameSrc = React.useMemo(
+    () => buildYouTubeTimestampFramePreviewDescriptor(sourceUrl)?.thumbnailUrl || '',
+    [sourceUrl],
+  )
+  const fallbackThumbnailSrc = React.useMemo(
     () => buildYouTubeThumbnailPreviewDescriptor(sourceUrl)?.thumbnailUrl || '',
     [sourceUrl],
   )
@@ -149,7 +153,8 @@ export function YouTubeTimestampPreviewLink({
               url={sourceUrl}
               title={`YouTube preview at ${timestampLabel}`}
               presentationMode
-              thumbnailSrc={thumbnailSrc}
+              thumbnailSrc={timestampFrameSrc || fallbackThumbnailSrc}
+              fallbackThumbnailSrc={fallbackThumbnailSrc}
               containerClassName="aspect-video w-full"
               className="border-0 rounded-none shadow-none"
               style={{ borderRadius: 0 }}

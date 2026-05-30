@@ -4,6 +4,7 @@ import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavio
 import { SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/snapGridSize'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import { isFrontmatterOnlyCanvas2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 
 type CanvasViewActionParams = {
   id: CanvasViewOptionId
@@ -17,12 +18,14 @@ type CanvasViewActionParams = {
   frontmatterModeEnabled: boolean
   multiDimTableModeEnabled: boolean
   renderMediaAsNodes: boolean
+  timelineEnabled: boolean
   schema: GraphSchema
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void
   setCanvasRenderMode: (mode: '2d' | '3d') => void
   setCanvas3dMode: (mode: string) => void
   setSchema: (schema: GraphSchema) => void
   setRenderMediaAsNodes: (enabled: boolean) => void
+  setTimelineEnabled: (enabled: boolean) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
@@ -41,12 +44,14 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
     renderMediaAsNodes,
+    timelineEnabled,
     schema,
     setCanvas2dRenderer,
     setCanvasRenderMode,
     setCanvas3dMode,
     setSchema,
     setRenderMediaAsNodes,
+    setTimelineEnabled,
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
@@ -87,6 +92,9 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     return
   }
   if (id === 'animation:menu') {
+    return
+  }
+  if (id === 'timeline:menu') {
     return
   }
   if (id === 'control:menu') {
@@ -194,6 +202,11 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id === 'control:richMedia') {
     setRenderMediaAsNodes(!renderMediaAsNodes)
+    return
+  }
+  if (id === 'timeline:on' || id === 'timeline:off') {
+    const nextEnabled = id === 'timeline:on'
+    if (resolveTimelineEnabled(timelineEnabled) !== nextEnabled) setTimelineEnabled(nextEnabled)
     return
   }
   if (id === 'control:nodeShape') {

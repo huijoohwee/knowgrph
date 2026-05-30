@@ -1,9 +1,15 @@
 import type React from 'react'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import type { WorkspaceImportWebsiteOpts } from '@/features/markdown-explorer/workspaceActionBridge'
+import type {
+  WorkspaceBridgeImportResult,
+  WorkspaceFileSelection,
+  WorkspaceImportWebsiteOpts,
+} from '@/features/markdown-explorer/workspaceActionBridge'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+
+export type { WorkspaceBridgeImportResult, WorkspaceFileSelection } from '@/features/markdown-explorer/workspaceActionBridge'
 
 export type WorkspaceRefreshSnapshot = {
   entries: WorkspaceEntry[]
@@ -72,9 +78,9 @@ export type WorkspaceMutationActionsCtx = Pick<
 export type WorkspaceFileActions = {
   createNewFile: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
   createNewFolder: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
-  handleImportLocalFiles: (files: FileList | null) => Promise<void>
-  handleImportLocalImages: (files: FileList | null) => Promise<void>
-  handleImportLocalFolder: (files: FileList | null) => Promise<void>
+  handleImportLocalFiles: (files: WorkspaceFileSelection) => Promise<void | WorkspaceBridgeImportResult>
+  handleImportLocalImages: (files: WorkspaceFileSelection) => Promise<void | WorkspaceBridgeImportResult>
+  handleImportLocalFolder: (files: WorkspaceFileSelection) => Promise<void | WorkspaceBridgeImportResult>
   handleImportUrl: (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null }) => Promise<void>
   handleImportWebsite: (urlRaw: string, opts?: WorkspaceImportWebsiteOpts) => Promise<void>
   onDeleteEntry: (path: WorkspacePath) => void

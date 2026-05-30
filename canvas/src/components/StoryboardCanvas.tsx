@@ -36,9 +36,9 @@ import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/fe
 import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
-import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 
 type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
@@ -68,50 +68,19 @@ function StoryboardMediaPreview(props: {
   media: StoryboardDisplayMedia | null
 }) {
   const { title, href, media } = props
-  if (media?.kind === 'image' || media?.kind === 'svg') {
-    return (
-      <img
-        src={media.url}
-        alt={title}
-        className="pointer-events-none h-full w-full select-none object-cover"
-        loading="lazy"
-        draggable={false}
-      />
-    )
-  }
-  if (media?.kind === 'video') {
-    return (
-      <video
-        src={media.url}
-        className="pointer-events-none h-full w-full select-none object-cover"
-        muted
-        playsInline
-        preload="metadata"
-        draggable={false}
-      />
-    )
-  }
-  if (media?.kind === 'iframe') {
-    const embed = resolveIframeEmbed({ url: media.url, scriptPolicy: 'allow' })
-    return (
-      <iframe
-        src={embed.iframeSrc}
-        title={title}
-        className="pointer-events-none h-full w-full select-none border-0"
-        allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        sandbox={embed.sandbox}
-        referrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
-        loading="lazy"
-        data-kg-storyboard-media-iframe="1"
-      />
-    )
-  }
+  const interactive = media?.kind === 'video' || media?.kind === 'iframe'
   return (
-    <div className={['flex h-full w-full items-center justify-center gap-2 text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>
-      {href ? <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ImageIcon className="h-4 w-4 shrink-0" aria-hidden="true" />}
-      <span className="truncate">{href ? 'Open reference' : 'No preview'}</span>
-    </div>
+    <CardMediaPreview
+      kind={media?.kind || null}
+      url={media?.url || ''}
+      title={title}
+      href={href}
+      interactive={interactive}
+      fit="cover"
+      videoControls={interactive}
+      iframeScriptPolicy="allow"
+      mediaClassName="h-full w-full"
+    />
   )
 }
 

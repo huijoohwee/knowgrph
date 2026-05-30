@@ -1038,28 +1038,24 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
 
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: result.createdPaths, applyToGraph: true })
     const next = useGraphStore.getState()
-    if (useMarkdownExplorerStore.getState().activePath !== importedPath) {
-      throw new Error(`expected local Strybldr activation to focus imported file, got ${String(useMarkdownExplorerStore.getState().activePath || '')}`)
-    }
-    if (next.canvas2dRenderer !== 'strybldr') {
-      throw new Error(`expected local Strybldr activation to keep Strybldr renderer, got ${String(next.canvas2dRenderer || '')}`)
-    }
-    if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') {
-      throw new Error('expected local Strybldr activation to keep the Strybldr Run all consumer mounted')
-    }
+    if (useMarkdownExplorerStore.getState().activePath !== importedPath) throw new Error(`expected local Strybldr activation to focus imported file, got ${String(useMarkdownExplorerStore.getState().activePath || '')}`)
+    if (next.canvas2dRenderer !== 'strybldr') throw new Error(`expected local Strybldr activation to keep Strybldr renderer, got ${String(next.canvas2dRenderer || '')}`)
+    if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') throw new Error('expected local Strybldr activation to keep the Strybldr Run all consumer mounted')
 
     const board = buildStoryboardBoardModel({ graphData: next.graphData, graphRevision: 1 })
     const lanes = new Set(board.lanes.map(lane => lane.id))
-    if (!lanes.has('Source') || !lanes.has('Elements')) {
-      throw new Error(`expected local Strybldr graph to expose Source and Elements lanes, got ${Array.from(lanes).join(', ')}`)
-    }
+    if (!lanes.has('Source') || !lanes.has('Elements')) throw new Error(`expected local Strybldr graph to expose Source and Elements lanes, got ${Array.from(lanes).join(', ')}`)
     if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text)) {
       const cards = board.lanes.flatMap(lane => lane.cards)
       if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) {
         throw new Error(`expected local Strybldr YouTube source to expose renderable iframe media, got ${JSON.stringify(cards.map(card => card.media))}`)
       }
+      const frameReference = cards.flatMap(card => card.references).find(reference => reference.kind === 'image' && reference.url.startsWith('/__video_frame?'))
+      if (!frameReference) throw new Error(`expected local Strybldr YouTube source to expose frame-extraction image references, got ${JSON.stringify(cards.map(card => card.references))}`)
+      const frameRequest = new URL(frameReference.url, 'https://example.test')
+      if (!frameRequest.searchParams.get('url') || frameRequest.searchParams.get('time') !== '0') throw new Error(`expected local Strybldr frame extraction request to carry source URL and default timestamp, got ${frameReference.url}`)
       if (!cards.some(card => card.references.some(reference => reference.kind === 'image' && /ytimg\.com\/vi\//i.test(reference.url)))) {
-        throw new Error(`expected local Strybldr YouTube source to expose thumbnail image references, got ${JSON.stringify(cards.map(card => card.references))}`)
+        throw new Error(`expected local Strybldr YouTube source to retain provider-safe fallback thumbnail references, got ${JSON.stringify(cards.map(card => card.references))}`)
       }
     }
     const handoff = buildStrybldrVideoHandoffFromGraphData(next.graphData)
@@ -1069,6 +1065,7 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text) && !/ytimg\.com\/vi\//i.test(String(handoff.referenceImageUrl || ''))) {
       throw new Error(`expected local Strybldr Run all handoff to carry a thumbnail reference image, got ${String(handoff.referenceImageUrl || '')}`)
     }
+    if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text) && !handoff.cards.some(card => card.references.some(reference => reference.startsWith('/__video_frame?')))) throw new Error(`expected local Strybldr Run all handoff cards to carry frame-extraction references, got ${JSON.stringify(handoff.cards)}`)
   } finally {
     restore()
   }

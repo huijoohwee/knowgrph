@@ -63,6 +63,8 @@ export interface GraphStateEditorUi {
   uiPanelMicroLabelTextSizeClass: string;
   renderMediaAsNodes: boolean;
   setRenderMediaAsNodes: (v: boolean) => void;
+  timelineEnabled: boolean;
+  setTimelineEnabled: (v: boolean) => void;
   setMediaPanelDensity: (v: 'default' | 'compact') => void;
   mediaPanelDensity: 'default' | 'compact';
   monacoLanguageJsonEnabled: boolean;

@@ -10,6 +10,7 @@ import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
+import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
@@ -28,6 +29,9 @@ const MarkdownMetricsDevOverlayLazy = React.lazy(() =>
 const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
+const StrybldrTimelineBottomPanelLazy = React.lazy(() =>
+  import('@/features/strybldr/StrybldrTimelineBottomPanel').then(mod => ({ default: mod.StrybldrTimelineBottomPanel })),
+)
 const LaunchSpotlightLazy = React.lazy(() => import('@/features/spotlight/LaunchSpotlight'))
 const PaywallOverlayLazy = React.lazy(async (): Promise<{ default: React.ComponentType<{ portalTarget: HTMLElement | null }> }> => ({
   default: (await import('@/features/payments/PaywallOverlay')).PaywallOverlay,
@@ -64,12 +68,13 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const active2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
   const d3SurfaceActive = active2dSurface === 'd3'
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
-  const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema } = useGraphStore(
+  const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema, timelineEnabled } = useGraphStore(
     useShallow(s => ({
       frontmatterModeEnabled: s.frontmatterModeEnabled === true,
       multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
       documentSemanticMode: s.documentSemanticMode,
       schema: s.schema,
+      timelineEnabled: s.timelineEnabled,
     })),
   )
   const { paywallEnabled, floatingPanelOpen, floatingPanelView } = useGraphStore(
@@ -90,6 +95,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
   })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
   const geospatialOverlayOwnsViewport = geospatialModeEnabled && !(workspaceEditorOverlayOpen && active2dSurface === 'flowEditor')
+  const timelineBottomPanelVisible = canvas2dRenderer === 'strybldr' && shouldRenderTimelineSurface({
+    activeSurface,
+    documentSwitchPending,
+    geospatialOverlayOwnsViewport,
+    timelineEnabled,
+  })
   const paywallOverlayActive = paywallEnabled && floatingPanelOpen && floatingPanelView === 'chat'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -163,6 +174,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 <MinimapLazy />
               </aside>
             ) : null}
+            {timelineBottomPanelVisible ? <StrybldrTimelineBottomPanelLazy active /> : null}
             {!documentSwitchPending ? <InfiniteCanvasWorkspaceOverlay /> : null}
             {!documentSwitchPending && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
             {!documentSwitchPending && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}

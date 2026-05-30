@@ -1,264 +1,296 @@
----
-title: "Knowgrph"
-id: "md:knowgrph-readme-chat-to-canvas"
-author: "joohwee"
-date: "2026-05-22"
-version: "2.1.1"
-kgCanvasSurfaceMode: "2d"
-kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "flowEditor"
-kgDocumentSemanticMode: "document"
-kgFrontmatterModeEnabled: true
-kgDocumentStructureBaselineLock: false
+# Knowgrph Stryfork
+
+> **Fork any demo video into structured storyboard artifacts — zero TCO, canvas-ready, inside TRAE.**
+
+Stryfork is a TRAE-native AI harness that reverse-engineers any video into reusable storyboard
+artifacts in under 5 minutes — turning a 4–6 hour manual process into a single command at $0.00/run.
+
 ---
 
-# Knowgrph
+## Why Stryfork
 
-## Authoring Contract
+Founders and content strategists routinely study high-performing demo videos to understand what
+makes them work. Today that process is entirely manual:
 
-- The opening YAML frontmatter block remains the first-block machine SSOT for repo-entry metadata, renderer defaults, and workspace-facing runtime context.
-- This document is a canonical authored repository entrypoint, not a generated registry surface or typed validation fixture.
-- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for README, architecture overview, and runtime-topology docs.
-- If typed `{key, type, value}` envelopes are needed for ingestion-regression coverage, that validation should live in a dedicated fixture doc rather than replacing the canonical repository overview.
-- Runtime behavior and ownership guidance must still be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirror patches.
+| Step | Time |
+|---|---|
+| Watch + rewatch, identify acts | 60–90 min |
+| Transcribe key VO lines | 45–90 min |
+| Sketch visual + audio cues | 30–60 min |
+| Produce a reusable artifact | 0 (lost in notes) |
+| **Total** | **3–6 hours** |
 
-**Workspace-first knowledge graph canvas.**
+Stryfork replaces that workflow with one TRAE command and five typed artifacts.
 
-Knowgrph is a browser-based workspace for turning documents, structured data, and media-rich references into editable graph and canvas views. 
-The app keeps one upstream source of truth in Dev, derives interactive workspace state in the canvas runtime, and publishes generated artifacts through a mirrored Cloudflare Pages topology.
+---
 
-## Overview
+## Concept
 
-**Context**: Knowgrph runs from `/Users/huijoohwee/Documents/GitHub/knowgrph`, mirrors built output into `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`, and serves the public route at `airvio.co/knowgrph`.
+**"Fork" a video like forking a repo.**
 
-**Intent**: keep the product workspace-first, source-owned, and traceable across Markdown, graph, flow-editor, geospatial, and publish surfaces.
+Paste a URL. Stryfork clones the narrative *blueprint* — acts, beats, visual cues, audio cues,
+representative VO lines — not the footage. Output lands directly in the Knowgrph Flow Editor
+canvas as a typed `StoryboardPanel` knowledge graph node.
 
-**Directive**: fix behavior upstream in Dev, validate focused diffs, sync generated artifacts downstream, and never patch `content/knowgrph` as if it were the source owner.
+> Cloning top demos takes 6h manually. Stryfork uses TRAE as the unified harness entry:
+> URL → AI extracts acts, beats, VO → SVG + HTML storyboard artifacts. $0 TCO. 6h → <5 min.
 
-## What Knowgrph Does
+---
 
-| Surface | Role | Current Behavior |
-| --- | --- | --- |
-| Markdown workspace | Source editing and derivation | Opens workspace documents, preserves editor state, and derives graph/canvas state from the active source snapshot |
-| Flow Editor canvas | Primary 2D authoring surface | Renders widget-style nodes, rich media panels, handles, overlays, and workspace-linked editing flows |
-| Graph and 3D views | Alternate graph exploration surfaces | Supports graph-oriented rendering paths and 3D/Three.js visualization without changing the upstream workspace model |
-| Geospatial overlay | Map and location-aware exploration | Mounts geospatial overlays and POI-driven rich media previews when map-backed data is active |
-| Search, chat, and panels | Operator workflow tools | Exposes floating-panel chat, search, floating panels, history, settings, and import/export utilities |
-| Storage and publish | Persistence and release | Persists local/runtime state, syncs publish artifacts, and deploys Cloudflare Worker APIs for storage and payments |
+## How It Works
 
-## Product Flow
+Four-stage superagent pipeline, all orchestrated from TRAE:
 
-```mermaid
-flowchart LR
-    A[Source files and inputs] --> B[Parsers and transforms]
-    B --> C[Workspace state and graph derivation]
-    C --> D[Canvas surfaces]
-    D --> E[Flow Editor 2D]
-    D --> F[Graph and 3D]
-    D --> G[Geospatial]
-    C --> H[Export and publish artifacts]
+```
+URL
+ ├─ [1] video.extract.transcript   yt-dlp captions → faster-whisper fallback
+ ├─ [2] video.extract.metadata     yt-dlp --dump-json (title, duration, chapters)
+ ├─ [3] storyboard.analyse         Ollama qwen2.5:14b → acts[] JSON (local, $0.00)
+ └─ [4] storyboard.render          Python stdlib → SVG + HTML + md + KGC node
 ```
 
-## Chat-To-Canvas Runtime
+Every tool emits a typed cost log. A nine-check verifier writes `harness-proof.json` on exit.
 
-Knowgrph keeps the LLM chat path workspace-first as well. The current in-repo owner split is:
+---
 
-| Stage | Current owner | Runtime contract |
-| --- | --- | --- |
-| Chat settings | `MainPanel`, `SettingsView`, `useSettingsChatAssist` | Provider, endpoint, model, auth mode, and context scope are configured upstream once |
-| Chat UI mount | `FloatingPanel`, `FloatingPanelChat` | FloatingPanel mounts the chat surface; FloatingPanelChat owns runtime UI state and store reads |
-| Submit shell | `useFloatingPanelChatSubmit.ts` | Thin shell only: resolves request guards, initializes optimistic state, and delegates |
-| Async submit lifecycle | `floatingPanelChatSubmitCoordinator.ts` | Central lifecycle owner for request-build, transport, streaming, retry, and terminal cleanup |
-| Request and transport | `floatingPanelChatSubmitRequest.ts`, `floatingPanelChatSubmitTransport.ts` | Builds packed context and payload messages, applies token-key/model fallback upstream |
-| Streaming and KGC retry | `floatingPanelChatStreaming.ts`, `floatingPanelChatKgcAttempt.ts`, `chatMarkdownValidation.ts` | Persists live drafts, validates canonical KGC Markdown, and retries with correction prompts |
-| Finalize and apply | `useFinalizeAssistantSuccess.ts`, `chatKgcCanvasApply.ts` | Persists the canonical workspace document, then applies it through `setActiveMarkdownDocument()` |
-| Parse and group projection | `default.ts`, `markdownFrontmatterFlowGraph.core.ts`, `subgraphs.ts`, `graphGroups.ts` | Prefers frontmatter-flow parsing and keeps `flow.subgraphs -> kg:subgraphs -> deriveGraphGroups()` as the only grouping pipeline |
+## TRAE Integration
 
-### Chat Flow
+TRAE is the single entry point. No secondary tools, no context switching.
 
-```mermaid
-flowchart LR
-    A[MainPanel chat settings] --> B[FloatingPanel chat]
-    B --> C[FloatingPanelChat]
-    C --> D[useFloatingPanelChatSubmit shell]
-    D --> E[submit preflight]
-    D --> F[submit coordinator]
-    F --> G[request build and transport]
-    G --> H[streamed assistant text]
-    H --> I[live workspace draft]
-    H --> J[KGC validation and retry]
-    J --> K[finalize canonical workspace doc]
-    K --> L[applyChatKgcWorkspaceDocumentToCanvas]
-    L --> M[frontmatter-flow parser]
-    M --> N[kg:subgraphs to groups and clusters]
+### Invoke via TRAE
+
+```bash
+knowgrph.superagent.run \
+  --input fixtures/superagent-storyboard-reverse.md \
+  --var url="https://youtu.be/77FAnT935IE" \
+  --output-dir data/outputs/storyboard-fork \
+  --run-id storyboard-fork-001 \
+  --print-summary
 ```
 
-### Chat Rules
+### Multi-source orchestration from TRAE
 
-- Keep `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` as the only `chatKnowgrph` prompt contract source.
-- Keep `useFloatingPanelChatSubmit.ts` thin; do not move request-build, transport, streaming, or KGC retry logic back into the hook.
-- Persist assistant output to workspace drafts first; do not patch graph state directly from raw assistant text.
-- Keep `flow.subgraphs` as the only grouping authoring surface; do not add parallel cluster or grouping aliases.
-- Fix chat-to-canvas bugs at the highest current owner instead of adding downstream compatibility shims.
+| Source | Role |
+|---|---|
+| Video URL | Raw input via TRAE command palette |
+| Ollama (local LLM) | Act decomposition; TRAE reads `OLLAMA_HOST` from workspace env |
+| Knowgrph Flow Editor | Artifact consumer; TRAE imports `rich-media-flow.md` as canvas node |
 
-### Data Flow
+### Cross-role collaboration — one tool, four roles
 
-| Stage | Component family | Input | Output | Persistence |
-| --- | --- | --- | --- | --- |
-| Ingest | `canvas/src/features/parsers`, `knowgrph_parser` | Markdown, JSON, JSON-LD, CSV, PDF, webpages, codebase inputs | Normalized workspace or graph-ready content | In-memory runtime, generated files, optional storage sync |
-| Derive | `canvas/src/lib/graph`, `canvas/src/hooks/store` | Parsed source text and workspace snapshots | `GraphData`, view state, layout state, semantic document state | Zustand, local storage, minimal persisted-cache flows |
-| Render | `canvas/src/components`, `canvas/src/features` | Graph and workspace state | Flow Editor, graph canvas, markdown/editor panes, geospatial overlays | Browser runtime |
-| Export | `canvas/src/cli`, `canvas/sandbox`, publish scripts | Workspace state and built assets | HTML exports, schema/docs artifacts, static site build | `canvas/dist`, generated docs, output artifacts |
-| Publish | `scripts/sync-pages-knowgrph.mjs`, Cloudflare Workers | Built app plus managed public files | Prod mirror, public-route compatibility files, root headers/redirects, Worker deployments | `huijoohwee/content/knowgrph`, `huijoohwee/knowgrph`, Cloudflare |
+| Role | TRAE action | Artifact |
+|---|---|---|
+| Founder / strategist | Paste URL, trigger run | `scene-plan.md` |
+| AI engineer | Review harness trace | `trace.jsonl` + `harness-proof.json` |
+| Content designer | Open storyboard player | `storyboard-video.html` |
+| Knowledge graph editor | Import to canvas | `rich-media-flow.md` → StoryboardPanel node |
 
-## Release Topology
+---
 
-```mermaid
-flowchart LR
-    A["Dev SSOT<br/>knowgrph"] -->|npm run pages:build| B["canvas/dist"]
-    B -->|npm run pages:sync| C["Prod mirror<br/>huijoohwee/content/knowgrph"]
-    B -->|managed root files| D["Public route files<br/>huijoohwee/knowgrph"]
-    C -->|commit and push huijoohwee| E["Cloudflare Pages<br/>airvio.co/knowgrph"]
-    F["Cloudflare Workers<br/>storage and payments"] --> E
+## Output Artifacts
+
+```
+data/outputs/<run-id>/
+├── state.json                          COMPLETE / FAILED / PARTIAL
+├── trace.jsonl                         per-tool event log with cost fields
+├── harness-proof.json                  9-check verifier manifest
+└── artifacts/
+    ├── input/transcript.txt            plain-text transcript
+    ├── input/metadata.json             title, duration, chapters
+    ├── text/scene-plan.md              human-readable act breakdown
+    ├── text/scene-plan.json            validated acts[] (machine-readable)
+    ├── image/reference-frame.svg       composite SVG frame grid, one <g> per act
+    ├── video/storyboard-video.html     interactive storyboard player
+    └── workspace/rich-media-flow.md    KGC canvas StoryboardPanel node
 ```
 
-### Topology Rules
+### scene-plan.json — act schema
 
-| Surface | Source of truth | Directive |
-| --- | --- | --- |
-| App source | `knowgrph` | Keep source, build logic, docs generation, and release scripts upstream |
-| Prod artifact mirror | `huijoohwee/content/knowgrph` | Treat as generated output only; do not hand-edit downstream |
-| Public managed root files | `huijoohwee/knowgrph` | Sync only managed route files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `sw.js`, and `assets/**` |
-| Pages control files | `huijoohwee/_headers`, `huijoohwee/_redirects` | Root-only deploy authority; nested mirrored `_headers` or `_redirects` are forbidden |
-| Cloudflare deploy | `huijoohwee` repo root | Run Pages deploy from the publish repo root so shared Functions are included |
+```json
+{
+  "acts": [{
+    "act_id": "act-01",
+    "title": "The hook — world before",
+    "timecode_start": "00:00:00",
+    "timecode_end": "00:00:25",
+    "beats": ["Developer at terminal", "Tab sprawl"],
+    "visual_cue": "Close-up IDE, multiple tabs open",
+    "audio_cue": "Lo-fi ambient",
+    "vo_line": "Complex tasks take days. Bugs pile up."
+  }]
+}
+```
+
+---
+
+## ROI Metrics
+
+| Metric | Before | After | Delta |
+|---|---|---|---|
+| Time to storyboard | 4–6 hours | < 5 min | **−98%** |
+| Reusable artifacts produced | 0 | 5 typed files | — |
+| Monthly TCO | $0 (but 6h labour) | $0.00 | **−6h/run** |
+| Context switches | 4–6 tools | 1 (TRAE) | **−80%** |
+| Knowledge graph integration | Manual | Automatic node | **−100% steps** |
+| Token cost per run | — | $0.00 (local) | **$0.00** |
+
+```
+ROI Score = (Impact × Reach) / (Build Hours + TCO + Token Cost/Month)
+           = (5 × 30) / (10 + 0 + 0.03) ≈ 14.96
+```
+
+---
+
+## Tech Stack
+
+| Component | Tool | License | Monthly Cost |
+|---|---|---|---|
+| Video + caption fetch | `yt-dlp` | Unlicense | $0.00 |
+| Speech-to-text fallback | `faster-whisper` | MIT | $0.00 |
+| Act decomposition | Ollama + `qwen2.5:14b` | MIT / Apache 2.0 | $0.00 |
+| Schema validation | `jsonschema` | MIT | $0.00 |
+| SVG + HTML rendering | Python stdlib | PSF | $0.00 |
+| **Total** | | | **$0.00** |
+
+No cloud APIs. No egress. Fully offline after initial model pull.
+
+---
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- Python 3.11+
-- npm
-- Wrangler for Cloudflare worker or Pages deployment flows
-
-### Local App
+**Prerequisites**: Python 3.11+, Ollama running locally, `qwen2.5:14b` pulled, TRAE + Knowgrph MCP connected.
 
 ```bash
-npm install
-npm run dev
+git clone https://github.com/huijoohwee/knowgrph
+cd knowgrph
+pip install -r requirements.txt        # adds yt-dlp, faster-whisper, jsonschema
 ```
-
-Equivalent direct canvas run:
 
 ```bash
-cd canvas
-npm install
-npm run dev
+# Fork a video
+python3 -m knowgrph_parser superagent \
+  --input knowgrph_parser/fixtures/superagent-storyboard-reverse.md \
+  --var url="https://youtu.be/77FAnT935IE" \
+  --output-dir data/outputs/stryfork-demo \
+  --run-id stryfork-demo-001 \
+  --print-summary
+
+# Resume a partial run
+python3 -m knowgrph_parser superagent \
+  --resume --output-dir data/outputs/stryfork-demo
 ```
 
-### Core Checks
+---
 
-```bash
-npm run lint
-npm run check
-npm test
+## Configuration
+
+| Env var | Default | Description |
+|---|---|---|
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama API endpoint |
+| `OLLAMA_MODEL` | `qwen2.5:14b` | Model for act decomposition |
+| `WHISPER_MODEL_SIZE` | `base` | faster-whisper model (`base` / `small` / `medium`) |
+| `STRYFORK_MAX_ACTS_PER_SVG` | `12` | Acts before SVG pagination |
+
+---
+
+## Harness Verifier
+
+Nine checks, written to `harness-proof.json` after every run:
+
+```json
+{
+  "transcript_exists":            "pass",
+  "metadata_chapters_parsed":     "pass",
+  "scene_plan_act_count_gte_3":   "pass",
+  "scene_plan_json_valid":        "pass",
+  "svg_frame_count_matches_acts": "pass",
+  "storyboard_html_renderable":   "pass",
+  "workspace_storyboard_node":    "pass",
+  "tco_zero":                     "pass",
+  "trace_event_count_gte_4":      "pass"
+}
 ```
 
-### Useful Dev Commands
+All nine must pass for `state.json` to record `COMPLETE`.
 
-```bash
-npm run preview
-npm run pages:check-sync
-npm run pages:build-sync
-npm run conflict:check
+---
+
+## Architectural Decisions
+
+| ADR | Decision | Reason |
+|---|---|---|
+| ADR-001 | Ollama `qwen2.5:14b` for decomposition | Zero TCO; offline; Apache 2.0; already in airvio stack |
+| ADR-002 | `yt-dlp` + `faster-whisper` for extraction | Platform-agnostic; MIT/Unlicense; no cloud ASR cost |
+| ADR-003 | Single composite SVG frame grid | Zero new deps; inline-renderable; ~10× smaller than PNG |
+
+Full ADR text with TCO comparison tables: [`knowgrph-stryfork-prd-tad.md`](./knowgrph-stryfork-prd-tad.md).
+
+---
+
+## Roadmap
+
+**Sprint 1 — MVP (current scope)**
+- URL → 5 typed artifacts → 9 verifier checks → TRAE MCP integration
+
+**Sprint 2 — Quality**
+- Chapter-aware act boundary hints from YouTube metadata
+- Remotion-compatible JSON export from `scene-plan.json`
+
+**Sprint 3 — Scale**
+- Multi-URL batch forking fixture
+- Side-by-side storyboard diff view in Flow Editor
+
+**Explicit non-goals**: cloud ASR/LLM, video re-generation or synthesis, copyright-flagged downloads.
+
+---
+
+## Contributing
+
+1. Create `knowgrph_parser/tools/<name>.py` with a typed `Tool` class
+2. Register in `superagent_harness.py` tool registry
+3. Add verifier check in the verifier block
+4. Add fixture task in `fixtures/superagent-storyboard-reverse.md`
+5. Confirm `harness-proof.json` shows all checks as `pass`
+
+All PRD/TAD changes must adhere to [`prd-tad-guidelines.md`](./prd-tad-guidelines.md).
+
+---
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).
+
+---
+
+*Knowgrph Stryfork · airvio · Singapore · 2026 · TRAE Hackathon — Productivity Enhancement Track*
+
+---
+
+## Fixture Reference
+
+`knowgrph_parser/fixtures/superagent-storyboard-reverse.md` — the harness brief that drives
+the entire pipeline. Pass any video URL as `--var url=` at invocation time; all other task
+sequencing, artifact paths, and verifier checks are declared inside the fixture.
+
+```yaml
+id: storyboard-reverse-v1
+goal: "reverse-engineer storyboard from video URL"
+input_url: "{{url}}"
+output_schema: "kgc-computing-flow/v1"
+max_steps: 8
+max_wall_clock_seconds: 300
+artifacts:
+  - "text/scene-plan.md"
+  - "text/scene-plan.json"
+  - "image/reference-frame.svg"
+  - "video/storyboard-video.html"
+  - "workspace/rich-media-flow.md"
+tasks:
+  - { id: extract-transcript, tool: video.extract.transcript, inputs: { url: "{{url}}" } }
+  - { id: extract-metadata,   tool: video.extract.metadata,   inputs: { url: "{{url}}" } }
+  - { id: analyse,  tool: storyboard.analyse, depends_on: [extract-transcript, extract-metadata] }
+  - { id: render,   tool: storyboard.render,  depends_on: [analyse] }
 ```
 
-## Release Workflow
-
-### 1. Build and sync the static app
-
-```bash
-npm run pages:build-sync
-```
-
-This builds the app with `VITE_BASE_PATH=/knowgrph/`, syncs `canvas/dist` into the Prod mirror, updates managed public-route files, and refreshes the generated Knowgrph blocks in root `_headers` and `_redirects`.
-
-### 2. Optionally deploy Workers
-
-```bash
-npm run workers:deploy
-```
-
-Or use the combined static-plus-worker path:
-
-```bash
-npm run pages:build-sync-cloudflare
-```
-
-### 3. Commit and push the publish repo
-
-```bash
-cd /Users/huijoohwee/Documents/GitHub/huijoohwee
-git add content/knowgrph knowgrph _headers _redirects functions/knowgrph
-git commit -m "Publish knowgrph"
-git push
-```
-
-### 4. Deploy Cloudflare Pages from the publish repo root
-
-```bash
-cd /Users/huijoohwee/Documents/GitHub/huijoohwee
-npx wrangler pages deploy . --project-name=joohwee --branch=main
-```
-
-## API and Runtime Boundaries
-
-| Surface | Route or entry point | Notes |
-| --- | --- | --- |
-| Static app | `airvio.co/knowgrph` | Cloudflare Pages serves the mirrored SPA output |
-| Storage Worker | `airvio.co/api/storage/*` | Owns workspace mutation sync, export, source-file doc views, and crawler entry points |
-| Payment Worker | `airvio.co/api/payments/*` | Owns Stripe checkout and webhook flows |
-| Dev middleware | `vite.config.ts` routes | Local dev and preview support remote fetch proxying, markdown pipeline runs, and transcript conversion |
-| Python tooling | `python3 -m knowgrph_parser ...` | Optional parser, pipeline, GraphRAG, and superagent tooling; useful for fixtures, docs, and artifact generation |
-
-## Validation Checklist
-
-- [ ] Run `npm run lint`, `npm run check`, and `npm test` for the touched area
-- [ ] Run `npm run pages:check-sync` before publishing static changes
-- [ ] Keep fixes upstream; remove stale code instead of adding downstream shims
-- [ ] Verify root `_headers` and `_redirects` remain the only Pages deploy authority
-- [ ] Deploy from `huijoohwee` root, not from inside `knowgrph`
-- [ ] Re-check `https://airvio.co/knowgrph/` and any changed Worker route after publish
-
-## Repository Map
-
-```text
-canvas/
-  src/                          React app, runtime shells, store slices, canvas surfaces
-  public/                       Static app assets and preview-only header template
-  sandbox/                      Export and verification helpers
-
-cloudflare/
-  d1/migrations/                D1 schema migrations
-  pages/                        Pages function and agent-ready assets
-  workers/                      Storage, payments, fetch-proxy, and shared Worker code
-
-docs/
-  documents/                    Product, architecture, API, storage, and topology docs
-
-knowgrph_parser/
-  *.py                          Parser, pipeline, GraphRAG, export, and superagent tooling
-
-scripts/
-  sync-pages-knowgrph.mjs       Dist -> Prod mirror sync and root control-file generation
-  publish-to-huijoohwee.sh      Lean local publish helper
-  check-*.mjs                   Hygiene, conflict, and agent-ready verification
-```
-
-## Boundaries
-
-- Knowgrph is source-owned in `knowgrph`; `huijoohwee` is a publish boundary, not a second app source tree.
-- Nested `_headers` and `_redirects` inside mirrored outputs are not deploy authority and must stay excluded from sync.
-- Coarse intentional bundles such as Monaco, Mermaid, and Three.js stay source-managed; avoid risky fine-grained production-only chunk fan-out.
-- Focus validation on changed slices; do not rely on downstream patching to correct stale source behavior.
-- Update cross-repo docs and API notes from upstream after structural or topology changes.
+The fixture is the single source of truth for what a Stryfork run does.
+Swap the URL, get a new storyboard. No code changes required.

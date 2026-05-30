@@ -1,6 +1,7 @@
 import { unwrapUserProvidedText } from '@/lib/url'
 import type { JSONValue } from '@/lib/graph/types'
 import { buildYouTubeThumbnailUrl, formatMediaTimestampSeconds, getYouTubeId, parseYouTubeStartSeconds, stripYouTubeUrlTrailingPunctuation } from 'grph-shared/rich-media/providers'
+import { fetchRemoteVideoTimestampFrame } from './videoFrameExtraction'
 
 export type YouTubeTranscriptConversionOk = {
   ok: true
@@ -142,7 +143,9 @@ const buildSemanticYouTubeThumbnailLabel = (args: {
   return escapeMarkdownAlt(label.length > 120 ? `${label.slice(0, 117).trim()}...` : label)
 }
 
-const readThumbnailUrl = (transcript: Record<string, JSONValue> | null, sourceUrl: string): string => {
+const readThumbnailUrl = (transcript: Record<string, JSONValue> | null, sourceUrl: string, thumbnailOverrideUrl?: string): string => {
+  const override = String(thumbnailOverrideUrl || '').trim()
+  if (override) return override
   const existing = typeof transcript?.thumbnail_url === 'string' ? transcript.thumbnail_url.trim() : ''
   if (existing) return existing
   const bySource = buildYouTubeThumbnailUrl(sourceUrl)
@@ -258,10 +261,11 @@ const ensureYouTubeMarkdownThumbnail = (
   markdown: string,
   transcript: Record<string, JSONValue> | null,
   sourceUrl: string,
+  thumbnailOverrideUrl?: string,
 ): string => {
   const md = String(markdown || '')
   const source = String(sourceUrl || '').trim()
-  const thumbnailUrl = readThumbnailUrl(transcript, source)
+  const thumbnailUrl = readThumbnailUrl(transcript, source, thumbnailOverrideUrl)
   const videoId = getYouTubeVideoKey(source) || (typeof transcript?.video_id === 'string' ? transcript.video_id.trim() : '')
   const timestampLinkedMarkdown = normalizeYouTubeTranscriptTimestampLinks(md, source, videoId)
   const alt = buildSemanticYouTubeThumbnailLabel({ markdown: timestampLinkedMarkdown, transcript, sourceUrl: source, videoId })
@@ -311,6 +315,18 @@ const writeCached = (key: string, result: YouTubeTranscriptConversionResult): Yo
   return result
 }
 
+const fetchTimestampFrameThumbnailUrl = async (sourceUrl: string, timeoutMs: number): Promise<string> => {
+  const startSeconds = parseYouTubeStartSeconds(sourceUrl)
+  if (startSeconds == null || !Number.isFinite(startSeconds)) return ''
+  const result = await fetchRemoteVideoTimestampFrame({
+    sourceUrl,
+    timeSeconds: startSeconds,
+    format: 'png',
+    timeoutMs: Math.min(timeoutMs, 75_000),
+  }).catch(() => null)
+  return result?.ok === true ? String(result.imageUrl || result.publicUrl || '').trim() : ''
+}
+
 export async function fetchYouTubeTranscriptConversion(rawUrl: string, opts?: {
   lang?: string
   timeoutMs?: number
@@ -318,7 +334,7 @@ export async function fetchYouTubeTranscriptConversion(rawUrl: string, opts?: {
   const cleaned = unwrapUserProvidedText(String(rawUrl || '').trim()) || String(rawUrl || '').trim()
   if (!cleaned) return null
   const lang = typeof opts?.lang === 'string' ? opts.lang.trim() : ''
-  const key = `youtube-transcript:v6:${lang || 'default'}:${cleaned}`
+  const key = `youtube-transcript:v7:${lang || 'default'}:${cleaned}`
   const cached = readCached(key)
   if (cached) return cached
   const inflight = transcriptInflight.get(key)
@@ -353,10 +369,11 @@ export async function fetchYouTubeTranscriptConversion(rawUrl: string, opts?: {
         const transcript = normalizeTranscript(json.transcript)
         const transcriptJsonText = readTranscriptJsonText(json.transcriptJsonText, transcript)
         const sourceUrl = readSourceUrl(transcript, cleaned)
+        const timestampFrameThumbnailUrl = await fetchTimestampFrameThumbnailUrl(sourceUrl, timeoutMs)
         return writeCached(key, {
           ok: true,
           name: typeof json.name === 'string' && json.name.trim() ? json.name.trim() : 'youtube-transcript.md',
-          markdown: ensureYouTubeMarkdownThumbnail(json.markdown, transcript, sourceUrl),
+          markdown: ensureYouTubeMarkdownThumbnail(json.markdown, transcript, sourceUrl, timestampFrameThumbnailUrl),
           transcriptJsonText,
           transcript,
           sourceUrl,

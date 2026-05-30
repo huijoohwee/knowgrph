@@ -84,7 +84,9 @@ export async function testYouTubeTranscriptConversionRewritesStandaloneShortUrlT
   const fakeId = 'q1w2e3R4t5Y'
   const watchUrl = `https://www.youtube.com/watch?v=${fakeId}&t=2178`
   const shortUrl = `https://youtu.be/${fakeId}?t=2178`
-  let fetchCount = 0
+  const frameUrl = '/image/knowgrph/video-frame/frame-test-t2178.png'
+  let transcriptFetchCount = 0
+  let frameFetchCount = 0
   const transcript = {
     ok: true,
     title: 'Timestamped Transcript',
@@ -96,8 +98,27 @@ export async function testYouTubeTranscriptConversionRewritesStandaloneShortUrlT
     ],
   }
 
-  g.fetch = (async () => {
-    fetchCount += 1
+  g.fetch = (async (input: unknown) => {
+    const requestUrl = String(input || '')
+    if (requestUrl.startsWith('/__video_frame')) {
+      frameFetchCount += 1
+      const response: FetchResponseStub = {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          imageUrl: frameUrl,
+          publicUrl: frameUrl,
+          semanticKey: 'rich-media-preview:test-frame',
+          cached: false,
+          bytes: 1234,
+          timeSeconds: 2178,
+          format: 'png',
+        }),
+      }
+      return response as unknown as Response
+    }
+    transcriptFetchCount += 1
     const response: FetchResponseStub = {
       ok: true,
       status: 200,
@@ -113,9 +134,10 @@ export async function testYouTubeTranscriptConversionRewritesStandaloneShortUrlT
 
   try {
     const result = await fetchYouTubeTranscriptConversion(watchUrl)
-    if (fetchCount !== 1) throw new Error(`expected one YouTube request, got ${fetchCount}`)
+    if (transcriptFetchCount !== 1) throw new Error(`expected one YouTube request, got ${transcriptFetchCount}`)
+    if (frameFetchCount !== 1) throw new Error(`expected one timestamp frame request, got ${frameFetchCount}`)
     if (!result || result.ok !== true) throw new Error('expected YouTube conversion result')
-    const expectedImage = `[![Timestamped Transcript](https://i.ytimg.com/vi/${fakeId}/hqdefault.jpg)](${shortUrl})`
+    const expectedImage = `[![Timestamped Transcript](${frameUrl})](${shortUrl})`
     if (!result.markdown.includes(expectedImage)) {
       throw new Error(`expected standalone YouTube URL to become a linked thumbnail image, got:\n${result.markdown}`)
     }

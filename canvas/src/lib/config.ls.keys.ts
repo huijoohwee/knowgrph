@@ -29,6 +29,7 @@ export const LS_KEYS = {
   sectionHeaderRowHeightClass: 'kg:ui:sectionHeaderRowHeightClass',
   sectionHeaderRowPaddingClass: 'kg:ui:sectionHeaderRowPaddingClass',
   bottomSurfaceHeight: 'kg:ui:bottomSurfaceHeight',
+  timelineEnabled: 'kg:ui:timeline:enabled',
   minimapCollapsed: 'kg:ui:minimapCollapsed',
   markdownWordWrap: 'kg:ui:markdown:wordWrap',
   markdownPresentationMode: 'kg:ui:markdown:presentationMode',

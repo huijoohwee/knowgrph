@@ -4,6 +4,7 @@ import { MarkdownFileTree } from './MarkdownFileTree'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { buildPublishedDocShareUrlFromSource } from '@/features/canvas/canvasDocDeepLink'
+import { publishWorkspaceEntryShareUrl } from '@/features/source-files/sourceFileShareUrl'
 
 type MarkdownWorkspaceSourceFilesListProps = {
   loading: boolean
@@ -44,10 +45,14 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
     renderFileRight,
   } = props
 
-  const buildShareUrl = React.useCallback((entryPath: WorkspacePath): string | null => {
-    const source = sourcesByPath?.[entryPath]
-    if (!source || source.kind !== 'url') return null
-    return buildPublishedDocShareUrlFromSource({ sourceUrl: source.url })
+  const buildShareUrl = React.useCallback((entry: WorkspaceEntry): string | null | Promise<string | null> => {
+    if (entry.kind !== 'file') return null
+    const source = sourcesByPath?.[entry.path]
+    if (source?.kind === 'url') {
+      const sourceShareUrl = buildPublishedDocShareUrlFromSource({ sourceUrl: source.url })
+      if (sourceShareUrl) return sourceShareUrl
+    }
+    return publishWorkspaceEntryShareUrl({ entry, sourcesByPath })
   }, [sourcesByPath])
 
   if (loading) {

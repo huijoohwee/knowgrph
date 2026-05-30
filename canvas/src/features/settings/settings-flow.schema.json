@@ -2888,7 +2888,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L8; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L69; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L24"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L8; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L71; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L27"
   },
   "monacoLanguageJsonLoadMode": {
     "area": "Editor: Monaco",
@@ -2906,7 +2906,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L17; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L71; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L26"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L17; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L73; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L29"
   },
   "monacoLanguageSqlEnabled": {
     "area": "Editor: Monaco",
@@ -2924,7 +2924,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L27; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L73; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L31"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L27; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L75; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L34"
   },
   "monacoLanguageSqlLoadMode": {
     "area": "Editor: Monaco",
@@ -2942,7 +2942,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L36; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L75; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L33"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L36; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L77; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L36"
   },
   "monacoLanguageYamlEnabled": {
     "area": "Editor: Monaco",
@@ -2960,7 +2960,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L46; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L77; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L38"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L46; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L79; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L41"
   },
   "monacoLanguageYamlLoadMode": {
     "area": "Editor: Monaco",
@@ -2978,7 +2978,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L55; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L79; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L40"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L55; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L81; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L43"
   },
   "monacoWorkerJsonEnabled": {
     "area": "Editor: Monaco",
@@ -2996,7 +2996,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L65; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L81; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L45"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L65; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L83; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L48"
   },
   "monacoWorkerJsonLoadMode": {
     "area": "Editor: Monaco",
@@ -3014,7 +3014,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L74; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L83; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L47"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L74; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L85; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L50"
   },
   "monacoHoverEnabled": {
     "area": "Editor: Monaco",
@@ -3032,7 +3032,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L84; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L85; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L52"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L84; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L87; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L55"
   },
   "monacoLinksEnabled": {
     "area": "Editor: Monaco",
@@ -3050,7 +3050,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L93; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L87; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L54"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L93; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L89; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L57"
   },
   "monacoQuickSuggestionsEnabled": {
     "area": "Editor: Monaco",
@@ -3068,7 +3068,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L102; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L89; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L56"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L102; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L91; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L59"
   },
   "monacoSuggestOnTriggerCharactersEnabled": {
     "area": "Editor: Monaco",
@@ -3086,7 +3086,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L111; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L91; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L58"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L111; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L93; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L61"
   },
   "monacoParameterHintsEnabled": {
     "area": "Editor: Monaco",
@@ -3104,7 +3104,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L120; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L93; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L61"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L120; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L95; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L64"
   },
   "monacoLineNumbersEnabled": {
     "area": "Editor: Monaco",
@@ -3122,7 +3122,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L129; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L95; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L63"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L129; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L97; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L66"
   },
   "monacoFoldingEnabled": {
     "area": "Editor: Monaco",
@@ -3140,7 +3140,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L138; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L97; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L65"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L138; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L99; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L68"
   },
   "monacoMinimapEnabled": {
     "area": "Editor: Monaco",
@@ -3158,7 +3158,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L147; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L99; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L67"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L147; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L101; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L70"
   },
   "monacoSelectionHighlightEnabled": {
     "area": "Editor: Monaco",
@@ -3176,7 +3176,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L156; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L101; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L69"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L156; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L103; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L72"
   },
   "monacoOccurrencesHighlightEnabled": {
     "area": "Editor: Monaco",
@@ -3194,7 +3194,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L165; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L103; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L72"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L165; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L105; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L75"
   },
   "monacoGuidesEnabled": {
     "area": "Editor: Monaco",
@@ -3212,7 +3212,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L174; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L105; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L75"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L174; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L107; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L78"
   },
   "monacoBracketPairColorizationEnabled": {
     "area": "Editor: Monaco",
@@ -3230,7 +3230,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L183; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L107; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L77"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L183; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L109; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L80"
   },
   "monacoCodeLensEnabled": {
     "area": "Editor: Monaco",
@@ -3248,7 +3248,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L192; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L109; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L80"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L192; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L111; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L83"
   },
   "monacoLightbulbEnabled": {
     "area": "Editor: Monaco",
@@ -3266,7 +3266,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L201; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L111; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L82"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L201; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L113; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L85"
   },
   "monacoInlayHintsEnabled": {
     "area": "Editor: Monaco",
@@ -3284,7 +3284,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L210; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L113; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L84"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L210; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L115; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L87"
   },
   "monacoWordBasedSuggestionsEnabled": {
     "area": "Editor: Monaco",
@@ -3302,7 +3302,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L219; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L115; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L86"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L219; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L117; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L89"
   },
   "monacoInlineSuggestEnabled": {
     "area": "Editor: Monaco",
@@ -3320,7 +3320,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L228; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L117; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L89"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L228; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L119; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L92"
   },
   "monacoAcceptSuggestionOnEnterEnabled": {
     "area": "Editor: Monaco",
@@ -3338,7 +3338,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L237; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L119; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L91"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L237; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L121; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L94"
   },
   "monacoDragAndDropEnabled": {
     "area": "Editor: Monaco",
@@ -3356,7 +3356,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L246; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L121; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L94"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L246; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L123; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L97"
   },
   "monacoDropIntoEditorEnabled": {
     "area": "Editor: Monaco",
@@ -3374,7 +3374,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L255; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L123; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L97"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L255; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L125; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L100"
   },
   "monacoColorDecoratorsEnabled": {
     "area": "Editor: Monaco",
@@ -3392,7 +3392,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L264; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L125; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L100"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L264; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L127; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L103"
   },
   "monacoUnicodeHighlightEnabled": {
     "area": "Editor: Monaco",
@@ -3410,7 +3410,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L273; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L127; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L103"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L273; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L129; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L106"
   },
   "monacoMatchBracketsEnabled": {
     "area": "Editor: Monaco",
@@ -3428,7 +3428,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L282; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L129; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L106"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L282; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L131; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L109"
   },
   "monacoRenderLineHighlightEnabled": {
     "area": "Editor: Monaco",
@@ -3446,7 +3446,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L291; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L131; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L291; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L133; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L112"
   },
   "monacoGlyphMarginEnabled": {
     "area": "Editor: Monaco",
@@ -3464,7 +3464,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L300; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L133; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L112"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L300; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L135; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L115"
   },
   "monacoOverviewRulerLanesEnabled": {
     "area": "Editor: Monaco",
@@ -3482,7 +3482,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L309; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L135; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L115"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L309; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L137; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L118"
   },
   "monacoLineDecorationsWidthEnabled": {
     "area": "Editor: Monaco",
@@ -3500,7 +3500,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L318; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L137; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L118"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L318; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L139; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L121"
   },
   "monacoRenderWhitespaceEnabled": {
     "area": "Editor: Monaco",
@@ -3518,7 +3518,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L327; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L139; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L121"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L327; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L141; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L124"
   },
   "monacoRenderControlCharactersEnabled": {
     "area": "Editor: Monaco",
@@ -3536,7 +3536,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L336; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L141; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L124"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L336; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L143; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L127"
   },
   "monacoSmoothScrollingEnabled": {
     "area": "Editor: Monaco",
@@ -3554,7 +3554,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L345; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L143; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L127"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L345; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L145; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L130"
   },
   "monacoScrollBeyondLastLineEnabled": {
     "area": "Editor: Monaco",
@@ -3572,7 +3572,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L354; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L145; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L130"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L354; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L147; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L133"
   },
   "monacoMouseWheelZoomEnabled": {
     "area": "Editor: Monaco",
@@ -3590,7 +3590,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L363; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L147; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L133"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L363; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L149; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L136"
   },
   "monacoCursorBlinkingEnabled": {
     "area": "Editor: Monaco",
@@ -3608,7 +3608,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L372; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L149; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L136"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L372; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L151; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L139"
   },
   "monacoCursorSmoothCaretAnimationEnabled": {
     "area": "Editor: Monaco",
@@ -3626,7 +3626,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L381; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L151; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L139"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L381; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L153; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L142"
   },
   "monacoWordWrapEnabled": {
     "area": "Editor: Monaco",
@@ -3644,7 +3644,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L390; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L153; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L144"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L390; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L155; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L147"
   },
   "monacoWrappingIndentEnabled": {
     "area": "Editor: Monaco",
@@ -3662,7 +3662,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L399; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L155; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L147"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L399; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L157; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L150"
   },
   "monacoWrappingStrategyEnabled": {
     "area": "Editor: Monaco",
@@ -3680,7 +3680,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L408; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L157; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L150"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L408; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L159; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L153"
   },
   "monacoCursorWidthEnabled": {
     "area": "Editor: Monaco",
@@ -3698,7 +3698,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L417; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L159; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L153"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L417; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L161; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L156"
   },
   "monacoCursorStyleEnabled": {
     "area": "Editor: Monaco",
@@ -3716,7 +3716,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L426; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L161; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L156"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L426; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L163; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L159"
   },
   "monacoCursorSurroundingLinesEnabled": {
     "area": "Editor: Monaco",
@@ -3734,7 +3734,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L435; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L163; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L159"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L435; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L165; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L162"
   },
   "monacoCursorSurroundingLinesStyleEnabled": {
     "area": "Editor: Monaco",
@@ -3752,7 +3752,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L444; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L165; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L162"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L444; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L167; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L165"
   },
   "monacoCursorHeightEnabled": {
     "area": "Editor: Monaco",
@@ -3770,7 +3770,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L453; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L167; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L167"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L453; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L169; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L170"
   },
   "monacoStickyScrollEnabled": {
     "area": "Editor: Monaco",
@@ -3788,7 +3788,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L462; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L169; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L170"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L462; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L171; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L173"
   },
   "monacoSelectionClipboardEnabled": {
     "area": "Editor: Monaco",
@@ -3806,7 +3806,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L471; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L171; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L173"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L471; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L173; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L176"
   },
   "monacoCopyWithSyntaxHighlightingEnabled": {
     "area": "Editor: Monaco",
@@ -3824,7 +3824,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L480; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L173; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L176"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L480; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L175; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L179"
   },
   "monacoOccurrencesHighlightDelayEnabled": {
     "area": "Editor: Monaco",
@@ -3842,7 +3842,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L489; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L175; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L181"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L489; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L177; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L184"
   },
   "monacoFormatOnPasteEnabled": {
     "area": "Editor: Monaco",
@@ -3860,7 +3860,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L498; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L177; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L186"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L498; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L179; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L189"
   },
   "monacoFormatOnTypeEnabled": {
     "area": "Editor: Monaco",
@@ -3878,7 +3878,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L507; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L179; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L189"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L507; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L181; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L192"
   },
   "monacoAutoClosingBracketsEnabled": {
     "area": "Editor: Monaco",
@@ -3896,7 +3896,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L516; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L181; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L192"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L516; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L183; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L195"
   },
   "monacoAutoClosingQuotesEnabled": {
     "area": "Editor: Monaco",
@@ -3914,7 +3914,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L525; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L183; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L195"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L525; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L185; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L198"
   },
   "monacoAutoIndentEnabled": {
     "area": "Editor: Monaco",
@@ -3932,7 +3932,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L534; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L185; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L198"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L534; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L187; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L201"
   },
   "monacoAutoSurroundEnabled": {
     "area": "Editor: Monaco",
@@ -3950,7 +3950,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L543; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L187; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L201"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L543; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L189; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L204"
   },
   "monacoMatchOnWordStartOnlyEnabled": {
     "area": "Editor: Monaco",
@@ -3968,7 +3968,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L552; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L189; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L204"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L552; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L191; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L207"
   },
   "monacoFindSeedSearchStringFromSelectionEnabled": {
     "area": "Editor: Monaco",
@@ -3986,7 +3986,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L561; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L191; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L207"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L561; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L193; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L210"
   },
   "monacoFindCursorMoveOnTypeEnabled": {
     "area": "Editor: Monaco",
@@ -4004,7 +4004,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L570; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L193; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L215"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L570; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L195; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L218"
   },
   "monacoFindFindOnTypeEnabled": {
     "area": "Editor: Monaco",
@@ -4022,7 +4022,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L579; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L195; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L218"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L579; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L197; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L221"
   },
   "monacoFindLoopEnabled": {
     "area": "Editor: Monaco",
@@ -4040,7 +4040,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L588; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L197; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L221"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L588; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L199; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L224"
   },
   "monacoAutoClosingDeleteEnabled": {
     "area": "Editor: Monaco",
@@ -4058,7 +4058,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L597; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L199; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L224"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L597; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L201; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L227"
   },
   "monacoAutoClosingCommentsEnabled": {
     "area": "Editor: Monaco",
@@ -4076,7 +4076,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L606; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L201; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L227"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L606; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L203; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L230"
   },
   "monacoEmptySelectionClipboardEnabled": {
     "area": "Editor: Monaco",
@@ -4094,7 +4094,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L615; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L203; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L230"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L615; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L205; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L233"
   },
   "monacoColumnSelectionEnabled": {
     "area": "Editor: Monaco",
@@ -4112,7 +4112,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L624; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L205; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L233"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L624; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L207; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L236"
   },
   "monacoWordSeparatorsEnabled": {
     "area": "Editor: Monaco",
@@ -4130,7 +4130,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L633; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L207; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L236"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L633; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L209; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L239"
   },
   "monacoMultiCursorModifierEnabled": {
     "area": "Editor: Monaco",
@@ -4148,7 +4148,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L642; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L209; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L239"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L642; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L211; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L242"
   },
   "monacoMultiCursorMergeOverlappingEnabled": {
     "area": "Editor: Monaco",
@@ -4166,7 +4166,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L651; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L211; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L242"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L651; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L213; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L245"
   },
   "monacoMultiCursorPasteEnabled": {
     "area": "Editor: Monaco",
@@ -4184,7 +4184,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L660; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L213; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L247"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L660; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L215; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L250"
   },
   "monacoAutoClosingOvertypeEnabled": {
     "area": "Editor: Monaco",
@@ -4202,7 +4202,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L669; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L215; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L250"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L669; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L217; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L253"
   },
   "monacoMouseStyleEnabled": {
     "area": "Editor: Monaco",
@@ -4220,7 +4220,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L678; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L217; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L253"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L678; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L219; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L256"
   },
   "monacoRenderFinalNewlineEnabled": {
     "area": "Editor: Monaco",
@@ -4238,7 +4238,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L687; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L219; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L256"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L687; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L221; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L259"
   },
   "monacoAccessibilitySupportEnabled": {
     "area": "Editor: Monaco",
@@ -4256,7 +4256,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L696; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L221; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L259"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L696; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L223; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L262"
   },
   "monacoScrollbarUseShadowsEnabled": {
     "area": "Editor: Monaco",
@@ -4274,7 +4274,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L705; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L223; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L262"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L705; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L225; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L265"
   },
   "monacoScrollbarAlwaysConsumeMouseWheelEnabled": {
     "area": "Editor: Monaco",
@@ -4292,7 +4292,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L714; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L225; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L265"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L714; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L227; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L268"
   },
   "monacoHorizontalScrollbarSizeEnabled": {
     "area": "Editor: Monaco",
@@ -4310,7 +4310,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L723; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L227; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L273"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L723; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L229; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L276"
   },
   "monacoVerticalScrollbarSizeEnabled": {
     "area": "Editor: Monaco",
@@ -4328,7 +4328,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L732; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L229; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L732; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L231; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L279"
   },
   "monacoMouseWheelScrollSensitivityEnabled": {
     "area": "Editor: Monaco",
@@ -4346,7 +4346,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L741; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L231; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L279"
+    "lineRange": "canvas/src/features/settings/registry-ui.monaco.ts:L741; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L233; canvas/src/hooks/store/uiSettingsSliceMonaco.ts:L282"
   },
   "workspace.surface.padding.top": {
     "area": "Workspace",
@@ -9404,7 +9404,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L322; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L233; canvas/src/hooks/store/uiSettingsSliceRender.ts:L102"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L322; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L235; canvas/src/hooks/store/uiSettingsSliceRender.ts:L102"
   },
   "three.media.iframeOverlay.maxVisibleDefault": {
     "area": "—",

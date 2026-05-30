@@ -26,6 +26,7 @@ const TAG_PROPERTY_KEYS = ['tags', 'keywords'] as const
 const META_PROPERTY_KEYS = ['owner', 'priority'] as const
 const MEDIA_PROPERTY_KEYS = ['renderUrl', 'embedUrl', 'media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'src', 'url'] as const
 const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'briefUrl', 'assetUrl', 'documentUrl'] as const
+const THUMBNAIL_PROPERTY_KEYS = ['thumbnailUrl', 'thumbnail_url', 'posterUrl', 'poster_url', 'poster', 'coverUrl', 'cover_url'] as const
 const SLUGLINE_PROPERTY_KEYS = ['slugline'] as const
 const LOCATION_PROPERTY_KEYS = ['location', 'setting', 'place', 'surface', 'context'] as const
 const TIME_PROPERTY_KEYS = ['timeOfDay', 'time', 'dayPart', 'moment', 'state'] as const
@@ -195,6 +196,7 @@ const readPropertyLists = (properties: GraphNodeProperties, keys: readonly strin
 
 const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): StoryboardCardMedia | null => {
   const declaredKind = readDeclaredMediaKind(properties)
+  const explicitThumbnailUrl = readFirstPropertyString(properties, THUMBNAIL_PROPERTY_KEYS)
   for (const key of MEDIA_PROPERTY_KEYS) {
     const url = readString(properties[key])
     if (!url) continue
@@ -203,13 +205,13 @@ const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): 
     const sourceUrl = key === 'renderUrl' || key === 'embedUrl'
       ? readFirstPropertyString(properties, LINK_PROPERTY_KEYS) || readFirstPropertyString(properties, ['mediaUrl', 'media_url']) || resource.sourceUrl
       : resource.sourceUrl
-    return { ...resource, sourceUrl }
+    return { ...resource, sourceUrl, thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null }
   }
   if (typeof node.type === 'string' && /\b(image|video)\b/i.test(node.type)) {
     const url = readFirstPropertyString(properties, LINK_PROPERTY_KEYS)
     if (!url) return null
     const resource = resolveRenderableMediaResource(url, declaredKind)
-    return resource ? { ...resource } : null
+    return resource ? { ...resource, thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null } : null
   }
   return null
 }

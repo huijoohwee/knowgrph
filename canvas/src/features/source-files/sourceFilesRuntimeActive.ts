@@ -2,35 +2,18 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { SourceFile } from '@/hooks/store/types'
-import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { readEnvString } from '@/lib/config.env'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 import { loadPersistedSourceFilesWorkspace } from '@/features/source-files/sourceFilesDb'
 import { readFirstKnowgrphStorageDocText } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
+import { readStorageCanonicalPathCandidatesForWorkspacePath } from '@/features/source-files/sourceFilesStoragePaths'
 import {
   readCachedWorkspaceActiveEntrySnapshot,
   rememberWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/workspaceActiveEntryCache'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
-
-const readStorageCanonicalPathCandidatesForActivePath = (activePath: WorkspacePath): string[] => {
-  const normalized = normalizeWorkspacePath(String(activePath || '').trim())
-  if (!normalized) return []
-  const sourcePath = resolveWorkspaceSourcePathKey(normalized)
-  const docsPrefix = 'workspace:/docs/'
-  const rel = sourcePath.startsWith(docsPrefix)
-    ? sourcePath.slice(docsPrefix.length).replace(/^\/+/, '')
-    : (normalized.startsWith('/docs/') ? normalized.slice('/docs/'.length).replace(/^\/+/, '') : '')
-  if (!rel) return []
-  const out = new Set<string>()
-  if (sourcePath.startsWith('workspace:/')) out.add(sourcePath)
-  if (normalized.startsWith('/')) out.add(`workspace:${normalized}`)
-  out.add(`huijoohwee/docs/${rel}`)
-  out.add(`docs/${rel}`)
-  return [...out]
-}
 
 const readWorkspaceStorageDocFallbackText = async (
   activePath: WorkspacePath,
@@ -43,7 +26,7 @@ const readWorkspaceStorageDocFallbackText = async (
   if (typeof cached === 'string') return cached
   const baseUrl = normalizeString(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', ''))
   if (!baseUrl) return ''
-  const canonicalCandidates = readStorageCanonicalPathCandidatesForActivePath(normalizedPath)
+  const canonicalCandidates = readStorageCanonicalPathCandidatesForWorkspacePath(normalizedPath)
   if (canonicalCandidates.length === 0) {
     fallbackByActivePath?.set(normalizedPath, '')
     return ''

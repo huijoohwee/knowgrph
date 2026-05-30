@@ -7,6 +7,7 @@ import {
   buildRenderableMediaThumbnailUrl,
   inferMediaKindFromResourceUrl,
 } from '@/lib/graph/mediaUrlKind'
+import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import type {
   StrybldrBox,
   StrybldrDetectionProvider,
@@ -18,6 +19,7 @@ import type {
   StrybldrStoryboardDocument,
 } from './strybldrTypes'
 const STRYBLDR_JSON_FENCE_RE = /```(?:json\s+)?strybldr-storyboard\s*\n([\s\S]*?)\n```/i
+const DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS = 0
 const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 
@@ -27,18 +29,13 @@ const shortHash = (value: unknown): string => hashText(String(value ?? '')).slic
 
 const yamlQuote = (value: string): string => `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 
-const CORPUS_MEDIA_KINDS = new Set([
-  'code',
-  'sql',
-  'script',
-  'doc',
-  'paper',
-  'image',
-  'video',
-  'data',
-  'model',
-  'unknown',
-])
+const CORPUS_MEDIA_KINDS = new Set(['code', 'sql', 'script', 'doc', 'paper', 'image', 'video', 'data', 'model', 'unknown'])
+
+const htmlAttr = (value: string): string => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/"/g, '&quot;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
 
 const readCorpusMediaKind = (value: unknown): CorpusSourceUnit['mediaKind'] => {
   const raw = cleanText(value)
@@ -111,26 +108,19 @@ export const toStrybldrSource = (unit: CorpusSourceUnit, opts?: { mediaUrl?: str
 const sourceLabel = (source: StrybldrSource): string => titleCase(basenameWithoutExt(source.originalName || source.relativePath)) || 'Source'
 
 const sourceKindLabel = (source: Pick<StrybldrSource, 'mediaKind'>): string => {
-  switch (source.mediaKind) {
-    case 'image':
-      return 'image'
-    case 'video':
-      return 'video'
-    case 'paper':
-      return 'paper'
-    case 'model':
-      return 'model'
-    case 'data':
-      return 'data'
-    case 'code':
-    case 'script':
-    case 'sql':
-      return 'code'
-    case 'doc':
-      return 'document'
-    default:
-      return 'source'
-  }
+  const labels: Partial<Record<CorpusSourceUnit['mediaKind'], string>> = { image: 'image', video: 'video', paper: 'paper', model: 'model', data: 'data', code: 'code', script: 'code', sql: 'code', doc: 'document' }
+  return labels[source.mediaKind] || 'source'
+}
+
+const isRemoteVideoFrameExtractionCandidate = (sourceUrl: string): boolean => {
+  const raw = cleanText(sourceUrl)
+  return /^https?:\/\//i.test(raw) && (!!getYouTubeId(raw) || !!getBilibiliVideoId(raw))
+}
+
+const buildStrybldrRemoteVideoFrameThumbnailUrl = (source: StrybldrSource, sourceUrl: string): string => {
+  if (source.mediaKind !== 'video' || !isRemoteVideoFrameExtractionCandidate(sourceUrl)) return ''
+  const timeSeconds = parseYouTubeStartSeconds(sourceUrl) ?? DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS
+  return buildRemoteVideoFrameRequestUrl({ sourceUrl, timeSeconds, format: 'png' })
 }
 
 const buildStrybldrSourceMediaFields = (source: StrybldrSource): {
@@ -143,11 +133,14 @@ const buildStrybldrSourceMediaFields = (source: StrybldrSource): {
   const mediaUrl = cleanText(source.mediaUrl) || cleanText(source.originalName)
   const sourceUrl = /^https?:\/\//i.test(mediaUrl) ? mediaUrl : ''
   const renderUrl = buildRenderableIframeUrl(mediaUrl)
-  const thumbnailUrl = buildRenderableMediaThumbnailUrl(mediaUrl)
+  const fallbackThumbnailUrl = buildRenderableMediaThumbnailUrl(mediaUrl)
+  const frameThumbnailUrl = buildStrybldrRemoteVideoFrameThumbnailUrl(source, sourceUrl)
+  const thumbnailUrl = frameThumbnailUrl || fallbackThumbnailUrl
   const references = uniqueCleanTexts([
     source.workspacePath || source.relativePath || source.originalName,
     sourceUrl,
     thumbnailUrl,
+    fallbackThumbnailUrl,
   ])
   return { mediaUrl, sourceUrl, renderUrl, thumbnailUrl, references }
 }
@@ -570,6 +563,20 @@ const readNodeReferences = (value: unknown): string[] => {
 
 export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | null | undefined): StrybldrVideoHandoff => {
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const sourceVideo = nodes
+    .map(node => {
+      const props = node.properties || {}
+      const mediaKind = cleanText(props.mediaKind)
+      const candidates = uniqueCleanTexts([cleanText(props.sourceUrl), cleanText(props.mediaUrl), ...readNodeReferences(props.references)])
+      const sourceUrl = candidates.find(value => {
+        const inferred = inferMediaKindFromResourceUrl(value)
+        return mediaKind === 'video' || inferred === 'video' || inferred === 'iframe'
+      }) || ''
+      if (!sourceUrl) return null
+      const renderUrl = cleanText(props.renderUrl) || buildRenderableIframeUrl(sourceUrl) || sourceUrl
+      return { sourceUrl, renderUrl }
+    })
+    .find((item): item is { sourceUrl: string; renderUrl: string } => !!item?.sourceUrl && !!item.renderUrl) || null
   const cards: StrybldrVideoHandoffCard[] = nodes
     .filter(node => {
       const type = cleanText(node.type)
@@ -578,12 +585,9 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     .map((node, index): StrybldrVideoHandoffCard => {
       const props = node.properties || {}
       const mediaUrl = cleanText(props.mediaUrl)
-      const references = uniqueCleanTexts([
-        ...readNodeReferences(props.references),
-        cleanText(props.sourceUrl),
-        mediaUrl,
-        cleanText(props.thumbnailUrl) || buildRenderableMediaThumbnailUrl(mediaUrl),
-      ])
+      const thumbnailUrl = cleanText(props.thumbnailUrl)
+      const fallbackThumbnailUrl = buildRenderableMediaThumbnailUrl(mediaUrl)
+      const references = uniqueCleanTexts([...readNodeReferences(props.references), cleanText(props.sourceUrl), mediaUrl, thumbnailUrl, fallbackThumbnailUrl])
       return {
         id: cleanText(node.id) || `strybldr-card-${index + 1}`,
         lane: cleanText(props.lane) || 'Storyboard',
@@ -598,32 +602,22 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     })
     .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
 
-  const promptLines = [
-    'Create one short video from the approved Strybldr storyboard cards below.',
-    'Use only these approved card fields and references; do not invent extra source images or hidden context.',
-    'Preserve source composition, element positions, and card order. Keep motion concise and demo-ready.',
-    '',
-    ...cards.map((card, index) => {
-      const body = [
-        `${index + 1}. [${card.lane}] ${card.title}`,
-        card.summary ? `Summary: ${card.summary}` : '',
-        card.action ? `Action: ${card.action}` : '',
-        card.prompt ? `Prompt: ${card.prompt}` : '',
-        card.references.length > 0 ? `References: ${card.references.join(', ')}` : '',
-      ].filter(Boolean)
-      return body.join('\n')
-    }),
-  ]
+  const promptLines = ['Create one short video from the approved Strybldr storyboard cards below.', 'Use only these approved card fields and references; do not invent extra source images or hidden context.', 'Preserve source composition, element positions, and card order. Keep motion concise and demo-ready.', '', ...cards.map((card, index) => [
+    `${index + 1}. [${card.lane}] ${card.title}`,
+    card.summary ? `Summary: ${card.summary}` : '',
+    card.action ? `Action: ${card.action}` : '',
+    card.prompt ? `Prompt: ${card.prompt}` : '',
+    card.references.length > 0 ? `References: ${card.references.join(', ')}` : '',
+  ].filter(Boolean).join('\n'))]
 
   const mediaUrl = nodes
     .flatMap(node => {
       const props = node.properties || {}
       const rawMediaUrl = cleanText(props.mediaUrl)
       const inferred = inferMediaKindFromResourceUrl(rawMediaUrl)
-      return [
-        cleanText(props.thumbnailUrl) || buildRenderableMediaThumbnailUrl(rawMediaUrl),
-        inferred === 'image' || inferred === 'svg' ? rawMediaUrl : '',
-      ]
+      const thumbnailUrl = cleanText(props.thumbnailUrl)
+      const fallbackThumbnailUrl = buildRenderableMediaThumbnailUrl(rawMediaUrl)
+      return [thumbnailUrl, fallbackThumbnailUrl, inferred === 'image' || inferred === 'svg' ? rawMediaUrl : '']
     })
     .find(value => /^https?:\/\//i.test(value)) || null
 
@@ -631,23 +625,51 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     cards,
     prompt: promptLines.join('\n').trim(),
     referenceImageUrl: mediaUrl,
+    sourceVideoUrl: sourceVideo?.sourceUrl || null,
+    renderVideoUrl: sourceVideo?.renderUrl || null,
   }
 }
 
 export const buildStrybldrVideoHandoffMarkdown = (args: {
   handoff: StrybldrVideoHandoff
-  status: 'generated' | 'fallback'
+  status: 'generated' | 'copied' | 'fallback'
   provider: string
   model?: string | null
   renderUrl?: string | null
   sourceUrl?: string | null
   errorReason?: string | null
+  copyReason?: string | null
   elapsedMs: number
   paidCallCount: number
   cacheHit?: boolean
 }): string => {
-  const safeStatus = args.status === 'generated' ? 'generated' : 'fallback'
-  const title = safeStatus === 'generated' ? 'Strybldr Video Handoff' : 'Strybldr Video Fallback'
+  const safeStatus = args.status === 'generated' || args.status === 'copied' ? args.status : 'fallback'
+  const title = safeStatus === 'generated' ? 'Strybldr Video Handoff' : safeStatus === 'copied' ? 'Strybldr Video Copy' : 'Strybldr Video Fallback'
+  const renderUrl = cleanText(args.renderUrl)
+  const sourceUrl = cleanText(args.sourceUrl)
+  const sourceKind = inferMediaKindFromResourceUrl(sourceUrl)
+  const renderKind = inferMediaKindFromResourceUrl(renderUrl)
+  const iframeUrl = renderKind === 'iframe'
+    ? renderUrl
+    : buildRenderableIframeUrl(sourceUrl) || (sourceKind === 'iframe' ? sourceUrl : '')
+  const videoUrl = sourceKind === 'video' || renderKind === 'video'
+    ? renderUrl || sourceUrl
+    : ''
+  const playableLines = renderUrl || sourceUrl
+    ? [
+        '## Video',
+        '',
+        iframeUrl
+          ? `<iframe src="${htmlAttr(iframeUrl)}" title="Strybldr video" width="100%" height="405" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+          : videoUrl
+            ? `<video controls playsinline src="${htmlAttr(videoUrl)}"></video>`
+            : `[Open Strybldr video](${renderUrl || sourceUrl})`,
+        '',
+        sourceUrl ? `[Open source video](${sourceUrl})` : '',
+        renderUrl && renderUrl !== sourceUrl ? `[Open render URL](${renderUrl})` : '',
+        '',
+      ].filter(line => line !== '')
+    : []
   return [
     '---',
     'kgStrybldrVideoHandoff: true',
@@ -657,13 +679,15 @@ export const buildStrybldrVideoHandoffMarkdown = (args: {
     `elapsedMs: ${Math.max(0, Math.round(args.elapsedMs))}`,
     `paidCallCount: ${Math.max(0, Math.round(args.paidCallCount))}`,
     `cacheHit: ${args.cacheHit === true ? 'true' : 'false'}`,
-    args.renderUrl ? `renderUrl: ${yamlQuote(cleanText(args.renderUrl))}` : '',
-    args.sourceUrl ? `sourceUrl: ${yamlQuote(cleanText(args.sourceUrl))}` : '',
+    renderUrl ? `renderUrl: ${yamlQuote(renderUrl)}` : '',
+    sourceUrl ? `sourceUrl: ${yamlQuote(sourceUrl)}` : '',
+    args.copyReason ? `copyReason: ${yamlQuote(cleanText(args.copyReason))}` : '',
     args.errorReason ? `errorReason: ${yamlQuote(cleanText(args.errorReason))}` : '',
     '---',
     '',
     `# ${title}`,
     '',
+    ...playableLines,
     '## Compiled Prompt',
     '',
     '```text',

@@ -6,13 +6,14 @@ export type MarkdownFileTreeContextMenuItem = {
   key: 'shareUrl' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'newFile' | 'clear' | 'rename' | 'delete'
   label: string
   tone?: 'default' | 'danger'
-  onSelect: () => void
+  onSelect: () => void | Promise<void>
 }
 
 type BuildMarkdownFileTreeContextMenuItemsArgs = {
   entry: WorkspaceEntry
   copyToClipboard: (text: string) => Promise<boolean>
-  buildShareUrl?: (entryPath: WorkspacePath) => string | null
+  buildShareUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
+  promptShareUrl?: (url: string) => void
   onCreateNewFile?: (parentPath: WorkspacePath) => void
   onRevealInFinder?: (path: WorkspacePath) => void
   onClearFile?: (path: WorkspacePath) => void
@@ -36,12 +37,14 @@ export function buildMarkdownFileTreeContextMenuItems(
       key: 'shareUrl',
       label: 'Share URL',
       onSelect: () => {
-        const url = args.buildShareUrl?.(entryPath)
-        if (!url) {
-          args.closeContextMenu()
-          return
-        }
-        void shareOrCopyUrl(url, args.copyToClipboard)
+        void Promise.resolve(args.buildShareUrl?.(args.entry) || null)
+          .then(url => {
+            if (!url) return
+            return shareOrCopyUrl(url, args.copyToClipboard, args.promptShareUrl)
+          })
+          .catch(() => {
+            void 0
+          })
         args.closeContextMenu()
       },
     },
@@ -133,6 +136,7 @@ export function buildMarkdownFileTreeContextMenuItems(
 async function shareOrCopyUrl(
   url: string,
   copyToClipboard: (text: string) => Promise<boolean>,
+  promptShareUrl?: (url: string) => void,
 ): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.share) {
     try {
@@ -142,5 +146,13 @@ async function shareOrCopyUrl(
       if (err instanceof Error && err.name === 'AbortError') return
     }
   }
-  await copyToClipboard(url)
+  const copied = await copyToClipboard(url)
+  if (copied) return
+  if (typeof promptShareUrl === 'function') {
+    promptShareUrl(url)
+    return
+  }
+  if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
+    window.prompt('Share URL', url)
+  }
 }
