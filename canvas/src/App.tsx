@@ -4,6 +4,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import Canvas from '@/pages/Canvas'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { CanvasRouteRuntime } from '@/features/canvas/CanvasRouteRuntime'
+import { LS_KEYS } from '@/lib/config.ls'
 import { resolveRouterBasename } from '@/lib/routing/basePath'
 import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
@@ -47,7 +48,6 @@ export default function App() {
         import('@/lib/persistence'),
         import('@/lib/ui/theme'),
         import('@/hooks/useGraphStore'),
-        import('@/lib/config'),
       ])
         .then(([
           interactionUserSelectModule,
@@ -60,7 +60,6 @@ export default function App() {
           persistenceModule,
           themeModule,
           graphStoreModule,
-          configModule,
         ]) => {
           if (cancelled) return
 
@@ -86,7 +85,7 @@ export default function App() {
           storageHandler = (e: StorageEvent) => {
             try {
               if (e.storageArea !== window.localStorage) return
-              if (e.key !== resolveBrowserStorageKey(configModule.LS_KEYS.themeMode)) return
+              if (e.key !== resolveBrowserStorageKey(LS_KEYS.themeMode)) return
               const v = String(e.newValue || '').trim()
               const mode = v === 'light' || v === 'dark' || v === 'system' ? v : 'system'
               graphStoreModule.useGraphStore.getState().setThemeMode(mode)
