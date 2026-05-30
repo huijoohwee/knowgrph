@@ -32,9 +32,9 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView'
-import { StorybldrFloatingPanelView } from '@/features/strybldr/StorybldrFloatingPanelView'
+import { StrybldrFloatingPanelView } from '@/features/strybldr/StrybldrFloatingPanelView'
 
-type FloatingPanelView = 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'storybldr' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'view' | 'interaction' | 'design' | 'chat' | 'geo' | 'renderer' | 'strybldr' | 'graphTraversal'
 type RequestedFloatingPanelView = FloatingPanelView; type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
   apply?: () => void
@@ -91,7 +91,7 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'storybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['view', 'chat', 'geo', 'interaction', 'strybldr'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -448,7 +448,7 @@ export function ToolbarToolMenu({
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
       { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
-      { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer }, { view: 'storybldr', title: 'Storybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.storybldr },
+      { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer }, { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
     ],
     [],
   )
@@ -665,7 +665,7 @@ export function ToolbarToolMenu({
                 }}
               />
             )}
-            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />} {floatingPanelView === 'storybldr' && <StorybldrFloatingPanelView />}
+            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />} {floatingPanelView === 'strybldr' && <StrybldrFloatingPanelView />}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
                 <header className={`${uiToolbarRowScrollJustifyBetweenClassName} gap-2`} aria-label="Graph traversal actions">

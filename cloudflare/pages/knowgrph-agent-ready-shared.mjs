@@ -27,7 +27,7 @@ export const agentReadyHomepageLinkHeaderValue = [
 
 export const agentReadyMarkdownBody = `# Knowgrph
 
-Knowgrph is an agent-readable knowledge graph workspace served at ${APP_URL}.
+Knowgrph is an Agent-actionable chat-to-canvas knowledge graph workspace served at ${APP_URL}.
 
 ## Discovery
 

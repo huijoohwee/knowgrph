@@ -33,7 +33,7 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
   flow: GitMerge,
   animatic: MonitorPlay,
   storyboard: PanelsTopLeft,
-  storybldr: ImageIcon,
+  strybldr: ImageIcon,
   design: Palette,
   flowEditor: Pencil,
 }
@@ -44,7 +44,7 @@ const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   flow: UI_COPY.canvasViewRendererFlowTitle,
   animatic: UI_COPY.canvasViewRendererAnimaticTitle,
   storyboard: UI_COPY.canvasViewRendererStoryboardTitle,
-  storybldr: UI_COPY.canvasViewRendererStorybldrTitle,
+  strybldr: UI_COPY.canvasViewRendererStrybldrTitle,
   design: UI_COPY.canvasViewRendererDesignTitle,
   flowEditor: UI_COPY.canvasViewRendererFlowEditorTitle,
 }

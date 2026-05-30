@@ -14,6 +14,7 @@ import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelec
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitWorkflowRunAll } from '@/features/canvas/utils'
+import { supportsToolbarRunAll } from '@/lib/config.render'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
@@ -69,6 +70,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
+  const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
 
   useEffect(() => {
     const root = document.documentElement
@@ -248,11 +250,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className="App-toolbar__btn"
-        title={canvas2dRenderer === 'flowEditor' ? 'Run all' : 'Run all (Flow Editor only)'}
-        tooltipContent={canvas2dRenderer === 'flowEditor' ? 'Run all' : 'Run all (Flow Editor only)'}
+        title={canRunAll ? 'Run all' : 'Run all (Flow Editor or Strybldr only)'}
+        tooltipContent={canRunAll ? 'Run all' : 'Run all (Flow Editor or Strybldr only)'}
         onClick={() => {
-          if (canvas2dRenderer !== 'flowEditor') {
-            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor to run all.', ttlMs: 2200 })
+          if (!canRunAll) {
+            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor or Strybldr to run all.', ttlMs: 2200 })
             return
           }
           emitWorkflowRunAll({ source: 'toolbar' })

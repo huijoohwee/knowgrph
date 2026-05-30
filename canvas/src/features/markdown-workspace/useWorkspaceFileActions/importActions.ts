@@ -236,6 +236,7 @@ export function useWorkspaceImportActions(args: {
         const fs = await getFs()
         await fs.ensureSeed()
         const importRuntime = await loadWorkspaceImportRuntimeActions()
+        let storyPath: string | null = null
         const res = importRuntime.normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
           suppressNextWorkspaceFsChangedEvent()
           return importWorkspaceLocalFiles({
@@ -258,16 +259,17 @@ export function useWorkspaceImportActions(args: {
           })
           const storyName = storyDoc.sources.length === 1
             ? buildStrybldrWorkspaceDocumentName(storyDoc.sources[0]!)
-            : `${storyDoc.runId}.storybldr.md`
-          const storyPath = await fs.createFile({
+            : `${storyDoc.runId}.strybldr.md`
+          const createdStoryPath = await fs.createFile({
             parentPath: WORKSPACE_ROOT_PATH,
             name: storyName,
             text: serializeStrybldrStoryboardMarkdown(storyDoc),
           })
-          res.createdPaths = [storyPath, ...res.createdPaths.filter(path => path !== storyPath)]
+          storyPath = createdStoryPath
+          res.createdPaths = [createdStoryPath, ...res.createdPaths.filter(path => path !== createdStoryPath)]
           res.sources = [
-            { path: storyPath, source: { kind: 'local', originalName: storyName } },
-            ...res.sources.filter(item => item.path !== storyPath),
+            { path: createdStoryPath, source: { kind: 'local', originalName: storyName } },
+            ...res.sources.filter(item => item.path !== createdStoryPath),
           ]
           res.applyToGraph = true
         }
@@ -281,14 +283,15 @@ export function useWorkspaceImportActions(args: {
         try {
           const store = useGraphStore.getState()
           store.setCanvasRenderMode('2d')
-          store.setCanvas2dRenderer('storybldr')
+          store.setCanvas2dRenderer('strybldr')
           store.setFloatingPanelOpen(true)
-          store.setFloatingPanelView('storybldr')
+          store.setFloatingPanelView('strybldr')
         } catch {
           void 0
         }
-        if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph: true, jobId })
+        const focusPath = storyPath || createdPath
+        if (focusPath) {
+          await focusAfterImport(focusPath, { applyToGraph: true, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported image', res).message)
       } catch (e) {

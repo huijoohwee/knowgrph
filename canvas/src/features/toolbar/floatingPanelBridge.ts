@@ -8,7 +8,7 @@ export type FloatingPanelRequestedView =
   | 'chat'
   | 'geo'
   | 'renderer'
-  | 'storybldr'
+  | 'strybldr'
   | 'graphTraversal'
 
 type FloatingPanelBridge = {

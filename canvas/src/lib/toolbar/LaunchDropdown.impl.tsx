@@ -26,6 +26,7 @@ import {
 } from './ImportUrlRendererSelect'
 import { buildAutoWebsiteImportOptions } from './importUrlWebsiteMode'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
+import { importLocalImagesWithWorkspaceBridgeRetry } from './launchImageImportBridge'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
@@ -265,10 +266,8 @@ export function LaunchDropdown({
         ref={imageInputRef}
         type="file" className="sr-only" accept={WORKSPACE_IMPORT_IMAGE_ACCEPT} multiple
         onChange={e => {
-          const files = e.target.files
-          const launchBridge = getMarkdownWorkspaceActionBridge()
-          if (typeof launchBridge.importLocalImages === 'function') launchBridge.importLocalImages(files)
-          else pushUiToast({ id: 'launch:import:localImages', kind: 'warning', message: 'Import Image: open Workspace to import images' })
+          const files = e.target.files ? Array.from(e.target.files) : []
+          importLocalImagesWithWorkspaceBridgeRetry({ files, pushUiToast })
           onClose()
           try {
             e.currentTarget.value = ''

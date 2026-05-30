@@ -1,0 +1,460 @@
+import React from 'react'
+import { Check, Clapperboard, Film, LocateFixed, Play, RefreshCw } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { cn } from '@/lib/utils'
+import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import type { JSONValue } from '@/lib/graph/types'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
+import { generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
+import { CHAT_PROVIDER_BYTEPLUS, getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
+import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
+import { getStrybldrImageFile } from './strybldrImageFileRegistry'
+import { buildStrybldrVideoHandoffFromGraphData, buildStrybldrVideoHandoffMarkdown, mergeStrybldrElementsIntoGraphData } from './strybldrStoryboard'
+import type { StrybldrElement } from './strybldrTypes'
+import { runStrybldrDetrObjectDetection } from './strybldrLocalVision'
+
+const readString = (value: unknown): string => String(value ?? '').trim()
+const LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS = 12000
+const LOCAL_ANALYSIS_DETR_BATCH_BYTE_LIMIT = 8 * 1024 * 1024
+
+const readStrybldrSourceUnitIds = (graphData: ReturnType<typeof useGraphStore.getState>['graphData']): string[] => {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const node of Array.isArray(graphData?.nodes) ? graphData.nodes : []) {
+    const props = node.properties || {}
+    const id = readString(props.strybldrSourceUnitId)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
+}
+
+const runStrybldrDetectionWithTimeout = (promise: Promise<StrybldrElement[]>, timeoutMs: number, message: string): Promise<StrybldrElement[]> => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  return Promise.race([
+    promise,
+    new Promise<StrybldrElement[]>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+    }),
+  ]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
+
+export function StrybldrFloatingPanelView() {
+  const {
+    graphData,
+    graphDataRevision,
+    canvas2dRenderer,
+    setCanvasRenderMode,
+    setCanvas2dRenderer,
+    setFloatingPanelView,
+    setGraphDataPreservingLayout,
+    updateNode,
+    pushUiToast,
+    addHistory,
+    chatProvider,
+    chatEndpointUrl,
+    chatApiKey,
+    chatAuthMode,
+  } = useGraphStore(
+    useShallow(s => ({
+      graphData: s.graphData,
+      graphDataRevision: s.graphDataRevision,
+      canvas2dRenderer: s.canvas2dRenderer,
+      setCanvasRenderMode: s.setCanvasRenderMode,
+      setCanvas2dRenderer: s.setCanvas2dRenderer,
+      setFloatingPanelView: s.setFloatingPanelView,
+      setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
+      updateNode: s.updateNode,
+      pushUiToast: s.pushUiToast,
+      addHistory: s.addHistory,
+      chatProvider: s.chatProvider,
+      chatEndpointUrl: s.chatEndpointUrl,
+      chatApiKey: s.chatApiKey,
+      chatAuthMode: s.chatAuthMode,
+    })),
+  )
+  const [running, setRunning] = React.useState(false)
+  const [videoRunning, setVideoRunning] = React.useState(false)
+  const [selectedCardId, setSelectedCardId] = React.useState('')
+  const [draft, setDraft] = React.useState({ title: '', summary: '', action: '', prompt: '', order: '' })
+  const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision: graphDataRevision }), [graphData, graphDataRevision])
+  const sourceUnitIds = React.useMemo(() => readStrybldrSourceUnitIds(graphData), [graphData])
+  const availableSourceUnitIds = React.useMemo(() => sourceUnitIds.filter(id => !!getStrybldrImageFile(id)), [sourceUnitIds])
+  const cards = React.useMemo(() => board.lanes.flatMap(lane => lane.cards), [board])
+  const editableCards = React.useMemo(() => {
+    const elementCards = cards.filter(card => card.lane === 'Elements')
+    return elementCards.length > 0 ? elementCards : cards
+  }, [cards])
+  const selectedCard = React.useMemo(
+    () => editableCards.find(card => card.id === selectedCardId) || editableCards[0] || null,
+    [editableCards, selectedCardId],
+  )
+  const selectedCardSignature = selectedCard
+    ? [selectedCard.id, selectedCard.title, selectedCard.summary, selectedCard.action, selectedCard.prompt, String(selectedCard.order)].join('\u0000')
+    : ''
+
+  React.useEffect(() => {
+    if (selectedCard?.id && selectedCard.id !== selectedCardId) setSelectedCardId(selectedCard.id)
+  }, [selectedCard?.id, selectedCardId])
+
+  React.useEffect(() => {
+    if (!selectedCard) return
+    setDraft({
+      title: selectedCard.title,
+      summary: selectedCard.summary,
+      action: selectedCard.action,
+      prompt: selectedCard.prompt,
+      order: String(selectedCard.order),
+    })
+  }, [selectedCardSignature, selectedCard])
+
+  const runLocalAnalysis = React.useCallback(async () => {
+    if (!graphData || availableSourceUnitIds.length === 0) {
+      pushUiToast({
+        id: 'strybldr:local-analysis:missing',
+        kind: 'warning',
+        message: 'Import an image in this session before running local analysis.',
+      })
+      return
+    }
+    setRunning(true)
+    try {
+      const registeredSources = availableSourceUnitIds
+        .map((sourceUnitId, sourceIndex) => ({ sourceUnitId, sourceIndex, registered: getStrybldrImageFile(sourceUnitId) }))
+        .filter((item): item is { sourceUnitId: string; sourceIndex: number; registered: NonNullable<ReturnType<typeof getStrybldrImageFile>> } => !!item.registered)
+      const totalBytes = registeredSources.reduce((sum, item) => sum + Math.max(0, Number(item.registered.file.size || 0)), 0)
+      if (registeredSources.length > 1 && totalBytes > LOCAL_ANALYSIS_DETR_BATCH_BYTE_LIMIT) {
+        addHistory('Strybldr local analysis fallback')
+        setGraphDataPreservingLayout(mergeStrybldrElementsIntoGraphData({ graphData, elements: [] }))
+        pushUiToast({
+          id: 'strybldr:local-analysis:batch-fallback',
+          kind: 'warning',
+          message: `Large image batch kept ${board.totalCards} existing Strybldr card(s); select one image to run DETR locally.`,
+          dismissible: true,
+        })
+        return
+      }
+      const elements: StrybldrElement[] = []
+      const failures: string[] = []
+      for (const { sourceIndex, sourceUnitId, registered } of registeredSources) {
+        try {
+          const detected = await runStrybldrDetectionWithTimeout(
+            runStrybldrDetrObjectDetection({
+              input: registered.file,
+              sourceUnitId,
+              threshold: 0.45,
+            }),
+            LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS,
+            `Local DETR timed out for ${registered.file.name || sourceUnitId}.`,
+          )
+          elements.push(
+            ...detected.map((element, elementIndex) => ({
+              ...element,
+              order: sourceIndex * 100 + 2 + elementIndex,
+            })),
+          )
+        } catch (e) {
+          const message = String((e as { message?: unknown })?.message ?? e)
+          failures.push(message)
+          if (/timed out/i.test(message)) break
+        }
+      }
+      if (elements.length === 0) {
+        pushUiToast({
+          id: 'strybldr:local-analysis:none',
+          kind: 'warning',
+          message: failures.length > 0
+            ? `Local analysis kept existing cards after ${failures.length} failed source(s).`
+            : 'No local objects detected; existing source cards remain available.',
+          dismissible: failures.length > 0,
+        })
+        return
+      }
+      addHistory('Strybldr local analysis')
+      setGraphDataPreservingLayout(mergeStrybldrElementsIntoGraphData({ graphData, elements }))
+      pushUiToast({
+        id: 'strybldr:local-analysis:done',
+        kind: failures.length > 0 ? 'warning' : 'success',
+        message: `Detected ${elements.length} storyboard element(s) from ${registeredSources.length - failures.length}/${registeredSources.length} source image(s).`,
+        dismissible: failures.length > 0,
+      })
+    } catch (e) {
+      pushUiToast({
+        id: 'strybldr:local-analysis:error',
+        kind: 'error',
+        message: `Strybldr analysis failed: ${String((e as { message?: unknown })?.message ?? e)}`,
+        dismissible: true,
+      })
+    } finally {
+      setRunning(false)
+    }
+  }, [addHistory, availableSourceUnitIds, board.totalCards, graphData, pushUiToast, setGraphDataPreservingLayout])
+
+  const saveSelectedCardUpdate = React.useCallback(() => {
+    if (!graphData || !selectedCard) return
+    const currentNode = (Array.isArray(graphData.nodes) ? graphData.nodes : []).find(node => node.id === selectedCard.id) || null
+    const currentProps = currentNode?.properties && typeof currentNode.properties === 'object' && !Array.isArray(currentNode.properties)
+      ? currentNode.properties as Record<string, JSONValue>
+      : {}
+    const order = Number(draft.order)
+    const title = readString(draft.title) || selectedCard.title
+    const nextProps: Record<string, JSONValue> = {
+      ...currentProps,
+      title,
+      summary: readString(draft.summary),
+      action: readString(draft.action),
+      prompt: readString(draft.prompt),
+      order: Number.isFinite(order) ? order : selectedCard.order,
+      evidenceKind: 'user-edit',
+      strybldrUserApprovedAtMs: Date.now(),
+    }
+    updateNode(selectedCard.id, {
+      label: title,
+      properties: nextProps,
+    })
+    addHistory('Strybldr card update')
+    pushUiToast({
+      id: 'strybldr:card:update',
+      kind: 'success',
+      message: 'Strybldr card updated.',
+    })
+  }, [addHistory, draft.action, draft.order, draft.prompt, draft.summary, draft.title, graphData, pushUiToast, selectedCard, updateNode])
+
+  const runVideoHandoff = React.useCallback(async () => {
+    if (running || videoRunning) return
+    const handoff = buildStrybldrVideoHandoffFromGraphData(graphData)
+    if (handoff.cards.length === 0 || !handoff.prompt) {
+      pushUiToast({ id: 'strybldr:video:empty', kind: 'warning', message: 'No approved Strybldr cards to send.' })
+      return
+    }
+    const started = performance.now()
+    const provider = normalizeChatProviderId(chatProvider)
+    let paidCallCount = 0
+    let status: 'generated' | 'fallback' = 'fallback'
+    let model: string | null = null
+    let renderUrl: string | null = null
+    let sourceUrl: string | null = null
+    let errorReason: string | null = null
+    setVideoRunning(true)
+    try {
+      if (provider !== CHAT_PROVIDER_BYTEPLUS) {
+        errorReason = 'BytePlus ModelArk is not the active provider.'
+      } else {
+        paidCallCount = 1
+        const asset = await generateRunVideoWithBytePlus({
+          config: {
+            provider,
+            endpointUrl: chatEndpointUrl || getChatDefaultEndpointUrlForProvider(provider),
+            apiKey: chatAuthMode === 'byok' ? chatApiKey : null,
+          },
+          prompt: handoff.prompt,
+          options: {
+            referenceImageUrl: handoff.referenceImageUrl,
+          },
+        })
+        if (asset) {
+          status = 'generated'
+          model = asset.model
+          renderUrl = asset.renderUrl
+          sourceUrl = asset.sourceUrl || null
+        } else {
+          errorReason = 'BytePlus returned no video asset.'
+        }
+      }
+    } catch (e) {
+      errorReason = String((e as { message?: unknown })?.message ?? e)
+    }
+    try {
+      const fs = await getWorkspaceFs()
+      await fs.ensureSeed()
+      await fs.createFile({
+        parentPath: WORKSPACE_ROOT_PATH,
+        name: `${status === 'generated' ? 'strybldr-video' : 'strybldr-video-fallback'}-${Date.now().toString(36)}.md`,
+        text: buildStrybldrVideoHandoffMarkdown({
+          handoff,
+          status,
+          provider,
+          model,
+          renderUrl,
+          sourceUrl,
+          errorReason,
+          elapsedMs: performance.now() - started,
+          paidCallCount,
+          cacheHit: false,
+        }),
+      })
+      addHistory(status === 'generated' ? 'Strybldr video generated' : 'Strybldr video fallback')
+      pushUiToast({
+        id: 'strybldr:video:done',
+        kind: status === 'generated' ? 'success' : 'warning',
+        message: status === 'generated' ? 'Strybldr video handoff saved.' : 'Strybldr fallback artifact saved.',
+        dismissible: status !== 'generated',
+      })
+    } catch (e) {
+      pushUiToast({
+        id: 'strybldr:video:write-error',
+        kind: 'error',
+        message: `Strybldr handoff save failed: ${String((e as { message?: unknown })?.message ?? e)}`,
+        dismissible: true,
+      })
+    } finally {
+      setVideoRunning(false)
+    }
+  }, [addHistory, chatApiKey, chatAuthMode, chatEndpointUrl, chatProvider, graphData, pushUiToast, running, videoRunning])
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || canvas2dRenderer !== 'strybldr') return
+    const handleRunAll = () => {
+      void runVideoHandoff()
+    }
+    window.addEventListener(WORKFLOW_RUN_ALL_EVENT, handleRunAll)
+    return () => window.removeEventListener(WORKFLOW_RUN_ALL_EVENT, handleRunAll)
+  }, [canvas2dRenderer, runVideoHandoff])
+
+  return (
+    <section className="h-full flex flex-col" aria-label="Strybldr panel">
+      <header className={cn('flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.divider)}>
+        <div className="flex min-w-0 items-center gap-2">
+          <Film className="h-4 w-4 shrink-0" strokeWidth={1.7} aria-hidden={true} />
+          <div className="min-w-0 text-xs font-semibold">Strybldr</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            title="Switch to Strybldr Mode"
+            onClick={() => {
+              setCanvasRenderMode('2d')
+              setCanvas2dRenderer('strybldr')
+              setFloatingPanelView('strybldr')
+            }}
+          >
+            <LocateFixed className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />
+          </button>
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            title="Analyze locally"
+            disabled={running || videoRunning || availableSourceUnitIds.length === 0}
+            onClick={() => {
+              void runLocalAnalysis()
+            }}
+          >
+            {running ? <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={1.7} aria-hidden={true} /> : <Play className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />}
+          </button>
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            title="Generate Video"
+            disabled={running || videoRunning || board.totalCards < 1}
+            onClick={() => {
+              void runVideoHandoff()
+            }}
+          >
+            {videoRunning ? <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={1.7} aria-hidden={true} /> : <Clapperboard className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />}
+          </button>
+        </div>
+      </header>
+      <section className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 pb-2">
+        {board.totalCards < 1 ? (
+          <div className={cn('py-3 text-xs', UI_THEME_TOKENS.text.secondary)}>No Strybldr graph loaded.</div>
+        ) : (
+          <div className="space-y-2 py-1">
+            {selectedCard ? (
+              <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr card editor">
+                <div className="flex items-center gap-2">
+                  <select
+                    className={cn('min-w-0 flex-1 rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    value={selectedCard.id}
+                    aria-label="Strybldr card"
+                    onChange={e => setSelectedCardId(e.target.value)}
+                  >
+                    {editableCards.map(card => (
+                      <option key={card.id} value={card.id}>
+                        {card.lane}: {card.title}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                    title="Save card update"
+                    onClick={saveSelectedCardUpdate}
+                  >
+                    <Check className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />
+                  </button>
+                </div>
+                <label className="block">
+                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Title</div>
+                  <input
+                    className={cn('mt-1 w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    value={draft.title}
+                    aria-label="Strybldr card title"
+                    onChange={e => setDraft(cur => ({ ...cur, title: e.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Summary</div>
+                  <textarea
+                    className={cn('mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    value={draft.summary}
+                    aria-label="Strybldr card summary"
+                    onChange={e => setDraft(cur => ({ ...cur, summary: e.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Action</div>
+                  <textarea
+                    className={cn('mt-1 min-h-12 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    value={draft.action}
+                    aria-label="Strybldr card action"
+                    onChange={e => setDraft(cur => ({ ...cur, action: e.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Prompt</div>
+                  <textarea
+                    className={cn('mt-1 min-h-14 w-full resize-y rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    value={draft.prompt}
+                    aria-label="Strybldr card prompt"
+                    onChange={e => setDraft(cur => ({ ...cur, prompt: e.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <div className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Order</div>
+                  <input
+                    type="number"
+                    className={cn('mt-1 w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                    value={draft.order}
+                    aria-label="Strybldr card order"
+                    onChange={e => setDraft(cur => ({ ...cur, order: e.target.value }))}
+                  />
+                </label>
+              </section>
+            ) : null}
+            {board.lanes.map(lane => (
+              <section key={lane.id} className="space-y-1" aria-label={lane.label}>
+                <div className={cn('text-[11px] font-semibold uppercase tracking-normal', UI_THEME_TOKENS.text.tertiary)}>
+                  {lane.label}
+                </div>
+                {lane.cards.map(card => (
+                  <article key={card.id} className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg, card.id === selectedCard?.id ? 'ring-1 ring-blue-500/50' : null)}>
+                    <div className="min-w-0 text-xs font-semibold">{card.title}</div>
+                    {card.summary ? <p className={cn('mt-1 text-xs', UI_THEME_TOKENS.text.secondary)}>{card.summary}</p> : null}
+                    {card.prompt ? <p className={cn('mt-1 text-[11px]', UI_THEME_TOKENS.text.tertiary)}>{card.prompt}</p> : null}
+                  </article>
+                ))}
+              </section>
+            ))}
+          </div>
+        )}
+      </section>
+    </section>
+  )
+}

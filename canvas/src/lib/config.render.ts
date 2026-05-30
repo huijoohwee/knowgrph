@@ -1,4 +1,4 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'storybldr', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'strybldr', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
@@ -6,7 +6,7 @@ export const CANVAS_2D_SURFACES = ['d3', 'flow', 'animatic', 'storyboard', 'flow
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'storybldr', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'flowchart', 'flow', 'animatic', 'storyboard', 'strybldr', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -64,10 +64,10 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     aliases: ['story'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
-  storybldr: {
+  strybldr: {
     surfaceId: 'storyboard',
-    registryLabel: 'Storybldr',
-    menuLabel: 'Storybldr',
+    registryLabel: 'Strybldr',
+    menuLabel: 'Strybldr',
     menuDescription: 'Image to storyboard',
     menuBadges: ['Image', 'Elements'],
     aliases: [],
@@ -162,7 +162,11 @@ export const isAnimaticCanvas2dRenderer = (id: Canvas2dRendererId | null | undef
 }
 
 export const isStoryboardCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'storyboard' || id === 'storybldr'
+  return id === 'storyboard' || id === 'strybldr'
+}
+
+export const supportsToolbarRunAll = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'flowEditor' || id === 'strybldr'
 }
 
 export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {

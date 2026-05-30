@@ -84,7 +84,7 @@ export const createUiInitialState = (
           || view === 'chat'
           || view === 'geo'
           || view === 'renderer'
-          || view === 'storybldr'
+          || view === 'strybldr'
           || view === 'graphTraversal'
             ? view
             : 'propsPanel'

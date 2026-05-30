@@ -410,12 +410,12 @@ Checks:
 | Check | Command / Probe | Result |
 |---|---|---|
 | Prod sync | `npm run pages:check-sync` | passed |
-| Agent-ready smoke | `KNOWGRPH_AGENT_READY_BASE_URL=https://airvio.co/knowgrph npm run agent-ready:check` | `42/42` |
+| Agent-ready smoke | `KNOWGRPH_AGENT_READY_BASE_URL=https://airvio.co/knowgrph npm run agent-ready:check` | `43/43` |
 | Auth.md | `npm run auth-md:check` | `5/5` |
 | DNS-AID | `npm run dns-aid:check` | `3/3` |
 | WebMCP external scan | `isitagentready.com` scan for `https://airvio.co/knowgrph/` | passed with five published tools |
 | Commerce external scan | `isitagentready.com` scan for `https://airvio.co` | ACP, UCP, MPP, and x402 passed |
-| Root scan stability | `https://airvio.co/` | 200, no meta refresh, inline WebMCP present |
+| Root scan stability | `https://airvio.co/` | 200 app-shell alias, no meta refresh, inline WebMCP present |
 
 ## Guardrails
 

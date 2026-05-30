@@ -8,6 +8,12 @@ import {
   wantsMarkdown,
 } from "./knowgrph-agent-ready-shared.mjs";
 
+const ROOT_DESCRIPTION = "Agent-actionable chat-to-canvas knowledge graph workspace";
+const LEGACY_ROOT_DESCRIPTION_PATTERN = new RegExp(
+  ["Agent-readable", "knowledge", "graph", "workspace"].join("\\s+") + "\\.?",
+  "g",
+);
+
 const extractWebMcpScript = (html) => {
   const scriptPattern = /<script>([\s\S]*?)<\/script>/g;
   for (const match of String(html || "").matchAll(scriptPattern)) {
@@ -19,11 +25,61 @@ const extractWebMcpScript = (html) => {
   return "";
 };
 
+const rootHtmlHeaders = () => ({
+  "content-type": "text/html; charset=utf-8",
+  "cache-control": "no-store, no-cache, no-transform, must-revalidate, max-age=0",
+  "access-control-allow-origin": "*",
+  "link": agentReadyHomepageLinkHeaderValue,
+});
+
+const injectIntoHead = (html, markup) =>
+  String(html || "").includes("</head>")
+    ? String(html || "").replace("</head>", `${markup}</head>`)
+    : `${String(html || "")}${markup}`;
+
+const rewriteRootAppHtml = (html) => {
+  let next = String(html || "")
+    .replace(LEGACY_ROOT_DESCRIPTION_PATTERN, ROOT_DESCRIPTION);
+
+  if (/<meta\s+name=["']description["'][^>]*>/i.test(next)) {
+    next = next.replace(
+      /<meta\s+name=["']description["'][^>]*>/i,
+      `<meta name="description" content="${ROOT_DESCRIPTION}" />`,
+    );
+  } else {
+    next = injectIntoHead(next, `    <meta name="description" content="${ROOT_DESCRIPTION}" />\n`);
+  }
+
+  if (!/<link\s+rel=["']canonical["'][^>]*>/i.test(next)) {
+    next = injectIntoHead(next, `    <link rel="canonical" href="${APP_BASE_PATH}/" />\n`);
+  }
+
+  if (!/<meta\s+name=["']x-knowgrph-root-alias["'][^>]*>/i.test(next)) {
+    next = injectIntoHead(next, `    <meta name="x-knowgrph-root-alias" content="${APP_BASE_PATH}/" />\n`);
+  }
+
+  return next;
+};
+
 const loadWebMcpScript = async (request) => {
   const appUrl = new URL(`${APP_BASE_PATH}/?agentReadyRootWebMcp=1`, request.url);
   const response = await fetch(appUrl, { headers: { accept: "text/html" } });
   if (!response.ok) return "";
   return extractWebMcpScript(await response.text());
+};
+
+const loadKnowgrphAppShell = async (request) => {
+  const appUrl = new URL(`${APP_BASE_PATH}/?agentReadyRootAlias=1`, request.url);
+  const response = await fetch(appUrl, { headers: { accept: "text/html" } });
+  if (!response.ok) return null;
+  const html = rewriteRootAppHtml(await response.text());
+  if (!html.includes("<div id=\"root\"></div>") || !html.includes(`${APP_BASE_PATH}/assets/`)) {
+    return null;
+  }
+  return new Response(html, {
+    status: 200,
+    headers: rootHtmlHeaders(),
+  });
 };
 
 const rootHtmlResponse = (webMcpScript = "") =>
@@ -39,18 +95,13 @@ const rootHtmlResponse = (webMcpScript = "") =>
   <body>
     <main>
       <h1>Knowgrph</h1>
-      <p>Agent-readable knowledge graph workspace.</p>
+      <p>${ROOT_DESCRIPTION}</p>
       <p><a href="/knowgrph/">Open Knowgrph</a></p>
     </main>
   </body>
 </html>`, {
     status: 200,
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "no-store, no-cache, no-transform, must-revalidate, max-age=0",
-      "access-control-allow-origin": "*",
-      "link": agentReadyHomepageLinkHeaderValue,
-    },
+    headers: rootHtmlHeaders(),
   });
 
 export async function onRequest(context) {
@@ -72,7 +123,8 @@ export async function onRequest(context) {
     return markdown;
   }
 
-  const html = withAgentReadyRouteHeaders(rootHtmlResponse(method === "HEAD" ? "" : await loadWebMcpScript(request)), {
+  const rootAliasHtml = method === "HEAD" ? null : await loadKnowgrphAppShell(request);
+  const html = withAgentReadyRouteHeaders(rootAliasHtml || rootHtmlResponse(method === "HEAD" ? "" : await loadWebMcpScript(request)), {
     owner: ROOT_AGENT_READY_ROUTE_OWNER,
     tag: "root-homepage-html",
   });

@@ -59,7 +59,7 @@ export const buildStrybldrWorkspaceDocumentName = (source: Pick<StrybldrSource, 
     .replace(/[^\w.-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     || 'storyboard'
-  return `${base}.storybldr.md`
+  return `${base}.strybldr.md`
 }
 
 export const toStrybldrSource = (unit: CorpusSourceUnit, opts?: { mediaUrl?: string | null }): StrybldrSource => ({
@@ -135,13 +135,13 @@ export const buildStrybldrStoryboardDocument = (args: {
 
 export const serializeStrybldrStoryboardMarkdown = (doc: StrybldrStoryboardDocument): string => {
   const first = doc.sources[0] || null
-  const title = first ? `${sourceLabel(first)} Storybldr` : 'Storybldr'
+  const title = first ? `${sourceLabel(first)} Strybldr` : 'Strybldr'
   const json = JSON.stringify(doc, null, 2)
   return [
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "storybldr"',
+    'kgCanvas2dRenderer: "strybldr"',
     `strybldrRunId: ${yamlQuote(doc.runId)}`,
     '---',
     '',
@@ -336,6 +336,9 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         action: asJson('Reverse-engineer the image into editable storyboard elements.'),
         prompt: asJson(`Use ${source.originalName} as the visual reference image.`),
         mediaUrl: asJson(mediaUrl),
+        mediaKind: asJson(source.mediaKind),
+        mimeHint: asJson(source.mimeHint || null),
+        byteSize: asJson(source.byteSize),
         references: asJson([source.workspacePath || source.relativePath || source.originalName].filter(Boolean)),
         strybldrRunId: asJson(doc.runId),
         strybldrSourceUnitId: asJson(source.sourceUnitId),
@@ -357,6 +360,9 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         action: asJson('Review element cards, revise prompts, then send the approved sequence to video generation.'),
         prompt: asJson(`Create a short video storyboard beat from ${source.originalName}.`),
         mediaUrl: asJson(mediaUrl),
+        mediaKind: asJson(source.mediaKind),
+        mimeHint: asJson(source.mimeHint || null),
+        byteSize: asJson(source.byteSize),
         references: asJson([source.workspacePath || source.relativePath || source.originalName].filter(Boolean)),
         strybldrRunId: asJson(doc.runId),
         strybldrSourceUnitId: asJson(source.sourceUnitId),
@@ -388,6 +394,9 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         action: asJson(element.action || 'Edit this element before video generation.'),
         prompt: asJson(element.prompt || `Animate ${element.label} as a distinct storyboard element.`),
         mediaUrl: asJson(mediaUrl),
+        mediaKind: asJson(source?.mediaKind || 'image'),
+        mimeHint: asJson(source?.mimeHint || null),
+        byteSize: asJson(source?.byteSize || 0),
         references: asJson([source?.workspacePath || source?.relativePath || source?.originalName].filter(Boolean)),
         strybldrRunId: asJson(doc.runId),
         strybldrSourceUnitId: asJson(element.sourceUnitId),
@@ -413,7 +422,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
       sourcesCount: doc.sources.length,
       elementsCount: doc.elements.length,
       kgCanvasRenderMode: '2d',
-      kgCanvas2dRenderer: 'storybldr',
+      kgCanvas2dRenderer: 'strybldr',
     } as unknown as GraphData['metadata'],
   }
   const graphSemanticKey = buildScopedGraphSemanticKey('strybldr-storyboard', { graphData: baseGraph })
@@ -484,7 +493,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     .map((node, index): StrybldrVideoHandoffCard => {
       const props = node.properties || {}
       return {
-        id: cleanText(node.id) || `storybldr-card-${index + 1}`,
+        id: cleanText(node.id) || `strybldr-card-${index + 1}`,
         lane: cleanText(props.lane) || 'Storyboard',
         title: cleanText(props.title || node.label) || `Card ${index + 1}`,
         summary: cleanText(props.summary),
@@ -498,7 +507,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
     .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
 
   const promptLines = [
-    'Create one short video from the approved Storybldr storyboard cards below.',
+    'Create one short video from the approved Strybldr storyboard cards below.',
     'Use only these approved card fields and references; do not invent extra source images or hidden context.',
     'Preserve source composition, element positions, and card order. Keep motion concise and demo-ready.',
     '',
@@ -538,7 +547,7 @@ export const buildStrybldrVideoHandoffMarkdown = (args: {
   cacheHit?: boolean
 }): string => {
   const safeStatus = args.status === 'generated' ? 'generated' : 'fallback'
-  const title = safeStatus === 'generated' ? 'Storybldr Video Handoff' : 'Storybldr Video Fallback'
+  const title = safeStatus === 'generated' ? 'Strybldr Video Handoff' : 'Strybldr Video Fallback'
   return [
     '---',
     'kgStrybldrVideoHandoff: true',
@@ -558,7 +567,7 @@ export const buildStrybldrVideoHandoffMarkdown = (args: {
     '## Compiled Prompt',
     '',
     '```text',
-    args.handoff.prompt || 'No approved Storybldr cards were available.',
+    args.handoff.prompt || 'No approved Strybldr cards were available.',
     '```',
     '',
     '## Approved Cards',

@@ -161,6 +161,14 @@ const readFirstPropertyNumber = (properties: GraphNodeProperties, keys: readonly
   return null
 }
 
+const readDeclaredMediaKind = (properties: GraphNodeProperties): UrlMediaKind | null => {
+  const mediaKind = readString(properties.mediaKind).toLowerCase()
+  const mimeHint = readString(properties.mimeHint).toLowerCase()
+  if (mediaKind === 'image' || mimeHint.startsWith('image/')) return mimeHint.includes('svg') ? 'svg' : 'image'
+  if (mediaKind === 'video' || mimeHint.startsWith('video/')) return 'video'
+  return null
+}
+
 const uniqueStrings = (values: readonly string[]): string[] => {
   const seen = new Set<string>()
   const out: string[] = []
@@ -180,17 +188,18 @@ const readPropertyLists = (properties: GraphNodeProperties, keys: readonly strin
 }
 
 const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): StoryboardCardMedia | null => {
+  const declaredKind = readDeclaredMediaKind(properties)
   for (const key of MEDIA_PROPERTY_KEYS) {
     const url = readString(properties[key])
     if (!url) continue
-    const kind = inferMediaKindFromResourceUrl(url)
+    const kind = inferMediaKindFromResourceUrl(url) ?? declaredKind
     if (!kind) continue
     return { kind, url }
   }
   if (typeof node.type === 'string' && /\b(image|video)\b/i.test(node.type)) {
     const url = readFirstPropertyString(properties, LINK_PROPERTY_KEYS)
     if (!url) return null
-    const kind = inferMediaKindFromResourceUrl(url)
+    const kind = inferMediaKindFromResourceUrl(url) ?? declaredKind
     return kind ? { kind, url } : null
   }
   return null

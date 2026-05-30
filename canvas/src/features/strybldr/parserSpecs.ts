@@ -8,14 +8,14 @@ import {
 
 export const strybldrStoryboardSpec: ParserSpec = {
   id: toParserId('strybldr-storyboard'),
-  name: 'Storybldr Storyboard',
+  name: 'Strybldr Storyboard',
   match: (_name, text) => isStrybldrStoryboardMarkdown(text),
   parse: (_name, text) => {
     const doc = parseStrybldrStoryboardMarkdown(text)
     if (!doc) {
       return {
         graphData: { context: 'strybldr-storyboard', type: 'Graph', nodes: [], edges: [] },
-        warnings: ['Storybldr storyboard payload was not parseable'],
+        warnings: ['Strybldr storyboard payload was not parseable'],
       }
     }
     return {
@@ -26,4 +26,3 @@ export const strybldrStoryboardSpec: ParserSpec = {
 }
 
 export const strybldrParsers: ParserSpec[] = [strybldrStoryboardSpec]
-
