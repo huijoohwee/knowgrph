@@ -1,5 +1,7 @@
 import React from 'react'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -14,6 +16,7 @@ type CardInlineTextEditorProps = {
   displayClassName?: string
   editorClassName?: string
   emptyClassName?: string
+  markdownPreview?: boolean | 'auto'
   rows?: number
   onCommit?: (nextValue: string) => void
   onEditingChange?: (editing: boolean) => void
@@ -32,6 +35,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     displayClassName,
     editorClassName,
     emptyClassName,
+    markdownPreview = false,
     rows,
     onCommit,
     onEditingChange,
@@ -90,6 +94,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
 
   const displayValue = readMarkdownSigilDisplayText(value)
   const showPlaceholder = !displayValue
+  const showMarkdownPreview =
+    !showPlaceholder
+    && (markdownPreview === true || (markdownPreview === 'auto' && hasCardMarkdownPreviewSyntax(value)))
 
   if (editing && canEdit) {
     return (
@@ -158,7 +165,15 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         event.stopPropagation()
       }}
     >
-      {showPlaceholder ? placeholder : renderMarkdownSigilInlineText(value)}
+      {showPlaceholder ? placeholder : showMarkdownPreview ? (
+        <CardMarkdownPreview
+          markdownText={value}
+          activeDocumentPath="/__card_inline_text_editor/preview.md"
+          className="min-w-0"
+          uiPanelTextFontClass="font-sans"
+          uiPanelMonospaceTextClass="font-mono text-xs"
+        />
+      ) : renderMarkdownSigilInlineText(value)}
     </div>
   )
 })

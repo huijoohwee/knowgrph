@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-prd-tad-runtime
-version: 1.27.5
+version: 1.27.6
 status: implemented
 created: 2026-05-21
-updated: 2026-05-29
+updated: 2026-05-30
 author: airvio / joohwee
 domain: knowgrph
 parent: docs/documents/knowgrph-agent-ready-prd-tad.md
@@ -81,14 +81,16 @@ flowchart LR
   E --> F["FloatingPanel / FloatingPanelChat"]
   F --> G["useFloatingPanelChatSubmit()"]
   G --> H["floatingPanelChatSubmitCoordinator.ts"]
-  H --> I["streaming draft + KGC retry"]
-  I --> J["chatMarkdownValidation.ts"]
-  J --> K["useFinalizeAssistantSuccess()"]
-  K --> L["applyChatKgcWorkspaceDocumentToCanvas()"]
-  L --> M["setActiveMarkdownDocument(applyToGraph)"]
-  M --> N["tryParseMarkdownFrontmatterFlowGraph()"]
-  N --> O["merge edges + subgraphs + clusters"]
-  O --> P["Canvas groups / clusters / edges"]
+  H --> I["vdeoxpln routing prompt"]
+  I --> J["streaming draft + KGC retry"]
+  J --> K["chatMarkdownValidation.ts"]
+  K --> L["useFinalizeAssistantSuccess()"]
+  L --> M["Workspace FS run manifest"]
+  L --> N["applyChatKgcWorkspaceDocumentToCanvas()"]
+  N --> O["setActiveMarkdownDocument(applyToGraph)"]
+  O --> P["tryParseMarkdownFrontmatterFlowGraph()"]
+  P --> Q["merge edges + subgraphs + clusters"]
+  Q --> R["Canvas groups / clusters / edges"]
 ```
 
 ### Architectural rule
@@ -103,8 +105,12 @@ runtime agent surface must converge on the same document identity and pipeline m
 - canonical MainPanel ownership where `integrations` and `mcp` stay thin `SettingsView` shells
 - canonical chat submit ownership where `useFloatingPanelChatSubmit()` remains a thin shell and the
   coordinator/helper stack owns lifecycle complexity
+- canonical vdeoxpln routing where intent/current state select a pack and route names, file names,
+  absolute paths, and URLs are ignored for selection
 - canonical KGC contract where output starts at YAML frontmatter and `flow.subgraphs` is the only
   upstream grouping surface
+- canonical source-backed run manifest where Chat-to-Canvas vdeoxpln execution writes a KGC
+  companion artifact through Workspace FS
 - canonical graph-apply path where finalized KGC Markdown reaches Canvas through
   `applyChatKgcWorkspaceDocumentToCanvas()` and `setActiveMarkdownDocument({ applyToGraph: true })`
 
@@ -132,7 +138,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | `/knowgrph/.well-known/mcp/server-card.json` | GET | MCP server card |
 | `/knowgrph/.well-known/mcp.json` | GET | MCP card alias |
 | `/knowgrph/.well-known/agent-skills/index.json` | GET | Agent Skills index |
-| `/knowgrph/.well-known/agent-skills/knowgrph-source-files.md` | GET | Agent skill markdown |
+| `/knowgrph/.well-known/agent-skills/{vdeoxplnId}.md` | GET | Generated vdeoxpln Markdown |
 | `/knowgrph/.well-known/http-message-signatures-directory` | GET | Web Bot Auth metadata |
 | `/robots.txt` | GET | root discovery alias |
 | `/sitemap.xml` | GET | root discovery alias |
@@ -145,7 +151,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | `/.well-known/mcp/server-card.json` | GET | root discovery artifact |
 | `/.well-known/mcp.json` | GET | root discovery artifact |
 | `/.well-known/agent-skills/index.json` | GET | root discovery artifact |
-| `/.well-known/agent-skills/knowgrph-source-files.md` | GET | root discovery artifact |
+| `/.well-known/agent-skills/{vdeoxplnId}.md` | GET | root discovery artifact |
 | `/.well-known/http-message-signatures-directory` | GET | root discovery artifact |
 | `/api/storage/source-files` | GET | default Source Files markdown index |
 | `/api/storage/llms.txt` | GET | default Source Files plain-text agent entrypoint |

@@ -405,7 +405,7 @@ export function useRichMediaOverlays2d(args: {
         return readNodeCenterWorld2d(n, { coords: 'center' })
       },
       sizingConfig,
-      clampToViewport: { margin: 12 },
+      clampToViewport: null,
     })
 
     mediaOverlayScheduleRef.current = loop.schedule

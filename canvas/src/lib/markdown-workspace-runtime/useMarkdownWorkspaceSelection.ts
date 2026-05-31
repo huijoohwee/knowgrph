@@ -16,6 +16,7 @@ import { readMarkdownWorkspaceRestoreTextForPath } from './markdownWorkspaceSele
 import { resolveMarkdownWorkspaceSelectionWritebackSync } from './markdownWorkspaceSelectionWriteback'
 import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
 import {
+  resolveActivePathFromWorkspaceFileSelection,
   resolveInitialMarkdownWorkspaceSelectionPath,
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from './markdownWorkspaceSelectionSync'
@@ -34,6 +35,7 @@ export type MarkdownWorkspaceSelectionArgs = {
   setActiveTextProgrammatic: (text: string) => void
   markdownDocumentName: string
   markdownDocumentText: string
+  graphDataSource?: string
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   getFs: MarkdownWorkspaceRuntimeGetFs
   sourcesByPath: WorkspaceSourceIndex
@@ -57,16 +59,19 @@ function buildWorkspaceDocumentSwitchSignature(args: {
   activeDocumentKey: string
   text: string
   updatedAtMs: unknown
+  graphDataSource?: string | null
 }): string {
   const activeDocumentKey = String(args.activeDocumentKey || '').trim()
   const text = String(args.text || '')
   const textHash = hashStringToHexSharedContentCached(text, 'markdown-workspace-switch')
+  const graphDataSource = String(args.graphDataSource || '').trim()
   return hashSignatureParts([
     'markdown-workspace-document-switch-apply',
     activeDocumentKey,
     text.length,
     textHash,
     typeof args.updatedAtMs === 'number' ? args.updatedAtMs : 0,
+    graphDataSource,
   ])
 }
 
@@ -107,6 +112,59 @@ export function shouldHydrateStableWorkspaceSelectionText(args: {
   if (!activePath) return false
   if (String(args.lastLoadedPath || '').trim() !== activePath) return true
   return String(args.currentText || '') !== String(args.nextText || '')
+}
+
+export function isWorkspaceGraphSourceStaleForDocument(args: {
+  activeDocumentKey?: string | null
+  graphDataSource?: string | null
+}): boolean {
+  const activeDocumentKey = String(args.activeDocumentKey || '').trim()
+  if (!activeDocumentKey) return false
+  const graphDataSource = String(args.graphDataSource || '').trim()
+  const expectedMarkdownSource = `markdown:${activeDocumentKey}`
+  return graphDataSource !== expectedMarkdownSource
+}
+
+function isWorkspaceGraphSourceConflictingMarkdownDocument(args: {
+  activeDocumentKey?: string | null
+  graphDataSource?: string | null
+}): boolean {
+  const activeDocumentKey = String(args.activeDocumentKey || '').trim()
+  if (!activeDocumentKey) return false
+  const graphDataSource = String(args.graphDataSource || '').trim()
+  const expectedMarkdownSource = `markdown:${activeDocumentKey}`
+  return graphDataSource.startsWith('markdown:') && graphDataSource !== expectedMarkdownSource
+}
+
+export function shouldApplyStableWorkspaceSelectionToCanvas(args: {
+  activePath: WorkspacePath | null
+  activeEntryKind: string
+  activeDocumentKey?: string | null
+  nextText: string
+  markdownDocumentName: string
+  markdownDocumentText: string
+  graphDataSource?: string | null
+}): boolean {
+  if (!shouldAcceptWorkspaceDocumentSelectionText({
+    activePath: args.activePath,
+    activeEntryKind: args.activeEntryKind,
+    activeDocumentKey: args.activeDocumentKey,
+    text: args.nextText,
+  })) {
+    return false
+  }
+  const activeDocumentKey = String(args.activeDocumentKey || '').trim()
+  if (!activeDocumentKey) return false
+  if (isWorkspaceGraphSourceStaleForDocument({
+    activeDocumentKey,
+    graphDataSource: args.graphDataSource,
+  })) {
+    return true
+  }
+  return (
+    String(args.markdownDocumentName || '').trim() !== activeDocumentKey ||
+    String(args.markdownDocumentText || '') !== String(args.nextText || '')
+  )
 }
 
 export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
@@ -176,6 +234,16 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       }),
     [args.activePath, args.sourcesByPath, entriesIndex, selectionPath],
   )
+
+  React.useEffect(() => {
+    const nextActivePath = resolveActivePathFromWorkspaceFileSelection({
+      selectionPath,
+      activePath: args.activePath,
+      selectionEntryKind: selectionEntry?.kind ?? null,
+    })
+    if (!nextActivePath) return
+    setActivePathSafe(nextActivePath)
+  }, [args.activePath, selectionEntry?.kind, selectionPath, setActivePathSafe])
 
   const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)
   const switchedActivePathRef = React.useRef<{ prev: WorkspacePath; next: WorkspacePath } | null>(null)
@@ -259,6 +327,89 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   const lastDocumentSwitchApplySigRef = React.useRef<string>('')
   const documentSwitchApplyInFlightSigRef = React.useRef<string>('')
   const lastDocumentSwitchApplyAttemptRef = React.useRef<{ sig: string; atMs: number }>({ sig: '', atMs: 0 })
+  const documentSwitchApplyRetryTimerRef = React.useRef<number | null>(null)
+  const [documentSwitchApplyRetryTick, setDocumentSwitchApplyRetryTick] = React.useState(0)
+  const scheduleDocumentSwitchApplyRetry = React.useCallback((path: WorkspacePath) => {
+    const normalizedPath = normalizeMarkdownWorkspaceSelectionPath(path)
+    if (!normalizedPath) return
+    if (documentSwitchApplyRetryTimerRef.current != null) {
+      window.clearTimeout(documentSwitchApplyRetryTimerRef.current)
+      documentSwitchApplyRetryTimerRef.current = null
+    }
+    documentSwitchApplyRetryTimerRef.current = window.setTimeout(() => {
+      documentSwitchApplyRetryTimerRef.current = null
+      if (switchedActivePathRef.current?.next !== normalizedPath) return
+      if (args.activePath !== normalizedPath) return
+      setDocumentSwitchApplyRetryTick(tick => tick + 1)
+    }, 450)
+  }, [args.activePath])
+  React.useEffect(() => {
+    return () => {
+      if (documentSwitchApplyRetryTimerRef.current != null) {
+        window.clearTimeout(documentSwitchApplyRetryTimerRef.current)
+        documentSwitchApplyRetryTimerRef.current = null
+      }
+    }
+  }, [])
+  const applySelectedWorkspaceDocumentToCanvas = React.useCallback(async (applyArgs: {
+    activeDocumentKey: string
+    text: string
+    sourceUrl: string | null
+    updatedAtMs: unknown
+    graphDataSource?: string | null
+  }) => {
+    const nextSig = buildWorkspaceDocumentSwitchSignature({
+      activeDocumentKey: applyArgs.activeDocumentKey,
+      text: applyArgs.text,
+      updatedAtMs: applyArgs.updatedAtMs,
+      graphDataSource: applyArgs.graphDataSource,
+    })
+    const nowMs = Date.now()
+    const lastAttempt = lastDocumentSwitchApplyAttemptRef.current
+    const graphSourceStaleForDocument = isWorkspaceGraphSourceStaleForDocument({
+      activeDocumentKey: applyArgs.activeDocumentKey,
+      graphDataSource: applyArgs.graphDataSource,
+    })
+    const graphSourceConflictingMarkdownDocument = isWorkspaceGraphSourceConflictingMarkdownDocument({
+      activeDocumentKey: applyArgs.activeDocumentKey,
+      graphDataSource: applyArgs.graphDataSource,
+    })
+    if (
+      lastAttempt.sig === nextSig &&
+      nowMs - lastAttempt.atMs < 400
+    ) {
+      return false
+    }
+    if (documentSwitchApplyInFlightSigRef.current === nextSig) return false
+    const shouldReplayCompletedApplyForMarkdownConflict =
+      graphSourceStaleForDocument && graphSourceConflictingMarkdownDocument
+    if (!shouldReplayCompletedApplyForMarkdownConflict && lastDocumentSwitchApplySigRef.current === nextSig) return false
+    lastDocumentSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
+    documentSwitchApplyInFlightSigRef.current = nextSig
+    try {
+      const applied = await applyActiveMarkdownDocumentPayload({
+        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+        name: applyArgs.activeDocumentKey,
+        text: applyArgs.text,
+        sourceUrl: applyArgs.sourceUrl,
+        autoEnableFrontmatter: true,
+        applyViewPreset: true,
+        applyToGraph: true,
+        forceApplyToGraph: true,
+        normalizeWebpageFrontmatterToMarkdown: false,
+      })
+      if (applied === true) {
+        lastDocumentSwitchApplySigRef.current = nextSig
+        return true
+      }
+      return false
+    } finally {
+      if (documentSwitchApplyInFlightSigRef.current === nextSig) {
+        documentSwitchApplyInFlightSigRef.current = ''
+      }
+    }
+  }, [args.setActiveMarkdownDocument])
+
   React.useEffect(() => {
     const switched = switchedActivePathRef.current
     if (!switched) return
@@ -294,45 +445,19 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       }
       if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
 
-      const nextSig = buildWorkspaceDocumentSwitchSignature({
-        activeDocumentKey,
-        text: nextText,
-        updatedAtMs: activeEntry?.updatedAtMs,
-      })
-      const nowMs = Date.now()
-      const lastAttempt = lastDocumentSwitchApplyAttemptRef.current
-      if (
-        lastAttempt.sig === nextSig &&
-        nowMs - lastAttempt.atMs < 400
-      ) {
-        return
-      }
-      if (documentSwitchApplyInFlightSigRef.current === nextSig) return
-      if (lastDocumentSwitchApplySigRef.current === nextSig) return
-      lastDocumentSwitchApplyAttemptRef.current = { sig: nextSig, atMs: nowMs }
-      documentSwitchApplyInFlightSigRef.current = nextSig
-      lastDocumentSwitchApplySigRef.current = nextSig
       args.lastLoadedRef.current = { path: switched.next, text: nextText }
       args.patchWorkspaceEntryInlineText(switched.next, nextText)
-      try {
-        await applyActiveMarkdownDocumentPayload({
-          setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-          name: activeDocumentKey,
-          text: nextText,
-          sourceUrl: activeDocumentSourceUrl,
-          autoEnableFrontmatter: true,
-          applyViewPreset: true,
-          applyToGraph: true,
-          forceApplyToGraph: true,
-          normalizeWebpageFrontmatterToMarkdown: false,
-        })
-      } finally {
-        if (documentSwitchApplyInFlightSigRef.current === nextSig) {
-          documentSwitchApplyInFlightSigRef.current = ''
-        }
-        if (switchedActivePathRef.current?.next === switched.next) {
-          switchedActivePathRef.current = null
-        }
+      const applied = await applySelectedWorkspaceDocumentToCanvas({
+        activeDocumentKey,
+        text: nextText,
+        sourceUrl: activeDocumentSourceUrl,
+        updatedAtMs: activeEntry?.updatedAtMs,
+        graphDataSource: args.graphDataSource,
+      })
+      if (applied && switchedActivePathRef.current?.next === switched.next) {
+        switchedActivePathRef.current = null
+      } else if (!applied && switchedActivePathRef.current?.next === switched.next) {
+        scheduleDocumentSwitchApplyRetry(switched.next)
       }
     })()
     return () => {
@@ -345,10 +470,13 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeEntry,
     activeEntryKind,
     activeEntryText,
+    args.graphDataSource,
     args.getFs,
     args.lastLoadedRef,
     args.patchWorkspaceEntryInlineText,
-    args.setActiveMarkdownDocument,
+    documentSwitchApplyRetryTick,
+    applySelectedWorkspaceDocumentToCanvas,
+    scheduleDocumentSwitchApplyRetry,
   ])
 
   React.useEffect(() => {
@@ -375,13 +503,32 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
         nextText,
         lastLoadedPath: args.lastLoadedRef.current?.path || null,
         userEditedActiveText: args.userEditedActiveTextRef.current === true,
+      }) && !shouldApplyStableWorkspaceSelectionToCanvas({
+        activePath: path,
+        activeEntryKind,
+        activeDocumentKey,
+        nextText,
+        markdownDocumentName: args.markdownDocumentName,
+        markdownDocumentText: args.markdownDocumentText,
+        graphDataSource: args.graphDataSource,
       })) {
         return
       }
       if (cancelled || args.activePath !== path) return
-      args.setActiveTextProgrammatic(nextText)
+      if (String(args.activeTextRef.current || '') !== nextText) {
+        args.setActiveTextProgrammatic(nextText)
+      }
       args.lastLoadedRef.current = { path, text: nextText }
       args.patchWorkspaceEntryInlineText(path, nextText)
+      if (activeDocumentKey) {
+        await applySelectedWorkspaceDocumentToCanvas({
+          activeDocumentKey,
+          text: nextText,
+          sourceUrl: activeDocumentSourceUrl,
+          updatedAtMs: activeEntry?.updatedAtMs,
+          graphDataSource: args.graphDataSource,
+        })
+      }
     }
     void run()
     return () => {
@@ -391,13 +538,19 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeEntryKind,
     activeEntryText,
     activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeEntry,
     args.activePath,
     args.activeTextRef,
+    args.graphDataSource,
     args.getFs,
     args.lastLoadedRef,
+    args.markdownDocumentName,
+    args.markdownDocumentText,
     args.patchWorkspaceEntryInlineText,
     args.setActiveTextProgrammatic,
     args.userEditedActiveTextRef,
+    applySelectedWorkspaceDocumentToCanvas,
   ])
 
   useMarkdownEditorSsotSync({

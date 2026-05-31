@@ -19,6 +19,9 @@ import {
   CardMediaLoadingSkeleton,
   CardMediaPreview,
 } from '@/lib/cards/CardMediaPreview'
+import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
+import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
 import {
   isDirectPlayableCardMedia,
   type CardMediaPlaceholderVariant,
@@ -32,9 +35,6 @@ import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
-
-const EMPTY_STRING_ARRAY: string[] = []
-const MarkdownPreviewLazy = React.lazy(() => import('@/features/markdown/ui/MarkdownPreview'))
 
 export type RichMediaPanelProps = {
   overlayId?: string
@@ -69,6 +69,7 @@ export type RichMediaPanelProps = {
   onDoubleClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
   widgetToolbarActive?: boolean
+  panelChrome?: 'none' | 'flowEditor'
   panel?: {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
@@ -89,10 +90,11 @@ export type RichMediaPanelProps = {
 
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
   const rootRef = React.useRef<HTMLElement | null>(null)
-  const overlayId = props.overlayId
   const forwardWheelTo = props.forwardWheelTo
   const onPanelChange = props.onPanelChange
   const title = String(props.title || '').trim() || 'Media node'
+  const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
+  const showFlowEditorChrome = panelChrome === 'flowEditor'
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
   const rawUrl = String(props.url || '').trim()
   const openUrl = String(props.openUrl || '').trim() || rawUrl
@@ -226,8 +228,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     uiPanelMonospaceTextClass,
     isFlowEditorRenderer,
     flowEditorFrontmatterDocumentModeFromStore,
-    selectedNodeId,
-    selectedNodeIds,
   } = useGraphStore(
     useShallow(s => ({
       richMediaPanelMode: s.richMediaPanelMode,
@@ -242,8 +242,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         frontmatterModeEnabled: s.frontmatterModeEnabled === true,
         documentSemanticMode: String(s.documentSemanticMode || ''),
       }),
-      selectedNodeId: s.selectedNodeId,
-      selectedNodeIds: s.selectedNodeIds ?? EMPTY_STRING_ARRAY,
     })),
   )
   const flowEditorFrontmatterDocumentMode =
@@ -289,8 +287,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (!isEmptyPanel) return
     setReady(true)
   }, [isEmptyPanel])
-  const installOverlayPan = props.onOverlayPanStart || props.onOverlayPan || props.onOverlayPanEnd
-  const installHeaderDrag = props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd
+  const installOverlayPan = !!(props.onOverlayPanStart || props.onOverlayPan || props.onOverlayPanEnd)
+  const installHeaderDrag = !!(props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd)
   const installResize = props.resizable === true && (!!props.onResizeStart || !!props.onResize || !!props.onResizeEnd)
   const canvasOverlayProxyEnabled =
     !!installOverlayPan
@@ -343,16 +341,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
   }, [forwardModifierWheelZoomOnly, forwardWheelTo, installWheelForwarding])
 
-  const overlayAlreadySelected = React.useMemo(() => {
-    const canonicalOverlayId = String(overlayId || '').trim()
-    if (!canonicalOverlayId) return false
-    if (isCanonicalNodeIdEqual(selectedNodeId, canonicalOverlayId)) return true
-    if (!Array.isArray(selectedNodeIds)) return false
-    for (let i = 0; i < selectedNodeIds.length; i += 1) {
-      if (isCanonicalNodeIdEqual(selectedNodeIds[i], canonicalOverlayId)) return true
-    }
-    return false
-  }, [overlayId, selectedNodeId, selectedNodeIds])
   const selectSelf = React.useCallback((native: PointerEvent | null) => {
     if (!flowEditorInteractionMode) return
     const id = String(props.overlayId || '').trim()
@@ -486,7 +474,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')
     const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface="1"]')
     const isInteractiveControlTarget = !!targetEl?.closest('textarea,input,select,button,a,[contenteditable="true"]')
-    const isHeaderTarget = !!targetEl?.closest('[data-kg-canvas-overlay-drag-handle="true"]')
+    const isPlayableMediaTarget = !!targetEl?.closest('[data-kg-card-media-interactive="1"],iframe,video,audio')
+    const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header="1"]')
     const allowPointerButtons = (() => {
       const b = typeof native.buttons === 'number' ? native.buttons : 0
       return (b & 1) === 1 || (b & 4) === 4
@@ -495,7 +484,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       isResizeHandleTarget
       || isScrollableSurfaceTarget
       || isInteractiveControlTarget
-    if (!blockOverlayPanForTarget && startHeaderDrag(native)) {
+      || isPlayableMediaTarget
+    if (isHeaderTarget && !blockOverlayPanForTarget && startHeaderDrag(native)) {
       try {
         e.preventDefault()
         e.stopPropagation()
@@ -505,7 +495,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       return
     }
     if (
-      overlayAlreadySelected
+      !isHeaderTarget
       && !blockOverlayPanForTarget
       && installOverlayPan
       && allowPointerButtons
@@ -580,7 +570,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         void 0
       }
     }
-  }, [installHeaderDrag, installOverlayPan, overlayAlreadySelected, props, selectSelf, startHeaderDrag])
+  }, [installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
   const panelIsLoading = panel?.isLoading === true
   const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
   const loadingSkeletonVariant: CardMediaSkeletonVariant =
@@ -608,7 +598,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
         }
       : null),
-    pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (workspaceEditorOverlayOpen ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
+    pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (workspaceEditorOverlayOpen || canvasOverlayProxyEnabled ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
     opacity: shouldHideSurfaceUntilReady ? 0 : 1,
     transition: 'opacity 180ms ease-out',
     ...(props.style || null),
@@ -617,6 +607,12 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     ...PANEL_FRAME_BODY_STYLE,
     position: flowEditorInteractionMode ? 'absolute' : 'relative',
     padding: 0,
+    pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
+  }
+  const chromeBodySurfaceStyle: React.CSSProperties = {
+    ...PANEL_FRAME_BODY_STYLE,
+    position: 'relative',
+    padding: 'var(--kg-media-panel-padding, 6px)',
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
   }
   const iframeSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
@@ -738,24 +734,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           }}
           data-kg-media-scroll-surface="1"
         >
-          <React.Suspense fallback={<CardMediaLoadingSkeleton label="Rendering markdown..." variant="text" richMediaDataAttrs />}>
-            <MarkdownPreviewLazy
-              markdownText={panelDisplayText}
-              activeDocumentPath={panelMarkdownDocumentPath}
-              markdownTokenStoreSync={false}
-              highlightedLineRange={null}
-              markdownWordWrap
-              markdownPresentationMode={false}
-              markdownTextHighlight={false}
-              uiPanelTextFontClass={uiPanelTextFontClass}
-              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-              previewOverlayScope="container"
-              previewOverlayPortalTarget={null}
-              previewScrollable
-              showSidebar={false}
-              markdownViewerWidthMode="wide"
-            />
-          </React.Suspense>
+          <CardMarkdownPreview
+            markdownText={panelDisplayText}
+            activeDocumentPath={panelMarkdownDocumentPath}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+            richMediaDataAttrs
+            previewScrollable
+          />
         </section>
       ) : panelIsLoading ? (
         <CardMediaLoadingSkeleton
@@ -900,10 +886,36 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     </>
   )
 
+  const renderedSurface = showFlowEditorChrome ? (
+    <>
+      <FlowEditorPanelChromeHeader
+        active={false}
+        title={title}
+        showFieldToggle={false}
+        showPinToggle={true}
+        richMediaHeader={true}
+        dragHandle={installHeaderDrag}
+      />
+      <section
+        className="kg-mediaCardBody relative min-h-0 overflow-hidden"
+        data-kg-widget-body="1"
+        data-kg-rich-media-flow-editor-body="1"
+        style={chromeBodySurfaceStyle}
+      >
+        {renderSurfaceChildren}
+      </section>
+    </>
+  ) : renderSurfaceChildren
+
   return (
     <section
       ref={setRefs}
-      className={['kg-media', 'kg-mediaBody', props.className].filter(Boolean).join(' ')}
+      className={[
+        'kg-media',
+        'kg-mediaBody',
+        showFlowEditorChrome ? getFlowEditorPanelChromeClassName(uiPanelTextFontClass) : '',
+        props.className,
+      ].filter(Boolean).join(' ')}
       data-kg-rich-media-panel="1"
       data-node-id={props.overlayId}
       data-kg-kind={kind}
@@ -918,9 +930,15 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-frontmatter-document-mode={flowEditorFrontmatterDocumentMode ? '1' : undefined}
       data-kg-resize-enabled={installResize ? '1' : undefined}
       data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}
+      data-kg-rich-media-flow-editor-chrome={showFlowEditorChrome ? '1' : undefined}
       style={{
         ...rootStyle,
-        ...bodySurfaceStyle,
+        ...(showFlowEditorChrome
+          ? {
+              display: 'flex',
+              flexDirection: 'column',
+            }
+          : bodySurfaceStyle),
       }}
       onPointerDownCapture={onRootPointerDownCapture}
       onPointerUpCapture={props.onPointerUpCapture}
@@ -929,7 +947,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       onDoubleClickCapture={props.onDoubleClickCapture}
       onContextMenuCapture={props.onContextMenuCapture}
     >
-      {renderSurfaceChildren}
+      {renderedSurface}
     </section>
   )
 })

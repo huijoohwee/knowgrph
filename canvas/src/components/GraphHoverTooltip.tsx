@@ -18,6 +18,7 @@ import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { Pin, PinOff, X as CloseIcon } from 'lucide-react'
 import { extractVoxelScores, VOXEL_SCORE_DIMENSIONS } from '@/features/three/voxelStyle'
 import {
@@ -95,7 +96,15 @@ function buildNodeContent(
       {imageSrc ? (
         <div className="mt-1">
           <div className="flex gap-2 items-start">
-            <img src={imageSrc} alt="" className="w-12 h-12 rounded-lg object-cover flex-none" />
+            <CardMediaPreview
+              kind="image"
+              url={imageSrc}
+              title={primaryNodeText}
+              interactive={false}
+              fit="cover"
+              className="h-12 w-12 flex-none rounded-lg"
+              mediaClassName="h-12 w-12 flex-none rounded-lg"
+            />
             <div className="min-w-0 flex-1">
               {imageCount > 1 ? (
                 <div className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textTertiary} font-semibold`}>{`+${imageCount - 1}`}</div>

@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: local UI launch, local pipelines, local superagent harness, local browser API bridge
+   - Scope: local UI launch, local pipelines, local superagent harness, local browser API bridge, vdeoxpln registry inspection
    - Transport: stdio only
 
 2. **Pages HTTP MCP**
@@ -42,7 +42,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `canvas/src/features/agent-ready/webMcpRuntime.ts`
      - `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`
-   - Scope: read-only browser tool registration for published Source Files reads
+   - Scope: read-only browser tool registration for published Source Files reads and browser-local inspection
 
 4. **MainPanel MCP / Integrations readiness**
    - Owners:
@@ -101,6 +101,10 @@ Canonical local tool inventory owner:
    - Calls a configurable local API-native browser runtime, using an Unbrowse-compatible shape without copying its implementation
    - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
    - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
+5. `knowgrph.vdeoxpln.list`
+   - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
+   - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
+   - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
 
 ## What this README does not claim
 
@@ -117,7 +121,9 @@ The current browser-local E2E path remains:
 - MainPanel `mcp` / `integrations`
 - shared settings and chat readiness
 - FloatingPanel Chat submit helpers
+- vdeoxpln routing prompt from the canonical registry
 - KGC recovery and validation
+- Workspace FS vdeoxpln run manifest and Source Files materialization
 - `applyChatKgcWorkspaceDocumentToCanvas()`
 - `setActiveMarkdownDocument({ applyToGraph: true })`
 - frontmatter-flow parsing and downstream subgraph/group projection
@@ -175,6 +181,7 @@ Then you can call:
 - `knowgrph.browser_api.run` with `{ "operation": "execute", "skillId": "resolved-skill-id", "payload": {}, "dryRun": true, "confirmUnsafe": false, "confirmThirdPartyTerms": false }`
 - `knowgrph.browser_api.run` with `{ "operation": "cookieImport", "targetUrl": "<TARGET_URL>", "dryRun": false, "confirmCookieImport": true, "confirmUnsafe": true, "confirmThirdPartyTerms": true }`
 - `knowgrph.browser_api.run` with `{ "operation": "click", "sessionId": "session-id", "selector": "#submit", "dryRun": false, "confirmUnsafe": true }`
+- `knowgrph.vdeoxpln.list` with `{ "includeMarkdown": true }`
 
 ## Relationship to MainPanel MCP
 

@@ -344,7 +344,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     </section>
   )
 
-  const headerNode = (
+  const headerNode = opts.markdownCardPreviewMode === true ? null : (
     <header
       className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}
     >

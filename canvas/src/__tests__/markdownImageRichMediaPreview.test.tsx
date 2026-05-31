@@ -103,6 +103,9 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
 
     const img = container.querySelector('img') as HTMLImageElement | null
     if (!img) throw new Error(`expected markdown image png to render; html=${container.innerHTML}`)
+    if (!img.getAttribute('data-kg-card-media-kind')) {
+      throw new Error(`expected markdown image to reuse shared CardMediaPreview, html=${container.innerHTML}`)
+    }
     const imgSrc = String(img.getAttribute('src') || '')
     if (!/a\.png/i.test(decodeURIComponent(imgSrc))) throw new Error(`expected png img src, got: ${imgSrc}`)
 
@@ -152,6 +155,9 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
 
     const video = container.querySelector('video') as HTMLVideoElement | null
     if (!video) throw new Error('expected markdown image with mp4 to render as video')
+    if (video.getAttribute('data-kg-card-media-kind') !== 'video') {
+      throw new Error(`expected markdown video to reuse shared CardMediaPreview, html=${container.innerHTML}`)
+    }
     const videoSrc = String(video.getAttribute('src') || '')
     if (!/demo\.mp4/i.test(decodeURIComponent(videoSrc))) throw new Error(`expected mp4 video src, got: ${videoSrc}`)
     const downloadLinks = Array.from(container.querySelectorAll('a[download][aria-label="Download media"]')) as HTMLAnchorElement[]

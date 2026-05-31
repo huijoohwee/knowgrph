@@ -59,7 +59,10 @@ export function computeMediaPanelCssVars3d(args: { density: MediaPanelDensity; s
   return { metrics, vars }
 }
 
-export function computePanelSizeFromContent16x9(args: { contentW: number; metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding'> }): {
+export function computePanelSizeFromContent16x9(args: {
+  contentW: number
+  metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding'> & Partial<Pick<MediaPanelCssMetrics, 'borderW'>>
+}): {
   panelW: number
   panelH: number
   contentW: number
@@ -69,8 +72,42 @@ export function computePanelSizeFromContent16x9(args: { contentW: number; metric
   const contentH = Math.max(2, (contentW * 9) / 16)
   const padding = Math.max(0, Number(args.metrics.padding) || 0)
   const headerH = Math.max(0, Number(args.metrics.headerH) || 0)
-  const panelW = Math.max(2, contentW + padding * 2)
-  const panelH = Math.max(2, contentH + headerH + padding * 2)
+  const borderW = Math.max(0, Number((args.metrics as Partial<Pick<MediaPanelCssMetrics, 'borderW'>>).borderW) || 0)
+  const panelW = Math.max(2, contentW + padding * 2 + borderW * 2)
+  const panelH = Math.max(2, contentH + headerH + padding * 2 + borderW * 2)
+  return { panelW, panelH, contentW, contentH }
+}
+
+export function computeContentBoxFromPanelFrame16x9(args: {
+  panelW: number
+  panelH: number
+  metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+}): { contentW: number; contentH: number; aspect: number } {
+  const panelW = Math.max(2, Number(args.panelW) || 2)
+  const panelH = Math.max(2, Number(args.panelH) || 2)
+  const padding = Math.max(0, Number(args.metrics.padding) || 0)
+  const headerH = Math.max(0, Number(args.metrics.headerH) || 0)
+  const borderW = Math.max(0, Number(args.metrics.borderW) || 0)
+  const contentW = Math.max(2, panelW - padding * 2 - borderW * 2)
+  const contentH = Math.max(2, panelH - headerH - padding * 2 - borderW * 2)
+  return {
+    contentW,
+    contentH,
+    aspect: contentW / Math.max(1, contentH),
+  }
+}
+
+export function computePanelFrameSizeFromWidth16x9(args: {
+  panelW: number
+  metrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+}): { panelW: number; panelH: number; contentW: number; contentH: number } {
+  const panelW = Math.max(2, Number(args.panelW) || 2)
+  const padding = Math.max(0, Number(args.metrics.padding) || 0)
+  const headerH = Math.max(0, Number(args.metrics.headerH) || 0)
+  const borderW = Math.max(0, Number(args.metrics.borderW) || 0)
+  const contentW = Math.max(2, panelW - padding * 2 - borderW * 2)
+  const contentH = Math.max(2, (contentW * 9) / 16)
+  const panelH = Math.max(2, contentH + headerH + padding * 2 + borderW * 2)
   return { panelW, panelH, contentW, contentH }
 }
 
@@ -114,14 +151,27 @@ export function applyMediaPanelCssVars(el: HTMLElement, vars: MediaPanelCssVars)
   VARS_CACHE.set(el, sig)
 }
 
-export function applyPanelBox(el: HTMLElement, args: { left: number; top: number; w: number; h: number; zIndex?: number | string; display?: 'block' | 'none' }): void {
+function resolvePanelBoxDisplay(el: HTMLElement, display: 'block' | 'none' | 'flex' | undefined): 'block' | 'none' | 'flex' {
+  if (display === 'none') return 'none'
+  if (display === 'flex') return 'flex'
+  if (
+    el.getAttribute('data-kg-rich-media-flow-editor-chrome') === '1'
+    && el.getAttribute('data-kg-rich-media-panel') === '1'
+  ) {
+    return 'flex'
+  }
+  return 'block'
+}
+
+export function applyPanelBox(el: HTMLElement, args: { left: number; top: number; w: number; h: number; zIndex?: number | string; display?: 'block' | 'none' | 'flex'; scale?: number }): void {
   const left = Number.isFinite(args.left) ? args.left : 0
   const top = Number.isFinite(args.top) ? args.top : 0
   const w = Number.isFinite(args.w) ? args.w : 1
   const h = Number.isFinite(args.h) ? args.h : 1
-  const display = args.display === 'none' ? 'none' : 'block'
+  const scale = Number.isFinite(args.scale) && Number(args.scale) > 0 ? Math.max(0.001, Number(args.scale)) : 1
+  const display = resolvePanelBoxDisplay(el, args.display)
   const z = args.zIndex != null ? String(args.zIndex) : ''
-  const posSig = `transform|${left}|${top}`
+  const posSig = `transform|${left}|${top}|${scale}`
   const sizeSig = `${display}|${z}|${w}|${h}`
 
   const prevPosSig = BOX_POS_CACHE.get(el) || ''
@@ -140,7 +190,10 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   }
 
   if (display !== 'none' && prevPosSig !== posSig) {
-    el.style.transform = `translate3d(${left}px, ${top}px, 0px)`
+    el.style.transformOrigin = 'top left'
+    el.style.transform = scale === 1
+      ? `translate3d(${left}px, ${top}px, 0px)`
+      : `translate3d(${left}px, ${top}px, 0px) scale(${scale})`
     BOX_POS_CACHE.set(el, posSig)
   }
 }

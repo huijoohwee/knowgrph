@@ -40,8 +40,10 @@ export function testFlowEditorOverlayCollisionResetsTransientKeysWhenOverlaySetD
 export function testFlowEditorOverlayCollisionRebalancesOnGraphContentRevision() {
   const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const runtimeStorePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeStoreState.ts')
   const collisionText = readFileSync(collisionPath, 'utf8')
   const runtimeText = readFileSync(runtimePath, 'utf8')
+  const runtimeStoreText = readFileSync(runtimeStorePath, 'utf8')
   if (!collisionText.includes('graphContentRevision: number')) {
     throw new Error('expected Flow Editor overlay collision hook to accept graphContentRevision so indexing recomposition can invalidate stale layout state')
   }
@@ -51,7 +53,7 @@ export function testFlowEditorOverlayCollisionRebalancesOnGraphContentRevision()
   if (!collisionText.includes('args.graphContentRevision,')) {
     throw new Error('expected Flow Editor overlay collision effect dependencies to include graphContentRevision')
   }
-  if (!runtimeText.includes('const graphContentRevision = useGraphStore(s => s.graphContentRevision || 0)')) {
+  if (!runtimeStoreText.includes('graphContentRevision: s.graphContentRevision || 0')) {
     throw new Error('expected Flow Editor runtime to read graphContentRevision from store')
   }
   if (!runtimeText.includes('graphContentRevision,')) {

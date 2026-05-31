@@ -1,7 +1,8 @@
 import {
   buildActiveWorkspaceRuntimeSourceFilesSnapshot,
-  reapplyClosedPaneActiveMarkdownDocument,
-  shouldProactivelyReapplyClosedPaneActiveMarkdownDocument,
+  buildMaterializedWorkspaceActivePathKey,
+  reapplyActiveWorkspaceMarkdownDocument,
+  shouldProactivelyReapplyActiveWorkspaceMarkdownDocument,
 } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { resolveWorkspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -20,59 +21,94 @@ const createMinimalFs = (textByPath: Record<string, string>): WorkspaceFs => ({
 })
 
 export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentWhenCanvasOwnsClosedPane() {
-  const shouldReapply = shouldProactivelyReapplyClosedPaneActiveMarkdownDocument({
+  const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
     activePath: '/docs/knowgrph-maps-readme.md' as never,
     markdownDocumentName: null,
     markdownDocumentText: '',
-    workspaceViewMode: 'canvas',
-    workspaceCanvasPaneOpen: false,
   })
   if (shouldReapply !== true) {
-    throw new Error(`expected closed-pane canvas to proactively reapply the active markdown document, got ${String(shouldReapply)}`)
+    throw new Error(`expected Source Files active-path materialization to reapply the active markdown document, got ${String(shouldReapply)}`)
   }
 }
 
-export function testShouldNotProactivelyReapplyClosedPaneActiveMarkdownDocumentWhenOwnerAlreadyActive() {
-  const shouldReapply = shouldProactivelyReapplyClosedPaneActiveMarkdownDocument({
+export function testShouldProactivelyReapplyActiveWorkspaceMarkdownDocumentWhenEditorWorkspaceOpen() {
+  const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
     activePath: '/docs/knowgrph-maps-readme.md' as never,
     markdownDocumentName: null,
     markdownDocumentText: '',
-    workspaceViewMode: 'editor',
-    workspaceCanvasPaneOpen: true,
   })
-  if (shouldReapply !== false) {
-    throw new Error(`expected active workspace owner to keep markdown reapply responsibility, got ${String(shouldReapply)}`)
+  if (shouldReapply !== true) {
+    throw new Error(`expected Editor Workspace Source Files switching to reapply selected file content/frontmatter to Canvas, got ${String(shouldReapply)}`)
   }
 }
 
 export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentDefersMatchingDocumentSuppressionUntilResolvedText() {
-  const shouldReapply = shouldProactivelyReapplyClosedPaneActiveMarkdownDocument({
+  const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
     activePath: '/docs/knowgrph-maps-readme.md' as never,
     markdownDocumentName: '/docs/knowgrph-maps-readme.md',
     markdownDocumentText: '# Maps Readme',
-    workspaceViewMode: 'canvas',
-    workspaceCanvasPaneOpen: false,
   })
   if (shouldReapply !== true) {
-    throw new Error(`expected matching active markdown document to defer closed-pane reapply suppression until resolved text is known, got ${String(shouldReapply)}`)
+    throw new Error(`expected matching active markdown document to defer reapply suppression until resolved text is known, got ${String(shouldReapply)}`)
   }
 }
 
 export function testShouldProactivelyReapplyClosedPaneActiveMarkdownDocumentWhenMatchingDocumentSuppressedViewPreset() {
-  const shouldReapply = shouldProactivelyReapplyClosedPaneActiveMarkdownDocument({
+  const shouldReapply = shouldProactivelyReapplyActiveWorkspaceMarkdownDocument({
     activePath: '/docs/runtime-surface-demo.md' as never,
     markdownDocumentName: '/docs/runtime-surface-demo.md',
     markdownDocumentText: '---\nkgCanvasSurfaceMode: "xr"\n---\n# XR Demo',
     markdownDocumentApplyViewPreset: false,
-    workspaceViewMode: 'canvas',
-    workspaceCanvasPaneOpen: false,
   })
   if (shouldReapply !== true) {
     throw new Error(`expected matching active markdown document with suppressed view preset to replay YAML canvas preset, got ${String(shouldReapply)}`)
   }
 }
 
-export async function testClosedPaneActiveMarkdownReapplyReplaysYamlWhenExistingDocumentSuppressedViewPreset() {
+export function testMaterializedWorkspaceActivePathKeyTracksCanvasDocumentAndGraphOwnership() {
+  const activePath = '/docs/knowgrph-design-demo.md' as never
+  const text = [
+    '---',
+    'kgCanvas2dRenderer: "design"',
+    '---',
+    '# Design',
+  ].join('\n')
+  const base = buildMaterializedWorkspaceActivePathKey({
+    activePathOverride: activePath,
+    workspaceEntriesSnapshot: [{
+      path: activePath,
+      parentPath: '/docs' as never,
+      kind: 'file',
+      name: 'knowgrph-design-demo.md',
+      text,
+      updatedAtMs: 1,
+    }],
+    markdownDocumentName: 'docs/knowgrph-video-demo.md',
+    markdownDocumentText: '# Video',
+    markdownDocumentApplyViewPreset: true,
+    graphDataSource: 'markdown:docs/knowgrph-video-demo.md',
+  })
+  const applied = buildMaterializedWorkspaceActivePathKey({
+    activePathOverride: activePath,
+    workspaceEntriesSnapshot: [{
+      path: activePath,
+      parentPath: '/docs' as never,
+      kind: 'file',
+      name: 'knowgrph-design-demo.md',
+      text,
+      updatedAtMs: 1,
+    }],
+    markdownDocumentName: 'docs/knowgrph-design-demo.md',
+    markdownDocumentText: text,
+    markdownDocumentApplyViewPreset: true,
+    graphDataSource: 'markdown:docs/knowgrph-design-demo.md',
+  })
+  if (!base || !applied || base === applied) {
+    throw new Error('expected active-path materialization key to include selected content, active markdown document, and Canvas graph source ownership')
+  }
+}
+
+export async function testActiveWorkspaceMarkdownReapplyReplaysYamlWhenEditorWorkspaceOpen() {
   const { restore } = initJsdomHarness()
   try {
     const activePath = '/docs/runtime-surface-demo.md'
@@ -87,8 +123,8 @@ export async function testClosedPaneActiveMarkdownReapplyReplaysYamlWhenExisting
     ].join('\n')
     const store = useGraphStore.getState()
     store.resetAll()
-    store.setWorkspaceViewMode('canvas')
-    store.setWorkspaceCanvasPaneOpen(false)
+    store.setWorkspaceViewMode('editor')
+    store.setWorkspaceCanvasPaneOpen(true)
     store.setCanvasRenderMode('2d')
     store.setCanvas3dMode('3d')
     store.setMarkdownDocument(activePath, text, {
@@ -97,7 +133,7 @@ export async function testClosedPaneActiveMarkdownReapplyReplaysYamlWhenExisting
     })
     useMarkdownExplorerStore.getState().setActivePath(activePath as never)
 
-    await reapplyClosedPaneActiveMarkdownDocument({
+    await reapplyActiveWorkspaceMarkdownDocument({
       activePathOverride: activePath as never,
       fs: createMinimalFs({ [activePath]: text }),
       activeWorkspaceEntriesSnapshot: [{
@@ -111,6 +147,9 @@ export async function testClosedPaneActiveMarkdownReapplyReplaysYamlWhenExisting
     })
 
     const next = useGraphStore.getState()
+    if (next.markdownDocumentName !== 'docs/runtime-surface-demo.md') {
+      throw new Error(`expected active Source Files reapply to use the canonical workspace document key, got ${String(next.markdownDocumentName || '')}`)
+    }
     if (next.markdownDocumentApplyViewPreset !== true) {
       throw new Error('expected active Source Files reapply to restore YAML view-preset ownership')
     }

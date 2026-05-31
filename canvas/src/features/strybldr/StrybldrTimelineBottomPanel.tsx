@@ -27,6 +27,7 @@ export function StrybldrTimelineBottomPanel({ active = true }: { active?: boolea
     startLeft: number
   } | null>(null)
   const [pinned, setPinned] = React.useState(true)
+  const [minimized, setMinimized] = React.useState(false)
   const [position, setPosition] = React.useState<TimelineBottomPanelPosition | null>(null)
   const setTimelineEnabled = useGraphStore(s => s.setTimelineEnabled)
   const dragSchedulerRef = React.useRef(createRafValueScheduler((next: TimelineBottomPanelPosition) => setPosition(next)))
@@ -79,6 +80,8 @@ export function StrybldrTimelineBottomPanel({ active = true }: { active?: boolea
     }
     setPinned(true)
   }, [clampPosition, getDefaultUnpinnedPosition, pinned])
+  const handleMinimize = React.useCallback(() => setMinimized(true), [])
+  const handleRestore = React.useCallback(() => setMinimized(false), [])
 
   const handleHeaderPointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.stopPropagation()
@@ -117,22 +120,25 @@ export function StrybldrTimelineBottomPanel({ active = true }: { active?: boolea
     })
   }, [clampPosition, pinned])
 
+  const panelHeightStyle = minimized
+    ? { height: 'var(--kg-toolbar-compact-surface-height)' }
+    : { maxHeight: 'min(32vh, 12rem)' }
   const panelPosition = position || getDefaultUnpinnedPosition()
   const panelStyle = pinned
     ? {
         position: 'fixed' as const,
         left: '50%',
-        bottom: 'calc(var(--kg-safe-bottom) + 0.75rem)',
+        bottom: 'calc(var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap))',
         transform: 'translateX(-50%)',
         width: 'min(calc(100vw - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem)',
-        maxHeight: 'min(32vh, 12rem)',
+        ...panelHeightStyle,
       }
     : {
         position: 'fixed' as const,
         top: panelPosition.top,
         left: panelPosition.left,
         width: 'min(calc(100vw - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem)',
-        maxHeight: 'min(32vh, 12rem)',
+        ...panelHeightStyle,
       }
 
   return (
@@ -141,6 +147,7 @@ export function StrybldrTimelineBottomPanel({ active = true }: { active?: boolea
         ref={panelRef}
         as="aside"
         ariaLabel="Strybldr Timeline"
+        ariaExpanded={!minimized}
         className={cn(
           'pointer-events-auto ModalContainer flex min-h-0 flex-col overflow-hidden p-0',
           UI_THEME_TOKENS.panel.bg,
@@ -150,21 +157,31 @@ export function StrybldrTimelineBottomPanel({ active = true }: { active?: boolea
         data-kg-canvas-pointer-ignore="true"
         data-kg-canvas-wheel-ignore="true"
         data-kg-strybldr-bottom-timeline-panel="1"
+        data-kg-strybldr-bottom-timeline-minimized={minimized ? 'true' : 'false'}
       >
         <header
-          className={cn('flex min-h-[36px] select-none items-center justify-between gap-2 px-2 py-1', !pinned && 'cursor-move')}
+          className={cn('flex select-none items-center justify-between gap-2', !pinned && 'cursor-move')}
+          style={{
+            minHeight: 'var(--kg-control-height, 28px)',
+            paddingBlock: 'var(--kg-toolbar-compact-pad-y)',
+            paddingInline: 'var(--kg-toolbar-compact-pad-x)',
+          }}
           onPointerDown={handleHeaderPointerDown}
         >
           <div className="min-w-0 truncate text-xs font-semibold">Timeline</div>
           <HeaderActions
             onPinToggle={handlePinToggle}
             pinned={pinned}
+            onMinimize={!minimized ? handleMinimize : undefined}
+            onRestore={minimized ? handleRestore : undefined}
             onClose={() => setTimelineEnabled(false)}
           />
         </header>
-        <section className="min-h-0 flex-1 px-2 pb-2" aria-label="Timeline bottom panel body">
-          <StrybldrTimelinePanel active={active} />
-        </section>
+        {!minimized ? (
+          <section className="min-h-0 flex-1 px-2 pb-2" aria-label="Timeline bottom panel body">
+            <StrybldrTimelinePanel active={active} />
+          </section>
+        ) : null}
       </FloatingPanel>
     </section>
   )

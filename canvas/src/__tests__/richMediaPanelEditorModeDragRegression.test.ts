@@ -9,8 +9,8 @@ export function testRichMediaPanelEditorModeDisablesInteractiveContentForDraggin
   if (!text.includes('const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen')) {
     throw new Error('expected RichMediaPanel to gate click-to-open overlay only while the workspace overlay is actually open')
   }
-  if (!text.includes('pointerEvents: shouldHideSurfaceUntilReady ? \'none\' : (headerPassthrough ? \'none\' : (workspaceEditorOverlayOpen ? \'auto\' : ((contentInteractive || canClickToOpen) ? \'auto\' : \'none\')))')) {
-    throw new Error('expected RichMediaPanel pointer-events behavior to depend on workspace overlay-open state, not editor mode alone')
+  if (!text.includes('pointerEvents: shouldHideSurfaceUntilReady ? \'none\' : (headerPassthrough ? \'none\' : (workspaceEditorOverlayOpen || canvasOverlayProxyEnabled ? \'auto\' : ((contentInteractive || canClickToOpen) ? \'auto\' : \'none\')))')) {
+    throw new Error('expected RichMediaPanel pointer-events behavior to depend on workspace overlay-open and shared overlay proxy state, not editor mode alone')
   }
 }
 
@@ -38,7 +38,7 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const overlayEditorPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const panelText = readFileSync(panelPath, 'utf8')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')

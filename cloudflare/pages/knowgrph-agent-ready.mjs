@@ -8,6 +8,7 @@ import {
 } from "../../canvas/src/features/agent-ready/agentSurfaceInspection.mjs";
 import { createPublishedAgentReadyToolExecutors } from "../../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
 import { inspectSharedDocumentStructure } from "../../canvas/src/features/agent-ready/sharedDocumentStructureInspection.mjs";
+import { buildKnowgrphVdeoxplnMarkdownByName } from "../../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import {
   AGENT_READY_AGENT_SKILL_DEFINITIONS,
   buildAgentReadyA2aSkills,
@@ -815,41 +816,6 @@ const injectWebMcpScript = async (response) => {
   return nextResponse;
 };
 
-const publishedDocsSkillMarkdown = `# Knowgrph Published Documents Skill
-
-Use this skill when an agent needs to discover, read, or inspect published Knowgrph Source Files and shared documents.
-
-## Tools
-
-- list_source_files: fetch ${SITE_ORIGIN}/api/storage/source-files.
-- read_source_file: fetch ${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath} by default, or ${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath} for an explicit workspace.
-- read_shared_document: resolve a Knowgrph share token or public share/document URL, then fetch the canonical published markdown document from storage.
-- inspect_shared_document_structure: inspect published Knowgrph shared-document frontmatter/body structure from a share token or public share/document URL.
-
-## Scope
-
-- Shared read-only surface across HTTP MCP, MCP server-card metadata, and deployed HTML WebMCP fallback.
-- Public/browser URLs stay canonical on ${SITE_ORIGIN}/api/storage/*.
-- Server-side Pages reads use ${STORAGE_FETCH_ORIGIN} to avoid custom-domain self-fetch rewrite failures.
-`;
-
-const webMcpReadinessSkillMarkdown = `# Knowgrph WebMCP Readiness Skill
-
-Use this skill when an agent or browser needs to inspect the deployed Knowgrph agent-ready surface and WebMCP lifecycle.
-
-## Shared deployed tools
-
-- inspect_agent_surface: inspect health, OpenAPI, API catalog, MCP server card, A2A card, and agent-skills metadata.
-
-## WebMCP implementation notes
-
-- Browser app runtime installs WebMCP on page load via navigator.modelContext in canvas/src/main.tsx.
-- Runtime prefers provideContext({ tools }) when available and also registers each tool with registerTool(tool, { signal }) when supported.
-- AbortController-backed registration is used so tools can be unregistered cleanly with the platform lifecycle.
-- Deployed HTML fallback injects the shared five-tool WebMCP surface on /knowgrph HTML routes.
-- Full app runtime additionally exposes browser-local inspect tools for Settings chat readiness, MainPanel state, Editor Workspace state, chat pipeline validation/finalize/apply state, the combined MainPanel -> Chat -> Markdown/frontmatter -> Canvas readiness path, the active workspace document, canvas topology, canvas snapshot, 3d camera pose, 3d layout positions, 2d zoom viewport, and Source Files snapshot.
-`;
-
 const PUBLISHED_TOOL_NAME_CONFIG = {
   listSourceFiles: KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles,
   readSourceFile: KNOWGRPH_AGENT_READY_TOOL_IDS.readSourceFile,
@@ -864,12 +830,28 @@ const sha256Hex = async (text) => {
   return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
-const publishedDocsSkillMarkdownSha256 = sha256Hex(publishedDocsSkillMarkdown);
-const webMcpReadinessSkillMarkdownSha256 = sha256Hex(webMcpReadinessSkillMarkdown);
-const agentSkillSha256ByName = {
-  [AGENT_READY_AGENT_SKILL_DEFINITIONS[0].name]: publishedDocsSkillMarkdownSha256,
-  [AGENT_READY_AGENT_SKILL_DEFINITIONS[1].name]: webMcpReadinessSkillMarkdownSha256,
-};
+const agentSkillMarkdownByName = buildKnowgrphVdeoxplnMarkdownByName();
+const agentSkillSha256ByName = Object.fromEntries(
+  AGENT_READY_AGENT_SKILL_DEFINITIONS.map((skill) => [
+    skill.name,
+    sha256Hex(agentSkillMarkdownByName[skill.name] || ""),
+  ]),
+);
+const agentSkillMarkdownByRoutePath = new Map(
+  AGENT_READY_AGENT_SKILL_DEFINITIONS.map((skill) => [
+    `${APP_BASE_PATH}${skill.path}`.replace(/\/+$/, ""),
+    agentSkillMarkdownByName[skill.name] || "",
+  ]),
+);
+const agentSkillStaticFiles = () => Object.fromEntries(
+  AGENT_READY_AGENT_SKILL_DEFINITIONS.map((skill) => [
+    skill.path.replace(/^\/+/, ""),
+    {
+      contentType: "text/markdown; charset=utf-8",
+      body: agentSkillMarkdownByName[skill.name] || "",
+    },
+  ]),
+);
 
 const agentSkillsIndex = async () => buildAgentReadyAgentSkillsIndex({
   appUrl: APP_URL,
@@ -1121,14 +1103,7 @@ export const buildAgentReadyStaticFiles = async () => ({
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(await agentSkillsIndex(), null, 2),
   },
-  ".well-known/agent-skills/knowgrph-source-files.md": {
-    contentType: "text/markdown; charset=utf-8",
-    body: publishedDocsSkillMarkdown,
-  },
-  ".well-known/agent-skills/knowgrph-webmcp-readiness.md": {
-    contentType: "text/markdown; charset=utf-8",
-    body: webMcpReadinessSkillMarkdown,
-  },
+  ...agentSkillStaticFiles(),
   ".well-known/http-message-signatures-directory": {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(httpMessageSignaturesDirectory, null, 2),
@@ -1206,13 +1181,12 @@ const routeResponse = async (request) => {
       return jsonResponse(mcpServerCard);
     case `${APP_BASE_PATH}/.well-known/agent-skills/index.json`:
       return jsonResponse(await agentSkillsIndex());
-    case `${APP_BASE_PATH}/.well-known/agent-skills/knowgrph-source-files.md`:
-      return textResponse(publishedDocsSkillMarkdown, "text/markdown; charset=utf-8");
-    case `${APP_BASE_PATH}/.well-known/agent-skills/knowgrph-webmcp-readiness.md`:
-      return textResponse(webMcpReadinessSkillMarkdown, "text/markdown; charset=utf-8");
     case `${APP_BASE_PATH}/.well-known/http-message-signatures-directory`:
       return jsonResponse(httpMessageSignaturesDirectory);
     default:
+      if (agentSkillMarkdownByRoutePath.has(pathname)) {
+        return textResponse(agentSkillMarkdownByRoutePath.get(pathname), "text/markdown; charset=utf-8");
+      }
       return null;
   }
 };

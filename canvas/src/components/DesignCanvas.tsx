@@ -234,7 +234,6 @@ export default function DesignCanvas({
     onHeaderDragEnd,
   } = useDesignCanvasShellControllers({
     interactionActive,
-    canvasPointerMode2d: String(snapshot.canvasPointerMode2d || ''),
     svgRef,
     mediaOverlayPanRef,
     designMediaOverlayElsRef,

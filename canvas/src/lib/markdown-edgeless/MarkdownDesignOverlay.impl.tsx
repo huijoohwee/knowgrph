@@ -43,7 +43,6 @@ type MarkdownDesignOverlayProps = {
 
 export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(props: MarkdownDesignOverlayProps) {
   const { enabled, svgRef, markdownDocumentName, markdownDocumentText, onPreviewClick } = props
-  const allowDrag = !props.layoutOverride
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
   const allowEmbeddedContentInteraction = infiniteCanvasInteractionMode === 'interactive'
 
@@ -156,7 +155,6 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   )
 
   const shouldStartHeaderDrag = React.useCallback((native: PointerEvent) => {
-    if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
     if (isSpacePanHeld()) return false
     return true
   }, [])
@@ -270,19 +268,25 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   const [drag, setDrag] = React.useState<null | { pointerId: number; blockId: string }>(null)
   const dragging = drag != null
 
+  const overlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
   const blockDragLatestRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
   const blockDragStartRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
   const blockDragSchedulerRef = React.useRef(
     createRafValueScheduler((latest: { blockId: string; index: number; x: number; y: number }) => {
-      setBlocks(prev =>
-        patchById(
-          prev,
-          latest.blockId,
-          b => String(b?.id || ''),
-          cur => (cur.x === latest.x && cur.y === latest.y ? cur : { ...cur, x: latest.x, y: latest.y }),
-          latest.index,
-        ),
+      const next = patchById(
+        blocksRef.current,
+        latest.blockId,
+        b => String(b?.id || ''),
+        cur => (cur.x === latest.x && cur.y === latest.y ? cur : { ...cur, x: latest.x, y: latest.y }),
+        latest.index,
       )
+      blocksRef.current = next
+      setBlocks(next)
+      try {
+        overlayLayoutScheduleRef.current?.()
+      } catch {
+        void 0
+      }
     }),
   )
 
@@ -317,7 +321,6 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     }
   }, [dragging])
 
-  const overlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
   const viewportRef = React.useRef<{ w: number; h: number }>({ w: 1, h: 1 })
   React.useEffect(() => {
     const svgEl = svgRef.current
@@ -359,11 +362,13 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
         const anchor = anchorByBlockIdRef.current
         const getCenter = typeof props.getNodeWorldCenterForId === 'function' ? props.getNodeWorldCenterForId : null
         const pick = (b: MarkdownDesignBlock) => {
-          const anchorId = String(anchor?.[b.id] || b.id)
-          const c = getCenter ? getCenter(anchorId) : null
+          const blockId = String(b.id || '').trim()
+          const explicitAnchorId = String(anchor?.[b.id] || '').trim()
+          const anchorId = explicitAnchorId || blockId
+          const c = explicitAnchorId && explicitAnchorId !== blockId && getCenter ? getCenter(anchorId) : null
           const x = c ? c.x : b.x + b.w / 2
           const y = c ? c.y : b.y + b.h / 2
-          return { id: b.id, cx: x, cy: y }
+          return { id: b.id, cx: x, cy: y, w: b.w, h: b.h }
         }
         if (!allow) return src.map(pick)
         return src.filter(b => allow.has(b.type as never)).map(pick)
@@ -453,7 +458,14 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
 
       {visibleBlocks.map(b => {
         const snippet = markdownSnippetByBlockId.get(b.id) || ''
-        const anchorId = String(anchorByBlockIdRef.current?.[b.id] || b.id)
+        const explicitAnchorId = String(anchorByBlockIdRef.current?.[b.id] || '').trim()
+        const blockId = String(b.id || '').trim()
+        const anchorId = explicitAnchorId || blockId
+        const delegateHeaderDrag = Boolean(
+          explicitAnchorId
+          && explicitAnchorId !== blockId
+          && (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd),
+        )
         return (
           <div
             key={b.id}
@@ -493,6 +505,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               title={b.title}
               url=""
               kind="iframe"
+              panelChrome="flowEditor"
               interactive={allowEmbeddedContentInteraction}
               resizable={false}
               forwardWheelTo={() => svgRef.current}
@@ -500,13 +513,11 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               shouldForwardPointerDown={() => allowEmbeddedContentInteraction !== true}
               shouldStartHeaderDrag={native => shouldStartHeaderDrag(native)}
               onHeaderDragStart={args0 => {
-                if (allowEmbeddedContentInteraction) return
                 if (!anchorId) return
-                if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
+                if (delegateHeaderDrag) {
                   props.onHeaderDragStart?.({ id: anchorId, clientX: args0.clientX, clientY: args0.clientY })
                   return
                 }
-                if (!allowDrag) return
                 const b0 = blocksRef.current.find(x => String(x?.id || '') === b.id) || null
                 if (!b0) return
                 lockGlobalUserSelect()
@@ -517,12 +528,10 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                 blockDragLatestRef.current = start
               }}
               onHeaderDrag={args0 => {
-                if (allowEmbeddedContentInteraction) return
-                if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
+                if (delegateHeaderDrag) {
                   props.onHeaderDrag?.({ dx: args0.dx, dy: args0.dy })
                   return
                 }
-                if (!allowDrag) return
                 const start = blockDragStartRef.current
                 if (!start || start.blockId !== b.id) return
                 const svgNow = svgRef.current
@@ -534,12 +543,10 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                 blockDragSchedulerRef.current.schedule(next)
               }}
               onHeaderDragEnd={() => {
-                if (allowEmbeddedContentInteraction) return
-                if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
+                if (delegateHeaderDrag) {
                   props.onHeaderDragEnd?.()
                   return
                 }
-                if (!allowDrag) return
                 try {
                   blockDragSchedulerRef.current.flush()
                 } catch {

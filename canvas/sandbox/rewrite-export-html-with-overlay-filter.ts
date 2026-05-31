@@ -77,7 +77,7 @@ async function main() {
   const inputHtml = readArg('--inputHtml')
   const outputHtml = readArg('--outputHtml')
 
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost/' })
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'file:///knowgrph-export-builder.html' })
   ;(globalThis as unknown as { window?: unknown }).window = dom.window
   ;(globalThis as unknown as { document?: unknown }).document = dom.window.document
   ;(globalThis as unknown as { DOMParser?: unknown }).DOMParser = dom.window.DOMParser
@@ -150,6 +150,7 @@ async function main() {
     viewportHeightPx,
     viewportScaleToFit: cfg.viewportScaleToFit ?? true,
     includeRichMediaOverlays: true,
+    inlineRemoteMediaAssets: true,
     preferWebgl3d: cfg.preferWebgl3d,
     initialView: (cfg.initialView ?? fallbackInitialView) || undefined,
   })

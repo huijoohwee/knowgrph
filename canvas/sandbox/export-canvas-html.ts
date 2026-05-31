@@ -134,7 +134,7 @@ async function main() {
   const modeRaw = readOptionalArg('--mode')
   const mode = modeRaw === '3d' ? '3d' : '2d'
 
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost/' })
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'file:///knowgrph-export-builder.html' })
   ;(globalThis as unknown as { window?: unknown }).window = dom.window
   ;(globalThis as unknown as { document?: unknown }).document = dom.window.document
   ;(globalThis as unknown as { DOMParser?: unknown }).DOMParser = dom.window.DOMParser
@@ -255,6 +255,7 @@ async function main() {
     svgMarkup: exportView.svgMarkup,
     graphData,
     includeRichMediaOverlays: true,
+    inlineRemoteMediaAssets: true,
     mediaPanelDensity: 'default',
     preferWebgl3d: mode === '3d',
     viewportWidthPx: 1920,

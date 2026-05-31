@@ -30,6 +30,7 @@ import type { InlineRenderOpts } from '@/features/markdown/ui/MarkdownRendererTy
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/providers'
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
 import { parseMarkdownInlineCodeSemantic, parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
@@ -549,13 +550,15 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       const isPdfAsset = src.startsWith('/__pdf_assets/') || /^data:image\//i.test(src)
       const isSvgImage = /^data:image\/svg\+xml;base64,/i.test(src) || /\.svg(\?|#|$)/i.test(src)
       const imageNode = (
-        <img
+        <CardMediaPreview
           key={`${key}-image`}
-          src={src || undefined}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          className={[
+          kind={isSvgImage ? 'svg' : 'image'}
+          url={src}
+          title={alt}
+          interactive={false}
+          fit="contain"
+          mediaThumbnailDataAttr
+          mediaClassName={[
             'max-w-full h-auto rounded border object-contain',
             isPdfAsset ? 'max-h-[80vh]' : '',
             isSvgImage ? 'bg-black/5 dark:bg-white/5' : '',

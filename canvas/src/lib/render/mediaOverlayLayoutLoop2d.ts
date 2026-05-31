@@ -92,6 +92,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       lastSizing = sizing
     }
     const useSizing = lastSizing || sizing
+    const viewportClampEnabled = !!args.clampToViewport
     const clampMargin = args.clampToViewport ? Math.max(0, Number(args.clampToViewport.margin) || 0) : 0
     const spreadMargins = computeBalancedSpreadViewportMargins({
       viewportW: args.viewportW,
@@ -189,6 +190,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
     }
 
     const clampWithMargin = (pos: { left: number; top: number }, size: { w: number; h: number }) => {
+      if (!viewportClampEnabled) return pos
       const vw = Math.max(1, Number(args.viewportW) || 1)
       const vh = Math.max(1, Number(args.viewportH) || 1)
       const w = Math.max(1, Number(size.w) || 1)
@@ -236,7 +238,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
       const hasVerticalCluster = isVerticalOverlayCluster({ items: clusterItems, gapPx })
       const hasHorizontalStrip = isHorizontalOverlayStrip({ items: clusterItems, gapPx })
-      const shouldReseedBalancedCluster = hasVerticalCluster || hasHorizontalStrip
+      const shouldReseedBalancedCluster = viewportClampEnabled && (hasVerticalCluster || hasHorizontalStrip)
       const needsBalancedReseed = hasOverlaps(boxes, gapPx) || shouldReseedBalancedCluster
       if (needsBalancedReseed) {
         const verticalSeed = (() => {

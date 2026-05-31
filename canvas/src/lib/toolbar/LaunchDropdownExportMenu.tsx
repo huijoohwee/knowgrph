@@ -29,6 +29,7 @@ const EXPORT_ACTION_KEYS: readonly ExportMenuActionKey[] = [
   'png',
   'gltf',
   'glb',
+  'htmlWorkspace',
   'htmlViewer',
   'htmlCanvas',
   'json',

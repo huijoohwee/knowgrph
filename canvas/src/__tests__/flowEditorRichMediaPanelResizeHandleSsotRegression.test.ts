@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { applyPanelBox, computeContentBoxFromPanelFrame16x9, computePanelFrameSizeFromWidth16x9 } from '@/lib/render/mediaPanelLayout'
+import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 
 export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
@@ -43,27 +45,105 @@ export function testSharedRichMediaPanelUsesBodySectionAsResizeSurfaceSsot() {
     throw new Error('expected shared Rich Media Panel resize handle to live inside the shared body render-surface fragment')
   }
   if (text.includes('showHeader?: boolean') || text.includes('data-kg-media-panel-header="1"')) {
-    throw new Error('expected shared Rich Media Panel to remove the legacy headered variant and keep only the widget-style body surface')
+    throw new Error('expected shared Rich Media Panel to remove the legacy headered variant while using the current Flow Editor chrome contract')
   }
-  if (!text.includes("className={['kg-media', 'kg-mediaBody', props.className].filter(Boolean).join(' ')}")) {
-    throw new Error('expected shared Rich Media Panel root to reuse the widget-style body section as the only render surface')
+  if (
+    !text.includes("panelChrome?: 'none' | 'flowEditor'")
+    || !text.includes("from '@/components/FlowEditor/FlowEditorPanelChrome'")
+    || !text.includes('data-kg-rich-media-flow-editor-body="1"')
+  ) {
+    throw new Error('expected shared Rich Media Panel to expose reusable Flow Editor chrome without resurrecting the legacy header contract')
+  }
+  if (!text.includes('getFlowEditorPanelChromeClassName(uiPanelTextFontClass)')) {
+    throw new Error('expected shared Rich Media Panel root to reuse Flow Editor panel shell classes for optional chrome')
+  }
+}
+
+export function testRichMediaPanelFlowEditorChromeMaintainsContentAspectAcrossZoom() {
+  const aspect = 16 / 9
+  const zoomSamples = [0.55, 1, 1.85]
+  for (const zoomK of zoomSamples) {
+    const sizing = computeMediaOverlaySizing({
+      density: 'default',
+      viewportW: 1280,
+      viewportH: 720,
+      zoomK,
+      itemCount: 3,
+      config: { widthRatio: 0.22, widthMinPx: 220, widthMaxPx: 360, quantizeStepPx: 1 },
+    })
+    const content = computeContentBoxFromPanelFrame16x9({
+      panelW: sizing.panelW,
+      panelH: sizing.panelH,
+      metrics: sizing.metrics,
+    })
+    if (Math.abs(content.aspect - aspect) > 0.0001) {
+      throw new Error(`expected rich media content aspect to stay 16:9 at zoom=${zoomK}, got ${content.aspect}`)
+    }
+    const reconstructed = computePanelFrameSizeFromWidth16x9({
+      panelW: sizing.panelW,
+      metrics: sizing.metrics,
+    })
+    if (Math.abs(reconstructed.panelH - sizing.panelH) > 0.0001) {
+      throw new Error(`expected panel frame height to reconstruct from width and chrome metrics at zoom=${zoomK}, got ${reconstructed.panelH} vs ${sizing.panelH}`)
+    }
+  }
+
+  const chromePanelEl = {
+    style: {},
+    getAttribute: (name: string) => {
+      if (name === 'data-kg-rich-media-flow-editor-chrome') return '1'
+      if (name === 'data-kg-rich-media-panel') return '1'
+      return null
+    },
+  } as unknown as HTMLElement
+  applyPanelBox(chromePanelEl, { left: 0, top: 0, w: 226, h: 163, display: 'block' })
+  if (chromePanelEl.style.display !== 'flex') {
+    throw new Error(`expected imperative overlay sizing to preserve Flow Editor rich-media flex frame, got display=${chromePanelEl.style.display}`)
+  }
+
+  const chromePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
+  const chromeText = readFileSync(chromePath, 'utf8')
+  for (const snippet of [
+    "height: 'var(--kg-media-panel-header-h, 28px)'",
+    "flex: '0 0 var(--kg-media-panel-header-h, 28px)'",
+    "fontSize: 'var(--kg-media-panel-title-size, 12px)'",
+    'richMediaActionStyle',
+    'richMediaIconStyle',
+  ]) {
+    if (!chromeText.includes(snippet)) {
+      throw new Error(`expected Flow Editor rich-media chrome header to bind layout to shared media-panel sizing variable: ${snippet}`)
+    }
+  }
+
+  const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const flowCanvasOverlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
+  for (const snippet of [
+    'readRichMediaPanelFrameMetrics',
+    'computePanelFrameSizeFromWidth16x9',
+    '--kg-media-panel-header-h',
+    '--kg-media-panel-padding',
+    '--kg-media-panel-border-w',
+  ]) {
+    if (!flowCanvasOverlayText.includes(snippet)) {
+      throw new Error(`expected Flow Canvas rich-media resize math to preserve chrome/content aspect using shared frame metrics: ${snippet}`)
+    }
   }
 }
 
 export function testSharedRichMediaPanelUsesNativeSkeletonLoadingSsot() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('function RichMediaLoadingSkeleton(')) {
-    throw new Error('expected shared Rich Media Panel to define one native loading skeleton component upstream')
+  if (!text.includes('CardMediaLoadingSkeleton')) {
+    throw new Error('expected shared Rich Media Panel to reuse the shared CardMediaLoadingSkeleton owner')
   }
-  if (!text.includes('kgRichMediaSkeletonShimmer')) {
-    throw new Error('expected shared Rich Media Panel to define a native shimmer animation for loading placeholders')
+  if (text.includes('function RichMediaLoadingSkeleton(') || text.includes('kgRichMediaSkeletonShimmer')) {
+    throw new Error('expected shared Rich Media Panel to avoid duplicate local loading skeleton implementations')
   }
-  if (!text.includes('data-kg-rich-media-loading-surface="1"')) {
-    throw new Error('expected shared Rich Media Panel loading state to expose a dedicated loading surface marker')
+  if (!text.includes('richMediaDataAttrs')) {
+    throw new Error('expected shared Rich Media Panel to request rich-media data attributes from shared card surfaces')
   }
-  if (!text.includes('<RichMediaLoadingSkeleton')) {
-    throw new Error('expected shared Rich Media Panel loading branch to reuse the shared skeleton component')
+  if (!text.includes('<CardMediaLoadingSkeleton')) {
+    throw new Error('expected shared Rich Media Panel loading branch to reuse the shared Card skeleton component')
   }
   if (!text.includes("transition: 'opacity 180ms ease-out'")) {
     throw new Error('expected shared Rich Media Panel surface to fade into revealed content after loading')
@@ -81,22 +161,19 @@ export function testSharedRichMediaPanelUsesNativeSkeletonLoadingSsot() {
 export function testSharedRichMediaPanelUsesNativeEmptyCardPlaceholderSsot() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('function RichMediaEmptyCardPlaceholder({')) {
-    throw new Error('expected shared Rich Media Panel to define one native mode-aware empty card placeholder upstream')
+  if (!text.includes('CardMediaEmptyPlaceholder')) {
+    throw new Error('expected shared Rich Media Panel to reuse the shared CardMediaEmptyPlaceholder owner')
   }
-  if (!text.includes('data-kg-rich-media-empty-card-placeholder="1"')) {
-    throw new Error('expected shared Rich Media Panel empty state to expose a dedicated card placeholder marker')
+  if (text.includes('function RichMediaEmptyCardPlaceholder({')) {
+    throw new Error('expected shared Rich Media Panel to avoid duplicate local empty-card placeholder implementations')
   }
-  if (!text.includes('data-kg-rich-media-empty-card-static="1"')) {
-    throw new Error('expected shared Rich Media Panel empty state to expose a static placeholder marker distinct from active loading')
+  if (!text.includes('richMediaDataAttrs')) {
+    throw new Error('expected shared Rich Media Panel to request rich-media data attributes from shared empty card surfaces')
   }
-  if (!text.includes('data-kg-rich-media-empty-card-variant={variant}')) {
-    throw new Error('expected shared Rich Media Panel empty card placeholder to expose its expected target-mode variant')
-  }
-  if (!text.includes('const expectedEmptyPlaceholderVariant: RichMediaPlaceholderMode =')) {
+  if (!text.includes('const expectedEmptyPlaceholderVariant: CardMediaPlaceholderVariant =')) {
     throw new Error('expected shared Rich Media Panel to compute an expected target-mode variant for the empty card placeholder')
   }
-  if (!text.includes('<RichMediaEmptyCardPlaceholder variant={expectedEmptyPlaceholderVariant} />')) {
+  if (!text.includes('<CardMediaEmptyPlaceholder variant={expectedEmptyPlaceholderVariant} richMediaDataAttrs />')) {
     throw new Error('expected shared Rich Media Panel no-content branch to reuse the shared mode-aware empty card placeholder')
   }
   if (!text.includes('const shouldHideSurfaceUntilReady = hideUntilReady && !ready && !isEmptyPanel && !panelIsLoading')) {

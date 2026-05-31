@@ -64,6 +64,23 @@ const agentReadyToolContractTarget = path.resolve(
   'agent-ready',
   'knowgrphAgentReadyToolContract.mjs',
 )
+const vdeoxplnContractSource = path.resolve(
+  knowgrphRoot,
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'knowgrphVdeoxplnContract.mjs',
+)
+const vdeoxplnContractTarget = path.resolve(
+  githubRoot,
+  'huijoohwee',
+  'canvas',
+  'src',
+  'features',
+  'agent-ready',
+  'knowgrphVdeoxplnContract.mjs',
+)
 const sharedDocumentStructureInspectionSource = path.resolve(
   knowgrphRoot,
   'canvas',
@@ -179,6 +196,16 @@ const publicManagedRootFiles = new Set([
   'sw.js',
 ])
 const obsoleteLegacyMirrorDir = path.resolve(githubRoot, 'huijoohwee', '__' + 'repo_file')
+const joinRel = (...parts) => parts.join('/')
+const joinToken = (...parts) => parts.join('')
+const joinKebab = (...parts) => parts.join('-')
+const obsoleteGeneratedMirrorFiles = new Set([
+  joinRel('canvas', 'src', 'features', 'agent-ready', joinToken('knowgrph', 'Skill', 'Pack', 'Contract.mjs')),
+  joinRel('canvas', 'src', 'features', 'chat', joinToken('knowgrph', 'Skill', 'Pack', 'ChatArtifacts.ts')),
+  joinRel('canvas', 'src', 'features', 'panels', 'views', joinToken('skill', 'Pack', 'McpApiDocs.ts')),
+  joinRel('docs', 'documents', joinKebab('knowgrph', 'skill', 'packs', 'prd', 'tad.md')),
+  joinRel('scripts', joinKebab('check', 'skill', 'packs.mjs')),
+])
 const blockedRelativeRoots = new Set([
   'cesium',
   'demo',
@@ -332,6 +359,14 @@ const copyIfChanged = async (src, dest, rel) => {
 
 const copyPlainFile = async (src, dest) => fs.mkdir(path.dirname(dest), { recursive: true }).then(() => fs.copyFile(src, dest))
 const writeTextFile = async (dest, body) => fs.mkdir(path.dirname(dest), { recursive: true }).then(() => fs.writeFile(dest, body, 'utf8'))
+const fileExists = async (filePath) => {
+  try {
+    const stat = await fs.stat(filePath)
+    return stat.isFile()
+  } catch {
+    return false
+  }
+}
 
 const removeEmptyDirs = async (rootDir) => {
   const walk = async (dir) => {
@@ -522,6 +557,7 @@ const agentReadyDiscoveryNeedsUpdate = await plainFileNeedsUpdate(agentReadyDisc
 const rootAgentReadySharedNeedsUpdate = await plainFileNeedsUpdate(agentReadySharedSource, rootAgentReadySharedTarget)
 const rootAgentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(rootAgentReadyFunctionSource, rootAgentReadyFunctionTarget)
 const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(agentReadyToolContractSource, agentReadyToolContractTarget)
+const vdeoxplnContractNeedsUpdate = await plainFileNeedsUpdate(vdeoxplnContractSource, vdeoxplnContractTarget)
 const sharedDocumentStructureInspectionNeedsUpdate = await plainFileNeedsUpdate(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
 const agentSurfaceInspectionNeedsUpdate = await plainFileNeedsUpdate(agentSurfaceInspectionSource, agentSurfaceInspectionTarget)
 const webMcpLifecycleNeedsUpdate = await plainFileNeedsUpdate(webMcpLifecycleSource, webMcpLifecycleTarget)
@@ -535,6 +571,11 @@ const agentReadyStaticFilesToWrite = []
 for (const [rel, artifact] of Object.entries(agentReadyArtifacts)) {
   const dst = path.resolve(githubRoot, 'huijoohwee', rel)
   if (await textFileNeedsUpdate(artifact.body, dst)) agentReadyStaticFilesToWrite.push(rel)
+}
+const obsoleteGeneratedMirrorFilesToRemove = []
+for (const rel of obsoleteGeneratedMirrorFiles) {
+  const dst = path.resolve(githubRoot, 'huijoohwee', rel)
+  if (await fileExists(dst)) obsoleteGeneratedMirrorFilesToRemove.push(rel)
 }
 const existingHeaders = await fs.readFile(headersPath, 'utf8')
 const nextHeaders = buildAgentReadyHeaders(existingHeaders, agentReadyArtifacts)
@@ -559,6 +600,7 @@ if (checkMode) {
     rootAgentReadySharedNeedsUpdate ||
     rootAgentReadyFunctionNeedsUpdate ||
     agentReadyToolContractNeedsUpdate ||
+    vdeoxplnContractNeedsUpdate ||
     sharedDocumentStructureInspectionNeedsUpdate ||
     agentSurfaceInspectionNeedsUpdate ||
     webMcpLifecycleNeedsUpdate ||
@@ -568,6 +610,7 @@ if (checkMode) {
     sharedD1NeedsUpdate ||
     sharedPublishedDocNeedsUpdate ||
     agentReadyStaticFilesToWrite.length > 0 ||
+    obsoleteGeneratedMirrorFilesToRemove.length > 0 ||
     headersNeedUpdate ||
     await existsDir(obsoleteLegacyMirrorDir)
   )
@@ -606,6 +649,7 @@ if (checkMode) {
     if (rootAgentReadySharedNeedsUpdate) console.error('  - Root agent-ready shared markdown helper is out of sync')
     if (rootAgentReadyFunctionNeedsUpdate) console.error('  - Root markdown negotiation Pages Function is out of sync')
     if (agentReadyToolContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared tool contract is out of sync')
+    if (vdeoxplnContractNeedsUpdate) console.error('  - Knowgrph vdeoxpln contract helper is out of sync')
     if (sharedDocumentStructureInspectionNeedsUpdate) console.error('  - Knowgrph shared document structure inspection helper is out of sync')
     if (agentSurfaceInspectionNeedsUpdate) console.error('  - Knowgrph agent surface inspection helper is out of sync')
     if (webMcpLifecycleNeedsUpdate) console.error('  - Knowgrph WebMCP lifecycle helper is out of sync')
@@ -617,6 +661,10 @@ if (checkMode) {
     if (agentReadyStaticFilesToWrite.length > 0) {
       console.error(`  - root agent-ready static files needing sync (${agentReadyStaticFilesToWrite.length}):`)
       for (const rel of agentReadyStaticFilesToWrite.slice(0, 20)) console.error(`  - ${rel}`)
+    }
+    if (obsoleteGeneratedMirrorFilesToRemove.length > 0) {
+      console.error(`  - obsolete generated mirror files needing removal (${obsoleteGeneratedMirrorFilesToRemove.length}):`)
+      for (const rel of obsoleteGeneratedMirrorFilesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
     }
     if (headersNeedUpdate) console.error('  - `huijoohwee/_headers` generated agent-ready block is out of sync')
     if (await existsDir(obsoleteLegacyMirrorDir)) {
@@ -702,6 +750,9 @@ if (checkMode) {
   if (agentReadyToolContractNeedsUpdate) {
     await copyPlainFile(agentReadyToolContractSource, agentReadyToolContractTarget)
   }
+  if (vdeoxplnContractNeedsUpdate) {
+    await copyPlainFile(vdeoxplnContractSource, vdeoxplnContractTarget)
+  }
   if (sharedDocumentStructureInspectionNeedsUpdate) {
     await copyPlainFile(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
   }
@@ -733,11 +784,16 @@ if (checkMode) {
     await writeTextFile(dst, artifact.body)
     agentReadyStaticUpdated += 1
   }
+  let obsoleteGeneratedMirrorFilesRemoved = 0
+  for (const rel of obsoleteGeneratedMirrorFilesToRemove) {
+    await fs.rm(path.resolve(githubRoot, 'huijoohwee', rel), { force: true })
+    obsoleteGeneratedMirrorFilesRemoved += 1
+  }
   if (headersNeedUpdate) {
     await fs.writeFile(headersPath, nextHeaders, 'utf8')
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
   )
 }

@@ -30,6 +30,18 @@ export function buildCanvasAppliedMarkdownDocumentSemanticKey(args: {
   return buildScopedGraphSemanticKey('canvas-applied-markdown-document', { graphSemanticKey })
 }
 
+export function shouldRefreshCanvasAppliedMarkdownDocument(args: {
+  latest: CanvasAppliedMarkdownDocument
+  next: CanvasAppliedMarkdownDocument
+  applyViewPreset?: boolean
+}): boolean {
+  if (args.applyViewPreset !== false) return true
+  if (!args.latest.semanticKey) return true
+  if (args.latest.name !== args.next.name) return true
+  if (args.latest.sourceUrl !== args.next.sourceUrl) return true
+  return false
+}
+
 export function useCanvasAppliedMarkdownDocument(args: CanvasAppliedMarkdownDocumentInput): CanvasAppliedMarkdownDocument {
   const next = React.useMemo<CanvasAppliedMarkdownDocument>(() => {
     const name = typeof args.name === 'string' && args.name.trim() ? args.name : null
@@ -48,7 +60,11 @@ export function useCanvasAppliedMarkdownDocument(args: CanvasAppliedMarkdownDocu
     text: '',
     semanticKey: '',
   })
-  if (args.applyViewPreset !== false) {
+  if (shouldRefreshCanvasAppliedMarkdownDocument({
+    latest: latestAppliedRef.current,
+    next,
+    applyViewPreset: args.applyViewPreset,
+  })) {
     latestAppliedRef.current = next
     return next
   }

@@ -44,7 +44,6 @@ export function StaticRichMediaPanelPreview(props: {
     onOverlayPanEnd,
   } = props
 
-  const titleWidth = Math.min(innerW, Math.max(64, (titleChip.length + 6) * 6))
   const mediaCorner = 6
   const kind = tag === 'IMG' ? 'image' : tag === 'VIDEO' ? 'video' : 'iframe'
   const panel = React.useMemo(
@@ -99,6 +98,7 @@ export function StaticRichMediaPanelPreview(props: {
           url={url}
           openUrl={url}
           kind={kind}
+          panelChrome="flowEditor"
           interactive={interactive}
           panel={panel}
           forwardWheelTo={forwardWheelTo}
@@ -108,22 +108,6 @@ export function StaticRichMediaPanelPreview(props: {
           style={panelStyle}
         />
       </foreignObject>
-
-      <rect
-        x={innerX}
-        y={innerY}
-        width={titleWidth}
-        height={18}
-        rx={5}
-        fill="var(--kg-panel-bg)"
-        stroke="var(--kg-border)"
-        strokeWidth={1}
-        strokeOpacity={0.7}
-        style={{ pointerEvents: 'none' }}
-      />
-      <text x={innerX + 10} y={innerY + 13} fill="var(--kg-text-tertiary)" fontSize={10} fontWeight={600} style={{ pointerEvents: 'none' }}>
-        {titleChip}
-      </text>
     </g>
   )
 }

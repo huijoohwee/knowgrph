@@ -35,6 +35,7 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
   ]
 
   if (JSON.stringify(toolNames) !== JSON.stringify(expectedNames)) {
@@ -62,5 +63,22 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   }
   if (!portDescription.includes('4173')) {
     throw new Error(`expected UI launch port description to reflect injected default port, got ${JSON.stringify(portDescription)}`)
+  }
+
+  const vdeoxplnTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList)
+  if (!vdeoxplnTool) {
+    throw new Error('expected knowgrph.vdeoxpln.list tool definition')
+  }
+  if (!String(vdeoxplnTool.description || '').includes('canonical Knowgrph vdeoxpln registry')) {
+    throw new Error(`expected vdeoxpln tool to describe the canonical registry, got ${JSON.stringify(vdeoxplnTool.description)}`)
+  }
+  const vdeoxplnProperties = vdeoxplnTool.inputSchema.properties || {}
+  for (const required of ['intentText', 'requestedOutputs', 'stateSignals', 'chatStorageTarget']) {
+    if (!vdeoxplnProperties[required]) {
+      throw new Error(`expected vdeoxpln tool schema to expose neutral routing input ${required}`)
+    }
+  }
+  if (!String(vdeoxplnProperties.intentText.description || '').includes('Route names and file paths are ignored')) {
+    throw new Error('expected vdeoxpln intentText schema to forbid route/file based routing')
   }
 }

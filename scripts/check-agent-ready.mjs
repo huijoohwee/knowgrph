@@ -563,31 +563,27 @@ const checks = [
             && skill?.description === expectedSkill.description
             && skill?.url === `${canonicalBaseUrl}${expectedSkill.path}`,
           ))
-        && payload.skills.every((skill) => skill.name && skill.type && skill.url && skill.sha256)
+        && payload.skills.every((skill) =>
+          skill.name
+          && skill.type
+          && skill.url
+          && skill.sha256
+          && skill.vdeoxpln?.id === skill.name
+          && String(skill.vdeoxpln?.semanticKey || '').startsWith('kgvx_'))
     },
   },
-  {
-    name: 'agent-skill-source-files-markdown',
-    url: `${baseUrl}/.well-known/agent-skills/knowgrph-source-files.md`,
+  ...expectedAgentSkills.map((expectedSkill) => ({
+    name: `agent-skill-${expectedSkill.name}-markdown`,
+    url: `${baseUrl}${expectedSkill.path}`,
     accept: 'text/markdown',
     assert: async (response, body) =>
       response.ok
       && response.headers.get('content-type')?.includes('text/markdown')
-      && body.includes('# Knowgrph Published Documents Skill')
-      && body.includes('/api/storage/source-files')
-      && body.includes('/api/storage/doc-default/{canonicalPath}'),
-  },
-  {
-    name: 'agent-skill-webmcp-readiness-markdown',
-    url: `${baseUrl}/.well-known/agent-skills/knowgrph-webmcp-readiness.md`,
-    accept: 'text/markdown',
-    assert: async (response, body) =>
-      response.ok
-      && response.headers.get('content-type')?.includes('text/markdown')
-      && body.includes('# Knowgrph WebMCP Readiness Skill')
-      && body.includes('navigator.modelContext')
-      && body.includes('inspect_agent_surface'),
-  },
+      && body.includes(`# ${expectedSkill.vdeoxpln.title} Skill`)
+      && body.includes(`Vdeoxpln id: \`${expectedSkill.name}\``)
+      && body.includes(`Semantic key: \`${expectedSkill.vdeoxpln.semanticKey}\``)
+      && body.includes('Do not add compatibility aliases for stale vdeoxpln ids.'),
+  })),
   {
     name: 'jwks',
     url: `${baseUrl}/.well-known/http-message-signatures-directory`,

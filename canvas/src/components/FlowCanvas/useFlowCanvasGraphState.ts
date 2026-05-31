@@ -74,7 +74,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   const renderGraphData = React.useMemo(() => {
     return graphDataOverride !== undefined ? graphDataOverride : storeGraphData
   }, [graphDataOverride, storeGraphData])
-  const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true
+  const allowMutations = allowNodeDragOverride !== false
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true,

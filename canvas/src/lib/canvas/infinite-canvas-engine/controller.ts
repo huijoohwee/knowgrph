@@ -95,6 +95,7 @@ export function createInfiniteCanvasViewportController(args: {
   disableAutoZoomModes: () => void
   onInteractionFrame?: () => void
   onCommit?: () => void
+  deferInteractionCommits?: boolean
   getWheelAnchorFallback: () => { sx: number; sy: number; ts: number } | null
   setWheelAnchorFallback: (p: { sx: number; sy: number; ts: number }) => void
   readLocalPoint: LocalPointReader
@@ -133,6 +134,29 @@ export function createInfiniteCanvasViewportController(args: {
   let wheelZoomAnimAnchor: { sx: number; sy: number } = { sx: 0, sy: 0 }
   let wheelZoomAnimScaleExtent: { minK: number; maxK: number } = { minK: 0.05, maxK: 8 }
   let wheelZoomAnimLastCommitMs = 0
+  let deferredCommitTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearDeferredCommit = (): boolean => {
+    if (deferredCommitTimer == null) return false
+    clearTimeout(deferredCommitTimer)
+    deferredCommitTimer = null
+    return true
+  }
+
+  const flushCommit = (force = false) => {
+    if (!force && args.deferInteractionCommits !== true) return
+    clearDeferredCommit()
+    args.onCommit?.()
+  }
+
+  const scheduleDeferredCommit = () => {
+    if (typeof args.onCommit !== 'function') return
+    clearDeferredCommit()
+    deferredCommitTimer = setTimeout(() => {
+      deferredCommitTimer = null
+      args.onCommit?.()
+    }, 120)
+  }
 
   const clearUserSelectLock = () => {
     const lockedPointerId = userSelectLockedPointerId
@@ -160,6 +184,10 @@ export function createInfiniteCanvasViewportController(args: {
     args.adapter.setTransform(t)
     args.onInteractionFrame?.()
     if (!opts?.commit || typeof args.onCommit !== 'function') return
+    if (args.deferInteractionCommits === true) {
+      scheduleDeferredCommit()
+      return
+    }
     const now = Date.now()
     const interval = typeof opts.commitMinIntervalMs === 'number' && Number.isFinite(opts.commitMinIntervalMs) ? opts.commitMinIntervalMs : 0
     if (interval <= 0) {
@@ -187,7 +215,7 @@ export function createInfiniteCanvasViewportController(args: {
 
     if (!(raw01 < 1)) {
       wheelZoomAnimRaf = null
-      args.onCommit?.()
+      flushCommit(true)
       return
     }
     wheelZoomAnimRaf = raf.request(tickWheelZoomAnimation)
@@ -595,6 +623,7 @@ export function createInfiniteCanvasViewportController(args: {
         void 0
       }
     }
+    flushCommit()
     return false
   }
 
@@ -618,6 +647,7 @@ export function createInfiniteCanvasViewportController(args: {
         void 0
       }
     }
+    flushCommit()
     return false
   }
 
@@ -630,6 +660,7 @@ export function createInfiniteCanvasViewportController(args: {
       drag = null
       clearUserSelectLock()
     }
+    flushCommit()
     return false
   }
 
@@ -650,6 +681,8 @@ export function createInfiniteCanvasViewportController(args: {
   }
 
   const destroy = () => {
+    const hadDeferredCommit = deferredCommitTimer != null
+    if (hadDeferredCommit) flushCommit(true)
     cancelWheelZoomAnimation()
     if (pendingWheelZoomRaf != null) {
       raf.cancel(pendingWheelZoomRaf)

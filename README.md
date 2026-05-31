@@ -62,7 +62,7 @@ TRAE is the single entry point. No secondary tools, no context switching.
 ```bash
 knowgrph.superagent.run \
   --input fixtures/superagent-storyboard-reverse.md \
-  --var url="https://youtu.be/77FAnT935IE" \
+  --var url="$KNOWGRPH_STORYTREE_SOURCE_URL" \
   --output-dir data/outputs/storyboard-fork \
   --run-id storyboard-fork-001 \
   --print-summary
@@ -170,7 +170,7 @@ pip install -r requirements.txt        # adds yt-dlp, faster-whisper, jsonschema
 # Fork a video
 python3 -m knowgrph_parser superagent \
   --input knowgrph_parser/fixtures/superagent-storyboard-reverse.md \
-  --var url="https://youtu.be/77FAnT935IE" \
+  --var url="$KNOWGRPH_STORYTREE_SOURCE_URL" \
   --output-dir data/outputs/stryfork-demo \
   --run-id stryfork-demo-001 \
   --print-summary

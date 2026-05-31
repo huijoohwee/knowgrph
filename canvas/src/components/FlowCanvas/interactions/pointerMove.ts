@@ -127,7 +127,6 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       if (Math.abs(d.dx) > 1e-6 || Math.abs(d.dy) > 1e-6) {
         setFlowNativeTransform(runtime, d3.zoomIdentity.translate(runtime.transform.x + d.dx, runtime.transform.y + d.dy).scale(runtime.transform.k))
         requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
-        ctx.args.requestCommit()
         ctx.args.onInteractionFrame?.()
       }
     }
@@ -199,7 +198,6 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       })
       setFlowNativeTransform(runtime, next)
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
-      ctx.args.requestCommit()
       ctx.args.onInteractionFrame?.()
       try {
         e.preventDefault()
@@ -230,7 +228,6 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       const dy = (sy - drag.startSy) * drag.interactionSpeed
       setFlowNativeTransform(runtime, d3.zoomIdentity.translate(drag.startTx + dx, drag.startTy + dy).scale(runtime.transform.k))
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
-      ctx.args.requestCommit()
       ctx.args.onInteractionFrame?.()
       try {
         e.preventDefault()

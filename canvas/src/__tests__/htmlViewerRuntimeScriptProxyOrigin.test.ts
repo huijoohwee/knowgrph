@@ -18,6 +18,7 @@ export function testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder() {
     widthMaxDefault: 460,
     widthMaxCompact: 360,
     proxyOrigin: 'http://localhost:5173',
+    allowRuntimeNetwork: true,
   })
 
   if (out.includes('__KG_PROXY_ORIGIN__')) {
@@ -28,6 +29,9 @@ export function testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder() {
   }
   if (!out.includes('http://localhost:5173')) {
     throw new Error('Expected proxy origin string to be embedded into runtime script')
+  }
+  if (!out.includes('var KG_ALLOW_RUNTIME_NETWORK = true;')) {
+    throw new Error('Expected explicit runtime networking mode to be embedded')
   }
   if (!out.includes("root ? Array.prototype.slice.call(root.querySelectorAll('[data-node-id]'))")) {
     throw new Error('Expected frontmatter visibility to include non-SVG node elements')
@@ -47,5 +51,47 @@ export function testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder() {
 
   if (!out.includes('scheduleEdgeGeometryUpdateForNode(nodeId)')) {
     throw new Error('Expected node offset translation to schedule edge geometry updates')
+  }
+}
+
+export function testHtmlViewerRuntimeScriptDisablesNetworkByDefault() {
+  const out = buildHtmlViewerRuntimeScript({
+    interactionCfgJson: '{}',
+    mediaNodesJson: '[]',
+    markdownBlocksJson: '[]',
+    nodeLabelByIdJson: '{}',
+    edgeMetaByIdJson: '{}',
+    frontmatterVisibilityJson: '{"nodeIds":[],"edgeIds":[]}',
+    nodePosByIdJson: '{}',
+    groupMembersByIdJson: '{}',
+    density: 'default',
+    widthRatioDefault: 0.22,
+    widthRatioCompact: 0.14,
+    widthMinDefault: 220,
+    widthMinCompact: 180,
+    widthMaxDefault: 460,
+    widthMaxCompact: 360,
+  })
+
+  if (out.includes('__KG_ALLOW_RUNTIME_NETWORK__')) {
+    throw new Error('Expected runtime networking placeholder to be replaced')
+  }
+  if (!out.includes('var KG_ALLOW_RUNTIME_NETWORK = false;')) {
+    throw new Error('Expected runtime networking to default off')
+  }
+  if (!out.includes('if (!KG_ALLOW_RUNTIME_NETWORK) return false;')) {
+    throw new Error('Expected proxy use to be blocked when runtime networking is off')
+  }
+  if (!out.includes("if (!KG_ALLOW_RUNTIME_NETWORK) { try { onDone && onDone(null); }")) {
+    throw new Error('Expected webpage metadata fetch to short-circuit when runtime networking is off')
+  }
+  if (!out.includes("if (!KG_ALLOW_RUNTIME_NETWORK && (u.startsWith('/__') || u.startsWith('/@') || /^https?:\\/\\//i.test(u))) return '';")) {
+    throw new Error('Expected remote media srcs to be suppressed when runtime networking is off')
+  }
+  if (!out.includes('if (KG_ALLOW_RUNTIME_NETWORK && raw && cur !== raw) imgEl.src = raw;')) {
+    throw new Error('Expected image fallback to avoid raw remote srcs when runtime networking is off')
+  }
+  if (!out.includes('if (KG_ALLOW_RUNTIME_NETWORK && raw && cur !== raw) vid.src = raw;')) {
+    throw new Error('Expected video fallback to avoid raw remote srcs when runtime networking is off')
   }
 }

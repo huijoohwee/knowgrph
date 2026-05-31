@@ -168,16 +168,19 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
     throw new Error('expected overlay collision runtime to size frontmatter balanced reseeds against the visible viewport dimensions')
   }
   if (!hookText.includes('const activeViewport = isFrontmatterFlow')) {
-    throw new Error('expected overlay collision runtime to derive one active clamp/reuse viewport so frontmatter floating collectives stay inside the visible strip')
+    throw new Error('expected overlay collision runtime to derive one active viewport for balanced-state scoring and bounded anchor-shift inputs')
   }
-  if (!hookText.includes('const clampToCollisionViewport = (pos: { left: number; top: number }, size: { width: number; height: number }) => {')) {
-    throw new Error('expected overlay collision runtime to clamp auto-managed frontmatter widgets against the active visible viewport instead of the full surface')
+  if (!hookText.includes('const resolveInfiniteCanvasCollisionPosition = (pos: { left: number; top: number }, _size: { width: number; height: number }) => {')) {
+    throw new Error('expected overlay collision runtime to resolve collision positions without viewport clamp in infinite-canvas mode')
+  }
+  if (hookText.includes('clampToCollisionViewport') || hookText.includes('const okX = left >= activeViewport.left')) {
+    throw new Error('expected overlay collision runtime to forbid viewport clamp/reject logic for stored infinite-canvas positions')
   }
   if (!hookText.includes('const storedCollectiveViewportState = deriveCollectiveViewportState(storedCollectiveItems)')) {
     throw new Error('expected overlay collision runtime to score stored frontmatter floating collectives before preserving them')
   }
-  if (!hookText.includes('&& (!storedCollectiveViewportState?.centered || !storedCollectiveViewportState?.balanced)')) {
-    throw new Error('expected overlay collision runtime to reject off-center or unbalanced stored frontmatter collective residue before reuse')
+  if (!hookText.includes('&& !storedCollectiveViewportState?.balanced')) {
+    throw new Error('expected overlay collision runtime to reject only unbalanced stored frontmatter collective residue before reuse')
   }
   if (!hookText.includes('if (isFrontmatterFlow && overlayOnlyModeEnabled) return \'\'')) {
     throw new Error('expected frontmatter overlay-only balanced reseeds to avoid anchoring the whole collective to one arbitrary survivor widget')

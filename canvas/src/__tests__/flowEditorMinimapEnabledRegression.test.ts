@@ -12,7 +12,11 @@ export function testFlowEditorMinimapIsEnabled() {
   if (!text.includes('supportsCanvas2dMinimap(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport to use the shared minimap support helper')
   }
-  if (!renderConfigText.includes("if (id === 'flowEditor') return 'flowEditor'")) {
+  if (
+    !renderConfigText.includes("flowEditor: {") ||
+    !renderConfigText.includes("surfaceId: 'flowEditor'") ||
+    !renderConfigText.includes('getCanvas2dSurfaceId(id) !== null')
+  ) {
     throw new Error('expected shared renderer surface helper to preserve Flow Editor as a minimap-capable surface')
   }
 }

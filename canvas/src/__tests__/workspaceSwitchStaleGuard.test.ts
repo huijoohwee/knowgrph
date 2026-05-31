@@ -259,7 +259,7 @@ export const testMarkdownWorkspaceSelectionAppliesFrontmatterFileSwitchAtActiveD
   if (text.includes('FRONTMATTER_SWITCH_GRAPH_APPLY_DELAY_MS') || text.includes('frontmatterSwitchGraphApplyTimerRef') || text.includes('applyGraphAfterSelection')) {
     throw new Error('Expected markdown workspace selection not to schedule graph apply from Source Files selection state')
   }
-  if (!text.includes('autoEnableFrontmatter: true,\n          applyViewPreset: true,\n          applyToGraph: true')) {
+  if (!text.includes('autoEnableFrontmatter: true,\n        applyViewPreset: true,\n        applyToGraph: true')) {
     throw new Error('Expected markdown workspace selection to apply selected file content and YAML Canvas view presets through the active document owner')
   }
   if (!text.includes('forceApplyToGraph: true')) {

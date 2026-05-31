@@ -16,6 +16,7 @@ import type { OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing
 import { readOverlaySizingConfigForDensity } from '@/lib/render/overlaySizing2d'
 import {
   decodeRepoFileUrlToRelPath,
+  inlineStandaloneAssetUrlToDataUrl,
   inlineRepoFileUrlToDataUrl,
   unwrapStandaloneProxyUrl,
 } from '@/lib/graph/htmlViewer/standaloneAssetRewrite'
@@ -465,6 +466,9 @@ export async function buildGraphHtmlViewerMarkup(args: {
   zoomStrokeScaleClampMax2d?: number
   hideLabelsBelowScale?: number
   overlayHtml?: string
+  inlineRemoteMediaAssets?: boolean
+  allowRuntimeNetwork?: boolean
+  proxyOrigin?: string | null
 }): Promise<string | null> {
   try {
     ensureKgTokensInstalled()
@@ -751,7 +755,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds: preferredOverlayNodeIds })
   })()
 
-  const inlineRepoFileMedia = async (nodes: HtmlViewerMediaNode[]): Promise<HtmlViewerMediaNode[]> => {
+  const inlineStandaloneMedia = async (nodes: HtmlViewerMediaNode[]): Promise<HtmlViewerMediaNode[]> => {
     if (!nodes || nodes.length === 0) return []
     const MAX_BYTES = 2_400_000
     const out: HtmlViewerMediaNode[] = []
@@ -759,18 +763,18 @@ export async function buildGraphHtmlViewerMarkup(args: {
       const n = nodes[i]
       const url0 = String(n.url || '').trim()
       const url = unwrapStandaloneProxyUrl(url0)
+      const openUrl = unwrapStandaloneProxyUrl(String(n.openUrl || url || '').trim())
       const relPath = decodeRepoFileUrlToRelPath(url)
-      if (!relPath) {
-        out.push({ ...n, url })
-        continue
-      }
+      const canInlineRemote = args.inlineRemoteMediaAssets === true && (n.kind === 'image' || n.kind === 'svg' || n.kind === 'video')
 
-      const inlined = await inlineRepoFileUrlToDataUrl(url, { maxBytes: MAX_BYTES })
+      const inlined = canInlineRemote
+        ? await inlineStandaloneAssetUrlToDataUrl(url0 || url, { maxBytes: MAX_BYTES, allowRemote: true })
+        : (relPath ? await inlineRepoFileUrlToDataUrl(url, { maxBytes: MAX_BYTES }) : null)
       if (!inlined) {
-        out.push({ ...n, url })
+        out.push({ ...n, url, openUrl })
         continue
       }
-      out.push({ ...n, url: inlined })
+      out.push({ ...n, url: inlined, openUrl })
     }
     return out
   }
@@ -789,7 +793,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     for (let i = 0; i < overlaySeeds.mediaNodes.length; i += 1) push(overlaySeeds.mediaNodes[i]!)
     return out
   })()
-  const mediaNodes = await inlineRepoFileMedia(mediaNodesMerged)
+  const mediaNodes = await inlineStandaloneMedia(mediaNodesMerged)
 
   const mediaNodesJson = JSON.stringify(mediaNodes)
 
@@ -1035,8 +1039,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
 
   const proxyOrigin = (() => {
     try {
-      if (typeof window === 'undefined') return ''
-      const origin = String(window.location?.origin || '').trim()
+      const origin = String(args.proxyOrigin || '').trim()
       if (!origin) return ''
       const host = new URL(origin).hostname.toLowerCase()
       if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') return origin
@@ -1065,6 +1068,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     widthMaxDefault,
     widthMaxCompact,
     proxyOrigin,
+    allowRuntimeNetwork: args.allowRuntimeNetwork === true,
   })
 
   const fontFamily = tryReadCssVar('--kg-font-family', 'ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial')

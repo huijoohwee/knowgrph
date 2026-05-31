@@ -101,6 +101,7 @@ export type MarkdownPreviewViewerProps = {
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
   onInlineDraftTextChange?: (nextText: string, options?: import('@/features/markdown/ui/MarkdownRendererTypes').MarkdownInlineDraftTextChangeOptions) => void
+  markdownCardPreviewMode?: boolean
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -163,6 +164,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     forbidCopy = false,
     onInlineEditStateChange,
     onInlineDraftTextChange,
+    markdownCardPreviewMode = false,
   } = props
   const blockCopy = React.useCallback((event: React.ClipboardEvent<HTMLElement>) => {
     if (!forbidCopy) return
@@ -574,6 +576,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         onInlineDraftTextChange={onInlineDraftTextChange}
         deferMermaidRender={deferMermaidRender}
         markdownLargeDocumentMode={markdownLargeDocumentMode}
+        markdownCardPreviewMode={markdownCardPreviewMode}
       />
     ),
     [
@@ -610,8 +613,10 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       webpageLayoutWireframeAscii,
       forbidCopy,
       onInlineEditStateChange,
+      onInlineDraftTextChange,
       deferMermaidRender,
       markdownLargeDocumentMode,
+      markdownCardPreviewMode,
     ],
   )
 
@@ -657,6 +662,83 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     deferMermaidRender,
   ])
 
+  const previewContent = (
+    <section
+      ref={handleScrollRootRef}
+      onPointerDownCapture={resetUserSelectLockIfNeeded}
+      onMouseDownCapture={resetUserSelectLockIfNeeded}
+      onMouseUpCapture={resetUserSelectLockIfNeeded}
+      onDoubleClickCapture={resetUserSelectLockIfNeeded}
+      onScroll={onScroll}
+      onContextMenu={onContextMenu}
+      onClick={handleClickWithWikiLinks}
+      onDoubleClick={onDoubleClick}
+      onMouseUp={onMouseUp}
+      onCopy={blockCopy}
+      onCut={blockCopy}
+      onKeyDown={blockCopyKeyDown}
+      style={getMarkdownPreviewScrollStyle(scrollClass, stickyHeadingScrollPaddingTopPx)}
+      className={[
+        'relative flex-1 min-h-0', // Removed py-2 to ensure sticky headers snap perfectly to top
+        scrollClass,
+        uiPanelTextFontClass,
+        UI_THEME_TOKENS.text.primary,
+      ].join(' ')}
+      data-testid="markdown-preview-root"
+      data-kg-card-markdown-viewer={markdownCardPreviewMode ? '1' : undefined}
+      data-kg-large-markdown-viewer={markdownLargeDocumentMode ? '1' : undefined}
+      aria-label="Markdown Preview Content"
+    >
+      {!markdownCardPreviewMode && embeddedMarkdownBase64 ? (
+        <script type="application/x-kg-markdown" data-kg-markdown-source="1" data-kg-encoding="base64">
+          {embeddedMarkdownBase64}
+        </script>
+      ) : null}
+      {variableSsotEntries.length > 0 ? (
+        <section aria-hidden className="sr-only">
+          {variableSsotEntries.map(entry => (
+            <span
+              key={`var-ssot:${entry.key}`}
+              id={buildMarkdownVariableSsotAnchorId(entry.key)}
+              data-kg-var-ssot-key={entry.key}
+              data-kg-var-ssot-line={entry.line}
+            />
+          ))}
+        </section>
+      ) : null}
+      {frontmatterPreviewOpts ? (
+        <MarkdownFrontmatterPreviewBlocks
+          yaml={frontmatterRawText}
+          mermaid={frontmatterMermaidCode}
+          frontmatterMeta={frontmatterMeta}
+          variableSsotEntries={variableSsotEntries}
+          onShowInEditor={onShowInEditor}
+          annotateDisplayMode={annotateDisplayMode}
+          opts={frontmatterPreviewOpts}
+          markdownWordWrap={markdownWordWrap}
+          contentClassName={contentClassName}
+          markdownViewerWidthMode={markdownViewerWidthMode}
+        />
+      ) : null}
+      <article
+        ref={handleArticleRef}
+        className={
+          contentClassName ||
+          getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')
+        }
+      >
+         {body}
+      </article>
+      {selectionToolbar ? (
+        <section className={getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')}>
+          {selectionToolbar}
+        </section>
+      ) : null}
+    </section>
+  )
+
+  if (markdownCardPreviewMode) return previewContent
+
   return (
     <MarkdownPanelLayout
       tokens={tokens}
@@ -677,77 +759,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       sourceFilesPanelIntegration={sourceFilesPanelIntegration}
       sidebarPosition={sidebarPosition}
     >
-      <section
-        ref={handleScrollRootRef}
-        onPointerDownCapture={resetUserSelectLockIfNeeded}
-        onMouseDownCapture={resetUserSelectLockIfNeeded}
-        onMouseUpCapture={resetUserSelectLockIfNeeded}
-        onDoubleClickCapture={resetUserSelectLockIfNeeded}
-        onScroll={onScroll}
-        onContextMenu={onContextMenu}
-        onClick={handleClickWithWikiLinks}
-        onDoubleClick={onDoubleClick}
-        onMouseUp={onMouseUp}
-        onCopy={blockCopy}
-        onCut={blockCopy}
-        onKeyDown={blockCopyKeyDown}
-        style={getMarkdownPreviewScrollStyle(scrollClass, stickyHeadingScrollPaddingTopPx)}
-        className={[
-          'relative flex-1 min-h-0', // Removed py-2 to ensure sticky headers snap perfectly to top
-          scrollClass,
-          uiPanelTextFontClass,
-          UI_THEME_TOKENS.text.primary,
-        ].join(' ')}
-        data-testid="markdown-preview-root"
-        data-kg-large-markdown-viewer={markdownLargeDocumentMode ? '1' : undefined}
-        aria-label="Markdown Preview Content"
-      >
-        {embeddedMarkdownBase64 ? (
-          <script type="application/x-kg-markdown" data-kg-markdown-source="1" data-kg-encoding="base64">
-            {embeddedMarkdownBase64}
-          </script>
-        ) : null}
-        {variableSsotEntries.length > 0 ? (
-          <section aria-hidden className="sr-only">
-            {variableSsotEntries.map(entry => (
-              <span
-                key={`var-ssot:${entry.key}`}
-                id={buildMarkdownVariableSsotAnchorId(entry.key)}
-                data-kg-var-ssot-key={entry.key}
-                data-kg-var-ssot-line={entry.line}
-              />
-            ))}
-          </section>
-        ) : null}
-        {frontmatterPreviewOpts ? (
-          <MarkdownFrontmatterPreviewBlocks
-            yaml={frontmatterRawText}
-            mermaid={frontmatterMermaidCode}
-            frontmatterMeta={frontmatterMeta}
-            variableSsotEntries={variableSsotEntries}
-            onShowInEditor={onShowInEditor}
-            annotateDisplayMode={annotateDisplayMode}
-            opts={frontmatterPreviewOpts}
-            markdownWordWrap={markdownWordWrap}
-            contentClassName={contentClassName}
-            markdownViewerWidthMode={markdownViewerWidthMode}
-          />
-        ) : null}
-        <article
-          ref={handleArticleRef}
-          className={
-            contentClassName ||
-            getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')
-          }
-        >
-           {body}
-        </article>
-        {selectionToolbar ? (
-          <section className={getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')}>
-            {selectionToolbar}
-          </section>
-        ) : null}
-      </section>
+      {previewContent}
     </MarkdownPanelLayout>
   )
 }

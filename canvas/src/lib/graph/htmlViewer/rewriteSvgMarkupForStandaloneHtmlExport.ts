@@ -1,4 +1,5 @@
 import {
+  inlineStandaloneAssetUrlToDataUrl,
   inlineRepoFileUrlToDataUrl,
   unwrapStandaloneProxyUrl,
 } from '@/lib/graph/htmlViewer/standaloneAssetRewrite'
@@ -75,6 +76,7 @@ const rewriteCssUrls = async (cssText: string, rewriteUrl: (u: string) => Promis
 export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
   svgMarkup: string
   maxInlineRepoBytes?: number
+  inlineRemoteAssets?: boolean
 }): Promise<string> {
   const src = String(args.svgMarkup || '')
   if (!src.trim()) return ''
@@ -97,11 +99,13 @@ export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
   const maxInlineRepoBytes =
     typeof args.maxInlineRepoBytes === 'number' && Number.isFinite(args.maxInlineRepoBytes) ? Math.max(0, Math.floor(args.maxInlineRepoBytes)) : 2_400_000
 
-  const rewriteUrl = async (raw: string): Promise<string> => {
+  const rewriteUrl = async (raw: string, opts?: { allowRemote?: boolean }): Promise<string> => {
     const raw0 = String(raw || '').trim()
     if (!raw0) return ''
     const unwrapped = unwrapStandaloneProxyUrl(raw0)
-    const inlined = await inlineRepoFileUrlToDataUrl(unwrapped, { maxBytes: maxInlineRepoBytes })
+    const inlined = args.inlineRemoteAssets === true && opts?.allowRemote === true
+      ? await inlineStandaloneAssetUrlToDataUrl(raw0, { maxBytes: maxInlineRepoBytes, allowRemote: true })
+      : await inlineRepoFileUrlToDataUrl(unwrapped, { maxBytes: maxInlineRepoBytes })
     return inlined || unwrapped
   }
 
@@ -116,7 +120,7 @@ export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
       const nameLower = String(urlAttr.name || '').toLowerCase()
 
       if (nameLower === 'srcset') {
-        const next = await parseAndRewriteSrcset(raw, rewriteUrl)
+        const next = await parseAndRewriteSrcset(raw, u => rewriteUrl(u, { allowRemote: true }))
         if (!next || next === raw) continue
         try {
           el.setAttribute(urlAttr.name, next)
@@ -127,7 +131,7 @@ export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
       }
 
       if (nameLower === 'style') {
-        const next = await rewriteCssUrls(raw, rewriteUrl)
+        const next = await rewriteCssUrls(raw, u => rewriteUrl(u, { allowRemote: true }))
         if (!next || next === raw) continue
         try {
           el.setAttribute(urlAttr.name, next)
@@ -137,7 +141,12 @@ export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
         continue
       }
 
-      const next = await rewriteUrl(raw)
+      const tagLower = String(el.tagName || '').toLowerCase()
+      const allowRemote =
+        nameLower === 'src' ||
+        nameLower === 'poster' ||
+        ((nameLower === 'href' || nameLower === 'xlink:href') && tagLower === 'image')
+      const next = await rewriteUrl(raw, { allowRemote })
       if (!next || next === raw) continue
       try {
         el.setAttribute(urlAttr.name, next)

@@ -2,8 +2,8 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md).
 
-**Document Version**: 0.4.15  
-**Date**: 2026-05-29  
+**Document Version**: 0.4.16  
+**Date**: 2026-05-30  
 **Status**: Implementation-aligned supplement
 
 ---
@@ -35,6 +35,8 @@ It answers four questions:
 | Browser WebMCP lifecycle | Shipped | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, duplicate registration tolerance |
 | Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | installs app-runtime WebMCP on page load |
 | Shared read-only tool contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | published Pages/HTTP tool set = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface` |
+| Vdeoxpln registry | Shipped | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | canonical vdeoxpln ids, semantic keys, source owners, tool projections, neutral routing, run manifest builder, and generated agent-skill Markdown |
+| Vdeoxpln run manifests | Shipped | `canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts` | writes KGC companion manifests through Workspace FS and host mirror after FloatingPanel Chat finalization |
 | Agent-ready metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | health, API catalog, OpenAPI, MCP server card, A2A agent card, agent-skills |
 | Agent-skills discovery metadata | Shipped | `cloudflare/pages/knowgrph-agent-ready-discovery.mjs` | agent-skills index and metadata expectations for published discovery |
 | MainPanel MCP | Shipped | `canvas/src/features/panels/views/McpHubView.tsx` | thin `SettingsView mode="mcp"` shell |
@@ -66,7 +68,7 @@ It answers four questions:
 |---|---|---|
 | HTML fallback injection | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects the shared five-tool WebMCP surface on `/knowgrph` HTML routes |
 | Agent-skills index | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/knowgrph-agent-ready-discovery.mjs` | publishes `/.well-known/agent-skills/index.json` under `/knowgrph` |
-| WebMCP skill markdown | `cloudflare/pages/knowgrph-agent-ready.mjs` | publishes `/.well-known/agent-skills/knowgrph-webmcp-readiness.md` |
+| Vdeoxpln markdown | `cloudflare/pages/knowgrph-agent-ready.mjs` + `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | publishes generated `/.well-known/agent-skills/{vdeoxpln-id}.md` routes from the canonical registry |
 | HTTP MCP / server card parity | `cloudflare/pages/knowgrph-agent-ready.mjs` | metadata surfaces must stay contract-equal with the shared published five-tool contract |
 
 ### Readiness Invariants
@@ -101,6 +103,7 @@ It answers four questions:
 | Chat mounting surface | `canvas/src/features/chat/FloatingPanelChat.tsx` | interactive chat state and UI |
 | Submit shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | thin shell by design |
 | Submit coordinator | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | request lifecycle owner |
+| Vdeoxpln routing prompt | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts` | injects the selected canonical vdeoxpln plan into provider-bound chat requests |
 | Streaming | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreaming.ts` | assistant draft flush and stream parsing |
 | KGC attempt / retry | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt.ts` | validation and correction retry |
 | Browser chat pipeline snapshot | `canvas/src/features/chat/FloatingPanelChat.tsx` + `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | publishes FloatingPanel runtime state and workspace follow/draft state for browser agents |
@@ -113,6 +116,7 @@ It answers four questions:
 | KGC validation | `canvas/src/features/chat/chatMarkdownValidation.ts` | frontmatter-first and `flow.subgraphs` enforcement |
 | Validation snapshot publish | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator.ts` | publishes retry, failed-rule, and validated-YAML readiness state for WebMCP inspection |
 | Finalize write | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | canonical workspace KGC persistence |
+| Vdeoxpln run manifest write | `canvas/src/features/chat/knowgrphVdeoxplnChatArtifacts.ts` | source-backed KGC companion output with selected vdeoxpln id, semantic run key, status, provider/model/cost fields, and Canvas apply result |
 | Canvas apply bridge | `canvas/src/features/chat/chatKgcCanvasApply.ts` | calls `setActiveMarkdownDocument()` |
 | Finalize/apply snapshot publish | `canvas/src/features/chat/floatingPanelChat/useFinalizeAssistantSuccess.ts` | publishes persisted path and apply outcome for WebMCP inspection |
 | Graph apply action | `canvas/src/hooks/store/graph-data-slice/graphDataDocumentActions.ts` | canonical graph apply gateway |
@@ -144,12 +148,14 @@ flowchart LR
   D --> E["FloatingPanel Chat"]
   E --> F["useFloatingPanelChatSubmit()"]
   F --> G["Coordinator + streaming"]
-  G --> H["KGC recovery + validation"]
-  H --> I["Finalize assistant success"]
-  I --> J["applyChatKgcWorkspaceDocumentToCanvas()"]
-  J --> K["setActiveMarkdownDocument(applyToGraph)"]
-  K --> L["Frontmatter-flow parse"]
-  L --> M["Nodes / edges / subgraphs / groups"]
+  G --> H["Vdeoxpln routing prompt"]
+  H --> I["KGC recovery + validation"]
+  I --> J["Finalize assistant success"]
+  J --> K["Workspace FS run manifest"]
+  J --> L["applyChatKgcWorkspaceDocumentToCanvas()"]
+  L --> M["setActiveMarkdownDocument(applyToGraph)"]
+  M --> N["Frontmatter-flow parse"]
+  N --> O["Nodes / edges / subgraphs / groups"]
 ```
 
 ### Architectural Invariants

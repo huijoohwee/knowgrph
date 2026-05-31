@@ -103,6 +103,8 @@ type MarkdownPreviewProps = {
   onInlineEditStateChange?: (active: boolean) => void
   onInlineDraftTextChange?: (nextText: string, options?: MarkdownInlineDraftTextChangeOptions) => void
   markdownTokenStoreSync?: boolean
+  contentClassName?: string
+  markdownCardPreviewMode?: boolean
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -163,6 +165,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     onInlineEditStateChange,
     onInlineDraftTextChange,
     markdownTokenStoreSync = true,
+    contentClassName,
+    markdownCardPreviewMode,
   },
   ref,
 ) {
@@ -585,6 +589,8 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       forbidCopy={forbidCopy}
       onInlineEditStateChange={handleInlineEditStateChange}
       onInlineDraftTextChange={onInlineDraftTextChange}
+      contentClassName={contentClassName}
+      markdownCardPreviewMode={markdownCardPreviewMode}
       />
     </MarkdownInlineSelectionActionsContext.Provider>
   )

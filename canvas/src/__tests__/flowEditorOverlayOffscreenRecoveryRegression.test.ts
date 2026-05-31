@@ -20,38 +20,29 @@ export function testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecove
   if (!runtimeText.includes('const collectiveCentered = overlayCollectiveState?.centered ?? graphCentered')) {
     throw new Error('expected Flow runtime recovery to prefer overlay collective centering over raw scene-node centering when overlays exist')
   }
-  if (!runtimeText.includes('overlayCollectiveState?.offscreen === true')) {
-    throw new Error('expected Flow runtime to recenter fully offscreen overlay collectives even after the native scene has been built')
+  if (!runtimeText.includes('offscreen: boolean') || !runtimeText.includes('workspace-open-offscreen-infinite-canvas-preserve-current')) {
+    throw new Error('expected Flow runtime to keep measuring offscreen overlay state as infinite-canvas preservation telemetry')
   }
-  if (!runtimeText.includes('const overlayCollectiveNeedsRecovery = overlayCollectiveState?.offscreen === true || (!!overlayCollectiveState && overlayCollectiveState.visible && !overlayCollectiveState.balanced && !overlayCollectiveState.centered)')) {
-    throw new Error('expected root overlay centroid recovery to include visible but unbalanced collectives')
-  }
-  if (!runtimeText.includes('const allowOverlayCentroidRecovery = !overlayOpen && ((!scene || scene.nodes.length === 0) || overlayCollectiveNeedsRecovery)')) {
-    throw new Error('expected root overlay centroid recovery to reuse the shared visible/unbalanced recovery predicate')
-  }
-  if (!runtimeText.includes('recenterVisibleFlowEditorOverlayCentroid({')) {
-    throw new Error('expected Flow runtime offscreen recovery to reuse the shared overlay-centroid recenter helper after applying the recovery fit')
-  }
-  if (!runtimeText.includes('const shouldRecenterOverlayCollective = !collectiveVisible || overlayCollectiveState?.offscreen === true || (workspaceEditorOverlayOpen && overlayCollectiveCoverageComplete && !collectiveBalanced && !collectiveCentered)')) {
-    throw new Error('expected workspace-open visible-but-unbalanced overlay collectives to recenter instead of stabilizing a mutated layout')
+  if (runtimeText.includes('allowAutomaticOverlayCentroidRecovery')
+    || runtimeText.includes('allowOverlayCentroidRecovery')
+    || runtimeText.includes('overlayCollectiveNeedsRecovery')
+    || runtimeText.includes('const shouldRecenterOverlayCollective =')) {
+    throw new Error('expected Flow runtime to remove automatic overlay recovery/recentering so ordinary pan/zoom stays infinite-canvas')
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current')) {
     throw new Error('expected workspace-open stabilized preservation to revalidate balanced or centered overlay collective state')
   }
-  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && !collectiveVisible && !workspaceOffscreenDebounced) {')) {
-    throw new Error('expected workspace-open offscreen debounce to track collective overlay visibility instead of raw scene visibility')
+  if (!runtimeText.includes('workspace-open-offscreen-infinite-canvas-preserve-current')) {
+    throw new Error('expected workspace-open offscreen collectives to preserve current transform instead of debounce-refitting to viewport')
   }
-  if (!runtimeText.includes('scheduleWorkspaceOffscreenRecoveryRetry(remainingMs)')) {
-    throw new Error('expected workspace-open offscreen debounce to schedule a retry tick once the debounce window expires')
+  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && workspaceOverlayUserControlledRef.current) {')
+    || !runtimeText.includes('workspace-open-user-controlled-infinite-canvas-preserve-current')) {
+    throw new Error('expected user-controlled workspace-open offscreen transforms to be preserved for infinite canvas panning')
   }
-  if (!runtimeText.includes('const shouldLatchRecoveryKey = collectiveVisible')) {
-    throw new Error('expected Flow runtime offscreen recovery to latch retry suppression only after the overlay collective is visible')
-  }
-  if (!runtimeText.includes('const shouldLatchRecoveryKey = collectiveVisible && overlayCollectiveCoverageComplete && !shouldRecenterOverlayCollective')) {
-    throw new Error('expected Flow runtime recovery latch to wait until the visible workspace overlay collective is complete and no longer needs recentering')
-  }
-  if (!runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = shouldLatchRecoveryKey ? recoveryKey : null')) {
-    throw new Error('expected Flow runtime offscreen recovery to keep retrying until a stale offscreen transform is actually displaced')
+  if (runtimeText.includes('scheduleWorkspaceOffscreenRecoveryRetry')
+    || runtimeText.includes('const shouldLatchRecoveryKey =')
+    || runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef')) {
+    throw new Error('expected Flow runtime to remove offscreen recovery retry/latch state that can bounce the infinite canvas')
   }
   if (!runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && (collectiveBalanced || collectiveCentered)) workspaceOverlayStabilizedRef.current = true')) {
     throw new Error('expected workspace-open stabilization to require balanced or centered overlay collective state')
@@ -88,18 +79,18 @@ export function testFlowEditorFitRecenteringClampsOverlayBoundsIntoVisibleViewpo
   }
 }
 
-export function testFlowEditorOverlayPlacementRuntimeSkipsTransientFarOffscreenScreenWrites() {
+export function testFlowEditorOverlayPlacementRuntimePersistsOffscreenScreenWrites() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const text = fs.readFileSync(runtimePath, 'utf8')
 
-  if (!text.includes('const screenLooksFarOffscreen =')) {
-    throw new Error('expected Flow Editor overlay placement runtime to detect far-offscreen screen coordinates during workspace-blocked pre-init')
+  if (text.includes('const screenLooksFarOffscreen =') || text.includes('screenLooksFarOffscreen) return')) {
+    throw new Error('expected Flow Editor overlay placement runtime to persist far-offscreen screen coordinates for infinite-canvas behavior')
   }
-  if (!text.includes('const userDraggingScreen = !!pinnedDragOverrideRef.current || !!worldDragOverrideRef.current')) {
-    throw new Error('expected Flow Editor overlay placement runtime to preserve explicit user drags while guarding transient far-offscreen screen writes')
+  if (text.includes('const worldLooksFarOffscreen =') || text.includes('worldLooksFarOffscreen) return')) {
+    throw new Error('expected Flow Editor overlay placement runtime to persist far-offscreen world coordinates for infinite-canvas behavior')
   }
-  if (!text.includes('if (zoomLooksUninitialized && !userDraggingScreen && screenLooksFarOffscreen) return')) {
-    throw new Error('expected Flow Editor overlay placement runtime to skip transient far-offscreen screen writes before init-fit settles')
+  if (!text.includes('isWorkspaceGraphMutationBlocked(state)')) {
+    throw new Error('expected Flow Editor overlay placement runtime to retain graph-scoped writes during workspace mutation windows')
   }
 }
 
@@ -171,17 +162,14 @@ export function testFlowEditorRuntimeSceneReusesLastUsableTransformWhileWorkspac
   if (!text.includes('const getVisibleViewport = React.useCallback(() => {')) {
     throw new Error('expected Flow Editor runtime scene to centralize visible viewport resolution for workspace-open layout decisions')
   }
-  if (!text.includes('const normalizeTransformToVisibleViewport = React.useCallback((transform: { k: number; x: number; y: number } | null) => {')) {
-    throw new Error('expected Flow Editor runtime scene to normalize candidate transforms into visible viewport coordinates before reuse checks')
+  if (text.includes('normalizeTransformToVisibleViewport') || text.includes("reason: 'workspace-blocked-unsettled-transform-reusing-last-usable'")) {
+    throw new Error('expected Flow Editor runtime scene to avoid viewport-normalized transform reuse that can bounce the infinite canvas')
   }
-  if (!text.includes("reason: 'workspace-blocked-unsettled-transform-reusing-last-usable'")) {
-    throw new Error('expected Flow Editor runtime scene to trace workspace-blocked unsettled transform reuse')
+  if (!text.includes('lastUsableZoomTransformRef.current = next')) {
+    throw new Error('expected Flow Editor runtime scene to accept live transforms as authoritative during interaction')
   }
-  if (!text.includes('if (workspaceMutationBlocked && sceneNodeCount > 0 && positionsReady !== true && !interactionInProgress && !flowWidgetDragging) {')) {
-    throw new Error('expected Flow Editor runtime scene to guard live transform adoption while workspace scene positions are unsettled')
-  }
-  if (!text.includes('return lastUsable')) {
-    throw new Error('expected Flow Editor runtime scene to reuse the last usable transform during workspace-scene recomposition')
+  if (!text.includes("reason: 'scene-empty-using-last-usable-transform'")) {
+    throw new Error('expected Flow Editor runtime scene to reuse the last live transform only for empty-scene recomposition')
   }
 }
 
@@ -215,38 +203,23 @@ export function testFlowEditorRuntimeSceneNeutralizesPoisonedTransformForAutoSee
   const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const text = fs.readFileSync(runtimeScenePath, 'utf8')
 
-  if (!text.includes('const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})')) {
-    throw new Error('expected Flow Editor runtime scene to validate workspace-blocked transforms against auto-seeded widget world positions')
+  const forbidden = [
+    "reason: 'workspace-blocked-auto-seed-transform-neutralized'",
+    "reason: 'workspace-blocked-auto-seed-transform-reusing-last-usable'",
+    'buildAutoSeedWorldRectsForTransform',
+    'normalizeTransformToVisibleViewport',
+    'const lastUsableShowsAutoSeed =',
+    'isFlowTransformKeepingWorldRectCollectiveInViewport',
+    "reason: 'workspace-blocked-unsettled-transform-neutralized-for-auto-seed'",
+    'const autoSeedWorldRects = buildAutoSeedWorldRectsForTransform(next)',
+  ]
+  for (const fragment of forbidden) {
+    if (text.includes(fragment)) {
+      throw new Error(`expected Flow Editor runtime scene to remove viewport-fit transform guard fragment for infinite-canvas behavior: ${fragment}`)
+    }
   }
-  if (!text.includes("reason: 'workspace-blocked-auto-seed-transform-neutralized'")) {
-    throw new Error('expected Flow Editor runtime scene to trace auto-seeded widget transform neutralization when the cached transform hides the collective')
-  }
-  if (!text.includes("reason: 'workspace-blocked-auto-seed-transform-reusing-last-usable'")) {
-    throw new Error('expected Flow Editor runtime scene to reuse only a last usable transform that still keeps auto-seeded widgets visible')
-  }
-  if (!text.includes('const lastUsableAutoSeedWorldRects = buildAutoSeedWorldRectsForTransform(lastUsable)')) {
-    throw new Error('expected Flow Editor runtime scene unsettled-transform guard to derive auto-seeded widget bounds for the last usable transform before reuse')
-  }
-  if (!text.includes('const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)')) {
-    throw new Error('expected Flow Editor runtime scene auto-seed guard to normalize last usable transforms into visible viewport coordinates before reuse')
-  }
-  if (!text.includes('const lastUsableShowsAutoSeed =')) {
-    throw new Error('expected Flow Editor runtime scene unsettled-transform guard to compute a dedicated last usable auto-seed visibility verdict before reuse')
-  }
-  if (!text.includes('&& isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {')) {
-    throw new Error('expected Flow Editor runtime scene unsettled-transform guard to validate last usable transforms against auto-seeded widget viewport fit before reuse')
-  }
-  if (!text.includes("reason: 'workspace-blocked-unsettled-transform-neutralized-for-auto-seed'")) {
-    throw new Error('expected Flow Editor runtime scene unsettled-transform guard to neutralize poisoned cached transforms that hide auto-seeded widgets')
-  }
-  if (!text.includes('const autoSeedWorldRects = buildAutoSeedWorldRectsForTransform(next)')) {
-    throw new Error('expected Flow Editor runtime scene to derive auto-seeded widget world rects from the candidate transform before validating viewport fit')
-  }
-  if (!text.includes('isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedNext, {')) {
-    throw new Error('expected Flow Editor runtime scene to reject transforms that still push the auto-seeded widget collective outside the viewport')
-  }
-  if (!text.includes('isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {')) {
-    throw new Error('expected Flow Editor runtime scene to reuse last usable transforms only when the auto-seeded widget collective still fits in the viewport')
+  if (!text.includes('lastUsableZoomTransformRef.current = next')) {
+    throw new Error('expected Flow Editor runtime scene to accept live transforms as the current authority instead of bouncing to viewport-fitted transforms')
   }
 }
 

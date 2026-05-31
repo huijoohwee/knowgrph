@@ -7,7 +7,6 @@ import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { UI_SELECTORS } from '@/lib/config'
 
@@ -56,13 +55,11 @@ export function useNodeOverlayDragHandlers(args: {
     zoomStateRef,
     anchoredPosRef,
     autoStackOffset,
-    widgetWorldPosRef,
-    worldDragOverrideRef,
-    pinnedDragOverrideRef,
-    lastAppliedRef,
-    scaledSizeRef,
-    viewportRef,
-  } = args
+  widgetWorldPosRef,
+  worldDragOverrideRef,
+  pinnedDragOverrideRef,
+  lastAppliedRef,
+} = args
 
   const handleHeaderPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -219,18 +216,6 @@ export function useNodeOverlayDragHandlers(args: {
           scheduler.cancel()
           flush({ top: pendingTop, left: pendingLeft })
           pinnedDragOverrideRef.current = null
-          const scaled = scaledSizeRef.current
-          const viewportWidth = viewportRef.current.width
-          const viewportHeight = viewportRef.current.height
-          const clamped = clampOverlayTopLeftToViewport({
-            pos: { top: pendingTop, left: pendingLeft },
-            size: scaled,
-            viewport: { width: viewportWidth, height: viewportHeight },
-            visiblePx: 48,
-            snapPx: 1,
-          })
-          pendingTop = clamped.top
-          pendingLeft = clamped.left
           persistFloatingPlacement({ top: pendingTop, left: pendingLeft })
           useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
           unlockGlobalUserSelect()
@@ -239,18 +224,6 @@ export function useNodeOverlayDragHandlers(args: {
           scheduler.cancel()
           flush({ top: pendingTop, left: pendingLeft })
           pinnedDragOverrideRef.current = null
-          const scaled = scaledSizeRef.current
-          const viewportWidth = viewportRef.current.width
-          const viewportHeight = viewportRef.current.height
-          const clamped = clampOverlayTopLeftToViewport({
-            pos: { top: pendingTop, left: pendingLeft },
-            size: scaled,
-            viewport: { width: viewportWidth, height: viewportHeight },
-            visiblePx: 48,
-            snapPx: 1,
-          })
-          pendingTop = clamped.top
-          pendingLeft = clamped.left
           persistFloatingPlacement({ top: pendingTop, left: pendingLeft })
           useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
           unlockGlobalUserSelect()
@@ -272,11 +245,9 @@ export function useNodeOverlayDragHandlers(args: {
       pinnedDragOverrideRef,
       persistFloatingPlacement,
       persistWorldPos,
-      scaledSizeRef,
       selectNode,
       setSelectionSource,
       setToolbarVisible,
-      viewportRef,
       worldDragOverrideRef,
       zoomStateRef,
       zoomViewKey,

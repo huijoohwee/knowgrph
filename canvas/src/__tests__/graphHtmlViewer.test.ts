@@ -570,6 +570,73 @@ export async function testExportHtmlViewerMediaPointerEventsRespectsNodeInteract
   }
 }
 
+export async function testExportHtmlViewerDoesNotInferLocalhostProxyOrigin() {
+  const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
+  try {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+    const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg })
+    if (!html) throw new Error('expected html')
+    if (html.includes('var KG_PROXY_ORIGIN = "http://localhost')) {
+      throw new Error('expected exported html viewer to avoid build-host localhost proxy origins')
+    }
+    if (!html.includes('var KG_PROXY_ORIGIN = "";') || !html.includes('var KG_ALLOW_RUNTIME_NETWORK = false;')) {
+      throw new Error('expected exported html viewer to default to offline runtime mode')
+    }
+  } finally {
+    bootstrap?.restore()
+  }
+}
+
+export async function testExportHtmlViewerExplicitRuntimeNetworkKeepsProxyOrigin() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    proxyOrigin: 'http://localhost:5173',
+    allowRuntimeNetwork: true,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('var KG_PROXY_ORIGIN = "http://localhost:5173";') || !html.includes('var KG_ALLOW_RUNTIME_NETWORK = true;')) {
+    throw new Error('expected explicit runtime networking to preserve the requested local proxy origin')
+  }
+}
+
+export async function testExportHtmlViewerInlinesRemoteMediaAtExportTime() {
+  const g = globalThis as unknown as {
+    fetch?: typeof fetch
+    Response?: typeof Response
+  }
+  const prevFetch = g.fetch
+  if (typeof g.Response !== 'function') throw new Error('Response constructor unavailable')
+  g.fetch = (async () => new g.Response!(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/png' } })) as typeof fetch
+  try {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+    const html = await buildGraphHtmlViewerMarkup({
+      title: 'T',
+      svgMarkup: svg,
+      includeRichMediaOverlays: true,
+      inlineRemoteMediaAssets: true,
+      graphData: {
+        type: 'Graph',
+        nodes: [{ id: 'm1', label: 'Media', type: 'Entity', properties: { media_url: 'https://assets.example.test/a.png' } }],
+        edges: [],
+      },
+    })
+    if (!html) throw new Error('expected html')
+    const mediaNodes = readRuntimeJsonArray(html, 'mediaNodes') as Array<{ url?: string; openUrl?: string }>
+    const first = mediaNodes[0]
+    if (!first || !String(first.url || '').startsWith('data:image/png;base64,AQID')) {
+      throw new Error(`expected remote media to be inlined into the runtime payload, got ${String(first?.url || '')}`)
+    }
+    if (String(first.openUrl || '') !== 'https://assets.example.test/a.png') {
+      throw new Error('expected inlined media to preserve the source URL as openUrl')
+    }
+  } finally {
+    if (prevFetch) g.fetch = prevFetch
+    else delete g.fetch
+  }
+}
+
 export async function testExportHtmlViewerOverlayExportPreservesInteractionGuards() {
   const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
   try {

@@ -35,6 +35,10 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     const base = raw.split('/').filter(Boolean).pop() || raw
     return base.replace(/\.[a-z0-9]+$/i, '') || 'document'
   }, [activeDocumentKey])
+  const exportFallbackMarkdownText = React.useMemo(
+    () => String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)),
+    [activeText, markdownEditText, viewerTextOverride],
+  )
 
   const flushGraphWritebackForExport = React.useCallback(() => {
     try {
@@ -54,11 +58,10 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
 
   const handleExportMarkdown = React.useCallback(async () => {
     flushGraphWritebackForExport()
-    const text = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
     const mod = await import('./exports/exportMarkdown')
     const { exportMarkdownFile } = mod
-    await exportMarkdownFile({ exportBaseName, text, activeDocumentPath: activeDocumentKey })
-  }, [activeText, exportBaseName, flushGraphWritebackForExport, markdownEditText, viewerTextOverride])
+    await exportMarkdownFile({ exportBaseName, text: exportFallbackMarkdownText, activeDocumentPath: activeDocumentKey })
+  }, [activeDocumentKey, exportBaseName, exportFallbackMarkdownText, flushGraphWritebackForExport])
 
   const handleExportPng = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -109,9 +112,26 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
       iframeSrcDoc,
       viewerEl,
       viewerRefCurrent: getViewerRefCurrent(),
+      fallbackMarkdownText: exportFallbackMarkdownText,
       pushUiToast,
     })
-  }, [exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl])
+  }, [activeDocumentKey, exportBaseName, exportFallbackMarkdownText, flushGraphWritebackForExport, getViewerRefCurrent, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl])
+
+  const handleExportHtmlWorkspace = React.useCallback(async () => {
+    flushGraphWritebackForExport()
+    const mod = await import('./exports/exportHtmlWorkspace')
+    const { exportHtmlWorkspaceFromWorkspace } = mod
+    await exportHtmlWorkspaceFromWorkspace({
+      exportBaseName,
+      activeDocumentPath: activeDocumentKey,
+      showWebpageHtml,
+      iframeSrcDoc,
+      viewerEl,
+      viewerRefCurrent: getViewerRefCurrent(),
+      fallbackMarkdownText: exportFallbackMarkdownText,
+      pushUiToast,
+    })
+  }, [activeDocumentKey, exportBaseName, exportFallbackMarkdownText, flushGraphWritebackForExport, getViewerRefCurrent, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl])
 
   const handleExportHtmlCanvas = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -144,17 +164,15 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportPdf')
     const { exportViewerPdf } = mod
-    const markdownText = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
-    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'portrait', markdownText })
-  }, [activeText, exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, markdownEditText, pushUiToast, viewerEl, viewerTextOverride])
+    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'portrait', markdownText: exportFallbackMarkdownText })
+  }, [exportBaseName, exportFallbackMarkdownText, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
 
   const handleExportPdfLandscape = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportPdf')
     const { exportViewerPdf } = mod
-    const markdownText = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
-    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'landscape', markdownText })
-  }, [activeText, exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, markdownEditText, pushUiToast, viewerEl, viewerTextOverride])
+    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast, orientation: 'landscape', markdownText: exportFallbackMarkdownText })
+  }, [exportBaseName, exportFallbackMarkdownText, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
 
   const exportBridge = React.useMemo(
     () => ({
@@ -165,6 +183,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
         png: () => void handleExportPng(),
         gltf: () => void handleExportGltf(),
         glb: () => void handleExportGlb(),
+        htmlWorkspace: () => void handleExportHtmlWorkspace(),
         htmlViewer: () => void handleExportHtmlViewer(),
         htmlCanvas: () => void handleExportHtmlCanvas(),
         json: () => void handleExportJson(),
@@ -177,6 +196,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
       handleExportGlb,
       handleExportGltf,
       handleExportHtmlCanvas,
+      handleExportHtmlWorkspace,
       handleExportHtmlViewer,
       handleExportJson,
       handleExportMarkdown,
@@ -199,6 +219,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     handleExportPng,
     handleExportGlb,
     handleExportGltf,
+    handleExportHtmlWorkspace,
     handleExportHtmlViewer,
     handleExportHtmlCanvas,
     handleExportSvg,

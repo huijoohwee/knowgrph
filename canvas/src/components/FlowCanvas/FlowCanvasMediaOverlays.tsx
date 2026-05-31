@@ -13,7 +13,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
-import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
+import { canonicalNodeIdSetHas, isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
@@ -32,6 +32,10 @@ import {
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import {
+  computePanelFrameSizeFromWidth16x9,
+  type MediaPanelCssMetrics,
+} from '@/lib/render/mediaPanelLayout'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { MEDIA_PANEL_LAYOUT_FRAME_16X9 } from '@/lib/render/mediaPanelSpec'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
@@ -56,6 +60,25 @@ function clampViewportToLayoutFrame16x9(viewportW: number, viewportH: number): {
   }
 }
 
+function readPanelCssMetricPx(el: HTMLElement | null | undefined, name: string, fallback: number): number {
+  if (!el || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return fallback
+  try {
+    const raw = window.getComputedStyle(el).getPropertyValue(name).trim()
+    const n = Number.parseFloat(raw)
+    return Number.isFinite(n) && n >= 0 ? n : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function readRichMediaPanelFrameMetrics(el: HTMLElement | null | undefined): Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'> {
+  return {
+    headerH: readPanelCssMetricPx(el, '--kg-media-panel-header-h', 28),
+    padding: readPanelCssMetricPx(el, '--kg-media-panel-padding', 8),
+    borderW: readPanelCssMetricPx(el, '--kg-media-panel-border-w', 1),
+  }
+}
+
 function readStablePanelWorldSize(
   props: Record<string, unknown> | null | undefined,
 ): { w: number; h: number } | null {
@@ -67,6 +90,20 @@ function readStablePanelWorldSize(
     w: Math.max(24, width),
     h: Math.max(24, height),
   }
+}
+
+function readGraphDataNodeProperties(graphData: GraphData | null | undefined, nodeId: string): Record<string, unknown> | null {
+  const id = String(nodeId || '').trim()
+  if (!id || !Array.isArray(graphData?.nodes)) return null
+  for (let i = 0; i < graphData.nodes.length; i += 1) {
+    const node = graphData.nodes[i]
+    if (!node || !isCanonicalNodeIdEqual(node.id, id)) continue
+    const props = node.properties
+    return props && typeof props === 'object' && !Array.isArray(props)
+      ? { ...(props as Record<string, unknown>) }
+      : {}
+  }
+  return null
 }
 
 function readMediaLayoutNodePropsSignature(
@@ -163,6 +200,8 @@ export default function FlowCanvasMediaOverlays(args: {
       documentSemanticMode,
     })
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
+  const richMediaInfiniteCanvasMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'
+  const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'
   const graphSchema = schema as GraphSchema
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
@@ -171,7 +210,16 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
   const mediaOverlayHeaderDragRef = React.useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number }>(null)
   const mediaOverlayPanRef = React.useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
-  const mediaOverlayResizeRef = React.useRef<null | { id: string; pointerId: number; startW: number; startH: number; startScale: number; headerH: number; bodyAspect: number; lastW: number; lastH: number }>(null)
+  const mediaOverlayResizeRef = React.useRef<null | {
+    id: string
+    pointerId: number
+    startW: number
+    startH: number
+    startScale: number
+    frameMetrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+    lastW: number
+    lastH: number
+  }>(null)
   const mediaOverlayPanMoveLatestRef = React.useRef<{ pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean } | null>(null)
   const mediaOverlayHeaderMoveLatestRef = React.useRef<{ id: string; pointerId: number; dx: number; dy: number } | null>(null)
   const mediaOverlayResizeMoveLatestRef = React.useRef<{ id: string; pointerId: number; dx: number; dy: number } | null>(null)
@@ -371,7 +419,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [])
 
   const applyMediaOverlayPanMove = React.useCallback((queued: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }) => {
-    if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
+    if (!mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return
     const drag = mediaOverlayPanRef.current
     if (!drag || drag.pointerId !== queued.pointerId) return
     const runtime = runtimeRef.current
@@ -388,10 +436,10 @@ export default function FlowCanvasMediaOverlays(args: {
     setFlowNativeTransform(runtime, next)
     requestFlowNativeDraw(runtime, buildDrawArgs())
     onInteractionFrame?.()
-  }, [buildDrawArgs, flowEditorOverlayInteractionMode, onInteractionFrame, runtimeRef])
+  }, [buildDrawArgs, mediaOverlayDragInteractionMode, onInteractionFrame, runtimeRef])
 
   const applyMediaOverlayHeaderDragMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
-    if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
+    if (!mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== queued.pointerId) return
     const runtime = runtimeRef.current
@@ -416,18 +464,21 @@ export default function FlowCanvasMediaOverlays(args: {
     positionsDirtySinceCommitRef.current = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
     handleFrame()
-  }, [buildDrawArgs, flowEditorOverlayInteractionMode, graphSchema, handleFrame, positionsDirtySinceCommitRef, runtimeRef])
+  }, [buildDrawArgs, graphSchema, handleFrame, mediaOverlayDragInteractionMode, positionsDirtySinceCommitRef, runtimeRef])
 
   const applyMediaOverlayResizeMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
     if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
     const drag = mediaOverlayResizeRef.current
     if (!drag || drag.id !== id || drag.pointerId !== queued.pointerId) return
     const scale = Math.max(0.001, drag.startScale)
+    const chromeY = drag.frameMetrics.headerH + drag.frameMetrics.padding * 2 + drag.frameMetrics.borderW * 2
+    const chromeX = drag.frameMetrics.padding * 2 + drag.frameMetrics.borderW * 2
     const chosenW = Math.abs(queued.dy) > Math.abs(queued.dx)
-      ? Math.max(1, drag.startH + queued.dy / scale - drag.headerH) / Math.max(0.001, drag.bodyAspect)
+      ? Math.max(1, (drag.startH + queued.dy / scale - chromeY) * 16 / 9 + chromeX)
       : drag.startW + queued.dx / scale
     const nextW = Math.max(24, Math.round(chosenW))
-    const nextH = Math.max(24 + drag.headerH, Math.round(nextW * drag.bodyAspect + drag.headerH))
+    const nextFrame = computePanelFrameSizeFromWidth16x9({ panelW: nextW, metrics: drag.frameMetrics })
+    const nextH = Math.max(24 + chromeY, Math.round(nextFrame.panelH))
     drag.lastW = nextW
     drag.lastH = nextH
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: nextW * scale, h: nextH * scale })
@@ -437,22 +488,22 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [flowEditorOverlayInteractionMode, handleFrame, writeRichMediaResizeTrace])
 
   const beginMediaOverlayPan = React.useCallback((payload: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => {
-    if (!active || !flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
+    if (!active || !mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return
     const runtime = runtimeRef.current
     if (!runtime) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     mediaOverlayPanRef.current = { pointerId: payload.pointerId, startTransform: runtime.transform || d3.zoomIdentity }
-  }, [active, flowEditorOverlayInteractionMode, runtimeRef])
+  }, [active, mediaOverlayDragInteractionMode, runtimeRef])
 
   const beginMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
-    if (!active || !flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
+    if (!active || !mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return
     const runtime = runtimeRef.current
     const scene = runtime?.scene
     const node = scene?.nodeById.get(id)
     if (!runtime || !scene || !node) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     mediaOverlayHeaderDragRef.current = { id, pointerId, startX: node.x, startY: node.y, startK: runtime.transform?.k || 1, lastDx: 0, lastDy: 0 }
-  }, [active, flowEditorOverlayInteractionMode, runtimeRef])
+  }, [active, mediaOverlayDragInteractionMode, runtimeRef])
 
   const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
     if (!active || !flowEditorOverlayInteractionMode || !flowEditorFrontmatterDocumentModeRequested || workspaceOverlayOpenRef.current) {
@@ -468,15 +519,13 @@ export default function FlowCanvasMediaOverlays(args: {
     const el = mediaOverlayElsRef.current.get(id) || null
     const rect = el?.getBoundingClientRect()
     const measuredW = rect && Number.isFinite(rect.width) ? rect.width : 0
-    const measuredH = rect && Number.isFinite(rect.height) ? rect.height : 0
     const baseProps = sceneNodePropsByIdRef.current.get(id) || {}
     const storedW = Number(baseProps['visual:width'])
-    const storedH = Number(baseProps['visual:height'])
     const startW = Number.isFinite(storedW) && storedW > 0 ? Math.max(24, Math.round(storedW)) : Math.max(24, Math.round(measuredW / Math.max(0.001, scale)))
-    const startHRaw = Number.isFinite(storedH) && storedH > 0 ? Math.max(24, Math.round(storedH)) : Math.max(24, Math.round(measuredH / Math.max(0.001, scale)))
-    const bodyAspect = Math.max(0.001, startHRaw / Math.max(1, startW))
-    const stableH = Math.max(24, Math.round(startW * bodyAspect))
-    mediaOverlayResizeRef.current = { id, pointerId, startW, startH: stableH, startScale: scale, headerH: 0, bodyAspect, lastW: startW, lastH: stableH }
+    const frameMetrics = readRichMediaPanelFrameMetrics(el)
+    const stableFrame = computePanelFrameSizeFromWidth16x9({ panelW: startW, metrics: frameMetrics })
+    const stableH = Math.max(24, Math.round(stableFrame.panelH))
+    mediaOverlayResizeRef.current = { id, pointerId, startW, startH: stableH, startScale: scale, frameMetrics, lastW: startW, lastH: stableH }
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: startW * scale, h: stableH * scale })
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: startW, h: stableH })
     writeRichMediaResizeTrace(['phase=start', `id=${id}`, `pid=${pointerId}`, `startW=${startW}`, `startH=${stableH}`])
@@ -484,7 +533,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [active, flowEditorFrontmatterDocumentModeRequested, flowEditorOverlayInteractionMode, handleFrame, runtimeRef, writeRichMediaResizeTrace])
 
   React.useEffect(() => {
-    if (canvas2dRenderer === 'flowEditor') return
+    if (canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas') return
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
     mediaOverlayPanRef.current = null
     mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
@@ -557,14 +606,14 @@ export default function FlowCanvasMediaOverlays(args: {
       enabled: true,
       loop: 'onDemand',
       items: stableMediaLayoutItems,
-      manualPlacement: flowEditorFrontmatterDocumentModeRequested,
+      manualPlacement: richMediaInfiniteCanvasMode,
       density,
       viewportW,
       viewportH,
       readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
       computeSizingZoomK: zoomK => computeOverlaySizingScale(zoomK, stableMediaLayoutItems.length, 360, 240),
       getPanelSizeForId: id => {
-        if (!flowEditorFrontmatterDocumentModeRequested) return null
+        if (!richMediaInfiniteCanvasMode) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
         if (override) {
           writeRichMediaResizeTrace(['phase=layout-override', `id=${id}`, `w=${override.w}`, `h=${override.h}`])
@@ -608,20 +657,18 @@ export default function FlowCanvasMediaOverlays(args: {
         return obstacles
       },
       schema: schema && typeof schema === 'object' ? (schema as GraphSchema) : null,
-      collision: flowEditorFrontmatterDocumentModeRequested
-        ? {
-            enabled: true,
-            anchorStrength: 0.14,
-            maxAnchorShiftPx: Math.max(80, Math.round(Math.min(viewportW, viewportH) * 0.22)),
-          }
+      collision: richMediaInfiniteCanvasMode
+        ? { enabled: false }
         : { enabled: true },
       sizingConfig: {
         widthRatio: sizingConfig.widthRatio,
         widthMinPx: sizingConfig.widthMinPx,
         widthMaxPx: sizingConfig.widthMaxPx,
-        quantizeStepPx: flowEditorFrontmatterDocumentModeRequested ? 1 : 16,
+        quantizeStepPx: richMediaInfiniteCanvasMode ? 1 : 16,
       },
-      clampToViewport: { margin: Math.max(mediaViewportMargins.left, mediaViewportMargins.right, mediaViewportMargins.top, mediaViewportMargins.bottom) },
+      clampToViewport: richMediaInfiniteCanvasMode
+        ? null
+        : { margin: Math.max(mediaViewportMargins.left, mediaViewportMargins.right, mediaViewportMargins.top, mediaViewportMargins.bottom) },
     })
     mediaOverlayLayoutScheduleRef.current = loop.schedule
     loop.schedule()
@@ -633,6 +680,7 @@ export default function FlowCanvasMediaOverlays(args: {
     active,
     workspaceOverlayOpenKey,
     flowEditorFrontmatterDocumentModeRequested,
+    richMediaInfiniteCanvasMode,
     mediaLayoutItems.length,
     mediaLayoutItemsKey,
     mediaPanelDensity,
@@ -664,9 +712,9 @@ export default function FlowCanvasMediaOverlays(args: {
     >
       {mediaNodes.map((node, index) => {
         const isSelected = canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)
-        const overlayInteractionEnabled = flowEditorOverlayInteractionMode && !workspaceOverlayOpen
+        const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen
         const resizeInteractionActive =
-          overlayInteractionEnabled && flowEditorFrontmatterDocumentModeRequested
+          flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested && !workspaceOverlayOpen
         const overlayPanelPointerEventsClass = workspaceOverlayOpen ? 'pointer-events-none' : 'pointer-events-auto'
         const overlayZIndex = isSelected
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED
@@ -692,6 +740,7 @@ export default function FlowCanvasMediaOverlays(args: {
             srcDoc={node.srcDoc}
             openUrl={node.openUrl}
             kind={node.kind}
+            panelChrome="flowEditor"
             interactive={resolveRichMediaPanelInteractive({
               nodeInteractive: node.interactive,
               renderMediaAsNodes,
@@ -745,7 +794,7 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayHeaderDragRef.current = null
               if (!workspaceOverlayOpenRef.current) requestCommit()
             } : undefined}
-            resizable={overlayInteractionEnabled && isSelected}
+            resizable={resizeInteractionActive && isSelected}
             onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(node.id, pointerId) : undefined}
             onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => {
               const queued = { id: node.id, pointerId, dx, dy }
@@ -766,8 +815,11 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayResizeRef.current = null
               if (!workspaceOverlayOpenRef.current) {
                 try {
-                  const store = useGraphStore.getState() as { updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
-                  const baseProps = sceneNodePropsByIdRef.current.get(node.id) || {}
+                  const store = useGraphStore.getState() as {
+                    graphData?: GraphData | null
+                    updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void
+                  }
+                  const baseProps = readGraphDataNodeProperties(store.graphData, node.id) || sceneNodePropsByIdRef.current.get(node.id) || {}
                   store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
                 } catch {
                   void 0

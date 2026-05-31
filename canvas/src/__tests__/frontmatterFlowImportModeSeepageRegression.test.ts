@@ -48,6 +48,39 @@ export function testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer() {
   }
 }
 
+export function testFrontmatterFlowImportModePreservesExplicitRendererPreset() {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setDocumentSemanticMode('document')
+  useGraphStore.getState().setFrontmatterModeEnabled(true)
+
+  const handled = applyFrontmatterFlowImportModes({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [{ id: 'design-doc', type: 'Document', label: 'Design doc' }],
+    edges: [],
+  } as never, {
+    preset: {
+      canvasSurfaceMode: '2d',
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'design',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: true,
+    },
+  })
+
+  const st = useGraphStore.getState()
+  if (handled !== true) {
+    throw new Error('expected frontmatter-flow import mode to handle explicit renderer presets')
+  }
+  if (st.canvas2dRenderer !== 'design') {
+    throw new Error(`expected explicit Source Files/YAML renderer preset to win over flowEditor default, got ${String(st.canvas2dRenderer)}`)
+  }
+}
+
 export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAligned() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)

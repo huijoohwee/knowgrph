@@ -72,7 +72,7 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
   canvasWorkspaceSyncMode: string
   contentMode: 'document' | 'widget'
   widgetEditorText: string
-  applyMarkdownDocumentToGraph: (name: string, text: string, opts: { force: boolean }) => Promise<boolean>
+  applyMarkdownDocumentToGraph: (name: string, text: string, opts: { force?: boolean; requireActiveMarkdownDocument?: boolean }) => Promise<boolean>
 }) {
   const {
     active,
@@ -312,7 +312,10 @@ export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeI
     current.setStatusProgress('Applying')
     try {
       ensureMarkdownWorkspaceApplyDocumentSemanticMode()
-      const ok = await current.applyMarkdownDocumentToGraph(name, applyText, { force: true })
+      const ok = await current.applyMarkdownDocumentToGraph(name, applyText, {
+        force: true,
+        requireActiveMarkdownDocument: true,
+      })
       await registerMarkdownWorkspaceEmbeddedGeoDatasets({
         markdownText: applyText,
         sourceDocumentPath: name,

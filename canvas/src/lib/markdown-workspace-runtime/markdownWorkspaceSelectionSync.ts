@@ -26,3 +26,15 @@ export function resolveInvalidatedMarkdownWorkspaceSelectionPath(args: {
   }
   return null
 }
+
+export function resolveActivePathFromWorkspaceFileSelection(args: {
+  selectionPath: WorkspacePath | null
+  activePath: WorkspacePath | null
+  selectionEntryKind: string | null
+}): WorkspacePath | null {
+  const selectionPath = String(args.selectionPath || '').trim()
+  if (!selectionPath) return null
+  if (args.selectionEntryKind !== 'file') return null
+  if (selectionPath === String(args.activePath || '').trim()) return null
+  return selectionPath as WorkspacePath
+}

@@ -13,8 +13,12 @@ Notes:
 | Workspace file (.jsonld) | `workspaceFileJsonLd` |
 | Markdown (.md) | `markdown` |
 | PNG (.png) | `png` |
+| GLTF (.gltf) - 3D scene | `gltf` |
+| GLB (.glb) - 3D scene | `glb` |
+| HTML (.html) — Workspace | `htmlWorkspace` |
 | HTML (.html) — Viewer | `htmlViewer` |
 | HTML (.html) — Canvas | `htmlCanvas` |
 | JSON (.json) | `json` |
 | SVG (.svg) | `svg` |
-| PDF (Print…) | `pdf` |
+| PDF — Portrait 9:16 (Print…) | `pdfPortrait` |
+| PDF — Landscape 16:9 (Print…) | `pdfLandscape` |

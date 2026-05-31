@@ -124,7 +124,6 @@ export function useOverlayInteractions2d(args: {
   )
 
   const shouldStartHeaderDrag = useCallback(() => {
-    if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
     if (isSpacePanHeld()) return false
     return true
   }, [])

@@ -85,6 +85,42 @@ const INACTIVE_GRAPH_SLICE = {
   revision: 0,
 } as const
 
+function buildPendingActiveMarkdownGraph(args: {
+  markdownName: string | null
+}): GraphData | null {
+  const name = String(args.markdownName || '').trim()
+  if (!name) return null
+  return {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: {
+      kind: 'markdown',
+      source: `markdown:${name}`,
+      pending: true,
+    },
+    nodes: [],
+    edges: [],
+  } as GraphData
+}
+
+export function resolveActiveMarkdownBaseGraph(args: {
+  baseGraphDataRaw: GraphData | null
+  markdownName: string | null
+  markdownText: string | null
+}): GraphData | null {
+  const base = args.baseGraphDataRaw
+  if (!base) return null
+  const markdownName = String(args.markdownName || '').trim()
+  const markdownText = String(args.markdownText || '')
+  if (!markdownName || !markdownText.trim()) return base
+  const metadata = base.metadata && typeof base.metadata === 'object' && !Array.isArray(base.metadata)
+    ? (base.metadata as Record<string, unknown>)
+    : null
+  const source = typeof metadata?.source === 'string' ? metadata.source.trim() : ''
+  if (source === `markdown:${markdownName}`) return base
+  return buildPendingActiveMarkdownGraph({ markdownName })
+}
+
 export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   const selector = React.useMemo(
     () =>
@@ -131,7 +167,11 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   const effectiveMode: 'document' | 'keyword' = frontmatterOnlyPolicyActive ? 'document' : mode
 
   const wantsApiGraphFlowchart = false
-  const debouncedStructuredMarkdownText = useDebouncedValue(markdownText, WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS)
+  const debouncedStructuredMarkdownText = useDebouncedValue(
+    markdownText,
+    WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS,
+    markdownName,
+  )
   const workspaceJsonGraphData = React.useMemo(
     () =>
       enabled && !wantsApiGraphFlowchart
@@ -154,7 +194,16 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     })
   }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
   const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceKgcSemanticGraphData || !!workspaceFrontmatterMermaidGraphData
-  const baseGraphData = workspaceJsonGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || baseGraphDataRaw
+  const activeMarkdownBaseGraph = React.useMemo(
+    () =>
+      resolveActiveMarkdownBaseGraph({
+        baseGraphDataRaw,
+        markdownName,
+        markdownText,
+      }),
+    [baseGraphDataRaw, markdownName, markdownText],
+  )
+  const baseGraphData = workspaceJsonGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
   const { graphData: apiGraphFlowchart } = useApiGraphFlowchartGraphData(wantsApiGraphFlowchart)
 
   const lastRef = React.useRef<GraphData | null>(null)

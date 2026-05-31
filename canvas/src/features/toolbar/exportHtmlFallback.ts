@@ -245,7 +245,7 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
         return svgWithEdgeGeometry
       }
     })()
-    const svgMarkupStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+    const svgMarkupStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback, inlineRemoteAssets: true })
 
     const graphDataForViewer = (() => {
       const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
@@ -276,6 +276,7 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
       graphData: graphDataForViewer,
       viewportControlsPreset: readViewportControlsPresetFromLocalStorage() || 'map',
       includeRichMediaOverlays: true,
+      inlineRemoteMediaAssets: true,
       mediaOverlayPoolMax: Math.max(
         240,
         Array.isArray((graphDataForViewer as any)?.nodes) ? ((graphDataForViewer as any).nodes as any[]).length : 0,

@@ -39,6 +39,7 @@ export type MarkdownWorkspaceActionBridge = {
     png?: () => void
     gltf?: () => void
     glb?: () => void
+    htmlWorkspace?: () => void
     htmlViewer?: () => void
     htmlCanvas?: () => void
     json?: () => void

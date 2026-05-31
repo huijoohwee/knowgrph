@@ -1,6 +1,9 @@
 import React from 'react'
 
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -790,29 +793,37 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             data-kg-widget-preview-kind={compactPreviewView.kind}
           >
             {compactPreviewView.kind === 'text' ? (
-              <PlainTextInputEditor
-                id={`${idBase}-compact-preview`}
-                ariaLabel={compactPreviewView.textAriaLabel}
-                value={compactPreviewView.textValue}
-                onChange={setCompactPreviewText}
-                multiline
-                readOnly={compactPreviewView.readOnly}
-                className={compactPreviewEditorClass}
-              />
-            ) : compactPreviewView.kind === 'image' ? (
-              <img
-                src={compactPreviewView.mediaUrl}
-                alt={compactPreviewView.mediaAlt}
-                loading="lazy"
-                className="block w-full h-48 object-contain"
-              />
+              compactPreviewView.readOnly && hasCardMarkdownPreviewSyntax(compactPreviewView.textValue) ? (
+                <CardMarkdownPreview
+                  markdownText={compactPreviewView.textValue}
+                  activeDocumentPath="/__flow_editor_compact_preview/output.md"
+                  className={compactPreviewEditorClass}
+                />
+              ) : (
+                <PlainTextInputEditor
+                  id={`${idBase}-compact-preview`}
+                  ariaLabel={compactPreviewView.textAriaLabel}
+                  value={compactPreviewView.textValue}
+                  onChange={setCompactPreviewText}
+                  multiline
+                  readOnly={compactPreviewView.readOnly}
+                  className={compactPreviewEditorClass}
+                />
+              )
             ) : (
-              <video
-                src={compactPreviewView.mediaUrl}
-                controls
-                playsInline
-                preload="metadata"
-                className="block w-full h-48 object-contain"
+              <CardMediaPreview
+                kind={compactPreviewView.kind}
+                url={compactPreviewView.mediaUrl}
+                title={
+                  compactPreviewView.kind === 'image'
+                    ? compactPreviewView.mediaAlt
+                    : String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())
+                }
+                interactive={compactPreviewView.kind === 'video'}
+                fit="contain"
+                className="block h-48 w-full"
+                mediaClassName="block h-48 w-full"
+                videoControls={compactPreviewView.kind === 'video'}
               />
             )}
           </section>

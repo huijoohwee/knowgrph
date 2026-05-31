@@ -1,7 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
-  ["workspace.activeMaterialization.replaysYamlAfterSuppressedViewPreset","@/__tests__/sourceFilesRuntimeMaterialization.test","testClosedPaneActiveMarkdownReapplyReplaysYamlWhenExistingDocumentSuppressedViewPreset"],
+  ["workspace.activeMaterialization.replaysYamlAfterSuppressedViewPreset","@/__tests__/sourceFilesRuntimeMaterialization.test","testActiveWorkspaceMarkdownReapplyReplaysYamlWhenEditorWorkspaceOpen"],
+  ["workspace.activeMaterialization.keyTracksDocumentAndGraphOwnership","@/__tests__/sourceFilesRuntimeMaterialization.test","testMaterializedWorkspaceActivePathKeyTracksCanvasDocumentAndGraphOwnership"],
   ["docs.documents.statusCompliance","@/__tests__/docsDocumentsStatusCompliance.test","testDocsDocumentsForbidDraftAndProposedPrdTadMarkers"],
   ["provider.docs.implementedOrReferenceOwners","@/__tests__/providerPrdTadDocs.test","testProviderPrdTadDocsUseImplementedOrReferenceOwners"],
   ["manus.docs.referenceOnlyUntilSourceOwners","@/__tests__/manusPrdTadDocs.test","testManusPrdTadStaysReferenceOnlyUntilSourceOwnersExist"],
@@ -283,6 +284,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.import.localFiles.largeGltfPendingXr","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLargeLocalGltfDefersEditorHydrationButKeepsXrRenderable"],
   ["workspace.import.localFolder.glbLazyManifest","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalFolderGlbDefersAsModelManifest"],
   ["workspace.export.menu.glb","@/__tests__/workspaceImportLocal.test","testWorkspaceExportMenuIncludesGlbAction"],
+  ["workspace.export.menu.htmlParity","@/__tests__/workspaceImportLocal.test","testWorkspaceExportMenuIncludesHtmlWorkspaceViewerCanvasParity"],
   ["workspace.import.localFiles.largeFileLazyHydrate","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen"],
   ["workspace.import.workspaceFileJsonLd","@/__tests__/workspaceImportLocal.test","testWorkspaceImportWorkspaceFileJsonLdPreservesHighFidelityJsonLdFile"],
   ["workspace.export.workspaceFileJsonLdPreservesHighFidelity","@/__tests__/workspaceImportLocal.test","testWorkspaceFileJsonLdExportPreservesExistingHighFidelityDocument"],
@@ -417,6 +419,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["queryableCorpus.chat.evidencePackContext","@/__tests__/queryableCorpus.test","testQueryableCorpusEvidencePackFeedsChatRequestContext"],
   ["queryableCorpus.e2e.importSourceFilesCanvasChatReadiness","@/__tests__/queryableCorpus.test","testQueryableCorpusImportAppliesToSourceFilesCanvasAndChatReadiness"],
   ["strybldr.markdown.parseStoryboardGraph","@/__tests__/strybldr.test","testStrybldrStoryboardMarkdownParsesToStoryboardGraph"],
+  ["strybldr.markdown.parseStrytreeStorytreeSnapshot","@/__tests__/strybldr.test","testStrybldrStoryboardParsesStrytreeStorytreeSnapshot"],
+  ["strybldr.storytree.workflowActions","@/__tests__/strybldr.test","testStrybldrStorytreeWorkflowActionsMutateGraphState"],
   ["strybldr.renderer.sharedSurfaceRegistry","@/__tests__/strybldr.test","testStrybldrRendererModeUsesSharedSurfaceRegistry"],
   ["strybldr.launchImage.floatingPanelOwners","@/__tests__/strybldr.test","testStrybldrImportImageAndFloatingPanelOwnersAreWired"],
   ["strybldr.videoHandoff.byteplusFallbackArtifact","@/__tests__/strybldr.test","testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArtifact"],

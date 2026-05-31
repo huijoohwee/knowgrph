@@ -54,6 +54,7 @@ function extractUrlLiterals(text: string): string[] {
   return matches
     .map(url => url.replace(/[.,;:]+$/g, ''))
     .filter(url => /^https?:\/\//i.test(url))
+    .filter(url => /(?:youtube\.com|youtu\.be|ytimg\.com)/i.test(url))
 }
 
 function extractYouTubeIdLiterals(text: string): string[] {

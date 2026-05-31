@@ -2,18 +2,41 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { SourceFile } from '@/hooks/store/types'
-import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { normalizeWorkspacePath, workspaceBasename, workspaceExtLower } from '@/features/workspace-fs/path'
 import { readEnvString } from '@/lib/config.env'
 import { buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState } from '@/features/source-files/sourceFilesStorageSync'
 import { loadPersistedSourceFilesWorkspace } from '@/features/source-files/sourceFilesDb'
 import { readFirstKnowgrphStorageDocText } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { readStorageCanonicalPathCandidatesForWorkspacePath } from '@/features/source-files/sourceFilesStoragePaths'
+import { buildModelAssetWorkspaceFallbackMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
 import {
   readCachedWorkspaceActiveEntrySnapshot,
   rememberWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/workspaceActiveEntryCache'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+
+const isWorkspaceModelAssetPath = (path: WorkspacePath): 'glb' | 'gltf' | null => {
+  const ext = workspaceExtLower(path)
+  return ext === 'glb' || ext === 'gltf' ? ext : null
+}
+
+const hasWorkspaceModelAssetCanvasManifest = (text: string): boolean => {
+  const sample = String(text || '').slice(0, 4096)
+  return !!(
+    sample.includes('kgAssetFormat') ||
+    sample.includes('kgAssetType') ||
+    sample.includes('kgCanvasSurfaceMode') ||
+    sample.includes('kgCanvas3dMode')
+  )
+}
+
+const buildWorkspaceModelAssetFallbackText = (activePath: WorkspacePath, format: 'glb' | 'gltf'): string =>
+  buildModelAssetWorkspaceFallbackMarkdown({
+    name: workspaceBasename(activePath),
+    format,
+    sourceKind: 'workspace',
+  })
 
 const readWorkspaceStorageDocFallbackText = async (
   activePath: WorkspacePath,
@@ -84,17 +107,33 @@ export async function readWorkspaceActiveDocumentResolvedText(args: {
   fs?: WorkspaceFs | Awaited<ReturnType<typeof getWorkspaceFs>>
   storageFallbackByPath?: Map<string, string>
 }): Promise<string> {
+  const activePath = normalizeWorkspacePath(args.activePath)
+  const modelAssetFormat = isWorkspaceModelAssetPath(activePath)
   const currentText = String(args.currentText || '')
-  if (currentText.trim()) return currentText
+  if (currentText.trim()) {
+    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(currentText)) return currentText
+    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  }
   let fsText = ''
   try {
     const fs = args.fs || (await getWorkspaceFs())
-    fsText = String((await fs.readFileText(args.activePath)) || '')
+    fsText = String((await fs.readFileText(activePath)) || '')
   } catch {
     fsText = ''
   }
-  if (fsText.trim()) return fsText
-  return readWorkspaceStorageDocFallbackText(args.activePath, args.storageFallbackByPath)
+  if (fsText.trim()) {
+    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(fsText)) return fsText
+    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  }
+  const storageText = await readWorkspaceStorageDocFallbackText(activePath, args.storageFallbackByPath)
+  if (storageText.trim()) {
+    if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(storageText)) return storageText
+    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  }
+  if (modelAssetFormat) {
+    return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)
+  }
+  return ''
 }
 
 export const readWorkspaceActiveEntrySnapshot = async (args: {

@@ -1,19 +1,18 @@
 import React from 'react'
 
-import IconButton from '@/components/IconButton'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
+import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
+import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_LABELS } from '@/lib/config'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
-import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 } from 'lucide-react'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
@@ -106,7 +105,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     onFinalizeAddEdgeToNode,
   } = args
 
-  const iconSizeClass = getIconSizeClass(uiIconScale)
   const beatByBeatTitle = React.useMemo(() => {
     const kind = String(graphMetaKind || '').trim()
     if (kind !== 'frontmatter-flow') return null
@@ -162,13 +160,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     <FloatingPanel
       as="section"
       ariaLabel={UI_LABELS.flowWidget}
-      className={cn(
-        'rounded-xl border shadow-lg flex flex-col relative',
-        UI_THEME_TOKENS.panel.bg,
-        UI_THEME_TOKENS.input.border,
-        UI_THEME_TOKENS.text.primary,
-        panelTextClass,
-      )}
+      className={getFlowEditorPanelChromeClassName(panelTextClass)}
       onWheelCapture={e => {
         try {
           if (e.ctrlKey === true || e.metaKey === true) {
@@ -191,96 +183,24 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         height: minimized ? undefined : (showRichMediaPanelBody ? undefined : WIDGET_BASE_SIZE.height),
       }}
     >
-      <header
-        className={cn(
-          'border-b',
-          UI_THEME_TOKENS.panel.border,
-          'cursor-move select-none',
-          minimized ? 'px-2 py-0 h-[36px]' : 'px-3 py-2',
-        )}
-        data-kg-flow-node-drag-handle="true"
-        onPointerDown={onHeaderPointerDown}
-      >
-        <section
-          className={cn('flex items-center justify-between gap-2', minimized ? 'h-full' : '')}
-          aria-label="Node editor header"
-        >
-          <section className="min-w-0" aria-label="Node title">
-            <h3
-              className={cn(
-                'font-semibold truncate',
-                UI_THEME_TOKENS.text.primary,
-                minimized ? microLabelClass : '',
-              )}
-            >
-              {beatByBeatTitle || resolveWidgetNodeTitle({ node, graphMetaKind, registryEntry })}
-            </h3>
-          </section>
-
-          <nav className="flex items-center gap-1" aria-label={UI_LABELS.flowWidget}>
-              <IconButton
-                title={UI_LABELS.flowWidgetValidate}
-                tooltipContent={UI_LABELS.flowWidgetValidate}
-                showTooltip
-                disabled={!active}
-                onClick={onValidate}
-                className="App-toolbar__btn"
-              >
-                <CheckCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-              </IconButton>
-
-              {!isRichMediaPanelWidget ? (
-                <IconButton
-                  title={hideFields ? UI_LABELS.showFields : UI_LABELS.hideFields}
-                  tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
-                  showTooltip
-                  disabled={!active}
-                  onClick={onToggleHideFields}
-                  className={cn('App-toolbar__btn', hideFields ? UI_THEME_TOKENS.icon.active : '')}
-                >
-                  {hideFields ? (
-                    <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                  ) : (
-                    <ChevronUp className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                  )}
-                </IconButton>
-              ) : null}
-
-              <IconButton
-                title={minimized ? UI_LABELS.restorePanel : UI_LABELS.minimizePanel}
-                tooltipContent={minimized ? UI_COPY.flowWidgetRestore : UI_COPY.flowWidgetMinimize}
-                showTooltip
-                disabled={!active}
-                onClick={onToggleMinimized}
-                className="App-toolbar__btn"
-              >
-                {minimized ? (
-                  <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                ) : (
-                  <Minimize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                )}
-              </IconButton>
-
-              {showPinToggle && (
-                <IconButton
-                  title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
-                  tooltipContent={pinned ? UI_COPY.flowWidgetUnpin : UI_COPY.flowWidgetPin}
-                  showTooltip
-                  disabled={!active}
-                  onPointerDown={onPinnedPointerDown}
-                  onClick={onTogglePinned}
-                  className={getPinToggleButtonClassName(pinned)}
-                >
-                  {pinned ? (
-                    <Pin className={cn(iconSizeClass, UI_THEME_TOKENS.icon.active)} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                  ) : (
-                    <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                  )}
-                </IconButton>
-              )}
-          </nav>
-        </section>
-      </header>
+      <FlowEditorPanelChromeHeader
+        active={active}
+        title={beatByBeatTitle || resolveWidgetNodeTitle({ node, graphMetaKind, registryEntry })}
+        minimized={minimized}
+        hideFields={hideFields}
+        showFieldToggle={!isRichMediaPanelWidget}
+        showPinToggle={showPinToggle}
+        pinned={pinned}
+        microLabelClass={microLabelClass}
+        uiIconScale={uiIconScale}
+        uiIconStrokeWidth={uiIconStrokeWidth}
+        onHeaderPointerDown={onHeaderPointerDown}
+        onValidate={onValidate}
+        onToggleHideFields={onToggleHideFields}
+        onToggleMinimized={onToggleMinimized}
+        onTogglePinned={onTogglePinned}
+        onPinnedPointerDown={onPinnedPointerDown}
+      />
 
       {showRichMediaPanelBody ? (
         <section

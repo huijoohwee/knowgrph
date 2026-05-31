@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults() {
   const p = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
@@ -172,8 +173,14 @@ export function testSourceFilesBootstrapResyncsOnlyOnActivePathChanges() {
   if (!text.includes('if (!workspaceHydratedRef.current) return')) {
     throw new Error('expected source files bootstrap to gate active-path rematerialization until workspace bootstrap hydration completes')
   }
-  if (!text.includes('const activePathKey = buildMaterializedWorkspaceActivePathKey({') || !text.includes('if (lastMaterializedActivePathRef.current === activePathKey) return')) {
-    throw new Error('expected source files bootstrap to skip repeated workspace-view materialization when the active path is unchanged')
+  if (
+    !text.includes('const activePathKey = buildMaterializedWorkspaceActivePathKey({') ||
+    !text.includes('workspaceEntriesSnapshot,') ||
+    !text.includes('markdownDocumentName: store.markdownDocumentName') ||
+    !text.includes('graphDataSource: typeof store.graphData?.metadata?.source ===') ||
+    !text.includes('if (lastMaterializedActivePathRef.current === activePathKey) return')
+  ) {
+    throw new Error('expected source files bootstrap to skip repeated workspace-view materialization only when selected content, active document, and Canvas graph ownership are unchanged')
   }
   if (text.includes('}\n    syncNow()\n    const unsubscribeActivePath')) {
     throw new Error('expected source files bootstrap to avoid an eager duplicate mount resync before startup bootstrap completes')
@@ -931,11 +938,74 @@ export function testMarkdownApplyUsesDirectParserPathForActiveText() {
   if (!documentActionsText.includes('let markdownApplyInFlight = false') || !documentActionsText.includes('let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null')) {
     throw new Error('expected applyMarkdownDocumentToGraph to enforce a single in-flight markdown apply with shared queued-request state')
   }
+  if (
+    !documentActionsText.includes('requireActiveMarkdownDocument: boolean') ||
+    !documentActionsText.includes('function isMarkdownApplyRequestActiveDocumentCurrent') ||
+    !documentActionsText.includes('state.markdownDocumentName === request.name && state.markdownDocumentText === request.text') ||
+    !documentActionsText.includes('requireActiveMarkdownDocument: true')
+  ) {
+    throw new Error('expected Source Files document switches to guard async markdown graph commits by the currently active document content')
+  }
   if (!documentActionsText.includes('if (markdownApplyInFlight) {') || !documentActionsText.includes('queuedMarkdownApplyRequest = request')) {
     throw new Error('expected overlapping markdown apply requests to coalesce into latest queued request instead of running concurrently')
   }
   if (!documentActionsText.includes('while (currentRequest) {') || !documentActionsText.includes('currentRequest = queuedMarkdownApplyRequest')) {
     throw new Error('expected markdown apply execution to process only the latest queued request after the current in-flight apply finishes')
+  }
+}
+
+export async function testMarkdownApplyActiveDocumentGuardRejectsStaleSourceSwitch() {
+  const state = useGraphStore.getState()
+  state.resetAll()
+  state.setMarkdownDocument('docs/a.md', '# A\n\nAlpha')
+  state.setMarkdownDocument('docs/b.md', '# B\n\nBeta')
+
+  const ok = await state.applyMarkdownDocumentToGraph('docs/a.md', '# A\n\nAlpha', {
+    force: true,
+    requireActiveMarkdownDocument: true,
+  })
+  const after = useGraphStore.getState()
+  if (ok) {
+    throw new Error('expected stale guarded markdown graph apply to return false after Source Files selection changed')
+  }
+  if ((after.graphData?.nodes || []).length > 0 || (after.graphData?.edges || []).length > 0) {
+    throw new Error('expected stale guarded markdown graph apply to leave Canvas graph unchanged')
+  }
+  if (after.markdownDocumentName !== 'docs/b.md' || after.markdownDocumentText !== '# B\n\nBeta') {
+    throw new Error('expected stale guarded markdown graph apply to preserve the active Source Files document')
+  }
+}
+
+export function testPassiveSameTextSourceSyncDoesNotDisableActiveFrontmatterSwitchPreset() {
+  const state = useGraphStore.getState()
+  state.resetAll()
+  const text = [
+    '---',
+    'kgCanvasSurfaceMode: "2d"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "flowEditor"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    '---',
+    '',
+    '# Demo',
+  ].join('\n')
+
+  state.setMarkdownDocument('docs/frontmatter-demo.md', text, {
+    autoEnableFrontmatter: true,
+    applyViewPreset: true,
+  })
+  state.setMarkdownDocument('docs/frontmatter-demo.md', text, {
+    autoEnableFrontmatter: false,
+    applyViewPreset: false,
+  })
+
+  const after = useGraphStore.getState()
+  if (after.markdownDocumentApplyViewPreset !== true) {
+    throw new Error('expected passive same-text Source Files sync not to disable the active file-switch YAML/frontmatter view preset')
+  }
+  if (after.markdownDocumentName !== 'docs/frontmatter-demo.md' || after.markdownDocumentText !== text) {
+    throw new Error('expected passive same-text Source Files sync to preserve the selected active markdown document')
   }
 }
 

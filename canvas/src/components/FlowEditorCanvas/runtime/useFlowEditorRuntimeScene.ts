@@ -28,18 +28,12 @@ import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEdi
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import {
-  buildWorkspaceBlockedFlowWidgetSeedPatch, resolveOffscreenPinnedFlowWidgetIds,
-  shouldReseedFrontmatterScreenAuthorityCollective, syncFlowWidgetScreenAuthorityPosition,
+  buildWorkspaceBlockedFlowWidgetSeedPatch, syncFlowWidgetScreenAuthorityPosition,
   type FlowWidgetSeedStoreState,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeSeedPositions'
 import { readFrontmatterFlowRenderSettings, resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-import {
-  isFlowTransformKeepingWorldRectCollectiveInViewport,
-  isFlowTransformShowingGraph,
-} from '@/components/FlowCanvas/transformGuards'
-import { DEFAULT_FLOW_NODE_HEIGHT_PX, DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import {
   type FlowWidgetPinnedById,
@@ -128,71 +122,17 @@ export function useFlowEditorRuntimeScene(args: {
       viewportH: args.viewportH,
     })
   }, [args.flowEditorSurfaceId, args.viewportH, args.viewportW])
-  const normalizeTransformToVisibleViewport = React.useCallback((transform: { k: number; x: number; y: number } | null) => {
-    if (!transform) return null
-    const visibleViewport = getVisibleViewport()
-    return {
-      k: transform.k,
-      x: transform.x - visibleViewport.left,
-      y: transform.y - visibleViewport.top,
-    }
-  }, [getVisibleViewport])
-
-  const buildAutoSeedWorldRectsForTransform = React.useCallback((transform: { k: number; x: number; y: number } | null) => {
-    if (!transform) return []
-    const visibleViewport = getVisibleViewport()
-    const zoomK = typeof transform.k === 'number' && Number.isFinite(transform.k) ? transform.k : 1
-    const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})
-      .filter((world): world is { x: number; y: number } => (
-        !!world
-        && Number.isFinite(world.x)
-        && Number.isFinite(world.y)
-      ))
-    if (autoSeedWorldNodes.length <= 0) return []
-    const panelScale = computeCollectiveFollowPinnedScale({
-      zoomK,
-      viewportW: visibleViewport.width,
-      viewportH: visibleViewport.height,
-      count: Math.max(1, autoSeedWorldNodes.length),
-      baseWidth: WIDGET_BASE_SIZE.width,
-      baseHeight: WIDGET_BASE_SIZE.height,
-    })
-    const panelScreen = computeWidgetScaledSize(panelScale)
-    const safeZoomK = Math.max(0.001, zoomK)
-    const panelWorldW = panelScreen.width / safeZoomK
-    const panelWorldH = panelScreen.height / safeZoomK
-    return autoSeedWorldNodes.map(world => ({
-      left: world.x,
-      top: world.y,
-      width: panelWorldW,
-      height: panelWorldH,
-    }))
-  }, [getVisibleViewport])
-
   const shouldPreserveWorkspaceReopenAuthorities = React.useCallback(() => {
     const lastUsable = lastUsableZoomTransformRef.current
     if (!lastUsable) return false
-    const visibleViewport = getVisibleViewport()
-    const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)
     const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})
       .filter((world): world is { x: number; y: number } => (
         !!world
         && Number.isFinite(world.x)
         && Number.isFinite(world.y)
       ))
-    if (!normalizedLastUsable || autoSeedWorldNodes.length <= 0) return false
-    return isFlowTransformShowingGraph(normalizedLastUsable, {
-      nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
-      viewportW: visibleViewport.width,
-      viewportH: visibleViewport.height,
-      nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
-      nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
-    }) && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {
-      rects: buildAutoSeedWorldRectsForTransform(lastUsable),
-      viewportW: visibleViewport.width,
-      viewportH: visibleViewport.height,
-    })
-  }, [buildAutoSeedWorldRectsForTransform, getVisibleViewport, normalizeTransformToVisibleViewport])
+    return autoSeedWorldNodes.length > 0
+  }, [])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -246,9 +186,6 @@ export function useFlowEditorRuntimeScene(args: {
     const sceneNodeCount = Array.isArray(sceneNodes) ? sceneNodes.length : 0
     const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     const positionsReady = runtime?.positionsReady === true
-    const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620
-    const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || '').trim()
-    const flowWidgetDragging = flowWidgetDraggingNodeId.length > 0
     if (Array.isArray(sceneNodes) && sceneNodes.length <= 0) {
       const lastUsable = lastUsableZoomTransformRef.current
       if (lastUsable) {
@@ -263,18 +200,6 @@ export function useFlowEditorRuntimeScene(args: {
         })
         return lastUsable
       }
-      if (workspaceMutationBlocked) {
-        pushFlowEditorRuntimeSceneTrace({
-          reason: 'scene-empty-workspace-blocked-awaiting-live-transform',
-          sceneNodeCount,
-          positionsReady,
-          workspaceMutationBlocked,
-          viewportW: args.viewportW,
-          viewportH: args.viewportH,
-          transform: null,
-        })
-        return null
-      }
       const st = useGraphStore.getState()
       const persisted = getEffectiveZoomStateForKey({
         zoomViewKey: args.zoomViewKeyRef.current,
@@ -284,25 +209,10 @@ export function useFlowEditorRuntimeScene(args: {
       const persistedK = typeof persisted?.k === 'number' && Number.isFinite(persisted.k) ? persisted.k : null
       const persistedX = typeof persisted?.x === 'number' && Number.isFinite(persisted.x) ? persisted.x : null
       const persistedY = typeof persisted?.y === 'number' && Number.isFinite(persisted.y) ? persisted.y : null
-      const visibleViewport = getVisibleViewport()
-      const normalizedPersistedTransform =
-        persistedK != null && persistedX != null && persistedY != null
-          ? normalizeTransformToVisibleViewport({ k: persistedK, x: persistedX, y: persistedY })
-          : null
-      const persistedLooksSafeForWorkspaceBlocked =
-        !!normalizedPersistedTransform
-        && Math.abs(normalizedPersistedTransform.x) <= visibleViewport.width * 0.6
-        && Math.abs(normalizedPersistedTransform.y) <= visibleViewport.height * 0.6
-      const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging
       if (
         persistedK != null
         && persistedX != null
         && persistedY != null
-        && (
-          !workspaceMutationBlocked
-          || persistedLooksSafeForWorkspaceBlocked
-          || allowPersistedDuringActiveInteraction
-        )
       ) {
         const persistedTransform = { k: persistedK, x: persistedX, y: persistedY }
         pushFlowEditorRuntimeSceneTrace({
@@ -316,16 +226,17 @@ export function useFlowEditorRuntimeScene(args: {
         })
         return persistedTransform
       }
-      if (workspaceMutationBlocked && persistedK != null && persistedX != null && persistedY != null) {
+      if (workspaceMutationBlocked) {
         pushFlowEditorRuntimeSceneTrace({
-          reason: 'scene-empty-persisted-transform-rejected-workspace-blocked',
+          reason: 'scene-empty-workspace-blocked-awaiting-live-transform',
           sceneNodeCount,
           positionsReady,
           workspaceMutationBlocked,
           viewportW: args.viewportW,
           viewportH: args.viewportH,
-          transform: { k: persistedK, x: persistedX, y: persistedY },
+          transform: null,
         })
+        return null
       }
       // Overlay-only runtime can transiently report empty scene during workspace recomposition.
       // Fall back to neutral only if no prior usable transform exists.
@@ -357,156 +268,6 @@ export function useFlowEditorRuntimeScene(args: {
       return null
     }
     const next = { k, x, y }
-    const visibleViewport = getVisibleViewport()
-    const normalizedNext = normalizeTransformToVisibleViewport(next)
-    const autoSeedWorldNodes = Object.values(latestAutoSeedWorldPosByNodeIdRef.current || {})
-      .filter((world): world is { x: number; y: number } => (
-        !!world
-        && Number.isFinite(world.x)
-        && Number.isFinite(world.y)
-      ))
-    const autoSeedWorldRects = buildAutoSeedWorldRectsForTransform(next)
-    if (workspaceMutationBlocked && sceneNodeCount > 0 && positionsReady !== true && !interactionInProgress && !flowWidgetDragging) {
-      const lastUsable = lastUsableZoomTransformRef.current
-      if (lastUsable) {
-        const lastUsableAutoSeedWorldRects = buildAutoSeedWorldRectsForTransform(lastUsable)
-        const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)
-        const lastUsableShowsAutoSeed =
-          autoSeedWorldNodes.length <= 0
-          || (
-            !!normalizedLastUsable
-            && isFlowTransformShowingGraph(normalizedLastUsable, {
-              nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
-              viewportW: visibleViewport.width,
-              viewportH: visibleViewport.height,
-              nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
-              nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
-            })
-            && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {
-              rects: lastUsableAutoSeedWorldRects,
-              viewportW: visibleViewport.width,
-              viewportH: visibleViewport.height,
-            })
-          )
-        if (!lastUsableShowsAutoSeed) {
-          pushFlowEditorRuntimeSceneTrace({
-            reason: 'workspace-blocked-unsettled-transform-neutralized-for-auto-seed',
-            sceneNodeCount,
-            positionsReady,
-            workspaceMutationBlocked,
-            viewportW: args.viewportW,
-            viewportH: args.viewportH,
-            transform: next,
-          })
-          return { k: 1, x: 0, y: 0 }
-        }
-        pushFlowEditorRuntimeSceneTrace({
-          reason: 'workspace-blocked-unsettled-transform-reusing-last-usable',
-          sceneNodeCount,
-          positionsReady,
-          workspaceMutationBlocked,
-          viewportW: args.viewportW,
-          viewportH: args.viewportH,
-          transform: next,
-        })
-        return lastUsable
-      }
-    }
-    if (workspaceMutationBlocked && autoSeedWorldNodes.length > 0 && !interactionInProgress && !flowWidgetDragging) {
-      const autoSeedVisible =
-        !!normalizedNext
-        && isFlowTransformShowingGraph(normalizedNext, {
-          nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
-          viewportW: visibleViewport.width,
-          viewportH: visibleViewport.height,
-          nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
-          nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
-        })
-        && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedNext, {
-          rects: autoSeedWorldRects,
-          viewportW: visibleViewport.width,
-          viewportH: visibleViewport.height,
-        })
-      if (!autoSeedVisible) {
-        const lastUsable = lastUsableZoomTransformRef.current
-        if (lastUsable) {
-          const lastUsableAutoSeedWorldRects = buildAutoSeedWorldRectsForTransform(lastUsable)
-          const normalizedLastUsable = normalizeTransformToVisibleViewport(lastUsable)
-          const lastUsableAutoSeedVisible =
-            !!normalizedLastUsable
-            && isFlowTransformShowingGraph(normalizedLastUsable, {
-              nodes: autoSeedWorldNodes as Array<{ x?: unknown; y?: unknown }>,
-              viewportW: visibleViewport.width,
-              viewportH: visibleViewport.height,
-              nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
-              nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
-            })
-            && isFlowTransformKeepingWorldRectCollectiveInViewport(normalizedLastUsable, {
-              rects: lastUsableAutoSeedWorldRects,
-              viewportW: visibleViewport.width,
-              viewportH: visibleViewport.height,
-            })
-          if (lastUsableAutoSeedVisible) {
-            pushFlowEditorRuntimeSceneTrace({
-              reason: 'workspace-blocked-auto-seed-transform-reusing-last-usable',
-              sceneNodeCount,
-              positionsReady,
-              workspaceMutationBlocked,
-              viewportW: args.viewportW,
-              viewportH: args.viewportH,
-              transform: next,
-            })
-            return lastUsable
-          }
-        }
-        pushFlowEditorRuntimeSceneTrace({
-          reason: 'workspace-blocked-auto-seed-transform-neutralized',
-          sceneNodeCount,
-          positionsReady,
-          workspaceMutationBlocked,
-          viewportW: args.viewportW,
-          viewportH: args.viewportH,
-          transform: next,
-        })
-        return { k: 1, x: 0, y: 0 }
-      }
-    }
-    if (workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging) {
-      const visible =
-        !!normalizedNext
-        && isFlowTransformShowingGraph(normalizedNext, {
-        nodes: sceneNodes as Array<{ x?: unknown; y?: unknown }>,
-        viewportW: visibleViewport.width,
-        viewportH: visibleViewport.height,
-        nodeW: DEFAULT_FLOW_NODE_WIDTH_PX,
-        nodeH: DEFAULT_FLOW_NODE_HEIGHT_PX,
-      })
-      if (!visible) {
-        const lastUsable = lastUsableZoomTransformRef.current
-        if (lastUsable) {
-          pushFlowEditorRuntimeSceneTrace({
-            reason: 'workspace-blocked-offscreen-transform-reusing-last-usable',
-            sceneNodeCount,
-            positionsReady,
-            workspaceMutationBlocked,
-            viewportW: args.viewportW,
-            viewportH: args.viewportH,
-            transform: next,
-          })
-          return lastUsable
-        }
-        pushFlowEditorRuntimeSceneTrace({
-          reason: 'workspace-blocked-offscreen-transform-neutralized',
-          sceneNodeCount,
-          positionsReady,
-          workspaceMutationBlocked,
-          viewportW: args.viewportW,
-          viewportH: args.viewportH,
-          transform: next,
-        })
-        return { k: 1, x: 0, y: 0 }
-      }
-    }
     lastUsableZoomTransformRef.current = next
     pushFlowEditorRuntimeSceneTrace({
       reason: 'runtime-transform-live',
@@ -518,7 +279,7 @@ export function useFlowEditorRuntimeScene(args: {
       transform: next,
     })
     return next
-  }, [args.viewportH, args.viewportW, args.zoomViewKeyRef, buildAutoSeedWorldRectsForTransform, getVisibleViewport, normalizeTransformToVisibleViewport])
+  }, [args.viewportH, args.viewportW, args.zoomViewKeyRef])
 
   const getLiveContainmentGroupAabbForNode = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
@@ -676,7 +437,7 @@ export function useFlowEditorRuntimeScene(args: {
       isFirstFrontmatterInitSeed
       || (isFrontmatterFlow && workspaceMutationBlockedForSeed)
     const shouldUseNeutralSeedZoom =
-      runtimeSceneNodeCount <= 0
+      (runtimeSceneNodeCount <= 0 && !persistedHasViewportOffset)
       || shouldUseNeutralSeedZoomForFrontmatterInit
     const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed
     const z =
@@ -844,20 +605,6 @@ export function useFlowEditorRuntimeScene(args: {
         idsByBucket.set(bucketId, list)
       }
       const overlappingIds = new Set<string>()
-      const isOutsideViewportBounds = (id: string, bucketId: string) => {
-        const world = worldById[id]
-        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return false
-        const bounds = allBoundsByBucket.get(bucketId) || viewportBounds
-        const left = world.x
-        const top = world.y
-        const right = left + panelWorldW
-        const bottom = top + panelWorldH
-        if (right <= bounds.minX) return true
-        if (bottom <= bounds.minY) return true
-        if (left >= bounds.maxX) return true
-        if (top >= bounds.maxY) return true
-        return false
-      }
       const hasOverlap = (aId: string, bId: string) => {
         const a = worldById[aId]
         const b = worldById[bId]
@@ -869,7 +616,6 @@ export function useFlowEditorRuntimeScene(args: {
       for (const [bucketId, pinnedIds] of pinnedWorldIdsByBucket.entries()) {
         for (let i = 0; i < pinnedIds.length; i += 1) {
           const id = pinnedIds[i]!
-          if (isOutsideViewportBounds(id, bucketId)) overlappingIds.add(id)
           if (!autoSeedLayoutChanged) continue
           const prevAuto = autoSeedWorldById[id]
           if (!prevAuto || !Number.isFinite(prevAuto.x) || !Number.isFinite(prevAuto.y)) continue
@@ -909,30 +655,12 @@ export function useFlowEditorRuntimeScene(args: {
       return Array.from(overlappingIds)
     })()
     let pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
-    if (pending.length === 0 && pinnedOpenIds.length > 0) {
-      const offscreenPinned = resolveOffscreenPinnedFlowWidgetIds({ ids: pinnedOpenIds, worldById, panelWorldW, panelWorldH, viewportBounds })
-      if (offscreenPinned.length > 0) pending = offscreenPinned
-    }
     const fullFrontmatterCollectiveIds = isFrontmatterFlow ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)) : []
-    const frontmatterScreenAuthorityCollectiveNeedsReseed = shouldReseedFrontmatterScreenAuthorityCollective({
-      isFrontmatterFlow,
-      ids: fullFrontmatterCollectiveIds,
-      pinnedById,
-      defaultPinnedInCanvas,
-      graphMetaKind,
-      worldById,
-      zoomK,
-      zoomX,
-      zoomY,
-      panelScreen,
-      visibleViewport,
-    })
     const shouldReseedWholeFrontmatterCollective =
       isFrontmatterFlow
       && fullFrontmatterCollectiveIds.length > 0
       && (
         forceSceneEmptyReseed
-        || frontmatterScreenAuthorityCollectiveNeedsReseed
         || (pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length)
       )
     if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds
@@ -958,34 +686,7 @@ export function useFlowEditorRuntimeScene(args: {
     const bucketIds = Array.from(idsByBucket.keys()).sort((a, b) => a.localeCompare(b))
     const pendingSet = new Set(pending)
     const seedKey = `${pending.join(',')}|${currentLayoutSignature}`
-    const collectiveOutsideViewport = (() => {
-      if (pending.length === 0) return false
-      let minLeft = Number.POSITIVE_INFINITY
-      let minTop = Number.POSITIVE_INFINITY
-      let maxRight = Number.NEGATIVE_INFINITY
-      let maxBottom = Number.NEGATIVE_INFINITY
-      for (let i = 0; i < pending.length; i += 1) {
-        const id = pending[i]!
-        const world = worldById[id]
-        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
-        const left = world.x
-        const top = world.y
-        const right = world.x + panelWorldW
-        const bottom = world.y + panelWorldH
-        minLeft = Math.min(minLeft, left)
-        minTop = Math.min(minTop, top)
-        maxRight = Math.max(maxRight, right)
-        maxBottom = Math.max(maxBottom, bottom)
-      }
-      if (!Number.isFinite(minLeft) || !Number.isFinite(minTop) || !Number.isFinite(maxRight) || !Number.isFinite(maxBottom)) return false
-      const marginWorld = Math.max(panelWorldW, panelWorldH) * 0.2
-      if (maxRight < viewportBounds.minX - marginWorld) return true
-      if (maxBottom < viewportBounds.minY - marginWorld) return true
-      if (minLeft > viewportBounds.maxX + marginWorld) return true
-      if (minTop > viewportBounds.maxY + marginWorld) return true
-      return false
-    })()
-    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !collectiveOutsideViewport && !forceSceneEmptyReseed && !frontmatterScreenAuthorityCollectiveNeedsReseed) return
+    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) return
 
     const nextWorld = { ...worldById }
     const nextScreenPos = { ...posById }
@@ -1084,8 +785,8 @@ export function useFlowEditorRuntimeScene(args: {
       return
     }
     const hasMissingWorldSeeds = pendingRaw.length > 0
-    const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || frontmatterScreenAuthorityCollectiveNeedsReseed
-    if (workspaceMutationBlockedForSeed && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return
+    const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed
+    if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return
     seededPinnedWidgetWorldPosKeyRef.current = seedKey
     lastAutoSeedLayoutSignatureRef.current = currentLayoutSignature
     if (workspaceMutationBlockedForSeed) {

@@ -5,6 +5,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import type { GraphData } from '@/lib/graph/types'
 import { applyCanvasFrontmatterPreset } from './canvasFrontmatterPreset'
+import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 
 const FRONTMATTER_FLOW_CANVAS_RENDER_MODE = '2d' as const
@@ -27,12 +28,16 @@ export const applyFrontmatterFlowImportModes = (
   opts: {
     applyViewPreset?: boolean
     resetWidgetLayout?: boolean
+    preset?: CanvasWorkspaceFrontmatterPreset | null
+    rawText?: string | null
   } = {},
 ): boolean => {
   if (!graphData || !isFrontmatterFlowGraph(graphData)) return false
   if (opts.applyViewPreset !== false) {
     applyCanvasFrontmatterPreset({
       graphData,
+      rawText: opts.rawText,
+      preset: opts.preset,
       defaultCanvasRenderMode: FRONTMATTER_FLOW_CANVAS_RENDER_MODE,
       defaultCanvas2dRenderer: FRONTMATTER_FLOW_CANVAS_2D_RENDERER,
       defaultDocumentSemanticMode: FRONTMATTER_FLOW_DOCUMENT_MODE,

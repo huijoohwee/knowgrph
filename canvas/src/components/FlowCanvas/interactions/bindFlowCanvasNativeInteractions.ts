@@ -236,6 +236,7 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     disableAutoZoomModes: () => disableAutoZoomModesForUserGesture(readViewportInteractionSnapshot()),
     onInteractionFrame: args.onInteractionFrame,
     onCommit: args.requestCommit,
+    deferInteractionCommits: true,
     readLocalPoint: (e) => readCanvasLocalPoint({ canvasEl, event: e }),
     getBoundingRect: () => canvasEl.getBoundingClientRect(),
     pointerCapture: {

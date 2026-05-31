@@ -7,21 +7,28 @@ import {
   buildRenderableMediaThumbnailUrl,
   inferMediaKindFromResourceUrl,
 } from '@/lib/graph/mediaUrlKind'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import type {
   StrybldrBox,
   StrybldrDetectionProvider,
   StrybldrElement,
   StrybldrEvidenceKind,
+  StrybldrExplainerVideoPanel,
+  StrybldrExplainerVideoPanelTab,
+  StrybldrExplainerVideoSnapshot,
   StrybldrVideoHandoff,
   StrybldrVideoHandoffCard,
   StrybldrSource,
   StrybldrStoryboardDocument,
+  StrytreeStoryNode,
+  StrytreeStorySnapshot,
 } from './strybldrTypes'
 const STRYBLDR_JSON_FENCE_RE = /```(?:json\s+)?strybldr-storyboard\s*\n([\s\S]*?)\n```/i
 const DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS = 0
 const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
+const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 
@@ -281,6 +288,8 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
     sources,
     elements: elements.length > 0 ? elements : sources.flatMap(createFallbackElements),
     notes: cleanText(rec.notes) || null,
+    storytree: readStrytreeSnapshot((rec as Record<string, unknown>).storytree),
+    explainerVideo: readExplainerVideoSnapshot((rec as Record<string, unknown>).explainerVideo),
   }
 }
 
@@ -305,6 +314,389 @@ const createEdge = (source: string, target: string, label: string): GraphEdge =>
     confidence: asJson('medium'),
   },
 })
+
+const isExplainerVideoXrMode = (doc: StrybldrStoryboardDocument): boolean => cleanText(doc.explainerVideo?.mode).toLowerCase() === 'xr'
+
+const buildExplainerPanelSrcDoc = (title: string, text: string): string => {
+  const safeTitle = htmlAttr(title || 'Explainer')
+  const safeText = htmlAttr(text || '')
+  return `<article style="font:14px/1.5 system-ui,sans-serif;padding:20px;color:#17202a"><h1 style="font-size:20px;margin:0 0 12px">${safeTitle}</h1><pre style="white-space:pre-wrap;margin:0">${safeText}</pre></article>`
+}
+
+type StrytreeNodeRuntime = {
+  depth: number
+  childBranchCount: number
+  pathNodeIds: string[]
+  inheritedAssetIds: string[]
+  allAssetIds: string[]
+  likeRate: number | null
+  unlockRequired: boolean
+  canUnlock: boolean
+  accessState: 'open' | 'unlock-ready' | 'unlock-needs-credits' | 'draft' | 'audit-only'
+  generationAffordable: boolean
+  projectedBalanceAfterUnlock: number | null
+  projectedBalanceAfterGeneration: number | null
+  engagementScore: number
+}
+
+type StrytreeRuntime = {
+  activeBranchCount: number
+  totalLikes: number
+  totalPaidUnlocks: number
+  protectedBranchCount: number
+  freeWindowCount: number
+  droppedBranchCount: number
+  requiredUnlockCredits: number
+  rootBranchCount: number
+  maxDepth: number
+  generationBudgetCount: number
+  nodeById: Map<string, StrytreeStoryNode>
+  nodeRuntimeById: Map<string, StrytreeNodeRuntime>
+}
+
+const buildStrytreeRuntime = (storytree: StrytreeStorySnapshot): StrytreeRuntime => {
+  const nodeById = new Map<string, StrytreeStoryNode>()
+  const childIdsByNodeId = new Map<string, string[]>()
+  for (const node of storytree.nodes) {
+    nodeById.set(node.nodeId, node)
+    if (!node.parentNodeId) continue
+    const children = childIdsByNodeId.get(node.parentNodeId) || []
+    children.push(node.nodeId)
+    childIdsByNodeId.set(node.parentNodeId, children)
+  }
+  const resolvingDepth = new Set<string>()
+  const depthByNodeId = new Map<string, number>()
+  const resolveDepth = (nodeId: string): number => {
+    if (depthByNodeId.has(nodeId)) return depthByNodeId.get(nodeId) || 0
+    const node = nodeById.get(nodeId)
+    if (!node?.parentNodeId || !nodeById.has(node.parentNodeId) || resolvingDepth.has(nodeId)) {
+      depthByNodeId.set(nodeId, 0)
+      return 0
+    }
+    resolvingDepth.add(nodeId)
+    const depth = resolveDepth(node.parentNodeId) + 1
+    resolvingDepth.delete(nodeId)
+    depthByNodeId.set(nodeId, depth)
+    return depth
+  }
+  const resolvingPath = new Set<string>()
+  const pathByNodeId = new Map<string, string[]>()
+  const resolvePath = (nodeId: string): string[] => {
+    const existing = pathByNodeId.get(nodeId)
+    if (existing) return existing
+    const node = nodeById.get(nodeId)
+    if (!node || resolvingPath.has(nodeId)) return [nodeId]
+    resolvingPath.add(nodeId)
+    const parentPath = node.parentNodeId && nodeById.has(node.parentNodeId)
+      ? resolvePath(node.parentNodeId)
+      : []
+    resolvingPath.delete(nodeId)
+    const path = uniqueCleanTexts([...parentPath, nodeId])
+    pathByNodeId.set(nodeId, path)
+    return path
+  }
+
+  const tokenBalance = Math.max(0, readNumber(storytree.tokenBalance, 0))
+  const generationCostCredits = Math.max(0, readNumber(storytree.generationCostCredits, 5))
+  const nodeRuntimeById = new Map<string, StrytreeNodeRuntime>()
+  let maxDepth = 0
+  for (const node of storytree.nodes) {
+    const depth = resolveDepth(node.nodeId)
+    maxDepth = Math.max(maxDepth, depth)
+    const pathNodeIds = resolvePath(node.nodeId)
+    const inheritedAssetIds = uniqueCleanTexts(pathNodeIds
+      .slice(0, -1)
+      .flatMap(id => nodeById.get(id)?.ownAssetIds || []))
+    const allAssetIds = uniqueCleanTexts([...inheritedAssetIds, ...(node.ownAssetIds || [])])
+    const impressions = Math.max(0, node.impressions || 0)
+    const likes = Math.max(0, node.likes || 0)
+    const likeRate = impressions > 0 ? Number(((likes / impressions) * 100).toFixed(1)) : null
+    const unlockPriceCredits = Math.max(0, node.unlockPriceCredits || 0)
+    const unlockRequired = node.isProtected === true && node.isFreeWindow !== true && unlockPriceCredits > 0
+    const canUnlock = !unlockRequired || tokenBalance >= unlockPriceCredits
+    const generationEligible = node.status !== 'dropped' && node.status !== 'draft'
+    const generationAffordable = generationEligible && generationCostCredits === 0 ? true : generationEligible && tokenBalance >= generationCostCredits
+    const accessState: StrytreeNodeRuntime['accessState'] = node.status === 'dropped'
+      ? 'audit-only'
+      : node.status === 'draft'
+        ? 'draft'
+        : unlockRequired
+          ? canUnlock ? 'unlock-ready' : 'unlock-needs-credits'
+          : 'open'
+    nodeRuntimeById.set(node.nodeId, {
+      depth,
+      childBranchCount: childIdsByNodeId.get(node.nodeId)?.length || 0,
+      pathNodeIds,
+      inheritedAssetIds,
+      allAssetIds,
+      likeRate,
+      unlockRequired,
+      canUnlock,
+      accessState,
+      generationAffordable,
+      projectedBalanceAfterUnlock: unlockRequired ? Math.max(0, tokenBalance - unlockPriceCredits) : null,
+      projectedBalanceAfterGeneration: generationEligible ? Math.max(0, tokenBalance - generationCostCredits) : null,
+      engagementScore: Number((likes + Math.max(0, node.paidUnlocks || 0) * 3 + (likeRate || 0)).toFixed(1)),
+    })
+  }
+
+  const activeBranchCount = storytree.activeBranchCount ?? storytree.nodes.filter(node => node.status !== 'dropped').length
+  const totalLikes = storytree.totalLikes ?? storytree.nodes.reduce((sum, node) => sum + Math.max(0, node.likes || 0), 0)
+  const protectedBranchCount = storytree.nodes.filter(node => node.isProtected && !node.isFreeWindow).length
+  const freeWindowCount = storytree.nodes.filter(node => node.isFreeWindow).length
+  return {
+    activeBranchCount,
+    totalLikes,
+    totalPaidUnlocks: storytree.nodes.reduce((sum, node) => sum + Math.max(0, node.paidUnlocks || 0), 0),
+    protectedBranchCount,
+    freeWindowCount,
+    droppedBranchCount: storytree.nodes.filter(node => node.status === 'dropped').length,
+    requiredUnlockCredits: storytree.nodes.reduce((sum, node) => sum + (node.isProtected && !node.isFreeWindow ? Math.max(0, node.unlockPriceCredits || 0) : 0), 0),
+    rootBranchCount: storytree.nodes.filter(node => !node.parentNodeId || !nodeById.has(node.parentNodeId)).length,
+    maxDepth,
+    generationBudgetCount: generationCostCredits > 0 ? Math.floor(tokenBalance / generationCostCredits) : storytree.nodes.length,
+    nodeById,
+    nodeRuntimeById,
+  }
+}
+
+const appendStrytreeGraphData = (args: {
+  doc: StrybldrStoryboardDocument
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}): void => {
+  const storytree = args.doc.storytree
+  if (!storytree || storytree.nodes.length === 0) return
+  const storyId = storytree.storyId || args.doc.runId
+  const overviewId = `strytree:story:${shortHash(storyId)}`
+  const runtime = buildStrytreeRuntime(storytree)
+  args.nodes.push({
+    id: overviewId,
+    label: storytree.title,
+    type: 'StorytreeSnapshot',
+    properties: {
+      title: asJson(storytree.title),
+      lane: asJson('Storytree'),
+      order: asJson(-100),
+      summary: asJson(storytree.synopsis || `${runtime.activeBranchCount} active branches, ${runtime.totalLikes} total likes, ${runtime.protectedBranchCount} protected branches, and a read-only ${storytree.tokenBalance || 0} credit-token balance.`),
+      action: asJson('Review parent-derived branches, quote generation cost, then run the approved handoff through the server-side provider harness.'),
+      prompt: asJson('Create a continuation plan from this Strytree snapshot without trusting client-side wallet or unlock state.'),
+      tags: asJson(uniqueCleanTexts([
+        'strytree',
+        'storytree',
+        'server-owned-ledger',
+        `roots:${runtime.rootBranchCount}`,
+        `protected:${runtime.protectedBranchCount}`,
+        `max-depth:${runtime.maxDepth}`,
+      ])),
+      strytreeStoryId: asJson(storyId),
+      tokenBalance: asJson(storytree.tokenBalance || 0),
+      activeBranchCount: asJson(runtime.activeBranchCount),
+      totalLikes: asJson(runtime.totalLikes),
+      totalPaidUnlocks: asJson(runtime.totalPaidUnlocks),
+      protectedBranchCount: asJson(runtime.protectedBranchCount),
+      freeWindowCount: asJson(runtime.freeWindowCount),
+      droppedBranchCount: asJson(runtime.droppedBranchCount),
+      requiredUnlockCredits: asJson(runtime.requiredUnlockCredits),
+      rootBranchCount: asJson(runtime.rootBranchCount),
+      maxDepth: asJson(runtime.maxDepth),
+      generationBudgetCount: asJson(runtime.generationBudgetCount),
+      generationCostCredits: asJson(storytree.generationCostCredits || 5),
+      unlockCurrency: asJson(storytree.unlockCurrency || 'credits'),
+    },
+  })
+
+  const graphIdByNodeId = new Map<string, string>()
+  storytree.nodes.forEach((node, index) => {
+    const graphNodeId = `strytree:node:${shortHash(node.nodeId)}`
+    graphIdByNodeId.set(node.nodeId, graphNodeId)
+    const videoUrl = cleanText(node.videoUrl)
+    const renderUrl = videoUrl ? buildRenderableIframeUrl(videoUrl) || videoUrl : ''
+    const thumbnailUrl = videoUrl ? buildRenderableMediaThumbnailUrl(videoUrl) : ''
+    const impressions = Math.max(0, node.impressions || 0)
+    const likes = Math.max(0, node.likes || 0)
+    const nodeRuntime = runtime.nodeRuntimeById.get(node.nodeId)
+    const likeRate = nodeRuntime?.likeRate ?? null
+    const protectedState = node.isProtected && !node.isFreeWindow ? 'protected' : 'free-window'
+    args.nodes.push({
+      id: graphNodeId,
+      label: node.title,
+      type: 'StorytreeNode',
+      properties: {
+        title: asJson(node.title),
+        lane: asJson('Storytree'),
+        order: asJson(index),
+        index: asJson(`${(nodeRuntime?.depth ?? 0) + 1}.${index + 1}`),
+        slugline: asJson(`Depth ${nodeRuntime?.depth ?? 0} / ${nodeRuntime?.accessState || 'open'} / ${storytree.unlockCurrency || 'credits'}`),
+        summary: asJson(node.synopsis || `${node.status} story branch.`),
+        action: asJson(node.status === 'dropped'
+          ? 'Keep this dropped branch visible for moderation, lineage, and audit review.'
+          : nodeRuntime?.unlockRequired
+            ? 'Quote unlock cost through the server ledger before showing protected media.'
+            : nodeRuntime?.generationAffordable === false
+              ? 'Quote a top-up before allowing this branch to enter a generation job.'
+              : 'Fork this branch only through an audited generation job.'),
+        prompt: asJson(node.prompt || `Continue the story from branch ${node.title}.`),
+        branchStatus: asJson(node.status),
+        strytreeStatus: asJson(node.status),
+        tags: asJson(uniqueCleanTexts([
+          'story-branch',
+          protectedState,
+          node.status,
+          nodeRuntime?.accessState,
+          `depth:${nodeRuntime?.depth ?? 0}`,
+          `children:${nodeRuntime?.childBranchCount ?? 0}`,
+          nodeRuntime?.generationAffordable ? 'generation-ready' : 'generation-needs-credits',
+        ])),
+        strytreeStoryId: asJson(storyId),
+        strytreeNodeId: asJson(node.nodeId),
+        parent_node_id: asJson(node.parentNodeId || null),
+        parentNodeId: asJson(node.parentNodeId || null),
+        authorName: asJson(node.authorName || null),
+        duration: asJson(node.duration || null),
+        ageDays: asJson(node.ageDays ?? null),
+        isFreeWindow: asJson(node.isFreeWindow === true),
+        isProtected: asJson(node.isProtected === true),
+        unlockPriceCredits: asJson(node.unlockPriceCredits || 0),
+        likes: asJson(likes),
+        impressions: asJson(impressions),
+        likeRate: asJson(likeRate),
+        paidUnlocks: asJson(node.paidUnlocks || 0),
+        childBranchCount: asJson(nodeRuntime?.childBranchCount ?? 0),
+        depth: asJson(nodeRuntime?.depth ?? 0),
+        pathNodeIds: asJson(nodeRuntime?.pathNodeIds || [node.nodeId]),
+        inheritedAssetIds: asJson(nodeRuntime?.inheritedAssetIds || []),
+        allAssetIds: asJson(nodeRuntime?.allAssetIds || node.ownAssetIds || []),
+        unlockRequired: asJson(nodeRuntime?.unlockRequired === true),
+        canUnlock: asJson(nodeRuntime?.canUnlock !== false),
+        accessState: asJson(nodeRuntime?.accessState || 'open'),
+        generationAffordable: asJson(nodeRuntime?.generationAffordable === true),
+        projectedBalanceAfterUnlock: asJson(nodeRuntime?.projectedBalanceAfterUnlock ?? null),
+        projectedBalanceAfterGeneration: asJson(nodeRuntime?.projectedBalanceAfterGeneration ?? null),
+        engagementScore: asJson(nodeRuntime?.engagementScore ?? likes),
+        ownAssetIds: asJson(node.ownAssetIds || []),
+        mediaUrl: asJson(videoUrl || null),
+        sourceUrl: asJson(videoUrl || null),
+        renderUrl: asJson(renderUrl || null),
+        thumbnailUrl: asJson(thumbnailUrl || null),
+        mediaKind: asJson(videoUrl ? inferMediaKindFromResourceUrl(videoUrl) || 'video' : 'unknown'),
+        references: asJson(uniqueCleanTexts([videoUrl, thumbnailUrl, ...(node.ownAssetIds || [])])),
+      },
+    })
+  })
+  for (const node of storytree.nodes) {
+    const childId = graphIdByNodeId.get(node.nodeId)
+    if (!childId) continue
+    const parentId = node.parentNodeId ? graphIdByNodeId.get(node.parentNodeId) : overviewId
+    if (parentId) args.edges.push(createEdge(parentId, childId, node.parentNodeId ? 'parent_node_id' : 'rootBranch'))
+  }
+}
+
+const appendExplainerVideoGraphData = (args: {
+  doc: StrybldrStoryboardDocument
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  sourceNodeIdByUnit?: ReadonlyMap<string, string>
+}): void => {
+  const explainer = args.doc.explainerVideo
+  if (!explainer || explainer.panels.length === 0) return
+  const isXr = isExplainerVideoXrMode(args.doc)
+  const overviewId = `strybldr:explainer:${shortHash(`${args.doc.runId}:${explainer.title}`)}`
+  const transcript = cleanMultilineText(explainer.transcriptMarkdown)
+  const referenceImageUrl = cleanText(explainer.referenceImageUrl)
+  const videoUrl = cleanText(explainer.videoUrl)
+  const overviewMediaUrl = videoUrl || referenceImageUrl
+  args.nodes.push({
+    id: overviewId,
+    label: explainer.title,
+    type: 'ExplainerVideoSnapshot',
+    properties: {
+      title: asJson(explainer.title),
+      lane: asJson('Explainer Video'),
+      order: asJson(-90),
+      summary: asJson(explainer.summary || 'Source-backed text artifact prepared as an inspectable explainer-video plan.'),
+      action: asJson('Inspect the text, image, and video Rich Media Panel cards before running any optional media generation.'),
+      prompt: asJson(explainer.storyboardPrompt || 'Turn the approved text artifact and visual cards into a concise explainer video.'),
+      tags: asJson(uniqueCleanTexts([
+        'text-artifact',
+        'explainer-video',
+        isXr ? 'xr-mode' : '',
+        `panels:${explainer.panels.length}`,
+      ])),
+      textArtifactToExplainerVideo: asJson(true),
+      richMediaPanelTabs: asJson(['text', 'image', 'video']),
+      transcriptMarkdown: asJson(explainer.transcriptMarkdown || null),
+      output: asJson(explainer.transcriptMarkdown || null),
+      outputSrcDoc: asJson(transcript ? buildExplainerPanelSrcDoc(explainer.title, transcript) : null),
+      imageUrl: asJson(referenceImageUrl || null),
+      videoUrl: asJson(videoUrl || null),
+      mediaUrl: asJson(overviewMediaUrl || null),
+      sourceUrl: asJson(overviewMediaUrl || null),
+      renderUrl: asJson(videoUrl ? buildRenderableIframeUrl(videoUrl) || videoUrl : null),
+      thumbnailUrl: asJson(referenceImageUrl || (videoUrl ? buildRenderableMediaThumbnailUrl(videoUrl) : null)),
+      mediaKind: asJson(videoUrl ? 'video' : referenceImageUrl ? inferMediaKindFromResourceUrl(referenceImageUrl) || 'image' : 'iframe'),
+      kgCanvasSurfaceMode: asJson(isXr ? 'xr' : '2d'),
+      kgCanvasRenderMode: asJson(isXr ? '3d' : '2d'),
+      kgCanvas3dMode: asJson(isXr ? 'xr' : null),
+      references: asJson(uniqueCleanTexts([referenceImageUrl, videoUrl, explainer.storyboardPrompt, explainer.transcriptMarkdown])),
+    },
+  })
+
+  explainer.panels.forEach((panel, index) => {
+    const panelGraphId = `strybldr:explainer-panel:${shortHash(`${overviewId}:${panel.panelId}`)}`
+    const output = cleanMultilineText(panel.output)
+    const outputSrcDoc = cleanMultilineText(panel.outputSrcDoc) || (panel.activeTab === 'text' && output ? buildExplainerPanelSrcDoc(panel.title, output) : '')
+    const imageUrl = cleanText(panel.imageUrl)
+    const panelVideoUrl = cleanText(panel.videoUrl)
+    const mediaUrl = panel.activeTab === 'video' ? panelVideoUrl : panel.activeTab === 'image' ? imageUrl : ''
+    const thumbnailUrl = imageUrl || (panelVideoUrl ? buildRenderableMediaThumbnailUrl(panelVideoUrl) : '')
+    args.nodes.push({
+      id: panelGraphId,
+      label: panel.title,
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      properties: {
+        title: asJson(panel.title),
+        lane: asJson('Explainer Video'),
+        order: asJson(index),
+        summary: asJson(panel.summary || `${titleCase(panel.activeTab)} panel for an inspectable explainer-video artifact.`),
+        action: asJson('Inspect this media panel through the shared Rich Media Panel surface.'),
+        prompt: asJson(panel.prompt || explainer.storyboardPrompt || 'Review this approved media artifact before video assembly.'),
+        tags: asJson(uniqueCleanTexts(['rich-media-panel', panel.activeTab, isXr ? 'xr-mode' : ''])),
+        textArtifactToExplainerVideo: asJson(true),
+        richMediaActiveTab: asJson(panel.activeTab),
+        freezeConnectedOutput: asJson(true),
+        output: asJson(output || null),
+        outputSrcDoc: asJson(outputSrcDoc || null),
+        imageUrl: asJson(imageUrl || null),
+        videoUrl: asJson(panelVideoUrl || null),
+        mediaUrl: asJson(mediaUrl || null),
+        sourceUrl: asJson(mediaUrl || null),
+        renderUrl: asJson(panelVideoUrl ? buildRenderableIframeUrl(panelVideoUrl) || panelVideoUrl : null),
+        thumbnailUrl: asJson(thumbnailUrl || null),
+        mediaKind: asJson(panel.activeTab === 'video' ? 'video' : panel.activeTab === 'image' ? inferMediaKindFromResourceUrl(imageUrl) || 'image' : 'iframe'),
+        media_interactive: asJson(panel.activeTab !== 'image'),
+        ['flow:widgetFormId']: asJson('richMediaPanel'),
+        kgCanvasSurfaceMode: asJson(isXr ? 'xr' : '2d'),
+        kgCanvasRenderMode: asJson(isXr ? '3d' : '2d'),
+        kgCanvas3dMode: asJson(isXr ? 'xr' : null),
+        strybldrRunId: asJson(args.doc.runId),
+        strybldrExplainerPanelId: asJson(panel.panelId),
+        references: asJson(uniqueCleanTexts([
+          panel.sourceNodeId,
+          output,
+          outputSrcDoc,
+          imageUrl,
+          panelVideoUrl,
+          panel.prompt,
+          panel.summary,
+        ])),
+      },
+    })
+    args.edges.push(createEdge(overviewId, panelGraphId, 'rich_media_panel'))
+    const sourceGraphId = panel.sourceNodeId ? args.sourceNodeIdByUnit?.get(panel.sourceNodeId) : undefined
+    if (sourceGraphId) args.edges.push(createEdge(sourceGraphId, panelGraphId, 'explainerSource'))
+  })
+}
 
 const readNumber = (value: unknown, fallback = 0): number => {
   const n = Number(value)
@@ -353,6 +745,127 @@ const readStrybldrProvider = (value: unknown): StrybldrDetectionProvider => {
       return 'byteplus-modelark'
     default:
       return 'fallback'
+  }
+}
+
+const readBoolean = (value: unknown): boolean => value === true || String(value || '').trim().toLowerCase() === 'true'
+
+const readStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return []
+  return uniqueCleanTexts(value)
+}
+
+const readStrytreeStatus = (value: unknown): StrytreeStoryNode['status'] => {
+  switch (cleanText(value)) {
+    case 'hot':
+      return 'hot'
+    case 'locked':
+      return 'locked'
+    case 'dropped':
+      return 'dropped'
+    case 'draft':
+      return 'draft'
+    default:
+      return 'active'
+  }
+}
+
+const readStrytreeNode = (value: unknown, index: number): StrytreeStoryNode | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const nodeId = cleanText(rec.nodeId || rec.node_id || rec.id)
+  if (!nodeId) return null
+  const title = cleanText(rec.title || rec.label) || `Story branch ${index + 1}`
+  return {
+    nodeId,
+    parentNodeId: cleanText(rec.parentNodeId || rec.parent_node_id || rec.parentId) || null,
+    title,
+    synopsis: cleanText(rec.synopsis || rec.summary || rec.description),
+    prompt: cleanText(rec.prompt) || null,
+    authorName: cleanText(rec.authorName || rec.author_name) || null,
+    status: readStrytreeStatus(rec.status),
+    duration: cleanText(rec.duration) || null,
+    ageDays: Number.isFinite(Number(rec.ageDays || rec.age_days)) ? Number(rec.ageDays || rec.age_days) : null,
+    isFreeWindow: readBoolean(rec.isFreeWindow || rec.is_free_window),
+    isProtected: readBoolean(rec.isProtected || rec.is_protected),
+    unlockPriceCredits: Math.max(0, readNumber(rec.unlockPriceCredits || rec.unlock_price_credits || rec.unlockPrice, 0)),
+    likes: Math.max(0, readNumber(rec.likes, 0)),
+    impressions: Math.max(0, readNumber(rec.impressions, 0)),
+    paidUnlocks: Math.max(0, readNumber(rec.paidUnlocks || rec.paid_unlocks, 0)),
+    videoUrl: cleanText(rec.videoUrl || rec.video_url) || null,
+    ownAssetIds: readStringArray(rec.ownAssetIds || rec.own_asset_ids),
+  }
+}
+
+const readStrytreeSnapshot = (value: unknown): StrytreeStorySnapshot | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const nodes = Array.isArray(rec.nodes)
+    ? rec.nodes.map(readStrytreeNode).filter((item): item is StrytreeStoryNode => !!item)
+    : []
+  if (nodes.length === 0) return null
+  const activeBranchCount = nodes.filter(node => node.status !== 'dropped').length
+  const totalLikes = nodes.reduce((sum, node) => sum + Math.max(0, node.likes || 0), 0)
+  return {
+    storyId: cleanText(rec.storyId || rec.story_id) || `strytree-${shortHash(nodes.map(node => node.nodeId).join('|'))}`,
+    title: cleanText(rec.title) || 'Strytree story universe',
+    synopsis: cleanText(rec.synopsis || rec.summary) || null,
+    tokenBalance: Number.isFinite(Number(rec.tokenBalance || rec.token_balance)) ? Number(rec.tokenBalance || rec.token_balance) : 0,
+    activeBranchCount: Number.isFinite(Number(rec.activeBranchCount || rec.active_branch_count)) ? Number(rec.activeBranchCount || rec.active_branch_count) : activeBranchCount,
+    totalLikes: Number.isFinite(Number(rec.totalLikes || rec.total_likes)) ? Number(rec.totalLikes || rec.total_likes) : totalLikes,
+    generationCostCredits: Number.isFinite(Number(rec.generationCostCredits || rec.generation_cost_credits)) ? Number(rec.generationCostCredits || rec.generation_cost_credits) : 5,
+    unlockCurrency: cleanText(rec.unlockCurrency || rec.unlock_currency) || 'credits',
+    nodes,
+  }
+}
+
+const readExplainerVideoMode = (value: unknown): StrybldrExplainerVideoSnapshot['mode'] => {
+  const raw = cleanText(value).toLowerCase()
+  return raw === 'xr' || raw === '3d' || raw === '2d' ? raw : null
+}
+
+const readExplainerPanelTab = (value: unknown): StrybldrExplainerVideoPanelTab => {
+  const raw = cleanText(value).toLowerCase()
+  if (raw === 'image' || raw === 'video') return raw
+  return 'text'
+}
+
+const readExplainerVideoPanel = (value: unknown, index: number): StrybldrExplainerVideoPanel | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const title = cleanText(rec.title || rec.label) || `Explainer panel ${index + 1}`
+  const panelId = cleanText(rec.panelId || rec.panel_id || rec.id) || `explainer-panel-${shortHash(`${title}:${index}`)}`
+  const activeTab = readExplainerPanelTab(rec.activeTab || rec.active_tab || rec.kind)
+  return {
+    panelId,
+    title,
+    activeTab,
+    output: cleanMultilineText(rec.output || rec.text || rec.markdown) || null,
+    outputSrcDoc: cleanMultilineText(rec.outputSrcDoc || rec.output_srcdoc || rec.srcDoc || rec.srcdoc) || null,
+    imageUrl: cleanText(rec.imageUrl || rec.image_url || rec.image) || null,
+    videoUrl: cleanText(rec.videoUrl || rec.video_url || rec.video) || null,
+    summary: cleanText(rec.summary || rec.description) || null,
+    prompt: cleanText(rec.prompt) || null,
+    sourceNodeId: cleanText(rec.sourceNodeId || rec.source_node_id || rec.sourceUnitId || rec.source_unit_id) || null,
+  }
+}
+
+const readExplainerVideoSnapshot = (value: unknown): StrybldrExplainerVideoSnapshot | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const rec = value as Record<string, unknown>
+  const panels = Array.isArray(rec.panels)
+    ? rec.panels.map(readExplainerVideoPanel).filter((item): item is StrybldrExplainerVideoPanel => !!item)
+    : []
+  if (panels.length === 0) return null
+  return {
+    mode: readExplainerVideoMode(rec.mode),
+    title: cleanText(rec.title) || 'Explainer video artifact',
+    summary: cleanText(rec.summary) || null,
+    transcriptMarkdown: cleanMultilineText(rec.transcriptMarkdown || rec.transcript_markdown || rec.script || rec.output) || null,
+    storyboardPrompt: cleanText(rec.storyboardPrompt || rec.storyboard_prompt || rec.prompt) || null,
+    referenceImageUrl: cleanText(rec.referenceImageUrl || rec.reference_image_url || rec.imageUrl || rec.image_url) || null,
+    videoUrl: cleanText(rec.videoUrl || rec.video_url) || null,
+    panels,
   }
 }
 
@@ -488,6 +1001,11 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     edges.push(createEdge(frameNodeId, elementId, 'containsElement'))
   }
 
+  appendStrytreeGraphData({ doc, nodes, edges })
+  appendExplainerVideoGraphData({ doc, nodes, edges, sourceNodeIdByUnit })
+
+  const isXr = isExplainerVideoXrMode(doc)
+
   const baseGraph: GraphData = {
     context: 'strybldr-storyboard',
     type: 'Graph',
@@ -499,8 +1017,14 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
       strybldrRunId: doc.runId,
       sourcesCount: doc.sources.length,
       elementsCount: doc.elements.length,
-      kgCanvasRenderMode: '2d',
-      kgCanvas2dRenderer: 'strybldr',
+      strytreeStoryId: doc.storytree?.storyId || null,
+      strytreeNodesCount: doc.storytree?.nodes.length || 0,
+      explainerVideoPanelsCount: doc.explainerVideo?.panels.length || 0,
+      textArtifactToExplainerVideo: doc.explainerVideo ? true : false,
+      kgCanvasSurfaceMode: isXr ? 'xr' : '2d',
+      kgCanvasRenderMode: isXr ? '3d' : '2d',
+      kgCanvas3dMode: isXr ? 'xr' : null,
+      kgCanvas2dRenderer: isXr ? null : 'strybldr',
     } as unknown as GraphData['metadata'],
   }
   const graphSemanticKey = buildScopedGraphSemanticKey('strybldr-storyboard', { graphData: baseGraph })
@@ -580,7 +1104,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
   const cards: StrybldrVideoHandoffCard[] = nodes
     .filter(node => {
       const type = cleanText(node.type)
-      return type === 'StrybldrImageSource' || type === 'StoryboardFrame' || type === 'StoryboardElement'
+      return type === 'StrybldrImageSource' || type === 'StoryboardFrame' || type === 'StoryboardElement' || type === 'StorytreeSnapshot' || type === 'StorytreeNode' || type === 'ExplainerVideoSnapshot' || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     })
     .map((node, index): StrybldrVideoHandoffCard => {
       const props = node.properties || {}

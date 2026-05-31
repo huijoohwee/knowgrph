@@ -60,6 +60,7 @@ export type RenderOpts = InlineRenderOpts & {
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
   markdownBlockControlsEnabled?: boolean
   markdownBlockGutterEnabled?: boolean
+  markdownCardPreviewMode?: boolean
   markdownForcePlainTables?: boolean
   webpageLayoutWireframeAscii?: string | null
   markdownSourceLines?: string[]

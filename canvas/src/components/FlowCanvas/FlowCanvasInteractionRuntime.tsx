@@ -211,9 +211,10 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
       onFrame: () => {
         scheduleFlowDraw({ force: true })
-        requestCommit()
+        if (!isFlowEditor) requestCommit()
         handleInteractionFrame()
       },
+      onCommit: requestCommit,
     })
   }, [
     active,

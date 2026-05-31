@@ -58,6 +58,35 @@ export function deriveModelWorkspaceDocumentNameFromUrl(url: string): string {
   return deriveModelWorkspaceDocumentName(deriveFilenameFromUrl(url, format === 'gltf' ? 'model.gltf' : 'model.glb'), format)
 }
 
+export function buildModelAssetWorkspaceFallbackMarkdown(args: {
+  name: string
+  format: WorkspaceModelAssetFormat
+  sourceKind?: 'local' | 'url' | 'workspace'
+}): string {
+  const name = deriveModelWorkspaceDocumentName(args.name, args.format)
+  const isGltf = args.format === 'gltf'
+  const formatLabel = isGltf ? 'GLTF' : 'GLB'
+  const sourceKind = args.sourceKind || 'workspace'
+  return [
+    '---',
+    'kgAssetType: "model"',
+    `kgAssetFormat: "${isGltf ? 'gltf' : 'glb'}"`,
+    `kgAssetName: ${yamlQuote(name)}`,
+    `kgAssetSource: ${yamlQuote(sourceKind)}`,
+    `kgAssetMimeType: "${isGltf ? GLTF_ASSET_MIME_TYPE : GLB_ASSET_MIME_TYPE}"`,
+    'kgAssetPendingWorkspaceMaterialization: true',
+    'kgCanvasSurfaceMode: "xr"',
+    'kgCanvasRenderMode: "3d"',
+    'kgCanvas3dMode: "xr"',
+    '---',
+    '',
+    `# ${name}`,
+    '',
+    `Pending ${formatLabel} model workspace materialization.`,
+    '',
+  ].join('\n')
+}
+
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer)
   let binary = ''

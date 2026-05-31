@@ -9,6 +9,11 @@ import {
   mergeStrybldrElementsIntoGraphData,
   serializeStrybldrStoryboardMarkdown,
 } from '@/features/strybldr/strybldrStoryboard'
+import {
+  createStrytreeContinuationDraftAction,
+  toggleStrytreeLikeAction,
+  unlockStrytreeNodeAction,
+} from '@/features/strybldr/strytreeWorkflow'
 import { getCanvas2dSurfaceId, getToolbarRunAllFloatingPanelTab, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId, supportsToolbarRunAll } from '@/lib/config.render'
 import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS } from '@/features/chat/byteplusRunGeneration'
 
@@ -53,9 +58,207 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
   assert(board.lanes.some(lane => lane.id === 'Elements'), 'expected element lane in Strybldr board')
 }
 
+export async function testStrybldrStoryboardParsesStrytreeStorytreeSnapshot() {
+  const text = [
+    '---',
+    'kgStrybldrStoryboard: true',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "strybldr"',
+    '---',
+    '',
+    '# Strytree fixture',
+    '',
+    '```json strybldr-storyboard',
+    JSON.stringify({
+      version: 1,
+      runId: 'strytree-test',
+      createdAtMs: 1,
+      sources: [
+        {
+          sourceUnitId: 'strytree-contract',
+          workspacePath: 'docs/documents/knowgrph-strytree-prd-tad.md',
+          relativePath: 'knowgrph-strytree-prd-tad.md',
+          originalName: 'Strytree contract',
+          mediaKind: 'doc',
+          mimeHint: 'text/markdown',
+          byteSize: 0,
+          textHash: 'contract',
+          mediaUrl: 'docs/documents/knowgrph-strytree-prd-tad.md',
+        },
+      ],
+      elements: [
+        {
+          id: 'element-ledger',
+          sourceUnitId: 'strytree-contract',
+          label: 'Server ledger quote',
+          confidence: 1,
+          evidenceKind: 'user-edit',
+          provider: 'fallback',
+          order: 1,
+          summary: 'Quote generation cost before spend.',
+          action: 'Keep credit state server-owned.',
+          prompt: 'Prepare a provider-safe handoff.',
+        },
+      ],
+      storytree: {
+        storyId: 'story-test',
+        title: 'Original Strytree fixture',
+        tokenBalance: 120,
+        generationCostCredits: 5,
+        nodes: [
+          {
+            nodeId: 'root',
+            title: 'Root branch',
+            synopsis: 'A root branch opens the story universe.',
+            status: 'hot',
+            isFreeWindow: true,
+            likes: 10,
+            impressions: 100,
+            ownAssetIds: ['root-asset'],
+          },
+          {
+            nodeId: 'child',
+            parentNodeId: 'root',
+            title: 'Child branch',
+            synopsis: 'A child branch derives its edge from parentNodeId.',
+            status: 'locked',
+            isProtected: true,
+            unlockPriceCredits: 6,
+            likes: 4,
+            impressions: 20,
+            paidUnlocks: 2,
+            ownAssetIds: ['child-asset'],
+          },
+        ],
+      },
+    }, null, 2),
+    '```',
+    '',
+  ].join('\n')
+  const parsed = await loadGraphDataFromTextViaParser('strytree.strybldr.md', text, { applyToStore: false })
+  assert(parsed?.parserId === 'strybldr-storyboard', `expected strybldr parser, got ${parsed?.parserId}`)
+  const graph = parsed.graphData
+  const overview = (graph.nodes || []).find(node => String(node.type || '') === 'StorytreeSnapshot')
+  assert(overview, 'expected Strytree overview node')
+  assert(Number(overview.properties?.maxDepth || 0) === 1, `expected storytree runtime maxDepth, got ${String(overview.properties?.maxDepth || '')}`)
+  assert(Number(overview.properties?.protectedBranchCount || 0) === 1, `expected protected branch count, got ${String(overview.properties?.protectedBranchCount || '')}`)
+  const root = (graph.nodes || []).find(node => String(node.type || '') === 'StorytreeNode' && String(node.properties?.strytreeNodeId || '') === 'root')
+  assert(root && Number(root.properties?.childBranchCount || 0) === 1, 'expected root branch to calculate childBranchCount')
+  const child = (graph.nodes || []).find(node => String(node.type || '') === 'StorytreeNode' && String(node.properties?.parent_node_id || '') === 'root')
+  assert(child, 'expected child node to preserve parent_node_id')
+  assert(child.properties?.unlockRequired === true, 'expected child branch to calculate unlockRequired')
+  assert(String(child.properties?.accessState || '') === 'unlock-ready', `expected child branch accessState, got ${String(child.properties?.accessState || '')}`)
+  assert(Number(child.properties?.depth || -1) === 1, `expected child branch depth, got ${String(child.properties?.depth || '')}`)
+  assert(Number(child.properties?.likeRate || 0) === 20, `expected child likeRate calculation, got ${String(child.properties?.likeRate || '')}`)
+  assert(Number(child.properties?.projectedBalanceAfterUnlock || 0) === 114, `expected unlock balance projection, got ${String(child.properties?.projectedBalanceAfterUnlock || '')}`)
+  assert(Array.isArray(child.properties?.inheritedAssetIds) && child.properties?.inheritedAssetIds.includes('root-asset'), 'expected child branch to inherit parent assets')
+  assert((graph.edges || []).some(edge => edge.source === root.id && edge.target === child.id && edge.label === 'parent_node_id'), 'expected parent-derived storytree edge to connect root and child cards')
+  assert(String((graph.metadata as Record<string, unknown>)?.strytreeStoryId || '') === 'story-test', 'expected storytree metadata')
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  const storytreeLane = board.lanes.find(lane => lane.id === 'Storytree')
+  assert(storytreeLane && storytreeLane.cards.some(card => card.title === 'Child branch'), `expected Strybldr board to expose Storytree lane cards, got ${JSON.stringify(board.lanes.map(lane => ({ id: lane.id, titles: lane.cards.map(card => card.title) })))}`)
+  const handoff = buildStrybldrVideoHandoffFromGraphData(graph)
+  assert(handoff.cards.some(card => card.lane === 'Storytree' && card.title === 'Child branch'), 'expected Run All handoff to include Storytree branch cards')
+  assert(handoff.prompt.includes('approved Strybldr storyboard cards'), 'expected shared Strybldr handoff prompt')
+}
+
+export async function testStrybldrStorytreeWorkflowActionsMutateGraphState() {
+  const text = [
+    '---',
+    'kgStrybldrStoryboard: true',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "strybldr"',
+    '---',
+    '',
+    '```json strybldr-storyboard',
+    JSON.stringify({
+      version: 1,
+      runId: 'strytree-workflow-test',
+      createdAtMs: 1,
+      sources: [
+        {
+          sourceUnitId: 'workflow-source',
+          workspacePath: 'docs/documents/knowgrph-strytree-prd-tad.md',
+          relativePath: 'knowgrph-strytree-prd-tad.md',
+          originalName: 'Strytree workflow source',
+          mediaKind: 'doc',
+          mimeHint: 'text/markdown',
+          byteSize: 0,
+          textHash: 'workflow',
+          mediaUrl: 'docs/documents/knowgrph-strytree-prd-tad.md',
+        },
+      ],
+      elements: [],
+      storytree: {
+        storyId: 'workflow-story',
+        title: 'Workflow story',
+        tokenBalance: 12,
+        generationCostCredits: 5,
+        nodes: [
+          {
+            nodeId: 'root',
+            title: 'Root branch',
+            synopsis: 'Root branch.',
+            status: 'active',
+            isFreeWindow: true,
+            likes: 1,
+            impressions: 10,
+            ownAssetIds: ['root-asset'],
+          },
+          {
+            nodeId: 'locked-child',
+            parentNodeId: 'root',
+            title: 'Locked child',
+            synopsis: 'Locked child branch.',
+            status: 'locked',
+            isProtected: true,
+            unlockPriceCredits: 4,
+            likes: 2,
+            impressions: 20,
+            ownAssetIds: ['child-asset'],
+          },
+        ],
+      },
+    }, null, 2),
+    '```',
+  ].join('\n')
+  const parsed = await loadGraphDataFromTextViaParser('workflow.strybldr.md', text, { applyToStore: false })
+  assert(parsed?.graphData, 'expected Strytree workflow graph')
+  const root = (parsed.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeNode' && String(node.properties?.strytreeNodeId || '') === 'root')
+  const child = (parsed.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeNode' && String(node.properties?.strytreeNodeId || '') === 'locked-child')
+  assert(root?.id && child?.id, 'expected root and child storytree graph nodes')
+
+  const liked = toggleStrytreeLikeAction(parsed.graphData, child.id)
+  assert(liked.changed, 'expected like action to mutate graph')
+  const likedChild = (liked.graphData.nodes || []).find(node => node.id === child.id)
+  assert(likedChild?.properties?.likedByCurrentUser === true, 'expected branch to store local like state')
+  assert(Number(likedChild?.properties?.likes || 0) === 3, `expected like count increment, got ${String(likedChild?.properties?.likes || '')}`)
+
+  const unlocked = unlockStrytreeNodeAction(liked.graphData, child.id, 1000)
+  assert(unlocked.changed, 'expected unlock action to mutate graph')
+  const unlockedChild = (unlocked.graphData.nodes || []).find(node => node.id === child.id)
+  const unlockedSnapshot = (unlocked.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeSnapshot')
+  assert(String(unlockedChild?.properties?.accessState || '') === 'open', `expected unlock to open branch, got ${String(unlockedChild?.properties?.accessState || '')}`)
+  assert(Number(unlockedSnapshot?.properties?.tokenBalance || 0) === 8, `expected unlock debit to update token balance, got ${String(unlockedSnapshot?.properties?.tokenBalance || '')}`)
+  assert(Array.isArray(unlockedSnapshot?.properties?.strytreeLedgerEvents), 'expected unlock to append a ledger event')
+
+  const drafted = createStrytreeContinuationDraftAction(unlocked.graphData, root.id, { prompt: 'Continue this branch safely.', nowMs: 2000 })
+  assert(drafted.changed && drafted.createdNodeId, 'expected continuation action to create a draft child branch')
+  const draftNode = (drafted.graphData.nodes || []).find(node => node.id === drafted.createdNodeId)
+  const debitedSnapshot = (drafted.graphData.nodes || []).find(node => String(node.type || '') === 'StorytreeSnapshot')
+  assert(String(draftNode?.type || '') === 'StorytreeNode', 'expected draft branch node')
+  assert(String(draftNode?.properties?.strytreeStatus || '') === 'draft', 'expected draft branch status')
+  assert(Array.isArray(draftNode?.properties?.inheritedAssetIds) && draftNode?.properties?.inheritedAssetIds.includes('root-asset'), 'expected draft branch to inherit parent assets')
+  assert((drafted.graphData.edges || []).some(edge => edge.source === root.id && edge.target === drafted.createdNodeId && edge.label === 'parent_node_id'), 'expected draft edge to derive from parent branch')
+  assert(Number(debitedSnapshot?.properties?.tokenBalance || 0) === 3, `expected generation debit to update token balance, got ${String(debitedSnapshot?.properties?.tokenBalance || '')}`)
+  const handoff = buildStrybldrVideoHandoffFromGraphData(drafted.graphData)
+  assert(handoff.cards.some(card => card.id === drafted.createdNodeId && card.lane === 'Storytree'), 'expected draft branch to feed Strybldr Run All')
+}
+
 export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   const renderConfigText = readSource('lib', 'config.render.ts')
   const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
+  const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
   const floatingPanelText = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const timelineVisibilityText = readSource('lib', 'timeline', 'timelineVisibility.ts')
   const timelineBottomPanelText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
@@ -77,6 +280,8 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(timelineVisibilityText.includes('shouldRenderTimelineSurface'), 'expected Timeline visibility gating to live in shared timeline utils')
   assert(timelineBottomPanelText.includes('HeaderActions'), 'expected Timeline bottom panel to reuse shared panel header actions')
   assert(timelineBottomPanelText.includes('onPinToggle={handlePinToggle}'), 'expected Timeline bottom panel to expose shared pin/unpin controls')
+  assert(timelineBottomPanelText.includes('onMinimize={!minimized ? handleMinimize : undefined}'), 'expected Timeline bottom panel to reuse shared FloatingPanel minimize control')
+  assert(timelineBottomPanelText.includes('onRestore={minimized ? handleRestore : undefined}'), 'expected Timeline bottom panel to reuse shared FloatingPanel restore control')
   assert(timelineBottomPanelText.includes('setTimelineEnabled(false)'), 'expected Timeline bottom panel close to update the shared Timeline setting')
   assert(timelineBottomPanelText.includes('startPointerDrag'), 'expected Timeline bottom panel drag to reuse the shared pointer drag utility')
   assert(timelineBottomPanelText.includes('UI_SELECTORS.draggablePanelIgnorePointerDown'), 'expected Timeline bottom panel drag to reuse shared no-drag heuristics')
@@ -88,6 +293,16 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(!timelinePanelText.includes('type="range"'), 'expected Strybldr timeline panel to avoid a local range input duplicate')
   assert(storyboardTimelineText.includes('buildStoryboardTimelineItems'), 'expected Storyboard timeline projection to live in a shared helper')
   assert(storyboardTimelineText.includes('resolveStoryboardTimelineIndex'), 'expected Strybldr selection to use shared timeline index semantics')
+  assert(storyboardCanvasText.includes('toggleStrytreeLikeAction'), 'expected Strytree like parity to stay in the existing Storyboard surface')
+  assert(storyboardCanvasText.includes('unlockStrytreeNodeAction'), 'expected Strytree unlock parity to stay in the existing Storyboard surface')
+  assert(storyboardCanvasText.includes('createStrytreeContinuationDraftAction'), 'expected Strytree continuation parity to stay in the existing Storyboard surface')
+  assert(storyboardCanvasText.includes('Storytree filter'), 'expected Strytree status filtering to stay in the existing Storyboard lane header')
+  assert(storyboardCanvasText.includes('StorytreeEdgeConnector'), 'expected Storytree parent-child edge rendering to stay in the existing Storyboard surface')
+  assert(storyboardCanvasText.includes('storytreeIncomingEdgeByCardId'), 'expected Storytree edge rendering to use active graph edges, not card hardcodes')
+  assert(storyboardCanvasText.includes('data-kg-storytree-edge'), 'expected Storytree edge rendering to expose a validation marker')
+  const strybldrPanelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
+  assert(strybldrPanelText.includes('Strybldr storytree workflow'), 'expected Strytree workflow actions to be reachable from the active Strybldr panel')
+  assert(strybldrPanelText.includes('Strybldr storytree filter'), 'expected Strytree filters to be reachable from the active Strybldr panel')
 }
 
 export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
@@ -314,8 +529,9 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
   assert(copiedMarkdown.includes('copyReason:'), 'expected copied handoff markdown to explain the source-video fork')
   assert(copiedMarkdown.includes(`<video controls playsinline src="${renderUrl}"`), 'expected copied direct video handoff to stay visibly playable')
 
-  const youtubeSourceUrl = 'https://www.youtube.com/watch?v=77FAnT935IE'
-  const youtubeRenderUrl = 'https://www.youtube.com/embed/77FAnT935IE'
+  const youtubeVideoId = ['Stry', 'Copied', '123'].join('')
+  const youtubeSourceUrl = ['https://www.youtube.com/watch', `?v=${youtubeVideoId}`].join('')
+  const youtubeRenderUrl = ['https://www.youtube.com/embed/', youtubeVideoId].join('')
   const youtubeCopiedMarkdown = buildStrybldrVideoHandoffMarkdown({
     handoff: {
       prompt: 'Copy one approved YouTube source.',

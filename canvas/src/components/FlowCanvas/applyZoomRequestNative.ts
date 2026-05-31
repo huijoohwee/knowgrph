@@ -184,6 +184,7 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
   flowEditorSurfaceId?: string
   graphData?: GraphData | null
   onFrame?: () => void
+  onCommit?: () => void
 }) {
   if (typeof document === 'undefined') return
   const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
@@ -238,6 +239,7 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
       graphData: args.graphData,
     })
     args.onFrame?.()
+    args.onCommit?.()
   }
   requestAnimationFrame(() => {
     requestAnimationFrame(run)
@@ -271,6 +273,7 @@ export const applyZoomRequestNative = (args: {
   selectedEdgeIds?: string[]
   selectedGroupIds?: string[]
   onFrame?: () => void
+  onCommit?: () => void
 }) => {
   const clear = () => {
     try {
@@ -519,6 +522,7 @@ export const applyZoomRequestNative = (args: {
     cancelFlowZoomRequestAnim(args.runtime)
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
+    args.onCommit?.()
     if (shouldRecenterFlowEditorCollectiveAfterFit) {
       recenterVisibleFlowEditorOverlayCentroid({
         runtime: args.runtime,
@@ -527,6 +531,7 @@ export const applyZoomRequestNative = (args: {
         flowEditorSurfaceId: args.flowEditorSurfaceId,
         graphData: args.graphData,
         onFrame: args.onFrame,
+        onCommit: args.onCommit,
       })
     }
     return
@@ -558,8 +563,10 @@ export const applyZoomRequestNative = (args: {
           flowEditorSurfaceId: args.flowEditorSurfaceId,
           graphData: args.graphData,
           onFrame: args.onFrame,
+          onCommit: args.onCommit,
         })
       }
+      args.onCommit?.()
       return
     }
     const rafId = requestAnimationFrame(tick)

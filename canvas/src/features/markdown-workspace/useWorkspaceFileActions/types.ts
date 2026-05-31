@@ -48,7 +48,7 @@ export type UseWorkspaceFileActionsArgs = {
   applyMarkdownDocumentToGraph: (
     name: string,
     text: string,
-    opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null },
+    opts?: { force?: boolean; preset?: CanvasWorkspaceFrontmatterPreset | null; applyViewPreset?: boolean; requireActiveMarkdownDocument?: boolean },
   ) => Promise<boolean>
 }
 

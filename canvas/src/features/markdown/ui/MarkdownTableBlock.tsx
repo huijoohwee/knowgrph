@@ -66,25 +66,33 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
     targetEndLine: endLine,
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
-  const figureClassName = `overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
+  const cardPreviewMode = opts.markdownCardPreviewMode === true
+  const cardPreviewTableFrameClassName = 'overflow-auto max-h-full'
+  const documentTableFrameClassName = `overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
+  const figureClassName = cardPreviewMode ? cardPreviewTableFrameClassName : documentTableFrameClassName
+  const blockSpacingClassName = cardPreviewMode ? 'm-0' : 'mt-4 mb-4'
   const tableEditorClassName = [
     MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
     isDataView ? '' : figureClassName,
-    '[&_table]:min-w-full',
+    cardPreviewMode ? '[&_table]:w-full' : '[&_table]:min-w-full',
     '[&_table]:border-collapse',
-    '[&_table]:table-auto',
-    opts.markdownPresentationMode ? '[&_table]:text-lg' : '[&_table]:text-sm',
+    cardPreviewMode ? '[&_table]:table-fixed' : '[&_table]:table-auto',
+    opts.markdownPresentationMode ? '[&_table]:text-lg' : (cardPreviewMode ? '[&_table]:text-xs' : '[&_table]:text-sm'),
     `[&_th]:${UI_THEME_TOKENS.table.headerBg}`,
     `[&_th]:${UI_THEME_TOKENS.table.text}`,
-    `[&_th]:px-4`,
-    `[&_th]:py-2`,
+    cardPreviewMode ? `[&_th]:px-2` : `[&_th]:px-4`,
+    cardPreviewMode ? `[&_th]:py-1.5` : `[&_th]:py-2`,
     `[&_th]:text-left`,
     `[&_th]:font-semibold`,
     `[&_th]:border-b`,
+    cardPreviewMode ? '[&_th]:break-words' : '',
+    cardPreviewMode ? '[&_th]:whitespace-normal' : '',
     `[&_th]:${UI_THEME_TOKENS.table.cellBorder}`,
-    `[&_td]:px-4`,
-    `[&_td]:py-2`,
+    cardPreviewMode ? `[&_td]:px-2` : `[&_td]:px-4`,
+    cardPreviewMode ? `[&_td]:py-1.5` : `[&_td]:py-2`,
     `[&_td]:border-b`,
+    cardPreviewMode ? '[&_td]:break-words' : '',
+    cardPreviewMode ? '[&_td]:whitespace-normal' : '',
     `[&_td]:${UI_THEME_TOKENS.table.cellBorder}`,
   ]
     .filter(Boolean)
@@ -95,7 +103,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
     return (
       <MarkdownBlockContainer
         as={ContainerTag}
-        className={`mt-4 mb-4 ${isDataView ? '' : figureClassName}`}
+        className={`${blockSpacingClassName} ${isDataView ? '' : figureClassName}`}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}
         startLine={t.startLine}
@@ -120,13 +128,19 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
             opts={opts}
           />
         ) : (
-          <table className={['min-w-full border-collapse table-auto', opts.markdownPresentationMode ? 'text-lg' : 'text-sm'].join(' ')}>
+          <table
+            className={[
+              cardPreviewMode ? 'w-full table-fixed' : 'min-w-full table-auto',
+              'border-collapse',
+              opts.markdownPresentationMode ? 'text-lg' : (cardPreviewMode ? 'text-xs' : 'text-sm'),
+            ].join(' ')}
+          >
             <thead className={`${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
               <tr>
                 {tbl.header.map((cell, j) => (
                   <th
                     key={j}
-                    className={`px-4 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} align-top sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
+                    className={`${cardPreviewMode ? 'px-2 py-1.5 break-words whitespace-normal' : 'px-4 py-2'} text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} align-top sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
                   >
                     {renderInlineTokens(cell.tokens as unknown as Token[] | undefined, {
                       activeDocumentPath: opts.activeDocumentPath,
@@ -154,7 +168,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                   className={`odd:${UI_THEME_TOKENS.table.rowBg} even:${UI_THEME_TOKENS.table.rowBgAlt} ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}
                 >
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className={`px-4 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>
+                    <td key={cIdx} className={`${cardPreviewMode ? 'px-2 py-1.5 break-words whitespace-normal' : 'px-4 py-2'} border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>
                       {renderInlineTokens(cell.tokens as unknown as Token[] | undefined, {
                         activeDocumentPath: opts.activeDocumentPath,
                         uiPanelTextFontClass: opts.uiPanelTextFontClass,

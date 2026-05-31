@@ -1,9 +1,13 @@
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 
-export function testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor() {
-  const enabled = computeCollisionDuringDrag({ collisionDuringDrag: false, canvas2dRenderer: 'flowEditor' })
-  if (!enabled) {
-    throw new Error('expected flowEditor to force collisionDuringDrag')
+export function testFlowCollisionPolicyKeepsFlowEditorDragFromRelayoutByDefault() {
+  const flowEditorDefault = computeCollisionDuringDrag({ collisionDuringDrag: false, canvas2dRenderer: 'flowEditor' })
+  if (flowEditorDefault) {
+    throw new Error('expected flowEditor drag to avoid collision-relayout unless explicitly requested')
+  }
+  const flowEditorExplicit = computeCollisionDuringDrag({ collisionDuringDrag: true, canvas2dRenderer: 'flowEditor' })
+  if (flowEditorExplicit) {
+    throw new Error('expected flowEditor drag to ignore collisionDuringDrag=true because infinite-canvas drags must not relayout graph elements')
   }
 
   const respectsExplicit = computeCollisionDuringDrag({ collisionDuringDrag: true, canvas2dRenderer: 'flow' })
@@ -16,4 +20,3 @@ export function testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor() {
     throw new Error('expected non-flowEditor renderer to keep collisionDuringDrag=false')
   }
 }
-

@@ -1,4 +1,5 @@
 import { KNOWGRPH_AGENT_READY_TOOL_IDS } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
+import { buildKnowgrphVdeoxplnAgentSkillDefinitions } from "../../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 
 export const AGENT_READY_A2A_SKILL_META_BY_TOOL_ID = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles]: {
@@ -33,20 +34,7 @@ export const AGENT_READY_A2A_SKILL_META_BY_TOOL_ID = {
   },
 };
 
-export const AGENT_READY_AGENT_SKILL_DEFINITIONS = [
-  {
-    name: "knowgrph-source-files",
-    type: "markdown",
-    description: "Discover and inspect published Knowgrph Source Files and shared documents.",
-    path: "/.well-known/agent-skills/knowgrph-source-files.md",
-  },
-  {
-    name: "knowgrph-webmcp-readiness",
-    type: "markdown",
-    description: "Inspect Knowgrph WebMCP lifecycle, shared deployed MCP tools, and agent-ready metadata.",
-    path: "/.well-known/agent-skills/knowgrph-webmcp-readiness.md",
-  },
-];
+export const AGENT_READY_AGENT_SKILL_DEFINITIONS = buildKnowgrphVdeoxplnAgentSkillDefinitions();
 
 export const buildAgentReadyA2aSkills = (toolContracts) =>
   toolContracts.map((tool) => {
@@ -81,6 +69,7 @@ export const buildAgentReadyAgentSkillsIndex = async ({
       description: skill.description,
       url: `${String(appUrl || "").replace(/\/+$/, "")}${skill.path}`,
       sha256: await sha256ByName[skill.name],
+      vdeoxpln: skill.vdeoxpln,
     })),
   ),
 });
@@ -89,7 +78,21 @@ export const buildAgentReadyOpenApiPaths = ({
   appBasePath,
   appA2aAgentCardPath,
   healthPath,
-}) => ({
+}) => {
+  const agentSkillPaths = Object.fromEntries(
+    AGENT_READY_AGENT_SKILL_DEFINITIONS.map((skill) => [
+      `${appBasePath}${skill.path}`,
+      {
+        get: {
+          summary: `Read the ${skill.name} agent skill markdown`,
+          responses: {
+            "200": { description: `Agent skill markdown for ${skill.name}` },
+          },
+        },
+      },
+    ]),
+  );
+  return {
   [healthPath]: {
     get: {
       summary: "Read the Knowgrph agent-ready health status",
@@ -231,23 +234,9 @@ export const buildAgentReadyOpenApiPaths = ({
       },
     },
   },
-  [`${appBasePath}${AGENT_READY_AGENT_SKILL_DEFINITIONS[0].path}`]: {
-    get: {
-      summary: "Read the Knowgrph published Source Files skill markdown",
-      responses: {
-        "200": { description: "Agent skill markdown for published Source Files and shared documents" },
-      },
-    },
-  },
-  [`${appBasePath}${AGENT_READY_AGENT_SKILL_DEFINITIONS[1].path}`]: {
-    get: {
-      summary: "Read the Knowgrph WebMCP readiness skill markdown",
-      responses: {
-        "200": { description: "Agent skill markdown for WebMCP lifecycle and discovery readiness" },
-      },
-    },
-  },
-});
+  ...agentSkillPaths,
+  };
+};
 
 export const buildAgentReadyDiscoveryExpectations = ({
   appBasePath,

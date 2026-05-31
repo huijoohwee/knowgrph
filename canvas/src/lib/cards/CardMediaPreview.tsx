@@ -310,8 +310,12 @@ export function CardMediaPreview({
   proxyImageLike = false,
   videoControls,
   videoMuted,
+  videoAutoPlay,
+  videoLoop,
+  videoPoster,
   iframeEmbedMode,
   iframeScriptPolicy,
+  mediaThumbnailDataAttr = false,
   onReady,
   onError,
 }: {
@@ -328,8 +332,12 @@ export function CardMediaPreview({
   proxyImageLike?: boolean
   videoControls?: boolean
   videoMuted?: boolean
+  videoAutoPlay?: boolean
+  videoLoop?: boolean
+  videoPoster?: string
   iframeEmbedMode?: 'auto' | 'direct' | 'proxy'
   iframeScriptPolicy?: 'strip' | 'allow'
+  mediaThumbnailDataAttr?: boolean
   onReady?: () => void
   onError?: () => void
 }) {
@@ -369,7 +377,9 @@ export function CardMediaPreview({
       <img
         src={src}
         alt={title}
+        data-kg-card-media-kind={kind}
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         className={['block h-full w-full select-none', mediaClassName].filter(Boolean).join(' ')}
         loading="lazy"
         draggable={false}
@@ -389,10 +399,15 @@ export function CardMediaPreview({
     return (
       <video
         src={proxyImageLike ? applyImageLikeProxySrc(mediaUrl) : mediaUrl}
+        data-kg-card-media-kind="video"
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         className={['block h-full w-full select-none', mediaClassName].filter(Boolean).join(' ')}
         controls={videoControls ?? interactive}
         muted={videoMuted ?? false}
+        autoPlay={videoAutoPlay || undefined}
+        loop={videoLoop || undefined}
+        poster={videoPoster || undefined}
         playsInline
         preload="metadata"
         draggable={false}
@@ -428,7 +443,9 @@ export function CardMediaPreview({
         referrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
         loading="lazy"
         data-kg-card-media-iframe="1"
+        data-kg-card-media-kind="iframe"
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         onLoad={() => onReady?.()}
         style={{
           background: 'transparent',

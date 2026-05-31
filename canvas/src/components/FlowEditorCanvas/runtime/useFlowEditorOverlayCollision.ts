@@ -310,19 +310,13 @@ export function useFlowEditorOverlayCollision(args: {
             width: viewportW,
             height: viewportH,
           }
-      const clampToCollisionViewport = (pos: { left: number; top: number }, size: { width: number; height: number }) => {
-        const width = Number.isFinite(size.width) ? Math.max(1, size.width) : 1
-        const height = Number.isFinite(size.height) ? Math.max(1, size.height) : 1
-        const maxLeft = Math.max(activeViewport.left, activeViewport.right - width)
-        const maxTop = Math.max(activeViewport.top, activeViewport.bottom - height)
-        const rawLeft = Math.max(activeViewport.left, Math.min(pos.left, maxLeft))
-        const rawTop = Math.max(activeViewport.top, Math.min(pos.top, maxTop))
+      const resolveInfiniteCanvasCollisionPosition = (pos: { left: number; top: number }, _size: { width: number; height: number }) => {
+        const rawLeft = Number.isFinite(pos.left) ? pos.left : 0
+        const rawTop = Number.isFinite(pos.top) ? pos.top : 0
         const snapped = snapStepPx > 1
           ? { left: snapScreen(rawLeft), top: snapScreen(rawTop) }
           : { left: rawLeft, top: rawTop }
-        const finalLeft = Math.max(activeViewport.left, Math.min(snapped.left, maxLeft))
-        const finalTop = Math.max(activeViewport.top, Math.min(snapped.top, maxTop))
-        return { left: finalLeft, top: finalTop }
+        return { left: snapped.left, top: snapped.top }
       }
       const deriveCollectiveViewportState = (items: Array<{ left: number; top: number; width: number; height: number }>) => {
         if (items.length <= 0) return null
@@ -330,27 +324,18 @@ export function useFlowEditorOverlayCollision(args: {
         let minTop = Number.POSITIVE_INFINITY
         let maxRight = Number.NEGATIVE_INFINITY
         let maxBottom = Number.NEGATIVE_INFINITY
-        let sumCenterX = 0
-        let sumCenterY = 0
         for (let i = 0; i < items.length; i += 1) {
           const item = items[i]!
           minLeft = Math.min(minLeft, item.left)
           minTop = Math.min(minTop, item.top)
           maxRight = Math.max(maxRight, item.left + item.width)
           maxBottom = Math.max(maxBottom, item.top + item.height)
-          sumCenterX += item.left + item.width / 2
-          sumCenterY += item.top + item.height / 2
         }
-        const centroidX = sumCenterX / items.length
-        const centroidY = sumCenterY / items.length
-        const centered =
-          Math.abs(centroidX - (activeViewport.left + activeViewport.width / 2)) <= activeViewport.width * 0.2
-          && Math.abs(centroidY - (activeViewport.top + activeViewport.height / 2)) <= activeViewport.height * 0.24
         const spanW = Math.max(1, maxRight - minLeft)
         const spanH = Math.max(1, maxBottom - minTop)
         const spanAspect = spanW / spanH
         const balanced = spanAspect >= 0.18 && spanAspect <= 6 && !(items.length >= 5 && spanAspect < 0.42)
-        return { centered, balanced }
+        return { centered: true, balanced }
       }
       const panelScale = computeCollectiveFollowPinnedScale({
         zoomK,
@@ -595,7 +580,7 @@ export function useFlowEditorOverlayCollision(args: {
           || (
             isFrontmatterFlow
             && overlayOnlyModeEnabled
-            && (!storedCollectiveViewportState?.centered || !storedCollectiveViewportState?.balanced)
+            && !storedCollectiveViewportState?.balanced
           )
         )
       const allowPinnedResolve = true
@@ -651,11 +636,11 @@ export function useFlowEditorOverlayCollision(args: {
             ? { left: centeredCell.left, top: centeredCell.top }
             : { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
           const base = rect ? { left: rect.left, top: rect.top } : fallback
-          const clamped = clampToCollisionViewport(base, pinnedCollisionSize)
+          const resolved = resolveInfiniteCanvasCollisionPosition(base, pinnedCollisionSize)
           items.push({
             id,
-            top: clamped.top,
-            left: clamped.left,
+            top: resolved.top,
+            left: resolved.left,
             movable: true,
             pinnedInCanvas: true,
             width: pinnedCollisionSize.width,
@@ -684,17 +669,10 @@ export function useFlowEditorOverlayCollision(args: {
           : { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
         const base = !hasStored || storedCollectiveIsResidue
           ? fallback
-          : (() => {
-              const left = stored.left
-              const top = stored.top
-              const { width, height } = resolveWidgetCollisionSize(rect)
-              const okX = left >= activeViewport.left - 12 && left <= Math.max(activeViewport.left - 12, activeViewport.right - Math.max(12, width))
-              const okY = top >= activeViewport.top - 12 && top <= Math.max(activeViewport.top - 12, activeViewport.bottom - Math.max(12, height))
-              return okX && okY ? stored : fallback
-            })()
+            : stored
         const floatingCollisionSize = resolveWidgetCollisionSize(rect)
-        const clamped = clampToCollisionViewport(base, floatingCollisionSize)
-        items.push({ id, top: clamped.top, left: clamped.left, movable: true, pinnedInCanvas: false, width: floatingCollisionSize.width, height: floatingCollisionSize.height })
+        const resolved = resolveInfiniteCanvasCollisionPosition(base, floatingCollisionSize)
+        items.push({ id, top: resolved.top, left: resolved.left, movable: true, pinnedInCanvas: false, width: floatingCollisionSize.width, height: floatingCollisionSize.height })
       }
       if (items.length === 0) {
         resetOverlayCollisionTransientState(true)
@@ -836,13 +814,13 @@ export function useFlowEditorOverlayCollision(args: {
         height: it.height ?? floatingScaled.height,
         movable: it.movable && (!fixedId || it.id !== fixedId),
       }))
-      const clampWorld = (world: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) =>
+      const preserveInfiniteCanvasWorld = (world: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) =>
         world.map(it => {
-          const clamped = clampToCollisionViewport({ left: it.left, top: it.top }, { width: it.width, height: it.height })
-          return { ...it, left: clamped.left, top: clamped.top }
+          const resolved = resolveInfiniteCanvasCollisionPosition({ left: it.left, top: it.top }, { width: it.width, height: it.height })
+          return { ...it, left: resolved.left, top: resolved.top }
         })
 
-      let world = clampWorld(toWorld())
+      let world = preserveInfiniteCanvasWorld(toWorld())
       const graph = graphDataForOverlayRuntime
       const rawNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as Array<{ id?: unknown; x?: unknown; y?: unknown }>) : []
       const nodeObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
@@ -876,7 +854,7 @@ export function useFlowEditorOverlayCollision(args: {
       const obstacles = [...nodeObstacles, ...pinnedObstacles]
       const wantsResolve = shouldResolveItems(world) || shouldResolveItemsAgainstObstacles(world) || shouldRebalanceCluster(world)
       if (wantsResolve) {
-        if (shouldResolveItems(world) || shouldRebalanceCluster(world)) world = clampWorld(seedGridAroundFixed(world))
+        if (shouldResolveItems(world) || shouldRebalanceCluster(world)) world = preserveInfiniteCanvasWorld(seedGridAroundFixed(world))
         const resolvePass = (strength: number, iterations: number, steps: number) =>
           relaxOverlayPanelsWithCollision({
             schema: collisionSchema,
@@ -891,10 +869,10 @@ export function useFlowEditorOverlayCollision(args: {
             maxSpeedPxPerStep: 180,
           })
         const pass1 = resolvePass(0.85, 12, 14)
-        world = clampWorld(world.map(it => ({ ...it, ...(pass1.find(x => x.id === it.id) || {}) })))
+        world = preserveInfiniteCanvasWorld(world.map(it => ({ ...it, ...(pass1.find(x => x.id === it.id) || {}) })))
         if (shouldResolveItems(world) || shouldResolveItemsAgainstObstacles(world)) {
           const pass2 = resolvePass(0.78, 10, 12)
-          world = clampWorld(world.map(it => ({ ...it, ...(pass2.find(x => x.id === it.id) || {}) })))
+          world = preserveInfiniteCanvasWorld(world.map(it => ({ ...it, ...(pass2.find(x => x.id === it.id) || {}) })))
         }
       }
       const finalById = new Map(world.map(it => [

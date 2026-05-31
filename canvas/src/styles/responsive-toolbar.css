@@ -340,7 +340,7 @@
 
     .kg-canvas-toolbar-dock {
       top: auto;
-      bottom: calc(var(--kg-safe-bottom) + 0.5rem);
+      bottom: calc(var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap));
       align-items: flex-end;
       padding-top: 0;
       padding-bottom: 0;
@@ -348,7 +348,7 @@
 
     .kg-workspace-overlay-canvas-toolbar {
       top: auto;
-      bottom: calc(var(--kg-safe-bottom) + 0.5rem);
+      bottom: calc(var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap));
       align-items: flex-end;
     }
 

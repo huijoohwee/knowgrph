@@ -62,6 +62,7 @@ export function RichMediaOverlayLayer2d(props: {
             srcDoc={n.srcDoc}
             openUrl={n.openUrl}
             kind={kind}
+            panelChrome="flowEditor"
             interactive={resolveRichMediaPanelInteractive({
               nodeInteractive: n.interactive,
               renderMediaAsNodes,
@@ -78,7 +79,6 @@ export function RichMediaOverlayLayer2d(props: {
             }}
             forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
             shouldStartHeaderDrag={() => {
-              if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
               if (isSpacePanHeld()) return false
               return true
             }}

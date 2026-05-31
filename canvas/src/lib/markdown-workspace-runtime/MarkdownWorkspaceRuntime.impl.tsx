@@ -79,6 +79,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const metadata = ((s.graphData as GraphData | null)?.metadata || null) as Record<string, unknown> | null
     return typeof metadata?.sourceLayerOrderHash === 'string' ? metadata.sourceLayerOrderHash : ''
   })
+  const graphDataSource = useGraphStore(s => {
+    const metadata = ((s.graphData as GraphData | null)?.metadata || null) as Record<string, unknown> | null
+    return typeof metadata?.source === 'string' ? metadata.source : ''
+  })
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
   const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -254,6 +258,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setActiveTextProgrammatic,
       markdownDocumentName,
       markdownDocumentText,
+      graphDataSource,
       setActiveMarkdownDocument, getFs: explorerState.getFs,
       sourcesByPath,
       viewerInlineEditActive,

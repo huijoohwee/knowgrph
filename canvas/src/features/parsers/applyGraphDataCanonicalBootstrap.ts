@@ -37,7 +37,7 @@ export function applyGraphDataCanonicalBootstrap(args: {
   if (args.applyGraphData !== false) {
     store.setGraphData(graphData)
   }
-  const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData)
+  const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData, { rawText })
   if (!appliedGraphPreset) {
     applyCanvasFrontmatterPreset({
       graphData,

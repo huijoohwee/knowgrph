@@ -3,9 +3,11 @@ import { useShallow } from 'zustand/react/shallow'
 import {
   ExternalLink,
   FileText,
+  Heart,
   Hash,
   Image as ImageIcon,
   Link2,
+  Lock,
   MessageSquare,
   PanelsTopLeft,
   Sparkles,
@@ -39,17 +41,81 @@ import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
+import {
+  createStrytreeContinuationDraftAction,
+  toggleStrytreeLikeAction,
+  unlockStrytreeNodeAction,
+} from '@/features/strybldr/strytreeWorkflow'
 
 type StoryboardDisplayMedia = {
   kind: 'image' | 'svg' | 'video' | 'iframe'
   url: string
 }
 
+const STORYTREE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'hot', label: 'Hot' },
+  { id: 'active', label: 'Active' },
+  { id: 'protected', label: 'Protected' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'dropped', label: 'Dropped' },
+] as const
+
 function readStoryboardNodeProperties(node: unknown): Record<string, unknown> {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return {}
   const properties = (node as { properties?: unknown }).properties
   if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return {}
   return properties as Record<string, unknown>
+}
+
+function readStoryboardScalar(value: unknown): string {
+  return String(value ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function readStoryboardBool(value: unknown): boolean {
+  return value === true || String(value || '').trim().toLowerCase() === 'true'
+}
+
+function storytreeCardMatchesFilter(card: StoryboardCardModel, props: Record<string, unknown>, filter: string): boolean {
+  if (card.lane !== 'Storytree' || filter === 'all') return true
+  const status = readStoryboardScalar(props.strytreeStatus || props.branchStatus).toLowerCase()
+  const accessState = readStoryboardScalar(props.accessState).toLowerCase()
+  if (filter === 'protected') return readStoryboardBool(props.unlockRequired) || accessState.includes('unlock') || readStoryboardBool(props.isProtected)
+  return status === filter || accessState === filter
+}
+
+function StorytreeEdgeConnector(props: {
+  sourceId: string
+  sourceTitle: string
+  targetId: string
+  targetTitle: string
+  label: string
+  depth: number
+}) {
+  const indentPx = Math.min(Math.max(0, props.depth), 5) * 22
+  const displayLabel = props.label === 'rootBranch' ? 'root' : 'parent'
+  const sourceTitle = readMarkdownSigilDisplayText(props.sourceTitle)
+  const targetTitle = readMarkdownSigilDisplayText(props.targetTitle)
+  return (
+    <div
+      className="relative mb-2 flex min-h-8 items-center"
+      style={{ paddingLeft: `${indentPx}px` }}
+      aria-label={`Storytree edge ${sourceTitle} to ${targetTitle}`}
+      data-kg-storytree-edge={props.label}
+      data-kg-storytree-edge-source={props.sourceId}
+      data-kg-storytree-edge-target={props.targetId}
+    >
+      <div className="pointer-events-none absolute bottom-0 top-0 w-px bg-black/15" style={{ left: `${indentPx + 8}px` }} aria-hidden="true" />
+      <div className="pointer-events-none absolute h-px w-7 bg-black/15" style={{ left: `${indentPx + 8}px`, top: '50%' }} aria-hidden="true" />
+      <span className="ml-8 inline-flex max-w-full items-center gap-1 rounded-full border border-black/10 bg-black/[0.025] px-2 py-1 text-[10px] text-black/55">
+        <span className="h-1.5 w-1.5 rounded-full bg-black/35" aria-hidden="true" />
+        <span className="truncate">{sourceTitle}</span>
+        <span aria-hidden="true">to</span>
+        <span className="truncate">{targetTitle}</span>
+        <span className="rounded bg-black/5 px-1">{displayLabel}</span>
+      </span>
+    </div>
+  )
 }
 
 function resolveStoryboardDisplayMedia(card: StoryboardCardModel): StoryboardDisplayMedia | null {
@@ -107,6 +173,7 @@ function StoryboardDetailRow(props: {
           placeholder={props.placeholder || `Add ${props.label.toLowerCase()}`}
           canEdit={props.canEdit}
           multiline
+          markdownPreview="auto"
           rows={3}
           onCommit={props.onCommit}
           displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}
@@ -153,7 +220,16 @@ function StoryboardReferenceStrip(props: {
                   event.preventDefault()
                 }}
               >
-                <img src={reference.url} alt="Reference" className="h-full w-full object-cover" loading="lazy" draggable={false} />
+                <CardMediaPreview
+                  kind={reference.kind}
+                  url={reference.url}
+                  title="Reference"
+                  href={reference.url}
+                  interactive={false}
+                  fit="cover"
+                  className="h-full w-full"
+                  mediaClassName="h-full w-full"
+                />
               </a>
             )
           }
@@ -185,18 +261,21 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { graphRevision, selectedNodeId, selectNode, updateNode, upsertUiToast, dismissUiToast } = useGraphStore(
+  const { graphRevision, selectedNodeId, selectNode, updateNode, setGraphDataPreservingLayout, addHistory, upsertUiToast, dismissUiToast } = useGraphStore(
     useShallow(s => ({
       graphRevision: s.graphDataRevision || 0,
       selectedNodeId: String(s.selectedNodeId || '').trim(),
       selectNode: s.selectNode,
       updateNode: s.updateNode,
+      setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
+      addHistory: s.addHistory,
       upsertUiToast: s.upsertUiToast,
       dismissUiToast: s.dismissUiToast,
     })),
   )
   const boardScrollRef = React.useRef<HTMLElement>(null)
   const laneScrollElementsRef = React.useRef(new Map<string, HTMLOListElement>())
+  const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
   const board = React.useMemo(() => {
     return buildStoryboardBoardModel({
       graphData,
@@ -232,6 +311,25 @@ export default function StoryboardCanvas({
     }
     return map
   }, [board.lanes])
+  const storytreeIncomingEdgeByCardId = React.useMemo(() => {
+    const out = new Map<string, { sourceId: string; sourceTitle: string; label: string }>()
+    const edges = Array.isArray(graphData?.edges) ? graphData.edges : []
+    for (const edge of edges) {
+      const label = readStoryboardScalar(edge?.label)
+      if (label !== 'parent_node_id' && label !== 'rootBranch') continue
+      const sourceId = readStoryboardScalar(edge?.source)
+      const targetId = readStoryboardScalar(edge?.target)
+      const sourceCard = cardById.get(sourceId)
+      const targetCard = cardById.get(targetId)
+      if (!sourceCard || !targetCard || targetCard.lane !== 'Storytree') continue
+      out.set(targetId, {
+        sourceId,
+        sourceTitle: sourceCard.title,
+        label,
+      })
+    }
+    return out
+  }, [cardById, graphData?.edges])
   const currentPropertiesByCardId = React.useMemo(() => {
     const map = new Map<string, Record<string, unknown>>()
     const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
@@ -242,6 +340,54 @@ export default function StoryboardCanvas({
     }
     return map
   }, [graphData])
+  const visibleLanes = React.useMemo(() => {
+    return board.lanes.map(lane => {
+      if (lane.id !== 'Storytree') return lane
+      return {
+        ...lane,
+        cards: lane.cards.filter(card => storytreeCardMatchesFilter(card, currentPropertiesByCardId.get(card.id) || {}, storytreeFilter)),
+      }
+    })
+  }, [board.lanes, currentPropertiesByCardId, storytreeFilter])
+  const commitStrytreeWorkflowResult = React.useCallback((args: {
+    result: ReturnType<typeof toggleStrytreeLikeAction>
+    history: string
+  }) => {
+    const { result } = args
+    if (result.changed) {
+      setGraphDataPreservingLayout(result.graphData)
+      addHistory(args.history)
+      if (result.createdNodeId) selectNode(result.createdNodeId)
+    }
+    upsertUiToast({
+      id: `storytree:${args.history.toLowerCase().replace(/\s+/g, '-')}`,
+      kind: result.kind,
+      message: result.message,
+      dismissible: result.kind !== 'success',
+      ttlMs: result.kind === 'success' ? 2600 : null,
+    })
+  }, [addHistory, selectNode, setGraphDataPreservingLayout, upsertUiToast])
+  const toggleStorytreeLike = React.useCallback((cardId: string) => {
+    if (!graphData) return
+    commitStrytreeWorkflowResult({
+      result: toggleStrytreeLikeAction(graphData, cardId),
+      history: 'Storytree like',
+    })
+  }, [commitStrytreeWorkflowResult, graphData])
+  const unlockStorytreeBranch = React.useCallback((cardId: string) => {
+    if (!graphData) return
+    commitStrytreeWorkflowResult({
+      result: unlockStrytreeNodeAction(graphData, cardId),
+      history: 'Storytree unlock',
+    })
+  }, [commitStrytreeWorkflowResult, graphData])
+  const draftStorytreeContinuation = React.useCallback((cardId: string, prompt: string) => {
+    if (!graphData) return
+    commitStrytreeWorkflowResult({
+      result: createStrytreeContinuationDraftAction(graphData, cardId, { prompt }),
+      history: 'Storytree continuation',
+    })
+  }, [commitStrytreeWorkflowResult, graphData])
   const updateStoryboardCanonicalProperty = React.useCallback((args: {
     cardId: string
     aliasKeys: readonly string[]
@@ -410,7 +556,7 @@ export default function StoryboardCanvas({
       {board.totalCards > 0 ? (
         <section ref={boardScrollRef} className="flex-1 overflow-x-auto overflow-y-hidden p-4" aria-label="Storyboard lanes">
           <div className="flex h-full min-w-fit items-start gap-4">
-            {board.lanes.map(lane => (
+            {visibleLanes.map(lane => (
               (() => {
                 const laneDropProps = storyboardDrag.createLaneDropProps(lane.id)
                 return (
@@ -449,6 +595,29 @@ export default function StoryboardCanvas({
                     {lane.cards.length}
                   </span>
                 </header>
+                {lane.id === 'Storytree' ? (
+                  <div className={['flex gap-1 overflow-x-auto border-b px-3 py-2', UI_THEME_TOKENS.panel.divider].join(' ')} aria-label="Storytree filters">
+                    {STORYTREE_FILTERS.map(filter => (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        className={[
+                          'inline-flex h-7 shrink-0 items-center gap-1 rounded border px-2 text-[11px]',
+                          filter.id === storytreeFilter ? 'border-black/30 bg-black/10 text-black' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' '),
+                        ].join(' ')}
+                        aria-pressed={filter.id === storytreeFilter}
+                        aria-label={`Storytree filter ${filter.label}`}
+                        onClick={event => {
+                          event.stopPropagation()
+                          setStorytreeFilter(filter.id)
+                        }}
+                      >
+                        <Hash className="h-3 w-3" aria-hidden="true" />
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
 
                 <ol
                   ref={element => {
@@ -480,13 +649,38 @@ export default function StoryboardCanvas({
                       isDropTarget: storyboardDrag.dragOverRowId === card.id,
                       isCommitFlash: storyboardDrag.commitFlashRowId === card.id,
                     })
+                    const currentCardProperties = currentPropertiesByCardId.get(card.id) || {}
+                    const isStorytreeBranch = card.lane === 'Storytree' && !!readStoryboardScalar(currentCardProperties.strytreeNodeId)
+                    const storytreeDepth = Math.max(0, Number(currentCardProperties.depth || 0))
+                    const storytreeIncomingEdge = isStorytreeBranch ? storytreeIncomingEdgeByCardId.get(card.id) || null : null
+                    const likedByCurrentUser = readStoryboardBool(currentCardProperties.likedByCurrentUser)
+                    const unlockRequired = readStoryboardBool(currentCardProperties.unlockRequired)
+                    const canUnlock = currentCardProperties.canUnlock !== false && readStoryboardScalar(currentCardProperties.accessState) !== 'unlock-needs-credits'
+                    const accessState = readStoryboardScalar(currentCardProperties.accessState) || 'open'
+                    const unlockPriceCredits = Number(currentCardProperties.unlockPriceCredits || 0)
+                    const storytreeStatus = readStoryboardScalar(currentCardProperties.strytreeStatus || currentCardProperties.branchStatus)
                     return (
-                      <li key={card.id} className="list-none">
+                      <li
+                        key={card.id}
+                        className="relative list-none"
+                        style={isStorytreeBranch ? { paddingLeft: `${Math.min(storytreeDepth, 5) * 14}px` } : undefined}
+                      >
+                        {storytreeIncomingEdge ? (
+                          <StorytreeEdgeConnector
+                            sourceId={storytreeIncomingEdge.sourceId}
+                            sourceTitle={storytreeIncomingEdge.sourceTitle}
+                            targetId={card.id}
+                            targetTitle={card.title}
+                            label={storytreeIncomingEdge.label}
+                            depth={storytreeDepth}
+                          />
+                        ) : null}
                         <article
                           className={[
                             'group overflow-hidden rounded-2xl border bg-white shadow-sm transition-transform duration-150 select-none',
                             UI_THEME_TOKENS.kanban.cardHoverBg,
                             selected ? 'border-black/30 ring-1 ring-black/10' : UI_THEME_TOKENS.panel.border,
+                            isStorytreeBranch ? 'border-l-4 border-l-black/20' : '',
                             cardDragVisualState.className,
                             'hover:-translate-y-[1px]',
                           ].join(' ')}
@@ -589,6 +783,7 @@ export default function StoryboardCanvas({
                                     placeholder="Add summary"
                                     canEdit={typeof updateNode === 'function'}
                                     multiline
+                                    markdownPreview="auto"
                                     rows={3}
                                     onCommit={nextValue => {
                                       updateStoryboardCanonicalProperty({
@@ -633,6 +828,56 @@ export default function StoryboardCanvas({
                                 }}
                               />
 
+                              {isStorytreeBranch ? (
+                                <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label="Storytree workflow">
+                                  <div className="mb-2 flex flex-wrap items-center gap-1">
+                                    <DataViewTagChip value={storytreeStatus || 'storytree'} />
+                                    <DataViewTagChip value={accessState} />
+                                    {Number.isFinite(unlockPriceCredits) && unlockPriceCredits > 0 ? <DataViewTagChip value={`${unlockPriceCredits} credits`} /> : null}
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    <button
+                                      type="button"
+                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      aria-label={`${likedByCurrentUser ? 'Unlike' : 'Like'} storytree branch ${displayTitle}`}
+                                      onClick={event => {
+                                        event.stopPropagation()
+                                        toggleStorytreeLike(card.id)
+                                      }}
+                                    >
+                                      <Heart className="h-3.5 w-3.5" aria-hidden="true" fill={likedByCurrentUser ? 'currentColor' : 'none'} />
+                                      {likedByCurrentUser ? 'Liked' : 'Like'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      aria-label={`Unlock storytree branch ${displayTitle}`}
+                                      disabled={!unlockRequired || !canUnlock}
+                                      onClick={event => {
+                                        event.stopPropagation()
+                                        unlockStorytreeBranch(card.id)
+                                      }}
+                                    >
+                                      <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                                      {unlockRequired ? 'Unlock' : 'Open'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={['inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' ')}
+                                      aria-label={`Draft storytree continuation from ${displayTitle}`}
+                                      disabled={storytreeStatus === 'dropped'}
+                                      onClick={event => {
+                                        event.stopPropagation()
+                                        draftStorytreeContinuation(card.id, card.prompt)
+                                      }}
+                                    >
+                                      <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                      Draft
+                                    </button>
+                                  </div>
+                                </section>
+                              ) : null}
+
                               {card.prompt || card.style || card.references.length > 0 ? (
                                 <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label="Visual brief">
                                   <div className="flex items-center justify-between gap-2">
@@ -651,6 +896,7 @@ export default function StoryboardCanvas({
                                       placeholder="Add visual brief"
                                       canEdit={typeof updateNode === 'function'}
                                       multiline
+                                      markdownPreview="auto"
                                       rows={3}
                                       onCommit={nextValue => {
                                         updateStoryboardCanonicalProperty({

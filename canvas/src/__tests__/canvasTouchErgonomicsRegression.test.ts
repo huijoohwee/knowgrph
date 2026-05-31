@@ -34,6 +34,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const importUrlPromptText = readUtf8(path.resolve(root, 'src/features/toolbar/ImportUrlPrompt.tsx'))
   const cssText = readUtf8(path.resolve(root, 'src/index.css'))
   const responsiveToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-toolbar.css'))
+  const strybldrTimelineBottomPanelText = readUtf8(path.resolve(root, 'src/features/strybldr/StrybldrTimelineBottomPanel.tsx'))
 
   if (!toolbarText.includes("touchAction: 'pan-x manipulation'")) {
     throw new Error('expected toolbar to allow horizontal touch scrolling without shrinking tap targets')
@@ -119,6 +120,22 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   if (!canvasText.includes('kg-workspace-overlay-canvas-toolbar')) {
     throw new Error('expected editor-mode canvas toolbar to use a dedicated responsive dock class')
+  }
+  if (
+    !cssText.includes('--kg-canvas-viewport-edge-gap: 0.5rem') ||
+    !canvasText.includes('var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap)') ||
+    !responsiveToolbarCssText.includes('var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap)') ||
+    !strybldrTimelineBottomPanelText.includes('var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap)')
+  ) {
+    throw new Error('expected Canvas Toolbar and Timeline bottom panel viewport-edge spacing to share the same CSS token')
+  }
+  if (
+    !cssText.includes('--kg-toolbar-compact-surface-height') ||
+    !cssText.includes('--toolbar-padding: var(--kg-toolbar-compact-padding)') ||
+    !strybldrTimelineBottomPanelText.includes("height: 'var(--kg-toolbar-compact-surface-height)'") ||
+    strybldrTimelineBottomPanelText.includes('min-h-[36px]')
+  ) {
+    throw new Error('expected minimized Timeline bottom panel height to reuse existing compact Toolbar sizing tokens')
   }
   if (!responsiveToolbarCssText.includes('.kg-markdown-workspace-shell')) {
     throw new Error('expected Editor Workspace to use a shared mobile stacking rule')

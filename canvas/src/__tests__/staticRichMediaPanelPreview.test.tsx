@@ -110,6 +110,14 @@ export async function testStaticRichMediaPanelPreviewRendersImageVideoAndIframe(
       const srcdoc = iframe.getAttribute('srcdoc') || ''
       if (!srcdoc.trim()) throw new Error('expected iframe srcdoc to be populated')
     }
+    const flowEditorHeaders = Array.from(doc.querySelectorAll('[data-kg-rich-media-flow-editor-header="1"]'))
+    if (flowEditorHeaders.length !== 4) {
+      throw new Error(`expected static rich media previews to reuse RichMediaPanel Flow Editor chrome, got ${flowEditorHeaders.length}`)
+    }
+    const svgTitleText = Array.from(doc.querySelectorAll('svg > g > text'))
+    if (svgTitleText.length !== 0) {
+      throw new Error(`expected static rich media previews to avoid stale SVG title-chip text, got ${svgTitleText.length}`)
+    }
 
     const openSourceButtons = Array.from(doc.querySelectorAll('[data-kg-rich-media-open-source="1"]'))
     if (openSourceButtons.length !== 0) {

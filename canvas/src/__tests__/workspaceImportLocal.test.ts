@@ -50,7 +50,12 @@ const createBinaryFile = (name: string, bytes: Uint8Array, type = 'application/o
 }
 
 function readStrybldrLocalImportInput(): { name: string; text: string } {
-  const inputPath = String(process.env.KNOWGRPH_STRYFORK_DEMO_INPUT || '').trim()
+  const inputPath = String(
+    process.env.KNOWGRPH_STRYTREE_DEMO_INPUT ||
+    process.env.KNOWGRPH_STRYBLDR_DEMO_INPUT ||
+    process.env.KNOWGRPH_STRYFORK_DEMO_INPUT ||
+    '',
+  ).trim()
   if (inputPath) {
     return {
       name: basename(inputPath) || 'strybldr-local-import.md',
@@ -532,6 +537,23 @@ export function testWorkspaceExportMenuIncludesGlbAction() {
   const glb = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'glb')
   if (!glb) throw new Error('expected workspace export menu to include GLB')
   if (!glb.menuLabel.includes('.glb')) throw new Error(`expected GLB export menu label to name .glb, got ${glb.menuLabel}`)
+}
+
+export function testWorkspaceExportMenuIncludesHtmlWorkspaceViewerCanvasParity() {
+  const htmlWorkspace = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'htmlWorkspace')
+  const htmlViewer = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'htmlViewer')
+  const htmlCanvas = WORKSPACE_EXPORT_MENU_ITEMS.find(item => item.id === 'htmlCanvas')
+  if (!htmlWorkspace) throw new Error('expected workspace export menu to include HTML Workspace')
+  if (!htmlViewer) throw new Error('expected workspace export menu to include HTML Viewer')
+  if (!htmlCanvas) throw new Error('expected workspace export menu to include HTML Canvas')
+  if (htmlWorkspace.menuLabel !== 'HTML (.html) — Workspace') throw new Error(`unexpected HTML Workspace label: ${htmlWorkspace.menuLabel}`)
+  if (htmlViewer.menuLabel !== 'HTML (.html) — Viewer') throw new Error(`unexpected HTML Viewer label: ${htmlViewer.menuLabel}`)
+  if (htmlCanvas.menuLabel !== 'HTML (.html) — Canvas') throw new Error(`unexpected HTML Canvas label: ${htmlCanvas.menuLabel}`)
+  const ids = WORKSPACE_EXPORT_MENU_ITEMS.map(item => item.id)
+  const order = [ids.indexOf('htmlWorkspace'), ids.indexOf('htmlViewer'), ids.indexOf('htmlCanvas')]
+  if (order.some(i => i < 0) || !(order[0] < order[1] && order[1] < order[2])) {
+    throw new Error(`expected HTML export order Workspace -> Viewer -> Canvas, got ${order.join(',')}`)
+  }
 }
 
 export async function testWorkspaceModelAssetExportPreservesImportedGltfJson() {
@@ -1045,6 +1067,7 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     const board = buildStoryboardBoardModel({ graphData: next.graphData, graphRevision: 1 })
     const lanes = new Set(board.lanes.map(lane => lane.id))
     if (!lanes.has('Source') || !lanes.has('Elements')) throw new Error(`expected local Strybldr graph to expose Source and Elements lanes, got ${Array.from(lanes).join(', ')}`)
+    if (/"storytree"\s*:/.test(input.text) && !lanes.has('Storytree')) throw new Error(`expected local Strytree graph to expose Storytree lane, got ${Array.from(lanes).join(', ')}`)
     if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text)) {
       const cards = board.lanes.flatMap(lane => lane.cards)
       if (!cards.some(card => card.media?.kind === 'iframe' && /\/embed\//i.test(card.media.url))) {
@@ -1061,6 +1084,9 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     const handoff = buildStrybldrVideoHandoffFromGraphData(next.graphData)
     if (handoff.cards.length < 2 || !handoff.prompt.includes('approved Strybldr storyboard cards')) {
       throw new Error('expected local Strybldr graph to compile a runnable Toolbar Run all handoff prompt')
+    }
+    if (/"storytree"\s*:/.test(input.text) && !handoff.cards.some(card => card.lane === 'Storytree')) {
+      throw new Error(`expected local Strytree import to feed Storytree cards into Toolbar Run all, got ${JSON.stringify(handoff.cards)}`)
     }
     if (/(youtube\.com|youtu\.be|kgYoutubeVideoId)/i.test(input.text) && !/ytimg\.com\/vi\//i.test(String(handoff.referenceImageUrl || ''))) {
       throw new Error(`expected local Strybldr Run all handoff to carry a thumbnail reference image, got ${String(handoff.referenceImageUrl || '')}`)

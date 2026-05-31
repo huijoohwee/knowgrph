@@ -20,6 +20,7 @@ import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA, MIROMIND_MCP_DOCS_URL } from './miromindMcpApiDocs'
+import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
 import { STRIPE_MCP_DOCS_URL } from 'grph-shared/payments/stripeMcpSsot'
 
 export const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
@@ -174,6 +175,17 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     highlights: [
       'Provider-side MCP must not replace Knowgrph browser/local MCP readiness surfaces.',
       'If unavailable, baseline MiroMind chat completions remain the default shared transport contract.',
+    ],
+    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+  },
+  [KNOWGRPH_VDEOXPLN_DOC_AREA]: {
+    docsUrl: '/knowgrph/.well-known/agent-skills/index.json',
+    docsLabel: 'Open Agent Skills Index',
+    panelLabel: 'Open FloatingPanel Chat UI',
+    note: 'Vdeoxpln are generated from the canonical Knowgrph registry and preserve local MCP, WebMCP, Source Files, FloatingPanel Chat, KGC, Canvas, and semantic-key ownership.',
+    highlights: [
+      'Rows are read-only capability metadata; mutating pack runs stay browser-local and user-mediated.',
+      'Registry ids, source owners, tools, and semantic keys are shared with Pages agent-skills and local MCP.',
     ],
     openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },

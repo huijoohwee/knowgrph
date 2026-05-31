@@ -17,6 +17,11 @@
   --padding: 0.5rem;
   --toolbar-gap: 0.5rem;
   --toolbar-padding: 0.5rem 0.75rem;
+  --kg-surface-border-width: 1px;
+  --kg-toolbar-compact-pad-y: 0.25rem;
+  --kg-toolbar-compact-pad-x: 0.5rem;
+  --kg-toolbar-compact-padding: var(--kg-toolbar-compact-pad-y) var(--kg-toolbar-compact-pad-x);
+  --kg-toolbar-compact-surface-height: calc(var(--kg-control-height, 28px) + var(--kg-toolbar-compact-pad-y) + var(--kg-toolbar-compact-pad-y) + var(--kg-surface-border-width) + var(--kg-surface-border-width));
   --divider-height: 24px;
   --divider-color: #d1d5db;
   --island-radius: 0.5rem;
@@ -76,6 +81,7 @@
   --kg-canvas-label-fill: #111827;
   --kg-canvas-grid-minor: #111827;
   --kg-canvas-grid-major: #111827;
+  --kg-canvas-viewport-edge-gap: 0.5rem;
   --kg-media-panel-bg: var(--kg-panel-bg);
   --kg-media-panel-header-bg: #f9fafb;
   --kg-statusbar-bg: #f9fafb;
@@ -413,7 +419,7 @@ html, body, #root {
   }
   .Island {
     background-color: var(--island-bg);
-    border: 1px solid var(--island-border-color);
+    border: var(--kg-surface-border-width) solid var(--island-border-color);
     border-radius: var(--island-radius);
     box-shadow: var(--island-shadow);
   }
@@ -423,7 +429,7 @@ html, body, #root {
     gap: var(--toolbar-gap);
     padding: var(--toolbar-padding);
     background-color: rgba(var(--panel-bg-rgb),var(--toolbar-opacity));
-    border: 1px solid var(--island-border-color);
+    border: var(--kg-surface-border-width) solid var(--island-border-color);
     border-radius: var(--island-radius);
     box-shadow: var(--island-shadow);
     min-height: var(--kg-control-height, 36px);
@@ -452,7 +458,7 @@ html, body, #root {
   }
   .App-toolbar--compact {
     --toolbar-gap: 0.25rem;
-    --toolbar-padding: 0.25rem 0.5rem;
+    --toolbar-padding: var(--kg-toolbar-compact-padding);
   }
   .App-toolbar--full {
     --toolbar-gap: 0.75rem;

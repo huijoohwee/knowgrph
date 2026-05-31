@@ -2,6 +2,7 @@ import React from 'react'
 import { Download } from 'lucide-react'
 import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename, type MarkdownMediaDownloadKind } from './mediaDownload'
 
@@ -242,7 +243,16 @@ export const renderSafeHtmlBlockImpl = (
         if (height) style.height = `${Math.round(height)}px`
         return (
           <span key={key} className="relative inline-block group align-middle">
-            <img src={src || undefined} alt={el.getAttribute('alt') || ''} loading="lazy" decoding="async" style={Object.keys(style).length ? style : undefined} className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} />
+            <CardMediaPreview
+              kind={/\.svg(?:[?#]|$)|^data:image\/svg\+xml/i.test(src) ? 'svg' : 'image'}
+              url={src}
+              title={el.getAttribute('alt') || ''}
+              interactive={false}
+              fit="contain"
+              mediaThumbnailDataAttr
+              mediaStyle={Object.keys(style).length ? style : undefined}
+              mediaClassName={`inline-block max-w-full h-auto ${mediaFrameClassName}`}
+            />
             {renderDownloadControl(srcCandidate, 'image', `${key}-download`)}
           </span>
         )
@@ -288,9 +298,21 @@ export const renderSafeHtmlBlockImpl = (
         const controls = el.hasAttribute('controls') ? true : el.hasAttribute('autoplay') || el.hasAttribute('loop') ? false : true
         return (
           <section key={key} className="relative inline-block group max-w-full">
-            <video src={src} poster={poster} controls={controls} autoPlay={el.hasAttribute('autoplay') || undefined} muted={el.hasAttribute('muted') || undefined} loop={el.hasAttribute('loop') || undefined} playsInline={el.hasAttribute('playsinline') || undefined} className={['max-w-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>
-              {renderedSources as unknown as React.ReactNode}
-            </video>
+            <CardMediaPreview
+              kind="video"
+              url={src}
+              title={el.getAttribute('title') || 'Video'}
+              interactive={controls}
+              fit="contain"
+              videoControls={controls}
+              videoMuted={el.hasAttribute('muted')}
+              videoAutoPlay={el.hasAttribute('autoplay')}
+              videoLoop={el.hasAttribute('loop')}
+              videoPoster={poster}
+              mediaThumbnailDataAttr
+              mediaClassName={['max-w-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined}
+              mediaStyle={safeStyle}
+            />
             {renderDownloadControl(sourceCandidate, 'video', `${key}-download`)}
           </section>
         )
@@ -302,7 +324,17 @@ export const renderSafeHtmlBlockImpl = (
           const src = deps.resolveHref(srcRaw, opts.activeDocumentPath)
           return (
             <section key={key} className={opts.markdownPresentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl'}>
-              <iframe src={src} title={el.getAttribute('title') || 'Embedded content'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="no-referrer" loading="lazy" className={['w-full h-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle} />
+              <CardMediaPreview
+                kind="iframe"
+                url={src}
+                title={el.getAttribute('title') || 'Embedded content'}
+                interactive
+                fit="contain"
+                iframeScriptPolicy="allow"
+                mediaThumbnailDataAttr
+                mediaClassName={['w-full h-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined}
+                mediaStyle={safeStyle}
+              />
             </section>
           )
         }

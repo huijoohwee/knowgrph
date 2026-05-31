@@ -122,9 +122,15 @@ export async function materializeBootstrapWorkspaceSourceFiles(
     premergedSourceFiles: context.mergedSourceFiles,
     applyToGraph: true,
   })
+  const store = useGraphStore.getState()
   return {
     activePathKey: buildMaterializedWorkspaceActivePathKey({
       activePathOverride: context.startupActivePath,
+      workspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
+      markdownDocumentName: store.markdownDocumentName,
+      markdownDocumentText: store.markdownDocumentText,
+      markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
+      graphDataSource: typeof store.graphData?.metadata?.source === 'string' ? store.graphData.metadata.source : '',
     }),
     sourceFiles: context.mergedSourceFiles,
     sourcesByPath: context.startupSourcesByPath,

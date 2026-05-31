@@ -55,11 +55,17 @@ const deriveThreeCameraStartup = (
   }
 }
 
-export async function exportHtmlCanvasFromWorkspace(args: {
+export type BuildHtmlCanvasWorkspaceDocumentArgs = {
   exportBaseName: string
-  activeDocumentPath?: string | null
   pushUiToast: (toast: UiToastInput) => void
-}): Promise<void> {
+}
+
+export type BuildHtmlCanvasWorkspaceDocumentResult = {
+  html: string
+  mode: '2d' | '3d'
+}
+
+export async function buildHtmlCanvasWorkspaceDocument(args: BuildHtmlCanvasWorkspaceDocumentArgs): Promise<BuildHtmlCanvasWorkspaceDocumentResult | null> {
   try {
     const exportBaseName = String(args.exportBaseName || '').trim() || 'document'
     const store = useGraphStore.getState()
@@ -73,7 +79,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
     const schema = store.schema
     if (!baseGraphData || !schema) {
       args.pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'No canvas snapshot available.' })
-      return
+      return null
     }
 
     const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
@@ -255,7 +261,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
 
     if (!exportView.svgMarkup) {
       args.pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'No inline SVG canvas snapshot available.' })
-      return
+      return null
     }
 
     const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(String(exportView.svgMarkup || ''))
@@ -310,7 +316,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
         return svgWithEdgeGeometry
       }
     })()
-    const svgMarkup = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+    const svgMarkup = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback, inlineRemoteAssets: true })
 
     const graphDataForViewer = (() => {
       const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
@@ -344,6 +350,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       viewportScaleToFit: true,
       viewportControlsPreset: readViewportControlsPresetFromLocalStorage() || 'map',
       includeRichMediaOverlays: true,
+      inlineRemoteMediaAssets: true,
       mediaOverlayPoolMax: Math.max(
         240,
         Array.isArray((graphDataForViewer as any)?.nodes) ? ((graphDataForViewer as any).nodes as any[]).length : 0,
@@ -389,21 +396,29 @@ export async function exportHtmlCanvasFromWorkspace(args: {
 
     if (!htmlViewer || !htmlViewer.trim()) {
       args.pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'Failed to build HTML canvas export.' })
-      return
+      return null
     }
 
-    const blob = new Blob([htmlViewer], { type: 'text/html;charset=utf-8' })
-    const name = `${exportBaseName}-canvas-${wants3dExport ? '3d' : '2d'}.html`
-    const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
-    if (saved === '') return
-    if (!saved) downloadBlob(blob, name)
-    await writeKgcCompanionOutputText({
-      workspacePath: args.activeDocumentPath,
-      extension: 'html',
-      variant: `canvas-${wants3dExport ? '3d' : '2d'}`,
-      text: htmlViewer,
-    })
+    return { html: htmlViewer, mode: wants3dExport ? '3d' : '2d' }
   } catch {
-    void 0
+    return null
   }
+}
+
+export async function exportHtmlCanvasFromWorkspace(args: BuildHtmlCanvasWorkspaceDocumentArgs & {
+  activeDocumentPath?: string | null
+}): Promise<void> {
+  const built = await buildHtmlCanvasWorkspaceDocument(args)
+  if (!built) return
+  const blob = new Blob([built.html], { type: 'text/html;charset=utf-8' })
+  const name = `${String(args.exportBaseName || '').trim() || 'document'}-canvas-${built.mode}.html`
+  const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
+  if (saved === '') return
+  if (!saved) downloadBlob(blob, name)
+  await writeKgcCompanionOutputText({
+    workspacePath: args.activeDocumentPath,
+    extension: 'html',
+    variant: `canvas-${built.mode}`,
+    text: built.html,
+  })
 }

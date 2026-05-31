@@ -9,6 +9,25 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 
+const installFlowEditorViewportRect = (dom: ReturnType<typeof initJsdomHarness>['dom'], width = 800, height = 600) => {
+  const rect = {
+    left: 0,
+    top: 0,
+    width,
+    height,
+    right: width,
+    bottom: height,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect
+  dom.window.HTMLElement.prototype.getBoundingClientRect = function () {
+    return rect
+  }
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => width })
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => height })
+}
+
 export async function testFlowEditorPinnedWidgetsInitCenteredEvenGrid() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -19,6 +38,7 @@ export async function testFlowEditorPinnedWidgetsInitCenteredEvenGrid() {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -140,6 +160,7 @@ export async function testFlowEditorPinnedWidgetsInitCenteredWithViewportOffset(
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -248,6 +269,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
     }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const resizeObservers: ResizeObserverCallback[] = []
     class ResizeObserverStub {
@@ -414,6 +436,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyStacked() {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -515,6 +538,7 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyVerticalStri
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -596,6 +620,7 @@ export async function testFlowEditorPinnedWidgetsReseedDenseMixedSetStaysCentere
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -705,6 +730,7 @@ export async function testFlowEditorPinnedWidgetsReseedAvoidsActiveSurfaceRichMe
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
     anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
     ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+    installFlowEditorViewportRect(dom)
 
     const api = useGraphStore.getState()
     api.resetAll()

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { defaultSchema } from '@/lib/graph/schema'
@@ -42,6 +44,99 @@ export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() 
 }
 
 export const testMediaOverlayLayoutLoop2dSkipsWhenNodePosMissing = testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing
+
+function readTranslatedPanelBox(el: HTMLElement): { left: number; top: number; width: number; height: number } {
+  const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
+  if (!match) throw new Error(`expected translate3d transform, got ${el.style.transform || '(empty)'}`)
+  const left = Number.parseFloat(match[1] || 'NaN')
+  const top = Number.parseFloat(match[2] || 'NaN')
+  const width = Number.parseFloat(el.style.width || 'NaN')
+  const height = Number.parseFloat(el.style.height || 'NaN')
+  if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
+    throw new Error(`expected finite overlay box, got ${JSON.stringify({ left, top, width, height })}`)
+  }
+  return { left, top, width, height }
+}
+
+export async function testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscreenPositions() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const ids = ['m1', 'm2', 'm3']
+    const els = new Map<string, HTMLDivElement>()
+    for (const id of ids) {
+      const el = dom.window.document.createElement('div')
+      root.appendChild(el)
+      els.set(id, el)
+    }
+
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      items: ids.map(id => ({ id })),
+      density: 'default',
+      viewportW: 800,
+      viewportH: 600,
+      schema: defaultSchema,
+      collision: { enabled: true, gapPx: 12 },
+      readTransform: () => ({
+        k: 1,
+        x: 0,
+        y: 0,
+        applyX: (v: number) => v,
+        applyY: (v: number) => v,
+      }) as any,
+      getElementForId: (id: string) => els.get(id) || null,
+      getNodeWorldCenterForId: (id: string) => ids.includes(id) ? { x: -640, y: -420 } : null,
+      sizingConfig: { widthRatio: 0.2, widthMinPx: 210, widthMaxPx: 360 },
+      clampToViewport: null,
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    if (!boxes.every(box => box.left < -120 && box.top < -80)) {
+      throw new Error(`expected infinite-canvas Rich Media overlays to remain offscreen instead of bouncing to viewport bounds: ${JSON.stringify(boxes)}`)
+    }
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
+
+export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
+  const d3HookPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts')
+  const flowOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const loopPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
+  const d3HookText = readFileSync(d3HookPath, 'utf8')
+  const flowOverlayText = readFileSync(flowOverlayPath, 'utf8')
+  const loopText = readFileSync(loopPath, 'utf8')
+
+  if (!d3HookText.includes('clampToViewport: null')) {
+    throw new Error('expected D3/flowchart Rich Media overlays to opt out of viewport clamp and follow the shared infinite-canvas transform')
+  }
+  if (!flowOverlayText.includes("const richMediaInfiniteCanvasMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Flow Editor and Flow Canvas Rich Media overlays to share the same infinite-canvas clamp policy')
+  }
+  for (const snippet of [
+    'manualPlacement: richMediaInfiniteCanvasMode',
+    'collision: richMediaInfiniteCanvasMode',
+    'clampToViewport: richMediaInfiniteCanvasMode',
+  ]) {
+    if (!flowOverlayText.includes(snippet)) {
+      throw new Error(`expected Flow Rich Media overlays to route ${snippet} through the shared infinite-canvas gate`)
+    }
+  }
+  if (!loopText.includes('if (!viewportClampEnabled) return pos')) {
+    throw new Error('expected shared media overlay layout loop to skip viewport clamp when infinite-canvas callers pass clampToViewport=null')
+  }
+  if (!loopText.includes('const shouldReseedBalancedCluster = viewportClampEnabled && (hasVerticalCluster || hasHorizontalStrip)')) {
+    throw new Error('expected shared media overlay layout loop to avoid viewport-centered balanced reseeds in infinite-canvas mode')
+  }
+}
 
 export async function testMediaOverlayLayoutLoop2dAvoidsSingleVerticalCluster() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')

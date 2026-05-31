@@ -12,6 +12,32 @@ import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { relaxFlowSceneNodePositions } from '@/components/FlowCanvas/relaxScenePositions'
 import { computeFlowCommitRelaxSteps } from '@/components/FlowCanvas/relaxStepPolicy'
 
+export function shouldCommitFlowLayoutPositions(args: {
+  workspaceMutationBlocked: boolean
+  allowLayoutCommitWhenWorkspaceBlocked?: boolean
+  cacheKey?: string | null
+  hasLayoutWriter: boolean
+  positionsDirtySinceCommit: boolean
+  hasScene: boolean
+}): boolean {
+  const allowLayoutCommit = !args.workspaceMutationBlocked || args.allowLayoutCommitWhenWorkspaceBlocked === true
+  if (!allowLayoutCommit) return false
+  if (!args.cacheKey || args.hasLayoutWriter !== true) return false
+  if (args.positionsDirtySinceCommit !== true) return false
+  if (args.hasScene !== true) return false
+  return true
+}
+
+function scheduleFlowCommitTask(cb: () => void): void {
+  if (typeof globalThis.queueMicrotask === 'function') {
+    globalThis.queueMicrotask(cb)
+    return
+  }
+  Promise.resolve().then(cb).catch(() => {
+    setTimeout(cb, 0)
+  })
+}
+
 export function useFlowRequestCommit(args: {
   cacheKey: string
   flowConfig: FlowConfig
@@ -33,6 +59,7 @@ export function useFlowRequestCommit(args: {
   allowLayoutCommitWhenWorkspaceBlocked?: boolean
 }) {
   const pendingCommitRef = React.useRef(false)
+  const trailingCommitRef = React.useRef(false)
 
   const {
     cacheKey,
@@ -55,13 +82,18 @@ export function useFlowRequestCommit(args: {
     allowLayoutCommitWhenWorkspaceBlocked,
   } = args
 
-  return React.useCallback(() => {
-    if (pendingCommitRef.current) return
-    pendingCommitRef.current = true
-    requestAnimationFrame(() => {
+  const commitLatest = React.useCallback(() => {
+    scheduleFlowCommitTask(() => {
       pendingCommitRef.current = false
       const runtime = runtimeRef.current
-      if (!runtime) return
+      if (!runtime) {
+        if (trailingCommitRef.current) {
+          trailingCommitRef.current = false
+          pendingCommitRef.current = true
+          commitLatest()
+        }
+        return
+      }
       const t = runtime.transform || d3.zoomIdentity
       const current = useGraphStore.getState()
       const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(current)
@@ -79,12 +111,22 @@ export function useFlowRequestCommit(args: {
         viewportH,
         graphDataRevision,
       })
-      const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true
-      if (!allowLayoutCommit) return
-      if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
-      if (!positionsDirtySinceCommitRef.current) return
       const scene = runtime.scene
-      if (!scene) return
+      if (!shouldCommitFlowLayoutPositions({
+        workspaceMutationBlocked,
+        allowLayoutCommitWhenWorkspaceBlocked,
+        cacheKey,
+        hasLayoutWriter: typeof setLayoutPositionsForMode === 'function',
+        positionsDirtySinceCommit: positionsDirtySinceCommitRef.current,
+        hasScene: !!scene,
+      }) || !scene) {
+        if (trailingCommitRef.current) {
+          trailingCommitRef.current = false
+          pendingCommitRef.current = true
+          commitLatest()
+        }
+        return
+      }
       positionsDirtySinceCommitRef.current = false
       const prev = lastCommittedPositionsRef.current
 
@@ -145,6 +187,11 @@ export function useFlowRequestCommit(args: {
       }
       lastCommittedPositionsRef.current = nextPositions
       if (changed) setLayoutPositionsForMode(cacheKey, nextPositions)
+      if (trailingCommitRef.current) {
+        trailingCommitRef.current = false
+        pendingCommitRef.current = true
+        commitLatest()
+      }
     })
   }, [
     buildDrawArgs,
@@ -169,4 +216,13 @@ export function useFlowRequestCommit(args: {
     viewportW,
     zoomViewKey,
   ])
+
+  return React.useCallback(() => {
+    if (pendingCommitRef.current) {
+      trailingCommitRef.current = true
+      return
+    }
+    pendingCommitRef.current = true
+    commitLatest()
+  }, [commitLatest])
 }

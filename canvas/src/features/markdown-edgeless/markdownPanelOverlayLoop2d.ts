@@ -1,6 +1,6 @@
 import type * as d3 from 'd3'
 
-import { applyMediaPanelCssVars, applyPanelBox, computePanelRect } from '@/lib/render/mediaPanelLayout'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect } from '@/lib/render/mediaPanelLayout'
 import { computeMediaOverlaySizing, type MediaOverlaySizingConfig, type MediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
@@ -8,6 +8,8 @@ export type MarkdownOverlayPanelItem = {
   id: string
   cx: number
   cy: number
+  w?: number
+  h?: number
 }
 
 export type MarkdownOverlayPanelLoop = {
@@ -55,6 +57,7 @@ export function startMarkdownPanelOverlayLoop2d(args: {
       lastSizing = sizing
     }
     const useSizing = lastSizing || sizing
+    const unscaledPanelVars = computeMediaPanelCssVars3d({ density, sizeScale: 1 }).vars
     const clamp = args.clampToViewport
       ? { viewportW: vw, viewportH: vh, margin: Math.max(0, Number(args.clampToViewport.margin) || 0) }
       : undefined
@@ -73,9 +76,17 @@ export function startMarkdownPanelOverlayLoop2d(args: {
       const sy = t.applyY(it.cy)
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue
 
-      const rect = computePanelRect({ cx: sx, cy: sy, w: useSizing.panelW, h: useSizing.panelH, clamp })
-      applyMediaPanelCssVars(el, useSizing.vars)
-      applyPanelBox(el, { left: rect.left, top: rect.top, w: useSizing.panelW, h: useSizing.panelH, display: 'block' })
+      const worldW = Number(it.w)
+      const worldH = Number(it.h)
+      const hasWorldSize = Number.isFinite(worldW) && worldW > 1 && Number.isFinite(worldH) && worldH > 1
+      const layoutW = hasWorldSize ? Math.max(2, worldW) : useSizing.panelW
+      const layoutH = hasWorldSize ? Math.max(2, worldH) : useSizing.panelH
+      const scale = hasWorldSize ? k : 1
+      const screenW = layoutW * scale
+      const screenH = layoutH * scale
+      const rect = computePanelRect({ cx: sx, cy: sy, w: screenW, h: screenH, clamp })
+      applyMediaPanelCssVars(el, hasWorldSize ? unscaledPanelVars : useSizing.vars)
+      applyPanelBox(el, { left: rect.left, top: rect.top, w: layoutW, h: layoutH, display: 'block', scale })
       try {
         ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {

@@ -121,7 +121,8 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   const flowCommitPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowRequestCommit.ts')
   const flowCommitText = readFileSync(flowCommitPath, 'utf8')
-  if (!flowCommitText.includes('const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true')) {
+  if (!flowCommitText.includes('const allowLayoutCommit = !args.workspaceMutationBlocked || args.allowLayoutCommitWhenWorkspaceBlocked === true')
+    || !flowCommitText.includes('shouldCommitFlowLayoutPositions({')) {
     throw new Error('expected FlowCanvas requestCommit to decouple workspace mutation guard from Flow Editor collective interaction commits')
   }
   if (!flowCommitText.includes('commitZoomTransformToStore({')) {
@@ -133,11 +134,11 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const runtimeSeedText = readFileSync(runtimeSeedPath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed && !collectiveOutsideViewport && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed && !hasMissingWorldSeeds && !hasDriftReseedCandidates && !changedScreenPos) return')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
   const worldSeedWriteIndex = runtimeText.indexOf('buildWorkspaceBlockedFlowWidgetSeedPatch', worldSeedGuardIndex)
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
-    throw new Error('expected pinned widget auto-seed world-position persistence to stay blocked unless overlays are offscreen or missing seeds require first-frame recovery')
+    throw new Error('expected pinned widget auto-seed world-position persistence to stay blocked unless missing seeds or non-viewport drift require first-frame recovery')
   }
   if (worldSeedKeyWriteIndex < 0 || worldSeedGuardIndex > worldSeedKeyWriteIndex || worldSeedKeyWriteIndex > worldSeedWriteIndex) {
     throw new Error('expected pinned widget auto-seed key to be committed only after Workspace/Indexing mutation guard')
@@ -145,8 +146,8 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('const hasMissingWorldSeeds = pendingRaw.length > 0')) {
     throw new Error('expected pinned widget auto-seed guard to treat missing world seeds as a first-frame recovery exception')
   }
-  if (!runtimeText.includes('const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed || frontmatterScreenAuthorityCollectiveNeedsReseed')) {
-    throw new Error('expected pinned widget auto-seed guard to classify overlap/scene-empty/off-center frontmatter recovery as drift reseed candidates')
+  if (!runtimeText.includes('const hasDriftReseedCandidates = overlapEligible.length > 0 || forceSceneEmptyReseed')) {
+    throw new Error('expected pinned widget auto-seed guard to classify overlap/scene-empty recovery as drift reseed candidates without viewport offscreen recovery')
   }
   if (!runtimeText.includes('if (workspaceMutationBlockedForSeed) {')) {
     throw new Error('expected pinned widget auto-seed to route workspace-blocked writes through an explicit in-memory branch')
@@ -173,10 +174,10 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected pinned widget auto-seed to fallback to world-key ids when frontmatter effective-open ids are empty')
   }
   if (!runtimeText.includes('const shouldReseedWholeFrontmatterCollective =') || !runtimeText.includes('if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds')) {
-    throw new Error('expected pinned widget auto-seed to force frontmatter offscreen/off-center pinned recovery when overlap/missing detection yields no pending ids')
+    throw new Error('expected pinned widget auto-seed to force frontmatter collective recovery only when overlap/missing detection yields partial pending ids')
   }
-  if (!runtimeText.includes('const frontmatterScreenAuthorityCollectiveNeedsReseed = shouldReseedFrontmatterScreenAuthorityCollective({')) {
-    throw new Error('expected pinned widget auto-seed to detect frontmatter screen-authority collective centroid drift')
+  if (runtimeText.includes('shouldReseedFrontmatterScreenAuthorityCollective({') || runtimeText.includes('resolveOffscreenPinnedFlowWidgetIds({')) {
+    throw new Error('expected pinned widget auto-seed to forbid viewport/offscreen reseed triggers in infinite-canvas mode')
   }
   if (!runtimeText.includes('const allowPersistedViewportOffsetSeed = !workspaceMutationBlockedForSeed')) {
     throw new Error('expected pinned widget auto-seed to disable persisted zoom-offset fallback while Workspace overlay/indexing mutation guard is active')
@@ -212,7 +213,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('if (forceSceneEmptyReseed) return true')) {
     throw new Error('expected pinned widget auto-seed pending selection to include all pinned widgets during empty-scene reseed')
   }
-  if (!runtimeText.includes('if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !collectiveOutsideViewport && !forceSceneEmptyReseed && !frontmatterScreenAuthorityCollectiveNeedsReseed) return')) {
+  if (!runtimeText.includes('if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) return')) {
     throw new Error('expected pinned widget auto-seed key guard to allow forced scene-empty reseed despite matching seed key')
   }
   if (!runtimeText.includes("const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'")) {
@@ -245,14 +246,11 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes("reason: 'scene-empty-using-persisted-transform'")) {
     throw new Error('expected runtime transform authority to fallback to persisted effective zoom before neutral identity during transient empty-scene frames')
   }
-  if (!runtimeText.includes('persistedLooksSafeForWorkspaceBlocked')) {
-    throw new Error('expected runtime transform authority to gate persisted empty-scene transform reuse by workspace-blocked viewport safety bounds')
+  if (runtimeText.includes('persistedLooksSafeForWorkspaceBlocked') || runtimeText.includes("reason: 'scene-empty-persisted-transform-rejected-workspace-blocked'")) {
+    throw new Error('expected runtime transform authority to preserve persisted transforms without viewport safety rejection in infinite-canvas mode')
   }
-  if (!runtimeText.includes("reason: 'scene-empty-persisted-transform-rejected-workspace-blocked'")) {
-    throw new Error('expected runtime trace to record rejected stale persisted transforms during workspace-blocked empty-scene windows')
-  }
-  if (!runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-reusing-last-usable'")) {
-    throw new Error('expected workspace-blocked offscreen transform guard to reuse last usable transform before neutral fallback')
+  if (runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-reusing-last-usable'")) {
+    throw new Error('expected workspace-blocked offscreen transform guard to be removed so pan/zoom cannot bounce back to last usable transform')
   }
   if (!runtimeText.includes('lastUsableZoomTransformRef.current = next')) {
     throw new Error('expected runtime transform authority to refresh last usable transform from visible live transform frames')
@@ -265,29 +263,14 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (collisionText.includes('zoomStateByKey: st.zoomStateByKey }) || null')) {
     throw new Error('expected overlay collision node obstacle projection to forbid null transform fallback that can trigger number-null runtime warnings')
   }
-  if (!runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0')) {
-    throw new Error('expected runtime transform authority to add workspace-mutation-blocked offscreen guards before reusing live transform for overlay seeding')
+  if (runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging')) {
+    throw new Error('expected runtime transform authority to avoid workspace-mutation-blocked viewport offscreen guards before reusing live transform')
   }
-  if (!runtimeText.includes('const interactionInProgress = Date.now() - lastInteractionFrameAtMsRef.current < 620')) {
-    throw new Error('expected runtime transform authority to detect active flow-editor interaction frames before applying workspace-blocked offscreen transform guard')
+  if (runtimeText.includes('const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging') || runtimeText.includes('|| allowPersistedDuringActiveInteraction')) {
+    throw new Error('expected runtime scene-empty persisted-transform branch to preserve persisted transforms without viewport-specific active-interaction overrides')
   }
-  if (!runtimeText.includes('const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || \'\').trim()')) {
-    throw new Error('expected runtime transform authority to detect active widget dragging before applying workspace-blocked offscreen transform guard')
-  }
-  if (!runtimeText.includes('workspaceMutationBlocked && sceneNodeCount > 0 && !interactionInProgress && !flowWidgetDragging')) {
-    throw new Error('expected runtime transform authority to defer workspace-blocked offscreen transform neutralization/reuse while user pan/zoom/drag interaction is in progress')
-  }
-  if (!runtimeText.includes('const allowPersistedDuringActiveInteraction = interactionInProgress || flowWidgetDragging')) {
-    throw new Error('expected runtime scene-empty persisted-transform branch to allow active interaction to keep current transform in workspace mutation windows')
-  }
-  if (!runtimeText.includes('|| allowPersistedDuringActiveInteraction')) {
-    throw new Error('expected runtime scene-empty persisted-transform reuse gate to include active interaction override')
-  }
-  if (!runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-neutralized'")) {
-    throw new Error('expected runtime transform trace to record when offscreen workspace-blocked transforms are neutralized to prevent flash-right drift')
-  }
-  if (!runtimeText.includes('return { k: 1, x: 0, y: 0 }')) {
-    throw new Error('expected runtime transform guard to fall back to neutral transform when workspace-blocked live transform is offscreen')
+  if (runtimeText.includes("reason: 'workspace-blocked-offscreen-transform-neutralized'")) {
+    throw new Error('expected runtime transform trace to remove offscreen neutralization that caused viewport bounce')
   }
   if (!runtimeText.includes('isCanonicalFrontmatterBuiltInWidgetNode')) {
     throw new Error('expected pinned widget auto-seed overlap detection to include canonical frontmatter widget identity')
@@ -549,13 +532,15 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Flow runtime authoritative fit/recovery writes to cancel stale zoom-request animations before applying transforms')
   }
   if (!runtimeText.includes('const preserveCurrentTransform =')) {
-    throw new Error('expected Flow runtime zoom seeding to centralize stale offscreen transform preservation checks')
+    throw new Error('expected Flow runtime zoom seeding to centralize current transform preservation checks')
   }
-  if (!runtimeText.includes('!isFlowEditor ||') || !runtimeText.includes('isFlowTransformShowingGraph(')) {
-    throw new Error('expected Flow Editor zoom seeding to preserve non-identity transforms only when the current transform still shows graph content')
+  if (!runtimeText.includes('const isReusableFlowTransform = (t: d3.ZoomTransform | null | undefined): boolean => {')
+    || !runtimeText.includes('if (isFlowEditor) return true')
+    || !runtimeText.includes('return isFlowTransformShowingGraph(')) {
+    throw new Error('expected Flow Editor zoom seeding to accept finite offscreen transforms while keeping viewport visibility guards scoped to non-infinite renderers')
   }
-  if (!runtimeTextIncludesAll('const initialTransform = initial ? d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k) : null', 'const initialTransformUsable = isUsableFlowTransform(initialTransform)')) {
-    throw new Error('expected Flow runtime zoom seeding to reject stale offscreen initial transforms in Flow Editor mode')
+  if (!runtimeTextIncludesAll('const initialTransform = initial ? d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k) : null', 'const initialTransformUsable = isReusableFlowTransform(initialTransform)')) {
+    throw new Error('expected Flow runtime zoom seeding to preserve finite initial transforms in Flow Editor infinite-canvas mode')
   }
   if (!runtimeText.includes('const shouldUseInitialTransform = workspaceEditorOverlayOpen !== true && initialTransformUsable && !!initialTransform')) {
     throw new Error('expected Flow runtime to disable stale stored initial transform reuse while Workspace overlay is open')
@@ -569,8 +554,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeTextIncludesAll('workspaceEditorOverlayOpen !== true', 'Date.now() - lastUserInteractionAtMsRef.current < 500')) {
     throw new Error('expected Flow runtime to bypass recent-interaction init-fit suppression while Workspace overlay is open')
   }
-  if (!runtimeTextIncludesAll('alreadyInitializedForKey', 'workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'Workspace-open recovery owns stale/offscreen correction from live overlay')) {
-    throw new Error('expected Flow runtime workspace-open init-fit guard to preserve existing non-identity transforms and delegate stale correction to recovery')
+  if (!runtimeTextIncludesAll('alreadyInitializedForKey', 'workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'Workspace-open recovery owns stale/offscreen correction from live overlay') && !runtimeTextIncludesAll('workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'return')) {
+    throw new Error('expected Flow runtime workspace-open init-fit guard to preserve existing non-identity transforms')
   }
   if (!runtimeTextIncludesAll('const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []', 'const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0')) {
     throw new Error('expected Flow runtime init fit strategy to detect collective Flow Editor widget overlays before selecting centered-fit mode')
@@ -584,17 +569,11 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('y: fit.y + (useD3StyleInitFit ? 0 : visibleViewportFit.top),')) {
     throw new Error('expected Flow Editor fit seed to avoid y viewport offset when Workspace overlay D3-style init fit is active')
   }
-  if (!runtimeText.includes('const lastOffscreenOverlayRecoveryKeyRef = React.useRef<string | null>(null)')) {
-    throw new Error('expected Flow runtime to track one-shot offscreen recovery while Workspace overlay is open')
-  }
   if (!runtimeText.includes('const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))')) {
     throw new Error('expected Flow runtime to subscribe to shared Workspace overlay-open SSOT for deterministic open/close recovery passes')
   }
   if (!runtimeText.includes('const graphVisible = isFlowTransformShowingGraph(')) {
-    throw new Error('expected Flow runtime to detect stale offscreen transforms before enforcing overlay recovery fit')
-  }
-  if (!runtimeText.includes('const buildSceneViewportRecoverySignature = React.useCallback((scene: FlowNativeRuntime[\'scene\'] | null): string => {')) {
-    throw new Error('expected Flow runtime offscreen recovery to derive a semantic scene viewport signature from live scene coordinates')
+    throw new Error('expected Flow runtime to keep graph visibility as a read-only signal for preservation decisions')
   }
   if (!runtimeText.includes('const remapTransformToVisibleViewport = React.useCallback(')) {
     throw new Error('expected Flow runtime to normalize transform visibility checks into visible-viewport-local coordinates')
@@ -609,31 +588,28 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Flow runtime transform normalization to offset y by visible viewport top before visibility checks')
   }
   if (!runtimeText.includes("import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'")) {
-    throw new Error('expected Flow runtime offscreen recovery to reuse shared Flow Editor interaction-frame event contract')
+    throw new Error('expected Flow runtime infinite-canvas preservation to reuse shared Flow Editor interaction-frame event contract')
   }
   if (!runtimeText.includes("import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'")) {
-    throw new Error('expected Flow runtime offscreen recovery to reuse shared balanced-spread strip/cluster detectors')
+    throw new Error('expected Flow runtime infinite-canvas preservation to reuse shared balanced-spread strip/cluster detectors')
   }
   if (!runtimeText.includes('const [workspaceOverlayInteractionFrameTick, setWorkspaceOverlayInteractionFrameTick] = React.useState(0)')) {
-    throw new Error('expected Flow runtime offscreen recovery to track interaction-frame ticks while Workspace overlay is open')
+    throw new Error('expected Flow runtime infinite-canvas preservation to track interaction-frame ticks while Workspace overlay is open')
   }
   if (!runtimeText.includes('window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame)')) {
-    throw new Error('expected Flow runtime offscreen recovery to subscribe to live Flow Editor interaction frames')
+    throw new Error('expected Flow runtime infinite-canvas preservation to subscribe to live Flow Editor interaction frames')
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen !== true &&')) {
     throw new Error('expected Flow runtime init preserve-current-transform guard to disable stale transform reuse while Workspace overlay is open')
   }
   if (!runtimeText.includes('const normalizedCurrent = remapTransformToVisibleViewport(')) {
-    throw new Error('expected Flow runtime offscreen recovery visibility checks to evaluate normalized current transform within visible viewport coordinates')
+    throw new Error('expected Flow runtime preservation visibility checks to evaluate normalized current transform within visible viewport coordinates')
   }
   if (!runtimeText.includes('const graphBalanced = isFlowTransformBalancedCollective({')) {
-    throw new Error('expected Flow runtime offscreen recovery to detect visible-but-unbalanced collective layouts before skipping refit')
+    throw new Error('expected Flow runtime preservation to detect visible collective balance without refitting')
   }
-  if (!runtimeText.includes('const transformDriftedFromFit =')) {
-    throw new Error('expected Flow runtime offscreen recovery to detect visible-but-drifted transforms relative to current viewport fit')
-  }
-  if (!runtimeTextIncludesAll('workspaceOverlayStabilizedRef.current && !transformDriftedFromFit', '(collectiveBalanced || collectiveCentered) && !transformDriftedFromFit')) {
-    throw new Error('expected Flow runtime offscreen recovery to force refit when transform drifts from viewport fit even if graph remains visible')
+  if (runtimeText.includes('const transformDriftedFromFit =') || runtimeText.includes('drifted-from-fit')) {
+    throw new Error('expected Flow runtime infinite-canvas mode to remove viewport-fit drift recovery that caused bounce-back')
   }
   if (!runtimeText.includes('const shouldIgnorePersistedWorldPosForWorkspaceOverlay = React.useMemo(() => {')) {
     throw new Error('expected Flow runtime fit path to guard against stale persisted world positions while Workspace overlay is open')
@@ -644,35 +620,17 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('worldPosById: fitWorldPosById,') && !runtimeText.includes('worldPosByNodeId: fitWorldPosById,')) {
     throw new Error('expected Flow runtime fit path to route overlay-open fit through sanitized world positions')
   }
-  if (!runtimeText.includes('const allowOverlayCentroidRecovery = !overlayOpen && ((!scene || scene.nodes.length === 0) || overlayCollectiveNeedsRecovery)')) {
-    throw new Error('expected overlay centroid recovery to stay disabled while Workspace overlay is open and only run during pre-scene bootstrap without overlay')
-  }
-  if (!runtimeText.includes('if (!overlayOpen) {\n      lastOffscreenOverlayRecoveryKeyRef.current = null\n      return\n    }')) {
-    throw new Error('expected Flow runtime to clear stale offscreen recovery latches when Workspace overlay closes')
-  }
-  if (!runtimeText.includes('const sceneViewportSignature = buildSceneViewportRecoverySignature(scene)')) {
-    throw new Error('expected Flow runtime offscreen recovery key to include live scene viewport signature')
-  }
-  if (!runtimeText.includes('const currentTransformSignature = `${Math.round(current.x)}:${Math.round(current.y)}:${Math.round(current.k * 1000)}`')) {
-    throw new Error('expected Flow runtime offscreen recovery key to include live transform signature so stale transform re-applies cannot block corrective refits')
-  }
-  if (!runtimeText.includes('const recoveryKey = `${graphKey}:${fitW}:${fitH}:${Math.round(visibleViewport.left)}:${Math.round(visibleViewport.top)}:${sceneViewportSignature}:${currentTransformSignature}`')) {
-    throw new Error('expected Flow runtime offscreen recovery key to avoid coarse graph-only keying and include current transform signature')
+  if (runtimeText.includes('allowOverlayCentroidRecovery') || runtimeText.includes('buildSceneViewportRecoverySignature') || runtimeText.includes('const recoveryKey =')) {
+    throw new Error('expected Flow runtime infinite-canvas preservation to remove automatic offscreen recovery keys and centroid refits')
   }
   if (!runtimeText.includes('workspaceOverlayInteractionFrameTick,')) {
-    throw new Error('expected Flow runtime offscreen recovery effect dependencies to rerun on live interaction frames while Workspace overlay is open')
+    throw new Error('expected Flow runtime preservation effect dependencies to rerun on live interaction frames while Workspace overlay is open')
   }
-  if (!runtimeText.includes('const interactionInProgress = interactionRecentMs < 520')) {
-    throw new Error('expected Flow runtime offscreen recovery to derive a shared recent-interaction guard before applying corrective fit')
+  if (runtimeText.includes('if (interactionInProgress || flowWidgetDragging) return')) {
+    throw new Error('expected Flow runtime infinite-canvas preservation to remove delayed corrective-fit writes after interaction settles')
   }
-  if (!runtimeText.includes('const flowWidgetDraggingNodeId = String(useGraphStore.getState().flowWidgetDraggingNodeId || \'\').trim()')) {
-    throw new Error('expected Flow runtime offscreen recovery to detect active Flow widget drag state via shared store SSOT')
-  }
-  if (!runtimeText.includes('if (interactionInProgress || flowWidgetDragging) return')) {
-    throw new Error('expected Flow runtime offscreen recovery to defer corrective fit while user pan/zoom/drag interaction is active, including workspace-open mode')
-  }
-  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && !transformDriftedFromFit) {')) {
-    throw new Error('expected Flow runtime workspace-open recovery to preserve only already-balanced visible transforms')
+  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {')) {
+    throw new Error('expected Flow runtime workspace-open preservation to keep balanced visible transforms without viewport-fit drift gating')
   }
   if (!runtimeText.includes('const workspaceOverlayStabilizedRef = React.useRef(false)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track stabilized transform authority after THEN-layout convergence')
@@ -745,18 +703,15 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (prev != null && prev !== zoomViewKey) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
   }
-  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current !== zoomViewKey', 'lastInitTransformZoomViewKeyRef.current = null', 'lastOffscreenOverlayRecoveryKeyRef.current = null')) {
+  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current !== zoomViewKey', 'lastInitTransformZoomViewKeyRef.current = null')
+    || runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = null')) {
     throw new Error('expected Flow runtime workspace reopen edge to reset only stale zoom-key memoization while preserving the current initialized transform')
   }
   if (!runtimeTextIncludesAll('if (!open) {', 'Keep the initialized Flow Editor transform through close') || runtimeText.includes('Drop init/recovery memoization on close')) {
     throw new Error('expected Flow runtime workspace close edge to preserve initialized transform authority until the next reopen owns the reset')
   }
-  if (!runtimeText.includes('const currentTransformUsable = isUsableFlowTransform(current)')) {
-    throw new Error('expected Flow runtime init guard to compute current transform usability before preserving already-initialized state')
-  }
-  if (!runtimeText.includes('const initOverlayCollectiveState = isFlowEditor')
-    || !runtimeText.includes('&& (initOverlayCollectiveState.visible !== true || initOverlayCollectiveState.offscreen === true)')) {
-    throw new Error('expected Flow runtime init guard to reject workspace-open current transforms whenever the live Flow Editor overlay collective is still offscreen')
+  if (runtimeText.includes('const currentTransformUsable =') || runtimeText.includes('const initOverlayCollectiveState = isFlowEditor')) {
+    throw new Error('expected Flow runtime init guard to stop rejecting current transforms because the overlay collective is offscreen')
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen !== true && hasNonIdentityTransform')) {
     throw new Error('expected Flow runtime non-workspace init-preserve guard to preserve initialized non-identity transforms without close-edge refits')
@@ -767,14 +722,13 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
     || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')
     || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current')
-    || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && !transformDriftedFromFit')) {
+    || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)')) {
     throw new Error('expected Flow runtime workspace-open preserve-current guards to require full live overlay collective coverage before stabilizing a centered frontmatter landing')
   }
   if (!runtimeText.includes('const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []')
     || !runtimeText.includes('const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0')
-    || !runtimeText.includes('const recoveryCollectiveOverlayFitIds = deriveExpectedOverlayCollectiveIds(recoveryGraphData)')
-    || !runtimeText.includes('workspaceEditorOverlayOpen === true && recoveryCollectiveOverlayFitIds.length > 0')) {
-    throw new Error('expected Flow runtime workspace-open init and recovery fits to use canonical frontmatter collective ids instead of transient live open-widget subsets')
+    || runtimeText.includes('const recoveryCollectiveOverlayFitIds = deriveExpectedOverlayCollectiveIds(recoveryGraphData)')) {
+    throw new Error('expected Flow runtime workspace-open init fits to use canonical frontmatter collective ids and remove automatic recovery fits')
   }
   if (!runtimeText.includes('workspace-open-stabilized-preserve-current')) {
     throw new Error('expected Flow runtime workspace-open recovery to preserve stabilized transform and forbid late fly-off refits')
@@ -794,34 +748,28 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || !runtimeText.includes('const collectiveCentered = overlayCollectiveState?.centered ?? graphCentered')) {
     throw new Error('expected Flow runtime workspace-open recovery to prefer overlay collective visibility/centering over raw scene-node visibility when overlays exist')
   }
-  if (!runtimeText.includes('const recoveryCanUseCollectiveOverlayFit =')
-    || !runtimeText.includes("String(recoveryGraphMeta.kind || '').trim() === 'frontmatter-flow'")
-    || !runtimeText.includes("recoveryGraphContext === 'frontmatter-flow'")
-    || !runtimeText.includes('&& !recoveryCanUseCollectiveOverlayFit')) {
-    throw new Error('expected Flow runtime workspace-open recovery fit to keep frontmatter-flow on the collective overlay fit path instead of forcing D3 graph-only recovery')
-  }
   if (!runtimeText.includes('overlayCollectiveState?.offscreen === true')) {
-    throw new Error('expected Flow runtime non-workspace recovery to re-center far-right offscreen overlay collectives even when the native scene is already built')
+    throw new Error('expected Flow runtime to keep offscreen overlay state as telemetry while preserving infinite-canvas transforms')
   }
   if (!runtimeText.includes("const userInteractionAfterWorkspaceOpen =")
-    || !runtimeText.includes("workspace-open-user-controlled-preserve-current")) {
+    || !runtimeText.includes("workspace-open-user-controlled-preserve-current")
+    || !runtimeText.includes("workspace-open-user-controlled-infinite-canvas-preserve-current")) {
     throw new Error('expected Flow runtime workspace-open recovery to preserve user-controlled transforms after zoom/pan to avoid fly-off refits')
+  }
+  if (!runtimeText.includes('if (workspaceEditorOverlayOpen && workspaceOverlayUserControlledRef.current) {')
+    || runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && workspaceOverlayUserControlledRef.current) {')) {
+    throw new Error('expected Flow runtime workspace-open user-controlled preserve guard to allow offscreen infinite-canvas panning without bounce-back')
   }
   if (!runtimeText.includes('const pointerInteractionAfterWorkspaceOpen =')
     || !runtimeText.includes("(lastPointerInCanvasRef.current?.ts || 0) > workspaceOverlayOpenedAtMsRef.current + 24")
     || !runtimeText.includes('&& pointerInteractionAfterWorkspaceOpen')) {
     throw new Error('expected Flow runtime workspace-open preserve-current guard to require recent canvas-pointer activity, not just generic interaction timing')
   }
-  if (!runtimeText.includes('const workspaceOverlayOffscreenSinceMsRef = React.useRef(0)')) {
-    throw new Error('expected Flow runtime workspace-open recovery to track continuous offscreen duration for debounce-safe refits')
-  }
-  if (!runtimeText.includes('const workspaceOffscreenDebounced =')
-    || !runtimeText.includes('workspace-open-offscreen-debounce-pending')) {
-    throw new Error('expected Flow runtime workspace-open offscreen recovery to debounce transient visibility misses before corrective refit')
-  }
-  if (!runtimeText.includes('const shouldBypassWorkspaceOffscreenDebounce = overlayCollectiveState?.offscreen === true')
-    || !runtimeText.includes('|| shouldBypassWorkspaceOffscreenDebounce')) {
-    throw new Error('expected Flow runtime workspace-open offscreen recovery to bypass debounce for explicit fully-offscreen overlay collectives')
+  if (runtimeText.includes('workspaceOverlayOffscreenSinceMsRef')
+    || runtimeText.includes('const workspaceOffscreenDebounced =')
+    || runtimeText.includes('workspace-open-offscreen-debounce-pending')
+    || runtimeText.includes('const shouldBypassWorkspaceOffscreenDebounce =')) {
+    throw new Error('expected Flow runtime workspace-open infinite canvas to remove offscreen debounce/recovery refits')
   }
   if (!runtimeText.includes('workspace-open-viewport-settle-pending')) {
     throw new Error('expected Flow runtime workspace-open recovery to expose deterministic viewport-settle pending reason while pane geometry stabilizes')
@@ -837,7 +785,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!computedPositionsText.includes('const graphKey = `graph:${semanticGraphKey}:')) {
     throw new Error('expected Flow computed positions graph key to be based on semantic graph identity')
   }
-  const flowCommitGuardIndex = commitText.indexOf('const allowLayoutCommit = !workspaceMutationBlocked || allowLayoutCommitWhenWorkspaceBlocked === true')
+  const flowCommitGuardIndex = commitText.indexOf('shouldCommitFlowLayoutPositions({')
   const flowCommitWriteIndex = commitText.indexOf('if (changed) setLayoutPositionsForMode(cacheKey, nextPositions)')
   if (flowCommitGuardIndex < 0 || flowCommitWriteIndex < 0 || flowCommitGuardIndex > flowCommitWriteIndex) {
     throw new Error('expected Flow request commit to gate layout persistence through an explicit workspace-guard override contract')
@@ -882,7 +830,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
     throw new Error('expected Rich Media layout loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
   }
-  if (!text.includes('const overlayInteractionEnabled = flowEditorOverlayInteractionMode && !workspaceOverlayOpen')) {
+  if (!text.includes("const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Rich Media overlay drag/pan interactions to use the renderer-level Flow Editor/Flow Canvas gate')
+  }
+  if (!text.includes('const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen')) {
     throw new Error('expected Rich Media overlay interactions to disable while workspace overlay is open so collective canvas gestures stay available')
   }
   if (!text.includes("const overlayPanelPointerEventsClass = workspaceOverlayOpen ? 'pointer-events-none' : 'pointer-events-auto'")) {
@@ -902,7 +853,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (workspaceOpenCancelIndex < 0 || schedulerCancelIndex < 0) {
     throw new Error('expected workspace overlay open transition to cancel queued Rich Media overlay writes before they can flush after close')
   }
-  const richMediaRuntimeGuardIndex = text.indexOf('if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return')
+  const richMediaRuntimeGuardIndex = text.indexOf('if (!mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return')
   const richMediaDirtyWriteIndex = text.indexOf('positionsDirtySinceCommitRef.current = true')
   if (richMediaRuntimeGuardIndex < 0 || richMediaDirtyWriteIndex < 0 || richMediaRuntimeGuardIndex > richMediaDirtyWriteIndex) {
     throw new Error('expected Rich Media overlay runtime position writes to be blocked while workspace overlay is open')

@@ -65,6 +65,7 @@ export type MarkdownTokenRendererProps = {
   onInlineDraftTextChange?: (nextText: string) => void
   deferMermaidRender?: boolean
   markdownLargeDocumentMode?: boolean
+  markdownCardPreviewMode?: boolean
 }
 
 const CODEBLOCK_BOX_DRAWING_RE = /[┌┐└┘┬┴┼│─╔╗╚╝╦╩╬║═]/
@@ -128,12 +129,14 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     onInlineDraftTextChange,
     deferMermaidRender,
     markdownLargeDocumentMode,
+    markdownCardPreviewMode,
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
   const topLevelBlock = nestingLevel <= 0
-  const blockControlsEnabled = topLevelBlock
-  const blockChromeEnabled = topLevelBlock && !markdownLargeDocumentMode
+  const cardPreviewMode = markdownCardPreviewMode === true
+  const blockControlsEnabled = topLevelBlock && !cardPreviewMode
+  const blockChromeEnabled = topLevelBlock && !markdownLargeDocumentMode && !cardPreviewMode
   const standaloneMediaRenderLineSet = React.useMemo(() => buildStandaloneMediaRenderLineSetFromTokens({
     markdownLargeDocumentMode: !!markdownLargeDocumentMode,
     tokens,
@@ -176,6 +179,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       geoDatasetIntegration,
       markdownBlockControlsEnabled: blockControlsEnabled,
       markdownBlockGutterEnabled: blockChromeEnabled,
+      markdownCardPreviewMode: cardPreviewMode,
       markdownForcePlainTables: !!markdownForcePlainTables,
       markdownSourceLines,
       standaloneMediaRenderLineSet,
@@ -189,6 +193,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       activeDocumentPath,
       blockChromeEnabled,
       blockControlsEnabled,
+      cardPreviewMode,
       codeAnnotations,
       collapsedIds,
       geoDatasetIntegration,

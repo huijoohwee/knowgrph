@@ -13,11 +13,11 @@ export function testFlowEditorRichMediaOverlayResizePersistsVisualSize() {
   if (!text.includes('graphData')) {
     throw new Error('expected FlowCanvas rich media overlay resize to merge from store graphData (avoid overwriting required props)')
   }
-  if (!text.includes('isFlowEditorFrontmatterDocumentInteractionMode')) {
-    throw new Error('expected FlowCanvas rich media overlay resize to be hard-gated by frontmatter document interaction mode')
+  if (!text.includes('!flowEditorFrontmatterDocumentModeRequested || workspaceOverlayOpenRef.current')) {
+    throw new Error('expected FlowCanvas rich media overlay resize to be hard-gated by frontmatter document mode and workspace-open state')
   }
-  if (!text.includes('const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected FlowCanvas rich media overlay resize-handle visibility to be mode-gated without selection-state coupling')
+  if (!text.includes('flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested && !workspaceOverlayOpen')) {
+    throw new Error('expected FlowCanvas rich media overlay resize-handle visibility to stay mode/workspace gated without selection-state coupling')
   }
   if (!text.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas rich media overlay resize to reuse shared frontmatter-document mode request gate SSOT')

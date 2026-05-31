@@ -154,14 +154,14 @@ export function testFlowCanvasDebugStatusResetClearsStickyRecoveryToast() {
   const priorState = useGraphStore.getState()
   try {
     useGraphStore.setState({ uiToasts: [] })
-    __flowCanvasDebug.lastRecoveryReason = 'workspace-open-offscreen-debounce-pending'
+    __flowCanvasDebug.lastRecoveryReason = 'workspace-open-offscreen-infinite-canvas-preserve-current'
     __flowCanvasDebug.lastRuntimeTransform = '10,20,1'
     __flowCanvasDebug.lastExpectedFit = '30,40,1'
 
     syncFlowCanvasDebugToast({ enabled: true })
     const beforeReset = useGraphStore.getState().uiToasts
-    if (!beforeReset.some(toast => String(toast?.message || '').includes('workspace-open-offscreen-debounce-pending'))) {
-      throw new Error('expected flow canvas debug toast to surface the sticky recovery reason before reset')
+    if (!beforeReset.some(toast => String(toast?.message || '').includes('workspace-open-offscreen-infinite-canvas-preserve-current'))) {
+      throw new Error('expected flow canvas debug toast to surface the sticky infinite-canvas preservation reason before reset')
     }
 
     resetFlowCanvasDebugStatus({ dismissToast: true })

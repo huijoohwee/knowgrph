@@ -570,16 +570,23 @@ export function SourceFilesPersistenceBootstrap() {
       explorerActivePath: args?.activePathSnapshot == null ? useMarkdownExplorerStore.getState().activePath : null,
     })
     if (!activePath) return null
+    const store = useGraphStore.getState()
+    const workspaceEntriesSnapshot = args?.workspaceEntriesSnapshot === undefined
+      ? reusableWorkspaceEntriesRef.current
+      : args.workspaceEntriesSnapshot
     const activePathKey = buildMaterializedWorkspaceActivePathKey({
       activePathOverride: activePath,
+      workspaceEntriesSnapshot,
+      markdownDocumentName: store.markdownDocumentName,
+      markdownDocumentText: store.markdownDocumentText,
+      markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
+      graphDataSource: typeof store.graphData?.metadata?.source === 'string' ? store.graphData.metadata.source : '',
     })
     return {
       activePath,
       activePathKey,
       sourceFilesSnapshot: readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot),
-      workspaceEntriesSnapshot: args?.workspaceEntriesSnapshot === undefined
-        ? reusableWorkspaceEntriesRef.current
-        : args.workspaceEntriesSnapshot,
+      workspaceEntriesSnapshot,
     }
   }, [readCallerOwnedSourceFilesSnapshot])
 

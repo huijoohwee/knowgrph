@@ -37,6 +37,11 @@ import {
   getMiroMindMcpApiRowAnchorId,
 } from './miromindMcpApiDocs'
 import {
+  KNOWGRPH_VDEOXPLN_DOC_AREA,
+  KNOWGRPH_VDEOXPLN_DOC_ENTRIES,
+  getKnowgrphVdeoxplnRowAnchorId,
+} from './vdeoxplnMcpApiDocs'
+import {
   buildDocMappedEntry,
   isMcpOwnedSetting,
   normalizeSettingsAreaLabel,
@@ -52,6 +57,7 @@ export function buildMcpDocEntries(
     ...STRIPE_MCP_DOC_ENTRIES,
     ...PIXVERSE_MCP_DOC_ENTRIES,
     ...MIROMIND_MCP_DOC_ENTRIES,
+    ...KNOWGRPH_VDEOXPLN_DOC_ENTRIES,
     ...mapsAndMcpDocEntries.filter(entry => isMcpOwnedSetting(entry.meta.key, entry.details.area)),
     ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
   ]
@@ -73,6 +79,8 @@ export function buildMcpVirtualEntry(
         ? getPixVerseMcpApiRowAnchorId(entry.meta.key)
       : area === MIROMIND_MCP_DOC_AREA
         ? getMiroMindMcpApiRowAnchorId(entry.meta.key)
+      : area === KNOWGRPH_VDEOXPLN_DOC_AREA
+        ? getKnowgrphVdeoxplnRowAnchorId(entry.meta.key)
         : getGrabMapsMcpApiRowAnchorId(entry.meta.key)
   const mappedEntry = buildDocMappedEntry(entry, values, anchorId)
   const configJson =

@@ -17,7 +17,7 @@ import { Copy, Eraser, ExternalLink, GitMerge, HelpCircle, Images, Link, PanelRi
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import { unwrapUserProvidedText } from '@/lib/url'
 
-export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEditorActionsToolbar(args: {
+export type NodeOverlayEditorActionsToolbarProps = {
   visible: boolean
   iconSizeClass: string
   iconStrokeWidth: number
@@ -74,7 +74,9 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   onEnableHandlesForAllInputs: () => void
   onConvertToLoopNode: () => void
   onUpdateKvEntry?: () => void
-}) {
+}
+
+export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEditorActionsToolbar(args: NodeOverlayEditorActionsToolbarProps) {
   const {
     visible,
     iconSizeClass,

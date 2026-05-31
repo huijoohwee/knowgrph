@@ -530,27 +530,29 @@ export function testRichMediaPanelPanDragUsesFlowCanvasRafLatestScheduler() {
   }
 }
 
-export function testFlowCanvasRichMediaOverlayDragHandlersAreFlowEditorScoped() {
+export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const mediaOverlaysPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const text = `${readFileSync(flowCanvasPath, 'utf8')}\n${readFileSync(mediaOverlaysPath, 'utf8')}`
   const requiredSnippets = [
     'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
-    "onOverlayPanStart={flowEditorOverlayInteractionMode ?",
-    "onOverlayPan={flowEditorOverlayInteractionMode ?",
-    "onOverlayPanEnd={flowEditorOverlayInteractionMode ?",
-    "onHeaderDragStart={flowEditorOverlayInteractionMode ?",
-    "onHeaderDrag={flowEditorOverlayInteractionMode ?",
-    "onHeaderDragEnd={flowEditorOverlayInteractionMode ?",
-    'const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested',
+    "const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'",
+    'const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen',
+    'onOverlayPanStart={overlayInteractionEnabled ?',
+    'onOverlayPan={overlayInteractionEnabled ?',
+    'onOverlayPanEnd={overlayInteractionEnabled ?',
+    'onHeaderDragStart={overlayInteractionEnabled ?',
+    'onHeaderDrag={overlayInteractionEnabled ?',
+    'onHeaderDragEnd={overlayInteractionEnabled ?',
+    'flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested && !workspaceOverlayOpen',
     'onResizeStart={resizeInteractionActive ?',
     'onResize={resizeInteractionActive ?',
     'onResizeEnd={resizeInteractionActive ?',
-    "if (canvas2dRenderer === 'flowEditor') return",
+    "if (canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas') return",
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {
-      throw new Error(`expected FlowCanvas Rich Media drag/pan Flow Editor guard snippet: ${snippet}`)
+      throw new Error(`expected FlowCanvas Rich Media drag/pan renderer guard snippet: ${snippet}`)
     }
   }
   if (text.includes('isFlowEditorFrontmatterInteractionMode')) {

@@ -181,7 +181,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               />
               <div
                 ref={mainPanelCardRef}
-                className="absolute left-2 right-2 top-[calc(var(--kg-safe-top)+0.5rem)] bottom-[calc(var(--kg-safe-bottom)+0.5rem)] pointer-events-auto"
+                className="absolute left-2 right-2 top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] bottom-[calc(var(--kg-safe-bottom)+var(--kg-canvas-viewport-edge-gap))] pointer-events-auto"
               >
                 <React.Suspense fallback={null}>
                   <MainPanelLazy

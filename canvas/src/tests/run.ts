@@ -586,6 +586,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.sourceFiles.ingest.dedupesPendingSameText',
       modSourceFilesIngestStaleGuard.testSourceFilesIngestDedupesPendingParsesForSameTextHash,
     )
+    await execTest(
+      results,
+      'workspace.selection.switch.passiveSameTextKeepsFrontmatterPreset',
+      modSourceFilesIngestStaleGuard.testPassiveSameTextSourceSyncDoesNotDisableActiveFrontmatterSwitchPreset,
+    )
     const modLazyLoadingGates = await import('../__tests__/lazyLoadingGatesRegression.test')
     await execTest(
       results,

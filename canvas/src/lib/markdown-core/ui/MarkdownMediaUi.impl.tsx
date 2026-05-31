@@ -9,6 +9,7 @@ import { buildYouTubeThumbnailPreviewDescriptor, getYouTubeId } from 'grph-share
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { getWebpageFallbackInfo } from 'grph-shared/rich-media/webpageFallback'
 import { applyImageLikeProxySrc } from '@/lib/url'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildWebpageLayoutCacheKey, getMarkdownWebpageSnapshotPreset } from '@/lib/websites/webpageLayoutPresets'
@@ -110,39 +111,54 @@ export const MediaIframe = React.memo(function MediaIframe({
       style={containerStyle}
     >
       {loaded ? (
-        <SharedWebpageSurface
-          renderMode="iframe"
-          webpageUrl={rawSrc}
-          title={title}
-          iframeSrc={embed.iframeSrc}
-          iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          iframeAllowFullScreen
-          iframeSandbox={embed.sandbox}
-          iframeReferrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
-          iframeLoading="lazy"
-          className={['w-full h-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
-          style={style}
-          iframeRenderer={frameProps => (
-            <iframe
-              src={embed.iframeSrc}
-              title={frameProps.title}
-              allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              sandbox={embed.sandbox}
-              referrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
-              loading="lazy"
-              className={frameProps.className}
-              style={frameProps.style}
-              onError={() => {
-                if (!forceProxy && /^https?:\/\//i.test(rawSrc)) {
-                  setForceProxy(true)
-                  return
-                }
-                setError(true)
-              }}
-            />
-          )}
-        />
+        embed.direct ? (
+          <CardMediaPreview
+            kind="iframe"
+            url={rawSrc}
+            title={title}
+            interactive={preferEmbed || embedMode === 'direct'}
+            fit="contain"
+            mediaThumbnailDataAttr
+            mediaClassName={['w-full h-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+            mediaStyle={style}
+            iframeEmbedMode={embedMode === 'direct' ? 'direct' : forceProxy ? 'proxy' : 'auto'}
+            iframeScriptPolicy={scriptPolicy || ((preferEmbed || forceProxy) ? 'allow' : undefined)}
+          />
+        ) : (
+          <SharedWebpageSurface
+            renderMode="iframe"
+            webpageUrl={rawSrc}
+            title={title}
+            iframeSrc={embed.iframeSrc}
+            iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            iframeAllowFullScreen
+            iframeSandbox={embed.sandbox}
+            iframeReferrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
+            iframeLoading="lazy"
+            className={['w-full h-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+            style={style}
+            iframeRenderer={frameProps => (
+              <iframe
+                src={embed.iframeSrc}
+                title={frameProps.title}
+                allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                sandbox={embed.sandbox}
+                referrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
+                loading="lazy"
+                className={frameProps.className}
+                style={frameProps.style}
+                onError={() => {
+                  if (!forceProxy && /^https?:\/\//i.test(rawSrc)) {
+                    setForceProxy(true)
+                    return
+                  }
+                  setError(true)
+                }}
+              />
+            )}
+          />
+        )
       ) : (
         <div className={`w-full h-full ${mediaFrameClassName} bg-black/5 flex items-center justify-center`}>
           <div className="flex items-center gap-2">
@@ -380,7 +396,6 @@ export const MediaVideo = ({
   autoPlay,
   muted,
   loop,
-  playsInline,
   controls,
   className,
   style,
@@ -404,16 +419,20 @@ export const MediaVideo = ({
   }
   const showControls = controls === true ? true : autoPlay || loop ? false : true
   return (
-    <video
-      controls={showControls}
-      className={['w-full max-w-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
-      style={style}
-      src={activeSrc}
-      poster={poster || undefined}
-      autoPlay={autoPlay || undefined}
-      muted={muted || undefined}
-      loop={loop || undefined}
-      playsInline={playsInline || undefined}
+    <CardMediaPreview
+      kind="video"
+      url={activeSrc}
+      title="Video"
+      interactive={showControls}
+      fit="contain"
+      videoControls={showControls}
+      videoMuted={muted}
+      videoAutoPlay={autoPlay}
+      videoLoop={loop}
+      videoPoster={poster}
+      mediaThumbnailDataAttr
+      mediaClassName={['w-full max-w-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
+      mediaStyle={style}
       onError={() => {
         if (!useFallback && primarySrc !== src) {
           setUseFallback(true)
@@ -509,15 +528,17 @@ export const MediaImage = ({
   if (!normalizedSrc || error) {
     return <MediaErrorPlaceholder alt={alt} />
   }
+  const kind = /^data:image\/svg\+xml/i.test(normalizedSrc) || /\.svg(?:[?#]|$)/i.test(normalizedSrc) ? 'svg' : 'image'
   return (
-    <img
-      src={activeSrc}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      style={Object.keys(style).length ? style : undefined}
-      className={['block mx-auto max-w-full h-auto', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
-      data-kg-media-thumbnail="1"
+    <CardMediaPreview
+      kind={kind}
+      url={activeSrc}
+      title={alt}
+      interactive={false}
+      fit="contain"
+      mediaThumbnailDataAttr
+      mediaStyle={Object.keys(style).length ? style : undefined}
+      mediaClassName={['block mx-auto max-w-full h-auto', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
       onError={() => {
         if (!useFallback && primarySrc !== src) {
           setUseFallback(true)

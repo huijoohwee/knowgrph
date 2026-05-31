@@ -1,6 +1,34 @@
 import { decodeCodebasePathFromUrl } from '@/lib/url'
 
 const isHttpUrl = (v: string): boolean => /^https?:\/\//i.test(String(v || '').trim())
+const isDataUrl = (v: string): boolean => /^data:/i.test(String(v || '').trim())
+
+const normalizeMime = (raw: string): string => {
+  const value = String(raw || '').trim().split(';')[0]?.trim().toLowerCase() || ''
+  if (!value || !/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i.test(value)) return ''
+  return value
+}
+
+const inferMimeFromUrl = (rawUrl: string): string => {
+  const raw = String(rawUrl || '').trim()
+  if (!raw) return 'application/octet-stream'
+  try {
+    const url = /^https?:\/\//i.test(raw) ? new URL(raw) : new URL(raw, 'http://x.local')
+    return inferMimeFromPath(url.pathname || raw)
+  } catch {
+    return inferMimeFromPath(raw)
+  }
+}
+
+const readWindowHttpOrigin = (): string => {
+  try {
+    if (typeof window === 'undefined' || !window.location) return ''
+    const origin = String(window.location.origin || '').replace(/\/+$/, '')
+    return /^https?:\/\//i.test(origin) ? origin : ''
+  } catch {
+    return ''
+  }
+}
 
 export const unwrapStandaloneProxyUrl = (rawUrl: string): string => {
   const raw = String(rawUrl || '').trim()
@@ -36,6 +64,14 @@ export const unwrapStandaloneProxyUrl = (rawUrl: string): string => {
     if (!q) return raw
     const decoded = decodeQ(q)
     return isHttpUrl(decoded) ? decoded : decoded || raw
+  }
+
+  if (p.startsWith('/__')) {
+    const q = url.searchParams.get('url')
+    if (q) {
+      const decoded = decodeQ(q)
+      if (isHttpUrl(decoded)) return decoded
+    }
   }
 
   if (p.startsWith('/__webpage_asset_path/')) {
@@ -90,12 +126,29 @@ export const toBase64 = (bytes: Uint8Array): string => {
 }
 
 export const fetchBytes = async (url: string): Promise<Uint8Array | null> => {
+  const fetched = await fetchBytesWithMime(url)
+  return fetched?.bytes || null
+}
+
+export const fetchBytesWithMime = async (
+  url: string,
+  args?: { maxBytes?: number },
+): Promise<{ bytes: Uint8Array; mime: string } | null> => {
   try {
     if (typeof fetch !== 'function') return null
     const res = await fetch(url)
     if (!res || !res.ok) return null
+    const maxBytes = typeof args?.maxBytes === 'number' && Number.isFinite(args.maxBytes) ? Math.max(0, Math.floor(args.maxBytes)) : 0
+    if (maxBytes > 0) {
+      const contentLength = Number(res.headers?.get?.('content-length') || 0)
+      if (Number.isFinite(contentLength) && contentLength > maxBytes) return null
+    }
     const ab = await res.arrayBuffer()
-    return new Uint8Array(ab)
+    if (maxBytes > 0 && ab.byteLength > maxBytes) return null
+    return {
+      bytes: new Uint8Array(ab),
+      mime: normalizeMime(String(res.headers?.get?.('content-type') || '')),
+    }
   } catch {
     return null
   }
@@ -126,4 +179,61 @@ export const inlineRepoFileUrlToDataUrl = async (rawUrl: string, args?: { maxByt
   const b64 = toBase64(bytes)
   if (!b64) return null
   return `data:${mime};base64,${b64}`
+}
+
+const buildRemoteFetchCandidates = (rawUrl: string, unwrappedUrl: string): string[] => {
+  const raw = String(rawUrl || '').trim()
+  const unwrapped = String(unwrappedUrl || '').trim()
+  const out: string[] = []
+  const push = (v: string) => {
+    const s = String(v || '').trim()
+    if (!s || out.includes(s)) return
+    out.push(s)
+  }
+
+  if (raw.startsWith('/__fetch_remote?url=')) push(raw)
+  if (raw.startsWith('/__')) {
+    const origin = readWindowHttpOrigin()
+    if (origin) push(`${origin}${raw.startsWith('/') ? '' : '/'}${raw}`)
+    push(raw)
+  }
+  if (/^https?:\/\/[^/]+\/__fetch_remote\?url=/i.test(raw)) push(raw)
+  if (/^https?:\/\/[^/]+\/__/i.test(raw)) push(raw)
+
+  if (isHttpUrl(unwrapped)) {
+    const origin = readWindowHttpOrigin()
+    if (origin) push(`${origin}/__fetch_remote?url=${encodeURIComponent(unwrapped)}`)
+    push(unwrapped)
+  }
+
+  return out
+}
+
+export const inlineStandaloneAssetUrlToDataUrl = async (
+  rawUrl: string,
+  args?: { maxBytes?: number; allowRemote?: boolean; origin?: string },
+): Promise<string | null> => {
+  const raw = String(rawUrl || '').trim()
+  if (!raw) return null
+  if (isDataUrl(raw)) return raw
+
+  const maxBytes = typeof args?.maxBytes === 'number' && Number.isFinite(args.maxBytes) ? Math.max(0, Math.floor(args.maxBytes)) : 900_000
+  const unwrapped = unwrapStandaloneProxyUrl(raw)
+  const repoInlined = await inlineRepoFileUrlToDataUrl(unwrapped, { maxBytes, origin: args?.origin })
+  if (repoInlined) return repoInlined
+
+  if (args?.allowRemote !== true || !isHttpUrl(unwrapped)) return null
+
+  const candidates = buildRemoteFetchCandidates(raw, unwrapped)
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = candidates[i]!
+    const fetched = await fetchBytesWithMime(candidate, { maxBytes })
+    if (!fetched || fetched.bytes.length === 0) continue
+    const mime = normalizeMime(fetched.mime) || inferMimeFromUrl(unwrapped)
+    const b64 = toBase64(fetched.bytes)
+    if (!b64) continue
+    return `data:${mime};base64,${b64}`
+  }
+
+  return null
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, Clapperboard, Film, LocateFixed, Play, RefreshCw } from 'lucide-react'
+import { Check, Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, Wand2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -16,11 +16,25 @@ import { getStrybldrImageFile } from './strybldrImageFileRegistry'
 import { buildStrybldrVideoHandoffFromGraphData, buildStrybldrVideoHandoffMarkdown, mergeStrybldrElementsIntoGraphData } from './strybldrStoryboard'
 import type { StrybldrElement } from './strybldrTypes'
 import { runStrybldrDetrObjectDetection } from './strybldrLocalVision'
+import {
+  createStrytreeContinuationDraftAction,
+  toggleStrytreeLikeAction,
+  unlockStrytreeNodeAction,
+  type StrytreeWorkflowResult,
+} from './strytreeWorkflow'
 
 const readString = (value: unknown): string => String(value ?? '').trim()
 const LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS = 12000
 const LOCAL_ANALYSIS_DETR_BATCH_BYTE_LIMIT = 8 * 1024 * 1024
 const VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS + 60000
+const STRYTREE_PANEL_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'hot', label: 'Hot' },
+  { id: 'active', label: 'Active' },
+  { id: 'protected', label: 'Protected' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'dropped', label: 'Dropped' },
+] as const
 
 const readStrybldrSourceUnitIds = (graphData: ReturnType<typeof useGraphStore.getState>['graphData']): string[] => {
   const out: string[] = []
@@ -57,6 +71,15 @@ const runStrybldrProviderWithTimeout = <T,>(promise: Promise<T>, timeoutMs: numb
   ]).finally(() => {
     if (timer) clearTimeout(timer)
   })
+}
+
+const readBoolean = (value: unknown): boolean => value === true || String(value || '').trim().toLowerCase() === 'true'
+
+const storytreeCardMatchesPanelFilter = (card: ReturnType<typeof buildStoryboardBoardModel>['lanes'][number]['cards'][number], filter: string): boolean => {
+  if (filter === 'all') return true
+  const tags = card.tags.map(tag => tag.toLowerCase())
+  if (filter === 'protected') return tags.includes('protected') || tags.includes('unlock-ready') || tags.includes('unlock-needs-credits')
+  return tags.includes(filter)
 }
 
 export function StrybldrFloatingPanelView() {
@@ -96,6 +119,8 @@ export function StrybldrFloatingPanelView() {
   const [running, setRunning] = React.useState(false)
   const [videoRunning, setVideoRunning] = React.useState(false)
   const [selectedCardId, setSelectedCardId] = React.useState('')
+  const [selectedStorytreeCardId, setSelectedStorytreeCardId] = React.useState('')
+  const [storytreePanelFilter, setStorytreePanelFilter] = React.useState('all')
   const [draft, setDraft] = React.useState({ title: '', summary: '', action: '', prompt: '', order: '' })
   const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision: graphDataRevision }), [graphData, graphDataRevision])
   const sourceUnitIds = React.useMemo(() => readStrybldrSourceUnitIds(graphData), [graphData])
@@ -105,9 +130,17 @@ export function StrybldrFloatingPanelView() {
     const elementCards = cards.filter(card => card.lane === 'Elements')
     return elementCards.length > 0 ? elementCards : cards
   }, [cards])
+  const storytreeCards = React.useMemo(() => cards.filter(card => card.lane === 'Storytree'), [cards])
+  const visibleStorytreeCards = React.useMemo(() => {
+    return storytreeCards.filter(card => storytreeCardMatchesPanelFilter(card, storytreePanelFilter))
+  }, [storytreeCards, storytreePanelFilter])
   const selectedCard = React.useMemo(
     () => editableCards.find(card => card.id === selectedCardId) || editableCards[0] || null,
     [editableCards, selectedCardId],
+  )
+  const selectedStorytreeCard = React.useMemo(
+    () => visibleStorytreeCards.find(card => card.id === selectedStorytreeCardId) || visibleStorytreeCards[0] || storytreeCards[0] || null,
+    [selectedStorytreeCardId, storytreeCards, visibleStorytreeCards],
   )
   const selectedCardSignature = selectedCard
     ? [selectedCard.id, selectedCard.title, selectedCard.summary, selectedCard.action, selectedCard.prompt, String(selectedCard.order)].join('\u0000')
@@ -116,6 +149,10 @@ export function StrybldrFloatingPanelView() {
   React.useEffect(() => {
     if (selectedCard?.id && selectedCard.id !== selectedCardId) setSelectedCardId(selectedCard.id)
   }, [selectedCard?.id, selectedCardId])
+
+  React.useEffect(() => {
+    if (selectedStorytreeCard?.id && selectedStorytreeCard.id !== selectedStorytreeCardId) setSelectedStorytreeCardId(selectedStorytreeCard.id)
+  }, [selectedStorytreeCard?.id, selectedStorytreeCardId])
 
   React.useEffect(() => {
     if (!selectedCard) return
@@ -239,6 +276,38 @@ export function StrybldrFloatingPanelView() {
       message: 'Strybldr card updated.',
     })
   }, [addHistory, draft.action, draft.order, draft.prompt, draft.summary, draft.title, graphData, pushUiToast, selectedCard, updateNode])
+
+  const commitStrytreeResult = React.useCallback((result: StrytreeWorkflowResult, history: string) => {
+    if (result.changed) {
+      setGraphDataPreservingLayout(result.graphData)
+      addHistory(history)
+      if (result.createdNodeId) setSelectedStorytreeCardId(result.createdNodeId)
+    }
+    pushUiToast({
+      id: `strybldr:${history.toLowerCase().replace(/\s+/g, '-')}`,
+      kind: result.kind,
+      message: result.message,
+      dismissible: result.kind !== 'success',
+    })
+  }, [addHistory, pushUiToast, setGraphDataPreservingLayout])
+
+  const likeSelectedStorytreeCard = React.useCallback(() => {
+    if (!graphData || !selectedStorytreeCard) return
+    commitStrytreeResult(toggleStrytreeLikeAction(graphData, selectedStorytreeCard.id), 'Strybldr storytree like')
+  }, [commitStrytreeResult, graphData, selectedStorytreeCard])
+
+  const unlockSelectedStorytreeCard = React.useCallback(() => {
+    if (!graphData || !selectedStorytreeCard) return
+    commitStrytreeResult(unlockStrytreeNodeAction(graphData, selectedStorytreeCard.id), 'Strybldr storytree unlock')
+  }, [commitStrytreeResult, graphData, selectedStorytreeCard])
+
+  const draftSelectedStorytreeContinuation = React.useCallback(() => {
+    if (!graphData || !selectedStorytreeCard) return
+    commitStrytreeResult(
+      createStrytreeContinuationDraftAction(graphData, selectedStorytreeCard.id, { prompt: selectedStorytreeCard.prompt }),
+      'Strybldr storytree continuation',
+    )
+  }, [commitStrytreeResult, graphData, selectedStorytreeCard])
 
   const runVideoHandoff = React.useCallback(async () => {
     if (running || videoRunning) return
@@ -407,6 +476,82 @@ export function StrybldrFloatingPanelView() {
           <div className={cn('py-3 text-xs', UI_THEME_TOKENS.text.secondary)}>No Strybldr graph loaded.</div>
         ) : (
           <div className="space-y-2 py-1">
+            {storytreeCards.length > 0 ? (
+              <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr storytree workflow">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 text-xs font-semibold">Storytree workflow</div>
+                  <span className={cn('rounded px-2 py-0.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary)}>
+                    {visibleStorytreeCards.length}/{storytreeCards.length}
+                  </span>
+                </div>
+                <div className="flex gap-1 overflow-x-auto pb-1" aria-label="Strybldr storytree filters">
+                  {STRYTREE_PANEL_FILTERS.map(filter => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      className={cn(
+                        'inline-flex h-7 shrink-0 items-center justify-center rounded border px-2 text-[11px]',
+                        filter.id === storytreePanelFilter ? 'border-black/30 bg-black/10 text-black' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary].join(' '),
+                      )}
+                      aria-pressed={filter.id === storytreePanelFilter}
+                      aria-label={`Strybldr storytree filter ${filter.label}`}
+                      onClick={() => setStorytreePanelFilter(filter.id)}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+                {selectedStorytreeCard ? (
+                  <>
+                    <select
+                      className={cn('w-full rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
+                      value={selectedStorytreeCard.id}
+                      aria-label="Strybldr storytree branch"
+                      onChange={e => setSelectedStorytreeCardId(e.target.value)}
+                    >
+                      {visibleStorytreeCards.map(card => (
+                        <option key={card.id} value={card.id}>
+                          {card.title}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        type="button"
+                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        aria-label="Strybldr like storytree branch"
+                        onClick={likeSelectedStorytreeCard}
+                      >
+                        <Heart className="h-3.5 w-3.5" aria-hidden={true} fill={readBoolean(selectedStorytreeCard.tags.includes('liked')) ? 'currentColor' : 'none'} />
+                        Like
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        aria-label="Strybldr unlock storytree branch"
+                        disabled={!selectedStorytreeCard.tags.includes('unlock-ready') && !selectedStorytreeCard.tags.includes('unlock-needs-credits') && !selectedStorytreeCard.tags.includes('protected')}
+                        onClick={unlockSelectedStorytreeCard}
+                      >
+                        <Lock className="h-3.5 w-3.5" aria-hidden={true} />
+                        Unlock
+                      </button>
+                      <button
+                        type="button"
+                        className={cn('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.secondary)}
+                        aria-label="Strybldr draft storytree continuation"
+                        disabled={selectedStorytreeCard.tags.includes('dropped')}
+                        onClick={draftSelectedStorytreeContinuation}
+                      >
+                        <Wand2 className="h-3.5 w-3.5" aria-hidden={true} />
+                        Draft
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className={cn('m-0 text-xs', UI_THEME_TOKENS.text.secondary)}>No Storytree cards match this filter.</p>
+                )}
+              </section>
+            ) : null}
             {selectedCard ? (
               <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr card editor">
                 <div className="flex items-center gap-2">

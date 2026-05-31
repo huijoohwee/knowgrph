@@ -5,6 +5,7 @@ export type ExportMenuActionKey =
   | 'png'
   | 'gltf'
   | 'glb'
+  | 'htmlWorkspace'
   | 'htmlViewer'
   | 'htmlCanvas'
   | 'json'
@@ -25,6 +26,7 @@ export const WORKSPACE_EXPORT_MENU_ITEMS: readonly ExportMenuItem[] = [
   { id: 'png', menuLabel: 'PNG (.png)', toastLabel: 'PNG' },
   { id: 'gltf', menuLabel: 'GLTF (.gltf) - 3D scene', toastLabel: 'GLTF' },
   { id: 'glb', menuLabel: 'GLB (.glb) - 3D scene', toastLabel: 'GLB' },
+  { id: 'htmlWorkspace', menuLabel: 'HTML (.html) — Workspace', toastLabel: 'HTML Workspace' },
   { id: 'htmlViewer', menuLabel: 'HTML (.html) — Viewer', toastLabel: 'HTML Viewer' },
   { id: 'htmlCanvas', menuLabel: 'HTML (.html) — Canvas', toastLabel: 'HTML Canvas' },
   { id: 'json', menuLabel: 'JSON (.json)', toastLabel: 'JSON' },

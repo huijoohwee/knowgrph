@@ -221,7 +221,7 @@ export default function CanvasPage() {
                 aria-label="Workspace Toolbar Header"
                 onPointerDown={() => setToolbarHeaderElevated(true)}
               >
-                <nav className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+0.5rem)] left-[calc(var(--kg-safe-left)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                <nav className="kg-workspace-overlay-canvas-toolbar absolute top-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] left-[calc(var(--kg-safe-left)+var(--kg-canvas-viewport-edge-gap))] right-[calc(var(--kg-safe-right)+var(--kg-canvas-viewport-edge-gap))] z-[200] flex min-w-0 items-start justify-end overflow-visible bg-transparent" aria-label="Canvas Toolbar" role="navigation">
                   <div className="pointer-events-auto min-w-0 max-w-full">
                     {workspaceDocumentSwitchPending ? (
                       <div
@@ -253,7 +253,7 @@ export default function CanvasPage() {
                   >
                     {!workspaceEditorOverlayOpen ? (
                       <nav
-                        className="kg-canvas-toolbar-dock absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
+                        className="kg-canvas-toolbar-dock absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+var(--kg-canvas-viewport-edge-gap))] pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"
                         role="navigation"
                       >

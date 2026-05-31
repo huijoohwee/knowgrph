@@ -22,6 +22,10 @@ import { buildCorpusQueryEvidencePack, buildCorpusQueryEvidencePrompt } from '@/
 import { buildProviderChatRequestOptions, parseLine, toShortId } from '../FloatingPanelChat.helpers'
 import type { ChatMessage } from '../FloatingPanelChatSections'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
+import {
+  buildKnowgrphVdeoxplnChatSystemPrompt,
+  buildKnowgrphVdeoxplnRoutingPlan,
+} from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
 
 export type ChatSubmitMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
@@ -158,6 +162,30 @@ export const buildChatSubmitRequestContext = async (args: {
     })
     if (workspaceContextPrompt) systemMessages.push({ role: 'system', content: workspaceContextPrompt })
   }
+  const vdeoxplnPlan = buildKnowgrphVdeoxplnRoutingPlan({
+    intentText: userQuery,
+    chatStorageTarget: args.submitArgs.chatStorageTarget,
+    contentTypes: [
+      args.submitArgs.chatStorageTarget === 'chatKnowgrph' ? 'kgc markdown' : 'chat response',
+      args.submitArgs.markdownText ? 'workspace document markdown' : '',
+    ],
+    requestedOutputs: args.submitArgs.chatStorageTarget === 'chatKnowgrph'
+      ? ['validated KGC Markdown', 'workspace artifact', 'GraphData', 'canvas topology snapshot']
+      : ['chat history'],
+    stateSignals: [
+      args.submitArgs.chatContextScope,
+      args.submitArgs.sourceFiles.length > 0 ? 'source evidence source files' : '',
+      args.submitArgs.graphData ? 'graph canvas topology' : '',
+      args.submitArgs.currentNode ? 'selection context' : '',
+    ],
+    sourceFileCount: args.submitArgs.sourceFiles.length,
+    hasSourceFiles: args.submitArgs.sourceFiles.length > 0,
+    hasGraphData: Boolean(args.submitArgs.graphData),
+    hasSelection: Boolean(args.submitArgs.currentNode),
+    hasWorkspaceDocument: Boolean(args.submitArgs.markdownText || args.submitArgs.markdownDocumentName),
+  })
+  const vdeoxplnPrompt = buildKnowgrphVdeoxplnChatSystemPrompt(vdeoxplnPlan)
+  if (vdeoxplnPrompt) systemMessages.push({ role: 'system', content: vdeoxplnPrompt })
 
   return {
     packedContext,

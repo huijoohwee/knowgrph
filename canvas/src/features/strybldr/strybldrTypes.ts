@@ -47,6 +47,64 @@ export type StrybldrElement = {
   summary?: string | null
 }
 
+export type StrytreeStoryNode = {
+  nodeId: string
+  parentNodeId?: string | null
+  title: string
+  synopsis: string
+  prompt?: string | null
+  authorName?: string | null
+  status: 'active' | 'hot' | 'locked' | 'dropped' | 'draft'
+  duration?: string | null
+  ageDays?: number | null
+  isFreeWindow?: boolean
+  isProtected?: boolean
+  unlockPriceCredits?: number
+  likes?: number
+  impressions?: number
+  paidUnlocks?: number
+  videoUrl?: string | null
+  ownAssetIds?: string[]
+}
+
+export type StrytreeStorySnapshot = {
+  storyId: string
+  title: string
+  synopsis?: string | null
+  tokenBalance?: number
+  activeBranchCount?: number
+  totalLikes?: number
+  generationCostCredits?: number
+  unlockCurrency?: string | null
+  nodes: StrytreeStoryNode[]
+}
+
+export type StrybldrExplainerVideoPanelTab = 'text' | 'image' | 'video'
+
+export type StrybldrExplainerVideoPanel = {
+  panelId: string
+  title: string
+  activeTab: StrybldrExplainerVideoPanelTab
+  output?: string | null
+  outputSrcDoc?: string | null
+  imageUrl?: string | null
+  videoUrl?: string | null
+  summary?: string | null
+  prompt?: string | null
+  sourceNodeId?: string | null
+}
+
+export type StrybldrExplainerVideoSnapshot = {
+  mode?: 'xr' | '2d' | '3d' | null
+  title: string
+  summary?: string | null
+  transcriptMarkdown?: string | null
+  storyboardPrompt?: string | null
+  referenceImageUrl?: string | null
+  videoUrl?: string | null
+  panels: StrybldrExplainerVideoPanel[]
+}
+
 export type StrybldrStoryboardDocument = {
   version: 1
   runId: string
@@ -54,6 +112,8 @@ export type StrybldrStoryboardDocument = {
   sources: StrybldrSource[]
   elements: StrybldrElement[]
   notes?: string | null
+  storytree?: StrytreeStorySnapshot | null
+  explainerVideo?: StrybldrExplainerVideoSnapshot | null
 }
 
 export type StrybldrVideoHandoffCard = {

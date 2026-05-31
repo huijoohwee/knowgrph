@@ -435,13 +435,14 @@ export function useSnapshotExportHandlers({
             return svgWithEdgeGeometry
           }
         })()
-        const svgMarkupStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+        const svgMarkupStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback, inlineRemoteAssets: true })
 
         const html = await buildGraphHtmlViewerMarkup({
           title,
           svgMarkup: String(svgMarkupStandalone || '').trim() || null,
           overlayHtml: captureLiveOverlayHtmlForHtmlViewerExport(),
           graphData: graphDataForViewer,
+          inlineRemoteMediaAssets: true,
           viewportControlsPreset: readViewportControlsPresetFromLocalStorage() || 'map',
           preferWebgl3d: wants3dExport,
           initialView: initialView || undefined,
@@ -707,12 +708,13 @@ export function useSnapshotExportHandlers({
             return svgWithEdgeGeometry
           }
         })()
-        const svgOnlyStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+        const svgOnlyStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback, inlineRemoteAssets: true })
 
         const html = await buildGraphHtmlViewerMarkup({
           title,
           svgMarkup: String(svgOnlyStandalone || '').trim() || null,
           graphData: graphDataForViewer,
+          inlineRemoteMediaAssets: true,
           preferWebgl3d: wants3dExport,
           initialView: initialView || undefined,
           zoomLabelScaleMode2d: store.zoomLabelScaleMode2d,

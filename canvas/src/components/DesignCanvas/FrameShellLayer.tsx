@@ -73,6 +73,7 @@ export function DesignCanvasFrameShellLayer(props: {
         const typeWidth = Math.max(0, rect.w - 24) * 0.34
         const labelText = truncateText(node.label, estimateMaxChars(labelWidth, 12))
         const typeText = truncateText(String(node.type || node.id), estimateMaxChars(typeWidth, 10))
+        const renderFallbackDecor = visual.showDecor && !preview
 
         return (
           <g
@@ -118,7 +119,7 @@ export function DesignCanvasFrameShellLayer(props: {
                 onOverlayPanEnd={onOverlayPanEnd}
               />
             ) : null}
-            {visual.showDecor ? (
+            {renderFallbackDecor ? (
               <path
                 ref={el => registerFrameStatusEl(node.id, el)}
                 data-kg-frame-status="1"
@@ -127,14 +128,14 @@ export function DesignCanvasFrameShellLayer(props: {
                 opacity={0.5}
               />
             ) : null}
-            {visual.showDecor ? (
+            {renderFallbackDecor ? (
               <g transform="translate(16, 48)" opacity={0.3}>
                 <rect width={rect.w - 32} height={12} rx={2} fill="var(--kg-text-tertiary)" />
                 <rect y={20} width={(rect.w - 32) * 0.6} height={12} rx={2} fill="var(--kg-text-tertiary)" />
                 <rect y={40} width={rect.w - 32} height={rect.h - 100} rx={4} fill="var(--kg-border)" />
               </g>
             ) : null}
-            {!visual.showDecor ? (
+            {!renderFallbackDecor && !preview ? (
               <>
                 <text x={12} y={22} fill="var(--kg-text-primary)" fontSize={12} fontWeight={600} style={{ pointerEvents: 'none' }}>
                   {labelText}

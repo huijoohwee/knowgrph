@@ -6,6 +6,13 @@ import FlowCanvas from '@/components/FlowCanvas'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { defaultSchema } from '@/lib/graph/schema'
+import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 
 type Ctx2d = Partial<CanvasRenderingContext2D>
 
@@ -18,6 +25,18 @@ const waitFor = async (args: { ms: number; pollMs: number; ok: () => boolean }) 
     await sleep(Math.max(1, args.pollMs))
   }
   throw new Error('timed out waiting for condition')
+}
+
+const createFlowCanvasTestDom = (): JSDOM => {
+  if (
+    typeof window !== 'undefined' &&
+    typeof document !== 'undefined' &&
+    typeof window.HTMLCanvasElement === 'function'
+  ) {
+    document.body.innerHTML = ''
+    return { window } as unknown as JSDOM
+  }
+  return new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
 }
 
 const installDomStubs = (dom: JSDOM) => {
@@ -97,8 +116,147 @@ const installDomStubs = (dom: JSDOM) => {
   }
 }
 
+const installFlowCanvasViewportRect = (dom: JSDOM, width = 960, height = 540) => {
+  const rect = {
+    left: 0,
+    top: 0,
+    right: width,
+    bottom: height,
+    width,
+    height,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => width })
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => height })
+  dom.window.HTMLElement.prototype.getBoundingClientRect = function () {
+    return rect
+  }
+  dom.window.HTMLCanvasElement.prototype.getBoundingClientRect = function () {
+    return rect
+  }
+  dom.window.HTMLCanvasElement.prototype.setPointerCapture = function () {}
+  dom.window.HTMLCanvasElement.prototype.releasePointerCapture = function () {}
+  dom.window.HTMLCanvasElement.prototype.hasPointerCapture = function () {
+    return true
+  }
+}
+
+const dispatchFlowCanvasPointerEvent = (
+  target: EventTarget,
+  win: Window,
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+  args: { pointerId?: number; clientX?: number; clientY?: number; button?: number; buttons?: number } = {},
+) => {
+  type MouseEventConstructorLike = new (eventType: string, eventInitDict?: Record<string, unknown>) => Event
+  const MouseEventCtor = (win as unknown as { MouseEvent: MouseEventConstructorLike }).MouseEvent
+  const event = new MouseEventCtor(type, {
+    bubbles: true,
+    cancelable: true,
+    button: args.button ?? 0,
+    buttons: args.buttons ?? (type === 'pointerup' || type === 'pointercancel' ? 0 : 1),
+    clientX: args.clientX ?? 0,
+    clientY: args.clientY ?? 0,
+  })
+  Object.defineProperty(event, 'pointerId', { configurable: true, value: args.pointerId ?? 1 })
+  Object.defineProperty(event, 'pointerType', { configurable: true, value: 'mouse' })
+  target.dispatchEvent(event)
+}
+
+const readFlowSceneSignature = (runtime: import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime) => {
+  const scene = runtime.scene
+  return JSON.stringify({
+    nodes: scene.nodes.map(node => ({ id: node.id, x: node.x, y: node.y, w: node.width, h: node.height, shape: node.shape })).sort((a, b) => a.id.localeCompare(b.id)),
+    edges: scene.edges.map(edge => ({ id: edge.id, source: edge.source, target: edge.target })).sort((a, b) => a.id.localeCompare(b.id)),
+    groups: (scene.groups || []).map(group => ({
+      id: group.id,
+      label: group.label,
+      source: group.source,
+      members: Array.isArray(group.memberNodeIds) ? group.memberNodeIds.slice().sort() : [],
+    })).sort((a, b) => a.id.localeCompare(b.id)),
+  })
+}
+
+const buildCollectiveFlowEditorGraphFixture = () => ({
+  type: 'Graph',
+  context: 'flow',
+  nodes: [
+    { id: 'left', label: 'Left', type: 'Note', properties: { 'visual:layer': 'Subgraph A' }, x: -360, y: -180 },
+    { id: 'right', label: 'Right', type: 'Note', properties: { 'visual:community': 'Cluster B' }, x: 420, y: 240 },
+    {
+      id: 'widget-text',
+      label: 'Widget Text',
+      type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      properties: {
+        'flow:widgetFormId': 'textGeneration',
+        'flow:portTypes': { in: { prompt: 'text' }, out: { result: 'text' } },
+        'visual:layer': 'Subgraph A',
+      },
+      x: -80,
+      y: 80,
+    },
+    {
+      id: 'widget-image',
+      label: 'Widget Image',
+      type: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+      properties: {
+        'flow:widgetFormId': 'imageGeneration',
+        'flow:portTypes': { in: { prompt: 'text' }, out: { image: 'image' } },
+        'visual:layer': 'Subgraph A',
+      },
+      x: 180,
+      y: 40,
+    },
+    {
+      id: 'widget-video',
+      label: 'Widget Video',
+      type: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+      properties: {
+        'flow:widgetFormId': 'videoGeneration',
+        'flow:portTypes': { in: { prompt: 'text', image: 'image' }, out: { video: 'video' } },
+        'visual:community': 'Cluster B',
+      },
+      x: 470,
+      y: -80,
+    },
+    {
+      id: 'rich-panel',
+      label: 'Rich Media Panel',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      properties: {
+        'flow:widgetFormId': 'richMediaPanel',
+        'flow:portTypes': { in: { image: 'image', video: 'video' }, out: { selected: 'media' } },
+        media_interactive: true,
+        richMediaActiveTab: 'image',
+        imageUrl: 'https://example.test/demo.png',
+        videoUrl: 'https://example.test/demo.mp4',
+        'visual:community': 'Cluster B',
+      },
+      x: 780,
+      y: -80,
+    },
+  ],
+  edges: [
+    { id: 'edge-left-widget', source: 'left', target: 'widget-text', label: 'feeds', properties: { 'flow:sourcePort': 'result', 'flow:targetPort': 'prompt' } },
+    { id: 'edge-text-image', source: 'widget-text', target: 'widget-image', label: 'image prompt', properties: { 'flow:sourcePort': 'result', 'flow:targetPort': 'prompt' } },
+    { id: 'edge-image-video', source: 'widget-image', target: 'widget-video', label: 'image input', properties: { 'flow:sourcePort': 'image', 'flow:targetPort': 'image' } },
+    { id: 'edge-video-rich', source: 'widget-video', target: 'rich-panel', label: 'renders video', properties: { 'flow:sourcePort': 'video', 'flow:targetPort': 'video' } },
+    { id: 'edge-right-rich', source: 'right', target: 'rich-panel', label: 'context', properties: {} },
+  ],
+  metadata: {
+    kind: 'test',
+    source: 'flowEditorCollectiveInteractions',
+    [KG_SUBGRAPHS_KEY]: [
+      { id: 'sg-a', label: 'Subgraph A', kind: 'subgraph', memberNodeIds: ['left', 'widget-text', 'widget-image'] },
+      { id: 'cluster-b', label: 'Cluster B', kind: 'cluster', memberNodeIds: ['right', 'widget-video', 'rich-panel'] },
+      { id: 'group-all', label: 'Workflow Group', kind: 'group', memberNodeIds: ['left', 'right', 'widget-text', 'widget-image', 'widget-video', 'rich-panel'] },
+    ],
+  },
+})
+
 export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const dom = createFlowCanvasTestDom()
   installDomStubs(dom)
 
   const priorState = useGraphStore.getState()
@@ -113,15 +271,20 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
   useGraphStore.setState({
     graphData: baseGraphData,
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    schema: defaultSchema,
     canvasRenderMode: '2d',
     canvas2dRenderer: 'flow',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
+    markdownDocumentName: null,
+    markdownDocumentText: '',
+    markdownDocumentApplyViewPreset: false,
     documentStructureBaselineLock: false,
     documentStructureBaselineSnapshot: null,
     zoomRequest: null,
     zoomStateByKey: {},
     zoomState: { k: 1, x: 0, y: 0 },
+    layoutPositionCacheByMode: {},
   })
 
   const host = dom.window.document.createElement('section')
@@ -188,16 +351,381 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
   useGraphStore.setState({
     graphData: priorState.graphData,
     graphDataRevision: priorState.graphDataRevision,
+    schema: priorState.schema,
     frontmatterModeEnabled: priorState.frontmatterModeEnabled,
     documentSemanticMode: priorState.documentSemanticMode,
+    markdownDocumentName: priorState.markdownDocumentName,
+    markdownDocumentText: priorState.markdownDocumentText,
+    markdownDocumentApplyViewPreset: priorState.markdownDocumentApplyViewPreset,
     zoomRequest: priorState.zoomRequest,
     zoomStateByKey: priorState.zoomStateByKey,
     zoomState: priorState.zoomState,
+    layoutPositionCacheByMode: priorState.layoutPositionCacheByMode,
   })
 }
 
+export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWrites = async () => {
+  const dom = createFlowCanvasTestDom()
+  installDomStubs(dom)
+  installFlowCanvasViewportRect(dom, 960, 540)
+
+  const priorState = useGraphStore.getState()
+  const runtimeHolder: { ref: React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null } = { ref: null }
+  const graphData = buildCollectiveFlowEditorGraphFixture()
+  const schema = {
+    ...defaultSchema,
+    performance: {
+      ...(defaultSchema.performance || {}),
+      zoom: {
+        ...(defaultSchema.performance?.zoom || {}),
+        wheelBehavior: 'pan',
+      },
+    },
+  }
+
+  useGraphStore.setState({
+    graphData,
+    graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    schema,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'flowEditor',
+    frontmatterModeEnabled: false,
+    documentSemanticMode: 'document',
+    markdownDocumentName: null,
+    markdownDocumentText: '',
+    markdownDocumentApplyViewPreset: false,
+    documentStructureBaselineLock: false,
+    documentStructureBaselineSnapshot: null,
+    zoomRequest: null,
+    zoomStateByKey: {},
+    zoomState: { k: 1, x: 0, y: 0 },
+    layoutPositionCacheByMode: {},
+    viewportControlsPreset: 'design',
+    canvasPointerMode2d: 'pan',
+    fitToScreenMode: false,
+    zoomToSelectionMode: false,
+    viewPinned: false,
+  } as never)
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  root.render(React.createElement(FlowCanvas, {
+    active: true,
+    exposeRuntimeRef: ref => {
+      runtimeHolder.ref = ref
+    },
+  }))
+
+  try {
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => {
+      const scene = runtimeHolder.ref?.current?.scene
+      return !!(
+        scene &&
+        (scene.nodes.length || 0) === 6 &&
+        (scene.edges.length || 0) === 5 &&
+        (scene.groups?.length || 0) >= 5
+      )
+    },
+  }).catch(e => {
+    throw new Error(`stage=flowEditorSceneBuild ${String((e as { message?: unknown })?.message ?? e)}`)
+  })
+
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => {
+      const t = runtimeHolder.ref?.current?.transform
+      return !!t && Number.isFinite(t.x) && Number.isFinite(t.y) && Number.isFinite(t.k)
+    },
+  })
+
+  const runtime = runtimeHolder.ref?.current
+  const canvas = host.querySelector('canvas')
+  if (!runtime || !canvas) throw new Error('expected mounted Flow Editor runtime and canvas')
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => runtime.scene.nodes.some(node => Math.abs(node.x) > 1 || Math.abs(node.y) > 1),
+  }).catch(e => {
+    throw new Error(`stage=flowEditorInitialSceneLayout ${String((e as { message?: unknown })?.message ?? e)}`)
+  })
+  const beforeTransform = runtime.transform
+  const beforePositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
+  const beforeGraphData = JSON.stringify(useGraphStore.getState().graphData)
+  const expectedNodeIds = ['left', 'right', 'widget-text', 'widget-image', 'widget-video', 'rich-panel']
+  for (let i = 0; i < expectedNodeIds.length; i += 1) {
+    if (!runtime.scene.nodeById.has(expectedNodeIds[i]!)) {
+      throw new Error(`expected collective Flow Editor scene to include ${expectedNodeIds[i]}`)
+    }
+  }
+  const beforeSceneKey = String(__flowCanvasDebug.lastBuiltSceneKey || '')
+  const beforeSceneSignature = readFlowSceneSignature(runtime)
+
+  for (let i = 0; i < 5; i += 1) {
+    canvas.dispatchEvent(new dom.window.WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaMode: 0,
+      deltaX: 180,
+      deltaY: 0,
+      clientX: 480,
+      clientY: 270,
+    }))
+  }
+
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => {
+      const t = runtime.transform
+      return Math.abs(t.x - beforeTransform.x) > 300
+    },
+  }).catch(e => {
+    throw new Error(`stage=wheelPanMoved ${String((e as { message?: unknown })?.message ?? e)} before=${beforeTransform.x},${beforeTransform.y} after=${runtime.transform.x},${runtime.transform.y}`)
+  })
+
+  const afterTransform = runtime.transform
+  const key = String(__flowCanvasDebug.lastZoomViewKey || '')
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => {
+      const st = useGraphStore.getState()
+      const committed = (key ? st.zoomStateByKey?.[key] : null) || st.zoomState || null
+      return !!(
+        committed &&
+        Math.abs(committed.x - afterTransform.x) <= 1e-6 &&
+        Math.abs(committed.y - afterTransform.y) <= 1e-6
+      )
+    },
+  }).catch(e => {
+    const st = useGraphStore.getState()
+    throw new Error(`stage=deferredPanCommit ${String((e as { message?: unknown })?.message ?? e)} key=${key} keyed=${JSON.stringify(key ? st.zoomStateByKey?.[key] : null)} global=${JSON.stringify(st.zoomState)} transform=${afterTransform.x},${afterTransform.y}`)
+  })
+  const afterPositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
+  const afterGraphData = JSON.stringify(useGraphStore.getState().graphData)
+  const afterSceneSignature = readFlowSceneSignature(runtime)
+  if (afterTransform.x > beforeTransform.x - 300) {
+    throw new Error(`expected Flow Editor wheel pan to remain off-viewport instead of bouncing back, before=${beforeTransform.x} after=${afterTransform.x}`)
+  }
+  if (Math.abs(afterTransform.y - beforeTransform.y) > 1e-6) {
+    throw new Error(`expected horizontal wheel pan to preserve y transform, before=${beforeTransform.y} after=${afterTransform.y}`)
+  }
+  if (afterPositions !== beforePositions) {
+    throw new Error(`expected Flow Editor wheel pan to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
+  }
+  if (afterGraphData !== beforeGraphData) {
+    throw new Error('expected Flow Editor wheel pan to avoid mutating source graph data for nodes, widgets, groups, edges, or rich media panels')
+  }
+  if (afterSceneSignature !== beforeSceneSignature) {
+    throw new Error(`expected Flow Editor wheel pan to preserve native scene layout for nodes/widgets/subgraphs/clusters/groups/edges/rich media panels, before=${beforeSceneSignature} after=${afterSceneSignature}`)
+  }
+  if (String(__flowCanvasDebug.lastBuiltSceneKey || '') !== beforeSceneKey) {
+    throw new Error('expected Flow Editor wheel pan not to rebuild collective native scene')
+  }
+  } finally {
+    root.unmount()
+    useGraphStore.setState({
+      graphData: priorState.graphData,
+      graphDataRevision: priorState.graphDataRevision,
+      schema: priorState.schema,
+      frontmatterModeEnabled: priorState.frontmatterModeEnabled,
+      documentSemanticMode: priorState.documentSemanticMode,
+      markdownDocumentName: priorState.markdownDocumentName,
+      markdownDocumentText: priorState.markdownDocumentText,
+      markdownDocumentApplyViewPreset: priorState.markdownDocumentApplyViewPreset,
+      documentStructureBaselineLock: priorState.documentStructureBaselineLock,
+      documentStructureBaselineSnapshot: priorState.documentStructureBaselineSnapshot,
+      zoomRequest: priorState.zoomRequest,
+      zoomStateByKey: priorState.zoomStateByKey,
+      zoomState: priorState.zoomState,
+      layoutPositionCacheByMode: priorState.layoutPositionCacheByMode,
+      canvasRenderMode: priorState.canvasRenderMode,
+      canvas2dRenderer: priorState.canvas2dRenderer,
+      viewportControlsPreset: priorState.viewportControlsPreset,
+      canvasPointerMode2d: priorState.canvasPointerMode2d,
+      fitToScreenMode: priorState.fitToScreenMode,
+      zoomToSelectionMode: priorState.zoomToSelectionMode,
+      viewPinned: priorState.viewPinned,
+    } as never)
+  }
+}
+
+export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable = async () => {
+  const dom = createFlowCanvasTestDom()
+  installDomStubs(dom)
+  installFlowCanvasViewportRect(dom, 960, 540)
+
+  const priorState = useGraphStore.getState()
+  const runtimeHolder: { ref: React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null } = { ref: null }
+  const graphData = buildCollectiveFlowEditorGraphFixture()
+  const schema = {
+    ...defaultSchema,
+    performance: {
+      ...(defaultSchema.performance || {}),
+      zoom: {
+        ...(defaultSchema.performance?.zoom || {}),
+        wheelBehavior: 'zoom',
+        smoothDurationMs: 0,
+      },
+    },
+  }
+
+  useGraphStore.setState({
+    graphData,
+    graphDataRevision: (priorState.graphDataRevision || 0) + 1,
+    schema,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'flowEditor',
+    frontmatterModeEnabled: false,
+    documentSemanticMode: 'document',
+    markdownDocumentName: null,
+    markdownDocumentText: '',
+    markdownDocumentApplyViewPreset: false,
+    documentStructureBaselineLock: false,
+    documentStructureBaselineSnapshot: null,
+    zoomRequest: null,
+    zoomStateByKey: {},
+    zoomState: { k: 1, x: 0, y: 0 },
+    layoutPositionCacheByMode: {},
+    viewportControlsPreset: 'design',
+    canvasPointerMode2d: 'pan',
+    fitToScreenMode: false,
+    zoomToSelectionMode: false,
+    viewPinned: false,
+    workspaceViewMode: 'canvas',
+    workspaceCanvasPaneOpen: false,
+  } as never)
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  root.render(React.createElement(FlowCanvas, {
+    active: true,
+    exposeRuntimeRef: ref => {
+      runtimeHolder.ref = ref
+    },
+  }))
+
+  try {
+    await waitFor({
+      ms: 5_000,
+      pollMs: 25,
+      ok: () => {
+        const scene = runtimeHolder.ref?.current?.scene
+        return !!(
+          scene &&
+          (scene.nodes.length || 0) === 6 &&
+          (scene.edges.length || 0) === 5 &&
+          (scene.groups?.length || 0) >= 5
+        )
+      },
+    }).catch(e => {
+      throw new Error(`stage=collectiveSceneBuild ${String((e as { message?: unknown })?.message ?? e)}`)
+    })
+
+    const runtime = runtimeHolder.ref?.current
+    const canvas = host.querySelector('canvas')
+    if (!runtime || !canvas) throw new Error('expected mounted Flow Editor runtime and canvas')
+
+    await waitFor({
+      ms: 5_000,
+      pollMs: 25,
+      ok: () => runtime.scene.nodes.every(node => Number.isFinite(node.x) && Number.isFinite(node.y)) &&
+        runtime.scene.nodes.some(node => Math.abs(node.x) > 1 || Math.abs(node.y) > 1),
+    })
+
+    const beforeTransform = runtime.transform
+    const beforeSceneKey = String(__flowCanvasDebug.lastBuiltSceneKey || '')
+    const beforeSceneSignature = readFlowSceneSignature(runtime)
+    const beforePositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
+    const beforeGraphData = JSON.stringify(useGraphStore.getState().graphData)
+
+    dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointerdown', { pointerId: 31, button: 1, clientX: 220, clientY: 180, buttons: 4 })
+    dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointermove', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 4 })
+    dispatchFlowCanvasPointerEvent(dom.window, dom.window, 'pointermove', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 4 })
+    dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointerup', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 0 })
+    dispatchFlowCanvasPointerEvent(dom.window, dom.window, 'pointerup', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 0 })
+
+    await waitFor({
+      ms: 5_000,
+      pollMs: 25,
+      ok: () => Math.abs(runtime.transform.x - beforeTransform.x) > 20 || Math.abs(runtime.transform.y - beforeTransform.y) > 20,
+    }).catch(e => {
+      throw new Error(`stage=pointerDragPanMoved ${String((e as { message?: unknown })?.message ?? e)} before=${beforeTransform.x},${beforeTransform.y} after=${runtime.transform.x},${runtime.transform.y}`)
+    })
+
+    const afterDragTransform = runtime.transform
+    useGraphStore.getState().requestZoom('in')
+
+    await waitFor({
+      ms: 5_000,
+      pollMs: 25,
+      ok: () => runtime.transform.k > afterDragTransform.k + 1e-6,
+    }).catch(e => {
+      throw new Error(`stage=zoomRequestChangedScale ${String((e as { message?: unknown })?.message ?? e)} beforeK=${afterDragTransform.k} afterK=${runtime.transform.k}`)
+    })
+
+    useGraphStore.getState().setWorkspaceViewMode('editor')
+    useGraphStore.getState().setWorkspaceCanvasPaneOpen(true)
+    await sleep(100)
+    useGraphStore.getState().setWorkspaceCanvasPaneOpen(false)
+    useGraphStore.getState().setWorkspaceViewMode('canvas')
+    await sleep(100)
+
+    const afterPositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
+    const afterGraphData = JSON.stringify(useGraphStore.getState().graphData)
+    const afterSceneSignature = readFlowSceneSignature(runtime)
+    const afterSceneKey = String(__flowCanvasDebug.lastBuiltSceneKey || '')
+
+    if (afterPositions !== beforePositions) {
+      throw new Error(`expected Flow Editor drag/zoom/workspace toggle to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
+    }
+    if (afterGraphData !== beforeGraphData) {
+      throw new Error('expected Flow Editor drag/zoom/workspace toggle to avoid mutating graph data for collective elements')
+    }
+    if (afterSceneSignature !== beforeSceneSignature) {
+      throw new Error(`expected Flow Editor drag/zoom/workspace toggle to preserve collective scene layout, before=${beforeSceneSignature} after=${afterSceneSignature}`)
+    }
+    if (afterSceneKey !== beforeSceneKey) {
+      throw new Error('expected Flow Editor drag/zoom/workspace toggle not to rebuild collective native scene')
+    }
+  } finally {
+    root.unmount()
+    useGraphStore.setState({
+      graphData: priorState.graphData,
+      graphDataRevision: priorState.graphDataRevision,
+      schema: priorState.schema,
+      frontmatterModeEnabled: priorState.frontmatterModeEnabled,
+      documentSemanticMode: priorState.documentSemanticMode,
+      markdownDocumentName: priorState.markdownDocumentName,
+      markdownDocumentText: priorState.markdownDocumentText,
+      markdownDocumentApplyViewPreset: priorState.markdownDocumentApplyViewPreset,
+      documentStructureBaselineLock: priorState.documentStructureBaselineLock,
+      documentStructureBaselineSnapshot: priorState.documentStructureBaselineSnapshot,
+      zoomRequest: priorState.zoomRequest,
+      zoomStateByKey: priorState.zoomStateByKey,
+      zoomState: priorState.zoomState,
+      layoutPositionCacheByMode: priorState.layoutPositionCacheByMode,
+      canvasRenderMode: priorState.canvasRenderMode,
+      canvas2dRenderer: priorState.canvas2dRenderer,
+      viewportControlsPreset: priorState.viewportControlsPreset,
+      canvasPointerMode2d: priorState.canvasPointerMode2d,
+      fitToScreenMode: priorState.fitToScreenMode,
+      zoomToSelectionMode: priorState.zoomToSelectionMode,
+      viewPinned: priorState.viewPinned,
+      workspaceViewMode: priorState.workspaceViewMode,
+      workspaceCanvasPaneOpen: priorState.workspaceCanvasPaneOpen,
+    } as never)
+  }
+}
+
 export const testFlowCanvasAutoFitToScreenRunsInFlowRenderer = async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const dom = createFlowCanvasTestDom()
   installDomStubs(dom)
 
   const priorState = useGraphStore.getState()
@@ -264,7 +792,7 @@ export const testFlowCanvasAutoFitToScreenRunsInFlowRenderer = async () => {
 }
 
 export const testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer = async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const dom = createFlowCanvasTestDom()
   installDomStubs(dom)
 
   const priorState = useGraphStore.getState()
@@ -344,7 +872,7 @@ export const testFlowCanvasAutoZoomToSelectionRunsInFlowRenderer = async () => {
 }
 
 export const testFlowCanvasRebuildsSceneWhenPortHandlesToggleChangesSchemaPresentation = async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const dom = createFlowCanvasTestDom()
   installDomStubs(dom)
 
   const priorState = useGraphStore.getState()

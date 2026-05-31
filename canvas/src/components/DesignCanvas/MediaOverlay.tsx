@@ -47,6 +47,7 @@ export function DesignCanvasMediaOverlay(props: {
           srcDoc={node.srcDoc}
           openUrl={node.openUrl}
           kind={node.kind}
+          panelChrome="flowEditor"
           interactive={resolveRichMediaPanelInteractive({
             nodeInteractive: node.interactive,
             renderMediaAsNodes,

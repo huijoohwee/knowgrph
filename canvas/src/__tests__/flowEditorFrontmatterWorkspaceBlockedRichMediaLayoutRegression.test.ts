@@ -33,10 +33,19 @@ export function testFlowEditorFrontmatterWorkspaceBlockedRichMediaLayoutStaysLiv
   if (!panelText.includes("const bodySurfaceStyle: React.CSSProperties = {\n    ...PANEL_FRAME_BODY_STYLE,\n    position: flowEditorInteractionMode ? 'absolute' : 'relative',")) {
     throw new Error('expected shared Rich Media Panel merged body surface styles to preserve absolute positioning in Flow Editor interaction mode')
   }
-  if (!text.includes('const overlayInteractionEnabled = flowEditorOverlayInteractionMode && !workspaceOverlayOpen')) {
+  if (!text.includes("const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Rich Media overlay pan/drag interactions to be enabled from the renderer-level Flow Editor/Flow Canvas gate')
+  }
+  if (!text.includes('const overlayInteractionEnabled = mediaOverlayDragInteractionMode && !workspaceOverlayOpen')) {
     throw new Error('expected Rich Media overlay interactions to remain disabled while workspace mutation blocking is open')
   }
-  if (!text.includes('if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return')) {
-    throw new Error('expected Rich Media runtime position writes to stay blocked while workspace mutation blocking is open')
+  if (!text.includes('if (!mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return')) {
+    throw new Error('expected Rich Media drag/pan runtime writes to stay blocked while workspace mutation blocking is open')
+  }
+  if (!text.includes("const richMediaInfiniteCanvasMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Flow Editor and Flow Canvas Rich Media panel layout to use the shared renderer-level infinite-canvas gate')
+  }
+  if (!text.includes("collision: richMediaInfiniteCanvasMode\n        ? { enabled: false }") || !text.includes("clampToViewport: richMediaInfiniteCanvasMode\n        ? null")) {
+    throw new Error('expected Flow Rich Media panels to preserve infinite-canvas world placement instead of viewport collision/clamp relayout during pan/zoom')
   }
 }

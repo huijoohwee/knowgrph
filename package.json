@@ -22,6 +22,7 @@
     "pages:deploy-cloudflare": "npm run pages:build-sync && npm run pages:functions:build && npx wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true",
     "pages:build-sync-cloudflare": "npm run pages:build-sync && npm run workers:deploy",
     "agent-ready:check": "node ./scripts/check-agent-ready.mjs",
+    "vdeoxpln:check": "node ./scripts/check-vdeoxpln.mjs",
     "auth-md:check": "node ./scripts/check-auth-md.mjs",
     "dns-aid:contract": "node ./scripts/check-dns-aid-contract.mjs",
     "dns-aid:check": "node ./scripts/check-dns-aid-cloudflare.mjs",

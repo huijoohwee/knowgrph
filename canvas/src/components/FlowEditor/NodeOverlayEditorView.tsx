@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
+import { NodeOverlayEditorActionsToolbar, type NodeOverlayEditorActionsToolbarProps } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import { FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { UI_LABELS } from '@/lib/config'
@@ -17,6 +17,11 @@ import {
   WIDGET_ACTIONS_TOOLBAR_OFFSET_PX,
   WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX,
 } from '@/components/FlowEditor/nodeOverlayEditorShared'
+
+type RichMediaPanelToolbarProps = Pick<
+  NodeOverlayEditorActionsToolbarProps,
+  'richMediaViewToggle' | 'richMediaMediaSelector' | 'richMediaAspectToggle' | 'richMediaTextModeToggle' | 'openExternalAction'
+>
 
 export function NodeOverlayEditorView(args: {
   asideRef: React.RefObject<HTMLElement | null>
@@ -35,7 +40,7 @@ export function NodeOverlayEditorView(args: {
   uiIconStrokeWidth: number
   enableHandlesDisabled: boolean
   convertToLoopDisabled: boolean
-  richMediaPanelToolbarProps: Record<string, unknown>
+  richMediaPanelToolbarProps: Partial<RichMediaPanelToolbarProps>
   onRun: () => void
   onDuplicate: () => void
   onClearOutput: () => void
@@ -221,11 +226,11 @@ export function NodeOverlayEditorView(args: {
             enableHandlesDisabled={enableHandlesDisabled}
             convertToLoopDisabled={convertToLoopDisabled}
             duplicateDisabled={pinnedInCanvas}
-            richMediaViewToggle={isRichMediaPanelWidget ? (richMediaPanelToolbarProps as any).richMediaViewToggle : undefined}
-            richMediaMediaSelector={isRichMediaPanelWidget ? (richMediaPanelToolbarProps as any).richMediaMediaSelector : undefined}
-            richMediaAspectToggle={isRichMediaPanelWidget ? (richMediaPanelToolbarProps as any).richMediaAspectToggle : undefined}
-            richMediaTextModeToggle={isRichMediaPanelWidget ? (richMediaPanelToolbarProps as any).richMediaTextModeToggle : undefined}
-            openExternalAction={isRichMediaPanelWidget ? (richMediaPanelToolbarProps as any).openExternalAction : undefined}
+            richMediaViewToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaViewToggle : undefined}
+            richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}
+            richMediaAspectToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaAspectToggle : undefined}
+            richMediaTextModeToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaTextModeToggle : undefined}
+            openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}
             importUrlAction={isVideoTranscriberWidget ? {
               visible: true,
               initialUrl: typeof (node.properties || {}).sourceUrl === 'string' ? String((node.properties || {}).sourceUrl || '').trim() : '',

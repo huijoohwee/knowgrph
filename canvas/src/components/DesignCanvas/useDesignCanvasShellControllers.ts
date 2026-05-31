@@ -22,7 +22,6 @@ type MediaHeaderDragState = {
 
 type UseDesignCanvasShellControllersArgs = {
   interactionActive: boolean
-  canvasPointerMode2d: string
   svgRef: React.RefObject<SVGSVGElement | null>
   mediaOverlayPanRef: React.MutableRefObject<{ pointerId: number; startTransform: d3.ZoomTransform } | null>
   designMediaOverlayElsRef: React.RefObject<Map<string, HTMLElement>>
@@ -35,7 +34,6 @@ type UseDesignCanvasShellControllersArgs = {
 export function useDesignCanvasShellControllers(args: UseDesignCanvasShellControllersArgs) {
   const {
     interactionActive,
-    canvasPointerMode2d,
     svgRef,
     mediaOverlayPanRef,
     designMediaOverlayElsRef,
@@ -134,9 +132,8 @@ export function useDesignCanvasShellControllers(args: UseDesignCanvasShellContro
 
   const shouldStartHeaderDrag = React.useCallback(() => {
     if (isSpacePanHeld()) return false
-    if (canvasPointerMode2d === 'pan') return false
     return true
-  }, [canvasPointerMode2d])
+  }, [])
 
   const onHeaderDragStart = React.useCallback(
     ({ nodeId, pointerId }: { nodeId: string; pointerId: number }) => {
